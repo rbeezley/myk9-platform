@@ -766,7 +766,10 @@ jobs:
     needs: [build, smoke-scope]
     # Runs on Dependabot PRs too, with the Dependabot-scope secrets (MYK9-520):
     # see the comment above.
-    if: (github.event_name == 'push' || github.event_name == 'merge_group' || github.event.pull_request.draft == false) && vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true' && needs.smoke-scope.outputs.run == 'true'
+    # Explicit results, not the implicit `success()`: that also looks at
+    # ancestors, and `queue-verdict` (build's need) is skipped on every PR and
+    # merge-queue run, which would skip this required check (Codex, #4219).
+    if: ${{ !cancelled() && needs.build.result == 'success' && needs.smoke-scope.result == 'success' && (github.event_name == 'push' || github.event_name == 'merge_group' || github.event.pull_request.draft == false) && vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true' && needs.smoke-scope.outputs.run == 'true' }}
 
     steps:
       - uses: actions/checkout@v7
@@ -898,8 +901,9 @@ jobs:
     timeout-minutes: 30
     needs: [build, smoke-scope]
     # Runs on Dependabot PRs too, with the Dependabot-scope secrets (MYK9-520):
-    # see the comment above the a11y job.
-    if: (github.event_name == 'push' || github.event_name == 'merge_group' || github.event.pull_request.draft == false) && vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true' && needs.smoke-scope.outputs.run == 'true'
+    # see the comment above the a11y job, which also explains the explicit
+    # `needs.*.result` checks.
+    if: ${{ !cancelled() && needs.build.result == 'success' && needs.smoke-scope.result == 'success' && (github.event_name == 'push' || github.event_name == 'merge_group' || github.event.pull_request.draft == false) && vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true' && needs.smoke-scope.outputs.run == 'true' }}
 
     steps:
       - uses: actions/checkout@v7

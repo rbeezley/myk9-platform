@@ -369,10 +369,27 @@ describe('CI wiring for the merge queue', () => {
         // function a skipped need would skip this job too.
         expect(ifLine, id).toMatch(/always\(\)|!failure\(\) && !cancelled\(\)/);
       } else {
-        // Inherits the skip: it needs `build`, which carries the queue-verdict arm.
+        // Inherits the skip: it needs `build`, which carries the queue-verdict
+        // arm, so a queue-tested push skips `build` and with it this job.
         expect(needs, `${id} neither needs queue-verdict nor build`).toContain('build');
-        expect(ifLine, id).not.toMatch(/always\(\)|!failure\(\)/);
+        // The implicit `success()` also looks at ANCESTORS, and queue-verdict
+        // is skipped on every PR and queue run: it would skip this required
+        // check (Codex, #4219). Each direct need is checked explicitly instead.
+        expect(ifLine, id).toContain('!cancelled()');
+        for (const need of needs) {
+          expect(ifLine, `${id} does not check needs.${need}.result`).toContain(
+            `needs.${need}.result == 'success'`
+          );
+        }
       }
+    }
+  });
+
+  it('gives every job below queue-verdict a status function, so its skip never cascades', () => {
+    for (const [id, header] of jobs()) {
+      if (id === 'queue-verdict' || id === 'smoke-scope' || !/^ {4}needs:/m.test(header)) continue;
+      const ifLine = header.match(/^ {4}if: (.*)$/m)?.[1] ?? '';
+      expect(ifLine, `${id} relies on the implicit success()`).toMatch(/always\(\)|!cancelled\(\)/);
     }
   });
 

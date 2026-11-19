@@ -6,6 +6,7 @@ vi.mock('../supabaseClient', () => ({
 }));
 
 import {
+  acceptClubAdminInvite,
   cancelClubAdminInvite,
   getClubAdminInvites,
   inviteClubAdmin,
@@ -102,9 +103,45 @@ describe('club admin invites service', () => {
     });
   });
 
-  it('cancels through cancel_club_admin_invite', async () => {
-    mocks.rpc.mockResolvedValue({ data: null, error: null });
-    await cancelClubAdminInvite('i1');
-    expect(mocks.rpc).toHaveBeenCalledWith('cancel_club_admin_invite', { p_invite_id: 'i1' });
+  it.each(['cancelled', 'already_cancelled', 'already_accepted'] as const)(
+    'cancels through cancel_club_admin_invite and returns %s',
+    async outcome => {
+      mocks.rpc.mockResolvedValue({ data: outcome, error: null });
+      await expect(cancelClubAdminInvite('i1')).resolves.toBe(outcome);
+      expect(mocks.rpc).toHaveBeenCalledWith('cancel_club_admin_invite', { p_invite_id: 'i1' });
+    }
+  );
+
+  it('accepts through accept_club_admin_invite with the token', async () => {
+    mocks.rpc.mockResolvedValue({
+      data: [{ outcome: 'accepted', club_id: 'c1', club_name: 'Heartland Club' }],
+      error: null,
+    });
+    await expect(acceptClubAdminInvite('tok-123')).resolves.toEqual({
+      outcome: 'accepted',
+      clubId: 'c1',
+      clubName: 'Heartland Club',
+    });
+    expect(mocks.rpc).toHaveBeenCalledWith('accept_club_admin_invite', { p_token: 'tok-123' });
+  });
+
+  it('returns a non-accepted outcome without club details', async () => {
+    mocks.rpc.mockResolvedValue({
+      data: [{ outcome: 'wrong_account', club_id: null, club_name: null }],
+      error: null,
+    });
+    await expect(acceptClubAdminInvite('tok')).resolves.toEqual({
+      outcome: 'wrong_account',
+      clubId: null,
+      clubName: null,
+    });
+  });
+
+  it('throws the RPC error and rejects an unknown outcome on accept', async () => {
+    const failure = { message: 'nope', code: '42501' };
+    mocks.rpc.mockResolvedValueOnce({ data: null, error: failure });
+    await expect(acceptClubAdminInvite('tok')).rejects.toBe(failure);
+    mocks.rpc.mockResolvedValueOnce({ data: [{ outcome: 'surprise' }], error: null });
+    await expect(acceptClubAdminInvite('tok')).rejects.toThrow('Unexpected');
   });
 });

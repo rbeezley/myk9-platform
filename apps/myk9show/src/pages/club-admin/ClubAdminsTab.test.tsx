@@ -149,7 +149,7 @@ describe('ClubAdminsTab', () => {
     );
     await waitFor(() => expect(mocks.sendClubAdminInviteEmail).toHaveBeenCalledWith('inv-1'));
     expect(mocks.success).toHaveBeenCalledWith(
-      'Invite sent to new@example.test. They become an admin once they create an account and confirm that email.'
+      'Invite sent to new@example.test. They become an admin once they sign in with that email and accept it.'
     );
     expect(mocks.error).not.toHaveBeenCalled();
     expect(mocks.refreshPermissions).not.toHaveBeenCalled();
@@ -208,7 +208,7 @@ describe('ClubAdminsTab', () => {
       },
     ]);
     mocks.sendClubAdminInviteEmail.mockResolvedValue(undefined);
-    mocks.cancelClubAdminInvite.mockResolvedValue(undefined);
+    mocks.cancelClubAdminInvite.mockResolvedValue('cancelled');
     const user = userEvent.setup();
     render(<ClubAdminsTab clubId={CLUB} clubName="Heartland Club" />);
 
@@ -246,6 +246,58 @@ describe('ClubAdminsTab', () => {
       await screen.findByRole('button', { name: 'Resend invite to pending@example.test' })
     );
     await waitFor(() => expect(mocks.error).toHaveBeenCalledWith(message));
+  });
+
+  it('says the invite was already accepted and refreshes both lists when cancel loses the race', async () => {
+    const invite = {
+      inviteId: 'inv-9',
+      email: 'pending@example.test',
+      invitedByName: null,
+      createdAt: '2026-11-20T00:00:00Z',
+      expiresAt: '2026-12-04T12:00:00Z',
+      lastSentAt: null,
+      isExpired: false,
+    };
+    mocks.getClubAdminInvites.mockResolvedValueOnce([invite]).mockResolvedValue([]);
+    mocks.getClubAdmins
+      .mockResolvedValueOnce([ada, grace])
+      .mockResolvedValue([
+        ada,
+        grace,
+        { personId: 'p-new', personName: null, personEmail: invite.email },
+      ]);
+    mocks.cancelClubAdminInvite.mockResolvedValue('already_accepted');
+    const user = userEvent.setup();
+    render(<ClubAdminsTab clubId={CLUB} clubName="Heartland Club" />);
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Cancel invite to pending@example.test' })
+    );
+
+    await waitFor(() =>
+      expect(mocks.error).toHaveBeenCalledWith(
+        'pending@example.test already accepted this invite and is an admin. Use Remove admin to end their access.'
+      )
+    );
+    expect(mocks.success).not.toHaveBeenCalledWith('Invite for pending@example.test cancelled.');
+    await waitFor(() => expect(mocks.getClubAdmins).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(mocks.getClubAdminInvites).toHaveBeenCalledTimes(2));
+    expect(
+      await screen.findByRole('button', { name: 'Remove admin pending@example.test' })
+    ).toBeInTheDocument();
+  });
+
+  it('says the invite list failed to load instead of showing nothing pending', async () => {
+    mocks.getClubAdminInvites.mockRejectedValueOnce(new Error('boom')).mockResolvedValue([]);
+    const user = userEvent.setup();
+    render(<ClubAdminsTab clubId={CLUB} clubName="Heartland Club" />);
+
+    expect(await screen.findByText(/couldn.t load the pending invites/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+    await waitFor(() => expect(mocks.getClubAdminInvites).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(screen.queryByText(/couldn.t load the pending invites/i)).not.toBeInTheDocument()
+    );
   });
 
   it('shows an expired invite as expired, with Resend off and Cancel on', async () => {

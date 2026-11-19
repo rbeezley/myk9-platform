@@ -3,10 +3,14 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { sendClubAdminInviteHandler, type InviteSendDeps } from './inviteHandler.ts';
 
+const TOKEN = 'a1b2c3d4e5f6a7b8c9d0a1b2c3d4e5f6a7b8c9d0a1b2c3d4e5f6a7b8c9d0';
+
 const INVITE_ID = '00000000-0000-0000-0000-000000221199';
 
 function makeDeps(overrides: Partial<InviteSendDeps> = {}) {
-  const sendEmail = vi.fn(async () => new Response('{}', { status: 200 }));
+  const sendEmail = vi.fn<InviteSendDeps['sendEmail']>(
+    async () => new Response('{}', { status: 200 })
+  );
   const prepareSend = vi.fn(async () => ({
     data: [
       {
@@ -14,6 +18,7 @@ function makeDeps(overrides: Partial<InviteSendDeps> = {}) {
         club_name: 'Test <Club>',
         inviter_name: 'Alice AdminA',
         expires_at: '2026-12-04T00:00:00Z',
+        invite_token: TOKEN,
       },
     ],
     error: null,
@@ -30,7 +35,7 @@ function makeDeps(overrides: Partial<InviteSendDeps> = {}) {
 }
 
 describe('sendClubAdminInviteHandler', () => {
-  it('sends to the address the RPC returned, with an escaped club name and the sign-up link', async () => {
+  it('sends to the address the RPC returned, with an escaped club name and the token link', async () => {
     const { deps, sendEmail, prepareSend } = makeDeps();
     const result = await sendClubAdminInviteHandler({ body: { inviteId: INVITE_ID } }, deps);
 
@@ -39,7 +44,7 @@ describe('sendClubAdminInviteHandler', () => {
     const init = sendEmail.mock.calls[0][0];
     const payload = JSON.parse(init.body);
     expect(payload.to).toEqual(['new.person@example.test']);
-    expect(payload.html).toContain('href="https://app.test/sign-up"');
+    expect(payload.html).toContain(`href="https://app.test/club-invite/${TOKEN}"`);
     expect(payload.html).toContain('Test &lt;Club&gt;');
     expect(payload.html).not.toContain('Test <Club>');
   });

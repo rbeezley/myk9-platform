@@ -1,7 +1,7 @@
 /**
  * Pending club-admin invitations (MYK9-2211): invite an address that has no account, list the
- * pending ones, resend and cancel. An invite grants nothing until the invitee confirms that
- * email on a new account, so none of these change anyone's access and no permission refresh is
+ * pending ones, resend and cancel. An invite grants nothing until the invitee accepts it with the
+ * emailed one-time link, so none of these change anyone's access and no permission refresh is
  * needed. All calls are online-only; a failed email send is said plainly, never as success.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -12,6 +12,7 @@ import {
   inviteClubAdmin,
   sendClubAdminInviteEmail,
 } from '@/services/database/club-memberships';
+import { clubAdminsQueryKey } from './useClubAdmins';
 import { notifications } from '@/lib/notifications';
 import { logger } from '@/services/LoggingService';
 
@@ -91,7 +92,7 @@ export function useClubAdminInvites(clubId: string) {
     onSuccess: async (result, email) => {
       if (result.outcome === 'has_account') {
         notifications.error(
-          `${email} already has a myK9 account. Add them as an admin with the Add admin box above.`
+          `${email} already has a myK9 account. Ask them to confirm that email and sign in to myK9 once, then use the Add admin box above.`
         );
         return;
       }
@@ -99,7 +100,7 @@ export function useClubAdminInvites(clubId: string) {
         notifications.success(
           result.outcome === 'already_invited'
             ? `${email} was already invited. We sent the invite again.`
-            : `Invite sent to ${email}. They become an admin once they create an account and confirm that email.`
+            : `Invite sent to ${email}. They become an admin once they sign in with that email and accept it.`
         );
       } else {
         notifications.error(SEND_FAILED(email));
@@ -136,7 +137,18 @@ export function useClubAdminInvites(clubId: string) {
     ...MUTATION_OPTIONS,
     mutationFn: ({ inviteId }: { inviteId: string; email: string }) =>
       cancelClubAdminInvite(inviteId),
-    onSuccess: async (_data, { email }) => {
+    onSuccess: async (outcome, { email }) => {
+      if (outcome === 'already_accepted') {
+        // The invitee accepted while this page was open: they are an admin now, in the admins list.
+        notifications.error(
+          `${email} already accepted this invite and is an admin. Use Remove admin to end their access.`
+        );
+        await Promise.all([
+          refresh(),
+          queryClient.invalidateQueries({ queryKey: clubAdminsQueryKey(clubId) }),
+        ]);
+        return;
+      }
       notifications.success(`Invite for ${email} cancelled.`);
       await refresh();
     },

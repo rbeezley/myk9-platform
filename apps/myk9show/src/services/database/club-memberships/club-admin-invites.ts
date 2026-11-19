@@ -1,5 +1,5 @@
 // Invitations for an email with no myK9 account to become a club admin (MYK9-2211).
-// An invite is not a role: it grants nothing until the invitee confirms that email on a new account.
+// An invite is not a role: it grants nothing until the invitee, signed in with that email, accepts it with the emailed one-time link.
 // All calls are online-only SECURITY DEFINER RPCs; the email is sent by an edge function that
 // re-checks the caller server-side.
 
@@ -95,7 +95,48 @@ export async function sendClubAdminInviteEmail(inviteId: string): Promise<void> 
   throw error;
 }
 
-export async function cancelClubAdminInvite(inviteId: string): Promise<void> {
-  const { error } = await supabase.rpc('cancel_club_admin_invite', { p_invite_id: inviteId });
+/**
+ * `cancelled` (or `already_cancelled`): the invite can no longer be accepted. `already_accepted`:
+ * the invitee got there first, so they are an admin now and Remove is the way to end their access.
+ */
+export type CancelClubAdminInviteOutcome = 'cancelled' | 'already_cancelled' | 'already_accepted';
+
+export async function cancelClubAdminInvite(
+  inviteId: string
+): Promise<CancelClubAdminInviteOutcome> {
+  const { data, error } = await supabase.rpc('cancel_club_admin_invite', { p_invite_id: inviteId });
   if (error) throw error;
+  if (data !== 'cancelled' && data !== 'already_cancelled' && data !== 'already_accepted') {
+    throw new Error('Unexpected cancel_club_admin_invite result');
+  }
+  return data;
+}
+
+/** `invalid` covers an unknown, cancelled, already used or deleted-club invite, deliberately. */
+export type AcceptClubAdminInviteOutcome =
+  'accepted' | 'already_accepted' | 'expired' | 'wrong_account' | 'invalid';
+
+export interface AcceptClubAdminInviteResult {
+  outcome: AcceptClubAdminInviteOutcome;
+  clubId: string | null;
+  clubName: string | null;
+}
+
+/** The signed-in invitee presents the emailed one-time token. Online-only. */
+export async function acceptClubAdminInvite(token: string): Promise<AcceptClubAdminInviteResult> {
+  const { data, error } = await supabase.rpc('accept_club_admin_invite', { p_token: token });
+  if (error) throw error;
+
+  const row = data?.[0];
+  const outcome = row?.outcome;
+  if (
+    outcome !== 'accepted' &&
+    outcome !== 'already_accepted' &&
+    outcome !== 'expired' &&
+    outcome !== 'wrong_account' &&
+    outcome !== 'invalid'
+  ) {
+    throw new Error('Unexpected accept_club_admin_invite result');
+  }
+  return { outcome, clubId: row?.club_id ?? null, clubName: row?.club_name ?? null };
 }

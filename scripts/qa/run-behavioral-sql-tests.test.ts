@@ -53,6 +53,7 @@ const launchCriticalSqlTests = [
   'club_secretary_grant_test.sql',
   'club_show_managers_visibility_test.sql',
   'myk9_2209_club_admin_grant_revoke_test.sql',
+  'myk9_2211_club_admin_invites_test.sql',
   'myk9_2208_show_club_admin_contacts_test.sql',
   'club_officials_visibility_test.sql',
   'club_delete_restrict_test.sql',

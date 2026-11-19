@@ -64,6 +64,7 @@ const SupportTicketPage = lazyWithRetry(() => import('@/pages/SupportTicketPage'
 // Account (merged profile + preferences + settings)
 const AccountPage = lazyWithRetry(() => import('@/pages/AccountPage'));
 const RequestAccessPage = lazyWithRetry(() => import('@/pages/RequestAccessPage'));
+const ClubInviteAcceptPage = lazyWithRetry(() => import('@/pages/ClubInviteAcceptPage'));
 // INTENT: temporary mock show test page (MYK9-2022). Delete with its route when the first real show has run.
 const MockShowTestPage = lazyWithRetry(() => import('@/pages/MockShowTestPage'));
 
@@ -363,6 +364,20 @@ export const PublicRoutes = () => (
     />
 
     <Route path="/profile" element={<Navigate to="/account" replace />} />
+
+    {/* Emailed club-admin invitation (MYK9-2211). Account-only: a signed-out invitee goes to sign-in and comes back. */}
+    <Route
+      path="/club-invite/:token"
+      element={
+        <ProtectedRoute accountOnly>
+          <SuspenseWrapper>
+            <PageTransition>
+              <ClubInviteAcceptPage />
+            </PageTransition>
+          </SuspenseWrapper>
+        </ProtectedRoute>
+      }
+    />
 
     {/* Account (unified profile + preferences + settings) */}
     <Route

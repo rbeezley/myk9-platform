@@ -18,6 +18,8 @@ export interface PreparedInviteSend {
   club_name: string;
   inviter_name: string | null;
   expires_at: string;
+  /** The one-time token for this send; only its hash is stored. */
+  invite_token: string;
 }
 
 export interface InviteSendDeps {
@@ -66,7 +68,7 @@ export async function sendClubAdminInviteHandler(
     clubName: row.club_name,
     inviterName: row.inviter_name,
     inviteEmail: row.invite_email,
-    signUpUrl: `${deps.siteUrl.replace(/\/$/, '')}/sign-up`,
+    acceptUrl: `${deps.siteUrl.replace(/\/$/, '')}/club-invite/${encodeURIComponent(row.invite_token)}`,
     expiresOn,
   });
 

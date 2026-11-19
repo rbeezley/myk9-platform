@@ -27,12 +27,16 @@ export {
   inviteClubAdmin,
   sendClubAdminInviteEmail,
   cancelClubAdminInvite,
+  acceptClubAdminInvite,
   ClubAdminInviteSendError,
 } from './club-admin-invites';
 export type {
   ClubAdminInvite,
   InviteClubAdminOutcome,
   InviteClubAdminResult,
+  CancelClubAdminInviteOutcome,
+  AcceptClubAdminInviteOutcome,
+  AcceptClubAdminInviteResult,
 } from './club-admin-invites';
 
 export { getClubShowManagers, setClubShowManagerAccess } from './show-managers';

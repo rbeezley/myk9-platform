@@ -161,6 +161,8 @@ export const ClubAdminsTab: React.FC<ClubAdminsTabProps> = ({ clubId, clubName }
 
       <ClubAdminInvitesList
         invites={invitesState.invites}
+        isError={invitesState.isError}
+        onRetry={invitesState.retry}
         resendingId={invitesState.resendingId}
         cancellingId={invitesState.cancellingId}
         onResend={invitesState.resendInvite}
@@ -173,8 +175,8 @@ export const ClubAdminsTab: React.FC<ClubAdminsTabProps> = ({ clubId, clubName }
             <AlertDialogTitle>Invite {inviteOffer} to be an admin?</AlertDialogTitle>
             <AlertDialogDescription>
               {inviteOffer} has no myK9 account yet, so nothing was changed. We can email them an
-              invitation to {clubName}. They become an admin when they create an account with this
-              address and confirm it.
+              invitation to {clubName}. They become an admin when they open the emailed link and
+              accept while signed in with this address.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

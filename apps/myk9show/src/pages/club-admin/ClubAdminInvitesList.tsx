@@ -9,6 +9,9 @@ import type { ClubAdminInvite } from '@/services/database/club-memberships';
 
 interface ClubAdminInvitesListProps {
   invites: ClubAdminInvite[];
+  /** The list could not be loaded: say so instead of looking like there are no pending invites. */
+  isError?: boolean;
+  onRetry?: () => void;
   resendingId?: string | undefined;
   cancellingId?: string | undefined;
   onResend: (invite: { inviteId: string; email: string }) => void;
@@ -23,11 +26,23 @@ const dateFormat = new Intl.DateTimeFormat('en-US', {
 
 export const ClubAdminInvitesList: React.FC<ClubAdminInvitesListProps> = ({
   invites,
+  isError = false,
+  onRetry,
   resendingId,
   cancellingId,
   onResend,
   onCancel,
 }) => {
+  if (isError) {
+    return (
+      <p role="status" className="text-sm text-warning">
+        We couldn&apos;t load the pending invites.{' '}
+        <button type="button" onClick={onRetry} className="underline underline-offset-2">
+          Try again
+        </button>
+      </p>
+    );
+  }
   if (invites.length === 0) return null;
 
   return (
@@ -36,9 +51,9 @@ export const ClubAdminInvitesList: React.FC<ClubAdminInvitesListProps> = ({
         Pending invites
       </h3>
       <p className="text-xs text-muted-foreground">
-        These people are not admins yet. They become admins when they create an account with the
-        invited address and confirm it. An expired invite can only be cancelled, then sent again as
-        a new invite.
+        These people are not admins yet. They become admins when they open the emailed link and
+        accept while signed in with the invited address. An expired invite can only be cancelled,
+        then sent again as a new invite.
       </p>
       <ul className="divide-y divide-border rounded-lg border border-border">
         {invites.map(invite => {

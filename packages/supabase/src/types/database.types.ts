@@ -13590,9 +13590,17 @@ export type Database = {
           person_id: string
         }[]
       }
+      accept_club_admin_invite: {
+        Args: { p_token: string }
+        Returns: {
+          club_id: string
+          club_name: string
+          outcome: string
+        }[]
+      }
       cancel_club_admin_invite: {
         Args: { p_invite_id: string }
-        Returns: undefined
+        Returns: string
       }
       invite_club_admin: {
         Args: { p_club_id: string; p_email: string }
@@ -13620,6 +13628,7 @@ export type Database = {
           club_name: string
           expires_at: string
           invite_email: string
+          invite_token: string
           inviter_name: string
         }[]
       }

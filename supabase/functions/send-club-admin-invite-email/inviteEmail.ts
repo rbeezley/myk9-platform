@@ -7,13 +7,13 @@ export function buildClubAdminInviteHtml({
   clubName,
   inviterName,
   inviteEmail,
-  signUpUrl,
+  acceptUrl,
   expiresOn,
 }: {
   clubName: string;
   inviterName: string | null;
   inviteEmail: string;
-  signUpUrl: string;
+  acceptUrl: string;
   expiresOn: string;
 }): string {
   const brand = '#2563eb';
@@ -29,13 +29,13 @@ export function buildClubAdminInviteHtml({
       <h1 style="font-size:24px;margin:0 0 16px;color:#1a1a1e;">You are invited to help run ${escapeHtml(clubName)}</h1>
       <p style="color:#1a1a1e;font-size:16px;line-height:1.6;">
         ${who} invited you to be an admin of ${escapeHtml(clubName)} on myK9Show.
-        Create your account with this email address (${escapeHtml(inviteEmail)}) and confirm it.
-        You become an admin of the club as soon as your email is confirmed.
+        Use the button below, then sign in or create your account with this email address
+        (${escapeHtml(inviteEmail)}). You become an admin of the club once you accept.
       </p>
       <div style="text-align:center;margin:32px 0;">
-        <a href="${escapeHtml(signUpUrl)}" style="background-color:${brand};color:#fff;padding:12px 32px;border-radius:6px;font-weight:600;text-decoration:none;display:inline-block;">Create your account</a>
+        <a href="${escapeHtml(acceptUrl)}" style="background-color:${brand};color:#fff;padding:12px 32px;border-radius:6px;font-weight:600;text-decoration:none;display:inline-block;">Accept invitation</a>
       </div>
-      <p style="color:#6b7280;font-size:14px;">This invitation expires on ${escapeHtml(expiresOn)}. If you were not expecting it, you can ignore this email.</p>
+      <p style="color:#6b7280;font-size:14px;">This invitation expires on ${escapeHtml(expiresOn)}. The link works only for this email address. If you were not expecting it, you can ignore this email.</p>
     </div>
   </div>
 </body></html>`;

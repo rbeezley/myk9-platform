@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { getShowStyle } from '../../../apps/myk9show/src/features/registries/helpers';
+import { STYLE_ORG_SUPPORT } from '../../../apps/myk9show/src/features/premium/pdf/pdfTokens';
 import { PREMIUM_STYLES, resolvePremiumStyle, SHOW_STYLE_COLUMN } from './premiumStyle.ts';
 
 describe('resolvePremiumStyle (MYK9-2056)', () => {
@@ -23,6 +24,8 @@ describe('resolvePremiumStyle (MYK9-2056)', () => {
       expect(resolvePremiumStyle(style, null)).toBe(style);
     }
     expect(getShowStyle({ style: 'neon' })).toBe('monogram');
+    // Both directions: every style the app renders is one the generator knows.
+    expect([...PREMIUM_STYLES].sort()).toEqual(Object.keys(STYLE_ORG_SUPPORT).sort());
   });
 
   it('remaps pre-migration-191 names', () => {

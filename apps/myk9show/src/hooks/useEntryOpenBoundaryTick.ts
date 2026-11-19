@@ -1,21 +1,25 @@
 import { useEffect, useState } from 'react';
-import { msUntilEntryOpenBoundary } from '@/features/_shared/landing/entryOpenBoundary';
+import {
+  MAX_TIMEOUT_MS,
+  msUntilEntryDayBoundary,
+} from '@/features/_shared/landing/entryOpenBoundary';
 
 /**
- * Re-renders the caller when the entry window's opening boundary passes, so a page left open
- * while entries are pending re-evaluates `getEntryStatus` (reason, copy and Enter action
- * together) without a reload. One timeout at a time, aimed at the next boundary; a long wait
- * for a far-off date simply chains one wake per local day.
+ * Re-renders the caller at each trial-local midnight while the entry window can still change
+ * (through the day after it closes), so a page left open re-evaluates `getEntryStatus` (the
+ * opening, the closing countdown and the close, with the copy and Enter action) without a
+ * reload. One timeout at a time; each wake re-arms the next.
  */
 export function useEntryOpenBoundaryTick(
   entryOpenDate: string | null | undefined,
+  entryCloseDate: string | null | undefined,
   timezone: string
 ): void {
   const [tick, setTick] = useState(0);
   useEffect(() => {
-    const wait = msUntilEntryOpenBoundary(entryOpenDate, timezone, new Date());
+    const wait = msUntilEntryDayBoundary(entryOpenDate, entryCloseDate, timezone, new Date());
     if (wait === null) return;
-    const id = setTimeout(() => setTick(value => value + 1), wait + 250);
+    const id = setTimeout(() => setTick(value => value + 1), Math.min(wait + 250, MAX_TIMEOUT_MS));
     return () => clearTimeout(id);
-  }, [entryOpenDate, timezone, tick]);
+  }, [entryOpenDate, entryCloseDate, timezone, tick]);
 }

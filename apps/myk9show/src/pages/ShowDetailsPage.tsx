@@ -119,10 +119,12 @@ const ShowDetailsPage: React.FC = () => {
     return null;
   }, [currentShow, readsReplica, id, shows]);
 
-  // `getEntryStatus` reads the clock on render; wake once at the opening boundary (the same
-  // zone rule it uses) so a page left open while entries are pending re-evaluates it.
+  // `getEntryStatus` reads the clock on render; wake at each local midnight of the entry window
+  // (the same zone rule it uses) so a page left open re-evaluates it as the window opens and
+  // closes.
   useEntryOpenBoundaryTick(
     actualCurrentShow?.entryOpenDate,
+    actualCurrentShow?.entryCloseDate,
     actualCurrentShow?.entryWindowTimeZone ?? getEntryWindowTimezone(actualCurrentShow?.trials)
   );
 

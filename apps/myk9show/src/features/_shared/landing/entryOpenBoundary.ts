@@ -1,8 +1,7 @@
 import { calendarDateInTimeZone } from '@/utils/calendarDate';
-import { getCalendarDayParts } from './calendarDate';
 
 /** The longest delay `setTimeout` accepts. */
-const MAX_TIMEOUT_MS = 2 ** 31 - 1;
+export const MAX_TIMEOUT_MS = 2 ** 31 - 1;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
@@ -22,23 +21,31 @@ function msUntilNextLocalMidnight(now: Date, timezone: string): number {
 }
 
 /**
- * How long until the entry window's opening can change what a page should say: the opening
- * instant for a timestamp, or the next trial-local midnight for a calendar day. `null` when
- * the date is missing, unparseable, or already reached, so nothing needs scheduling.
+ * The calendar day of an entry-window date, by the rule `getEntryStatus` uses (`toLocalDate`:
+ * the part before `T` or a space), so a timestamp counts as its day, not its instant.
  */
-export function msUntilEntryOpenBoundary(
+function entryWindowDay(value: string | null | undefined): string | null {
+  const day = value?.split(/[T ]/)[0];
+  return day && /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null;
+}
+
+/**
+ * How long until the next trial-local midnight, while entry status can still change with the
+ * day: from now through the first day after the window closes. `getEntryStatus` is purely
+ * calendar-day based (opens, closing countdown and closes all move at local midnight), so
+ * this is the one boundary every state shares. `null` when the window is unknown or already
+ * past its last day, so nothing needs scheduling.
+ */
+export function msUntilEntryDayBoundary(
   entryOpenDate: string | null | undefined,
+  entryCloseDate: string | null | undefined,
   timezone: string,
   now: Date
 ): number | null {
-  if (!entryOpenDate) return null;
-  const day = getCalendarDayParts(entryOpenDate);
-  if (day) {
-    const open = `${day.year}-${String(day.month).padStart(2, '0')}-${String(day.day).padStart(2, '0')}`;
-    if (open <= calendarDateInTimeZone(now, timezone)) return null;
-    return Math.min(msUntilNextLocalMidnight(now, timezone), MAX_TIMEOUT_MS);
-  }
-  const instant = new Date(entryOpenDate).getTime();
-  if (Number.isNaN(instant) || instant <= now.getTime()) return null;
-  return Math.min(instant - now.getTime(), MAX_TIMEOUT_MS);
+  // Without both dates the status is `window_unknown`, which never changes with the clock.
+  const openDay = entryWindowDay(entryOpenDate);
+  const closeDay = entryWindowDay(entryCloseDate);
+  if (!openDay || !closeDay) return null;
+  if (calendarDateInTimeZone(now, timezone) > closeDay) return null;
+  return msUntilNextLocalMidnight(now, timezone);
 }

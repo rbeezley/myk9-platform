@@ -51,6 +51,8 @@ export interface PremiumRequirementFacts {
    * the show's start date). Absent means not known here, and nothing is said about the fee.
    */
   recordingFeeDates?: readonly string[];
+  /** MYK9-2290: the show's ASCA terms as printed. Absent means not known here, and nothing is said. */
+  showTerms?: ReadonlyArray<{ label: string }>;
   trials: Array<
     Pick<PremiumFacts['trials'][number], 'name' | 'eventNumber' | 'classLabels'> & {
       /** The trial's id when known; it scopes the link to that trial. */
@@ -130,6 +132,17 @@ function committeeMessage(
     } listed. Add the rest on the club.`;
   }
   return null;
+}
+
+/** An ASCA show term typed on the show: missing once the premium's printed terms lack its label. */
+function showTermCheck(label: string, what: string): Check {
+  return {
+    missing: (f, r) =>
+      f.showTerms && !f.showTerms.some(term => term.label === label)
+        ? `${r} requires ${what}. Add it in Edit show, under Premium.`
+        : null,
+    href: editShow('premium'),
+  };
 }
 
 const CHECKS: Partial<Record<PremiumFactId, Check>> = {
@@ -264,6 +277,15 @@ const CHECKS: Partial<Record<PremiumFactId, Check>> = {
         : null,
     href: clubPage,
   },
+  ascaSanctionStatus: showTermCheck(
+    'Sanctioning status',
+    'the sanctioning status (pending or approved)'
+  ),
+  scentsByLevel: showTermCheck('Scents used for each level', 'the scents used for each level'),
+  spectatorsPolicy: showTermCheck(
+    'Spectators and videoing',
+    'whether spectators and videoing are allowed'
+  ),
   entryWindow: {
     missing: (f, r) =>
       blank(f.entry.opens) || blank(f.entry.closes)

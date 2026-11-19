@@ -11,6 +11,7 @@
  * import this module and must not pull the PDF runtime into the entry chunk.
  */
 import { stripPlaceholderNarrative } from './premiumNarratives';
+import { buildMonogram } from './premiumMonogram';
 import { formatPremiumClassLabel } from './premiumClassLabel';
 import {
   buildCommitteeFacts,
@@ -35,6 +36,7 @@ import {
   premiumTrialClassFeeText,
   premiumTrialWaitlistText,
 } from './premiumEntryTerms';
+import { buildShowTermFacts, type PremiumRegistryStatementFact } from './premiumAscaFacts';
 
 // ─── Catalog: what each fact is, where it comes from, who requires it ───────────────────
 
@@ -64,7 +66,11 @@ export type PremiumFactId =
   | 'accommodations'
   | 'hospitality'
   | 'awards'
-  | 'additionalNotes';
+  | 'additionalNotes'
+  | 'ascaSanctionStatus'
+  | 'scentsByLevel'
+  | 'spectatorsPolicy'
+  | 'photographerContact';
 
 export type PremiumFactSource =
   'club' | 'show' | 'trial' | 'class' | 'person' | 'template' | 'registry';
@@ -161,6 +167,21 @@ export const PREMIUM_FACT_CATALOG: readonly PremiumFactDefinition[] = [
   { id: 'hospitality', label: 'Hospitality', source: 'template', requiredBy: [] },
   { id: 'awards', label: 'Awards', source: 'template', requiredBy: ['ASCA'] },
   { id: 'additionalNotes', label: 'Additional information', source: 'template', requiredBy: [] },
+  // MYK9-2290: ASCA §1.5.2, §1.5.9, §1.5.19, §1.5.24, typed once on the show (Edit show, Premium).
+  { id: 'ascaSanctionStatus', label: 'Sanctioning status', source: 'show', requiredBy: ['ASCA'] },
+  {
+    id: 'scentsByLevel',
+    label: 'Scents used for each level',
+    source: 'show',
+    requiredBy: ['ASCA'],
+  },
+  {
+    id: 'spectatorsPolicy',
+    label: 'Spectators and videoing',
+    source: 'show',
+    requiredBy: ['ASCA'],
+  },
+  { id: 'photographerContact', label: 'Show photographer', source: 'show', requiredBy: [] },
 ];
 
 // ─── Formatting every style shares ──────────────────────────────────────────────────────
@@ -183,45 +204,7 @@ export function formatPhone(raw: string | null | undefined): string {
   return raw;
 }
 
-// Build a typographic monogram from a club name. Strips honorifics + trailing
-// numerals + corporate suffixes, then takes the first letter of each remaining
-// word. Capped at 3 letters because anything longer reads as an acronym, not a
-// monogram. Falls back to the first non-empty character if no clean letters
-// can be extracted.
-// Keep brand-defining words like "Club", "Kennel", "Association" — for dog
-// clubs they're part of the identity, not filler. Only strip articles + legal
-// suffixes that almost never belong in a monogram.
-const STOPWORDS = new Set([
-  'the',
-  'a',
-  'an',
-  'of',
-  'and',
-  '&',
-  'inc',
-  'inc.',
-  'llc',
-  'llc.',
-  'company',
-  'co',
-  'co.',
-]);
-
-export function buildMonogram(name: string | null | undefined): string {
-  if (!name) return '';
-  const words = name
-    .replace(/[^A-Za-z &]/g, ' ')
-    .split(/\s+/)
-    .filter(w => w.length > 0 && !STOPWORDS.has(w.toLowerCase()));
-  if (words.length === 0) {
-    const fallback = (name.match(/[A-Za-z]/) ?? [''])[0];
-    return fallback.toUpperCase();
-  }
-  return words
-    .slice(0, 3)
-    .map(w => w[0]!.toUpperCase())
-    .join('');
-}
+export { buildMonogram } from './premiumMonogram';
 
 // ─── The supplemental slice (club template content), shared with the public page ────────
 
@@ -295,11 +278,7 @@ function buildWithdrawalPolicyFact(
 /** The premium's label for the registry's fixed statement about scouting, in every style. */
 export const SCOUTING_STATEMENT_LABEL = 'Scouting the Trial Location';
 
-/** A fixed statement the registry requires the premium to print, in the registry's words. */
-export interface PremiumRegistryStatementFact {
-  label: string;
-  text: string;
-}
+export type { PremiumRegistryStatementFact };
 
 /**
  * MYK9-2043: the registry's fixed statement, for the PDF and the public page alike: AKC's about
@@ -367,6 +346,7 @@ export interface PremiumFacts {
   entryLimit: string | null;
   /** MYK9-2231: the after-close class-change (move-up) sentence; null on an older premium. */
   classChanges: string | null;
+  showTerms: PremiumRegistryStatementFact[];
   /** Null only on a premium generated before MYK9-1976 part 2. */
   withdrawalPolicy: PremiumWithdrawalPolicyFact | null;
   /** The registry's fixed statement (AKC scouting, ASCA §1.5 statements); null for UKC. */
@@ -440,6 +420,7 @@ export function buildPremiumFacts(
     recordingFee: premiumRecordingFeeText(data),
     entryLimit: premiumEntryLimitText(data),
     classChanges: premiumClassChangeText(show),
+    showTerms: buildShowTermFacts(show),
     withdrawalPolicy: buildWithdrawalPolicyFact(show.withdrawal),
     scoutingStatement: buildScoutingStatementFact(registry),
     entry: {

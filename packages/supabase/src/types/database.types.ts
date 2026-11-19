@@ -9188,6 +9188,7 @@ export type Database = {
           allow_class_changes_after_close: boolean
           allow_non_owner_handlers: boolean | null
           allow_waitlist: boolean
+          asca_sanction_status: string | null
           brand_color: string
           cc_secretary_on_exhibitor_emails: boolean
           city: string | null
@@ -9227,6 +9228,7 @@ export type Database = {
           online_entries_enabled: boolean
           organization: string
           own_premium_link: string | null
+          photographer_contact: string | null
           pre_entry_fee: number | null
           premium_publish_version: number
           published_premium_at: string | null
@@ -9237,7 +9239,9 @@ export type Database = {
           reopened_at: string | null
           results_released_at: string | null
           results_visible_to_all: boolean | null
+          scents_by_level: string | null
           secretary_email: string | null
+          spectators_policy: string | null
           start_date: string
           starting_armband_number: number
           state: string | null
@@ -9269,6 +9273,7 @@ export type Database = {
           allow_class_changes_after_close?: boolean
           allow_non_owner_handlers?: boolean | null
           allow_waitlist?: boolean
+          asca_sanction_status?: string | null
           brand_color?: string
           cc_secretary_on_exhibitor_emails?: boolean
           city?: string | null
@@ -9308,6 +9313,7 @@ export type Database = {
           online_entries_enabled?: boolean
           organization: string
           own_premium_link?: string | null
+          photographer_contact?: string | null
           pre_entry_fee?: number | null
           premium_publish_version?: number
           published_premium_at?: string | null
@@ -9318,7 +9324,9 @@ export type Database = {
           reopened_at?: string | null
           results_released_at?: string | null
           results_visible_to_all?: boolean | null
+          scents_by_level?: string | null
           secretary_email?: string | null
+          spectators_policy?: string | null
           start_date: string
           starting_armband_number?: number
           state?: string | null
@@ -9350,6 +9358,7 @@ export type Database = {
           allow_class_changes_after_close?: boolean
           allow_non_owner_handlers?: boolean | null
           allow_waitlist?: boolean
+          asca_sanction_status?: string | null
           brand_color?: string
           cc_secretary_on_exhibitor_emails?: boolean
           city?: string | null
@@ -9389,6 +9398,7 @@ export type Database = {
           online_entries_enabled?: boolean
           organization?: string
           own_premium_link?: string | null
+          photographer_contact?: string | null
           pre_entry_fee?: number | null
           premium_publish_version?: number
           published_premium_at?: string | null
@@ -9399,7 +9409,9 @@ export type Database = {
           reopened_at?: string | null
           results_released_at?: string | null
           results_visible_to_all?: boolean | null
+          scents_by_level?: string | null
           secretary_email?: string | null
+          spectators_policy?: string | null
           start_date?: string
           starting_armband_number?: number
           state?: string | null
@@ -14680,6 +14692,7 @@ export type Database = {
           allow_class_changes_after_close: boolean
           allow_non_owner_handlers: boolean | null
           allow_waitlist: boolean
+          asca_sanction_status: string | null
           brand_color: string
           cc_secretary_on_exhibitor_emails: boolean
           city: string | null
@@ -14719,6 +14732,7 @@ export type Database = {
           online_entries_enabled: boolean
           organization: string
           own_premium_link: string | null
+          photographer_contact: string | null
           pre_entry_fee: number | null
           premium_publish_version: number
           published_premium_at: string | null
@@ -14729,7 +14743,9 @@ export type Database = {
           reopened_at: string | null
           results_released_at: string | null
           results_visible_to_all: boolean | null
+          scents_by_level: string | null
           secretary_email: string | null
+          spectators_policy: string | null
           start_date: string
           starting_armband_number: number
           state: string | null
@@ -15935,6 +15951,7 @@ export type Database = {
           allow_class_changes_after_close: boolean
           allow_non_owner_handlers: boolean | null
           allow_waitlist: boolean
+          asca_sanction_status: string | null
           brand_color: string
           cc_secretary_on_exhibitor_emails: boolean
           city: string | null
@@ -15974,6 +15991,7 @@ export type Database = {
           online_entries_enabled: boolean
           organization: string
           own_premium_link: string | null
+          photographer_contact: string | null
           pre_entry_fee: number | null
           premium_publish_version: number
           published_premium_at: string | null
@@ -15984,7 +16002,9 @@ export type Database = {
           reopened_at: string | null
           results_released_at: string | null
           results_visible_to_all: boolean | null
+          scents_by_level: string | null
           secretary_email: string | null
+          spectators_policy: string | null
           start_date: string
           starting_armband_number: number
           state: string | null

@@ -36,6 +36,7 @@ import { SHOW_USES_FIELD_COLUMNS, showUsesColumns, withShowUsesDefaults } from '
 import { holdOwnedSwitches } from './showUsesOwnership';
 import { narrowShowUpdatePayload } from './showUpdatePayload';
 import { showCloseRecordColumns, stripUnsetCloseRecordColumns } from './showCloseRecordColumns';
+import { showAscaFactColumns } from './showAscaFactColumns';
 import { mapShowStatusToDb } from './showStatusMapping';
 import { formatDateLocal } from '@/utils/dateLocal';
 import type { ReplicatedShow, ReplicatedShowCreateInput } from './replicatedShowTypes';
@@ -118,6 +119,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
         : {}),
       ...showUsesColumns(show),
       ...showCloseRecordColumns(show),
+      ...showAscaFactColumns(show),
       logo_url: show.logoUrl ?? null,
       cover_image_url: show.coverImageUrl ?? null,
       accent_color: show.accentColor ?? null,

@@ -109,6 +109,17 @@ describe('ShowEditPanel helpers', () => {
     expect(parse('')).toBe(true);
   });
 
+  it('accepts only a positive whole-number entry cap, or none (MYK9-2220)', () => {
+    const parse = (maxTotalEntries: number | undefined) =>
+      showSchemas.edit.safeParse({ ...baseFormData, maxTotalEntries }).success;
+    expect(parse(12.5)).toBe(false);
+    expect(parse(0)).toBe(false);
+    expect(parse(-3)).toBe(false);
+    expect(parse(2147483648)).toBe(false);
+    expect(parse(120)).toBe(true);
+    expect(parse(undefined)).toBe(true);
+  });
+
   it('clears a stale junior rate when saving an ASCA show', () => {
     expect(
       formDataToShow({ ...baseFormData, organization: 'ASCA', juniorHandlerFee: '15' })

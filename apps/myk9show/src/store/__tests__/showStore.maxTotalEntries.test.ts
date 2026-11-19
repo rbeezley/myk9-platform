@@ -14,7 +14,7 @@ vi.mock('@/services/replication', async importOriginal => ({
 }));
 vi.mock('@/config/dataSource', () => ({ shouldUseMockData: () => false }));
 
-import { useShowStore } from '../showStore';
+import { replicatedToShow, useShowStore } from '../showStore';
 import type { StoreShow } from '@/types/show-types';
 
 // MYK9-2220: Edit show's "Max total entries" reached the premium but never the show row, so
@@ -50,5 +50,19 @@ describe('showStore.updateShow max total entries (MYK9-2220)', () => {
     const [, sent] = mockShowsTable.updateShow.mock.calls[0] ?? [];
     expect(sent).not.toHaveProperty('maxTotalEntries');
     expect(useShowStore.getState().shows[0]?.maxTotalEntries).toBe(80);
+  });
+
+  it('keeps the saved cap when the show is rebuilt from the replica (offline reload)', () => {
+    const fromReplica = replicatedToShow({
+      id: 'show-1',
+      name: 'Heartland Classic',
+      maxTotalEntries: 120,
+    } as Parameters<typeof replicatedToShow>[0]);
+    expect(fromReplica.maxTotalEntries).toBe(120);
+
+    const noCap = replicatedToShow({ id: 'show-1', name: 'Heartland Classic' } as Parameters<
+      typeof replicatedToShow
+    >[0]);
+    expect(noCap.maxTotalEntries).toBeUndefined();
   });
 });

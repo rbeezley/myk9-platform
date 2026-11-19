@@ -55,6 +55,8 @@ export function replicatedToShow(replicated: ReplicatedShow): Show {
     preEntryFee: replicated.preEntryFee?.toString() || '',
     dayOfShowFee: replicated.dayOfShowFee?.toString() || '',
     juniorHandlerFee: replicated.juniorHandlerFee?.toString() || undefined,
+    // MYK9-2220: a reload or replica notification must keep the saved cap (offline Edit show).
+    ...(replicated.maxTotalEntries != null ? { maxTotalEntries: replicated.maxTotalEntries } : {}),
     clubId: replicated.clubId || '',
     clubName: '', // Derived from club store
     clubAddress: '', // Derived from club store

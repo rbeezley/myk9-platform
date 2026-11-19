@@ -1,6 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+const mocks = vi.hoisted(() => ({ fetchShowOfficials: vi.fn() }));
+vi.mock('@/hooks/queries/useShowOfficials', () => ({
+  fetchShowOfficials: mocks.fetchShowOfficials,
+}));
+
 import { generatedPremium } from './fixtures/generatedPremium';
-import { applyOfficialsToPremium } from '../premiumOfficials';
+import { applyOfficialsToPremium, fetchOfficialsForPublish } from '../premiumOfficials';
+import { PremiumPublishError } from '../premiumPublishErrors';
 import type { ShowOfficial } from '@/hooks/queries/useShowOfficials';
 
 const official = (
@@ -41,15 +48,35 @@ describe('applyOfficialsToPremium mailing addresses (MYK9-2065)', () => {
     expect(premium.officials.chairman?.mailingAddress).toBeNull();
   });
 
-  it('clears a draft address when its secretary or chair is no longer listed', () => {
+  it('clears the whole contact of a role nobody holds, so a former volunteer prints nothing', () => {
     const draft = generatedPremium();
-    draft.secretary = { ...draft.secretary, name: 'Old Sec', mailingAddress: '1 Home St' };
+    draft.secretary = {
+      name: 'Old Sec',
+      email: 'old-sec@example.com',
+      phone: '9185550000',
+      mailingAddress: '1 Home St',
+    };
     draft.officials = {
-      chairman: { name: 'Old Chair', email: null, phone: null, mailingAddress: '2 Home St' },
+      chairman: {
+        name: 'Old Chair',
+        email: 'old-chair@example.com',
+        phone: '9185550001',
+        mailingAddress: '2 Home St',
+      },
     };
     const premium = applyOfficialsToPremium(draft, { secretaries: [], chairmen: [], stewards: [] });
 
-    expect(premium.secretary.mailingAddress).toBeNull();
-    expect(premium.officials.chairman?.mailingAddress).toBeNull();
+    expect(premium.secretary).toEqual({
+      name: null,
+      email: null,
+      phone: null,
+      mailingAddress: null,
+    });
+    expect(premium.officials.chairman).toBeNull();
+  });
+
+  it('keeps the draft only when the officials could not be read: the publish fails instead', async () => {
+    mocks.fetchShowOfficials.mockRejectedValueOnce(new Error('offline'));
+    await expect(fetchOfficialsForPublish('show-1')).rejects.toBeInstanceOf(PremiumPublishError);
   });
 });

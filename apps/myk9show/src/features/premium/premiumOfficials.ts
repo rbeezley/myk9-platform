@@ -15,9 +15,10 @@ import { PremiumPublishError } from './premiumPublishErrors';
 const fullName = (o: ShowOfficial) => `${o.firstName} ${o.lastName}`.trim() || null;
 
 /**
- * The premium with its secretary and chairman taken from the officials. An official the show does
- * not have leaves the premium's own value alone. The RPC carries no phone, so a phone the
- * premium already has is kept. The mailing address is the one the club typed for the premium
+ * The premium with its secretary and chairman taken from the officials, which were read
+ * successfully (a failed read throws in `fetchOfficialsForPublish` and never reaches here). A role
+ * with no holder is cleared whole: a draft's former volunteer prints nothing. The RPC carries no
+ * phone, so a phone the draft already has for the current chairman is kept. The mailing address is the one the club typed for the premium
  * (MYK9-2065); an official without one prints none, never the premium's earlier value.
  */
 export function applyOfficialsToPremium(
@@ -38,8 +39,9 @@ export function applyOfficialsToPremium(
             email: secretary.email,
             mailingAddress: secretary.mailingAddress ?? null,
           }
-        : // A secretary no longer listed prints no address: a draft may carry a former volunteer's.
-          { ...premium.secretary, mailingAddress: null },
+        : // The lookup succeeded and nobody holds the role: a draft's former volunteer must not
+          // print, so the whole contact goes, not just the address.
+          { name: null, email: null, phone: null, mailingAddress: null },
     officials: {
       ...premium.officials,
       chairman:
@@ -50,9 +52,7 @@ export function applyOfficialsToPremium(
               phone: premium.officials.chairman?.phone ?? null,
               mailingAddress: chair.mailingAddress ?? null,
             }
-          : premium.officials.chairman
-            ? { ...premium.officials.chairman, mailingAddress: null }
-            : premium.officials.chairman,
+          : null,
     },
   };
 }

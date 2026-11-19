@@ -1,6 +1,7 @@
 import { AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { FixItRow } from './FixItRow';
+import { FIX_LINK_CLASS, FixItRow } from './FixItRow';
+import type { ClubAdminEmail } from './clubAdminContacts';
 import {
   publishBlockerSentence,
   publishBlockerWaitingText,
@@ -26,6 +27,8 @@ interface PublishBlockersListProps {
   fixFor: (blocker: PublishBlocker) => PublishBlockerFix | undefined;
   /** True when the viewer is the club admin, so a payouts line waiting on the club admin is theirs. */
   viewerIsClubAdmin: boolean;
+  /** MYK9-2208: the club's admins by name with a mailto, for a payouts line the viewer cannot fix. */
+  clubAdminEmail?: ClubAdminEmail | undefined;
   /** The wizard's club part, when it is not ready: its own row, never folded into "ready". */
   clubPart?: PublishBlockersPart | undefined;
 }
@@ -94,6 +97,7 @@ export function PublishBlockersList({
   state,
   fixFor,
   viewerIsClubAdmin,
+  clubAdminEmail,
   clubPart,
 }: PublishBlockersListProps) {
   if (state.state === 'checking') {
@@ -121,6 +125,11 @@ export function PublishBlockersList({
       <ul className="mt-2 space-y-1">
         {state.blockers.map(blocker => {
           const fix = fixFor(blocker);
+          const named =
+            blocker.key === 'payouts_not_enabled' && blocker.waitingOn === 'club_admin'
+              ? clubAdminEmail
+              : undefined;
+          const waiting = publishBlockerWaitingText(blocker, viewerIsClubAdmin, named);
           return (
             <FixItRow
               key={blocker.key}
@@ -128,7 +137,16 @@ export function PublishBlockersList({
               href={fix?.fixedInDraft ? undefined : fix?.href}
               onFix={fix?.fixedInDraft ? undefined : fix?.onFix}
               note={
-                fix?.fixedInDraft ? null : publishBlockerWaitingText(blocker, viewerIsClubAdmin)
+                fix?.fixedInDraft ? null : named && waiting ? (
+                  <>
+                    {waiting}
+                    <a href={named.mailto} className={`${FIX_LINK_CLASS} ml-2`}>
+                      Email them the link
+                    </a>
+                  </>
+                ) : (
+                  waiting
+                )
               }
             />
           );

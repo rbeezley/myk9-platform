@@ -9,6 +9,7 @@ import { PublishBlockersList, type PublishBlockerFix } from './PublishBlockersLi
 import { entryWindowPublishError } from '@/features/payments/onlineEntryGate';
 import type { PublishBlocker } from './publishBlockers';
 import { usePublishBlockers } from './usePublishBlockers';
+import { useClubAdminEmail } from './useClubAdminEmail';
 
 interface ShowPublishBlockersProps {
   showId: string;
@@ -39,6 +40,15 @@ export function ShowPublishBlockers({
   const state = usePublishBlockers(showId, isDraft);
   const canOpenPayments = useCanOpenClubPayments(resolvedClubId);
 
+  const waitsOnClubAdminPayouts = state.blockers.some(
+    blocker => blocker.key === 'payouts_not_enabled' && blocker.waitingOn === 'club_admin'
+  );
+  const clubAdminEmail = useClubAdminEmail(
+    showId,
+    resolvedClubId,
+    isDraft && waitsOnClubAdminPayouts && !canOpenPayments
+  );
+
   const fixFor = (blocker: PublishBlocker): PublishBlockerFix | undefined => {
     switch (blocker.key) {
       case 'club_not_approved':
@@ -67,5 +77,12 @@ export function ShowPublishBlockers({
   };
 
   if (!isDraft) return null;
-  return <PublishBlockersList state={state} fixFor={fixFor} viewerIsClubAdmin={canOpenPayments} />;
+  return (
+    <PublishBlockersList
+      state={state}
+      fixFor={fixFor}
+      viewerIsClubAdmin={canOpenPayments}
+      clubAdminEmail={clubAdminEmail}
+    />
+  );
 }

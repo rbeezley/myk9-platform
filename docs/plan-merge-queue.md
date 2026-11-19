@@ -91,12 +91,12 @@ API form, for reference:
 }
 ```
 
-**Order: (1) merge this PR, (2) merge the ship-pr Step 5 PR, (3) turn the queue on.** With the files merged and no queue, nothing changes: `merge_group` never fires, and the Queue verdict job finds no queue run and runs the full suite as today. Turning the queue on before (1) would block every merge, because no workflow would report the required checks on a queue commit; turning it on before (2) would leave sessions merging with a one-shot `gh pr view` that cannot tell "queued" from "dropped".
+**Order: (0) the owner's read-only eligibility check (Phase 0), before the ship-pr Step 5 PR is written; (1) merge this PR; (2) merge the ship-pr Step 5 PR; (3) refresh open worktrees; (4) turn the queue on.** With the files merged and no queue, nothing changes: `merge_group` never fires, and the Queue verdict job finds no queue run and runs the full suite as today. Turning the queue on before (1) would block every merge, because no workflow would report the required checks on a queue commit; turning it on before (2) would leave sessions merging with a one-shot `gh pr view` that cannot tell "queued" from "dropped". Step (3): a session shipping a branch that predates the Step 5 PR still reads the old `ship-pr` from its own worktree and would treat a queued PR as merged, so before (4) every open session merges `origin/main` into its branch (or finishes first) and reloads Step 5. This PR may merge before (0): it is inert without a queue, so if the answer is no the cost is unused CI wiring, which the owner can keep for a later move to an organization or revert.
 
 ## Phases
 
 1. **Repository files (this PR).** CI trigger, job conditions and Queue verdict job; review-gate mirror job and its script; `wait-pr-merged.sh`; tests. Draft PR, `independent` review.
-2. **ship-pr Step 5 PR (a session), then the owner.** A session lands the Step 5 change described under "How every session merges" and merges it. Only then does the owner run Phase 0 and the ruleset change above.
+2. **ship-pr Step 5 PR (a session), then the owner turns the queue on.** Phase 0 has already passed (the Step 5 PR is not written until it has). A session lands the Step 5 change described under "How every session merges" and merges it; open sessions refresh their worktrees (Order step 3); only then does the owner make the ruleset change above.
 3. **Testing on a throwaway PR** (a docs-only change, for example a one-line edit to this plan):
    - PR CI and the review gate go green on the PR head as today.
    - `gh pr merge <n> --squash --match-head-commit <sha>` reports that the PR joined the queue.

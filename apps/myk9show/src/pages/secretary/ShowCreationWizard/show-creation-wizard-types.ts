@@ -10,6 +10,8 @@ import type { ShowPasscodes } from '@myk9/core';
 export interface CreatedShow {
   id: string;
   name: string;
+  /** The host club, so "Show Created!" can link a payouts line before the store has the show. */
+  clubId?: string;
   /**
    * Server-generated plaintext passcodes returned from insert_show_passcodes.
    * Null when the passcode insert failed. `passcodeError` keeps the success

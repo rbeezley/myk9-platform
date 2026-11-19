@@ -19,6 +19,8 @@ interface PublishBlockersListProps {
   fixFor: (blocker: PublishBlocker) => PublishBlockerFix | undefined;
   /** True when the viewer is the club admin, so a payouts line waiting on the club admin is theirs. */
   viewerIsClubAdmin: boolean;
+  /** One extra row for a part of the check that failed (the wizard's club read), with a retry. */
+  failedPart?: { message: string; retry: () => void } | undefined;
 }
 
 const SECTION_CLASS = 'rounded-md border border-warning/40 bg-warning/10 p-3 text-sm';
@@ -34,6 +36,7 @@ export function PublishBlockersList({
   state,
   fixFor,
   viewerIsClubAdmin,
+  failedPart,
 }: PublishBlockersListProps) {
   if (state.status === 'loading') return null;
   if (state.status === 'error') {
@@ -53,7 +56,7 @@ export function PublishBlockersList({
       </section>
     );
   }
-  if (state.blockers.length === 0) return null;
+  if (state.blockers.length === 0 && !failedPart) return null;
   return (
     <section
       aria-label="Before you can publish"
@@ -77,6 +80,17 @@ export function PublishBlockersList({
             />
           );
         })}
+        {failedPart ? (
+          <li
+            className="flex flex-wrap items-center gap-x-2"
+            data-testid="publish-blockers-part-error"
+          >
+            <span>{failedPart.message}</span>
+            <Button variant="outline" size="sm" onClick={failedPart.retry}>
+              Try again
+            </Button>
+          </li>
+        ) : null}
       </ul>
     </section>
   );

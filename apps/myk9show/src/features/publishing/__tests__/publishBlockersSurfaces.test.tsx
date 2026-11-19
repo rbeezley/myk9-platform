@@ -49,7 +49,6 @@ describe('ShowPublishBlockers links (MYK9-2198)', () => {
 
     const hrefs = screen.getAllByRole('link').map(link => link.getAttribute('href'));
     expect(hrefs).toEqual([
-      '/clubs/club-1',
       '/clubs/club-1?tab=payments',
       '/shows/show-1/about#setup-publish-premium',
       expect.stringContaining('/shows/show-1'),
@@ -60,7 +59,8 @@ describe('ShowPublishBlockers links (MYK9-2198)', () => {
   it('offers no payments link to someone who cannot open the Payments tab, and says who it waits on', () => {
     render(<ShowPublishBlockers showId="show-1" clubId="club-1" />);
 
-    expect(screen.getAllByRole('link')).toHaveLength(4);
+    // Club approval waits on myK9Show, so it has no link; payouts has none for this viewer.
+    expect(screen.getAllByRole('link')).toHaveLength(3);
     expect(screen.getByText('Waiting on your club admin')).toBeInTheDocument();
   });
 });
@@ -92,14 +92,26 @@ describe('WizardPublishBlockers (MYK9-2198)', () => {
     expect(props.onEditDetails).toHaveBeenCalledTimes(1);
   });
 
-  it('says it could not check, rather than looking ready, when the club lines are unreadable', () => {
-    harness.club = { status: 'error', retry: vi.fn() };
-    render(<WizardPublishBlockers {...props} />);
+  it('offline: still lists the draft’s own lines, plus one row saying the club check failed', async () => {
+    const retry = vi.fn();
+    harness.club = { status: 'error', retry };
+    render(<WizardPublishBlockers {...props} entryOpenDate="" />);
 
+    expect(screen.getByText('Set when entries open and close.')).toBeInTheDocument();
+    expect(screen.getByText(/Publish the premium list/)).toBeInTheDocument();
     expect(
-      screen.getByText('Could not check what blocks publishing. Try again.')
+      screen.getByText('Could not check the club’s approval and payouts. Try again.')
     ).toBeInTheDocument();
-    expect(screen.queryByText(/Publish the premium list/)).not.toBeInTheDocument();
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Try again' }));
+    expect(retry).toHaveBeenCalledTimes(1);
+  });
+
+  it('with no club chosen yet, lists the draft’s own lines and no club row', () => {
+    harness.club = { status: 'loading' };
+    render(<WizardPublishBlockers {...props} clubId={undefined} entryOpenDate="" />);
+
+    expect(screen.getByText('Set when entries open and close.')).toBeInTheDocument();
+    expect(screen.queryByTestId('publish-blockers-part-error')).not.toBeInTheDocument();
   });
 });
 
@@ -119,5 +131,25 @@ describe('Show Created overlay (MYK9-2198)', () => {
 
     expect(screen.getByText('Show Created!')).toBeInTheDocument();
     expect(screen.getByText('Before you can publish')).toBeInTheDocument();
+  });
+
+  it('links payouts using the created show’s club even when the store has no such show', () => {
+    harness.canOpenPayments = true;
+    render(
+      <WizardSuccessOverlay
+        createdShow={{
+          id: 'show-1',
+          name: 'Heartland Classic',
+          clubId: 'club-1',
+          passcodes: null,
+          passcodeError: null,
+        }}
+        onReviewShow={vi.fn()}
+      />
+    );
+
+    expect(
+      screen.getByRole('link', { name: /fix it: your club has not finished/i })
+    ).toHaveAttribute('href', '/clubs/club-1?tab=payments');
   });
 });

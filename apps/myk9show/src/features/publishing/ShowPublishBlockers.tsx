@@ -25,7 +25,8 @@ export function ShowPublishBlockers({ showId, clubId }: ShowPublishBlockersProps
   const fixFor = (blocker: PublishBlocker): PublishBlockerFix | undefined => {
     switch (blocker.key) {
       case 'club_not_approved':
-        return resolvedClubId ? { href: `/clubs/${resolvedClubId}` } : undefined;
+        // Waits on myK9Show: there is nothing for the secretary to fix, so no link.
+        return undefined;
       case 'payouts_not_enabled':
         return resolvedClubId && canOpenPayments
           ? { href: clubPaymentsHref(resolvedClubId) }

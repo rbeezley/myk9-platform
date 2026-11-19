@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
+import { act } from '@testing-library/react';
+import { useShowStore } from '@/store/showStore';
+import type { Show } from '@/types/show-types';
 import { useClubPublishBlockers, usePublishBlockers } from '../usePublishBlockers';
 
 const { rpc } = vi.hoisted(() => ({ rpc: vi.fn() }));
@@ -56,6 +59,29 @@ describe('usePublishBlockers (MYK9-2198)', () => {
     if (result.current.status === 'error') result.current.retry();
     await waitFor(() => expect(result.current.status).toBe('ready'));
     expect(rpc).toHaveBeenCalledTimes(2);
+  });
+
+  it('asks again when a show field the list depends on changes locally', async () => {
+    rpc.mockResolvedValue({ data: [], error: null });
+    const base = {
+      id: 'show-1',
+      clubId: 'club-1',
+      status: 'draft',
+      entryOpenDate: '',
+      entryCloseDate: '',
+    } as unknown as Show;
+    act(() => useShowStore.setState({ shows: [base] }));
+    const { result } = renderHook(() => usePublishBlockers('show-1'), { wrapper });
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    expect(rpc).toHaveBeenCalledTimes(1);
+
+    act(() =>
+      useShowStore.setState({
+        shows: [{ ...base, entryOpenDate: '2026-06-01', publishesOwnPremium: true } as Show],
+      })
+    );
+    await waitFor(() => expect(rpc).toHaveBeenCalledTimes(2));
+    act(() => useShowStore.setState({ shows: [] }));
   });
 
   it('does not ask when disabled', () => {

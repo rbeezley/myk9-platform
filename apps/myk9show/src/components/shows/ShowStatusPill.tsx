@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -209,15 +210,30 @@ export function ShowStatusPill({
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        {transitions.map(({ label, next }) => (
-          <DropdownMenuItem key={next} onClick={() => handleTransition(next)}>
-            {becomesPublic(status, next) &&
-            blockers.status === 'ready' &&
-            blockers.blockers.length > 0
-              ? 'See what blocks publishing'
-              : label}
-          </DropdownMenuItem>
-        ))}
+        {transitions.map(({ label, next }) => {
+          const publishes = becomesPublic(status, next);
+          if (publishes && blockers.status === 'loading') {
+            // The list is still being read: do not offer a publish that may be refused.
+            return (
+              <DropdownMenuItem key={next} disabled>
+                Checking what blocks publishing…
+              </DropdownMenuItem>
+            );
+          }
+          const blocked = publishes && blockers.status === 'ready' && blockers.blockers.length > 0;
+          return (
+            <Fragment key={next}>
+              <DropdownMenuItem onClick={() => handleTransition(next)}>
+                {blocked ? 'See what blocks publishing' : label}
+              </DropdownMenuItem>
+              {publishes && blockers.status === 'error' && (
+                <p className="max-w-64 px-2 pb-2 text-sm text-muted-foreground">
+                  Could not check what blocks publishing. myK9Show will tell you if it refuses.
+                </p>
+              )}
+            </Fragment>
+          );
+        })}
       </DropdownMenuContent>
     </DropdownMenu>
   );

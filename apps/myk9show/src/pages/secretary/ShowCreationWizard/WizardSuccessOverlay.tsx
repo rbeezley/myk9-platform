@@ -31,7 +31,7 @@ export const WizardSuccessOverlay: React.FC<WizardSuccessOverlayProps> = ({
         <p className="mt-1 text-muted-foreground">{createdShow.name}</p>
       </div>
       <div className="w-full max-w-md empty:hidden">
-        <ShowPublishBlockers showId={createdShow.id} />
+        <ShowPublishBlockers showId={createdShow.id} clubId={createdShow.clubId} />
       </div>
       <div className="w-full max-w-md space-y-2 text-center">
         <h2 className="text-xl font-semibold">Role-specific access codes</h2>

@@ -192,7 +192,13 @@ const ShowCreationWizardPageContent: React.FC = () => {
     setIsLoading,
     selfNavigationRef,
     onCreated: (id, name, passcodes, passcodeError) =>
-      setCreatedShow({ id, name, passcodes, passcodeError: passcodeError ?? null }),
+      setCreatedShow({
+        id,
+        name,
+        ...(show.clubId ? { clubId: show.clubId } : {}),
+        passcodes,
+        passcodeError: passcodeError ?? null,
+      }),
   });
 
   // NOTE: deliberately no reset-on-mount. It used to destroy the persisted

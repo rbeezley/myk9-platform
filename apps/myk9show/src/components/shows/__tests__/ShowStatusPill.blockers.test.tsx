@@ -90,6 +90,25 @@ describe('ShowStatusPill and the publish blockers list (MYK9-2198)', () => {
     expect(toast.error).not.toHaveBeenCalled();
   });
 
+  it('disables the publish item while the list is still loading', async () => {
+    blockersState.value = { status: 'loading' };
+    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+    await userEvent.setup().click(screen.getByRole('button', { name: /draft/i }));
+
+    const item = await screen.findByRole('menuitem', { name: /Checking what blocks publishing/ });
+    expect(item).toHaveAttribute('aria-disabled', 'true');
+    expect(mutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('notes that the check failed, and still offers the attempt, when the list could not be read', async () => {
+    blockersState.value = { status: 'error', retry: vi.fn() };
+    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+    await userEvent.setup().click(screen.getByRole('button', { name: /draft/i }));
+
+    expect(await screen.findByRole('menuitem', { name: 'Publish Show' })).toBeInTheDocument();
+    expect(screen.getByText(/Could not check what blocks publishing/)).toBeInTheDocument();
+  });
+
   it('still tries when the list could not be read, and the server refusal is the answer', async () => {
     blockersState.value = { status: 'error', retry: vi.fn() };
     mutateAsync.mockRejectedValueOnce({ code: 'MK005', message: ENTRY_WINDOW_REQUIRED_MESSAGE });

@@ -136,7 +136,7 @@ export function GazetteBody({ data, tokens }: Props) {
                     color: tokens.secondaryColor,
                   }}
                 >
-                  {trial.name} · {trial.date}
+                  {trial.date ? `${trial.name} · ${trial.date}` : trial.name}
                 </Text>
                 {trial.classLabels.length > 0 && (
                   <Text style={denseStyle}>{trial.classLabels.join(' · ')}</Text>
@@ -189,7 +189,7 @@ export function GazetteBody({ data, tokens }: Props) {
               <Text style={headerTextStyle}>Emergency Vet</Text>
             </View>
             <Text style={{ ...denseStyle, fontWeight: 700 }}>{f.vetClinic.name}</Text>
-            <Text style={denseStyle}>{f.vetClinic.address}</Text>
+            {f.vetClinic.address && <Text style={denseStyle}>{f.vetClinic.address}</Text>}
             {f.vetClinic.phone && <Text style={denseStyle}>{f.vetClinic.phone}</Text>}
           </View>
         )}

@@ -421,7 +421,10 @@ export function buildPremiumFacts(
     },
     recordingFee: premiumRecordingFeeText(data),
     entryLimit: premiumEntryLimitText(data),
-    entryRules: premiumEntryRuleLines(show),
+    entryRules: premiumEntryRuleLines(
+      show,
+      (data.trials ?? []).flatMap(trial => trial.classes ?? [])
+    ),
     withdrawalPolicy: buildWithdrawalPolicyFact(show.withdrawal),
     scoutingStatement: buildScoutingStatementFact(registry),
     entry: {
@@ -460,7 +463,7 @@ export function buildPremiumFacts(
         })),
         classLabels,
         entryLimit: premiumTrialEntryLimitText(trial),
-        classFeeLines: premiumClassFeeLines(sortedClasses),
+        classFeeLines: premiumClassFeeLines(sortedClasses, show),
       };
     }),
     vetClinic: supplemental.vetClinic

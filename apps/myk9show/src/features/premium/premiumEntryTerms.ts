@@ -33,28 +33,59 @@ export function premiumVenueText(
   const zip = clean(show.venueZip);
   const streetLower = street.toLowerCase();
   const said = (part: string) => part !== '' && streetLower.includes(part.toLowerCase());
+  // A state or zip counts as said only as a whole word: "PA" is not said by "123 Park Place".
+  const saidWord = (part: string) =>
+    part !== '' &&
+    new RegExp(`(^|[^a-z0-9])${part.toLowerCase().replace(/[^a-z0-9]/g, '')}($|[^a-z0-9])`).test(
+      streetLower
+    );
 
-  const stateZip = [said(state) ? '' : state, said(zip) ? '' : zip].filter(Boolean).join(' ');
+  const stateZip = [saidWord(state) ? '' : state, saidWord(zip) ? '' : zip]
+    .filter(Boolean)
+    .join(' ');
   const cityLine = [said(city) ? '' : city, stateZip].filter(Boolean).join(', ');
   const nameLine = name && name.toLowerCase() !== streetLower && !said(name) ? name : '';
   return [nameLine, street, cityLine].filter(Boolean).join(', ');
 }
 
-/** "Waitlist: ..." and "Move-ups: ..." lines for the show's rules, [] for a premium that has neither. */
+/**
+ * "Waitlist: ..." and "Move-ups: ..." lines for the show's rules, [] for a premium that has
+ * neither. A class's own waitlist switch wins over the show's (MYK9-1019:
+ * COALESCE(classes.allow_waitlist, shows.allow_waitlist, false)), so when the classes disagree
+ * the line names the ones that take a waitlist.
+ */
 export function premiumEntryRuleLines(
-  show: Pick<PremiumShow, 'allowWaitlist' | 'waitlistAutoOffer' | 'allowClassChangesAfterClose'>
+  show: Pick<PremiumShow, 'allowWaitlist' | 'waitlistAutoOffer' | 'allowClassChangesAfterClose'>,
+  classes: ReadonlyArray<PremiumClass> = []
 ): string[] {
   const lines: string[] = [];
-  if (show.allowWaitlist === true) {
+  const known =
+    typeof show.allowWaitlist === 'boolean' ||
+    classes.some(c => typeof c.allowWaitlist === 'boolean');
+  if (known) {
+    const takes = (c: PremiumClass) => (c.allowWaitlist ?? show.allowWaitlist ?? false) === true;
+    const waitlisted = classes.filter(takes);
+    const all =
+      classes.length === 0 ? show.allowWaitlist === true : waitlisted.length === classes.length;
+    const none = classes.length === 0 ? show.allowWaitlist !== true : waitlisted.length === 0;
+    // Only an explicit "off" promises a person makes the offer; unknown says nothing about how.
     const offer =
-      show.waitlistAutoOffer === false
-        ? 'the trial secretary offers it to the next entry on the waitlist'
-        : 'it is offered to the next entry on the waitlist automatically';
-    lines.push(
-      `Waitlist: when a class is full, new entries join the waitlist. Joining is free and you pay only if you claim a spot. When a spot opens, ${offer}.`
-    );
-  } else if (show.allowWaitlist === false) {
-    lines.push('Waitlist: none. When a class is full, new entries are turned away.');
+      show.waitlistAutoOffer === true
+        ? ' When a spot opens, it is offered to the next entry on the waitlist automatically.'
+        : show.waitlistAutoOffer === false
+          ? ' When a spot opens, the trial secretary offers it to the next entry on the waitlist.'
+          : '';
+    const terms = `Joining is free and you pay only if you claim a spot.${offer}`;
+    if (all) {
+      lines.push(`Waitlist: when a class is full, new entries join the waitlist. ${terms}`);
+    } else if (none) {
+      lines.push('Waitlist: none. When a class is full, new entries are turned away.');
+    } else {
+      const labels = [...new Set(waitlisted.map(formatPremiumClassLabel))].join(' · ');
+      lines.push(
+        `Waitlist: when one of these classes is full, new entries join its waitlist: ${labels}. In the other classes, new entries are turned away when full. ${terms}`
+      );
+    }
   }
   if (show.allowClassChangesAfterClose === true) {
     lines.push(
@@ -82,17 +113,28 @@ export function premiumTrialEntryLimitText(
 
 /**
  * One line per distinct class fee, in the classes' own order: "Class fee $20: Novice Container
- * · Advanced Container". A class with no fee is left out.
+ * · Advanced Container". A class with no fee, or one equal to the show's pre-entry fee, is left
+ * out (MYK9-1931: it costs the show's fee). When the show has a day-of tier above its pre-entry
+ * fee, a class with its own fee costs that fee plus the difference on the day, which the line says.
  */
-export function premiumClassFeeLines(classes: ReadonlyArray<PremiumClass>): string[] {
+export function premiumClassFeeLines(
+  classes: ReadonlyArray<PremiumClass>,
+  show: Pick<PremiumShow, 'preEntryFee' | 'dayOfFee'> = { preEntryFee: null, dayOfFee: null }
+): string[] {
+  const pre = typeof show.preEntryFee === 'number' ? show.preEntryFee : null;
+  const dayOf = typeof show.dayOfFee === 'number' ? show.dayOfFee : null;
+  const surcharge = pre !== null && pre > 0 && dayOf !== null && dayOf > pre ? dayOf - pre : 0;
+  const suffix = surcharge > 0 ? ` (day-of entries add ${money(surcharge)})` : '';
   const byFee = new Map<number, string[]>();
   for (const cls of classes) {
     const fee = cls.entryFee;
-    if (typeof fee !== 'number' || !Number.isFinite(fee) || fee <= 0) continue;
+    if (typeof fee !== 'number' || !Number.isFinite(fee) || fee <= 0 || fee === pre) continue;
     const labels = byFee.get(fee) ?? [];
     const label = formatPremiumClassLabel(cls);
     if (!labels.includes(label)) labels.push(label);
     byFee.set(fee, labels);
   }
-  return [...byFee].map(([fee, labels]) => `Class fee ${money(fee)}: ${labels.join(' · ')}`);
+  return [...byFee].map(
+    ([fee, labels]) => `Class fee ${money(fee)}${suffix}: ${labels.join(' · ')}`
+  );
 }

@@ -164,6 +164,8 @@ export interface GeneratedPremium {
       section: string | null;
       /** MYK9-2227: classes.entry_fee; null or absent prints no class fee. */
       entryFee?: number | null;
+      /** classes.allow_waitlist: the class's own switch; null or absent follows the show (MYK9-1019). */
+      allowWaitlist?: boolean | null;
     }>;
   }>;
   supplemental: PremiumSupplemental;

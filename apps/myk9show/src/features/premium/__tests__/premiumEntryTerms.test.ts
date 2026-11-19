@@ -103,3 +103,71 @@ describe('trial limit and class fees (MYK9-2227)', () => {
     ]);
   });
 });
+
+describe('premium entry terms: review fixes (MYK9-2227)', () => {
+  const cls = (element: string, extra: Record<string, unknown> = {}) => ({
+    element,
+    level: 'Novice',
+    section: null,
+    ...extra,
+  });
+
+  it('keeps a state the street only contains as letters inside a word', () => {
+    expect(
+      premiumVenueText({
+        venue: '123 Park Place',
+        venueName: null,
+        venueCity: 'Reading',
+        venueState: 'PA',
+        venueZip: '19601',
+      })
+    ).toBe('123 Park Place, Reading, PA 19601');
+    expect(
+      premiumVenueText({
+        venue: '100 Main St, Louisville, KY 40202',
+        venueName: null,
+        venueCity: 'Louisville',
+        venueState: 'KY',
+        venueZip: '40202',
+      })
+    ).toBe('100 Main St, Louisville, KY 40202');
+  });
+
+  it("follows a class's own waitlist switch over the show's (MYK9-1019)", () => {
+    const show = {
+      allowWaitlist: false,
+      waitlistAutoOffer: false,
+      allowClassChangesAfterClose: null,
+    };
+    const [line] = premiumEntryRuleLines(show, [
+      cls('Containers', { allowWaitlist: true }),
+      cls('Interior'),
+    ]);
+    expect(line).toContain('Containers Novice');
+    expect(line).not.toContain('Interior Novice');
+    expect(line).toContain('turned away');
+    expect(line).toContain('the trial secretary offers it');
+
+    expect(
+      premiumEntryRuleLines({ ...show, allowWaitlist: true }, [
+        cls('Containers', { allowWaitlist: false }),
+        cls('Interior', { allowWaitlist: false }),
+      ])
+    ).toEqual(['Waitlist: none. When a class is full, new entries are turned away.']);
+  });
+
+  it('never claims an automatic offer when the auto-offer setting is unknown', () => {
+    const [line] = premiumEntryRuleLines({ allowWaitlist: true }, [cls('Containers')]);
+    expect(line).not.toContain('automatically');
+    expect(line).not.toContain('secretary offers');
+  });
+
+  it("leaves out a class fee equal to the show's and says the day-of surcharge", () => {
+    expect(
+      premiumClassFeeLines(
+        [cls('Containers', { entryFee: 25 }), cls('Interior', { entryFee: 20 })],
+        { preEntryFee: 25, dayOfFee: 30 }
+      )
+    ).toEqual(['Class fee $20 (day-of entries add $5): Interior Novice']);
+  });
+});

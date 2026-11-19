@@ -104,7 +104,7 @@ handle<GeneratePremiumPayload>(
         trials(
           id, name, date, planned_start_time, event_number, trial_type, registry_id, status,
           deleted_at, max_total_entries,
-          classes(id, name, level, element, section, entry_fee, deleted_at)
+          classes(id, name, level, element, section, entry_fee, allow_waitlist, deleted_at)
         )
       `
       )
@@ -228,6 +228,7 @@ handle<GeneratePremiumPayload>(
           element: string | null;
           section: string | null;
           entry_fee: number | null;
+          allow_waitlist: boolean | null;
           deleted_at: string | null;
         }>;
         max_total_entries: number | null;
@@ -247,6 +248,8 @@ handle<GeneratePremiumPayload>(
         section: cls.section,
         // MYK9-2227: the class's own fee.
         entryFee: cls.entry_fee ?? null,
+        // The class's own waitlist switch; null follows the show (MYK9-1019).
+        allowWaitlist: cls.allow_waitlist ?? null,
       })),
     }));
 

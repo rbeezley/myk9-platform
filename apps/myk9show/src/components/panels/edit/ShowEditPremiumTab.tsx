@@ -208,8 +208,10 @@ function buildLocalPremiumDraft(
       acceptChecks: Boolean(data.acceptCheckPayments),
       acceptCash: Boolean(data.acceptCashPayments),
       maxTotalEntries: normalizeEntryLimit(data.maxTotalEntries),
-      // MYK9-2227: the one waitlist rule the edit form carries; Regenerate fills in the rest.
-      allowWaitlist: data.allowsWaitlist ?? null,
+      // MYK9-2227: the waitlist and move-up lines are left to Regenerate. The edit form holds
+      // the show's waitlist switch but not the classes' own switches, the auto-offer setting or
+      // class changes, so a line built here could say the opposite of the saved rules.
+      allowWaitlist: null,
     },
     club: {
       name: data.clubName ?? '',

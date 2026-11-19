@@ -23,7 +23,8 @@ const TEMPLATES = {
   ASCA: ASCAPremiumTemplate,
 } as const;
 
-const FEE_LINE = 'Class fee $17.50: Containers Novice';
+// The show's day-of fee is $5 above its pre-entry fee, so a class with its own fee says so.
+const FEE_LINE = 'Class fee $17.50 (day-of entries add $5): Containers Novice';
 const TRIAL_LIMIT = 'Trial entry limit: 37 entries.';
 const WAITLIST = 'Waitlist: when a class is full, new entries join the waitlist.';
 const MOVE_UPS = 'Move-ups: a class change (including a move-up) may be requested';

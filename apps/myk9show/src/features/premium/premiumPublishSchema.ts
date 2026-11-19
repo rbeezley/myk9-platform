@@ -117,6 +117,7 @@ const generatedPremiumSchema = z.object({
           level: z.string(),
           section: nullableText,
           entryFee: nullableAmount.optional(),
+          allowWaitlist: z.boolean().nullable().optional(),
         })
       ),
     })

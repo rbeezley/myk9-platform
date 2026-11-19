@@ -148,9 +148,12 @@ describe('ReviewStep publish blockers (MYK9-2198)', () => {
     });
     render(<ReviewStep trialView={trialView} onCreateShow={vi.fn()} existingShowId="show-9" />);
 
-    // The mirror would list only the premium here; the (mocked) server answers with the dates.
+    // The mirror would list only the premium here; the (mocked) server answers with the dates
+    // line, which the draft's valid dates already fix (MYK9-2205).
     const list = screen.getByTestId('publish-blockers');
-    expect(list).toHaveTextContent('Set when entries open and close.');
+    expect(list).toHaveTextContent('Fixed in this draft. Save to apply.');
+    expect(list).not.toHaveTextContent('Set when entries open and close.');
     expect(list).not.toHaveTextContent('Publish the premium list');
+    expect(screen.queryByRole('button', { name: /fix it/i })).not.toBeInTheDocument();
   });
 });

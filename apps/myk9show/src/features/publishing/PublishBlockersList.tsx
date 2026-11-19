@@ -11,7 +11,11 @@ import type { PublishBlockersState } from './usePublishBlockers';
 export interface PublishBlockerFix {
   href?: string | undefined;
   onFix?: (() => void) | undefined;
+  /** The wizard draft already holds a valid value for this line; only Save is left. */
+  fixedInDraft?: boolean | undefined;
 }
+
+export const FIXED_IN_DRAFT_MESSAGE = 'Fixed in this draft. Save to apply.';
 
 /** A part of the check that is not `ready` (the wizard's club read), shown as its own row. */
 export type PublishBlockersPart = Exclude<PublishBlockersState, { state: 'ready' }>;
@@ -120,10 +124,12 @@ export function PublishBlockersList({
           return (
             <FixItRow
               key={blocker.key}
-              message={publishBlockerSentence(blocker)}
-              href={fix?.href}
-              onFix={fix?.onFix}
-              note={publishBlockerWaitingText(blocker, viewerIsClubAdmin)}
+              message={fix?.fixedInDraft ? FIXED_IN_DRAFT_MESSAGE : publishBlockerSentence(blocker)}
+              href={fix?.fixedInDraft ? undefined : fix?.href}
+              onFix={fix?.fixedInDraft ? undefined : fix?.onFix}
+              note={
+                fix?.fixedInDraft ? null : publishBlockerWaitingText(blocker, viewerIsClubAdmin)
+              }
             />
           );
         })}

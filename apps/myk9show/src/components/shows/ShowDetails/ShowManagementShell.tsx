@@ -40,7 +40,7 @@ import { publishAnchorFromHash } from '@/features/show-workbench/setupReadinessS
 import type { Show } from '@/types/show-types';
 import type { GeneratedPremium } from '@/types/premium-types';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
-import { applyShowFormDataToPremium } from './showFormPremiumSync';
+import { applyShowFormDataToPremium, premiumOrganizationMismatch } from './showFormPremiumSync';
 import {
   applyOfficialsToPremium,
   fetchOfficialsForPublish,
@@ -401,6 +401,12 @@ function AuthorizedShowManagementShell({
               // lost-response retry that reconciles as already committed), and
               // none of those may discard what the secretary just typed.
               await persistShowChanges();
+              // MYK9-2213: a draft built for another organization is never published as this one.
+              const orgMismatch = premiumOrganizationMismatch(
+                publishableShowData.generatedPremium,
+                (showData as Partial<ShowInput>).organization
+              );
+              if (orgMismatch) throw new PremiumPublishError(orgMismatch, 'experience-snapshot');
               try {
                 // The form's judge list is a device read and is empty when that
                 // read failed; the published premium lists the server's judges,

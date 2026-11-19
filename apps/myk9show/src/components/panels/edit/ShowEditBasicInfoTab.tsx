@@ -63,6 +63,11 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
   // MYK9-1387: only a loaded, explicitly unauthorized club changes the hint.
   const clubAuthQuery = useClubAuthorization(data.clubId || undefined);
   const clubUnauthorized = clubAuthQuery.data != null && clubAuthQuery.data.authorized_at === null;
+  // MYK9-2213 (MYK9-604): the database refuses an organization change once the show has any
+  // trial, so the select is locked rather than offering a change Save would refuse. This also
+  // keeps the premium built for the organization that is saved.
+  const organizationLocked = (data.trials?.length ?? 0) > 0;
+  const organizationLockedHintId = organizationLocked ? 'organization-locked-hint' : undefined;
 
   return (
     <TabsContent
@@ -91,8 +96,12 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
             </FormField>
 
             <FormField label="Organization" fieldId="organization">
-              <Select value={data.organization} onValueChange={handleSelectChange('organization')}>
-                <SelectTrigger id="organization">
+              <Select
+                value={data.organization}
+                onValueChange={handleSelectChange('organization')}
+                disabled={organizationLocked}
+              >
+                <SelectTrigger id="organization" aria-describedby={organizationLockedHintId}>
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -113,6 +122,12 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
                   )}
                 </SelectContent>
               </Select>
+              {organizationLocked && (
+                <p id={organizationLockedHintId} className="text-xs text-muted-foreground">
+                  The organization cannot change once the show has trials. Create a separate show
+                  for another organization.
+                </p>
+              )}
             </FormField>
 
             {/* Hint sits BELOW the select: FormField renders hints above the control,

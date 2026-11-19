@@ -26,6 +26,8 @@ interface PremiumContentEditorProps {
   active?: boolean;
   initialPremium?: GeneratedPremium;
   deferGeneration?: boolean;
+  /** Why generating is held (MYK9-2213); disables Regenerate and shows this line. */
+  regenerateBlockedReason?: string;
   onPremiumChange?: (premium: GeneratedPremium | undefined) => void;
   onInkSaverChange?: (inkSaver: boolean) => void;
   /** True while a Regenerate is pending, so the parent can hold Save-with-publish. */
@@ -64,6 +66,7 @@ export function PremiumContentEditor({
   active = true,
   initialPremium,
   deferGeneration = false,
+  regenerateBlockedReason,
   onPremiumChange,
   onInkSaverChange,
   onPendingChange,
@@ -183,6 +186,7 @@ export function PremiumContentEditor({
       !original &&
       !initialPremium &&
       !deferGeneration &&
+      !regenerateBlockedReason &&
       !isLoading &&
       autoGenerateAttemptedFor !== showId
     ) {
@@ -196,6 +200,7 @@ export function PremiumContentEditor({
     initialPremium,
     isLoading,
     original,
+    regenerateBlockedReason,
     showId,
     showOrg,
   ]);
@@ -367,6 +372,14 @@ export function PremiumContentEditor({
           </Alert>
         )}
 
+        {/* MYK9-2213: first-time generation is held too, so say why here, not only beside Regenerate. */}
+        {!original && !isLoading && showOrg && regenerateBlockedReason && (
+          <Alert>
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>{regenerateBlockedReason}</AlertDescription>
+          </Alert>
+        )}
+
         {(isLoading || isGenerating) && (
           <div
             role="status"
@@ -402,7 +415,7 @@ export function PremiumContentEditor({
                     type="button"
                     size="sm"
                     variant="outline"
-                    disabled={isGenerating}
+                    disabled={isGenerating || Boolean(regenerateBlockedReason)}
                     onClick={() => void handleGenerate()}
                   >
                     Try narrative generation again
@@ -471,15 +484,20 @@ export function PremiumContentEditor({
                 </Suspense>
               ) : null}
 
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full"
-                disabled={isGenerating}
-                onClick={() => void handleGenerate()}
-              >
-                Regenerate
-              </Button>
+              <div className="space-y-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full"
+                  disabled={isGenerating || Boolean(regenerateBlockedReason)}
+                  onClick={() => void handleGenerate()}
+                >
+                  Regenerate
+                </Button>
+                {regenerateBlockedReason && (
+                  <p className="text-xs text-muted-foreground">{regenerateBlockedReason}</p>
+                )}
+              </div>
             </div>
           </>
         )}

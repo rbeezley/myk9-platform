@@ -166,3 +166,30 @@ describe('PremiumContentEditor while Regenerate is pending', () => {
     expect(screen.getByDisplayValue('Saved hours')).not.toHaveAttribute('readonly');
   });
 });
+
+describe('PremiumContentEditor regenerate held for an unsaved organization (MYK9-2213)', () => {
+  afterEach(() => {
+    generateMock.mockReset();
+  });
+
+  it('disables Regenerate, shows the reason and never calls the generator', async () => {
+    const reason = 'Save the show first. Regenerate builds from the saved organization (AKC).';
+    render(
+      <PremiumContentEditor
+        showId="show-1"
+        clubId="club-1"
+        showOrg="UKC"
+        active
+        initialPremium={premiumWith('Old hours')}
+        regenerateBlockedReason={reason}
+      />
+    );
+    expect(await screen.findByDisplayValue('Old hours')).toBeInTheDocument();
+
+    const button = screen.getByRole('button', { name: 'Regenerate' });
+    expect(button).toBeDisabled();
+    expect(screen.getByText(reason)).toBeInTheDocument();
+    fireEvent.click(button);
+    expect(generateMock).not.toHaveBeenCalled();
+  });
+});

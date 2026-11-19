@@ -859,6 +859,32 @@ describe('Save & Publish keeps the show edits when publication cannot start', ()
     expect(saveHarness.runPublish).toHaveBeenCalled();
     expect(screen.getByTestId('edit-panel-open')).toBeInTheDocument();
   });
+
+  it('saves an organization change but never publishes a premium built for the old one (MYK9-2213)', async () => {
+    saveHarness.updateShow.mockReset().mockResolvedValue({ ...makeShow(), organization: 'UKC' });
+    saveHarness.persistJudges.mockReset().mockResolvedValue(undefined);
+    saveHarness.publishJudges.mockReset().mockResolvedValue([]);
+    saveHarness.officials.mockReset().mockResolvedValue(NO_OFFICIALS);
+    saveHarness.runPublish.mockReset().mockResolvedValue(undefined);
+    saveHarness.payload = {
+      organization: 'UKC',
+      assignedJudges: [],
+      publishExperience: true,
+      generatedPremium: { ...generatedPremium(), org: 'AKC' },
+    };
+
+    renderShell({}, '/shows/show-1?edit=true');
+    fireEvent.click(await screen.findByTestId('edit-panel-save'));
+
+    await waitFor(() =>
+      expect(saveHarness.updateShow).toHaveBeenCalledWith(
+        'show-1',
+        expect.objectContaining({ organization: 'UKC' })
+      )
+    );
+    expect(saveHarness.runPublish).not.toHaveBeenCalled();
+    expect(screen.getByTestId('edit-panel-open')).toBeInTheDocument();
+  });
 });
 
 // MYK9-772: the Edit Show save hands the judges over as a DIFFERENCE between

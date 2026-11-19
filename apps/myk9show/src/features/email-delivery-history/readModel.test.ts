@@ -150,6 +150,23 @@ describe('email delivery history read model', () => {
     expect(row.typeLabel).toBe('Entry changed');
   });
 
+  it('labels the automatic show-cancelled email in plain words', () => {
+    const row = normalizeEmailDeliveryRow({
+      id: 'attempt-6',
+      show_id: 'show-1',
+      source_kind: 'lifecycle',
+      lifecycle_step_type: 'show_cancelled',
+      related_id: 'job-4',
+      recipient_name: 'Ada Lovelace',
+      recipient_email: 'ada@example.com',
+      attempted_at: '2026-11-19T12:00:00Z',
+      status_updated_at: null,
+      delivery_status: 'sent',
+      failure_summary: null,
+    });
+    expect(row.typeLabel).toBe('Show cancelled');
+  });
+
   it('routes failures to the existing owner surface', () => {
     expect(getEmailRecoveryHref('registration_confirmation', 'show-1')).toBe(
       '/shows/show-1/entries'

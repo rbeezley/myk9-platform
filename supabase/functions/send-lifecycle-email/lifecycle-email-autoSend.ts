@@ -23,6 +23,8 @@
  *                                             Producers make these jobs `held` so a sender deployed
  *                                             before this one never mails them as show_changed; the
  *                                             drain releases them (held to ready) before it claims
+ *   show_cancelled (MYK9-2127)                same drain, same `held` release; sent only while the show
+ *                                             is still cancelled and the person still has an entry
  */
 import {
   deliverViaResend,
@@ -37,6 +39,7 @@ import {
 } from './lifecycle-email-shared.ts';
 import { planJudgeChangedEmail, renderJudgeChangedEmail } from './lifecycle-email-judgeChanged.ts';
 import { planEntryChangedEmail, renderEntryChangedEmail } from './lifecycle-email-entryChanged.ts';
+import { isCancelledShow, renderShowCancelledEmail } from './lifecycle-email-showCancelled.ts';
 import {
   isPublishedShow,
   renderShowChangedEmail,
@@ -114,11 +117,11 @@ export async function drainAutoEmailJobs(args: {
   };
   if (!args.deps.resendApiKey) throw new Error('Email service not configured');
 
-  // MYK9-2126: this sender can send an entry change, so it frees the jobs the producers held.
+  // MYK9-2126/2127: this sender can send an entry change and a cancelled show, so it frees the jobs the producers held.
   const released = await args.supabase
     .from('show_lifecycle_email_jobs')
     .update({ status: 'ready' })
-    .eq('step_type', 'entry_changed')
+    .in('step_type', ['entry_changed', 'show_cancelled'])
     .eq('status', 'held');
   // A failed release leaves them held for the next drain; it must not stop the other emails.
   if (released.error) console.error('drain_auto: release failed', getErrorMessage(released.error));
@@ -206,7 +209,12 @@ async function processClaimedJob(args: {
   }
 
   const show = await loadShow(supabase, job.show_id);
-  if (!show || !isPublishedShow(show) || !job.recipient_person_id) {
+  // A cancel email goes only while the show is still cancelled (MYK9-2127); the others only while published.
+  const showFits =
+    job.step_type === 'show_cancelled'
+      ? isCancelledShow(show ?? { status: null })
+      : show !== null && isPublishedShow(show);
+  if (!show || !showFits || !job.recipient_person_id) {
     await finishJob(args, { status: 'skipped' });
     return 'skipped';
   }
@@ -220,9 +228,10 @@ async function processClaimedJob(args: {
   }
   row.recipient_email = currentEmail;
   // The secretary may switch the step off during the quiet minutes: honour it at send time.
-  // An entry change has no switch (MYK9-2126): the secretary cannot hold one back.
+  // An entry change or a cancel has no switch (MYK9-2126, MYK9-2127): the secretary cannot hold one back.
   if (
     job.step_type !== 'entry_changed' &&
+    job.step_type !== 'show_cancelled' &&
     !(await stepIsEnabled(supabase, job.show_id, job.step_type))
   ) {
     await finishJob(args, { status: 'skipped' });
@@ -249,6 +258,17 @@ async function processClaimedJob(args: {
       recipientName: job.recipient_name,
       registryId: plan.registryId,
       changes: plan.changes,
+    });
+  } else if (job.step_type === 'show_cancelled') {
+    // MYK9-2127: skipped when every entry of this person was pulled or withdrawn meanwhile.
+    if (!(await personHasLiveEntry(supabase, job.show_id, job.recipient_person_id))) {
+      await finishJob(args, { status: 'skipped' });
+      return 'skipped';
+    }
+    text = renderShowCancelledEmail({
+      showId: job.show_id,
+      showName: show.name,
+      recipientName: job.recipient_name,
     });
   } else if (job.step_type === 'entry_changed') {
     // MYK9-2126: told only what still stands on the person's own entries.

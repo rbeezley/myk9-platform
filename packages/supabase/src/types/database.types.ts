@@ -15498,6 +15498,10 @@ export type Database = {
         Args: { p_show_id: string }
         Returns: undefined
       }
+      queue_show_cancelled_email: {
+        Args: { p_show_id: string }
+        Returns: undefined
+      }
       queue_substitute_judge_emails: {
         Args: { p_class_id: string; p_judge_id: string }
         Returns: number

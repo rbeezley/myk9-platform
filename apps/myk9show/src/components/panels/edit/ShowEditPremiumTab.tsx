@@ -64,15 +64,10 @@ export function ShowEditPremiumTab({
   );
   // The preview lists the same secretary and chair the published premium will (MYK9-2053).
   const { data: officials } = useShowOfficials(showId);
-  const loadedPremium = useMemo(() => {
+  const initialPremium = useMemo(() => {
     const draft = buildLocalPremiumDraft(data, showOrg, publishedContent);
     return draft && officials ? applyOfficialsToPremium(draft, officials) : draft;
   }, [data, publishedContent, showOrg, officials]);
-  // MYK9-2201: after a tab round trip the editor remounts. It restarts from the premium this
-  // panel session already edited (kept in the form), and still judges "edited" against the
-  // content as first loaded, so Save keeps asking about edits made before the round trip.
-  const sessionPremium = data.generatedPremium ?? undefined;
-  const initialPremium = sessionPremium ?? loadedPremium;
 
   // MYK9-2213: generate-premium reads the SAVED organization, so while the form's differs a
   // Regenerate would build the premium for the wrong one.
@@ -82,8 +77,12 @@ export function ShowEditPremiumTab({
       : undefined;
 
   return (
+    // MYK9-2201: keepMounted, so the premium editor's own state (its edits, the generation it
+    // compares them with, a narrative-generation warning) survives a visit to another tab, and
+    // Save still asks about edits made before it. Nothing is restored from a copy.
     <TabsContent
       value="premium"
+      keepMounted
       className="space-y-6 animate-in slide-in-from-bottom-2 duration-300 ease-out"
     >
       <Card className="transition-all duration-200 hover:shadow-md hover:shadow-primary/5">
@@ -162,7 +161,6 @@ export function ShowEditPremiumTab({
               style={(data.style || 'monogram') as PremiumStyle}
               active={isActive}
               {...(initialPremium ? { initialPremium } : {})}
-              {...(sessionPremium && loadedPremium ? { editBaseline: loadedPremium } : {})}
               deferGeneration={
                 hasShowId && !data.experiencePublishedContent && publishedContentLoading
               }

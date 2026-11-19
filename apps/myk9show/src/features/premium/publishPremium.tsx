@@ -4,6 +4,7 @@ import { AKCPremiumTemplate } from './pdf/AKCPremiumTemplate';
 import { UKCPremiumTemplate } from './pdf/UKCPremiumTemplate';
 import type { GeneratedPremium } from '@/types/premium-types';
 import { classifyPremiumPublishError } from './premiumPublishErrors';
+import { appendAkcEntryForm, premiumHasAkcEntryForm } from './akcEntryFormAppendix';
 
 const BUCKET = 'premium-published';
 
@@ -63,7 +64,8 @@ export async function renderPremiumPdf(
 ): Promise<Blob> {
   const Template = premium.org === 'UKC' ? UKCPremiumTemplate : AKCPremiumTemplate;
   try {
-    return await pdf(<Template premium={premium} inkSaver={inkSaver} />).toBlob();
+    const blob = await pdf(<Template premium={premium} inkSaver={inkSaver} />).toBlob();
+    return premiumHasAkcEntryForm(premium) ? await appendAkcEntryForm(blob) : blob;
   } catch (err) {
     console.error('[premium-publish] PDF render failed', {
       showId,

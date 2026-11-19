@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestQueryClient, renderHook } from '@/test/utils/testUtils';
 
 const replication = vi.hoisted(() => ({
+  reconcilePrincipal: vi.fn(),
   getAllClubs: vi.fn(),
   sync: vi.fn(),
   fetchClubById: vi.fn(),
@@ -45,6 +46,7 @@ describe('useClubDetailData with a stalled lookup', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();
+    replication.reconcilePrincipal.mockResolvedValue('admin-1');
     replication.getAllClubs.mockResolvedValue([]);
     replication.sync.mockResolvedValue({ success: true });
     getPublicClubById.mockReturnValue(new Promise(() => undefined));

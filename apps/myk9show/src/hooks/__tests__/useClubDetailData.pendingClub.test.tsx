@@ -5,6 +5,7 @@ import { createTestQueryClient, renderHook, waitFor } from '@/test/utils/testUti
 import type { Club } from '@/types/club-types';
 
 const replication = vi.hoisted(() => ({
+  reconcilePrincipal: vi.fn(),
   getAllClubs: vi.fn(),
   sync: vi.fn(),
   fetchClubById: vi.fn(),
@@ -51,6 +52,7 @@ const pendingClub: Club = {
 describe('useClubDetailData for a club the device list lacks (MYK9-2153)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    replication.reconcilePrincipal.mockResolvedValue('admin-1');
     replication.getAllClubs.mockResolvedValue([]);
     replication.sync.mockResolvedValue({ success: true });
     getPublicClubById.mockResolvedValue(pendingClub);

@@ -71,6 +71,8 @@ insert into public.dogs (id, name, call_name, breed, owner_id, co_owner_id) valu
   ('00000000-0000-0000-0000-000002001038', 'Ada Dog Eight', 'Eight', 'Beagle', '00000000-0000-0000-0000-000002001021', null);
 
 alter table public.entries disable trigger trg_entries_require_dog_registration;
+-- A paid online entry is created only by the payment service (20260611270000).
+set role service_role;
 insert into public.entries (id, dog_id, class_id, show_id, trial_id, entry_status, armband, run_order,
                             check_in_status, payment_method, payment_status, entry_fee) values
   ('00000000-0000-0000-0000-000002001041', '00000000-0000-0000-0000-000002001031', '00000000-0000-0000-0000-000002001004', '00000000-0000-0000-0000-000002001002', '00000000-0000-0000-0000-000002001003', 'confirmed', '1', 1, 'no-status', 'online', 'paid', 30),
@@ -82,6 +84,7 @@ insert into public.entries (id, dog_id, class_id, show_id, trial_id, entry_statu
   ('00000000-0000-0000-0000-000002001047', '00000000-0000-0000-0000-000002001036', '00000000-0000-0000-0000-000002001004', '00000000-0000-0000-0000-000002001002', '00000000-0000-0000-0000-000002001003', 'confirmed', '6', 6, 'no-status', 'online', 'paid', 30),
   ('00000000-0000-0000-0000-000002001048', '00000000-0000-0000-0000-000002001037', '00000000-0000-0000-0000-000002001004', '00000000-0000-0000-0000-000002001002', '00000000-0000-0000-0000-000002001003', 'confirmed', '7', 7, 'no-status', 'online', 'paid', 30),
   ('00000000-0000-0000-0000-000002001049', '00000000-0000-0000-0000-000002001038', '00000000-0000-0000-0000-000002001004', '00000000-0000-0000-0000-000002001002', '00000000-0000-0000-0000-000002001003', 'confirmed', '8', 8, 'no-status', 'online', 'paid', 30);
+reset role;
 alter table public.entries enable trigger trg_entries_require_dog_registration;
 
 -- Act as a signed-in user ('' = nobody: the service role, a cron job).

@@ -103,6 +103,7 @@ export const PDF_CHUNK_POLICY = {
     /^publishExperience$/, // premium publish (MYK9-844), dynamic
     /^PremiumPdfDownloadLink$/, // premium editor PDF buttons, React.lazy
     /^(AKC|UKC)PremiumTemplate$/, // templates shared by the two premium chunks above
+    /^publishPremium$/, // premium render (MYK9-2215): shared by the two premium chunks above, never static
     /^mergeReportPdfs$/, // show desk merged-sheet preview, dynamic
     /^buildJudgePacketPdf$/, // before-trial packet (MYK9-1924), dynamic from useTrialPacketPdfs
     /^buildJudgeReviewPdf$/, // judge review packet (MYK9-1924 phase 2a), dynamic from JudgeReviewPanelBody

@@ -109,6 +109,17 @@ describe('ShowEditPanel helpers', () => {
     expect(parse('')).toBe(true);
   });
 
+  it('accepts only a positive whole-number entry cap, or none (MYK9-2220)', () => {
+    const parse = (maxTotalEntries: number | undefined) =>
+      showSchemas.edit.safeParse({ ...baseFormData, maxTotalEntries }).success;
+    expect(parse(12.5)).toBe(false);
+    expect(parse(0)).toBe(false);
+    expect(parse(-3)).toBe(false);
+    expect(parse(2147483648)).toBe(false);
+    expect(parse(120)).toBe(true);
+    expect(parse(undefined)).toBe(true);
+  });
+
   it('accepts only a positive whole-number per-dog cap, or none (MYK9-2221)', () => {
     const parse = (maxEntriesPerDog: number | undefined) =>
       showSchemas.edit.safeParse({ ...baseFormData, maxEntriesPerDog }).success;

@@ -14,6 +14,7 @@ import { getShowPreviewHref } from '@/components/shows/showPreviewRoutes';
 import { getShowEditHref } from '@/components/shows/showEditRoutes';
 import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import type { GeneratedPremium, PremiumStyle } from '@/types/premium-types';
+import { normalizeEntryLimit } from '@/features/premium/premiumEntryLimit';
 import type { ShowEditFormData } from './ShowEditPanel.types';
 
 interface ShowEditPremiumTabProps {
@@ -206,6 +207,7 @@ function buildLocalPremiumDraft(
       dayOfFee: currencyToNumber(data.dayOfShowFee),
       acceptChecks: Boolean(data.acceptCheckPayments),
       acceptCash: Boolean(data.acceptCashPayments),
+      maxTotalEntries: normalizeEntryLimit(data.maxTotalEntries),
     },
     club: {
       name: data.clubName ?? '',

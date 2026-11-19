@@ -207,7 +207,13 @@ export const showSchemas = {
         .min(1, { message: 'Max entries per dog must be at least 1' })
         .max(2147483647, { message: 'Max entries per dog is too large' })
         .optional(),
-      maxTotalEntries: z.number().optional(),
+      // MYK9-2220: shows.max_total_entries is an integer column; an empty box clears the cap.
+      maxTotalEntries: z
+        .number()
+        .int({ message: 'Max total entries must be a whole number' })
+        .min(1, { message: 'Max total entries must be at least 1' })
+        .max(2147483647, { message: 'Max total entries is too large' })
+        .optional(),
       allowNonOwnerHandlers: z.boolean().optional(),
       isNationals: z.boolean().optional(),
       acceptCheckPayments: z.boolean().optional(),

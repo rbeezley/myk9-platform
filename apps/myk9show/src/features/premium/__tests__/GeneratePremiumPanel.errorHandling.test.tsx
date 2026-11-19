@@ -1,31 +1,14 @@
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
-import { type ReactNode } from 'react';
-import { render, screen, waitFor, act } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import userEvent from '@testing-library/user-event';
+import { screen, waitFor } from '@testing-library/react';
+import { QueryClient } from '@tanstack/react-query';
+import { render } from '@/test/utils/testUtils';
 import type { GeneratedPremium } from '../../../types/premium-types';
 
-// A controllable PDFDownloadLink mock. The mock reads `errorController.current`
-// on every render, so a test changes the error and then re-renders the tree
-// itself; there is no captured setter and no timer, so nothing depends on
-// which mounted instance rendered last or on wall-clock ticks.
-const errorController: { current: Error | null } = { current: null };
-
-vi.mock('@react-pdf/renderer', () => ({
-  pdf: vi.fn(() => ({ toBlob: vi.fn().mockResolvedValue(new Blob()) })),
-  PDFDownloadLink: ({
-    children,
-  }: {
-    children: (s: { loading: boolean; error: Error | null }) => ReactNode;
-  }) => {
-    return <>{children({ loading: false, error: errorController.current })}</>;
-  },
-  Document: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  Page: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  View: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  Text: ({ children }: { children: ReactNode }) => <span>{children}</span>,
-  Image: () => null,
-  StyleSheet: { create: (s: unknown) => s },
-  Font: { register: vi.fn() },
+// renderPremiumPdf is the one PDF build the editor uses. Each test settles it by hand.
+const renderMock = vi.fn();
+vi.mock('../publishPremium', () => ({
+  renderPremiumPdf: (...args: unknown[]) => renderMock(...args),
 }));
 
 const errorMock = vi.fn();
@@ -68,9 +51,11 @@ const fakePremium: GeneratedPremium = {
   narratives: { showHours: 'h', trialInformation: 't' },
 };
 
+const generateMock = vi.hoisted(() => vi.fn());
+
 vi.mock('../useGeneratePremium', () => ({
   useGeneratePremium: () => ({
-    generate: vi.fn().mockResolvedValue(fakePremium),
+    generate: generateMock,
     isLoading: false,
     error: null,
     reset: vi.fn(),
@@ -108,17 +93,7 @@ function renderPanel() {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
-  // A fresh element each time: React bails out on an identical element.
-  const tree = () => (
-    <QueryClientProvider client={client}>
-      <PanelUnderTest />
-    </QueryClientProvider>
-  );
-  const view = render(tree());
-  // Re-renders the whole tree so the mocked render-prop is invoked again,
-  // like PDFDownloadLink's internal state ticks.
-  const rerenderTree = () => act(() => view.rerender(tree()));
-  return { rerenderTree };
+  render(<PanelUnderTest />, { queryClient: client });
 }
 
 async function openPanel() {
@@ -130,67 +105,78 @@ async function openPanel() {
   });
 }
 
-describe('GeneratePremiumPanel — PDF error toast deduplication', () => {
-  // The editor loads PremiumPdfDownloadLink (and the PDF templates it imports) with
-  // React.lazy. Evaluating that module graph for the first time can outlast any fixed
-  // findByText timeout on a loaded machine, so load it up front: the lazy import then
-  // resolves from the module cache and "Download PDF" depends on nothing slower than a
+async function tryAgain() {
+  await userEvent.click(await screen.findByRole('button', { name: 'Try again' }));
+}
+
+describe('GeneratePremiumPanel: PDF error toast deduplication', () => {
+  // The editor loads PremiumPdfDownloadLink with React.lazy. Load it up front so the lazy
+  // import resolves from the module cache and the buttons depend on nothing slower than a
   // microtask.
   beforeAll(async () => {
     await import('../PremiumPdfDownloadLink');
   }, 60_000);
 
   beforeEach(() => {
+    generateMock.mockReset().mockResolvedValue(fakePremium);
     errorMock.mockClear();
     successMock.mockClear();
-    errorController.current = null;
+    renderMock.mockReset();
+    vi.stubGlobal(
+      'URL',
+      Object.assign(URL, { createObjectURL: () => 'blob:x', revokeObjectURL: vi.fn() })
+    );
   });
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
   });
 
-  it('fires the error toast exactly once for a sticky error across many render-prop invocations', async () => {
-    errorController.current = new Error('boom-render');
-    const { rerenderTree } = renderPanel();
+  it('shows a final error with Try again and toasts once', async () => {
+    renderMock.mockRejectedValue(new Error('boom-render'));
+    renderPanel();
     await openPanel();
-    await waitFor(() => expect(errorMock).toHaveBeenCalledTimes(1));
+    await screen.findByRole('button', { name: 'Try again' });
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(screen.queryByText('Preparing PDF...')).not.toBeInTheDocument();
+    expect(errorMock).toHaveBeenCalledTimes(1);
+  });
 
-    // Each tick hands the watcher a NEW Error instance with the same message,
-    // so only the message-level dedupe can keep the toast to one.
-    for (let i = 0; i < 5; i += 1) {
-      errorController.current = new Error('boom-render');
-      await rerenderTree();
-    }
+  it('toasts once when Try again fails with the same message', async () => {
+    renderMock.mockRejectedValue(new Error('same-message'));
+    renderPanel();
+    await openPanel();
+    await tryAgain();
+    await waitFor(() => expect(renderMock).toHaveBeenCalledTimes(2));
+    await screen.findByRole('button', { name: 'Try again' });
+    await tryAgain();
+    await waitFor(() => expect(renderMock).toHaveBeenCalledTimes(3));
+    await screen.findByRole('button', { name: 'Try again' });
 
     expect(errorMock).toHaveBeenCalledTimes(1);
   });
 
-  it('fires once for the same Error reference passed twice', async () => {
-    const sameError = new Error('same-ref');
-    errorController.current = sameError;
-    const { rerenderTree } = renderPanel();
+  it('toasts twice for two distinct error messages', async () => {
+    renderMock.mockRejectedValueOnce(new Error('first-failure'));
+    renderMock.mockRejectedValueOnce(new Error('second-failure'));
+    renderPanel();
     await openPanel();
     await waitFor(() => expect(errorMock).toHaveBeenCalledTimes(1));
-
-    errorController.current = sameError;
-    await rerenderTree();
-    await rerenderTree();
-
-    expect(errorMock).toHaveBeenCalledTimes(1);
-  });
-
-  it('fires twice for two distinct error messages (null → err1 → err2)', async () => {
-    const { rerenderTree } = renderPanel();
-    await openPanel();
-    await screen.findByText('Download PDF');
-    expect(errorMock).not.toHaveBeenCalled();
-
-    errorController.current = new Error('first-failure');
-    await rerenderTree();
-    await waitFor(() => expect(errorMock).toHaveBeenCalledTimes(1));
-
-    errorController.current = new Error('second-failure');
-    await rerenderTree();
+    await tryAgain();
     await waitFor(() => expect(errorMock).toHaveBeenCalledTimes(2));
+  });
+
+  it('Try again rebuilds only the PDF and then offers the download link', async () => {
+    renderMock.mockRejectedValueOnce(new Error('transient'));
+    renderMock.mockResolvedValueOnce(new Blob(['x'], { type: 'application/pdf' }));
+    renderPanel();
+    await openPanel();
+    await tryAgain();
+    const link = await screen.findByRole('link', { name: 'Download PDF' });
+    expect(link).toHaveAttribute('href', 'blob:x');
+    expect(link).toHaveAttribute('download', expect.stringMatching(/premium\.pdf$/));
+    expect(renderMock).toHaveBeenCalledTimes(2);
+    // Try again rebuilt the PDF only: the premium was generated once, when the panel opened.
+    expect(generateMock).toHaveBeenCalledTimes(1);
   });
 });

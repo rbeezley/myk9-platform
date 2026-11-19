@@ -129,16 +129,13 @@ export function PremiumContentEditor({
   );
 
   // INTENT: Toast at most once per distinct PDF render error message. The
-  // PDFDownloadLink render-prop re-fires on every internal state tick, so the
-  // toast must live outside that body.
+  // PDF build reports each failure to this callback, so the dedupe must live here.
   const lastPdfErrorMessageRef = useRef<string | null>(null);
 
   const handlePdfError = useCallback((err: Error) => {
     if (lastPdfErrorMessageRef.current === err.message) return;
     lastPdfErrorMessageRef.current = err.message;
-    notifications.error(
-      'This style failed to render - please try a different one or report the issue.'
-    );
+    notifications.error('We could not build the PDF. Use Try again in the PDF section.');
   }, []);
 
   const handleGenerate = useCallback(async () => {
@@ -471,6 +468,7 @@ export function PremiumContentEditor({
                   }
                 >
                   <PremiumPdfDownloadLink
+                    showId={showId}
                     premium={finalPremium}
                     inkSaver={inkSaver}
                     fileName={`${original.show.name.replace(/\s+/g, '-')}-premium.pdf`}

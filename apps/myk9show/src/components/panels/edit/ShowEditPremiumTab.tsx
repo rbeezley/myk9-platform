@@ -208,6 +208,8 @@ function buildLocalPremiumDraft(
       acceptChecks: Boolean(data.acceptCheckPayments),
       acceptCash: Boolean(data.acceptCashPayments),
       maxTotalEntries: normalizeEntryLimit(data.maxTotalEntries),
+      // MYK9-2227: the one waitlist rule the edit form carries; Regenerate fills in the rest.
+      allowWaitlist: data.allowsWaitlist ?? null,
     },
     club: {
       name: data.clubName ?? '',
@@ -228,6 +230,7 @@ function buildLocalPremiumDraft(
       startTime: null,
       eventNumber: trial.trialNumber,
       type: trial.trialType ?? '',
+      maxTotalEntries: normalizeEntryLimit(trial.maxTotalEntries),
       judges: (data.assignedJudges ?? []).map(judge => ({
         name: judge.judgeName,
         residence: judge.residence ?? null,
@@ -237,6 +240,7 @@ function buildLocalPremiumDraft(
         element: cls.element ?? '',
         level: cls.level ?? '',
         section: null,
+        entryFee: cls.entryFee ?? null,
       })),
     })),
     supplemental: publishedContent.supplemental,

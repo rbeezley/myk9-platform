@@ -29,6 +29,7 @@ export const showToFormData = (show: Partial<Show>): ShowEditFormData => {
     startingArmbandNumber: show.startingArmbandNumber ?? 100,
     ...(show.maxEntriesPerDog !== undefined && { maxEntriesPerDog: show.maxEntriesPerDog }),
     ...(show.maxTotalEntries !== undefined && { maxTotalEntries: show.maxTotalEntries }),
+    ...(show.allowsWaitlist !== undefined && { allowsWaitlist: show.allowsWaitlist }),
     ...(show.allowNonOwnerHandlers !== undefined && {
       allowNonOwnerHandlers: show.allowNonOwnerHandlers,
     }),

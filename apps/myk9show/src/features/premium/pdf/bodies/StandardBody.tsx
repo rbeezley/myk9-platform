@@ -81,6 +81,12 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
           <Text style={s.value}>{f.entryLimit}</Text>
         </View>
       )}
+      {f.entryRules.map(line => (
+        <View key={line} style={s.row}>
+          <Text style={s.label}> </Text>
+          <Text style={s.value}>{line}</Text>
+        </View>
+      ))}
       {f.withdrawalPolicy && (
         <View style={s.row}>
           <Text style={s.label}>{f.withdrawalPolicy.label}</Text>
@@ -205,6 +211,18 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
             <View style={s.row}>
               <Text style={s.label}>Classes</Text>
               <Text style={s.value}>{trial.classLabels.join(', ')}</Text>
+            </View>
+          )}
+          {trial.classFeeLines.map(line => (
+            <View key={line} style={s.row}>
+              <Text style={s.label}> </Text>
+              <Text style={s.value}>{line}</Text>
+            </View>
+          ))}
+          {trial.entryLimit && (
+            <View style={s.row}>
+              <Text style={s.label}> </Text>
+              <Text style={s.value}>{trial.entryLimit}</Text>
             </View>
           )}
         </View>

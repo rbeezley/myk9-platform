@@ -29,6 +29,12 @@ import type { GeneratedPremium, PremiumSupplemental } from '@/types/premium-type
 import { makeClassComparator } from './pdf/bodies/classOrder';
 import { premiumRecordingFeeText } from './premiumRecordingFeeStatement';
 import { premiumEntryLimitText } from './premiumEntryLimit';
+import {
+  premiumClassFeeLines,
+  premiumEntryRuleLines,
+  premiumTrialEntryLimitText,
+  premiumVenueText,
+} from './premiumEntryTerms';
 
 // ─── Catalog: what each fact is, where it comes from, who requires it ───────────────────
 
@@ -333,6 +339,10 @@ export interface PremiumTrialFacts {
   judges: Array<{ name: string; residence: string | null; classes: string[] }>;
   /** "Element Level Section" in the registry's progression order. */
   classLabels: string[];
+  /** MYK9-2227: "Trial entry limit: N entries." when this trial has its own limit, else null. */
+  entryLimit: string | null;
+  /** MYK9-2227: "Class fee $20: ..." lines, one per distinct class fee; [] when no class has one. */
+  classFeeLines: string[];
 }
 
 export interface PremiumFacts {
@@ -346,7 +356,7 @@ export interface PremiumFacts {
   /** Club name for display, "Host Club" when unset. */
   club: string;
   monogram: string;
-  /** Venue text, '' when unset. */
+  /** The venue's address (name, street, city, state, zip as stored), '' when unset. */
   venue: string;
   startDate: string;
   fees: {
@@ -365,6 +375,8 @@ export interface PremiumFacts {
   recordingFee: string | null;
   /** "Total entry limit: N entries." on a UKC (MYK9-2220) or ASCA (§1.5.12) premium whose show has a limit; else null. */
   entryLimit: string | null;
+  /** MYK9-2227: "Waitlist: ..." and "Move-ups: ..." lines for the show's rules; [] prints nothing. */
+  entryRules: string[];
   /** Null only on a premium generated before MYK9-1976 part 2. */
   withdrawalPolicy: PremiumWithdrawalPolicyFact | null;
   /** The registry's fixed statement (AKC scouting, ASCA §1.5 statements); null for UKC. */
@@ -420,7 +432,7 @@ export function buildPremiumFacts(
     clubName: club.name,
     club: club.name ?? 'Host Club',
     monogram: buildMonogram(club.name ?? 'Host Club'),
-    venue: show.venue ?? '',
+    venue: premiumVenueText(show),
     startDate: show.startDate,
     fees: {
       preEntry: show.preEntryFee,
@@ -437,6 +449,7 @@ export function buildPremiumFacts(
     },
     recordingFee: premiumRecordingFeeText(data),
     entryLimit: premiumEntryLimitText(data),
+    entryRules: premiumEntryRuleLines(show),
     withdrawalPolicy: buildWithdrawalPolicyFact(show.withdrawal),
     scoutingStatement: buildScoutingStatementFact(registry),
     entry: {
@@ -460,7 +473,8 @@ export function buildPremiumFacts(
     officers: buildOfficerFacts(data.officers),
     committee: buildCommitteeFacts(data.committee),
     trials: (data.trials ?? []).map(trial => {
-      const classLabels = [...(trial.classes ?? [])].sort(comparator).map(formatPremiumClassLabel);
+      const sortedClasses = [...(trial.classes ?? [])].sort(comparator);
+      const classLabels = sortedClasses.map(formatPremiumClassLabel);
       return {
         name: trial.name,
         date: formatPremiumDate(trial.date),
@@ -473,6 +487,8 @@ export function buildPremiumFacts(
           classes: [...new Set(classLabels.filter(label => (j.classes ?? []).includes(label)))],
         })),
         classLabels,
+        entryLimit: premiumTrialEntryLimitText(trial),
+        classFeeLines: premiumClassFeeLines(sortedClasses),
       };
     }),
     vetClinic: supplemental.vetClinic

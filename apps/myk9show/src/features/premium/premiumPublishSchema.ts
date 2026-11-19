@@ -40,6 +40,14 @@ const generatedPremiumSchema = z.object({
     acceptCash: z.boolean(),
     // MYK9-2220: optional so older premiums parse; without it zod would strip the limit.
     maxTotalEntries: nullableAmount.optional(),
+    // MYK9-2227: optional so older premiums parse; without them zod would strip the new facts.
+    venueName: nullableText.optional(),
+    venueCity: nullableText.optional(),
+    venueState: nullableText.optional(),
+    venueZip: nullableText.optional(),
+    allowWaitlist: z.boolean().nullable().optional(),
+    waitlistAutoOffer: z.boolean().nullable().optional(),
+    allowClassChangesAfterClose: z.boolean().nullable().optional(),
     // MYK9-1976: optional, so a premium generated before it still parses (and prints no
     // policy row). Without it here zod would strip the policy from every new premium.
     withdrawal: z
@@ -93,6 +101,7 @@ const generatedPremiumSchema = z.object({
       startTime: nullableText,
       eventNumber: nullableText,
       type: z.string(),
+      maxTotalEntries: nullableAmount.optional(),
       // MYK9-2067: rows published before residence and classes existed carry neither (they
       // carried `elements`, which is dropped on parse), so both default.
       judges: z.array(
@@ -102,7 +111,14 @@ const generatedPremiumSchema = z.object({
           classes: z.array(z.string()).default([]),
         })
       ),
-      classes: z.array(z.object({ element: z.string(), level: z.string(), section: nullableText })),
+      classes: z.array(
+        z.object({
+          element: z.string(),
+          level: z.string(),
+          section: nullableText,
+          entryFee: nullableAmount.optional(),
+        })
+      ),
     })
   ),
   supplemental: z.object({

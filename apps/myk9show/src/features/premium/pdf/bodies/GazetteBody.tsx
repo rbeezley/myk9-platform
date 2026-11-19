@@ -136,11 +136,17 @@ export function GazetteBody({ data, tokens }: Props) {
                     color: tokens.secondaryColor,
                   }}
                 >
-                  {trial.name}
+                  {trial.name} · {trial.date}
                 </Text>
                 {trial.classLabels.length > 0 && (
                   <Text style={denseStyle}>{trial.classLabels.join(' · ')}</Text>
                 )}
+                {trial.classFeeLines.map(line => (
+                  <Text key={line} style={denseStyle}>
+                    {line}
+                  </Text>
+                ))}
+                {trial.entryLimit && <Text style={denseStyle}>{trial.entryLimit}</Text>}
               </View>
             ))}
           </View>
@@ -182,6 +188,17 @@ export function GazetteBody({ data, tokens }: Props) {
           </View>
         )}
 
+        {f.vetClinic && (
+          <View style={sectionStyle} wrap={false}>
+            <View style={headerWrapStyle}>
+              <Text style={headerTextStyle}>Emergency Vet</Text>
+            </View>
+            <Text style={{ ...denseStyle, fontWeight: 700 }}>{f.vetClinic.name}</Text>
+            <Text style={denseStyle}>{f.vetClinic.address}</Text>
+            {f.vetClinic.phone && <Text style={denseStyle}>{f.vetClinic.phone}</Text>}
+          </View>
+        )}
+
         {hasAwards && (
           <View style={sectionStyle} wrap={false}>
             <View style={headerWrapStyle}>
@@ -213,6 +230,12 @@ export function GazetteBody({ data, tokens }: Props) {
           <Text style={bodyTextStyle}>{f.entryLimit}</Text>
         </View>
       )}
+
+      {f.entryRules.map(line => (
+        <View key={line} style={{ marginTop: 16 }} wrap={false}>
+          <Text style={bodyTextStyle}>{line}</Text>
+        </View>
+      ))}
 
       {f.scoutingStatement && (
         <View style={{ marginTop: 16 }} wrap={false}>

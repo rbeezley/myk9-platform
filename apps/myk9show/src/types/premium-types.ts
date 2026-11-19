@@ -103,6 +103,18 @@ export interface GeneratedPremium {
     acceptCash: boolean;
     /** MYK9-2220: shows.max_total_entries; null or absent means no limit (UKC premiums print it). */
     maxTotalEntries?: number | null;
+    /**
+     * MYK9-2227: the rest of the venue's address (shows.venue_name, city, state, zip_code), with
+     * `venue` the street (shows.location). Absent on an older premium, which prints the street only.
+     */
+    venueName?: string | null;
+    venueCity?: string | null;
+    venueState?: string | null;
+    venueZip?: string | null;
+    /** MYK9-2227: shows.allow_waitlist, waitlist_auto_offer and allow_class_changes_after_close; absent prints no line. */
+    allowWaitlist?: boolean | null;
+    waitlistAutoOffer?: boolean | null;
+    allowClassChangesAfterClose?: boolean | null;
     /** Absent on premiums generated before MYK9-1976 part 2: those print no policy row. */
     withdrawal?: PremiumWithdrawalRow | null;
   };
@@ -138,13 +150,21 @@ export interface GeneratedPremium {
     startTime: string | null;
     eventNumber: string | null;
     type: string;
+    /** MYK9-2227: trials.max_total_entries; null or absent means no limit for this trial. */
+    maxTotalEntries?: number | null;
     /**
      * MYK9-2067: `residence` is "City, ST" and `classes` are "Element Level Section" labels (empty
      * for a judge on every class). Both are absent on a premium generated before it, which also
      * carried `elements`; nothing reads `elements` any more.
      */
     judges: Array<{ name: string; residence?: string | null; classes?: string[] }>;
-    classes: Array<{ element: string; level: string; section: string | null }>;
+    classes: Array<{
+      element: string;
+      level: string;
+      section: string | null;
+      /** MYK9-2227: classes.entry_fee; null or absent prints no class fee. */
+      entryFee?: number | null;
+    }>;
   }>;
   supplemental: PremiumSupplemental;
   narrativeGenerationError?: string | null;

@@ -117,6 +117,12 @@ export function PosterBody({ data, tokens }: Props) {
         </View>
       )}
 
+      {f.entryRules.map(line => (
+        <View key={line} style={sectionGap}>
+          <Text style={bodyStyle}>{line}</Text>
+        </View>
+      ))}
+
       {f.withdrawalPolicy && (
         <View style={sectionGap}>
           <Text style={labelStyle}>{f.withdrawalPolicy.label}</Text>
@@ -192,6 +198,12 @@ export function PosterBody({ data, tokens }: Props) {
             {trial.classLabels.length > 0 && (
               <Text style={bodyStyle}>{trial.classLabels.join(' · ')}</Text>
             )}
+            {trial.classFeeLines.map(line => (
+              <Text key={line} style={bodyStyle}>
+                {line}
+              </Text>
+            ))}
+            {trial.entryLimit && <Text style={bodyStyle}>{trial.entryLimit}</Text>}
           </View>
         ))}
       </View>

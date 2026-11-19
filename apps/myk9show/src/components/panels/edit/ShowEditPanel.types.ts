@@ -55,6 +55,8 @@ export interface ShowEditFormData extends Record<string, unknown> {
   startingArmbandNumber?: number;
   maxEntriesPerDog?: number;
   maxTotalEntries?: number;
+  /** shows.allow_waitlist (MYK9-2227: the premium states it). */
+  allowsWaitlist?: boolean;
   allowNonOwnerHandlers?: boolean;
   isNationals?: boolean;
   acceptCheckPayments?: boolean;

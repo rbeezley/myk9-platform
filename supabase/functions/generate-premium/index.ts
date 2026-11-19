@@ -97,13 +97,14 @@ handle<GeneratePremiumPayload>(
         `
         id, name, organization, start_date, end_date, location,
         entry_open_date, entry_close_date, pre_entry_fee, day_of_show_fee,
-        accept_check_payments, accept_cash_payments, max_total_entries, club_id, experience_published_content,
+        accept_check_payments, accept_cash_payments, max_total_entries, club_id,
+        venue_name, city, state, zip_code, allow_waitlist, waitlist_auto_offer, allow_class_changes_after_close, experience_published_content,
         ${PREMIUM_SHOW_WITHDRAWAL_COLUMNS},
         clubs(name, logo_url, ${PREMIUM_CLUB_WITHDRAWAL_COLUMNS}),
         trials(
           id, name, date, planned_start_time, event_number, trial_type, registry_id, status,
-          deleted_at,
-          classes(id, name, level, element, section, deleted_at)
+          deleted_at, max_total_entries,
+          classes(id, name, level, element, section, entry_fee, deleted_at)
         )
       `
       )
@@ -226,8 +227,10 @@ handle<GeneratePremiumPayload>(
           level: string | null;
           element: string | null;
           section: string | null;
+          entry_fee: number | null;
           deleted_at: string | null;
         }>;
+        max_total_entries: number | null;
       }>
     ).map(trial => ({
       name: trial.name,
@@ -235,11 +238,15 @@ handle<GeneratePremiumPayload>(
       startTime: trial.planned_start_time,
       eventNumber: trial.event_number,
       type: trial.trial_type ?? '',
+      // MYK9-2227: this trial's own entry limit.
+      maxTotalEntries: trial.max_total_entries ?? null,
       judges: premiumTrialJudges(judgeAssignments, trial),
       classes: (trial.classes ?? []).map(cls => ({
         element: cls.element ?? '',
         level: cls.level ?? '',
         section: cls.section,
+        // MYK9-2227: the class's own fee.
+        entryFee: cls.entry_fee ?? null,
       })),
     }));
 
@@ -294,6 +301,14 @@ handle<GeneratePremiumPayload>(
         acceptCash: show.accept_cash_payments,
         // MYK9-2220: the total entry limit a UKC premium states.
         maxTotalEntries: show.max_total_entries ?? null,
+        // MYK9-2227: the rest of the address and the waitlist and move-up rules.
+        venueName: show.venue_name ?? null,
+        venueCity: show.city ?? null,
+        venueState: show.state ?? null,
+        venueZip: show.zip_code ?? null,
+        allowWaitlist: show.allow_waitlist ?? null,
+        waitlistAutoOffer: show.waitlist_auto_offer ?? null,
+        allowClassChangesAfterClose: show.allow_class_changes_after_close ?? null,
         // MYK9-1976: raw policy columns; the app resolves the text exhibitors read.
         withdrawal: buildPremiumWithdrawalRow(show as Record<string, unknown>),
       },

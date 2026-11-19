@@ -1,3 +1,5 @@
+import { PendingEntryCopyProvider } from '@/features/_shared/landing/PendingEntryCopyContext';
+import { NO_CLASSES_COPY } from '@/features/_shared/landing/pendingEntryCopy';
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
 import { StickyNav } from '../sections/StickyNav';
@@ -31,7 +33,11 @@ describe('Gazette entry CTA gating', () => {
     });
 
     it('replaces the Enter link with a "Classes pending" fallback when canEnterOnline is false', () => {
-      render(<StickyNav {...STICKY_PROPS} canEnterOnline={false} />);
+      render(
+        <PendingEntryCopyProvider value={NO_CLASSES_COPY}>
+          <StickyNav {...STICKY_PROPS} canEnterOnline={false} />
+        </PendingEntryCopyProvider>
+      );
       expect(screen.queryByRole('link', { name: /^enter$/i })).not.toBeInTheDocument();
       expect(screen.getByText(/classes pending/i)).toBeInTheDocument();
     });
@@ -59,7 +65,11 @@ describe('Gazette entry CTA gating', () => {
     });
 
     it('replaces the entry-wizard link with the pending-classes copy when canEnterOnline is false', () => {
-      render(<FinalCtaSection {...FINAL_PROPS} canEnterOnline={false} />);
+      render(
+        <PendingEntryCopyProvider value={NO_CLASSES_COPY}>
+          <FinalCtaSection {...FINAL_PROPS} canEnterOnline={false} />
+        </PendingEntryCopyProvider>
+      );
       expect(
         screen.queryByRole('link', { name: /open the entry wizard/i })
       ).not.toBeInTheDocument();

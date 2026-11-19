@@ -15,8 +15,8 @@
 import { Link } from 'react-router-dom';
 import { usePlatformFeeRatesQuery } from '@/hooks/queries/usePlatformFeeRates';
 import { formatPlatformFeeLabel } from '@/store/cartStore.helpers';
-import { acceptsOnlineEntries } from '@/features/payments/onlineEntryGate';
 import { getEntryStatus } from '@/utils/entryStatusUtils';
+import { acceptsOnlineEntries } from '@/features/payments/onlineEntryGate';
 import type { Show } from '@/types/show-types';
 
 interface ServiceFeeNoteProps {
@@ -26,6 +26,9 @@ interface ServiceFeeNoteProps {
 
 /** True while an exhibitor could still enter this show online (open, or opening later). */
 function exhibitorCouldEnterOnline(show: Show): boolean {
+  // A row whose value is not known yet (a partial or stale read) quotes no fee. The entry
+  // status alone does not cover it: a future window reads `not_yet_open` before the status
+  // looks at this value.
   if (!acceptsOnlineEntries(show)) return false;
   const { status } = getEntryStatus(show);
   return status === 'accepting' || status === 'closing_soon' || status === 'not_yet_open';

@@ -1,3 +1,5 @@
+import { PendingEntryCopyProvider } from '@/features/_shared/landing/PendingEntryCopyContext';
+import { NO_CLASSES_COPY } from '@/features/_shared/landing/pendingEntryCopy';
 import { describe, expect, it } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import { StickyNav } from '../sections/StickyNav';
@@ -39,7 +41,9 @@ describe('Poster StickyNav enter-CTA gating', () => {
 
   it('hides the Enter link and shows the fallback when canEnterOnline is false', () => {
     const { container, getByText } = render(
-      <StickyNav {...stickyNavProps} canEnterOnline={false} />
+      <PendingEntryCopyProvider value={NO_CLASSES_COPY}>
+        <StickyNav {...stickyNavProps} canEnterOnline={false} />
+      </PendingEntryCopyProvider>
     );
     expect(container.querySelector(`a[href="${ENTRY_URL}"]`)).toBeNull();
     expect(getByText('Classes pending')).toBeTruthy();
@@ -70,7 +74,9 @@ describe('Poster FinalCtaSection enter-CTA gating', () => {
 
   it('hides the Enter link and shows the fallback copy when canEnterOnline is false', () => {
     const { container, getByText } = render(
-      <FinalCtaSection {...finalCtaProps} canEnterOnline={false} />
+      <PendingEntryCopyProvider value={NO_CLASSES_COPY}>
+        <FinalCtaSection {...finalCtaProps} canEnterOnline={false} />
+      </PendingEntryCopyProvider>
     );
     expect(container.querySelector(`a[href="${ENTRY_URL}"]`)).toBeNull();
     expect(

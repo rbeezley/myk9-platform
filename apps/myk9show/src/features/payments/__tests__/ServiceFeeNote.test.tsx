@@ -96,7 +96,13 @@ describe('ServiceFeeNote', () => {
 
   it.each([
     ['closed', { entryOpenDate: day(-30), entryCloseDate: day(-5) }],
-    ['mail-in', { onlineEntriesEnabled: false }],
+    ['not-yet-known', { onlineEntriesEnabled: undefined }],
+    [
+      // The entry status reads a future window before it looks at the switch, so only this
+      // component's own guard keeps the fee off a row whose value is not known yet.
+      'not-yet-known and not yet open',
+      { onlineEntriesEnabled: undefined, entryOpenDate: day(5), entryCloseDate: day(30) },
+    ],
     ['without an entry window', { entryOpenDate: '', entryCloseDate: '' }],
   ])('says nothing for a %s show', (_label, patch) => {
     const { container } = render(<ServiceFeeNote show={{ ...openShow, ...patch } as Show} />);

@@ -21,7 +21,7 @@ interface PremiumDownloadCardProps {
   /** True only after the show-management scope resolves for this show. */
   canManageShow: boolean;
   /**
-   * When true, render the "show data has changed since publish" badge to
+   * When true, render the "published premium is older than your latest changes" line to
    * nudge a re-publish. Only shown to people who can manage the show; for
    * exhibitors the staleness signal is internal noise.
    */
@@ -160,7 +160,7 @@ export function PremiumDownloadCard({
               {stale ? (
                 <span className="inline-flex items-center gap-1 text-xs text-warning ">
                   <AlertTriangle className="h-3 w-3" />
-                  Show data has changed since publish
+                  The published premium is older than your latest changes.
                 </span>
               ) : landingUnpublished ? (
                 <span className="inline-flex items-center gap-1 text-xs text-warning ">

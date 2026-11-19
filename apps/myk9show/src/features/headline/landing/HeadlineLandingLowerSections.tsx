@@ -1,8 +1,8 @@
+import { usePendingEntryCopy } from '@/features/_shared/landing/PendingEntryCopyContext';
 import type { HeritageLandingData } from '@/features/heritage/landing/types';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { SectionHead } from './HeadlineLandingPrimitives';
 import { formatDateRange, shortDate } from './headlineLandingDates';
-import { pendingEntryCopy, useLandingMailInOnly } from '@/features/_shared/landing/landingMailIn';
 import { LateEntryContact } from '@/features/_shared/landing/LateEntryContact';
 
 export function ScheduleAndPlan({ data }: { data: HeritageLandingData }) {
@@ -95,7 +95,7 @@ export function FinalCta({
   canEnterOnline?: boolean;
   entryClosed?: boolean;
 }) {
-  const mailInOnly = useLandingMailInOnly();
+  const pending = usePendingEntryCopy();
   const countdown = useCountdown(data.entryCloseDate, data.timezone);
 
   return (
@@ -124,9 +124,9 @@ export function FinalCta({
               </>
             ) : (
               <>
-                {mailInOnly ? 'Enter by mail or at the' : 'Entries open when'}
+                {pending.headlineLead}
                 <br />
-                <span className="accent">{mailInOnly ? 'show.' : 'classes are assigned.'}</span>
+                <span className="accent">{pending.headlineAccent}.</span>
               </>
             )}
           </h2>
@@ -140,10 +140,7 @@ export function FinalCta({
             ) : entryClosed ? (
               <LateEntryContact />
             ) : (
-              pendingEntryCopy(
-                mailInOnly,
-                'The secretary still needs to assign classes before online entry is available.'
-              )
+              pending.sub
             )}
           </p>
         </div>

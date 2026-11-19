@@ -1,6 +1,4 @@
-import { PendingEntryCopyProvider } from '@/features/_shared/landing/PendingEntryCopyContext';
 import type { EntryPendingReason } from '@/utils/entryStatusUtils';
-import { pendingEntryCopy } from '@/features/_shared/landing/pendingEntryCopy';
 import { useEffect } from 'react';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
@@ -63,128 +61,116 @@ export function MonogramLandingPage({
   const canEnterOnline =
     hasEntryClassInventory !== false && !entryCountdown.closed && !entryPendingReason;
 
-  const pendingCopy = pendingEntryCopy({
-    hasEntryClassInventory,
-    entryPendingReason,
-    entryOpenDate: data.entryOpenDate,
-    timezone: data.timezone,
-  });
-
   return (
-    <PendingEntryCopyProvider value={pendingCopy}>
-      <div
-        data-monogram
-        className="min-h-screen"
-        style={{ background: 'var(--mg-paper, #f3eee4)', color: 'var(--mg-ink, #1c1815)' }}
-      >
-        <title>
-          {data.showName} · {data.clubName}
-        </title>
-        <meta
-          name="description"
-          content={data.welcomeText ?? `${data.showName} — ${data.showSubtitle}`}
-        />
-        <meta property="og:title" content={`${data.showName} · ${data.clubName}`} />
-        <meta property="og:description" content={data.showSubtitle} />
-        <meta property="og:type" content="event" />
-        <meta
-          property="og:url"
-          content={typeof window !== 'undefined' ? window.location.href : ''}
-        />
-        <meta name="twitter:card" content="summary" />
+    <div
+      data-monogram
+      className="min-h-screen"
+      style={{ background: 'var(--mg-paper, #f3eee4)', color: 'var(--mg-ink, #1c1815)' }}
+    >
+      <title>
+        {data.showName} · {data.clubName}
+      </title>
+      <meta
+        name="description"
+        content={data.welcomeText ?? `${data.showName} — ${data.showSubtitle}`}
+      />
+      <meta property="og:title" content={`${data.showName} · ${data.clubName}`} />
+      <meta property="og:description" content={data.showSubtitle} />
+      <meta property="og:type" content="event" />
+      <meta property="og:url" content={typeof window !== 'undefined' ? window.location.href : ''} />
+      <meta name="twitter:card" content="summary" />
 
-        <StickyNav
-          clubName={data.clubName}
+      <StickyNav
+        clubName={data.clubName}
+        monogramLetters={data.monogramLetters}
+        entryWizardUrl={data.entryWizardUrl}
+        canEnterOnline={canEnterOnline}
+        entryClosed={entryCountdown.closed}
+      />
+
+      <main>
+        <HeroBlock
           monogramLetters={data.monogramLetters}
-          entryWizardUrl={data.entryWizardUrl}
-          canEnterOnline={canEnterOnline}
-          entryClosed={entryCountdown.closed}
-        />
-
-        <main>
-          <HeroBlock
-            monogramLetters={data.monogramLetters}
-            showName={data.showName}
-            showSubtitle={data.showSubtitle}
-            trialStartDate={data.trialStartDate}
-            trialEndDate={data.trialEndDate}
-            entryCloseDate={data.entryCloseDate}
-            entryLimit={data.entryLimit}
-            venueName={data.venueName}
-            venueCity={data.venueCity}
-            venueAddress={data.venueAddress}
-            timezone={data.timezone}
-            classesHref={classesHref}
-            canEnterOnline={canEnterOnline}
-          />
-
-          <WelcomeSection
-            welcomeText={data.welcomeText}
-            trialChairName={data.trialChairName}
-            monogramLetters={data.monogramLetters}
-          />
-
-          <ParticularsSection
-            licenseLanguage={data.licenseLanguage}
-            entryOpenDate={data.entryOpenDate}
-            entryCloseDate={data.entryCloseDate}
-            confirmationDate={data.confirmationDate}
-            entryLimit={data.entryLimit}
-            fees={data.fees}
-            trialsCount={data.trials.length}
-            timezone={data.timezone}
-          />
-          <WithdrawalPolicySection showId={show?.id} className="mg-section" />
-          <RecordingFeeSection statement={data.recordingFee} className="mg-section" />
-          <ScoutingStatementSection statement={data.scoutingStatement} className="mg-section" />
-          <PremiumDownloadSection show={show} className="mg-section" />
-
-          <JudgesSection judges={data.judges} trialsCount={data.trials.length} />
-
-          <RosterSection
-            entryCount={data.entryCount}
-            entryLimit={data.entryLimit}
-            pastShow={data.showHasHappened}
-          />
-
-          <PlanSection
-            accommodations={data.accommodations}
-            hospitalityNotes={data.hospitalityNotes}
-            awardsDescription={data.awardsDescription}
-            houseRulesNotes={data.houseRulesNotes}
-          />
-
-          <OfficersSection
-            officers={data.officers}
-            secretaryName={data.secretaryName}
-            secretaryEmail={data.secretaryEmail}
-          />
-
-          <OfferedClassesSection show={show} className="mg-section" />
-        </main>
-
-        <MonogramFooter
-          monogramLetters={data.monogramLetters}
-          clubName={data.clubName}
-          memberClubLanguage={data.memberClubLanguage}
-          licenseLanguage={data.licenseLanguage}
+          showName={data.showName}
+          showSubtitle={data.showSubtitle}
+          trialStartDate={data.trialStartDate}
+          trialEndDate={data.trialEndDate}
+          entryCloseDate={data.entryCloseDate}
+          entryLimit={data.entryLimit}
+          venueName={data.venueName}
+          venueCity={data.venueCity}
           venueAddress={data.venueAddress}
+          timezone={data.timezone}
+          classesHref={classesHref}
+          canEnterOnline={canEnterOnline}
         />
 
-        {/* Rendered AFTER the footer, not inside <main> above (round-3 review,
+        <WelcomeSection
+          welcomeText={data.welcomeText}
+          trialChairName={data.trialChairName}
+          monogramLetters={data.monogramLetters}
+        />
+
+        <ParticularsSection
+          licenseLanguage={data.licenseLanguage}
+          entryOpenDate={data.entryOpenDate}
+          entryCloseDate={data.entryCloseDate}
+          confirmationDate={data.confirmationDate}
+          entryLimit={data.entryLimit}
+          fees={data.fees}
+          trialsCount={data.trials.length}
+          timezone={data.timezone}
+        />
+        <WithdrawalPolicySection showId={show?.id} className="mg-section" />
+        <RecordingFeeSection statement={data.recordingFee} className="mg-section" />
+        <ScoutingStatementSection statement={data.scoutingStatement} className="mg-section" />
+        <PremiumDownloadSection show={show} className="mg-section" />
+
+        <JudgesSection judges={data.judges} trialsCount={data.trials.length} />
+
+        <RosterSection
+          entryCount={data.entryCount}
+          entryLimit={data.entryLimit}
+          pastShow={data.showHasHappened}
+        />
+
+        <PlanSection
+          accommodations={data.accommodations}
+          hospitalityNotes={data.hospitalityNotes}
+          awardsDescription={data.awardsDescription}
+          houseRulesNotes={data.houseRulesNotes}
+        />
+
+        <OfficersSection
+          officers={data.officers}
+          secretaryName={data.secretaryName}
+          secretaryEmail={data.secretaryEmail}
+        />
+
+        <OfferedClassesSection show={show} className="mg-section" />
+      </main>
+
+      <MonogramFooter
+        monogramLetters={data.monogramLetters}
+        clubName={data.clubName}
+        memberClubLanguage={data.memberClubLanguage}
+        licenseLanguage={data.licenseLanguage}
+        venueAddress={data.venueAddress}
+      />
+
+      {/* Rendered AFTER the footer, not inside <main> above (round-3 review,
           MYK9-565): FinalCtaBand's in-flow spacer reserves its fixed bar's
           height by sitting right before it in document order. Placed mid-page
           (its old position, next to the CTA it repeats) that spacer opened a
           blank gap THERE while the footer — now the true last element — was
           still left uncovered under the bar. As the last child here, the
           spacer instead reserves space at the actual end of the document. */}
-        <FinalCtaBand
-          entryWizardUrl={data.entryWizardUrl}
-          entryCloseDate={data.entryCloseDate}
-          timezone={data.timezone}
-          canEnterOnline={canEnterOnline}
-        />
-      </div>
-    </PendingEntryCopyProvider>
+      <FinalCtaBand
+        entryWizardUrl={data.entryWizardUrl}
+        entryCloseDate={data.entryCloseDate}
+        timezone={data.timezone}
+        canEnterOnline={canEnterOnline}
+      />
+    </div>
   );
 }

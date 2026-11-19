@@ -1,6 +1,4 @@
-import { PendingEntryCopyProvider } from '@/features/_shared/landing/PendingEntryCopyContext';
 import type { EntryPendingReason } from '@/utils/entryStatusUtils';
-import { pendingEntryCopy } from '@/features/_shared/landing/pendingEntryCopy';
 import { useEffect } from 'react';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
@@ -109,143 +107,131 @@ export function PosterLandingPage({
   // The footer + Particulars table already surface the license language.
   const licenseLabel: string | null = null;
 
-  const pendingCopy = pendingEntryCopy({
-    hasEntryClassInventory,
-    entryPendingReason,
-    entryOpenDate: data.entryOpenDate,
-    timezone: data.timezone,
-  });
-
   return (
-    <PendingEntryCopyProvider value={pendingCopy}>
-      <div data-poster style={{ background: posterColors.cream, color: posterColors.ink }}>
-        <title>
-          {data.showName} · {data.clubName}
-        </title>
-        <meta
-          name="description"
-          content={data.welcomeText ?? `${data.showName} — ${data.showSubtitle}`}
-        />
-        <meta property="og:title" content={`${data.showName} · ${data.clubName}`} />
-        <meta property="og:description" content={data.showSubtitle} />
-        <meta property="og:type" content="event" />
-        <meta
-          property="og:url"
-          content={typeof window !== 'undefined' ? window.location.href : ''}
-        />
-        <meta name="twitter:card" content="summary" />
+    <div data-poster style={{ background: posterColors.cream, color: posterColors.ink }}>
+      <title>
+        {data.showName} · {data.clubName}
+      </title>
+      <meta
+        name="description"
+        content={data.welcomeText ?? `${data.showName} — ${data.showSubtitle}`}
+      />
+      <meta property="og:title" content={`${data.showName} · ${data.clubName}`} />
+      <meta property="og:description" content={data.showSubtitle} />
+      <meta property="og:type" content="event" />
+      <meta property="og:url" content={typeof window !== 'undefined' ? window.location.href : ''} />
+      <meta name="twitter:card" content="summary" />
 
-        <StickyNav
-          showAbbreviation={abbreviation}
-          trialStartDate={data.trialStartDate}
-          trialEndDate={data.trialEndDate}
+      <StickyNav
+        showAbbreviation={abbreviation}
+        trialStartDate={data.trialStartDate}
+        trialEndDate={data.trialEndDate}
+        timezone={data.timezone}
+        venueName={data.venueName}
+        venueCity={data.venueCity}
+        entryCount={data.entryCount}
+        entryLimit={data.entryLimit}
+        entryWizardUrl={data.entryWizardUrl}
+        canEnterOnline={canEnterOnline}
+        entryClosed={entryClosed}
+      />
+
+      <HeroBlock
+        clubName={data.clubName}
+        showName={data.showName}
+        showSubtitle={data.showSubtitle}
+        trialStartDate={data.trialStartDate}
+        entryCloseDate={data.entryCloseDate}
+        entryLimit={data.entryLimit}
+        venueName={data.venueName}
+        timezone={data.timezone}
+        licenseLabel={licenseLabel}
+      />
+
+      <main>
+        <WelcomeSection welcomeText={data.welcomeText} trialChairName={data.trialChairName} />
+        <ParticularsSection
+          licenseLanguage={data.licenseLanguage}
+          entryOpenDate={data.entryOpenDate}
+          entryCloseDate={data.entryCloseDate}
+          confirmationDate={data.confirmationDate}
+          entryLimit={data.entryLimit}
+          fees={data.fees}
+          trialsCount={data.trials.length}
           timezone={data.timezone}
-          venueName={data.venueName}
-          venueCity={data.venueCity}
+        />
+        <WithdrawalPolicySection
+          showId={show?.id}
+          className="po-section"
+          style={SHARED_SECTION_STYLE}
+        />
+        <RecordingFeeSection
+          statement={data.recordingFee}
+          className="po-section"
+          style={SHARED_SECTION_STYLE}
+        />
+        <ScoutingStatementSection
+          statement={data.scoutingStatement}
+          className="po-section"
+          style={SHARED_SECTION_STYLE}
+        />
+        <PremiumDownloadSection show={show} className="po-section" style={SHARED_SECTION_STYLE} />
+        <JudgesSection judges={data.judges} trialsCount={data.trials.length} />
+        <RosterSection
           entryCount={data.entryCount}
           entryLimit={data.entryLimit}
-          entryWizardUrl={data.entryWizardUrl}
-          canEnterOnline={canEnterOnline}
-          entryClosed={entryClosed}
+          pastShow={data.showHasHappened}
         />
-
-        <HeroBlock
-          clubName={data.clubName}
-          showName={data.showName}
-          showSubtitle={data.showSubtitle}
-          trialStartDate={data.trialStartDate}
-          entryCloseDate={data.entryCloseDate}
-          entryLimit={data.entryLimit}
-          venueName={data.venueName}
-          timezone={data.timezone}
-          licenseLabel={licenseLabel}
+        <OnTheDaySection
+          items={data.onTheDay}
+          hospitalityNotes={data.hospitalityNotes}
+          awardsDescription={data.awardsDescription}
+          houseRulesNotes={data.houseRulesNotes}
         />
-
-        <main>
-          <WelcomeSection welcomeText={data.welcomeText} trialChairName={data.trialChairName} />
-          <ParticularsSection
-            licenseLanguage={data.licenseLanguage}
-            entryOpenDate={data.entryOpenDate}
-            entryCloseDate={data.entryCloseDate}
-            confirmationDate={data.confirmationDate}
-            entryLimit={data.entryLimit}
-            fees={data.fees}
-            trialsCount={data.trials.length}
-            timezone={data.timezone}
-          />
-          <WithdrawalPolicySection
-            showId={show?.id}
-            className="po-section"
-            style={SHARED_SECTION_STYLE}
-          />
-          <RecordingFeeSection
-            statement={data.recordingFee}
-            className="po-section"
-            style={SHARED_SECTION_STYLE}
-          />
-          <ScoutingStatementSection
-            statement={data.scoutingStatement}
-            className="po-section"
-            style={SHARED_SECTION_STYLE}
-          />
-          <PremiumDownloadSection show={show} className="po-section" style={SHARED_SECTION_STYLE} />
-          <JudgesSection judges={data.judges} trialsCount={data.trials.length} />
-          <RosterSection
-            entryCount={data.entryCount}
-            entryLimit={data.entryLimit}
-            pastShow={data.showHasHappened}
-          />
-          <OnTheDaySection
-            items={data.onTheDay}
-            hospitalityNotes={data.hospitalityNotes}
-            awardsDescription={data.awardsDescription}
-            houseRulesNotes={data.houseRulesNotes}
-          />
-          <PlanSection accommodations={data.accommodations} />
-          <OfficersSection
-            officers={data.officers}
-            secretaryName={data.secretaryName}
-            secretaryEmail={data.secretaryEmail}
-          />
-          <OfferedClassesSection show={show} className="po-section" />
-
-          <FinalCtaSection
-            classesHref={classesHref}
-            entryCloseDate={data.entryCloseDate}
-            timezone={data.timezone}
-            canEnterOnline={canEnterOnline}
-            entryClosed={entryClosed}
-          />
-        </main>
-
-        <PosterFooter
-          clubName={data.clubName}
-          memberClubLanguage={data.memberClubLanguage}
-          licenseLanguage={data.licenseLanguage}
-          venueAddress={data.venueAddress}
+        <PlanSection accommodations={data.accommodations} />
+        <OfficersSection
+          officers={data.officers}
           secretaryName={data.secretaryName}
           secretaryEmail={data.secretaryEmail}
         />
+        <OfferedClassesSection show={show} className="po-section" />
 
-        {/* MYK9-633: last child, after the footer — see StickyEntryCtaBar's
-          doc comment for why placement matters. */}
-        <StickyEntryCtaBar
-          entryWizardUrl={data.entryWizardUrl}
-          canShowEntryCta={canEnterOnline}
-          label="ENTER →"
-          surface={{
-            // MYK9-633 round 2: red-on-cream measured 4.39:1, under the 4.5:1
-            // text floor. Ink-on-cream is the pair the deleted desktop CTA
-            // used (14.3:1) and reads clearly against the dark ink bar too.
-            background: posterColors.ink,
-            buttonBackground: posterColors.cream,
-            buttonColor: posterColors.ink,
-            fontFamily: POSTER_DISPLAY_FAMILY,
-            fontSize: 16,
-            letterSpacing: '-0.015em',
-          }}
+        <FinalCtaSection
+          classesHref={classesHref}
+          entryCloseDate={data.entryCloseDate}
+          timezone={data.timezone}
+          canEnterOnline={canEnterOnline}
+          entryClosed={entryClosed}
         />
-      </div>
-    </PendingEntryCopyProvider>
+      </main>
+
+      <PosterFooter
+        clubName={data.clubName}
+        memberClubLanguage={data.memberClubLanguage}
+        licenseLanguage={data.licenseLanguage}
+        venueAddress={data.venueAddress}
+        secretaryName={data.secretaryName}
+        secretaryEmail={data.secretaryEmail}
+      />
+
+      {/* MYK9-633: last child, after the footer — see StickyEntryCtaBar's
+          doc comment for why placement matters. */}
+      <StickyEntryCtaBar
+        entryWizardUrl={data.entryWizardUrl}
+        canShowEntryCta={canEnterOnline}
+        label="ENTER →"
+        surface={{
+          // MYK9-633 round 2: red-on-cream measured 4.39:1, under the 4.5:1
+          // text floor. Ink-on-cream is the pair the deleted desktop CTA
+          // used (14.3:1) and reads clearly against the dark ink bar too.
+          background: posterColors.ink,
+          buttonBackground: posterColors.cream,
+          buttonColor: posterColors.ink,
+          fontFamily: POSTER_DISPLAY_FAMILY,
+          fontSize: 16,
+          letterSpacing: '-0.015em',
+        }}
+      />
+    </div>
   );
 }

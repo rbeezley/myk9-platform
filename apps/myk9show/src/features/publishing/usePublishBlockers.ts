@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { withTimeout } from '@myk9/core';
 import { supabase } from '@/lib/supabase';
 import { useShowStore } from '@/store/showStore';
 import { useIsOnline } from '@/hooks/useNetworkStatus';
@@ -17,6 +18,13 @@ export type PublishBlockersState =
   | { state: 'ready'; blockers: PublishBlocker[] };
 
 const READY_EMPTY: PublishBlockersState = { state: 'ready', blockers: [] };
+
+/**
+ * The most either read waits before it counts as failed (the same 15 s the club page gives its
+ * lookup, MYK9-2167), so a stalled call becomes "Could not check" with Try again, not an
+ * endless "Checking…".
+ */
+export const PUBLISH_BLOCKERS_DEADLINE_MS = 15_000;
 
 /** Under ['shows', showId, ...] so a premium publish or any show refresh re-asks the server. */
 export const showPublishBlockersQueryKey = (showId: string) =>
@@ -62,9 +70,11 @@ export function usePublishBlockers(
   const query = useQuery({
     queryKey: [...showPublishBlockersQueryKey(showId ?? ''), deps],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('show_publish_blockers', {
-        p_show_id: showId as string,
-      });
+      const { data, error } = await withTimeout(
+        supabase.rpc('show_publish_blockers', { p_show_id: showId as string }),
+        PUBLISH_BLOCKERS_DEADLINE_MS,
+        'show_publish_blockers'
+      );
       if (error) throw error;
       return parsePublishBlockers(data);
     },
@@ -82,9 +92,11 @@ export function useClubPublishBlockers(clubId: string | undefined): PublishBlock
   const query = useQuery({
     queryKey: clubPublishBlockersQueryKey(clubId ?? ''),
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('club_publish_blockers', {
-        p_club_id: clubId as string,
-      });
+      const { data, error } = await withTimeout(
+        supabase.rpc('club_publish_blockers', { p_club_id: clubId as string }),
+        PUBLISH_BLOCKERS_DEADLINE_MS,
+        'club_publish_blockers'
+      );
       if (error) throw error;
       return parsePublishBlockers(data);
     },

@@ -5,7 +5,11 @@ import type { ReactNode } from 'react';
 import { act } from '@testing-library/react';
 import { useShowStore } from '@/store/showStore';
 import type { Show } from '@/types/show-types';
-import { useClubPublishBlockers, usePublishBlockers } from '../usePublishBlockers';
+import {
+  PUBLISH_BLOCKERS_DEADLINE_MS,
+  useClubPublishBlockers,
+  usePublishBlockers,
+} from '../usePublishBlockers';
 
 const { rpc, online } = vi.hoisted(() => ({ rpc: vi.fn(), online: { value: true } }));
 vi.mock('@/lib/supabase', () => ({ supabase: { rpc } }));
@@ -113,6 +117,24 @@ describe('usePublishBlockers (MYK9-2198)', () => {
     rpc.mockReturnValue(new Promise(() => {}));
     const { result } = renderHook(() => usePublishBlockers('show-1'), { wrapper });
     expect(result.current).toEqual({ state: 'checking', blockers: [] });
+  });
+
+  it('a stalled call becomes failed within the deadline, for both reads', async () => {
+    vi.useFakeTimers();
+    try {
+      rpc.mockReturnValue(new Promise(() => {}));
+      const show = renderHook(() => usePublishBlockers('show-1'), { wrapper });
+      const club = renderHook(() => useClubPublishBlockers('club-1'), { wrapper });
+      expect(show.result.current.state).toBe('checking');
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(PUBLISH_BLOCKERS_DEADLINE_MS + 100);
+      });
+      expect(show.result.current.state).toBe('failed');
+      expect(club.result.current.state).toBe('failed');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('does not ask when disabled', () => {

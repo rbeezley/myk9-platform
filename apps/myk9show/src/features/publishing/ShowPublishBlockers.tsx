@@ -15,10 +15,17 @@ interface ShowPublishBlockersProps {
   clubId?: string | undefined;
   /** The show's status; falls back to the store's. The list is only for a draft. */
   status?: string | undefined;
+  /** Inside an edit wizard: the entry-date lines jump to its Show Details step instead of leaving. */
+  onEditEntryDates?: (() => void) | undefined;
 }
 
 /** A saved show's list, read from the server, with each line linked to where it is fixed. */
-export function ShowPublishBlockers({ showId, clubId, status }: ShowPublishBlockersProps) {
+export function ShowPublishBlockers({
+  showId,
+  clubId,
+  status,
+  onEditEntryDates,
+}: ShowPublishBlockersProps) {
   const stored = useShowStore(state => state.shows.find(s => s.id === showId));
   const resolvedClubId = clubId ?? stored?.clubId;
   // Only a draft has anything to publish: a public show has no list, a cancelled one is not
@@ -40,7 +47,9 @@ export function ShowPublishBlockers({ showId, clubId, status }: ShowPublishBlock
         return { href: `/shows/${showId}/about#${PREMIUM_CARD_ANCHOR}` };
       case 'entry_dates_missing':
       case 'entry_dates_out_of_order':
-        return { href: getShowEditHref(showId, 'basic') };
+        return onEditEntryDates
+          ? { onFix: onEditEntryDates }
+          : { href: getShowEditHref(showId, 'basic') };
       default:
         return undefined;
     }

@@ -114,7 +114,10 @@ export function ReviewReadinessNotices({
 
       {/* MYK9-2198: the one "Before you can publish" list (it replaced the entry-window notice). */}
       {existingShowId ? (
-        <ShowPublishBlockers showId={existingShowId} />
+        <ShowPublishBlockers
+          showId={existingShowId}
+          onEditEntryDates={canEditDetails ? () => onGoToStep(0) : undefined}
+        />
       ) : (
         canEditDetails && (
           <WizardPublishBlockers

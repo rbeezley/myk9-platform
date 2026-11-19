@@ -4,7 +4,7 @@
  * itself decides (premium, entry dates). It links back to the entry dates and never blocks
  * saving the draft.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
@@ -71,6 +71,10 @@ vi.mock('@/store/wizardStore', () => ({
 }));
 
 describe('ReviewStep publish blockers (MYK9-2198)', () => {
+  afterEach(() => {
+    useShowStore.setState({ shows: [] });
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     entryWindow.open = '';
@@ -124,6 +128,18 @@ describe('ReviewStep publish blockers (MYK9-2198)', () => {
     expect(list).not.toHaveTextContent('Set when entries open');
   });
 
+  it('editing a saved draft: the entry-date line jumps to Show Details inside the wizard', async () => {
+    useShowStore.setState({
+      shows: [{ id: 'show-9', status: 'draft', clubId: 'club-1' } as unknown as Show],
+    });
+    render(<ReviewStep trialView={trialView} onCreateShow={vi.fn()} existingShowId="show-9" />);
+
+    await userEvent
+      .setup()
+      .click(screen.getByRole('button', { name: /fix it: set when entries/i }));
+    expect(setCurrentStep).toHaveBeenCalledWith(0);
+  });
+
   it('editing a saved draft reads the server list for that show, not the local mirror', () => {
     entryWindow.open = '2026-06-01T12:00:00.000Z';
     entryWindow.close = '2026-06-25T12:00:00.000Z';
@@ -131,7 +147,6 @@ describe('ReviewStep publish blockers (MYK9-2198)', () => {
       shows: [{ id: 'show-9', status: 'draft', clubId: 'club-1' } as unknown as Show],
     });
     render(<ReviewStep trialView={trialView} onCreateShow={vi.fn()} existingShowId="show-9" />);
-    useShowStore.setState({ shows: [] });
 
     // The mirror would list only the premium here; the (mocked) server answers with the dates.
     const list = screen.getByTestId('publish-blockers');

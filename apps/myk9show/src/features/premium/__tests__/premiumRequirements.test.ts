@@ -371,9 +371,7 @@ describe('ASCA club-template and contact facts (MYK9-2286)', () => {
   });
 
   it('says nothing about the template when it is not known', () => {
-    const rest = asca();
-    delete rest.template;
-    expect(idsFor(rest, 'ASCA')).toEqual([]);
+    expect(idsFor(completeFacts(), 'ASCA')).toEqual([]);
   });
 
   it('lists the Secretary and the Chair when each has neither phone nor email', () => {

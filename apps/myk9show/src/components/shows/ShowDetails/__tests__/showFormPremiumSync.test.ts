@@ -177,3 +177,15 @@ describe('applyShowFormDataToPremium judges (MYK9-2067)', () => {
     });
   });
 });
+
+describe('applyShowFormDataToPremium organization (MYK9-2213)', () => {
+  it('builds the premium for the organization being saved', () => {
+    const premium = generatedPremium();
+    expect(premium.org).toBe('AKC');
+    expect(applyShowFormDataToPremium(premium, { organization: 'UKC' }, []).org).toBe('UKC');
+  });
+
+  it('keeps the premium organization when the form carries none', () => {
+    expect(applyShowFormDataToPremium(generatedPremium(), {}, []).org).toBe('AKC');
+  });
+});

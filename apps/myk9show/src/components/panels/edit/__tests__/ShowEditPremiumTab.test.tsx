@@ -8,6 +8,7 @@ const premiumEditorProps: Array<{
   onInkSaverChange?: (value: boolean) => void;
   style?: string;
   initialPremium?: unknown;
+  regenerateBlockedReason?: string;
 }> = [];
 let publishedExperienceContentMock: unknown = null;
 let officialsMock: unknown;
@@ -350,6 +351,7 @@ describe('republishing an edited premium without Regenerate keeps the recording 
   function editAndRepublish(trials: ShowTrial[], showOrg: 'AKC' | 'UKC' = 'AKC') {
     const data: ShowEditFormData = {
       ...baseData,
+      organization: showOrg,
       startDate: NEW_YEAR_SHOW.startDate,
       endDate: newYear,
       experiencePublishedContent: PUBLISHED,
@@ -441,5 +443,37 @@ describe('republishing an edited premium without Regenerate keeps the recording 
     expect(snapshot.recordingFee).toBe(
       'AKC recording fee: $4.50 per entry; $5.50 per entry from January 1, 2027'
     );
+  });
+});
+
+describe('ShowEditPremiumTab unsaved organization (MYK9-2213)', () => {
+  beforeEach(() => {
+    premiumEditorProps.length = 0;
+  });
+
+  const renderTab = (showOrg: 'AKC' | 'UKC', savedOrganization: string) =>
+    render(
+      <ShowEditPremiumTab
+        data={{ ...baseData, organization: showOrg }}
+        clubId="c1"
+        showOrg={showOrg}
+        savedOrganization={savedOrganization}
+        isActive
+        handleCheckboxChange={vi.fn(() => vi.fn())}
+        handleValueChange={vi.fn(() => vi.fn())}
+      />
+    );
+
+  it('holds Regenerate and names the saved organization while the form differs', () => {
+    renderTab('UKC', 'AKC');
+    expect(premiumEditorProps.at(-1)).toMatchObject({
+      regenerateBlockedReason:
+        'Save the show first. Regenerate builds from the saved organization (AKC).',
+    });
+  });
+
+  it('does not hold Regenerate when the form matches the saved organization', () => {
+    renderTab('AKC', 'AKC');
+    expect(premiumEditorProps.at(-1)?.regenerateBlockedReason).toBeUndefined();
   });
 });

@@ -62,8 +62,14 @@ export function applyShowFormDataToPremium(
   const dayOfFee = parseOptionalCurrency(formData.dayOfShowFee);
   const premiumKeys = new Set(premium.trials.map(t => premiumTrialKey(t.name, t.date)));
 
+  const org =
+    formData.organization === 'AKC' || formData.organization === 'UKC'
+      ? formData.organization
+      : premium.org;
+
   return {
     ...premium,
+    org,
     style: (formData.style ?? premium.style) as GeneratedPremium['style'],
     show: {
       ...premium.show,

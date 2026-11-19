@@ -22,7 +22,7 @@ describe('buildDefaultWithdrawalPolicyText (MYK9-1976)', () => {
     expect(text).toBe(
       [
         'Full refund of the entry fee until June 1, 2026; after that, $10.00 is kept.',
-        "Withdraw: an entry may be withdrawn only for a reason the AKC rules cover: dog in season or judge change. A withdrawal for that reason follows the AKC rule. Refund per the premium's rules; the show secretary confirms it.",
+        "Withdraw: an entry may be withdrawn only for a reason the AKC rules cover: dog in season or judge change. A withdrawal for that reason follows the AKC rule. Refund per the premium's rules; the show secretary confirms it. At AKC shows, an in-season withdrawal must be made at least 30 minutes before the first class of the day. The club may ask for documentation that the female is in season.",
         "Pull: the dog does not run, for any other reason. Refunds for a pull are at the club's discretion.",
       ].join('\n\n')
     );
@@ -32,12 +32,17 @@ describe('buildDefaultWithdrawalPolicyText (MYK9-1976)', () => {
     const text = buildDefaultWithdrawalPolicyText(FLAT_10, 'UKC');
     expect(text).toContain('the UKC rules cover: dog in season or judge change.');
     expect(text).toContain('follows the UKC rule.');
+    expect(text).toContain(
+      "Refund per the premium's rules; the show secretary confirms it. For an in-season withdrawal, UKC requires a veterinary certificate showing the female came into season after the entry deadline.\n\nPull:"
+    );
   });
 
   it('ASCA: judge change only, never in season', () => {
     const text = buildDefaultWithdrawalPolicyText(FLAT_10, 'ASCA');
     expect(text).toContain('the ASCA rules cover: judge change.');
     expect(text).not.toMatch(/in season/i);
+    expect(text).not.toMatch(/documentation|certificate/i);
+    expect(text).toContain('the show secretary confirms it.\n\nPull:');
   });
 
   it('no registry (the club card): names which registries cover in season', () => {
@@ -46,6 +51,9 @@ describe('buildDefaultWithdrawalPolicyText (MYK9-1976)', () => {
       "only for a reason the show's registry covers: judge change, and dog in season at AKC and UKC shows."
     );
     expect(text.startsWith('Refund policy: contact the club.')).toBe(true);
+    expect(text).toContain(
+      'the show secretary confirms it. At AKC shows, an in-season withdrawal must be made at least 30 minutes before the first class of the day. The club may ask for documentation that the female is in season. For an in-season withdrawal, UKC requires a veterinary certificate showing the female came into season after the entry deadline.\n\nPull:'
+    );
   });
 
   it('keeps Withdraw and Pull apart, never says "no refund" for a pull, and has no em dash', () => {

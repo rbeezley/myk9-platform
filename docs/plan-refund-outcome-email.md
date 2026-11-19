@@ -2,94 +2,155 @@
 
 > **Status:** Active
 
-Design first (orchestrate rule, #4224): this touches money, so this page is reviewed and the
-owner decides before any code. Parent: MYK9-1998. Split from MYK9-2001 at a convergence stop on
-#4214. That PR shipped the "before she confirms" amounts and the "you're out" email. The outcome
-email was cut, because Codex round 2 found new defects on paths round 1 had already flagged.
+This is a design-first plan (orchestrate rule, #4224). It touches money, so it is reviewed and the
+owner decides before any code is written. Parent: MYK9-1998.
+
+It was split from MYK9-2001 at a convergence stop on #4214. That PR shipped two things:
+
+- the amounts shown "before she confirms";
+- the "you're out" email.
+
+The outcome email was cut, because Codex round 2 found new defects on paths that round 1 had
+already flagged.
+
+Revision 2 corrects the facts and option B's scope after Codex reviewed revision 1 on #4233.
 
 ## What exists today
 
-- **Recording a decision.** The secretary records it with `set_entry_refund_decision`
-  (latest: `20261117152900_myk9_2099_refund_decision_removed_absent.sql`). It writes
-  `entries.refund_decision` (`refunded` / `denied` / NULL). `restrict_entry_refund_decision_columns`
-  stops anything else writing that column.
-- **Paying a refund.** Only a person pays one, through the refund dialog or
-  `stripe-approve-refund` (CLAUDE.md: refunds are never automatic). `stripe-webhook` books
-  `charge.refunded` / `refund.updated` onto `entries.refund_amount`.
-- **What the exhibitor can already see.**
-  - My Shows shows each dog's refund as a note (`MyShowDogCard` `refundNote`). The note shows the
-    amount when one is booked, and "unknown" otherwise.
-  - Stripe sends its own receipt for a card refund, when receipts are on for the account.
-- **A denial.** Nothing records why, and nothing tells her. She sees no refund note, and no
-  message says the decision is final.
-- **Who receives these emails.** #4214's pull-out email goes to the owner, the handler and the
-  acting co-owner. It uses the `show_lifecycle_email_jobs` queue and `send-lifecycle-email`.
+**Decision states.** `entries_refund_decision_check` allows only `denied` or NULL. There is no
+`refunded` decision.
+
+- `set_entry_refund_decision(uuid, text)` records only a denial. The latest version is in
+  `20261117152900_myk9_2099_refund_decision_removed_absent.sql`.
+- `restrict_entry_refund_decision_columns` lets only that RPC write the column, and clears it
+  when a no-show is reinstated.
+- An issued refund is a separate fact. A person pays it through the refund dialog or
+  `stripe-approve-refund`, because refunds are never automatic. `stripe-webhook` then books the
+  amount and time onto `entries.refund_amount` from `charge.refunded` or `refund.updated`.
+
+**What the exhibitor already gets for an issued refund.** Nothing from myK9Show tells her:
+
+- My Shows shows a refund note on the dog's card (`MyShowDogCard` / `refundNotesByDog`). It
+  appears only once a positive amount and a refund date are booked, so she sees it only if she
+  opens My Shows.
+- Stripe emails its own receipt, but only when receipts are switched on for the account.
+
+**A denial.** Nothing records why. Nothing tells her: no note, no email, no message saying the
+decision is final.
+
+- "Deny refund" in `PullReconciliationActions` calls `denyPullRefundDecision(entry.id)` at once,
+  with no reason field.
+
+**The "you're out" email (#4214)** goes to the owner, the handler and the co-owner who pulled.
+The trigger reads the co-owner from `auth.uid()` at pull time and does not store it anywhere.
 
 ## Why the cut code failed
 
-The outcome email was one trigger on `refund_amount` / `refund_decision`. Each time it was
-patched, Codex found a new case:
+The outcome email was one trigger on the money columns. Each patch to it reopened the same code:
 
-- an issued refund after the club was paid still said "to your card";
-- the co-owner who pulled was missed;
-- a no-show reconciled after closeout was refused, because the producer rejects shows that are
-  `completed`;
-- a reason could be stored with a NULL decision, because a CHECK that evaluates to NULL passes.
-
-Each fix touched the same trigger, so the review loop kept reopening the same code.
+- After the club had been paid, the email still said "to your card".
+- The co-owner who pulled was missed.
+- A no-show reconciled after closeout was refused.
+- A CHECK that evaluated to NULL let through a reason with no decision.
 
 ## Options
 
-**A. Do nothing more.**
+### A. Do nothing more
 
-- For an issued refund, My Shows already shows the amount, and Stripe emails a receipt.
-- What is missing is only the denial: she never learns the refund was declined, or why.
-- Cost: none. Gap: "Did I get my money back?" stays a question to the secretary when the answer
-  is no.
+- An issued refund stays visible only on My Shows, plus a Stripe receipt where receipts are on.
+- A denial stays silent.
+- Cost: none.
 
-**B. Denial only (recommended).**
+### B. A denial email, with a reason the secretary types (recommended)
 
-- One email, sent when the secretary records `denied`: "No refund for <dog> in <class>." plus
-  her reason. Add a required `refund_decision_reason` to `set_entry_refund_decision`.
-- The CHECK is written NULL-safe: `refund_decision = 'denied' AND reason IS NOT NULL`, or both
-  are NULL.
-- It goes to the same people as the pull-out email.
-- It is sent from the RPC itself, not from a trigger on the money columns. The amount and the
-  payout state never enter it, so the after-payout wording and the webhook timing (the four
-  defects above) do not arise.
-- A completed show is allowed, so a no-show reconciled at closeout still emails.
-- It is small: one RPC change, one step type and one renderer.
+When the secretary denies a refund, the people the pull email went to get one email:
+"No refund for <dog> in <class>." followed by her reason. It names no amount, date or payout.
 
-**C. The full outcome email, as MYK9-2249 was written.**
+The scope, revised by #4233's review:
 
-- Issued: "Refunded $X to your card", with the booked amount.
-- Declined: the reason.
-- After payout: the MYK9-1953 wording.
-- It needs the webhook-booked amount, the payout state at send time and the two-step timing
-  (decision first, money later). That is where every defect came from.
-- MYK9-1953's after-payout wording is still undecided.
+1. **Database.**
+   - Add `entries.refund_decision_reason`, with a CHECK built from explicit boolean cases:
+     - the reason is NULL; or
+     - the decision is not distinct from `denied` and `btrim(reason) <> ''`.
+   - Existing denials keep a NULL reason. Nothing is invented for them and nothing is emailed.
+   - `restrict_entry_refund_decision_columns` guards the reason like the decision, and clears it
+     when it clears the decision on reinstatement.
+2. **The RPC.**
+   - A new `set_entry_refund_decision(uuid, text, text)` requires a non-blank reason for a
+     denial.
+   - The two-argument version is kept until the frontend that sends a reason is deployed. A
+     follow-up migration then drops it, so it cannot be used to skip the reason. Order:
+     migration, then frontend deploy, then the drop.
+3. **Who receives it.**
+   - Record who pulled the entry when it is pulled, as `entries.pulled_by_person_id`, set by the
+     pull trigger.
+   - The denial goes to the owner, the handler, and that recorded person only, never every
+     co-owner.
+   - The secretary who denies is never the recipient, because she is the RPC's caller.
+4. **The app.** "Deny refund" opens a short reason field, on the existing control, before it
+   calls the RPC. `denyPullRefundDecision` passes the reason along.
+5. **Delivery after closeout.** Allow `completed` shows for the denial step in two places:
+   - where the job is queued;
+   - in `lifecycle-email-autoSend.ts`'s `isPublishedShow` gate at delivery.
+
+**What B leaves out:** an email for an issued refund. She still learns of one from My Shows, or
+from Stripe's receipt where receipts are on.
+
+### C. The full outcome email
+
+C covers three cases:
+
+- an issued refund: "Refunded $X to your card", from the booked `refund_amount`;
+- a denial: everything in B;
+- after the club is paid: the MYK9-1953 wording, which is still undecided.
+
+The issued email has to be built on the webhook's booking, because no decision marks a refund
+as issued. That means amounts, payout state at send time and webhook redelivery. Every earlier
+defect came from these.
 
 ## Recommendation
 
-**B.**
+**B.** The denial is the one outcome she cannot learn anywhere else today. B is a real piece of
+work, not a quick add-on:
 
-- The issued case is already covered twice: by the My Shows note and by Stripe's receipt.
-- The denial is the one outcome she cannot learn any other way.
-- B never names an amount, a date or a payout, so it cannot promise money (docs/INTENT.md,
-  Withdraw vs Pull).
-- C stays possible later, once MYK9-1953 decides the after-payout wording.
+- a migration;
+- a follow-up drop of the old RPC;
+- a recipient column;
+- an app change;
+- a delivery exception.
+
+C is possible later, once MYK9-1953 decides the after-payout wording.
 
 ## Testing phase
 
-- SQL tests:
-  - a denial with a reason queues one job per recipient: owner, handler and acting co-owner;
-  - a blank reason is refused;
-  - a NULL decision with a reason is refused;
-  - a denial on a completed show still queues.
-- Unit test: the renderer prints the reason and no `$` amount.
-- `pnpm qa:sql-local` passes. The migration auditor runs before review.
-- Deploy `send-lifecycle-email` after the migration push.
+**SQL tests**
+
+- A denial with a reason queues one job for each of owner, handler and the recorded puller.
+  Distinct identities are used for the secretary, owner, handler and co-owner.
+- These are each refused:
+  - a blank reason;
+  - a whitespace-only reason;
+  - a reason with a NULL decision.
+- A legacy denial with a NULL reason still validates.
+- Reinstating a denied no-show clears both the decision and the reason.
+
+**Delivery test.** A denial on a completed show drains through to the provider call. The test
+must not stop at the queued row.
+
+**App test.** The reason typed in the Deny dialog reaches the RPC.
+
+**Checks before review**
+
+- `pnpm qa:sql-local` passes.
+- The migration auditor runs.
+
+**Deploy, in this order**
+
+1. The migration.
+2. `supabase functions deploy send-lifecycle-email`.
+3. The site.
+4. The follow-up drop.
 
 ## Owner decision needed
 
-Choose A, B or C. B is the recommendation.
+Choose A, B or C. The recommendation is B, with the scope above.

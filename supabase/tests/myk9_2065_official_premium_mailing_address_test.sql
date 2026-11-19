@@ -21,12 +21,12 @@ VALUES (
   'published'
 );
 
-INSERT INTO public.people (id, first_name, last_name, email, auth_user_id)
+INSERT INTO public.people (id, first_name, last_name, auth_user_id)
 VALUES
-  ('00000000-0000-0000-0000-000000206511', 'Mail', 'Secretary', 'sec-2065@example.test', '00000000-0000-0000-0000-000000206101'),
-  ('00000000-0000-0000-0000-000000206512', 'Mail', 'Chair', 'chair-2065@example.test', '00000000-0000-0000-0000-000000206102'),
-  ('00000000-0000-0000-0000-000000206513', 'Mail', 'Steward', 'steward-2065@example.test', '00000000-0000-0000-0000-000000206103'),
-  ('00000000-0000-0000-0000-000000206514', 'Mail', 'Bystander', 'bystander-2065@example.test', '00000000-0000-0000-0000-000000206104');
+  ('00000000-0000-0000-0000-000000206511', 'Mail', 'Secretary', '00000000-0000-0000-0000-000000206101'),
+  ('00000000-0000-0000-0000-000000206512', 'Mail', 'Chair', '00000000-0000-0000-0000-000000206102'),
+  ('00000000-0000-0000-0000-000000206513', 'Mail', 'Steward', '00000000-0000-0000-0000-000000206103'),
+  ('00000000-0000-0000-0000-000000206514', 'Mail', 'Bystander', '00000000-0000-0000-0000-000000206104');
 
 -- The Secretary manages the show through a club appointment; naming alone grants nothing.
 INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
@@ -138,10 +138,10 @@ RESET ROLE;
 
 -- 4. get_show_officials carries the address for secretary and chairman only, to anon too.
 RESET ROLE;
-UPDATE public.show_officials SET premium_mailing_address = 'PO Box 77'
-WHERE show_id = '00000000-0000-0000-0000-000000206503' AND role IN ('secretary', 'steward');
-INSERT INTO public.show_officials (show_id, person_id, role, premium_mailing_address)
-VALUES ('00000000-0000-0000-0000-000000206503', '00000000-0000-0000-0000-000000206512', 'chairman', 'PO Box 88');
+UPDATE public.show_officials
+SET premium_mailing_address = CASE role WHEN 'chairman' THEN 'PO Box 88' ELSE 'PO Box 77' END
+WHERE show_id = '00000000-0000-0000-0000-000000206503'
+  AND role IN ('secretary', 'chairman', 'steward');
 
 SET LOCAL ROLE anon;
 

@@ -95,3 +95,26 @@ describe('pendingEntryCopy', () => {
     expect(copy.kind).toBe('not-open');
   });
 });
+
+describe('pendingEntryCopy across the opening day in a non-UTC zone', () => {
+  const open = '2026-11-18T00:00:00+00:00';
+  const copyAt = (instant: string) =>
+    pendingEntryCopy({
+      entryPendingReason: 'not_yet_open',
+      entryOpenDate: open,
+      timezone: tz,
+      now: new Date(instant),
+    });
+
+  it('dates the opening the evening before it, while UTC already reads the day itself', () => {
+    expect(copyAt('2026-11-18T05:00:00Z').nav).toBe('Opens Nov 18');
+  });
+
+  it('stops dating it from local midnight on the opening day', () => {
+    expect(copyAt('2026-11-18T06:00:00Z').nav).toBe('Not open yet');
+  });
+
+  it('stays neutral the day after', () => {
+    expect(copyAt('2026-11-19T18:00:00Z').nav).toBe('Not open yet');
+  });
+});

@@ -3,6 +3,8 @@ import { useParams, useNavigate, useSearchParams, useMatch, useLocation } from '
 import { readEntryDogId, withEntryDogContext } from '@/features/registration/entryDogContext';
 import { type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { useUrlTab } from '@/hooks/useUrlTab';
+import { useEntryOpenBoundaryTick } from '@/hooks/useEntryOpenBoundaryTick';
+import { getEntryWindowTimezone } from '@/utils/entryWindowDate';
 import { resolveOverviewJudgesWithRoster } from '@/components/shows/overview/overviewJudges';
 import { type TrialStats } from '@/components/shows/tabs/TrialsTab';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
@@ -116,6 +118,15 @@ const ShowDetailsPage: React.FC = () => {
     }
     return null;
   }, [currentShow, readsReplica, id, shows]);
+
+  // `getEntryStatus` reads the clock on render; wake at each local midnight of the entry window
+  // (the same zone rule it uses) so a page left open re-evaluates it as the window opens and
+  // closes.
+  useEntryOpenBoundaryTick(
+    actualCurrentShow?.entryOpenDate,
+    actualCurrentShow?.entryCloseDate,
+    actualCurrentShow?.entryWindowTimeZone ?? getEntryWindowTimezone(actualCurrentShow?.trials)
+  );
 
   const canManageShow = useShowManageGate(actualCurrentShow?.clubId);
   const {

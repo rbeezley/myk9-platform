@@ -190,3 +190,25 @@ describe('premiumOrganizationMismatch (MYK9-2213)', () => {
     expect(premiumOrganizationMismatch(generatedPremium(), undefined)).toBeNull();
   });
 });
+
+describe('applyShowFormDataToPremium entry limit (MYK9-2220)', () => {
+  const withLimit = (limit: number | null | undefined) => {
+    const premium = generatedPremium();
+    if (limit !== undefined) premium.show.maxTotalEntries = limit;
+    return premium;
+  };
+
+  it('carries the form limit onto the premium', () => {
+    const synced = applyShowFormDataToPremium(withLimit(null), { maxTotalEntries: 90 }, []);
+    expect(synced.show.maxTotalEntries).toBe(90);
+  });
+
+  it('a cleared form field removes the limit', () => {
+    const synced = applyShowFormDataToPremium(withLimit(90), { maxTotalEntries: undefined }, []);
+    expect(synced.show.maxTotalEntries).toBeNull();
+  });
+
+  it('form data without the field keeps the premium limit', () => {
+    expect(applyShowFormDataToPremium(withLimit(90), {}, []).show.maxTotalEntries).toBe(90);
+  });
+});

@@ -208,6 +208,12 @@ export function GazetteBody({ data, tokens }: Props) {
         </View>
       )}
 
+      {f.entryLimit && (
+        <View style={{ marginTop: 16 }} wrap={false}>
+          <Text style={bodyTextStyle}>{f.entryLimit}</Text>
+        </View>
+      )}
+
       {f.scoutingStatement && (
         <View style={{ marginTop: 16 }} wrap={false}>
           <View style={headerWrapStyle}>

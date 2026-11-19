@@ -55,6 +55,8 @@ export function replicatedToShow(replicated: ReplicatedShow): Show {
     preEntryFee: replicated.preEntryFee?.toString() || '',
     dayOfShowFee: replicated.dayOfShowFee?.toString() || '',
     juniorHandlerFee: replicated.juniorHandlerFee?.toString() || undefined,
+    // MYK9-2220: a reload or replica notification must keep the saved cap (offline Edit show).
+    ...(replicated.maxTotalEntries != null ? { maxTotalEntries: replicated.maxTotalEntries } : {}),
     clubId: replicated.clubId || '',
     clubName: '', // Derived from club store
     clubAddress: '', // Derived from club store
@@ -190,6 +192,7 @@ export interface ShowInput {
   entryCloseDate: string;
   preEntryFee: string;
   dayOfShowFee?: string | undefined;
+  maxTotalEntries?: number | undefined;
   juniorHandlerFee?: string | undefined;
   clubId: string;
   clubName: string;
@@ -423,6 +426,8 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
         replicatedUpdates.preEntryFee = parseFloat(updates.preEntryFee);
       if (updates.dayOfShowFee !== undefined)
         replicatedUpdates.dayOfShowFee = parseFloat(updates.dayOfShowFee);
+      // MYK9-2220: present means the form decides; a cleared box clears the limit.
+      if ('maxTotalEntries' in updates) replicatedUpdates.maxTotalEntries = updates.maxTotalEntries;
       if (updates.juniorHandlerFee !== undefined)
         replicatedUpdates.juniorHandlerFee =
           updates.juniorHandlerFee.trim() === '' ? null : Number(updates.juniorHandlerFee);
@@ -484,6 +489,7 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
         definedUpdates.entryCloseDate = updates.entryCloseDate;
       if (updates.preEntryFee !== undefined) definedUpdates.preEntryFee = updates.preEntryFee;
       if (updates.dayOfShowFee !== undefined) definedUpdates.dayOfShowFee = updates.dayOfShowFee;
+      if ('maxTotalEntries' in updates) definedUpdates.maxTotalEntries = updates.maxTotalEntries;
       if (updates.juniorHandlerFee !== undefined)
         definedUpdates.juniorHandlerFee = updates.juniorHandlerFee;
       if (updates.clubId !== undefined) definedUpdates.clubId = updates.clubId;

@@ -1,6 +1,7 @@
 import type { ShowInput } from '@/store/showStore';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type { GeneratedPremium } from '@/types/premium-types';
+import { normalizeEntryLimit } from '@/features/premium/premiumEntryLimit';
 import { premiumTrialKey } from '@/features/premium/premiumClassLabel';
 
 type PremiumJudge = NonNullable<GeneratedPremium['trials'][number]['judges']>[number];
@@ -77,6 +78,11 @@ export function applyShowFormDataToPremium(
       dayOfFee: dayOfFee ?? premium.show.dayOfFee,
       acceptChecks: formData.acceptCheckPayments ?? premium.show.acceptChecks,
       acceptCash: formData.acceptCashPayments ?? premium.show.acceptCash,
+      // Present on the form data means the form decides (a cleared field is no limit).
+      maxTotalEntries:
+        'maxTotalEntries' in formData
+          ? normalizeEntryLimit(formData.maxTotalEntries)
+          : (premium.show.maxTotalEntries ?? null),
     },
     trials: premium.trials.map(trial => ({
       ...trial,

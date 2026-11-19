@@ -97,7 +97,7 @@ handle<GeneratePremiumPayload>(
         `
         id, name, organization, start_date, end_date, location,
         entry_open_date, entry_close_date, pre_entry_fee, day_of_show_fee,
-        accept_check_payments, accept_cash_payments, club_id, experience_published_content,
+        accept_check_payments, accept_cash_payments, max_total_entries, club_id, experience_published_content,
         ${PREMIUM_SHOW_WITHDRAWAL_COLUMNS},
         clubs(name, logo_url, ${PREMIUM_CLUB_WITHDRAWAL_COLUMNS}),
         trials(
@@ -294,6 +294,8 @@ handle<GeneratePremiumPayload>(
         dayOfFee: show.day_of_show_fee,
         acceptChecks: show.accept_check_payments,
         acceptCash: show.accept_cash_payments,
+        // MYK9-2220: the total entry limit a UKC premium states.
+        maxTotalEntries: show.max_total_entries ?? null,
         // MYK9-1976: raw policy columns; the app resolves the text exhibitors read.
         withdrawal: buildPremiumWithdrawalRow(show as Record<string, unknown>),
       },

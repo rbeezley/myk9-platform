@@ -111,6 +111,12 @@ export function PosterBody({ data, tokens }: Props) {
         </View>
       )}
 
+      {f.entryLimit && (
+        <View style={sectionGap}>
+          <Text style={bodyStyle}>{f.entryLimit}</Text>
+        </View>
+      )}
+
       {f.withdrawalPolicy && (
         <View style={sectionGap}>
           <Text style={labelStyle}>{f.withdrawalPolicy.label}</Text>

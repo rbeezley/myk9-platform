@@ -7,7 +7,7 @@ import {
 import { autoJob, makeAutoSendSupabase, publishedShow } from './lifecycle-email-autoSend.testUtils';
 
 const cancelledShow = { ...publishedShow, status: 'cancelled' };
-const WITH_ENTRY = { cancelledEntryPeople: ['person-1'] };
+const WITH_ENTRY = { liveEntryPeople: ['person-1'] };
 
 function cancelledTables(show: Record<string, unknown> = cancelledShow, jobStatus = 'ready') {
   return {
@@ -78,7 +78,7 @@ describe('show cancelled email drain', () => {
   });
 
   it('skips the person whose entries were all pulled or withdrawn', async () => {
-    const fixture = makeAutoSendSupabase(cancelledTables(), { cancelledEntryPeople: [] });
+    const fixture = makeAutoSendSupabase(cancelledTables(), { liveEntryPeople: [] });
     const { fetch, promise } = drain(fixture);
     await expect(promise).resolves.toMatchObject({ claimed: 1, sent: 0, skipped: 1 });
     expect(fetch).not.toHaveBeenCalled();

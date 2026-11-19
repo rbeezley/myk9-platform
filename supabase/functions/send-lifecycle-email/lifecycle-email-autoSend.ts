@@ -261,7 +261,7 @@ async function processClaimedJob(args: {
     });
   } else if (job.step_type === 'show_cancelled') {
     // MYK9-2127: skipped when every entry of this person was pulled or withdrawn meanwhile.
-    if (!(await personHasCancelledShowEntry(supabase, job.show_id, job.recipient_person_id))) {
+    if (!(await personHasLiveEntry(supabase, job.show_id, job.recipient_person_id))) {
       await finishJob(args, { status: 'skipped' });
       return 'skipped';
     }
@@ -394,19 +394,6 @@ async function personHasLiveEntry(
   personId: string
 ): Promise<boolean> {
   const { data, error } = await supabase.rpc('show_person_has_live_entry', {
-    p_show_id: showId,
-    p_person_id: personId,
-  });
-  if (error) throw new Error('Failed to check the recipient');
-  return data === true;
-}
-
-async function personHasCancelledShowEntry(
-  supabase: LifecycleEmailSupabaseClient,
-  showId: string,
-  personId: string
-): Promise<boolean> {
-  const { data, error } = await supabase.rpc('show_cancelled_person_has_entry', {
     p_show_id: showId,
     p_person_id: personId,
   });

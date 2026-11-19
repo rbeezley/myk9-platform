@@ -13,7 +13,7 @@ export function makeAutoSendSupabase(
   initial: Record<string, Row[]>,
   options: {
     liveEntryPeople?: string[];
-    cancelledEntryPeople?: string[];
+
     liveEntryClasses?: Record<string, string[]>;
   } = {}
 ) {
@@ -128,12 +128,6 @@ export function makeAutoSendSupabase(
     if (fn === 'show_person_has_live_entry') {
       return {
         data: (options.liveEntryPeople ?? []).includes(String(args.p_person_id)),
-        error: null,
-      };
-    }
-    if (fn === 'show_cancelled_person_has_entry') {
-      return {
-        data: (options.cancelledEntryPeople ?? []).includes(String(args.p_person_id)),
         error: null,
       };
     }

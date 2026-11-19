@@ -19,11 +19,11 @@
 --      a published state (published, upcoming, in_progress). A draft that is cancelled sends
 --      nothing; a row saved again while already cancelled is not a change, so repeating the
 --      cancel sends nothing.
---   3. Recipients: the dog's owner and the entry's handler with an email, for every entry still
---      standing (the live statuses of show_live_entry_person_ids, MYK9-2124). A person whose
---      entries were all pulled, withdrawn or removed gets nothing. Unlike that function the class
---      and trial are not required to be live: cancelling the show may cancel its classes, and
---      that must not silence the email.
+--   3. Recipients: the dog's owner and the entry's handler with an email, from the one existing
+--      live-entry rule, show_live_entry_person_ids (MYK9-2124, which projects
+--      live_entry_person_class_pairs since MYK9-2160 and so includes 'pending-payment'). No
+--      second copy of the status list, so the rules cannot drift. A person whose entries were all
+--      pulled, withdrawn or removed gets nothing.
 --   4. Once: the job's idempotency_key is one per show and person, with no random part, and the
 --      insert does nothing on a conflict. Cancel, reopen and cancel again is still one email.
 --      The one exception is a job that was SKIPPED (the show was reopened inside the quiet
@@ -32,12 +32,11 @@
 --      them (held to ready) at the start of every drain, so a sender deployed before this one
 --      never mails them as a date change. Order: db push, then functions deploy
 --      send-lifecycle-email.
---   6. show_cancelled_person_has_entry(show, person): the sender's send-time check, so an
---      exhibitor whose entries were all withdrawn in the quiet minutes is skipped.
+--   6. The sender's send-time check is the existing show_person_has_live_entry(show, person), so
+--      an exhibitor whose entries were all withdrawn in the quiet minutes is skipped.
 --
 -- Rollback: DROP TRIGGER trg_queue_show_cancelled_email ON public.shows; DROP FUNCTION
--- public.queue_show_cancelled_email_from_show(), public.queue_show_cancelled_email(uuid),
--- public.show_cancelled_person_has_entry(uuid, uuid), public.show_cancelled_email_person_ids(uuid);
+-- public.queue_show_cancelled_email_from_show(), public.queue_show_cancelled_email(uuid);
 -- delete show_cancelled jobs and steps, restore the nine-value step_type CHECKs and
 -- ensure_show_lifecycle_email_steps from 20261119045700.
 -- =============================================================================
@@ -129,51 +128,6 @@ REVOKE ALL ON FUNCTION public.ensure_show_lifecycle_email_steps(uuid) FROM PUBLI
 
 SELECT public.ensure_show_lifecycle_email_steps(s.id) FROM public.shows s;
 
--- Everyone with an entry still standing at the show: the live entry statuses of
--- show_live_entry_person_ids, without its class and trial conditions (see 3 above).
-CREATE OR REPLACE FUNCTION public.show_cancelled_email_person_ids(p_show_id uuid)
-RETURNS SETOF uuid
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = ''
-AS $$
-  SELECT DISTINCT r.person_id
-    FROM public.entries e
-    JOIN public.dogs d ON d.id = e.dog_id
-    CROSS JOIN LATERAL (VALUES (d.owner_id), (e.handler_id)) AS r(person_id)
-   WHERE e.show_id = p_show_id
-     AND e.deleted_at IS NULL
-     AND e.entry_status IN (
-       'confirmed', 'accepted', 'scheduled', 'checked-in', 'at-gate',
-       'in-ring', 'competing', 'completed', 'move-up-requested', 'move_up_requested',
-       'submitted', 'paid', 'pending', 'promotion-expired', 'waitlisted'
-     )
-     AND e.check_in_status IS DISTINCT FROM 'pulled'
-     AND r.person_id IS NOT NULL
-     AND d.deleted_at IS NULL;
-$$;
-
-REVOKE ALL ON FUNCTION public.show_cancelled_email_person_ids(uuid)
-  FROM PUBLIC, anon, authenticated, service_role;
-
-CREATE OR REPLACE FUNCTION public.show_cancelled_person_has_entry(p_show_id uuid, p_person_id uuid)
-RETURNS boolean
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = ''
-AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM public.show_cancelled_email_person_ids(p_show_id) AS ids(person_id)
-     WHERE ids.person_id = p_person_id
-  );
-$$;
-
-REVOKE ALL ON FUNCTION public.show_cancelled_person_has_entry(uuid, uuid)
-  FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.show_cancelled_person_has_entry(uuid, uuid) TO service_role;
-
 -- The producer. Safe to call for any show: it does nothing unless the show is cancelled.
 CREATE OR REPLACE FUNCTION public.queue_show_cancelled_email(p_show_id uuid)
 RETURNS void
@@ -227,7 +181,7 @@ BEGIN
   WHERE nullif(btrim(coalesce(p.email, '')), '') IS NOT NULL
     AND p.deleted_at IS NULL
     AND p.id IN (
-      SELECT ids.person_id FROM public.show_cancelled_email_person_ids(p_show_id) AS ids(person_id)
+      SELECT ids.person_id FROM public.show_live_entry_person_ids(p_show_id) AS ids(person_id)
     )
   ON CONFLICT (idempotency_key) DO UPDATE SET
     status = 'held',

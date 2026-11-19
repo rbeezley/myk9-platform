@@ -109,6 +109,15 @@ describe('ShowEditPanel helpers', () => {
     expect(parse('')).toBe(true);
   });
 
+  it('accepts only a positive whole-number per-dog cap, or none (MYK9-2221)', () => {
+    const parse = (maxEntriesPerDog: number | undefined) =>
+      showSchemas.edit.safeParse({ ...baseFormData, maxEntriesPerDog }).success;
+    expect(parse(2.5)).toBe(false);
+    expect(parse(0)).toBe(false);
+    expect(parse(3)).toBe(true);
+    expect(parse(undefined)).toBe(true);
+  });
+
   it('clears a stale junior rate when saving an ASCA show', () => {
     expect(
       formDataToShow({ ...baseFormData, organization: 'ASCA', juniorHandlerFee: '15' })

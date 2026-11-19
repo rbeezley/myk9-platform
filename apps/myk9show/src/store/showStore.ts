@@ -55,6 +55,10 @@ export function replicatedToShow(replicated: ReplicatedShow): Show {
     preEntryFee: replicated.preEntryFee?.toString() || '',
     dayOfShowFee: replicated.dayOfShowFee?.toString() || '',
     juniorHandlerFee: replicated.juniorHandlerFee?.toString() || undefined,
+    // MYK9-2221: a reload or replica notification must keep the saved per-dog cap.
+    ...(replicated.maxEntriesPerDog != null
+      ? { maxEntriesPerDog: replicated.maxEntriesPerDog }
+      : {}),
     clubId: replicated.clubId || '',
     clubName: '', // Derived from club store
     clubAddress: '', // Derived from club store

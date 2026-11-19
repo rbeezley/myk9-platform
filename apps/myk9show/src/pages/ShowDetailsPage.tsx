@@ -3,6 +3,7 @@ import { useParams, useNavigate, useSearchParams, useMatch, useLocation } from '
 import { readEntryDogId, withEntryDogContext } from '@/features/registration/entryDogContext';
 import { type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { useUrlTab } from '@/hooks/useUrlTab';
+import { useNow } from '@/hooks/useNow';
 import { resolveOverviewJudgesWithRoster } from '@/components/shows/overview/overviewJudges';
 import { type TrialStats } from '@/components/shows/tabs/TrialsTab';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
@@ -65,6 +66,9 @@ const SHOW_OFFLINE_MESSAGE = "You're offline. Connect to the internet to see thi
 /** Loads `/shows/:id` once and delegates to the public, exhibitor, or management surface. */
 const ShowDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  // `getEntryStatus` reads the clock on every render; without a tick, a page left open while
+  // entries are pending never learns the window opened (Enter stays hidden until a reload).
+  useNow(60_000);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { hash } = useLocation();

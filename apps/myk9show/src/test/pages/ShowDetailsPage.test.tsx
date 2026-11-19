@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
@@ -240,8 +240,16 @@ vi.mock('@/features/headline/landing/HeadlineLandingPage', () => ({
   ),
 }));
 vi.mock('@/features/monogram/landing/MonogramLandingPage', () => ({
-  MonogramLandingPage: ({ show }: { show: { style?: string | null } }) => (
-    <div data-testid="monogram-landing">{show.style}</div>
+  MonogramLandingPage: ({
+    show,
+    entryPendingReason,
+  }: {
+    show: { style?: string | null };
+    entryPendingReason?: string | undefined;
+  }) => (
+    <div data-testid="monogram-landing" data-entry-pending-reason={String(entryPendingReason)}>
+      {show.style}
+    </div>
   ),
 }));
 vi.mock('@/features/banner/landing/BannerLandingPage', () => ({
@@ -661,6 +669,31 @@ describe('ShowDetailsPage', () => {
     expect(screen.queryByRole('tab', { name: /Show Map/ })).toBeNull();
     expect(screen.queryByRole('tab', { name: /My Entries/ })).toBeNull();
     expect(screen.queryByRole('tab', { name: /My Stats/ })).toBeNull();
+  });
+
+  it('lets entry eligibility flip when the opening day passes while the landing stays open', () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
+    try {
+      vi.setSystemTime(new Date('2026-11-18T12:00:00Z'));
+      mockAuthContext.user = null;
+      mockAuthContext.userWithRoles = null;
+      mockShow = { ...mockShow, entryOpenDate: '2026-11-20', entryCloseDate: '2027-12-31' };
+      renderPage();
+      expect(screen.getByTestId('monogram-landing')).toHaveAttribute(
+        'data-entry-pending-reason',
+        'not_yet_open'
+      );
+
+      act(() => {
+        vi.advanceTimersByTime(3 * 24 * 60 * 60 * 1000);
+      });
+      expect(screen.getByTestId('monogram-landing')).toHaveAttribute(
+        'data-entry-pending-reason',
+        'undefined'
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('renders NotFoundState when show does not exist', () => {

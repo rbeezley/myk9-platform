@@ -27,6 +27,7 @@ import {
 import { useShowOfficials } from '@/hooks/queries/useShowOfficials';
 import { PreviewExitBar } from './PreviewExitBar';
 import { AllShowsBar, useScrollToTopOnShow } from './ShowPublicLanding.frame';
+import { useNow } from '@/hooks/useNow';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
@@ -189,11 +190,7 @@ export function ShowPublicLanding({
   // A landing left open across the opening day must stop saying "Opens <today>", so the clock
   // is an input: it ticks once a minute (not every second like the countdown) and the copy is
   // rebuilt only then.
-  const [clockMinute, setClockMinute] = useState(() => Math.floor(Date.now() / 60_000));
-  useEffect(() => {
-    const id = setInterval(() => setClockMinute(Math.floor(Date.now() / 60_000)), 60_000);
-    return () => clearInterval(id);
-  }, []);
+  const clockMinute = Math.floor(useNow(60_000) / 60_000);
   const pendingCopy = useMemo(
     () =>
       pendingEntryCopy({

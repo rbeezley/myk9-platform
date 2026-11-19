@@ -2,7 +2,7 @@
 
 > **Status:** Active
 
-Linear: MYK9-2252 (sync) and MYK9-2253 (people). Agreed with the owner in a design conversation on 2026-11-19. No code has been written. Checked with `verify-plan` the same day; additions are marked [ADDED] or [EXPANDED].
+Linear: MYK9-2252 (sync) and MYK9-2253 (people). Agreed with the owner in a design conversation on 2026-11-19. No code has been written. Checked with `verify-plan` and reviewed by Codex the same day; additions are marked [ADDED] or [EXPANDED].
 
 ## Why
 
@@ -18,22 +18,23 @@ Production on 2026-11-19: 83 people, 296 classes, 106 trials, 45 shows, 95 dogs,
 
 Read on 2026-11-19. Nothing here was reproduced in a browser.
 
-| Fact                                                                                                                                                                                                          | Where                                                                                              |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| The background sync runs every table with no show scope, so classes, trials, shows and waitlist entries download platform-wide.                                                                               | `apps/myk9show/src/providers/ReplicationSyncProvider.tsx`                                          |
-| Those four fetch in one request with no paging. Entries, dogs, dog registrations, judge assignments and armbands page.                                                                                        | `apps/myk9show/src/services/replication/Replicated*.ts`                                            |
-| A full sync that still leaves the device short reports success.                                                                                                                                               | `packages/replication/src/syncReplicatedTable.ts`                                                  |
-| A second kind of sync already exists: one scoped pass per show whose page is open. It is what the "Offline ready" badge checks, against the server's count.                                                   | `apps/myk9show/src/providers/showScopeTargets.ts`, `apps/myk9show/src/features/offline-readiness/` |
-| Secretary and admin sessions download every person, with email, phone and street address, in one unpaged request. It is saved on the device as `myk9show-user-storage`.                                       | `apps/myk9show/src/App.tsx`, `apps/myk9show/src/store/userStore.ts`                                |
-| Sign-out does not clear that saved directory.                                                                                                                                                                 | `apps/myk9show/src/hooks/useAuth.ts`                                                               |
-| About 30 files read people from that directory.                                                                                                                                                               | `grep -rl useUserStore apps/myk9show/src`                                                          |
-| Only entries, armbands, waitlist entries and paperwork prints are kept per account on a shared browser. Other saved tables are not.                                                                           | `usesAccountOwnedRows` in `packages/replication/src/core/ReplicatedTable.ts`                       |
-| A replicated `people` table exists, but it only creates walk-in people offline. Its sync downloads nothing.                                                                                                   | `apps/myk9show/src/services/replication/ReplicatedShowDeskPeopleTable.ts`                          |
-| Offline, Entry Forms shows the typed handler text in the owner's place.                                                                                                                                       | `apps/myk9show/src/hooks/entryDisplayNames.ts:33`                                                  |
-| [ADDED] Dogs, dog registrations, entries, judge assignments and clubs also download platform-wide in the background pass. They page. A secretary may see every dog (MYK9-854), so her device holds every dog. | `apps/myk9show/src/services/replication/ReplicatedDogsTable.ts`                                    |
-| [ADDED] "Offline ready" counts the show, its trials, classes, entries and judge assignments. It does not count dogs or people.                                                                                | `apps/myk9show/src/features/offline-readiness/useOfflineReadiness.ts`                              |
-| [ADDED] The people search has no row limit and returns every contact column.                                                                                                                                  | `searchUsers` in `apps/myk9show/src/services/database/users/reads.ts`                              |
-| [ADDED] Feature switches are fixed when the app is built. Turning one off needs a deploy.                                                                                                                     | `apps/myk9show/src/config/features.ts`                                                             |
+| Fact                                                                                                                                                                                                                                                                      | Where                                                                                              |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| The background sync runs every table with no show scope, so classes, trials, shows and waitlist entries download platform-wide.                                                                                                                                           | `apps/myk9show/src/providers/ReplicationSyncProvider.tsx`                                          |
+| Those four fetch in one request with no paging. Entries, dogs, dog registrations, judge assignments and armbands page, but each takes a page shorter than 1,000 rows as the last one.                                                                                     | `apps/myk9show/src/services/replication/Replicated*.ts`                                            |
+| A full sync that still leaves the device short reports success.                                                                                                                                                                                                           | `packages/replication/src/syncReplicatedTable.ts`                                                  |
+| A second kind of sync already exists: one scoped pass per show whose page is open. It is what the "Offline ready" badge checks, against the server's count.                                                                                                               | `apps/myk9show/src/providers/showScopeTargets.ts`, `apps/myk9show/src/features/offline-readiness/` |
+| Secretary and admin sessions download every person, with email, phone and street address, in one unpaged request. It is saved on the device as `myk9show-user-storage`.                                                                                                   | `apps/myk9show/src/App.tsx`, `apps/myk9show/src/store/userStore.ts`                                |
+| Sign-out does not clear that saved directory.                                                                                                                                                                                                                             | `apps/myk9show/src/hooks/useAuth.ts`                                                               |
+| About 30 files read people from that directory.                                                                                                                                                                                                                           | `grep -rl useUserStore apps/myk9show/src`                                                          |
+| Only entries, armbands, waitlist entries and paperwork prints are kept per account on a shared browser. Other saved tables are not.                                                                                                                                       | `usesAccountOwnedRows` in `packages/replication/src/core/ReplicatedTable.ts`                       |
+| A replicated `people` table exists, but it only creates walk-in people offline, and its sync downloads nothing. It saves each walk-in on the device with address, phone and email.                                                                                        | `createPerson` in `apps/myk9show/src/services/replication/ReplicatedShowDeskPeopleTable.ts`        |
+| Offline, Entry Forms shows the typed handler text in the owner's place.                                                                                                                                                                                                   | `apps/myk9show/src/hooks/entryDisplayNames.ts:33`                                                  |
+| [ADDED] Dogs, dog registrations and judge assignments also download platform-wide in the background pass, and page. Clubs download platform-wide in one request, through their own sync adapter. A secretary may see every dog (MYK9-854), so her device holds every dog. | `ReplicatedDogsTable.ts`, `ReplicatedClubsTable.ts`                                                |
+| [ADDED] Entries are different. The background pass skips entries when it has no show, so a device holds the entries only of shows that were opened or saved on it.                                                                                                        | `syncForPrincipal` in `ReplicatedEntriesTable.ts`                                                  |
+| [ADDED] "Offline ready" counts the show, its trials, classes, entries and judge assignments. It does not count dogs or people.                                                                                                                                            | `apps/myk9show/src/features/offline-readiness/useOfflineReadiness.ts`                              |
+| [ADDED] The people search has no row limit and returns every contact column.                                                                                                                                                                                              | `searchUsers` in `apps/myk9show/src/services/database/users/reads.ts`                              |
+| [ADDED] Feature switches are fixed when the app is built. Turning one off needs a deploy.                                                                                                                                                                                 | `apps/myk9show/src/config/features.ts`                                                             |
 
 The hosted `max_rows` has not been read. It is 1,000 in `supabase/config.toml`. MYK9-2258 records the hosted value.
 
@@ -57,11 +58,11 @@ Each was put to the owner with a recommendation on 2026-11-19.
 
 1. **A device holds show by show.** It holds, in full and checked against the server, each show its user works on: a secretary's shows, a judge's assigned shows, an exhibitor's entered shows, from a few weeks before to a few weeks after. This happens automatically, with no button to remember. Lists that span the platform (Find Shows, all clubs) are looked up online. Every download also pages, as a safety net.
 2. **People: everyone for now, the club's people at a trigger.** For now a secretary's or admin's device keeps every person on the platform, with name, phone and email. No device holds a street address. The end state is everyone who has ever shown with the club, with the same details; a judge or steward never holds contact details. The switch comes at 10 live clubs or 10,000 people, whichever is first, with an alert to the owner (MYK9-2274). [EXPANDED] This took three steps on 2026-11-19. First, the show's people only. Then the club's people, because in mySWT people carry over from show to show and secretaries change. Then the owner asked why people should differ from dogs, and chose everyone for now: the limit on people is whose phone numbers sit on each laptop, not size, and with a handful of clubs that exposure is small.
-3. **Sign-out removes phone and email, and keeps names and the show.** On the saved people directory this means phone, email and address go and names stay (MYK9-2255). Work not yet sent to the server is never removed.
+3. **Sign-out removes phone and email, and keeps names and the show.** On the saved people directory this means phone, email and address go and names stay. A person added at the desk is also saved in a second place on the device; such a row keeps every field until it is sent, and the name only after that (MYK9-2255). Work not yet sent to the server is never removed.
 4. **A short download is a failure, reported quietly.** Volunteers see it only where the offline copy is already reported: the "Couldn't save the offline copy" line with Try again, and the checklist line "This device is ready to work offline". No banner and no pop-up. The owner gets a Sentry alert naming the table and the two counts. A screen that needs missing data says "can't check" and never shows a guess.
 5. **Three phases, set by the dates.** The safety net lands before the December mock show. The people work lands before entries open on 2027-01-22. Show-by-show saving lands after that and before the real show's day.
 
-[ADDED] Decision 1 was put in terms of shows, trials and classes. The other tables were decided later the same day (MYK9-2268). Dogs and their registrations stay platform-wide for now, with an alert to the owner at 10,000 dogs; the end state is every dog that has shown with the club (MYK9-2272, parked until the alert). Entries stay as they are: the club's shows, all years. Judge assignments are saved per show, like classes, plus a person's own (MYK9-2264). Clubs stay platform-wide.
+[ADDED] Decision 1 was put in terms of shows, trials and classes. The other tables were decided later the same day (MYK9-2268). Dogs and their registrations stay platform-wide for now, with an alert to the owner at 10,000 dogs; the end state is every dog that has shown with the club (MYK9-2272, parked until the alert). Judge assignments are saved per show, like classes, plus a person's own (MYK9-2264). Clubs stay platform-wide. Entries are saved per show: a device holds the entries of shows opened or saved on it. The owner was first told, wrongly, that a device already held all years of the club's entries; whether past shows are saved is now an open question (MYK9-2276).
 
 ## Do nothing, delete it, or link to what exists [ADDED]
 
@@ -89,14 +90,15 @@ The window is the plan's proposal: 30 days before a show's first trial to 14 day
 
 Due 2026-12-01. Each issue is its own PR.
 
-| Issue     | What changes                                                                                                                                   |
-| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| MYK9-2252 | Classes, trials, shows, waitlist entries and `getAllClubs` page. Each pager stops on an empty page, so a lower hosted limit cannot cut it off. |
-| MYK9-2254 | A download short of the server's count is a failure, and sends one Sentry alert.                                                               |
-| MYK9-2255 | Sign-out removes phone, email and address from the saved people directory, and keeps names.                                                    |
-| MYK9-2256 | Offline, Entry Forms and the check-in desk never show the handler as the owner.                                                                |
-| MYK9-2257 | Add Person says when the duplicate check could not run.                                                                                        |
-| MYK9-2258 | The owner records the hosted `max_rows`.                                                                                                       |
+| Issue             | What changes                                                                                                                                                                           |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| MYK9-2252         | Classes, trials, shows, waitlist entries and clubs page in their sync adapters, and `getAllClubs` pages. Each pager stops on an empty page, so a lower hosted limit cannot cut it off. |
+| MYK9-2275 [ADDED] | The pagers that already exist (dogs, entries, dog registrations, judge assignments, armbands, and the id scans behind clean-up) stop on an empty page, not a short one.                |
+| MYK9-2254         | A download short of the server's count is a failure, and sends one Sentry alert.                                                                                                       |
+| MYK9-2255         | Sign-out removes phone, email and address from the saved people directory and from sent walk-in rows, and keeps names.                                                                 |
+| MYK9-2256         | Offline, Entry Forms and the check-in desk never show the handler as the owner.                                                                                                        |
+| MYK9-2257         | Add Person says when the duplicate check could not run.                                                                                                                                |
+| MYK9-2258         | The owner records the hosted `max_rows`. If it is below 1,000, today's pagers already stop early, and the dogs clean-up could remove valid rows from a device.                         |
 
 The people directory is not paged in this phase. Phase 2 pages it (MYK9-2273).
 
@@ -120,19 +122,20 @@ Cases these issues must handle:
 - **A short load (MYK9-2273).** The fuller copy already on the device is kept, never overwritten, and the owner is alerted.
 - **Addresses (MYK9-2273).** A screen that shows or edits an address reads that one person from the server when it opens. Saving a person from the edit panel never blanks an address.
 - **A device with no directory (MYK9-2273).** It reads "not saved", and Add Person says it could not check (MYK9-2257).
+- **A device that already holds the old copy (MYK9-2273).** The new build strips its address fields on first run, with no network. A short or failed load keeps that stripped copy, never the old one.
 
 ### Parked until the alert fires
 
 The end state is unchanged: a secretary's device holds everyone who has ever shown with the club. These wait for the alert in MYK9-2274, and are picked up in this order.
 
-| Issue     | What changes                                                                                                                                           |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| MYK9-2259 | Server: one read of a club's people for its desk, with phone and email, and of a show's names for its judges and stewards. A migration, so its own PR. |
-| MYK9-2263 | A secretary's device holds her club's people, private to her account. A club that revokes her appointment removes them at the next sync.               |
-| MYK9-2266 | Sign-out removes phone and email from that saved copy.                                                                                                 |
-| MYK9-2260 | Pickers, name lookups and the duplicate check ask the server as the user types. About 30 files.                                                        |
-| MYK9-2267 | The platform-wide people directory download and its saved copy are deleted.                                                                            |
-| MYK9-2271 | Each saved dog carries its owner's name, name only.                                                                                                    |
+| Issue     | What changes                                                                                                                                                                                               |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| MYK9-2259 | Server: one read of a club's people for its desk, with phone and email, and of a show's names for its judges and stewards. A migration, so its own PR.                                                     |
+| MYK9-2263 | A secretary's device holds her club's people, private to her account. A club that revokes her appointment removes them at the next sync.                                                                   |
+| MYK9-2266 | Sign-out removes phone and email from that saved copy.                                                                                                                                                     |
+| MYK9-2260 | Online, pickers, name lookups and the duplicate check ask the server as the user types. Offline, all three search the club's saved people, and a miss reads as "not found on this device". About 30 files. |
+| MYK9-2267 | The platform-wide people directory download and its saved copy are deleted. The offline desk walk is repeated afterwards and still passes.                                                                 |
+| MYK9-2271 | Each saved dog carries its owner's name, name only.                                                                                                                                                        |
 
 Their "Done when" lines already carry the cases the plan check found: a late entry, an empty show, two roles, walk-ins saved before the change, sign-out during a sync, a failed removal, and a search with a limit.
 
@@ -151,6 +154,8 @@ No due date yet. Set one when the real show's date is known.
 This phase changes what "everything on the device" means, so it lands last, with paging already protecting it.
 
 [EXPANDED] Saving more shows means more requests. A saved show that is not open syncs when the user signs in, when the app opens and when the connection returns, and otherwise less often than an open show. MYK9-2261 measures the requests in one background pass with one, three and six saved shows, before and after. Both phase 3 changes ship behind one build-time switch.
+
+[ADDED] Stopping a download does not remove what is already saved. A show that leaves the window, and everything the platform-wide pass saved before the upgrade, is removed from the device, except rows with work not yet sent (MYK9-2261, MYK9-2264).
 
 ## Rollout and rollback [ADDED]
 
@@ -188,12 +193,12 @@ Each issue carries its own tests. This phase is what must be true before a phase
 
 **Phase 1**
 
-- A unit test per fixed adapter syncs more than 1,000 rows and gets them all. A second run with a page limit of 500 passes too, to cover a lower hosted limit.
+- A unit test per sync adapter, new and existing, and per id scan, fetches more than 1,000 rows from a server that returns at most 500 per request, and gets them all. A clean-up that could not read every live id removes nothing.
 - [ADDED] A unit test per fixed adapter pages across more than one page of rows that share one `updated_at`.
 - Engine tests: a short download fails and alerts once. A pending local create, a pending delete, and a row deleted on the server between the count and the fetch raise no alarm.
 - [ADDED] A test Sentry event for a short download is seen to reach the owner.
-- Sign-out tests: after sign-out no person in the saved directory has a phone, an email or an address, names stay, and it is still so after a reload.
-- The whole app suite once with `pnpm vitest run --sequence.shuffle`, because the engine and the sign-out handler touch shared state.
+- Sign-out tests: after sign-out no person saved on the device has a phone, an email or an address, in the directory or in a sent walk-in row. Names stay, an unsent walk-in keeps every field, and it is all still so after a reload.
+- The whole app suite shuffled six times (`pnpm vitest run --sequence.shuffle`). Sign-out rewrites state held in browser storage, which is the repo's six-run case.
 - A browser walk on the local stack, offline: Entry Forms and the check-in desk with a dog handled by someone other than its owner. Add Person on a device that never loaded the directory.
 - At the December mock show: one secretary laptop saves the show, turns Wi-Fi off, and checks owner names on Entry Forms.
 - [ADDED] Before the mock show: each show device is opened online and is on the current build.
@@ -203,6 +208,7 @@ Each issue carries its own tests. This phase is what must be true before a phase
 - A test seeds more than 1,000 people, loads them all, and finds one late in the alphabet.
 - A test: a short load keeps the earlier copy and sends one alert.
 - A test reads the stored directory and finds no address field. A test saves a person from the edit panel and the address on the server is unchanged.
+- A test rehydrates the old saved format offline and finds no address field.
 - A browser walk on the local stack, offline, as a secretary: owner names on Entry Forms and the check-in desk, phone in person details, and the duplicate check for a person from another club.
 - A judge's device holds no directory.
 - The trigger alert: a test for each threshold and for the once-only rule, and a test alert seen to arrive.
@@ -216,6 +222,7 @@ Each issue carries its own tests. This phase is what must be true before a phase
 - A check that a signed-in device makes no unscoped request for classes, trials, shows, waitlist entries or judge assignments, apart from a person's own assignments.
 - [ADDED] The request count of one background pass with one, three and six saved shows, before and after.
 - [ADDED] A build with the phase 3 switch off behaves as before.
+- [ADDED] A show leaving the window, with and without unsent work, and a device upgrading from the platform-wide pass: the rows are gone and screens stop returning them.
 
 **After each phase deploys:** `plan-recheck` on this plan.
 
@@ -224,7 +231,7 @@ Each issue carries its own tests. This phase is what must be true before a phase
 - A new page, tab, sheet or setting. Every change lands on a screen that exists.
 - A "this is a shared computer" choice at sign-in.
 - Per-account storage for dogs, classes, trials and shows. Earlier work closed the known leaks there (MYK9-1126, MYK9-1139), and the clubs case is MYK9-2168.
-- [EXPANDED] Paging dogs, entries, dog registrations, judge assignments and armbands. They already page. Dogs, their registrations and clubs stay platform-wide by owner decision (MYK9-2268).
+- [EXPANDED] Scoping dogs, their registrations and clubs. They stay platform-wide by owner decision (MYK9-2268). Their pagers are still fixed in phase 1 (MYK9-2275).
 - [ADDED] Narrowing who may read `people` on the server. A secretary must be able to find any existing person, so the server keeps answering her searches. This plan changes what a device stores and what a search returns, not who is allowed to ask.
 - Legacy myK9Q.
 
@@ -237,6 +244,7 @@ Each issue carries its own tests. This phase is what must be true before a phase
 - [ADDED] **The three-day lead time** for sync changes before a show.
 - [ADDED] **The privacy policy.** It should say that secretaries of participating clubs can see exhibitor contact details. The wording is with the attorney review.
 - [ADDED] **Whether retiring the platform-wide pass waits for a trigger.** MYK9-2264 could be parked behind an alert on the number of classes, as dogs and people are. Recommendation: park it, and keep MYK9-2261 on its date.
+- [ADDED] **Past shows.** A device holds the entries only of shows opened or saved on it. In mySWT, past shows are on the laptop. MYK9-2276 recommends saved shows only, with past shows read online.
 
 ## Risks
 

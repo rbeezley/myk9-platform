@@ -189,9 +189,11 @@ BEGIN
     skipped_at = NULL,
     recipient_email = excluded.recipient_email,
     recipient_name = excluded.recipient_name
-  -- Only a job that was skipped (reopened before it went out) is revived; a sent, failed,
-  -- dismissed or waiting one stays as it is.
-  WHERE j.status = 'skipped';
+  -- A job that never went out is revived or re-timed: one skipped by a reopen, or one still
+  -- waiting (held or ready) and not claimed by a sender, so a cancel, reopen, cancel inside the
+  -- quiet window restarts the five minutes. A sent, failed, dismissed or claimed job stays as is.
+  WHERE j.status = 'skipped'
+     OR (j.status IN ('held', 'ready') AND (j.claimed_until IS NULL OR j.claimed_until < now()));
 END;
 $$;
 

@@ -48,6 +48,11 @@ describe('show cancelled email wording', () => {
     expect(SHOW_CANCELLED_MONEY_LINE).toBe('The club will contact you about your entry fees.');
   });
 
+  it('links to the show on My Shows, not to a payment receipt', () => {
+    expect(email.body).toContain('https://myk9show.com/exhibitor/entries?show=show-1');
+    expect(email.body).not.toContain('showId=');
+  });
+
   it('promises no refund and names no amount, date or dash', () => {
     expect(email.body).not.toMatch(/refund|reimburs|money back|\$|\d+ (days|hours)|—/i);
     const withoutLink = email.body.replace(/https:\/\/\S+/g, '');

@@ -28,7 +28,7 @@ export function renderShowCancelledEmail(args: {
     `Hi ${firstName},`,
     `${showName} has been cancelled.`,
     SHOW_CANCELLED_MONEY_LINE,
-    `Your entries: https://myk9show.com/exhibitor/entries?showId=${args.showId}`,
+    `Your entries: https://myk9show.com/exhibitor/entries?show=${args.showId}`,
     'Please contact the show secretary with questions.',
   ].join('\n\n');
   return { subject: `${showName} has been cancelled`, body };

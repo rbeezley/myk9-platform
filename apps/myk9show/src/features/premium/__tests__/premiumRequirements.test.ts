@@ -331,7 +331,7 @@ describe('recording fee warning (MYK9-2044)', () => {
 
 describe('ASCA club-template and contact facts (MYK9-2286)', () => {
   const template = (over: Partial<NonNullable<PremiumRequirementFacts['template']>> = {}) => ({
-    vetClinic: { name: 'Valley Emergency Vet' },
+    vetClinic: { name: 'Valley Emergency Vet', phone: '555-0199', address: '' },
     accommodationCount: 2,
     awardsDescription: 'Ribbons and rosettes',
     ...over,
@@ -350,7 +350,12 @@ describe('ASCA club-template and contact facts (MYK9-2286)', () => {
 
   it.each([
     ['awards', { awardsDescription: '  ' }, 'the awards'],
-    ['vetClinic', { vetClinic: null }, 'the emergency veterinarian'],
+    ['vetClinic', { vetClinic: null }, 'the emergency veterinarian, with a phone or address'],
+    [
+      'vetClinic',
+      { vetClinic: { name: 'Valley Emergency Vet', phone: ' ', address: '' } },
+      'the emergency veterinarian, with a phone or address',
+    ],
     ['accommodations', { accommodationCount: 0 }, 'accommodations'],
   ])('lists %s when the template leaves it empty, and links the club', (id, patch, words) => {
     const items = missingPremiumFacts(asca({ template: template(patch) }), 'ASCA', targets);
@@ -388,7 +393,7 @@ describe('ASCA club-template and contact facts (MYK9-2286)', () => {
       ['chairContact', '/shows/show-1?edit=true&editTab=personnel'],
     ]);
     expect(items[0]!.message).toBe(
-      'ASCA requires a phone or email for the Trial Secretary. Add one in Edit show, under Personnel.'
+      'ASCA requires a phone or email for the Trial Secretary. It comes from their own profile, so ask them to add one, or choose another Secretary in Edit show, under Personnel.'
     );
   });
 

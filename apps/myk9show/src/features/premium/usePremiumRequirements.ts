@@ -64,6 +64,20 @@ interface PremiumRequirementInputs {
 const contactOf = (email: string | null | undefined, phone: string | null | undefined) =>
   email === undefined && phone === undefined ? {} : { email: email ?? null, phone: phone ?? null };
 
+/**
+ * The trial type of the first live trial in the generator's order (date, then id), so the checklist
+ * reads the template generate-premium will. Start time is not held here; same-day trials fall to id.
+ */
+export function firstLiveTrialType(trials: ReadonlyArray<RequirementTrial>): string | null {
+  const live = trials.filter(t =>
+    isLivePremiumTrial({ status: t.status ?? null, deleted_at: t.deletedAt ?? null })
+  );
+  live.sort(
+    (a, b) => (a.trialDate ?? '').localeCompare(b.trialDate ?? '') || a.id.localeCompare(b.id)
+  );
+  return live[0]?.trialType ?? null;
+}
+
 const positive = (raw: string | undefined) => (Number.parseFloat(raw ?? '') || 0) > 0;
 
 /**
@@ -102,7 +116,11 @@ export function requirementFactsFromShow(input: PremiumRequirementInputs): Premi
       : {
           template: {
             vetClinic: input.template?.vetClinicName
-              ? { name: input.template.vetClinicName }
+              ? {
+                  name: input.template.vetClinicName,
+                  phone: input.template.vetClinicPhone ?? '',
+                  address: input.template.vetClinicAddress ?? '',
+                }
               : null,
             accommodationCount: input.template?.accommodations.length ?? 0,
             awardsDescription: input.template?.awardsDescription ?? null,
@@ -218,12 +236,7 @@ export function usePremiumRequirements(
     committee: committee.data ?? [],
     // The template the premium would read: the first live trial's type, else the default.
     template: templates.data
-      ? selectPremiumTemplate(
-          templates.data,
-          trials.find(t =>
-            isLivePremiumTrial({ status: t.status ?? null, deleted_at: t.deletedAt ?? null })
-          )?.trialType ?? null
-        )
+      ? selectPremiumTemplate(templates.data, firstLiveTrialType(trials))
       : undefined,
   });
   return {

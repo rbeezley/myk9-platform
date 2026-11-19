@@ -42,7 +42,7 @@ export interface PremiumRequirementFacts {
    * here, and nothing is said; a club with no template passes empty values.
    */
   template?: {
-    vetClinic: { name: string } | null;
+    vetClinic: { name: string; phone: string; address: string } | null;
     accommodationCount: number;
     awardsDescription: string | null;
   };
@@ -230,21 +230,23 @@ const CHECKS: Partial<Record<PremiumFactId, Check>> = {
   secretaryContact: {
     missing: (f, r) =>
       !blank(f.secretary.name) && contactMissing(f.secretary)
-        ? `${r} requires a phone or email for the Trial Secretary. Add one in Edit show, under Personnel.`
+        ? `${r} requires a phone or email for the Trial Secretary. It comes from their own profile, so ask them to add one, or choose another Secretary in Edit show, under Personnel.`
         : null,
     href: editShow('personnel'),
   },
   chairContact: {
     missing: (f, r) =>
       f.chair && !blank(f.chair.name) && contactMissing(f.chair)
-        ? `${r} requires a phone or email for the Trial Chair. Add one in Edit show, under Personnel.`
+        ? `${r} requires a phone or email for the Trial Chair. It comes from their own profile, so ask them to add one, or choose another Chair in Edit show, under Personnel.`
         : null,
     href: editShow('personnel'),
   },
   vetClinic: {
     missing: (f, r) =>
-      f.template && blank(f.template.vetClinic?.name)
-        ? `${r} requires the emergency veterinarian. Add it to the club's premium template.`
+      f.template &&
+      (blank(f.template.vetClinic?.name) ||
+        (blank(f.template.vetClinic?.phone) && blank(f.template.vetClinic?.address)))
+        ? `${r} requires the emergency veterinarian, with a phone or address. Add it to the club's premium template.`
         : null,
     href: clubPage,
   },

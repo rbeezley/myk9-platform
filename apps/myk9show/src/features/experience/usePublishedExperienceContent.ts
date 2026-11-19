@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import type { ShowExperienceSnapshot } from './experienceSnapshot';
 
-async function fetchPublishedExperienceContent(
+export async function fetchPublishedExperienceContent(
   showId: string
 ): Promise<ShowExperienceSnapshot | null> {
   const { data, error } = await supabase

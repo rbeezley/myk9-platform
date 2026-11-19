@@ -11,6 +11,8 @@ const premiumEditorProps: Array<{
 let publishedExperienceContentMock: unknown = null;
 let officialsMock: unknown;
 let savedDraftMock: unknown;
+let draftErrorMock = false;
+const draftRefetchMock = vi.fn();
 
 vi.mock('@/components/ui/tabs', () => import('../../../common/__tests__/mockTabs'));
 vi.mock('react-router-dom', () => ({
@@ -31,8 +33,16 @@ vi.mock('@/features/premium/PremiumContentEditor', () => ({
     return <div data-testid="premium-content-editor" />;
   },
 }));
-vi.mock('@/features/premium/premiumContentDraft', () => ({
-  usePremiumContentDraft: () => ({ data: savedDraftMock, isLoading: false }),
+vi.mock('@/features/premium/premiumContentDraft', async importOriginal => ({
+  usePremiumContentDraft: () => ({
+    data: savedDraftMock,
+    isLoading: false,
+    isError: draftErrorMock,
+    refetch: draftRefetchMock,
+  }),
+  overlayPremiumContent: (
+    await importOriginal<typeof import('@/features/premium/premiumContentDraft')>()
+  ).overlayPremiumContent,
 }));
 vi.mock('@/features/experience/usePublishedExperienceContent', () => ({
   usePublishedExperienceContent: () => ({ data: publishedExperienceContentMock, isLoading: false }),
@@ -77,6 +87,8 @@ describe('ShowEditPremiumTab', () => {
     publishedExperienceContentMock = null;
     officialsMock = undefined;
     savedDraftMock = undefined;
+    draftErrorMock = false;
+    draftRefetchMock.mockReset();
   });
 
   it('links the settings surface to the canonical show Preview editor', () => {
@@ -244,8 +256,8 @@ describe('ShowEditPremiumTab', () => {
     };
     savedDraftMock = {
       content: {
-        narratives: { showHours: 'Draft hours.', trialInformation: 'Draft trial info.' },
-        supplemental: { ...published.supplemental, hospitalityNotes: 'Draft coffee.' },
+        narratives: { showHours: 'Draft hours.' },
+        supplemental: { hospitalityNotes: 'Draft coffee.' },
       },
       savedAt: '2026-05-10T14:00:00.000Z',
     };
@@ -262,9 +274,28 @@ describe('ShowEditPremiumTab', () => {
     );
 
     expect(premiumEditorProps[0]?.initialPremium).toMatchObject({
-      narratives: { showHours: 'Draft hours.', trialInformation: 'Draft trial info.' },
+      narratives: { showHours: 'Draft hours.', trialInformation: 'Published trial info.' },
       supplemental: { hospitalityNotes: 'Draft coffee.' },
     });
+  });
+
+  it('does not open the editor when the saved draft cannot be read, and offers a retry (MYK9-2201)', () => {
+    draftErrorMock = true;
+
+    render(
+      <ShowEditPremiumTab
+        data={baseData}
+        clubId="c1"
+        showOrg="AKC"
+        isActive
+        handleCheckboxChange={vi.fn(() => vi.fn())}
+        handleValueChange={vi.fn(() => vi.fn())}
+      />
+    );
+
+    expect(screen.queryByTestId('premium-content-editor')).toBeNull();
+    screen.getByRole('button', { name: /try again/i }).click();
+    expect(draftRefetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('lists the show officials as the preview secretary and chair (MYK9-2053)', () => {

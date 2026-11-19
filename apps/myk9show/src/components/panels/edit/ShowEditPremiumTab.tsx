@@ -5,11 +5,15 @@ import { applyOfficialsToPremium } from '@/features/premium/premiumOfficials';
 import { Link } from 'react-router-dom';
 import { FileText, Palette } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { TabsContent } from '@/components/ui/tabs';
 import { usePublishedExperienceContent } from '@/features/experience/usePublishedExperienceContent';
-import { usePremiumContentDraft } from '@/features/premium/premiumContentDraft';
+import {
+  overlayPremiumContent,
+  usePremiumContentDraft,
+} from '@/features/premium/premiumContentDraft';
 import { PremiumContentEditor } from '@/features/premium/PremiumContentEditor';
 import { getShowPreviewHref } from '@/components/shows/showPreviewRoutes';
 import { getShowEditHref } from '@/components/shows/showEditRoutes';
@@ -60,11 +64,16 @@ export function ShowEditPremiumTab({
   const { data: officials } = useShowOfficials(showId);
   // MYK9-2201: the saved draft is what the secretary last wrote, so it seeds the editor over
   // the published snapshot. A pending read holds generation back so it cannot beat the draft.
-  const { data: savedDraft, isLoading: draftLoading } = usePremiumContentDraft(showId);
+  const {
+    data: savedDraft,
+    isLoading: draftLoading,
+    isError: draftFailed,
+    refetch: refetchDraft,
+  } = usePremiumContentDraft(showId);
   const initialPremium = useMemo(() => {
-    const content = savedDraft?.content ?? publishedContent;
-    const draft = buildLocalPremiumDraft(data, showOrg, content);
-    return draft && officials ? applyOfficialsToPremium(draft, officials) : draft;
+    const draft = buildLocalPremiumDraft(data, showOrg, publishedContent);
+    const withDraft = draft ? overlayPremiumContent(draft, savedDraft?.content) : draft;
+    return withDraft && officials ? applyOfficialsToPremium(withDraft, officials) : withDraft;
   }, [data, publishedContent, savedDraft, showOrg, officials]);
 
   return (
@@ -139,7 +148,23 @@ export function ShowEditPremiumTab({
           </p>
         </CardHeader>
         <CardContent>
-          {hasShowId ? (
+          {hasShowId && draftFailed ? (
+            // MYK9-2201: seeding from the published text while the saved draft is unreadable would
+            // let the next save overwrite the real draft, so the editor stays closed until it loads.
+            <Alert variant="destructive">
+              <AlertDescription className="flex flex-wrap items-center gap-3">
+                We could not load your saved premium text.
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void refetchDraft()}
+                >
+                  Try again
+                </Button>
+              </AlertDescription>
+            </Alert>
+          ) : hasShowId ? (
             <PremiumContentEditor
               showId={data.id as string}
               clubId={clubId}

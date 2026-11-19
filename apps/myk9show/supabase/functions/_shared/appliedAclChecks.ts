@@ -137,6 +137,7 @@ export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
   show_passcodes: '',
   show_payments: 'SELECT',
   show_payouts: 'SELECT',
+  show_premium_drafts: 'SELECT,INSERT,UPDATE',
   show_templates: 'SELECT,INSERT,UPDATE,DELETE',
   show_visibility_settings: 'SELECT,INSERT,UPDATE',
   // MYK9-1472: no DELETE; hard_delete_show is the only permanent path.

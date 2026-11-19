@@ -22,12 +22,16 @@ const saveHarness = vi.hoisted(() => ({
   publishJudges: vi.fn(),
   officials: vi.fn(),
   persistDraft: vi.fn(),
+  warn: vi.fn(),
   payload: undefined as Record<string, unknown> | undefined,
 }));
 
 vi.mock('@/features/premium/premiumPublishCoordinator', () => ({
   premiumPublishDraftKey: () => 'draft-key',
   runPremiumPublishOperation: saveHarness.runPublish,
+}));
+vi.mock('@/lib/notifications', () => ({
+  notifications: { warning: (...args: unknown[]) => saveHarness.warn(...args) },
 }));
 vi.mock('@/features/premium/premiumContentDraft', async importOriginal => ({
   ...(await importOriginal<typeof import('@/features/premium/premiumContentDraft')>()),
@@ -874,7 +878,8 @@ describe('Edit Show keeps the premium narrative edits whether or not publish is 
     saveHarness.publishJudges.mockReset().mockResolvedValue([]);
     saveHarness.officials.mockReset().mockResolvedValue(NO_OFFICIALS);
     saveHarness.runPublish.mockReset().mockResolvedValue(undefined);
-    saveHarness.persistDraft.mockReset().mockResolvedValue(true);
+    saveHarness.persistDraft.mockReset().mockResolvedValue('saved');
+    saveHarness.warn.mockReset();
     saveHarness.payload = {
       name: 'Renamed Show',
       assignedJudges: [],
@@ -891,8 +896,7 @@ describe('Edit Show keeps the premium narrative edits whether or not publish is 
     await waitFor(() =>
       expect(saveHarness.persistDraft).toHaveBeenCalledWith(
         'show-1',
-        expect.objectContaining({ narratives: generatedPremium().narratives }),
-        undefined
+        expect.objectContaining({ narratives: generatedPremium().narratives })
       )
     );
     expect(saveHarness.runPublish).not.toHaveBeenCalled();
@@ -909,9 +913,22 @@ describe('Edit Show keeps the premium narrative edits whether or not publish is 
     );
   });
 
-  it('keeps the panel open and says so when the draft cannot be saved', async () => {
+  it('closes the panel with a plain note, without re-saving the show, when the draft was not saved', async () => {
     arrange(false);
-    saveHarness.persistDraft.mockRejectedValueOnce(new Error('offline'));
+    saveHarness.persistDraft.mockResolvedValueOnce('unsaved');
+    fireEvent.click(await screen.findByTestId('edit-panel-save'));
+
+    await waitFor(() => expect(saveHarness.warn).toHaveBeenCalled());
+    expect(saveHarness.warn.mock.calls[0]?.[0]).toMatch(
+      /Your show changes were saved\. The premium text was not saved/
+    );
+    expect(saveHarness.updateShow).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(screen.queryByTestId('edit-panel-open')).not.toBeInTheDocument());
+  });
+
+  it('keeps the panel open and says so when the draft write fails for another reason', async () => {
+    arrange(false);
+    saveHarness.persistDraft.mockRejectedValueOnce(new Error('permission denied'));
     fireEvent.click(await screen.findByTestId('edit-panel-save'));
 
     await waitFor(() => expect(saveHarness.persistDraft).toHaveBeenCalled());

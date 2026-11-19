@@ -54,21 +54,21 @@ beforeEach(() => {
 });
 
 describe('Republish premium publishes the saved draft (MYK9-2201)', () => {
-  it('lays the draft narratives and supplemental fields over the generated premium', async () => {
+  it('lays only the draft fields over the generated premium', async () => {
     const generated = generatedPremium();
-    const draft = {
-      narratives: { showHours: 'Edited hours', trialInformation: 'Edited trial info' },
-      supplemental: { ...generated.supplemental, hospitalityNotes: 'Coffee at the gate' },
-    };
     harness.generate.mockResolvedValue(generated);
-    harness.fetchDraft.mockResolvedValue({ content: draft, savedAt: '2026-11-19T10:00:00.000Z' });
+    harness.fetchDraft.mockResolvedValue({
+      content: {
+        narratives: { showHours: 'Edited hours' },
+        supplemental: { hospitalityNotes: 'Coffee at the gate' },
+      },
+      savedAt: '2026-11-19T10:00:00.000Z',
+    });
 
-    const published = await republish();
-
-    expect(published).toEqual({
+    expect(await republish()).toEqual({
       ...generated,
-      narratives: draft.narratives,
-      supplemental: draft.supplemental,
+      narratives: { ...generated.narratives, showHours: 'Edited hours' },
+      supplemental: { ...generated.supplemental, hospitalityNotes: 'Coffee at the gate' },
     });
   });
 

@@ -28,6 +28,11 @@ vi.mock('@/services/database/supabaseClient', () => ({
   },
 }));
 
+vi.mock('./premiumContentDraft', async importOriginal => ({
+  ...(await importOriginal<typeof import('./premiumContentDraft')>()),
+  fetchPremiumContentDraft: vi.fn(async () => null),
+}));
+
 import { fetchPublishInfo, usePublishInfo } from './usePublishInfo';
 
 describe('usePublishInfo', () => {
@@ -113,7 +118,7 @@ describe('usePublishInfo', () => {
       });
       expect(invokeMock).not.toHaveBeenCalled();
       expect(selectMock.mock.calls.map(([columns]) => columns)).toEqual([
-        'published_premium_path, published_premium_url, published_premium_at, updated_at, experience_is_published, premium_content_draft_at',
+        'published_premium_path, published_premium_url, published_premium_at, updated_at, experience_is_published',
         'published_premium_url, published_premium_at, updated_at, experience_is_published',
       ]);
     }

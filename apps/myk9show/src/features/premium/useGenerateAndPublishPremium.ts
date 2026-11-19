@@ -5,7 +5,7 @@ import { notifications } from '@/lib/notifications';
 import { publishInfoQueryKey } from './usePublishInfo';
 import { useGeneratePremium } from './useGeneratePremium';
 import {
-  applyDraftToPremium,
+  overlayPremiumContent,
   fetchPremiumContentDraft,
   premiumContentDraftQueryKey,
 } from './premiumContentDraft';
@@ -122,7 +122,7 @@ export function useGenerateAndPublishPremium(showId: string): GenerateAndPublish
             generate(showId),
             fetchPremiumContentDraft(showId),
           ]);
-          return applyDraftToPremium(generated, draft?.content);
+          return overlayPremiumContent(generated, draft?.content);
         },
       });
       await Promise.all([

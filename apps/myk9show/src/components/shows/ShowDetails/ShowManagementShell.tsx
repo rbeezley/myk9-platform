@@ -12,6 +12,7 @@ import { ShowStatusLine } from './ShowStatusLine';
 import { SHOW_TAB_STRIP_CLASS } from './showStickyLayout';
 import { ShowEditPanel } from '@/components/panels/edit/ShowEditPanel';
 import { showDeleteDetail } from '@/features/delete';
+import { notifications } from '@/lib/notifications';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { canDeleteShowForClub } from '@/components/clubs/ClubDetails/clubPermissions';
 import { type ShowDetailTabsProps } from '@/components/shows/ShowDetails/ShowDetailTabs';
@@ -39,7 +40,9 @@ import { SHOW_TABS, type ShowTabId } from '@/routes/showManagementSections';
 import { publishAnchorFromHash } from '@/features/show-workbench/setupReadinessSignals';
 import type { Show } from '@/types/show-types';
 import {
+  isNetworkFailure,
   persistPremiumDraftOnSave,
+  type PremiumDraftSaveResult,
   premiumContentDraftQueryKey,
 } from '@/features/premium/premiumContentDraft';
 import type { GeneratedPremium } from '@/types/premium-types';
@@ -404,13 +407,27 @@ function AuthorizedShowManagementShell({
             const persistPremiumDraft = async () => {
               const edited = publishableShowData.generatedPremium;
               if (!edited) return;
+              let result: PremiumDraftSaveResult;
               try {
-                await persistPremiumDraftOnSave(id, edited, show.experiencePublishedContent);
+                result = await persistPremiumDraftOnSave(id, edited);
               } catch (error) {
                 console.error('[premium-draft] save failed', { showId: id, error });
-                throw new Error(
-                  'Your show changes were saved, but the premium text could not be saved. Check your connection and save again.'
+                if (!isNetworkFailure(error)) {
+                  throw new Error(
+                    'Your show changes were saved, but the premium text could not be saved. Save again to retry.'
+                  );
+                }
+                result = 'unsaved';
+              }
+              if (result === 'unsaved') {
+                // The premium is online-only by design: the show changes are saved and the panel
+                // closes. Never retry persistShowChanges from here.
+                notifications.warning(
+                  navigator.onLine === false
+                    ? 'Your show changes were saved. The premium text was not saved because you are offline. Open Premium again when you are back online.'
+                    : 'Your show changes were saved. The premium text was not saved. Open Premium and save again.'
                 );
+                return;
               }
               queryClient.invalidateQueries({ queryKey: premiumContentDraftQueryKey(id) });
               queryClient.invalidateQueries({ queryKey: ['shows', id, 'publish-info'] });

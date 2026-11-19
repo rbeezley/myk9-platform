@@ -1,37 +1,44 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  diffPremiumContent,
   fetchPremiumContentDraft,
+  isNetworkFailure,
+  overlayPremiumContent,
   persistPremiumDraftOnSave,
-  premiumContentChanged,
-  toPremiumContentDraft,
 } from '../premiumContentDraft';
 import { generatedPremium } from './fixtures/generatedPremium';
 
 const db = vi.hoisted(() => ({
   row: null as Record<string, unknown> | null,
   readError: null as unknown,
-  update: vi.fn(),
+  upsert: vi.fn(),
+  published: null as unknown,
+  publishedError: null as unknown,
 }));
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
-    from: () => ({
+    from: (table: string) => ({
       select: () => ({
         eq: () => ({
-          maybeSingle: async () => ({ data: db.row, error: db.readError }),
+          maybeSingle: async () => ({ data: db.row, error: db.readError, table }),
         }),
       }),
-      update: (values: unknown) => ({
-        eq: async (column: string, value: string) => {
-          db.update(values, column, value);
-          return { error: null };
-        },
-      }),
+      upsert: async (values: unknown, options: unknown) => {
+        db.upsert(table, values, options);
+        return { error: null };
+      },
     }),
   },
 }));
+vi.mock('@/features/experience/usePublishedExperienceContent', () => ({
+  fetchPublishedExperienceContent: async () => {
+    if (db.publishedError) throw db.publishedError;
+    return db.published;
+  },
+}));
 
-const base = toPremiumContentDraft(generatedPremium());
+const base = generatedPremium();
 const edited = {
   ...base,
   narratives: { ...base.narratives, showHours: 'Doors open at 7' },
@@ -40,92 +47,120 @@ const edited = {
 beforeEach(() => {
   db.row = null;
   db.readError = null;
-  db.update.mockReset();
+  db.published = { narratives: base.narratives, supplemental: base.supplemental };
+  db.publishedError = null;
+  db.upsert.mockReset();
 });
 
 describe('premium draft persistence (MYK9-2201)', () => {
-  it('writes the edited narratives to the show as its premium draft', async () => {
-    const wrote = await persistPremiumDraftOnSave(
-      'show-1',
-      { ...generatedPremium(), ...edited },
-      base
-    );
+  it('stores only the changed fields, in the managers-only drafts table', async () => {
+    const result = await persistPremiumDraftOnSave('show-1', edited);
 
-    expect(wrote).toBe(true);
-    expect(db.update).toHaveBeenCalledWith({ premium_content_draft: edited }, 'id', 'show-1');
+    expect(result).toBe('saved');
+    expect(db.upsert).toHaveBeenCalledWith(
+      'show_premium_drafts',
+      { show_id: 'show-1', content: { narratives: { showHours: 'Doors open at 7' } } },
+      { onConflict: 'show_id' }
+    );
   });
 
-  it('reads a saved draft back, with the server time it was saved', async () => {
-    db.row = { premium_content_draft: edited, premium_content_draft_at: '2026-11-19T10:00:00Z' };
+  it('writes nothing when nothing differs from the published snapshot', async () => {
+    expect(await persistPremiumDraftOnSave('show-1', base)).toBe('unchanged');
+    expect(db.upsert).not.toHaveBeenCalled();
+  });
 
+  it('writes nothing when the published content cannot be read', async () => {
+    db.publishedError = new Error('boom');
+
+    expect(await persistPremiumDraftOnSave('show-1', edited)).toBe('unsaved');
+    expect(db.upsert).not.toHaveBeenCalled();
+  });
+
+  it('writes nothing when the saved draft cannot be read', async () => {
+    db.readError = new Error('boom');
+
+    expect(await persistPremiumDraftOnSave('show-1', edited)).toBe('unsaved');
+    expect(db.upsert).not.toHaveBeenCalled();
+  });
+
+  it('re-saving an identical draft writes nothing, whatever the jsonb key order', async () => {
+    db.row = {
+      content: { narratives: { showHours: 'Doors open at 7' } },
+      saved_at: '2026-11-19T10:00:00Z',
+    };
+
+    expect(await persistPremiumDraftOnSave('show-1', edited)).toBe('unchanged');
+  });
+
+  it('empties an existing draft when the secretary reverts to the published text', async () => {
+    db.row = {
+      content: { narratives: { showHours: 'Doors open at 7' } },
+      saved_at: '2026-11-19T10:00:00Z',
+    };
+
+    expect(await persistPremiumDraftOnSave('show-1', base)).toBe('saved');
+    expect(db.upsert).toHaveBeenCalledWith(
+      'show_premium_drafts',
+      { show_id: 'show-1', content: {} },
+      { onConflict: 'show_id' }
+    );
+  });
+
+  it('reads a saved draft back with its server time, and a failed read as an error', async () => {
+    db.row = { content: { narratives: { showHours: 'x' } }, saved_at: '2026-11-19T10:00:00Z' };
     expect(await fetchPremiumContentDraft('show-1')).toEqual({
-      content: edited,
+      content: { narratives: { showHours: 'x' } },
       savedAt: '2026-11-19T10:00:00Z',
     });
-  });
-
-  it('reads no draft as null and a failed read as an error', async () => {
+    db.row = null;
     expect(await fetchPremiumContentDraft('show-1')).toBeNull();
     db.readError = new Error('boom');
     await expect(fetchPremiumContentDraft('show-1')).rejects.toThrow('boom');
   });
+});
 
-  it('writes nothing when the content matches the published snapshot', async () => {
-    const wrote = await persistPremiumDraftOnSave('show-1', generatedPremium(), base);
-
-    expect(wrote).toBe(false);
-    expect(db.update).not.toHaveBeenCalled();
-  });
-
-  it('compares against the saved draft first: re-saving it unchanged writes nothing', async () => {
-    db.row = { premium_content_draft: edited, premium_content_draft_at: '2026-11-19T10:00:00Z' };
-
-    const wrote = await persistPremiumDraftOnSave(
-      'show-1',
-      { ...generatedPremium(), ...edited },
-      base
-    );
-
-    expect(wrote).toBe(false);
-    expect(db.update).not.toHaveBeenCalled();
-  });
-
-  it('saves when the saved draft cannot be read, since "unchanged" is unproven', async () => {
-    db.readError = new Error('offline');
-
-    const wrote = await persistPremiumDraftOnSave(
-      'show-1',
-      { ...generatedPremium(), ...edited },
-      edited
-    );
-
-    expect(wrote).toBe(true);
-  });
-
-  it("never stores the editor's inline cover copy; the last stored cover URL stays", async () => {
-    const withCover = {
+describe('premium draft content', () => {
+  it('never stores a null or inline cover, and stores a real new one', () => {
+    const withCover = (coverImageUrl: string | null) => ({
       ...base,
+      supplemental: { ...base.supplemental, coverImageUrl },
+    });
+    const publishedWithCover = {
+      narratives: base.narratives,
+      supplemental: { ...base.supplemental, coverImageUrl: 'https://cdn.test/old.png' },
+    };
+
+    expect(diffPremiumContent(withCover(null), publishedWithCover)).toEqual({});
+    expect(diffPremiumContent(withCover('data:image/png;base64,AAAA'), publishedWithCover)).toEqual(
+      {}
+    );
+    expect(diffPremiumContent(withCover('https://cdn.test/new.png'), publishedWithCover)).toEqual({
+      supplemental: { coverImageUrl: 'https://cdn.test/new.png' },
+    });
+  });
+
+  it('overlays only the changed fields and leaves the rest of the premium alone', () => {
+    const generated = {
+      ...base,
+      narratives: { showHours: 'Template hours', trialInformation: 'Template trial info' },
       supplemental: { ...base.supplemental, coverImageUrl: 'https://cdn.test/cover.png' },
     };
-    const inline = {
-      ...generatedPremium(),
-      ...withCover,
-      supplemental: { ...withCover.supplemental, coverImageUrl: 'data:image/png;base64,AAAA' },
-    };
 
-    const wrote = await persistPremiumDraftOnSave('show-1', inline, withCover);
+    const result = overlayPremiumContent(generated, {
+      narratives: { showHours: 'Edited hours' },
+      supplemental: { hospitalityNotes: 'Coffee', coverImageUrl: null },
+    });
 
-    expect(wrote).toBe(false);
+    expect(result.narratives).toEqual({
+      showHours: 'Edited hours',
+      trialInformation: 'Template trial info',
+    });
+    expect(result.supplemental.hospitalityNotes).toBe('Coffee');
+    expect(result.supplemental.coverImageUrl).toBe('https://cdn.test/cover.png');
   });
 
-  it('ignores jsonb key order when comparing', () => {
-    const reordered = {
-      supplemental: base.supplemental,
-      narratives: {
-        trialInformation: base.narratives.trialInformation,
-        showHours: base.narratives.showHours,
-      },
-    };
-    expect(premiumContentChanged(reordered, base)).toBe(false);
+  it('treats an offline browser or a fetch failure as a network failure only', () => {
+    expect(isNetworkFailure(new TypeError('Failed to fetch'))).toBe(true);
+    expect(isNetworkFailure(new Error('permission denied'))).toBe(false);
   });
 });

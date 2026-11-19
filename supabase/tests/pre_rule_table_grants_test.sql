@@ -158,6 +158,7 @@ BEGIN
     ('show_passcodes','','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('show_payments','SELECT','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('show_payouts','SELECT','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
+    ('show_premium_drafts','SELECT,INSERT,UPDATE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('show_templates','SELECT,INSERT,UPDATE,DELETE','SELECT','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('show_visibility_settings','SELECT,INSERT,UPDATE','SELECT','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     -- MYK9-1472: no DELETE; hard_delete_show is the only permanent path.
@@ -269,7 +270,7 @@ BEGIN
       'rules','rules_feedback','rules_query_log','secretary_tasks','show_announcement_reads',
       'show_announcements','show_close_notes','show_committee_members','show_eve_nudge_log','show_incidents','show_judge_supplies','show_lifecycle_email_attempts',
       'show_lifecycle_email_job_requests','show_lifecycle_email_jobs','show_lifecycle_email_steps','show_message_threads',
-      'show_messages','show_money_locks','show_officials','show_passcodes','show_payments','show_payouts',
+      'show_messages','show_money_locks','show_officials','show_passcodes','show_payments','show_payouts','show_premium_drafts',
       'show_templates',
       'show_visibility_settings','shows','sms_opt_in_attempts','sms_proximity_sends','sport_class_rules','sport_templates',
       'sport_titles',

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
+import { fetchPremiumContentDraft, isPremiumDraftEmpty } from './premiumContentDraft';
 
 export interface PublishInfo {
   /** Stored locator for state/staleness only; never use as a download href. */
@@ -32,18 +33,30 @@ export function publishInfoQueryKey(showId: string) {
   return ['shows', showId, 'publish-info'] as const;
 }
 
-function isMissingColumn(error: unknown, column: string): boolean {
+function isMissingVersionedPublishColumn(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false;
   const record = error as Record<string, unknown>;
   if (record.code !== 'PGRST204' && record.code !== '42703') return false;
   return [record.message, record.details, record.hint].some(
     value =>
-      typeof value === 'string' && value.includes(column) && /column|schema cache/i.test(value)
+      typeof value === 'string' &&
+      value.includes('published_premium_path') &&
+      /column|schema cache/i.test(value)
   );
 }
 
-function isMissingVersionedPublishColumn(error: unknown): boolean {
-  return isMissingColumn(error, 'published_premium_path');
+/**
+ * MYK9-2201: when the secretary last saved premium edits, from the managers-only drafts table.
+ * Best effort: an unreadable table (offline blip, migration not applied) means "no draft", never
+ * a failed publish read. An emptied draft is not a draft.
+ */
+async function fetchContentDraftSavedAt(showId: string): Promise<string | null> {
+  try {
+    const draft = await fetchPremiumContentDraft(showId);
+    return draft && !isPremiumDraftEmpty(draft.content) ? draft.savedAt : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function fetchPublishInfo(showId: string): Promise<PublishInfo> {
@@ -52,13 +65,9 @@ export async function fetchPublishInfo(showId: string): Promise<PublishInfo> {
   const query = (columns: string) =>
     supabase.from('shows').select(columns).eq('id', showId).maybeSingle();
   let versionedSchemaAvailable = true;
-  const baseColumns =
-    'published_premium_path, published_premium_url, published_premium_at, updated_at, experience_is_published';
-  let { data, error } = await query(`${baseColumns}, premium_content_draft_at`);
-  // The draft column ships in a migration; before it lands the read must still work.
-  if (error && isMissingColumn(error, 'premium_content_draft_at')) {
-    ({ data, error } = await query(baseColumns));
-  }
+  let { data, error } = await query(
+    'published_premium_path, published_premium_url, published_premium_at, updated_at, experience_is_published'
+  );
   if (error && isMissingVersionedPublishColumn(error)) {
     versionedSchemaAvailable = false;
     ({ data, error } = await query(
@@ -67,6 +76,7 @@ export async function fetchPublishInfo(showId: string): Promise<PublishInfo> {
   }
   if (error) throw error;
   const row = data as Record<string, unknown> | null;
+  const contentDraftSavedAt = await fetchContentDraftSavedAt(showId);
   const publishedPath = (row?.published_premium_path as string | null) ?? null;
   const legacyPublishedUrl = (row?.published_premium_url as string | null) ?? null;
   const publishedAt = (row?.published_premium_at as string | null) ?? null;
@@ -80,7 +90,7 @@ export async function fetchPublishInfo(showId: string): Promise<PublishInfo> {
     publishedPath,
     publishedAt,
     updatedAt: (row?.updated_at as string | null) ?? null,
-    contentDraftSavedAt: (row?.premium_content_draft_at as string | null) ?? null,
+    contentDraftSavedAt,
     experienceIsPublished: (row?.experience_is_published as boolean | null) ?? null,
     versionedSchemaAvailable,
   };

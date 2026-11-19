@@ -5,7 +5,7 @@
  * "Invitation sent" for a result that sent nothing.
  */
 
-import type { InviteResponse } from '@/services/admin/adminInvite';
+import type { InviteResponse } from './useSendUserInvitation';
 
 /** The honest "nothing was sent" message for this response, or null when an email went out. */
 export function inviteNotSentMessage(data: InviteResponse | null | undefined): string | null {

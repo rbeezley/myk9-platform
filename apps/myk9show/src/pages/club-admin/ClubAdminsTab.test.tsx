@@ -44,13 +44,11 @@ const ada = {
   personId: 'p-ada',
   personName: 'Ada Lovelace',
   personEmail: 'ada@example.test',
-  hasAccount: true,
 };
 const grace = {
   personId: 'p-grace',
   personName: 'Grace Hopper',
   personEmail: 'grace@example.test',
-  hasAccount: true,
 };
 
 beforeEach(() => {
@@ -74,11 +72,7 @@ describe('ClubAdminsTab', () => {
   });
 
   it('adds an admin by email, tells an existing account it is done at once, and refreshes permissions', async () => {
-    mocks.addClubAdminByEmail.mockResolvedValue({
-      personId: 'p-new',
-      hasAccount: true,
-      invited: false,
-    });
+    mocks.addClubAdminByEmail.mockResolvedValue('added');
     const user = userEvent.setup();
     render(<ClubAdminsTab clubId={CLUB} clubName="Heartland Club" />);
     await screen.findByText('Ada Lovelace');
@@ -99,33 +93,8 @@ describe('ClubAdminsTab', () => {
     expect(screen.getByLabelText('Add an admin')).toHaveValue('');
   });
 
-  it('says an invitation was sent when the address had no account', async () => {
-    mocks.addClubAdminByEmail.mockResolvedValue({
-      personId: 'p-new',
-      hasAccount: false,
-      invited: true,
-    });
-    const user = userEvent.setup();
-    render(<ClubAdminsTab clubId={CLUB} clubName="Heartland Club" />);
-    await screen.findByText('Ada Lovelace');
-
-    await user.type(screen.getByLabelText('Add an admin'), 'new@example.test');
-    await user.click(screen.getByRole('button', { name: 'Add admin' }));
-    await confirmAdd(user);
-
-    await waitFor(() =>
-      expect(mocks.success).toHaveBeenCalledWith(
-        'new@example.test is added as an admin. We sent them an invitation to finish signing up.'
-      )
-    );
-  });
-
-  it('says plainly when the role was granted but the invitation could not be sent', async () => {
-    mocks.addClubAdminByEmail.mockResolvedValue({
-      personId: 'p-new',
-      hasAccount: false,
-      invited: false,
-    });
+  it('says plainly when nobody has a myK9 account with that email', async () => {
+    mocks.addClubAdminByEmail.mockResolvedValue('no_account');
     const user = userEvent.setup();
     render(<ClubAdminsTab clubId={CLUB} clubName="Heartland Club" />);
     await screen.findByText('Ada Lovelace');
@@ -136,9 +105,27 @@ describe('ClubAdminsTab', () => {
 
     await waitFor(() =>
       expect(mocks.error).toHaveBeenCalledWith(
-        'new@example.test is added as an admin, but we could not send the invitation. Add them again to retry.'
+        "new@example.test doesn't have a myK9 account yet. Ask them to create one, then add them here."
       )
     );
+    expect(mocks.success).not.toHaveBeenCalled();
+    expect(mocks.refreshPermissions).not.toHaveBeenCalled();
+  });
+
+  it("shows the server's invalid-email message from a PostgREST error object", async () => {
+    mocks.addClubAdminByEmail.mockRejectedValue({
+      message: 'Enter a valid email address.',
+      code: '22023',
+    });
+    const user = userEvent.setup();
+    render(<ClubAdminsTab clubId={CLUB} clubName="Heartland Club" />);
+    await screen.findByText('Ada Lovelace');
+
+    await user.type(screen.getByLabelText('Add an admin'), 'nope@x');
+    await user.click(screen.getByRole('button', { name: 'Add admin' }));
+    await confirmAdd(user);
+
+    await waitFor(() => expect(mocks.error).toHaveBeenCalledWith('Enter a valid email address.'));
   });
 
   it('asks to confirm the address and club before adding anyone', async () => {
@@ -155,15 +142,6 @@ describe('ClubAdminsTab', () => {
     expect(mocks.addClubAdminByEmail).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(mocks.addClubAdminByEmail).not.toHaveBeenCalled();
-  });
-
-  it('shows when an unclaimed invitation expires', async () => {
-    mocks.getClubAdmins.mockResolvedValue([
-      { ...ada, hasAccount: false, expiresAt: '2030-01-15T12:00:00Z' },
-    ]);
-    render(<ClubAdminsTab clubId={CLUB} clubName="Heartland Club" />);
-
-    expect(await screen.findByText(/^Invited, expires /)).toBeInTheDocument();
   });
 
   it('tells you and leaves the tab when you remove yourself', async () => {
@@ -199,9 +177,10 @@ describe('ClubAdminsTab', () => {
   });
 
   it('shows the plain last-admin message and does not claim success', async () => {
-    mocks.removeClubAdmin.mockRejectedValue(
-      new Error('A club needs at least one admin. Add another admin first.')
-    );
+    mocks.removeClubAdmin.mockRejectedValue({
+      message: 'A club needs at least one admin. Add another admin first.',
+      code: 'P0001',
+    });
     const user = userEvent.setup();
     render(<ClubAdminsTab clubId={CLUB} clubName="Heartland Club" />);
     await screen.findByText('Ada Lovelace');

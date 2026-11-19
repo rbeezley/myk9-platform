@@ -18,6 +18,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { notifications } from '@/lib/notifications';
 import { logger } from '@/services/LoggingService';
 
+const INVALID_EMAIL_MESSAGE = 'Enter a valid email address.';
 const LAST_ADMIN_MESSAGE = 'A club needs at least one admin. Add another admin first.';
 
 // Role changes need a recent password and are never replayed: offline fails at once with the toast,
@@ -28,12 +29,12 @@ export function clubAdminsQueryKey(clubId: string) {
   return ['club-admins', clubId] as const;
 }
 
+// PostgREST errors are plain objects ({ message, code, ... }), not Error instances, so read the
+// fields directly. Only the messages this feature's SQL raises on purpose are shown verbatim.
 function failureMessage(error: unknown, fallback: string): string {
-  const message = error instanceof Error ? error.message : '';
-  if (message === LAST_ADMIN_MESSAGE) return LAST_ADMIN_MESSAGE;
-  if (message === 'Enter a valid email address.') return message;
-  if ((error as { code?: unknown } | null)?.code === 'MKAUT')
-    return 'Confirm your password to continue.';
+  const { message, code } = (error ?? {}) as { message?: unknown; code?: unknown };
+  if (message === LAST_ADMIN_MESSAGE || message === INVALID_EMAIL_MESSAGE) return message;
+  if (code === 'MKAUT') return 'Confirm your password to continue.';
   return fallback;
 }
 
@@ -59,22 +60,19 @@ export function useClubAdmins(clubId: string) {
     ...ADMIN_MUTATION_OPTIONS,
     mutationFn: (email: string) => addClubAdminByEmail(clubId, email),
     onSuccess: async (result, email) => {
-      if (result.hasAccount) {
+      if (result === 'added') {
         notifications.success(`${email} is now an admin of this club.`);
-      } else if (result.invited) {
-        notifications.success(
-          `${email} is added as an admin. We sent them an invitation to finish signing up.`
-        );
       } else {
         notifications.error(
-          `${email} is added as an admin, but we could not send the invitation. Add them again to retry.`
+          `${email} doesn't have a myK9 account yet. Ask them to create one, then add them here.`
         );
+        return;
       }
       await afterChange();
     },
     onError: error => {
       logger.error('Failed to add club admin', 'club-admin', {
-        error: error instanceof Error ? error.message : String(error),
+        error: (error as { message?: unknown } | null)?.message ?? String(error),
       });
       notifications.error(failureMessage(error, "We couldn't add that admin. Please try again."));
     },
@@ -97,7 +95,7 @@ export function useClubAdmins(clubId: string) {
     },
     onError: error => {
       logger.error('Failed to remove club admin', 'club-admin', {
-        error: error instanceof Error ? error.message : String(error),
+        error: (error as { message?: unknown } | null)?.message ?? String(error),
       });
       notifications.error(
         failureMessage(error, "We couldn't remove that admin. Please try again.")

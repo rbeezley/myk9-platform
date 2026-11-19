@@ -6,7 +6,6 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -71,8 +70,7 @@ export const ClubAdminsTab: React.FC<ClubAdminsTabProps> = ({ clubId, clubName }
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
         Club admins can edit the club, manage members, appoint secretaries and open Payments. Add
-        someone by email: if they already have an account they become an admin at once. Otherwise we
-        send them an invitation and they become an admin when they sign up.
+        someone by the email on their myK9 account and they become an admin at once.
       </p>
 
       <form onSubmit={handleAdd} className="flex flex-col gap-2 sm:flex-row sm:items-end">
@@ -113,13 +111,6 @@ export const ClubAdminsTab: React.FC<ClubAdminsTabProps> = ({ clubId, clubName }
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-foreground">
                   {admin.personName ?? admin.personEmail ?? 'Unnamed'}
-                  {!admin.hasAccount && (
-                    <Badge className="ml-2 bg-[color:var(--chip-stone-bg)] text-[color:var(--chip-stone-fg)] border-transparent">
-                      {admin.expiresAt
-                        ? `Invited, expires ${new Date(admin.expiresAt).toLocaleDateString()}`
-                        : 'Invited'}
-                    </Badge>
-                  )}
                 </p>
                 {admin.personName && admin.personEmail && (
                   <p className="truncate text-xs text-muted-foreground">{admin.personEmail}</p>
@@ -150,8 +141,7 @@ export const ClubAdminsTab: React.FC<ClubAdminsTabProps> = ({ clubId, clubName }
               Add {confirmingEmail} as an admin of {clubName}?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              They will be able to edit the club, manage members and open Payments. If they have no
-              account yet, we email them an invitation that is good for 7 days.
+              They will be able to edit the club, manage members and open Payments.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

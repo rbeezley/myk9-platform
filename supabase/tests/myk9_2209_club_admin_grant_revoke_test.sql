@@ -1,9 +1,12 @@
--- MYK9-2209: a club admin adds and removes club admins. Everything rolls back.
+-- MYK9-2209: a club admin adds an existing account as a club admin, and removes one.
+-- Everything rolls back.
 --
--- Proves: an admin grants (by person and by email); a non-admin and another club's admin are
--- refused; anon cannot execute any of the four functions; revoke deactivates and stamps
--- deactivated_at; the last signed-in admin cannot be removed (an unclaimed invite does not
--- count); is_club_admin follows the grant and the revoke.
+-- Proves: an admin grants (by person and by email); an address with no account, an account that
+-- never signed in, a deleted-free unclaimed person and a suspended account are NOT granted; a
+-- non-admin and another club's admin are refused; anon cannot execute any of the functions;
+-- revoke deactivates (every assignment, show-pinned too) and stamps deactivated_at; the last
+-- admin who can sign in cannot be removed (a suspended co-admin does not count); is_club_admin
+-- follows each step; grant, add and revoke need a fresh sign-in confirmation.
 
 BEGIN;
 
@@ -12,39 +15,65 @@ VALUES
   ('00000000-0000-0000-0000-000000220901', 'Admin Grant Test Club'),
   ('00000000-0000-0000-0000-000000220902', 'Other Admin Grant Test Club');
 
--- Unclaimed people first, then their sign-ins: handle_new_user adopts each row by email, which
--- is also how an invited admin is claimed on sign-up (the sign-in email invariant refuses a
--- people row that carries an auth id without a matching auth.users email).
+INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status)
+VALUES ('00000000-0000-0000-0000-000000220951', 'Admin Grant Show', 'AKC',
+        current_date + 10, current_date + 11, '00000000-0000-0000-0000-000000220901', 'published');
+
+-- Unclaimed people first, then their sign-ins: handle_new_user adopts each row by email (the
+-- sign-in email invariant refuses a people row that carries an auth id without a matching
+-- auth.users email). 917 never gets a sign-in; 916 gets one that has never been used.
 INSERT INTO public.people (id, first_name, last_name, email)
 VALUES
   ('00000000-0000-0000-0000-000000220911', 'Grant', 'Admin', 'grant.admin@example.test'),
   ('00000000-0000-0000-0000-000000220912', 'Existing', 'Account', 'existing.account@example.test'),
   ('00000000-0000-0000-0000-000000220913', 'Plain', 'Bystander', 'bystander@example.test'),
-  ('00000000-0000-0000-0000-000000220914', 'Other', 'ClubAdmin', 'other.admin@example.test');
+  ('00000000-0000-0000-0000-000000220914', 'Other', 'ClubAdmin', 'other.admin@example.test'),
+  ('00000000-0000-0000-0000-000000220915', 'Site', 'Admin', 'site.admin@example.test'),
+  ('00000000-0000-0000-0000-000000220916', 'Never', 'SignedIn', 'never.signed.in@example.test'),
+  ('00000000-0000-0000-0000-000000220917', 'Un', 'Claimed', 'unclaimed@example.test'),
+  ('00000000-0000-0000-0000-000000220918', 'Suspended', 'CoAdmin', 'suspended@example.test'),
+  ('00000000-0000-0000-0000-000000220919', 'Show', 'Pinned', 'show.pinned@example.test');
 
 INSERT INTO auth.users (
-  id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+  id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, last_sign_in_at,
   created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
   is_super_admin, is_sso_user, is_anonymous
 )
 SELECT v.id::uuid, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-       v.email, '', now(), now(), now(), '{}', '{}', false, false, false
+       v.email, '', now(), CASE WHEN v.signed_in THEN now() END, now(), now(), '{}', '{}',
+       false, false, false
 FROM (VALUES
-  ('00000000-0000-0000-0000-000000220811', 'grant.admin@example.test'),
-  ('00000000-0000-0000-0000-000000220812', 'existing.account@example.test'),
-  ('00000000-0000-0000-0000-000000220813', 'bystander@example.test'),
-  ('00000000-0000-0000-0000-000000220814', 'other.admin@example.test')
-) AS v(id, email);
+  ('00000000-0000-0000-0000-000000220811', 'grant.admin@example.test', true),
+  ('00000000-0000-0000-0000-000000220812', 'existing.account@example.test', true),
+  ('00000000-0000-0000-0000-000000220813', 'bystander@example.test', true),
+  ('00000000-0000-0000-0000-000000220814', 'other.admin@example.test', true),
+  ('00000000-0000-0000-0000-000000220815', 'site.admin@example.test', true),
+  ('00000000-0000-0000-0000-000000220816', 'never.signed.in@example.test', false),
+  ('00000000-0000-0000-0000-000000220818', 'suspended@example.test', true),
+  ('00000000-0000-0000-0000-000000220819', 'show.pinned@example.test', true)
+) AS v(id, email, signed_in);
 
-INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
-SELECT '00000000-0000-0000-0000-000000220911', r.id, '00000000-0000-0000-0000-000000220901', true,
-       '00000000-0000-0000-0000-000000220811'
-FROM public.roles r WHERE r.name = 'club_admin';
+UPDATE public.people SET status = 'suspended' WHERE id = '00000000-0000-0000-0000-000000220918';
 
-INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
-SELECT '00000000-0000-0000-0000-000000220914', r.id, '00000000-0000-0000-0000-000000220902', true,
-       '00000000-0000-0000-0000-000000220814'
-FROM public.roles r WHERE r.name = 'club_admin';
+-- Club A: 911 (club-wide), 918 (club-wide, suspended), 919 (pinned to a show). Club B: 914.
+INSERT INTO public.user_roles (user_id, role_id, club_id, show_id, is_active, auth_user_id)
+SELECT v.person::uuid, r.id, v.club::uuid, v.show::uuid, true, v.auth::uuid
+FROM public.roles r,
+  (VALUES
+    ('00000000-0000-0000-0000-000000220911', '00000000-0000-0000-0000-000000220901', NULL,
+     '00000000-0000-0000-0000-000000220811'),
+    ('00000000-0000-0000-0000-000000220918', '00000000-0000-0000-0000-000000220901', NULL,
+     '00000000-0000-0000-0000-000000220818'),
+    ('00000000-0000-0000-0000-000000220919', '00000000-0000-0000-0000-000000220901',
+     '00000000-0000-0000-0000-000000220951', '00000000-0000-0000-0000-000000220819'),
+    ('00000000-0000-0000-0000-000000220914', '00000000-0000-0000-0000-000000220902', NULL,
+     '00000000-0000-0000-0000-000000220814')
+  ) AS v(person, club, show, auth)
+WHERE r.name = 'club_admin';
+
+INSERT INTO public.user_roles (user_id, role_id, is_active, auth_user_id)
+SELECT '00000000-0000-0000-0000-000000220915', r.id, true, '00000000-0000-0000-0000-000000220815'
+FROM public.roles r WHERE r.name = 'site_admin';
 
 -- anon and authenticated privileges, read from the catalog.
 DO $$
@@ -64,7 +93,11 @@ BEGIN
       RAISE EXCEPTION 'FAIL authenticated cannot execute %', fn;
     END IF;
   END LOOP;
-  RAISE NOTICE 'PASS anon cannot execute, authenticated can';
+  IF has_function_privilege('authenticated', 'public.person_can_sign_in(uuid)', 'EXECUTE')
+     OR has_function_privilege('anon', 'public.person_can_sign_in(uuid)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'FAIL the internal person_can_sign_in helper is callable by clients';
+  END IF;
+  RAISE NOTICE 'PASS anon cannot execute, authenticated can, the helper is internal';
 END;
 $$;
 
@@ -91,7 +124,7 @@ BEGIN
 
     BEGIN
       PERFORM * FROM public.add_club_admin_by_email(
-        '00000000-0000-0000-0000-000000220901', 'sneaky@example.test');
+        '00000000-0000-0000-0000-000000220901', 'existing.account@example.test');
       RAISE EXCEPTION 'FAIL % added an admin by email on a club they do not administer', who;
     EXCEPTION WHEN insufficient_privilege THEN
       NULL;
@@ -116,7 +149,7 @@ BEGIN
 END;
 $$;
 
--- The admin grants an existing person: that person becomes a club admin at once.
+-- The admin grants an existing account: that person becomes a club admin at once.
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000220812', true);
 DO $$
 BEGIN
@@ -140,39 +173,37 @@ BEGIN
 END;
 $$;
 
--- By email: an existing account (mixed-case input) and an unknown address.
+-- By email: an existing account (padded, mixed case) is added; everything else grants nothing.
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000220811', true);
 DO $$
 DECLARE
   existing record;
-  fresh record;
-  fresh_role_active boolean;
-  fresh_auth uuid;
+  addr text;
+  res record;
+  people_before bigint;
 BEGIN
   SELECT * INTO existing FROM public.add_club_admin_by_email(
     '00000000-0000-0000-0000-000000220901', '  Bystander@Example.Test ');
-  IF existing.person_id IS DISTINCT FROM '00000000-0000-0000-0000-000000220913'::uuid
-     OR existing.has_account IS DISTINCT FROM true THEN
+  IF existing.outcome IS DISTINCT FROM 'added'
+     OR existing.person_id IS DISTINCT FROM '00000000-0000-0000-0000-000000220913'::uuid THEN
     RAISE EXCEPTION 'FAIL existing account by email: %', existing;
   END IF;
 
-  SELECT * INTO fresh FROM public.add_club_admin_by_email(
-    '00000000-0000-0000-0000-000000220901', 'New.Admin@Example.Test');
-  IF fresh.person_id IS NULL OR fresh.has_account IS DISTINCT FROM false THEN
-    RAISE EXCEPTION 'FAIL unknown email should return an unclaimed person: %', fresh;
-  END IF;
-
-  SELECT p.auth_user_id INTO fresh_auth FROM public.people p WHERE p.id = fresh.person_id;
-  IF fresh_auth IS NOT NULL THEN
-    RAISE EXCEPTION 'FAIL the new person row should be unclaimed';
-  END IF;
-
-  -- user_roles is not readable cross-user, so read the grant back through the admin list.
-  SELECT TRUE INTO fresh_role_active
-  FROM public.get_club_admins('00000000-0000-0000-0000-000000220901') a
-  WHERE a.person_id = fresh.person_id AND a.has_account = false;
-  IF fresh_role_active IS DISTINCT FROM true THEN
-    RAISE EXCEPTION 'FAIL the unclaimed person did not get the club_admin grant';
+  SELECT count(*) INTO people_before FROM public.people;
+  FOREACH addr IN ARRAY ARRAY[
+    'never.signed.in@example.test',  -- has an auth user that never signed in
+    'unclaimed@example.test',        -- a person row with no account
+    'suspended@example.test',        -- suspended
+    'nobody.at.all@example.test'     -- unknown
+  ] LOOP
+    SELECT * INTO res FROM public.add_club_admin_by_email(
+      '00000000-0000-0000-0000-000000220901', addr);
+    IF res.outcome IS DISTINCT FROM 'no_account' OR res.person_id IS NOT NULL THEN
+      RAISE EXCEPTION 'FAIL % should be no_account: %', addr, res;
+    END IF;
+  END LOOP;
+  IF (SELECT count(*) FROM public.people) <> people_before THEN
+    RAISE EXCEPTION 'FAIL add by email created a people row';
   END IF;
 
   BEGIN
@@ -182,11 +213,96 @@ BEGIN
   EXCEPTION WHEN invalid_parameter_value THEN
     NULL;
   END;
-  RAISE NOTICE 'PASS add by email: existing account at once, unknown address as an unclaimed grant';
+
+  -- Direct grants to a person who cannot sign in are refused too.
+  BEGIN
+    PERFORM public.grant_club_admin(
+      '00000000-0000-0000-0000-000000220901', '00000000-0000-0000-0000-000000220916');
+    RAISE EXCEPTION 'FAIL a never-signed-in person was granted admin';
+  EXCEPTION WHEN invalid_parameter_value THEN
+    NULL;
+  END;
+  BEGIN
+    PERFORM public.grant_club_admin(
+      '00000000-0000-0000-0000-000000220901', '00000000-0000-0000-0000-000000220917');
+    RAISE EXCEPTION 'FAIL a person with no account was granted admin';
+  EXCEPTION WHEN invalid_parameter_value THEN
+    NULL;
+  END;
+  RAISE NOTICE 'PASS add by email grants an existing account and nothing else';
 END;
 $$;
 
--- Revoke deactivates (and stamps), and is_club_admin turns false.
+RESET ROLE;
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM public.user_roles ur JOIN public.roles r ON r.id = ur.role_id
+    WHERE r.name = 'club_admin'
+      AND ur.user_id IN ('00000000-0000-0000-0000-000000220916',
+                         '00000000-0000-0000-0000-000000220917')
+  ) THEN
+    RAISE EXCEPTION 'FAIL a no-account person ended up with a club_admin row';
+  END IF;
+END;
+$$;
+SET LOCAL ROLE authenticated;
+
+-- A show-pinned admin already counts: granting adds nothing, the list shows them once even with a
+-- club-wide row too, and removal deactivates every row so is_club_admin turns false.
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000220811', true);
+SELECT public.grant_club_admin(
+  '00000000-0000-0000-0000-000000220901', '00000000-0000-0000-0000-000000220919');
+
+RESET ROLE;
+DO $$
+BEGIN
+  IF (SELECT count(*) FROM public.user_roles ur JOIN public.roles r ON r.id = ur.role_id
+      WHERE r.name = 'club_admin' AND ur.is_active
+        AND ur.user_id = '00000000-0000-0000-0000-000000220919') <> 1 THEN
+    RAISE EXCEPTION 'FAIL granting an existing show-pinned admin added a row';
+  END IF;
+END;
+$$;
+INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
+SELECT '00000000-0000-0000-0000-000000220919', r.id, '00000000-0000-0000-0000-000000220901', true,
+       '00000000-0000-0000-0000-000000220819'
+FROM public.roles r WHERE r.name = 'club_admin';
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000220811', true);
+
+DO $$
+BEGIN
+  IF (SELECT count(*) FROM public.get_club_admins('00000000-0000-0000-0000-000000220901') a
+      WHERE a.person_id = '00000000-0000-0000-0000-000000220919') <> 1 THEN
+    RAISE EXCEPTION 'FAIL the show-pinned and club-wide admin was not listed exactly once';
+  END IF;
+END;
+$$;
+
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000220819', true);
+DO $$
+BEGIN
+  IF NOT public.is_club_admin('00000000-0000-0000-0000-000000220901') THEN
+    RAISE EXCEPTION 'FAIL the show-pinned admin was not a club admin before removal';
+  END IF;
+END;
+$$;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000220811', true);
+SELECT public.revoke_club_admin(
+  '00000000-0000-0000-0000-000000220901', '00000000-0000-0000-0000-000000220919');
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000220819', true);
+DO $$
+BEGIN
+  IF public.is_club_admin('00000000-0000-0000-0000-000000220901') THEN
+    RAISE EXCEPTION 'FAIL is_club_admin stayed true after removing every assignment';
+  END IF;
+  RAISE NOTICE 'PASS a show-pinned admin is listed once and removal deactivates every row';
+END;
+$$;
+
+-- Revoke deactivates and stamps; is_club_admin turns false; re-granting reactivates the same row.
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000220811', true);
 SELECT public.revoke_club_admin(
   '00000000-0000-0000-0000-000000220901', '00000000-0000-0000-0000-000000220912');
 
@@ -206,7 +322,6 @@ BEGIN
   END IF;
 END;
 $$;
-
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000220812', true);
 DO $$
@@ -214,81 +329,13 @@ BEGIN
   IF public.is_club_admin('00000000-0000-0000-0000-000000220901') THEN
     RAISE EXCEPTION 'FAIL is_club_admin stayed true after the revoke';
   END IF;
-  RAISE NOTICE 'PASS revoke deactivates and is_club_admin turns false';
 END;
 $$;
 
--- Last admin: with the bystander removed, the only signed-in admin is 220911; the unclaimed
--- invite from above does not count as someone who can run the club.
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000220811', true);
-SELECT public.revoke_club_admin(
-  '00000000-0000-0000-0000-000000220901', '00000000-0000-0000-0000-000000220913');
-
-DO $$
-BEGIN
-  BEGIN
-    PERFORM public.revoke_club_admin(
-      '00000000-0000-0000-0000-000000220901', '00000000-0000-0000-0000-000000220911');
-    RAISE EXCEPTION 'FAIL the last signed-in admin was removed';
-  EXCEPTION WHEN OTHERS THEN
-    IF SQLERRM IS DISTINCT FROM 'A club needs at least one admin. Add another admin first.' THEN
-      RAISE;
-    END IF;
-  END;
-
-  IF NOT public.is_club_admin('00000000-0000-0000-0000-000000220901') THEN
-    RAISE EXCEPTION 'FAIL the last admin lost access despite the refusal';
-  END IF;
-  RAISE NOTICE 'PASS the last admin cannot be removed';
-END;
-$$;
-
--- ---------------------------------------------------------------------------------------------
--- Round 1 additions.
--- ---------------------------------------------------------------------------------------------
-
--- The unknown address's grant lapses after about a week (squatting guard); an account's never does.
-DO $$
-DECLARE
-  invited record;
-BEGIN
-  SELECT * INTO invited FROM public.get_club_admins('00000000-0000-0000-0000-000000220901') a
-  WHERE a.person_email = 'new.admin@example.test';
-  IF invited.expires_at IS NULL
-     OR invited.expires_at < now() + interval '6 days 23 hours'
-     OR invited.expires_at > now() + interval '7 days 1 hour' THEN
-    RAISE EXCEPTION 'FAIL the unclaimed grant should expire in 7 days: %', invited.expires_at;
-  END IF;
-  RAISE NOTICE 'PASS an unclaimed admin grant expires in 7 days';
-END;
-$$;
-
--- Re-adding a revoked account reactivates it, with no expiry, and a double add makes no duplicates.
-DO $$
-DECLARE
-  again record;
-  invited_a uuid;
-  invited_b uuid;
-BEGIN
-  SELECT * INTO again FROM public.add_club_admin_by_email(
-    '00000000-0000-0000-0000-000000220901', 'bystander@example.test');
-  SELECT person_id INTO invited_a FROM public.add_club_admin_by_email(
-    '00000000-0000-0000-0000-000000220901', 'new.admin@example.test');
-  SELECT person_id INTO invited_b FROM public.add_club_admin_by_email(
-    '00000000-0000-0000-0000-000000220901', ' NEW.admin@example.test ');
-  IF invited_a IS DISTINCT FROM invited_b THEN
-    RAISE EXCEPTION 'FAIL double add by email made two people';
-  END IF;
-  IF NOT EXISTS (
-    SELECT 1 FROM public.get_club_admins('00000000-0000-0000-0000-000000220901') a
-    WHERE a.person_id = again.person_id AND a.expires_at IS NULL
-  ) THEN
-    RAISE EXCEPTION 'FAIL the revoked account was not reactivated without an expiry';
-  END IF;
-END;
-$$;
-
-SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000220813', true);
+SELECT * FROM public.add_club_admin_by_email(
+  '00000000-0000-0000-0000-000000220901', 'existing.account@example.test');
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000220812', true);
 DO $$
 BEGIN
   IF NOT public.is_club_admin('00000000-0000-0000-0000-000000220901') THEN
@@ -296,24 +343,20 @@ BEGIN
   END IF;
 END;
 $$;
-
 RESET ROLE;
 DO $$
 BEGIN
   IF (SELECT count(*) FROM public.user_roles ur JOIN public.roles r ON r.id = ur.role_id
-      WHERE ur.user_id = '00000000-0000-0000-0000-000000220913'
+      WHERE ur.user_id = '00000000-0000-0000-0000-000000220912'
         AND ur.club_id = '00000000-0000-0000-0000-000000220901' AND r.name = 'club_admin') <> 1 THEN
     RAISE EXCEPTION 'FAIL re-grant duplicated the user_roles row';
   END IF;
-  IF (SELECT count(*) FROM public.people WHERE lower(email) = 'new.admin@example.test') <> 1 THEN
-    RAISE EXCEPTION 'FAIL double add duplicated the people row';
-  END IF;
-  RAISE NOTICE 'PASS re-grant reactivates; double add creates no duplicate';
+  RAISE NOTICE 'PASS revoke deactivates and stamps, is_club_admin follows, re-grant reactivates';
 END;
 $$;
+SET LOCAL ROLE authenticated;
 
 -- Step-up: a stale or missing amr is refused with MKAUT; a fresh one passes. All three writers.
-SET LOCAL ROLE authenticated;
 DO $$
 DECLARE
   v_club constant uuid := '00000000-0000-0000-0000-000000220901';
@@ -357,46 +400,7 @@ BEGIN
 END;
 $$;
 
--- An expired grant does not count toward the last-admin guard, and neither does the unclaimed
--- invite: with the bystander's grant lapsed, the only admin who counts is 220911.
-RESET ROLE;
-UPDATE public.user_roles ur SET expires_at = now() - interval '1 hour'
-FROM public.roles r
-WHERE r.id = ur.role_id AND r.name = 'club_admin'
-  AND ur.club_id = '00000000-0000-0000-0000-000000220901'
-  AND ur.user_id IN ('00000000-0000-0000-0000-000000220913', '00000000-0000-0000-0000-000000220912');
-SET LOCAL ROLE authenticated;
-SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000220811', true);
-DO $$
-BEGIN
-  BEGIN
-    PERFORM public.revoke_club_admin(
-      '00000000-0000-0000-0000-000000220901', '00000000-0000-0000-0000-000000220911');
-    RAISE EXCEPTION 'FAIL an expired or unclaimed admin counted toward the last-admin guard';
-  EXCEPTION WHEN OTHERS THEN
-    IF SQLERRM IS DISTINCT FROM 'A club needs at least one admin. Add another admin first.' THEN
-      RAISE;
-    END IF;
-  END;
-  RAISE NOTICE 'PASS expired and unclaimed admins do not count toward the last-admin guard';
-END;
-$$;
-
 -- A site admin who administers no club can grant and revoke.
-RESET ROLE;
-INSERT INTO public.people (id, first_name, last_name, email)
-VALUES ('00000000-0000-0000-0000-000000220915', 'Site', 'Admin', 'site.admin@example.test');
-INSERT INTO auth.users (
-  id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
-  created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
-  is_super_admin, is_sso_user, is_anonymous
-) VALUES ('00000000-0000-0000-0000-000000220815', '00000000-0000-0000-0000-000000000000',
-          'authenticated', 'authenticated', 'site.admin@example.test', '', now(), now(), now(),
-          '{}', '{}', false, false, false);
-INSERT INTO public.user_roles (user_id, role_id, is_active, auth_user_id)
-SELECT '00000000-0000-0000-0000-000000220915', r.id, true, '00000000-0000-0000-0000-000000220815'
-FROM public.roles r WHERE r.name = 'site_admin';
-SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000220815', true);
 DO $$
 BEGIN
@@ -408,45 +412,27 @@ BEGIN
 END;
 $$;
 
--- The claim path end to end: the invited person signs up with the address.
-RESET ROLE;
-INSERT INTO auth.users (
-  id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
-  created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
-  is_super_admin, is_sso_user, is_anonymous
-) VALUES ('00000000-0000-0000-0000-000000220816', '00000000-0000-0000-0000-000000000000',
-          'authenticated', 'authenticated', 'new.admin@example.test', '', now(), now(), now(),
-          '{}', '{}', false, false, false);
-DO $$
-DECLARE
-  v_person uuid;
-  v_role record;
-BEGIN
-  SELECT id INTO v_person FROM public.people
-  WHERE auth_user_id = '00000000-0000-0000-0000-000000220816';
-  IF v_person IS NULL THEN
-    RAISE EXCEPTION 'FAIL sign-up did not adopt the invited people row';
-  END IF;
-  SELECT ur.auth_user_id, ur.expires_at INTO v_role
-  FROM public.user_roles ur JOIN public.roles r ON r.id = ur.role_id
-  WHERE ur.user_id = v_person AND r.name = 'club_admin'
-    AND ur.club_id = '00000000-0000-0000-0000-000000220901' AND ur.is_active;
-  IF v_role.auth_user_id IS DISTINCT FROM '00000000-0000-0000-0000-000000220816'::uuid THEN
-    RAISE EXCEPTION 'FAIL the role did not follow the new auth id: %', v_role.auth_user_id;
-  END IF;
-  IF v_role.expires_at IS NOT NULL THEN
-    RAISE EXCEPTION 'FAIL the expiry was not cleared on sign-up: %', v_role.expires_at;
-  END IF;
-END;
-$$;
-SET LOCAL ROLE authenticated;
-SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000220816', true);
+-- Last admin. Club A now has 911 and 913 who can sign in, plus 918 who is suspended.
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000220811', true);
+SELECT public.revoke_club_admin(
+  '00000000-0000-0000-0000-000000220901', '00000000-0000-0000-0000-000000220913');
+
 DO $$
 BEGIN
+  BEGIN
+    PERFORM public.revoke_club_admin(
+      '00000000-0000-0000-0000-000000220901', '00000000-0000-0000-0000-000000220911');
+    RAISE EXCEPTION 'FAIL the last admin who can sign in was removed (a suspended co-admin counted)';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM IS DISTINCT FROM 'A club needs at least one admin. Add another admin first.' THEN
+      RAISE;
+    END IF;
+  END;
+
   IF NOT public.is_club_admin('00000000-0000-0000-0000-000000220901') THEN
-    RAISE EXCEPTION 'FAIL the invited admin is not a club admin after signing up';
+    RAISE EXCEPTION 'FAIL the last admin lost access despite the refusal';
   END IF;
-  RAISE NOTICE 'PASS sign-up claims the invited grant: auth ids follow, expiry cleared, is_club_admin true';
+  RAISE NOTICE 'PASS the last admin cannot be removed; a suspended co-admin does not count';
 END;
 $$;
 

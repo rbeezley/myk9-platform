@@ -13583,7 +13583,7 @@ export type Database = {
       add_club_admin_by_email: {
         Args: { p_club_id: string; p_email: string }
         Returns: {
-          has_account: boolean
+          outcome: string
           person_id: string
         }[]
       }
@@ -14508,8 +14508,6 @@ export type Database = {
       get_club_admins: {
         Args: { p_club_id: string }
         Returns: {
-          expires_at: string | null
-          has_account: boolean
           person_email: string
           person_id: string
           person_name: string

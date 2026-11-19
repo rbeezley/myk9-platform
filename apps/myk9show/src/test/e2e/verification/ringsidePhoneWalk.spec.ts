@@ -4,10 +4,12 @@ import {
   evidence,
   isolatedClient,
   judgeRow,
+  queueSnapshot,
   rolePage,
   row,
   screenshot,
   setState,
+  settledValue,
   type Client,
 } from './showDayProof.helpers';
 
@@ -32,41 +34,6 @@ async function ringState(client: Client, id: string) {
     .single();
   if (error || !data) throw new Error('Local ring-state read failed: ' + error?.message);
   return data;
-}
-
-/**
- * MYK9-2206: when the reset never lands, say where its write is stuck. The reset is one
- * replicated write, so a timeout means it is still queued, was refused, or was overwritten by a
- * replayed score; the device's own queue tells which.
- */
-async function queueSnapshot(page: Page) {
-  return page.evaluate(
-    () =>
-      new Promise<Record<string, unknown>>(resolve => {
-        const open = indexedDB.open('myK9_Replication');
-        open.onerror = () => resolve({ error: String(open.error) });
-        open.onsuccess = () => {
-          const db = open.result;
-          const out: Record<string, unknown> = {};
-          const names = ['pending_mutations', 'failed_mutations'].filter(n =>
-            db.objectStoreNames.contains(n)
-          );
-          if (names.length === 0) return resolve(out);
-          let left = names.length;
-          for (const name of names) {
-            const req = db.transaction(name).objectStore(name).getAll();
-            req.onsuccess = () => {
-              out[name] = req.result;
-              if (--left === 0) resolve(out);
-            };
-            req.onerror = () => {
-              out[name] = String(req.error);
-              if (--left === 0) resolve(out);
-            };
-          }
-        };
-      })
-  );
 }
 
 /** The page is the phone's width and nothing pushes it wider. */
@@ -167,11 +134,9 @@ test('Ringside at 375 px: open, leave unscored, score, reset (MYK9-1762, MYK9-17
       ringState(client, f.willowId),
       queueSnapshot(page),
     ]);
-    const settled = (r: PromiseSettledResult<unknown>) =>
-      r.status === 'fulfilled' ? r.value : { unavailable: String(r.reason) };
     await evidence(info, 'reset-failure-state', {
-      server: settled(server),
-      device: settled(device),
+      server: settledValue(server),
+      device: settledValue(device),
     }).catch(() => undefined);
     throw error;
   }

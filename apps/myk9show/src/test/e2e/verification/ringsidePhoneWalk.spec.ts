@@ -34,6 +34,41 @@ async function ringState(client: Client, id: string) {
   return data;
 }
 
+/**
+ * MYK9-2206: when the reset never lands, say where its write is stuck. The reset is one
+ * replicated write, so a timeout means it is still queued, was refused, or was overwritten by a
+ * replayed score; the device's own queue tells which.
+ */
+async function queueSnapshot(page: Page) {
+  return page.evaluate(
+    () =>
+      new Promise<Record<string, unknown>>(resolve => {
+        const open = indexedDB.open('myK9_Replication');
+        open.onerror = () => resolve({ error: String(open.error) });
+        open.onsuccess = () => {
+          const db = open.result;
+          const out: Record<string, unknown> = {};
+          const names = ['pending_mutations', 'failed_mutations'].filter(n =>
+            db.objectStoreNames.contains(n)
+          );
+          if (names.length === 0) return resolve(out);
+          let left = names.length;
+          for (const name of names) {
+            const req = db.transaction(name).objectStore(name).getAll();
+            req.onsuccess = () => {
+              out[name] = req.result;
+              if (--left === 0) resolve(out);
+            };
+            req.onerror = () => {
+              out[name] = String(req.error);
+              if (--left === 0) resolve(out);
+            };
+          }
+        };
+      })
+  );
+}
+
 /** The page is the phone's width and nothing pushes it wider. */
 async function expectFitsPhone(page: Page, stop: string) {
   const size = await page.evaluate(() => ({
@@ -117,9 +152,17 @@ test('Ringside at 375 px: open, leave unscored, score, reset (MYK9-1762, MYK9-17
   await card.getByTestId('reset-menu-button').click();
   await page.getByRole('menuitem', { name: 'Reset score' }).click();
   await page.getByTestId('reset-dialog-confirm').click();
-  await expect
-    .poll(() => ringState(client, f.willowId), { timeout: 30_000 })
-    .toMatchObject({ is_scored: false, result_status: 'pending', ring_entry_time: null });
+  try {
+    await expect
+      .poll(() => ringState(client, f.willowId), { timeout: 30_000 })
+      .toMatchObject({ is_scored: false, result_status: 'pending', ring_entry_time: null });
+  } catch (error) {
+    await evidence(info, 'reset-timeout-queue', {
+      server: await ringState(client, f.willowId),
+      device: await queueSnapshot(page),
+    });
+    throw error;
+  }
   const afterReset = await ringState(client, f.willowId);
   expect(afterReset.check_in_status).not.toBe('in-ring');
   expect(judge.nonLocalSocketUrls).toEqual([]);

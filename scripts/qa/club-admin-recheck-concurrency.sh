@@ -225,7 +225,9 @@ expect_recheck_refusal() {
   local log_file="$scratch_dir/$scenario-caller.log" caller_pid status
 
   start_holder "$scenario" "$caller_person_id"
-  run_caller "$caller_auth_id" "$sql" "$caller_app" >"$log_file" 2>&1 &
+  # 3>&-: the caller must not hold the holder's FIFO open, or closing it on a failure path
+  # could not end the holder's input and release its lock.
+  run_caller "$caller_auth_id" "$sql" "$caller_app" >"$log_file" 2>&1 3>&- &
   caller_pid="$!"
   wait_for_blocked_caller "$caller_app" || {
     exec 3>&-

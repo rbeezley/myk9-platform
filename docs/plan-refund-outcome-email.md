@@ -146,8 +146,11 @@ These apply to whichever of B or B-lite is chosen.
 - **Before the drop.** Move `pull_refund_decision_rls_test.sql`,
   `withdraw_or_pull_own_entry_test.sql` and `myk9_2099_refund_decision_removed_absent_test.sql`
   to the three-argument call, and assert that the old signature is gone.
-- **Deploy command.** `supabase functions deploy send-lifecycle-email --project-ref
-sojmvhhwsjxmfistvzbe --no-verify-jwt`.
+- **Deploy command:**
+
+  ```bash
+  supabase functions deploy send-lifecycle-email --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt
+  ```
 
 ## Testing phase
 

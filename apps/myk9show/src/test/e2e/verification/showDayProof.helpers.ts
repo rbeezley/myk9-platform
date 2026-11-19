@@ -196,6 +196,45 @@ export async function replica(page: Page, entryId: string) {
     };
   }, entryId);
 }
+/**
+ * MYK9-2206 / MYK9-2111: when a replicated write never lands (or never drains), say where it is
+ * stuck. A timeout means it is still queued, was refused, or was overwritten by a replayed write;
+ * the device's own queue tells which.
+ */
+export async function queueSnapshot(page: Page) {
+  return page.evaluate(
+    () =>
+      new Promise<Record<string, unknown>>(resolve => {
+        const open = indexedDB.open('myK9_Replication');
+        open.onerror = () => resolve({ error: String(open.error) });
+        open.onsuccess = () => {
+          const db = open.result;
+          const out: Record<string, unknown> = {};
+          const names = ['pending_mutations', 'failed_mutations'].filter(n =>
+            db.objectStoreNames.contains(n)
+          );
+          if (names.length === 0) return resolve(out);
+          let left = names.length;
+          for (const name of names) {
+            const req = db.transaction(name).objectStore(name).getAll();
+            req.onsuccess = () => {
+              out[name] = req.result;
+              if (--left === 0) resolve(out);
+            };
+            req.onerror = () => {
+              out[name] = String(req.error);
+              if (--left === 0) resolve(out);
+            };
+          }
+        };
+      })
+  );
+}
+
+/** A failure-evidence read that itself failed is recorded, never allowed to mask the real error. */
+export function settledValue(r: PromiseSettledResult<unknown>) {
+  return r.status === 'fulfilled' ? r.value : { unavailable: String(r.reason) };
+}
 export async function sessionIdentity(page: Page) {
   return page.evaluate(() => {
     const key = Object.keys(localStorage).find(

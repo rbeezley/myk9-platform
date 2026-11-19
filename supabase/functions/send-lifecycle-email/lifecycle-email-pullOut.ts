@@ -12,7 +12,11 @@
  *                                     undecided: that sentence promises nothing else.)
  *   anything else (check, cash, unpaid, or a refund already recorded or decided)   nothing about money.
  */
-import type { LifecycleEmailSupabaseClient, QueryResult } from './lifecycle-email-shared.ts';
+import {
+  myShowsEntriesUrl,
+  type LifecycleEmailSupabaseClient,
+  type QueryResult,
+} from './lifecycle-email-shared.ts';
 import {
   classIsLive,
   classLabel,
@@ -218,7 +222,7 @@ export function renderPulledOutEmail(args: {
       `Here is what we recorded for you at ${showName}.`,
       args.lines.join('\n'),
       ...(args.moneyNote ? [args.moneyNote] : []),
-      `Your entries: https://myk9show.com/exhibitor/entries?show=${args.showId}`,
+      `Your entries: ${myShowsEntriesUrl(args.showId)}`,
     ].join('\n\n'),
   };
 }

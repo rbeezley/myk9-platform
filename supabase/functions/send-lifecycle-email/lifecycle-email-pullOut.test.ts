@@ -91,6 +91,9 @@ describe('drainAutoEmailJobs for pulled_out (MYK9-2001)', () => {
       'Vesper is out of Novice Interior (Saturday Trial, Saturday, November 21, 2026).'
     );
     expect(sent.html).toContain(SECRETARY_DECIDES);
+    // MYK9-2241: the link anchors on the show, never the payment-receipt view.
+    expect(sent.html).toContain('exhibitor/entries?show=');
+    expect(sent.html).not.toContain('showId=');
     // No amount and no date: only the wording above speaks about money.
     expect(sent.html).not.toMatch(/\$\d/);
     expect(fixture.tables.email_log).toEqual([

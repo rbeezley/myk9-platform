@@ -47,12 +47,12 @@ test('canonical queue positions and state-only controls agree across roles (MYK9
     {
       name: 'in-ring',
       fields: { ...waiting, run_order: 101, check_in_status: 'in-ring', is_in_ring: true },
-      exhibitor: /in (the )?ring/i, // MYK9-2223: "In the ring" since MYK9-2093
+      exhibitor: /in the ring/i, // CHECK_IN_STATE_WORDS.in-ring (MYK9-2093)
     },
     {
       name: 'pulled',
       fields: { ...waiting, run_order: 101, check_in_status: 'pulled' },
-      exhibitor: /I won.t be running this class/,
+      exhibitor: /pulled at the show/i, // CHECK_IN_STATE_WORDS.pulled (MYK9-2093)
     },
     {
       name: 'completed',

@@ -93,6 +93,13 @@ describe('verify-production.sh', { timeout: 30_000 }, () => {
     for (const u of shaReads) expect(u).toMatch(/build-sha\.txt\?v=a{40}-\d+-1$/);
   });
 
+  it('bounds every request so a stalled host reaches the retry', () => {
+    const src = readFileSync(SCRIPT, 'utf8');
+    const curls = src.split('\n').filter(l => /\bcurl --/.test(l));
+    expect(curls.length).toBeGreaterThanOrEqual(2);
+    for (const l of curls) expect(l).toContain('--max-time');
+  });
+
   it('fails when the hosts serve different bundles, even if both report the commit', () => {
     const r = run({ ...healthy(), [`${DOMAIN}/`]: page('OLD') });
     expect(r.status).toBe(1);

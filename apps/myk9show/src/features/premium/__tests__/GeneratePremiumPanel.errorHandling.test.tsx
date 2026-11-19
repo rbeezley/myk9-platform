@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
 import { type ReactNode } from 'react';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -131,6 +131,15 @@ async function openPanel() {
 }
 
 describe('GeneratePremiumPanel — PDF error toast deduplication', () => {
+  // The editor loads PremiumPdfDownloadLink (and the PDF templates it imports) with
+  // React.lazy. Evaluating that module graph for the first time can outlast any fixed
+  // findByText timeout on a loaded machine, so load it up front: the lazy import then
+  // resolves from the module cache and "Download PDF" depends on nothing slower than a
+  // microtask.
+  beforeAll(async () => {
+    await import('../PremiumPdfDownloadLink');
+  }, 60_000);
+
   beforeEach(() => {
     errorMock.mockClear();
     successMock.mockClear();

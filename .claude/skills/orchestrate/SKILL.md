@@ -123,8 +123,11 @@ all three of these are done and recorded in the ledger row (`premise:`, `approac
    - the shape you propose;
    - the "do nothing / delete it / link to what exists" option, weighed honestly.
 
-   Open it as a docs-only PR. `pnpm qa:codex-review` reviews that diff, so Codex reads the design,
-   not code. Link the PR on the issue, label it `needs:decision`, and put the
+   Write it in its own worktree (`docs/plan-<topic>` branch, created like any issue worktree),
+   never the primary checkout. Open it as a docs-only PR whose body says `Ignore MYK9-<n>`,
+   so neither the plan PR nor its merge moves the issue. `pnpm qa:codex-review --post` reviews
+   that diff and posts the verdict on the PR, so Codex reads the design, not code, and the
+   owner can see the review. Link the PR on the issue, label it `needs:decision`, and put the
    delete-or-do-nothing option to the owner before building, not after a convergence stop.
    Record `size: design first` in the ledger.
 

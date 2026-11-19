@@ -37,6 +37,20 @@ Read on 2026-11-19. Nothing here was reproduced in a browser.
 
 The hosted `max_rows` has not been read. It is 1,000 in `supabase/config.toml`. MYK9-2258 records the hosted value.
 
+## Why the current design is the way it is [ADDED]
+
+Read from the code's comments and the issues they cite.
+
+- **One background pass, one scope.** The sync provider hands every table the same scope value, and its meaning differs per table (`ReplicationSyncProvider.tsx`). With no scope, each table downloads everything the user may see. That was the simplest thing that made every screen work offline.
+- **Per-show passes came later.** A show whose page is open registers itself, and the provider adds one scoped pass for it (MYK9-1923, `showScopeTargets.ts`). "Offline ready" was built on those passes (MYK9-203).
+- **The daily full re-download** repairs a device whose incremental sync has drifted (MYK9-1633).
+- **Judge assignments have no scope** because the table was small when the code was written (the comment in `ReplicatedJudgeAssignmentsTable.ts`).
+- **The people directory** is preloaded so that names and owner pickers work on every management screen (the comment in `App.tsx`). It is limited to management roles (SA-008).
+- **Sign-out keeps saved data** so that a volunteer who signs out by habit is not locked out of a show at a venue with no internet (MYK9-202).
+- **A secretary sees every dog** so that a mail-in entry can find any exhibitor's dog (MYK9-854).
+
+None of these was a mistake when it was made. Each assumes a platform small enough to download whole.
+
 ## The decisions
 
 Each was put to the owner with a recommendation on 2026-11-19.
@@ -48,6 +62,14 @@ Each was put to the owner with a recommendation on 2026-11-19.
 5. **Three phases, set by the dates.** The safety net lands before the December mock show. The people work lands before entries open on 2027-01-22. Show-by-show saving lands after that and before the real show's day.
 
 [ADDED] Decision 1 was put in terms of shows, trials and classes. The other tables were decided later the same day (MYK9-2268). Dogs and their registrations stay platform-wide for now, with an alert to the owner at 10,000 dogs; the end state is every dog that has shown with the club (MYK9-2272, parked until the alert). Entries stay as they are: the club's shows, all years. Judge assignments are saved per show, like classes, plus a person's own (MYK9-2264). Clubs stay platform-wide.
+
+## Do nothing, delete it, or link to what exists [ADDED]
+
+- **Do nothing.** Nothing truncates at today's counts, and nothing would through the December mock show. The failure arrives in the first season, at about 15 to 20 real shows, and it is silent: the newest classes never arrive and every sync reports success. Rejected for phase 1 for that reason. The cheapest version of phase 1 is the alert alone (MYK9-2254), which would turn a silent failure into a loud one. Paging is small, so the plan does both.
+- **Do nothing yet, for people and dogs.** Chosen by the owner. Both stay platform-wide behind an alert (MYK9-2274, MYK9-2268), and the per-club work is parked.
+- **Do nothing yet, for the platform-wide pass.** Not yet put to the owner. With paging in place the pass keeps working; it only grows. Retiring it (MYK9-2264) is the riskiest change in the plan, and it could wait behind an alert on the number of classes, as dogs and people do. Saving shows automatically (MYK9-2261) is worth doing on its own date, because it fixes the volunteer who never opened the show at home. See Open questions.
+- **Delete it.** The plan deletes the platform-wide pass for five tables (phase 3) and, at the people trigger, the directory download and the separate owner-name copy. It adds no page, tab or setting.
+- **Link to what exists.** Phase 3 extends the per-show passes and the "Offline ready" check that already exist; it does not add a second way to sync. The people work reuses the existing directory now and the existing replicated `people` table later. Removing a revoked secretary's data follows the entries model (MYK9-1521).
 
 ## What a device holds, once all three phases land
 
@@ -214,6 +236,7 @@ Each issue carries its own tests. This phase is what must be true before a phase
 - [ADDED] **The new wording** in the table above.
 - [ADDED] **The three-day lead time** for sync changes before a show.
 - [ADDED] **The privacy policy.** It should say that secretaries of participating clubs can see exhibitor contact details. The wording is with the attorney review.
+- [ADDED] **Whether retiring the platform-wide pass waits for a trigger.** MYK9-2264 could be parked behind an alert on the number of classes, as dogs and people are. Recommendation: park it, and keep MYK9-2261 on its date.
 
 ## Risks
 

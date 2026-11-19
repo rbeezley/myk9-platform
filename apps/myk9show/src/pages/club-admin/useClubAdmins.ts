@@ -60,14 +60,9 @@ export function useClubAdmins(clubId: string) {
     ...ADMIN_MUTATION_OPTIONS,
     mutationFn: (email: string) => addClubAdminByEmail(clubId, email),
     onSuccess: async (result, email) => {
-      if (result === 'added') {
-        notifications.success(`${email} is now an admin of this club.`);
-      } else {
-        notifications.error(
-          `We couldn't add ${email}. Check the address, and make sure they have a myK9 account they have signed in to, then try again.`
-        );
-        return;
-      }
+      // no_account: nothing was granted. The tab offers to invite the address instead.
+      if (result !== 'added') return;
+      notifications.success(`${email} is now an admin of this club.`);
       await afterChange();
     },
     onError: error => {

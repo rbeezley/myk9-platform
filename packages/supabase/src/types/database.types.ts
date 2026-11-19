@@ -13590,6 +13590,38 @@ export type Database = {
           person_id: string
         }[]
       }
+      cancel_club_admin_invite: {
+        Args: { p_invite_id: string }
+        Returns: undefined
+      }
+      invite_club_admin: {
+        Args: { p_club_id: string; p_email: string }
+        Returns: {
+          invite_email: string
+          invite_id: string
+          outcome: string
+        }[]
+      }
+      list_club_admin_invites: {
+        Args: { p_club_id: string }
+        Returns: {
+          created_at: string
+          expires_at: string
+          invite_email: string
+          invite_id: string
+          invited_by_name: string
+          last_sent_at: string
+        }[]
+      }
+      resend_club_admin_invite: {
+        Args: { p_invite_id: string }
+        Returns: {
+          club_name: string
+          expires_at: string
+          invite_email: string
+          inviter_name: string
+        }[]
+      }
       add_to_waitlist: {
         Args: {
           p_class_id: string

@@ -18,6 +18,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { UserMinus } from 'lucide-react';
 import { useClubAdmins } from './useClubAdmins';
+import { useClubAdminInvites } from './useClubAdminInvites';
+import { ClubAdminInvitesList } from './ClubAdminInvitesList';
 
 interface ClubAdminsTabProps {
   clubId: string;
@@ -39,7 +41,11 @@ export const ClubAdminsTab: React.FC<ClubAdminsTabProps> = ({ clubId, clubName }
     confirmRemoval,
     isRemoving,
   } = useClubAdmins(clubId);
+  const invitesState = useClubAdminInvites(clubId);
   const [email, setEmail] = useState('');
+
+  // An address with no myK9 account cannot be made an admin yet: offer to invite it instead.
+  const [inviteOffer, setInviteOffer] = useState<string | null>(null);
 
   // Adding grants real access (and may email a stranger), so the address is confirmed first.
   const [confirmingEmail, setConfirmingEmail] = useState<string | null>(null);
@@ -55,7 +61,23 @@ export const ClubAdminsTab: React.FC<ClubAdminsTabProps> = ({ clubId, clubName }
     setConfirmingEmail(null);
     if (!target) return;
     try {
-      await addAdmin(target);
+      const outcome = await addAdmin(target);
+      if (outcome === 'no_account') {
+        setInviteOffer(target);
+      } else {
+        setEmail('');
+      }
+    } catch {
+      // The hook already told the admin; keep the address so they can fix it.
+    }
+  };
+
+  const confirmInvite = async () => {
+    const target = inviteOffer;
+    setInviteOffer(null);
+    if (!target) return;
+    try {
+      await invitesState.inviteByEmail(target);
       setEmail('');
     } catch {
       // The hook already told the admin; keep the address so they can fix it.
@@ -71,7 +93,8 @@ export const ClubAdminsTab: React.FC<ClubAdminsTabProps> = ({ clubId, clubName }
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
         Club admins can edit the club, manage members, appoint secretaries and open Payments. Add
-        someone by the email on their myK9 account and they become an admin at once.
+        someone by the email on their myK9 account and they become an admin at once. If that address
+        has no account yet, you can invite them by email.
       </p>
 
       <form onSubmit={handleAdd} className="flex flex-col gap-2 sm:flex-row sm:items-end">
@@ -89,7 +112,7 @@ export const ClubAdminsTab: React.FC<ClubAdminsTabProps> = ({ clubId, clubName }
             className="border-border"
           />
         </div>
-        <Button type="submit" disabled={isAdding || !email.trim()}>
+        <Button type="submit" disabled={isAdding || invitesState.isInviting || !email.trim()}>
           {isAdding ? 'Adding...' : 'Add admin'}
         </Button>
       </form>
@@ -135,6 +158,31 @@ export const ClubAdminsTab: React.FC<ClubAdminsTabProps> = ({ clubId, clubName }
           ))}
         </ul>
       )}
+
+      <ClubAdminInvitesList
+        invites={invitesState.invites}
+        resendingId={invitesState.resendingId}
+        cancellingId={invitesState.cancellingId}
+        onResend={invitesState.resendInvite}
+        onCancel={invitesState.cancelInvite}
+      />
+
+      <AlertDialog open={!!inviteOffer} onOpenChange={open => !open && setInviteOffer(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Invite {inviteOffer} to be an admin?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {inviteOffer} has no myK9 account yet, so nothing was changed. We can email them an
+              invitation to {clubName}. They become an admin when they create an account with this
+              address and confirm it.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Not now</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void confirmInvite()}>Send invite</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog
         open={!!confirmingEmail}

@@ -14,6 +14,10 @@ const mocks = vi.hoisted(() => ({
   getClubAdmins: vi.fn(),
   addClubAdminByEmail: vi.fn(),
   removeClubAdmin: vi.fn(),
+  getClubAdminInvites: vi.fn(),
+  inviteClubAdmin: vi.fn(),
+  sendClubAdminInviteEmail: vi.fn(),
+  cancelClubAdminInvite: vi.fn(),
   refreshPermissions: vi.fn(),
   success: vi.fn(),
   error: vi.fn(),
@@ -29,6 +33,10 @@ vi.mock('@/services/database/club-memberships', () => ({
   getClubAdmins: mocks.getClubAdmins,
   addClubAdminByEmail: mocks.addClubAdminByEmail,
   removeClubAdmin: mocks.removeClubAdmin,
+  getClubAdminInvites: mocks.getClubAdminInvites,
+  inviteClubAdmin: mocks.inviteClubAdmin,
+  sendClubAdminInviteEmail: mocks.sendClubAdminInviteEmail,
+  cancelClubAdminInvite: mocks.cancelClubAdminInvite,
 }));
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
@@ -55,6 +63,7 @@ const grace = {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.getClubAdmins.mockResolvedValue([ada, grace]);
+  mocks.getClubAdminInvites.mockResolvedValue([]);
   mocks.refreshPermissions.mockResolvedValue(undefined);
 });
 
@@ -108,8 +117,10 @@ describe('ClubAdminsTab', () => {
     expect(screen.getByLabelText('Add an admin')).toHaveValue('');
   });
 
-  it('tells the admin to check the address when no account matches', async () => {
+  it('offers to invite an address with no account, then emails the invite', async () => {
     mocks.addClubAdminByEmail.mockResolvedValue('no_account');
+    mocks.inviteClubAdmin.mockResolvedValue({ outcome: 'invited', inviteId: 'inv-1' });
+    mocks.sendClubAdminInviteEmail.mockResolvedValue(undefined);
     const user = userEvent.setup();
     render(<ClubAdminsTab clubId={CLUB} clubName="Heartland Club" />);
     await screen.findByText('Ada Lovelace');
@@ -118,12 +129,84 @@ describe('ClubAdminsTab', () => {
     await user.click(screen.getByRole('button', { name: 'Add admin' }));
     await confirmAdd(user);
 
+    const dialog = await screen.findByRole('alertdialog');
+    expect(within(dialog).getByText('Invite new@example.test to be an admin?')).toBeInTheDocument();
+    expect(mocks.inviteClubAdmin).not.toHaveBeenCalled();
+    await user.click(within(dialog).getByRole('button', { name: 'Send invite' }));
+
+    await waitFor(() =>
+      expect(mocks.inviteClubAdmin).toHaveBeenCalledWith(CLUB, 'new@example.test')
+    );
+    await waitFor(() => expect(mocks.sendClubAdminInviteEmail).toHaveBeenCalledWith('inv-1'));
+    expect(mocks.success).toHaveBeenCalledWith(
+      'Invite sent to new@example.test. They become an admin once they create an account and confirm that email.'
+    );
+    expect(mocks.error).not.toHaveBeenCalled();
+    expect(mocks.refreshPermissions).not.toHaveBeenCalled();
+  });
+
+  it('says the invite was saved but not emailed when the send fails', async () => {
+    mocks.addClubAdminByEmail.mockResolvedValue('no_account');
+    mocks.inviteClubAdmin.mockResolvedValue({ outcome: 'invited', inviteId: 'inv-1' });
+    mocks.sendClubAdminInviteEmail.mockRejectedValue(new Error('boom'));
+    const user = userEvent.setup();
+    render(<ClubAdminsTab clubId={CLUB} clubName="Heartland Club" />);
+    await screen.findByText('Ada Lovelace');
+
+    await user.type(screen.getByLabelText('Add an admin'), 'new@example.test');
+    await user.click(screen.getByRole('button', { name: 'Add admin' }));
+    await confirmAdd(user);
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Send invite' })
+    );
+
     await waitFor(() =>
       expect(mocks.error).toHaveBeenCalledWith(
-        "We couldn't add new@example.test. Check the address, and make sure they have a myK9 account they have signed in to, then try again."
+        "The invite for new@example.test was saved, but we couldn't email it. Use Resend to try again."
       )
     );
     expect(mocks.success).not.toHaveBeenCalled();
+  });
+
+  it('does not invite when the admin declines the offer', async () => {
+    mocks.addClubAdminByEmail.mockResolvedValue('no_account');
+    const user = userEvent.setup();
+    render(<ClubAdminsTab clubId={CLUB} clubName="Heartland Club" />);
+    await screen.findByText('Ada Lovelace');
+
+    await user.type(screen.getByLabelText('Add an admin'), 'new@example.test');
+    await user.click(screen.getByRole('button', { name: 'Add admin' }));
+    await confirmAdd(user);
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Not now' })
+    );
+
+    expect(mocks.inviteClubAdmin).not.toHaveBeenCalled();
+    expect(mocks.sendClubAdminInviteEmail).not.toHaveBeenCalled();
+  });
+
+  it('lists pending invites with Resend and Cancel, and calls the right invite', async () => {
+    mocks.getClubAdminInvites.mockResolvedValue([
+      {
+        inviteId: 'inv-9',
+        email: 'pending@example.test',
+        invitedByName: 'Ada Lovelace',
+        createdAt: '2026-11-20T00:00:00Z',
+        expiresAt: '2026-12-04T12:00:00Z',
+        lastSentAt: null,
+      },
+    ]);
+    mocks.sendClubAdminInviteEmail.mockResolvedValue(undefined);
+    mocks.cancelClubAdminInvite.mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    render(<ClubAdminsTab clubId={CLUB} clubName="Heartland Club" />);
+
+    expect(await screen.findByText('pending@example.test')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Resend invite to pending@example.test' }));
+    await waitFor(() => expect(mocks.sendClubAdminInviteEmail).toHaveBeenCalledWith('inv-9'));
+
+    await user.click(screen.getByRole('button', { name: 'Cancel invite to pending@example.test' }));
+    await waitFor(() => expect(mocks.cancelClubAdminInvite).toHaveBeenCalledWith('inv-9'));
     expect(mocks.refreshPermissions).not.toHaveBeenCalled();
   });
 

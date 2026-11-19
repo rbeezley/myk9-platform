@@ -90,6 +90,15 @@ BEGIN
     RAISE EXCEPTION 'Premium publication state may be changed only by the publication RPC';
   END IF;
 
+  -- MYK9-2054: ONE rule, shared with the public page: the club's own link is in force only while
+  -- the show publishes its own premium (publishes_own_premium), and a generated PDF supersedes it.
+  -- Any writer that commits a different published_premium_path (publish_premium_artifact included)
+  -- therefore clears the link here, so the page never serves a stale link next to a new PDF.
+  IF NEW.published_premium_path IS NOT NULL
+     AND NEW.published_premium_path IS DISTINCT FROM OLD.published_premium_path THEN
+    NEW.own_premium_link := NULL;
+  END IF;
+
   -- MYK9-2054: unpublished (or never published). Every published_premium_* column is empty, so
   -- there is no path/url pair to validate and nothing legacy to protect.
   IF NEW.published_premium_path IS NULL
@@ -163,6 +172,7 @@ SET search_path = ''
 AS $$
 DECLARE
   v_version bigint;
+  v_publishes_own boolean;
 BEGIN
   IF NOT (
     coalesce((SELECT public.can_manage_show(p_show_id)), false)
@@ -177,9 +187,14 @@ BEGIN
       USING ERRCODE = '22023';
   END IF;
 
-  PERFORM 1 FROM public.shows WHERE id = p_show_id AND deleted_at IS NULL FOR UPDATE;
+  SELECT publishes_own_premium INTO v_publishes_own
+    FROM public.shows WHERE id = p_show_id AND deleted_at IS NULL FOR UPDATE;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Premium publication found no show row' USING ERRCODE = 'P0002';
+  END IF;
+  IF v_publishes_own IS NOT TRUE THEN
+    RAISE EXCEPTION 'This show has not chosen to publish its own premium list'
+      USING ERRCODE = '22023';
   END IF;
 
   IF p_link IS NOT NULL THEN
@@ -240,7 +255,7 @@ REVOKE ALL ON FUNCTION public.set_own_premium(uuid, text, text, text) FROM PUBLI
 GRANT EXECUTE ON FUNCTION public.set_own_premium(uuid, text, text, text) TO authenticated;
 
 COMMENT ON FUNCTION public.set_own_premium(uuid, text, text, text) IS
-  'MYK9-2054: record the club''s own premium list, as an uploaded PDF (p_storage_path + p_public_url, staged in premium-published like a generated one) or an http(s) link (p_link): exactly one. Replaces the other kind and any generated premium. Authorized like publish_premium_artifact (can_manage_show, show secretary or platform admin; 42501 otherwise). Touches no entry.';
+  'MYK9-2054: record the club''s own premium list, as an uploaded PDF (p_storage_path + p_public_url, staged in premium-published like a generated one) or an http(s) link (p_link): exactly one. Replaces the other kind and any generated premium. Refused (22023) unless the show has publishes_own_premium on. Authorized like publish_premium_artifact (can_manage_show, show secretary or platform admin; 42501 otherwise). Touches no entry.';
 
 -- ---------------------------------------------------------------------------
 -- unpublish_premium: takes down the PDF link and the public announcement. No entry is read

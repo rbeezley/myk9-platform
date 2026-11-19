@@ -38,9 +38,13 @@ export function PremiumDownloadSection({ show, className, style }: PremiumDownlo
   const [state, setState] = useState<'idle' | 'opening' | 'failed'>('idle');
   const showId = show?.id;
   // MYK9-2054: a club that publishes its own premium may share it as a link; the page offers
-  // that link as is. Only a web address is ever rendered as one.
+  // that link as is. Only a web address is ever rendered as one. One rule with the server
+  // (the shows guard trigger): the link is in force only while the show publishes its own
+  // premium, and a generated PDF clears it; a leftover link with the switch off is never shown.
   const ownLink =
-    show?.ownPremiumLink && /^https?:\/\//i.test(show.ownPremiumLink) ? show.ownPremiumLink : null;
+    show?.publishesOwnPremium && show.ownPremiumLink && /^https?:\/\//i.test(show.ownPremiumLink)
+      ? show.ownPremiumLink
+      : null;
   const published =
     !!show &&
     isPremiumFilePublished({

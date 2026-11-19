@@ -45,7 +45,13 @@ const trial = {
 describe.each(STYLES)('%s landing, club-supplied premium link (MYK9-2054)', (_style, Page) => {
   it("offers one download pointing at the club's own link", () => {
     mockViewportWidth(1280);
-    render(<Page show={{ ...baseShow, ownPremiumLink: LINK }} trial={trial} allTrials={[trial]} />);
+    render(
+      <Page
+        show={{ ...baseShow, publishesOwnPremium: true, ownPremiumLink: LINK }}
+        trial={trial}
+        allTrials={[trial]}
+      />
+    );
 
     const links = screen.getAllByRole('link', { name: PREMIUM_DOWNLOAD_LABEL });
     expect(links).toHaveLength(1);
@@ -54,11 +60,45 @@ describe.each(STYLES)('%s landing, club-supplied premium link (MYK9-2054)', (_st
     expect(screen.queryByRole('button', { name: PREMIUM_DOWNLOAD_LABEL })).toBeNull();
   });
 
+  it('does not offer a leftover link once the show no longer publishes its own premium', () => {
+    mockViewportWidth(1280);
+    render(
+      <Page
+        show={{ ...baseShow, publishesOwnPremium: false, ownPremiumLink: LINK }}
+        trial={trial}
+        allTrials={[trial]}
+      />
+    );
+    expect(screen.queryByRole('link', { name: PREMIUM_DOWNLOAD_LABEL })).toBeNull();
+  });
+
+  it('serves the published PDF, not the leftover link, when the switch is off', () => {
+    mockViewportWidth(1280);
+    render(
+      <Page
+        show={
+          {
+            ...baseShow,
+            publishesOwnPremium: false,
+            ownPremiumLink: LINK,
+            publishedPremiumPath: `${baseShow.id}/11111111-1111-1111-1111-111111111111.pdf`,
+            publishedPremiumUrl: 'https://example.test/x.pdf',
+            publishedPremiumAt: '2026-08-01T00:00:00Z',
+          } as Show
+        }
+        trial={trial}
+        allTrials={[trial]}
+      />
+    );
+    expect(screen.queryByRole('link', { name: PREMIUM_DOWNLOAD_LABEL })).toBeNull();
+    expect(screen.getByRole('button', { name: PREMIUM_DOWNLOAD_LABEL })).toBeInTheDocument();
+  });
+
   it('never renders a non-web address as a link', () => {
     mockViewportWidth(1280);
     render(
       <Page
-        show={{ ...baseShow, ownPremiumLink: 'javascript:alert(1)' }}
+        show={{ ...baseShow, publishesOwnPremium: true, ownPremiumLink: 'javascript:alert(1)' }}
         trial={trial}
         allTrials={[trial]}
       />

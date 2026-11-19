@@ -39,6 +39,18 @@ describe('20261120202300_myk9_2054_own_premium_unpublish.sql', () => {
     );
   });
 
+  it('clears the own link when a different published_premium_path is committed (generated publish)', () => {
+    expect(flat).toMatch(
+      /IF NEW\.published_premium_path IS NOT NULL AND NEW\.published_premium_path IS DISTINCT FROM OLD\.published_premium_path THEN NEW\.own_premium_link := NULL;/
+    );
+  });
+
+  it('set_own_premium refuses a show that has not chosen to publish its own premium', () => {
+    const body = flat.slice(flat.indexOf('CREATE OR REPLACE FUNCTION public.set_own_premium'));
+    expect(body).toContain('SELECT publishes_own_premium INTO v_publishes_own');
+    expect(body).toContain('IF v_publishes_own IS NOT TRUE THEN');
+  });
+
   it.each(['public.set_own_premium(uuid, text, text, text)', 'public.unpublish_premium(uuid)'])(
     '%s is executable by authenticated and not by anon',
     signature => {

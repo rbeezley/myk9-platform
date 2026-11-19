@@ -16,7 +16,9 @@ INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id,
   ('00000000-0000-0000-0000-000000205411', 'MYK9-2054 Show A', 'AKC', current_date,
    current_date + 1, '00000000-0000-0000-0000-000000205401', 'published'),
   ('00000000-0000-0000-0000-000000205412', 'MYK9-2054 Show B', 'AKC', current_date,
-   current_date + 1, '00000000-0000-0000-0000-000000205402', 'published');
+   current_date + 1, '00000000-0000-0000-0000-000000205402', 'published'),
+  ('00000000-0000-0000-0000-000000205413', 'MYK9-2054 Show C (switch off)', 'AKC', current_date,
+   current_date + 1, '00000000-0000-0000-0000-000000205401', 'published');
 
 INSERT INTO public.people (id, first_name, last_name, email, auth_user_id) VALUES
   ('00000000-0000-0000-0000-000000205421', 'MYK9-2054', 'Club Admin',
@@ -93,6 +95,10 @@ UPDATE public.shows
        experience_published_content = '{"outputs":{}}'::jsonb
  WHERE id = '00000000-0000-0000-0000-000000205411';
 
+-- Show A has chosen to publish its own premium; Show C (same club) has not.
+UPDATE public.shows SET publishes_own_premium = true WHERE id = '00000000-0000-0000-0000-000000205411';
+UPDATE public.shows SET publishes_own_premium = false WHERE id = '00000000-0000-0000-0000-000000205413';
+
 SET LOCAL ROLE authenticated;
 
 DO $$
@@ -101,6 +107,7 @@ DECLARE
   nobody_id CONSTANT uuid := '00000000-0000-0000-0000-000000205432';
   show_a CONSTANT uuid := '00000000-0000-0000-0000-000000205411';
   show_b CONSTANT uuid := '00000000-0000-0000-0000-000000205412';
+  show_c CONSTANT uuid := '00000000-0000-0000-0000-000000205413';
   path_a CONSTANT text := '00000000-0000-0000-0000-000000205411/11111111-1111-1111-1111-111111111111.pdf';
   path_b CONSTANT text := '00000000-0000-0000-0000-000000205412/22222222-2222-2222-2222-222222222222.pdf';
   base CONSTANT text := 'https://sojmvhhwsjxmfistvzbe.supabase.co/storage/v1/object/public/premium-published/';
@@ -109,6 +116,13 @@ BEGIN
   PERFORM set_config('request.jwt.claim.sub', admin_id::text, true);
   PERFORM set_config('request.jwt.claims',
     jsonb_build_object('sub', admin_id, 'role', 'authenticated')::text, true);
+
+  -- A show that has not chosen to publish its own premium refuses a link.
+  BEGIN
+    PERFORM public.set_own_premium(show_c, 'https://club.example.org/x.pdf', NULL, NULL);
+    RAISE EXCEPTION 'FAIL a link was set on a show with publishes_own_premium off';
+  EXCEPTION WHEN invalid_parameter_value THEN NULL;
+  END;
 
   -- A link is saved on the show.
   PERFORM public.set_own_premium(show_a, 'https://club.example.org/premium.pdf', NULL, NULL);
@@ -214,6 +228,28 @@ BEGIN
   IF state.status IS DISTINCT FROM 'published' THEN
     RAISE EXCEPTION 'FAIL unpublish changed the show status to %', state.status;
   END IF;
+
+  -- One rule: a generated publish clears the club's link. Set a link, then commit a generated
+  -- PDF the way publish_premium_artifact does (path/url/at/version through the guard).
+  PERFORM public.set_own_premium(show_a, 'https://club.example.org/stale.pdf', NULL, NULL);
+  PERFORM public.unpublish_premium(show_a);
+  PERFORM public.set_own_premium(show_a, 'https://club.example.org/stale.pdf', NULL, NULL);
+  RESET ROLE;
+  UPDATE public.shows
+     SET published_premium_path = path_a,
+         published_premium_url = base || path_a,
+         published_premium_at = now(),
+         published_premium_version = 99
+   WHERE id = show_a;
+  SELECT * INTO state FROM public.shows WHERE id = show_a;
+  IF state.own_premium_link IS NOT NULL OR state.published_premium_path IS DISTINCT FROM path_a THEN
+    RAISE EXCEPTION 'FAIL a generated publish left the own link in force: %', to_jsonb(state);
+  END IF;
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', admin_id::text, true);
+  PERFORM set_config('request.jwt.claims',
+    jsonb_build_object('sub', admin_id, 'role', 'authenticated')::text, true);
+  PERFORM public.unpublish_premium(show_a);
 
   -- Publishing again is possible.
   PERFORM public.set_own_premium(show_a, 'https://club.example.org/again.pdf', NULL, NULL);

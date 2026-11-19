@@ -57,6 +57,8 @@ export type PremiumFactId =
   | 'committee'
   | 'chair'
   | 'chairAddress'
+  | 'secretaryContact'
+  | 'chairContact'
   | 'entryWindow'
   | 'vetClinic'
   | 'accommodations'
@@ -134,16 +136,30 @@ export const PREMIUM_FACT_CATALOG: readonly PremiumFactDefinition[] = [
     source: 'person',
     requiredBy: ['AKC'],
   },
+  // MYK9-2286: ASCA §1.5.5 wants a phone or email for the Trial Secretary and the Chair.
+  {
+    id: 'secretaryContact',
+    label: 'Trial Secretary phone or email',
+    source: 'person',
+    requiredBy: ['ASCA'],
+  },
+  {
+    id: 'chairContact',
+    label: 'Trial Chair phone or email',
+    source: 'person',
+    requiredBy: ['ASCA'],
+  },
   {
     id: 'entryWindow',
     label: 'Entries open and close',
     source: 'show',
     requiredBy: ['AKC', 'ASCA'],
   },
-  { id: 'vetClinic', label: 'Veterinary services', source: 'template', requiredBy: [] },
-  { id: 'accommodations', label: 'Accommodations', source: 'template', requiredBy: [] },
+  // MYK9-2286: ASCA §1.5.20 (emergency vet), §1.5.21 (accommodations), §1.5.8 (awards).
+  { id: 'vetClinic', label: 'Veterinary services', source: 'template', requiredBy: ['ASCA'] },
+  { id: 'accommodations', label: 'Accommodations', source: 'template', requiredBy: ['ASCA'] },
   { id: 'hospitality', label: 'Hospitality', source: 'template', requiredBy: [] },
-  { id: 'awards', label: 'Awards', source: 'template', requiredBy: [] },
+  { id: 'awards', label: 'Awards', source: 'template', requiredBy: ['ASCA'] },
   { id: 'additionalNotes', label: 'Additional information', source: 'template', requiredBy: [] },
 ];
 

@@ -286,7 +286,7 @@ describe('missingPremiumFacts (MYK9-2053)', () => {
   it('never lists a fact the registry does not require, even when it is empty', () => {
     const notRequired = PREMIUM_FACT_CATALOG.filter(f => f.requiredBy.length === 0).map(f => f.id);
     expect(notRequired).toEqual(
-      expect.arrayContaining(['officers', 'vetClinic', 'trialInformation'])
+      expect.arrayContaining(['officers', 'hospitality', 'trialInformation'])
     );
     const empty = missingPremiumFacts(
       { ...completeFacts(), clubName: null, venue: '', committee: [] },
@@ -326,5 +326,87 @@ describe('recording fee warning (MYK9-2044)', () => {
   it('says nothing for a UKC show, or when the dates are not known here', () => {
     expect(idsFor(withDates('2028-03-04'), 'UKC')).toEqual([]);
     expect(idsFor(completeFacts())).toEqual([]);
+  });
+});
+
+describe('ASCA club-template and contact facts (MYK9-2286)', () => {
+  const template = (over: Partial<NonNullable<PremiumRequirementFacts['template']>> = {}) => ({
+    vetClinic: { name: 'Valley Emergency Vet' },
+    accommodationCount: 2,
+    awardsDescription: 'Ribbons and rosettes',
+    ...over,
+  });
+  const asca = (patch: Partial<PremiumRequirementFacts> = {}) => ({
+    ...completeFacts(),
+    template: template(),
+    secretary: { name: 'Jane Smith', email: 'jane@example.com', phone: null },
+    chair: { name: 'Bob Jones', email: null, phone: '555-0100' },
+    ...patch,
+  });
+
+  it('lists nothing for a complete ASCA show', () => {
+    expect(idsFor(asca(), 'ASCA')).toEqual([]);
+  });
+
+  it.each([
+    ['awards', { awardsDescription: '  ' }, 'the awards'],
+    ['vetClinic', { vetClinic: null }, 'the emergency veterinarian'],
+    ['accommodations', { accommodationCount: 0 }, 'accommodations'],
+  ])('lists %s when the template leaves it empty, and links the club', (id, patch, words) => {
+    const items = missingPremiumFacts(asca({ template: template(patch) }), 'ASCA', targets);
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({ id, href: '/clubs/club-1' });
+    expect(items[0]!.message).toMatch(
+      new RegExp(`^ASCA requires ${words}\\. Add (it|them) to the club's premium template\\.$`)
+    );
+  });
+
+  it('lists a club with no template at all as missing all three', () => {
+    const none = { vetClinic: null, accommodationCount: 0, awardsDescription: null };
+    expect(idsFor(asca({ template: none }), 'ASCA')).toEqual([
+      'vetClinic',
+      'accommodations',
+      'awards',
+    ]);
+  });
+
+  it('says nothing about the template when it is not known', () => {
+    const rest = asca();
+    delete rest.template;
+    expect(idsFor(rest, 'ASCA')).toEqual([]);
+  });
+
+  it('lists the Secretary and the Chair when each has neither phone nor email', () => {
+    const items = missingPremiumFacts(
+      asca({
+        secretary: { name: 'Jane Smith', email: ' ', phone: null },
+        chair: { name: 'Bob Jones', email: null, phone: '' },
+      }),
+      'ASCA',
+      targets
+    );
+    expect(items.map(i => [i.id, i.href])).toEqual([
+      ['secretaryContact', '/shows/show-1?edit=true&editTab=personnel'],
+      ['chairContact', '/shows/show-1?edit=true&editTab=personnel'],
+    ]);
+    expect(items[0]!.message).toBe(
+      'ASCA requires a phone or email for the Trial Secretary. Add one in Edit show, under Personnel.'
+    );
+  });
+
+  it('does not ask for a contact of an official the show does not have yet', () => {
+    expect(
+      idsFor(asca({ secretary: { name: null, email: null, phone: null }, chair: null }), 'ASCA')
+    ).toEqual(['secretary', 'chair']);
+  });
+
+  it('leaves AKC and UKC unchanged: the same gaps list nothing new', () => {
+    const gappy = asca({
+      template: { vetClinic: null, accommodationCount: 0, awardsDescription: null },
+      secretary: { name: 'Jane Smith', email: null, phone: null, mailingAddress: 'PO Box 1' },
+      chair: { name: 'Bob Jones', email: null, phone: null, mailingAddress: 'PO Box 2' },
+    });
+    expect(idsFor(gappy, 'AKC')).toEqual([]);
+    expect(idsFor(gappy, 'UKC')).toEqual([]);
   });
 });

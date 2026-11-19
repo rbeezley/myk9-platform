@@ -1,20 +1,15 @@
 -- MYK9-2001: pulling out, money. Executes the INSTALLED functions and triggers from
 -- 20261120053700_myk9_2001_pull_out_money_emails.sql (never a source-string contract).
 --
---   A. Deny refund needs a reason: blank, spaces only and over-long are refused (22023); a real
---      one is trimmed and recorded; a second denial keeps the first reason; a direct write of the
---      reason by a signed-in user is refused; reinstating the entry clears it
 --   B. the exhibitor's OWN Pull queues one held, automatic pulled_out job; her second pull in the
 --      same sitting joins it (one email per person per show) and waits again
 --   C. a secretary's Pull queues no pulled_out job (entry_changed tells that, once); a codeless
 --      withdrawal (a secretary removal) and a change with no acting user queue none; an
 --      exhibitor's Withdraw WITH a reason code does
 --   D. an unpublished show queues nothing
---   E. a denial queues one refund_outcome event; a recorded refund queues another; both join the
---      one waiting job; a refund on an entry still running queues nothing
 --   F. a job the drain has claimed is frozen: the next event is a new job
 --   G. the producer function is not callable by an API role
---   J. outcome emails cover every reconcilable removal (a no-show, a secretary removal)
+--   H. the step_type CHECKs accept every step type on main plus pulled_out
 --   K. a co-owner who pulls gets the pulled_out email too
 --
 -- Fixtures roll back.
@@ -190,103 +185,6 @@ begin
   raise notice 'PASS D an unpublished show queues nothing';
 end $$;
 
--- A: Deny refund needs a reason.
-set local role authenticated;
-select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000002001102', true);
-do $$
-declare
-  v_entry uuid := '00000000-0000-0000-0000-000002001041';
-begin
-  begin
-    perform public.set_entry_refund_decision(v_entry, 'denied', '');
-    raise exception 'FAIL A a blank reason was accepted';
-  exception when invalid_parameter_value then null;
-  end;
-  begin
-    perform public.set_entry_refund_decision(v_entry, 'denied', '   ');
-    raise exception 'FAIL A a reason of spaces was accepted';
-  exception when invalid_parameter_value then null;
-  end;
-  begin
-    perform public.set_entry_refund_decision(v_entry, 'denied', null);
-    raise exception 'FAIL A a null reason was accepted';
-  exception when invalid_parameter_value then null;
-  end;
-  begin
-    perform public.set_entry_refund_decision(v_entry, 'denied', repeat('x', 301));
-    raise exception 'FAIL A an over-long reason was accepted';
-  exception when invalid_parameter_value then null;
-  end;
-  raise notice 'PASS A a blank, spaces-only, null or over-long reason is refused';
-end $$;
-select public.set_entry_refund_decision('00000000-0000-0000-0000-000002001041', 'denied', '  Pulled after the closing date.  ');
-select public.set_entry_refund_decision('00000000-0000-0000-0000-000002001041', 'denied', 'A different reason');
-do $$
-begin
-  begin
-    update public.entries set refund_decision_reason = 'sneaky'
-     where id = '00000000-0000-0000-0000-000002001042';
-    raise exception 'FAIL A a direct write of the reason was accepted';
-  exception when insufficient_privilege then
-    raise notice 'PASS A a direct write of the reason is refused';
-  end;
-end $$;
-reset role;
-
-do $$
-declare
-  r record;
-begin
-  select refund_decision, refund_decision_reason, refund_decided_at into r
-    from public.entries where id = '00000000-0000-0000-0000-000002001041';
-  if r.refund_decision <> 'denied' or r.refund_decided_at is null
-     or r.refund_decision_reason <> 'Pulled after the closing date.' then
-    raise exception 'FAIL A the denial should keep the FIRST trimmed reason, found %', row_to_json(r);
-  end if;
-  raise notice 'PASS A the reason is trimmed, recorded, and the first one stands';
-end $$;
-
--- E
-do $$
-declare
-  v_show uuid := '00000000-0000-0000-0000-000002001002';
-  v_job record;
-begin
-  if pg_temp.jobs(v_show, 'refund_outcome') <> 1
-     or pg_temp.events('refund_outcome', 'denied', '00000000-0000-0000-0000-000002001041') <> 1 then
-    raise exception 'FAIL E the denial should queue exactly one denied event';
-  end if;
-  -- A refund recorded on the other pulled entry, as the payment service writes it.
-  update public.entries set refund_amount = 30, refunded_at = now()
-   where id = '00000000-0000-0000-0000-000002001042';
-  if pg_temp.jobs(v_show, 'refund_outcome') <> 1
-     or pg_temp.events('refund_outcome', 'refunded', '00000000-0000-0000-0000-000002001042') <> 1 then
-    raise exception 'FAIL E a recorded refund should join the one waiting job';
-  end if;
-  select * into v_job from public.show_lifecycle_email_jobs where show_id = v_show and step_type = 'refund_outcome';
-  if v_job.status <> 'held' or not v_job.auto_send or v_job.recipient_person_id <> '00000000-0000-0000-0000-000002001021' then
-    raise exception 'FAIL E the job is wrong: %', row_to_json(v_job);
-  end if;
-  -- A refund on an entry still running is no outcome of a pull.
-  update public.entries set entry_status = 'confirmed' where id = '00000000-0000-0000-0000-000002001045';
-  update public.entries set refund_amount = 10 where id = '00000000-0000-0000-0000-000002001045';
-  if pg_temp.events('refund_outcome', 'refunded', '00000000-0000-0000-0000-000002001045') <> 0 then
-    raise exception 'FAIL E a refund on a running entry queued an event';
-  end if;
-  raise notice 'PASS E a denial and a recorded refund are told once, in one job';
-end $$;
-
--- A (continued): reinstating the entry clears the reason.
-do $$
-begin
-  update public.entries set entry_status = 'confirmed' where id = '00000000-0000-0000-0000-000002001041';
-  if (select refund_decision_reason from public.entries where id = '00000000-0000-0000-0000-000002001041') is not null
-     or (select refund_decision from public.entries where id = '00000000-0000-0000-0000-000002001041') is not null then
-    raise exception 'FAIL A reinstating the entry should clear the decision and its reason';
-  end if;
-  raise notice 'PASS A reinstating the entry clears the reason';
-end $$;
-
 -- F
 do $$
 declare
@@ -295,14 +193,13 @@ declare
 begin
   update public.show_lifecycle_email_jobs
      set claimed_until = now() + interval '10 minutes', attempt_id = gen_random_uuid()
-   where show_id = v_show and step_type = 'refund_outcome';
+   where show_id = v_show and step_type = 'pulled_out';
   select count(*) into v_before from public.show_lifecycle_email_jobs
-   where show_id = v_show and step_type = 'refund_outcome';
-  perform pg_temp.act('00000000-0000-0000-0000-000002001102');
-  update public.entries set entry_status = 'scratched', refund_amount = null where id = '00000000-0000-0000-0000-000002001043';
-  update public.entries set refund_amount = 5 where id = '00000000-0000-0000-0000-000002001043';
+   where show_id = v_show and step_type = 'pulled_out';
+  perform pg_temp.act('00000000-0000-0000-0000-000002001101');
+  update public.entries set entry_status = 'scratched' where id = '00000000-0000-0000-0000-000002001048';
   if (select count(*) from public.show_lifecycle_email_jobs
-       where show_id = v_show and step_type = 'refund_outcome') <> v_before + 1 then
+       where show_id = v_show and step_type = 'pulled_out') <> v_before + 1 then
     raise exception 'FAIL F a claimed job must be frozen: the next event is a new job';
   end if;
   raise notice 'PASS F a claimed job is frozen';
@@ -329,15 +226,15 @@ declare
   v_show constant uuid := '00000000-0000-0000-0000-000002001012';
 begin
   delete from public.show_lifecycle_email_steps where show_id = v_show;
-  foreach v_step in array array['show_cancelled', 'pulled_out', 'refund_outcome'] loop
+  foreach v_step in array array['show_cancelled', 'pulled_out'] loop
     insert into public.show_lifecycle_email_steps (show_id, step_type, is_enabled) values (v_show, v_step, true);
   end loop;
   delete from public.show_lifecycle_email_steps where show_id = v_show;
   perform public.ensure_show_lifecycle_email_steps(v_show);
   if (select count(*) from public.show_lifecycle_email_steps
        where show_id = v_show
-         and step_type in ('show_cancelled', 'pulled_out', 'refund_outcome')) <> 3 then
-    raise exception 'FAIL H ensure_show_lifecycle_email_steps should seed show_cancelled, pulled_out and refund_outcome';
+         and step_type in ('show_cancelled', 'pulled_out')) <> 2 then
+    raise exception 'FAIL H ensure_show_lifecycle_email_steps should seed show_cancelled and pulled_out';
   end if;
   begin
     insert into public.show_lifecycle_email_steps (show_id, step_type, is_enabled) values (v_show, 'not_a_step', true);
@@ -345,7 +242,7 @@ begin
   exception when check_violation then
     null;
   end;
-  foreach v_step in array array['show_cancelled', 'pulled_out', 'refund_outcome', 'not_a_step'] loop
+  foreach v_step in array array['show_cancelled', 'pulled_out', 'not_a_step'] loop
     begin
       insert into public.show_lifecycle_email_jobs (
         show_id, step_id, step_type, status, recipient_scope, recipient_person_id,
@@ -362,42 +259,7 @@ begin
       end if;
     end;
   end loop;
-  raise notice 'PASS H both CHECKs accept show_cancelled, pulled_out and refund_outcome, and refuse others';
-end $$;
-
--- I: NULLing refund_decision while a reason is set breaks entries_refund_decision_reason_check
--- (a reason belongs to a denial); written as the owner role, so only the CHECK can refuse it
-do $$
-begin
-  update public.entries
-     set refund_decision = 'denied', refund_decision_reason = 'Late pull'
-   where id = '00000000-0000-0000-0000-000002001042';
-  begin
-    update public.entries set refund_decision = null where id = '00000000-0000-0000-0000-000002001042';
-    raise exception 'FAIL I a reason with no denial was accepted';
-  exception when check_violation then
-    raise notice 'PASS I NULLing refund_decision while a reason is set is refused by the CHECK';
-  end;
-end $$;
-
--- J: the outcome email covers every removal the secretary can reconcile (what
--- set_entry_refund_decision accepts), so the dialog's promise of an email holds: a no-show
--- refunded, and a secretary removal (withdrawn, no reason code) denied
-do $$
-begin
-  perform pg_temp.act('00000000-0000-0000-0000-000002001102');
-  update public.entries set entry_status = 'absent' where id = '00000000-0000-0000-0000-000002001048';
-  update public.entries set refund_amount = 10 where id = '00000000-0000-0000-0000-000002001048';
-  if pg_temp.events('refund_outcome', 'refunded', '00000000-0000-0000-0000-000002001048') <> 1 then
-    raise exception 'FAIL J a refund on a no-show queued no outcome email';
-  end if;
-  update public.entries set entry_status = 'withdrawn' where id = '00000000-0000-0000-0000-000002001049';
-  update public.entries set refund_decision = 'denied', refund_decision_reason = 'Removed by the secretary'
-   where id = '00000000-0000-0000-0000-000002001049';
-  if pg_temp.events('refund_outcome', 'denied', '00000000-0000-0000-0000-000002001049') <> 1 then
-    raise exception 'FAIL J a denial on a secretary removal queued no outcome email';
-  end if;
-  raise notice 'PASS J outcome emails cover no-shows and secretary removals';
+  raise notice 'PASS H both CHECKs accept show_cancelled and pulled_out, and refuse others';
 end $$;
 
 -- K: a co-owner who pulls is the acting exhibitor (entry_change_actor): they get the confirmation

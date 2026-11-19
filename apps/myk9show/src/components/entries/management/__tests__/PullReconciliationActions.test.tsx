@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
@@ -92,7 +92,7 @@ describe('PullReconciliationActions', () => {
     );
   });
 
-  it('asks for a reason, saves the denial with it, and refreshes the row', async () => {
+  it('persists a denial in one click and refreshes the row', async () => {
     const onResolved = vi.fn();
     const { user } = render(
       <PullReconciliationActions
@@ -103,56 +103,8 @@ describe('PullReconciliationActions', () => {
     );
 
     await user.click(screen.getByRole('button', { name: 'Deny refund' }));
-    // The decision is not saved until a reason is given.
-    expect(denyPullRefundDecision).not.toHaveBeenCalled();
-    const dialog = await screen.findByRole('dialog');
-    const submit = within(dialog).getByRole('button', { name: 'Deny refund' });
-    expect(submit).toBeDisabled();
 
-    await user.type(within(dialog).getByLabelText('Reason'), '  Pulled after the closing date  ');
-    await user.click(submit);
-
-    await waitFor(() =>
-      expect(denyPullRefundDecision).toHaveBeenCalledWith(
-        'entry-1',
-        'Pulled after the closing date'
-      )
-    );
+    await waitFor(() => expect(denyPullRefundDecision).toHaveBeenCalledWith('entry-1'));
     expect(onResolved).toHaveBeenCalledTimes(1);
-  });
-
-  it('refuses a reason of only spaces', async () => {
-    const { user } = render(
-      <PullReconciliationActions entry={makeEntry()} onOpenRefund={vi.fn()} onResolved={vi.fn()} />
-    );
-
-    await user.click(screen.getByRole('button', { name: 'Deny refund' }));
-    const dialog = await screen.findByRole('dialog');
-    await user.type(within(dialog).getByLabelText('Reason'), '    ');
-
-    expect(within(dialog).getByRole('button', { name: 'Deny refund' })).toBeDisabled();
-    expect(denyPullRefundDecision).not.toHaveBeenCalled();
-  });
-
-  it('keeps the dialog open and says so when the save fails, so the reason is not lost', async () => {
-    denyPullRefundDecision.mockRejectedValueOnce(new Error('network'));
-    const onResolved = vi.fn();
-    const { user } = render(
-      <PullReconciliationActions
-        entry={makeEntry()}
-        onOpenRefund={vi.fn()}
-        onResolved={onResolved}
-      />
-    );
-
-    await user.click(screen.getByRole('button', { name: 'Deny refund' }));
-    const dialog = await screen.findByRole('dialog');
-    await user.type(within(dialog).getByLabelText('Reason'), 'Late');
-    await user.click(within(dialog).getByRole('button', { name: 'Deny refund' }));
-
-    await waitFor(() => expect(denyPullRefundDecision).toHaveBeenCalled());
-    expect(onResolved).not.toHaveBeenCalled();
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(within(screen.getByRole('dialog')).getByLabelText('Reason')).toHaveValue('Late');
   });
 });

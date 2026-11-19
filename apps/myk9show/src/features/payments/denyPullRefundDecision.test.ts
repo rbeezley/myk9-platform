@@ -16,13 +16,10 @@ describe('denyPullRefundDecision', () => {
   it('sends the guarded denial decision to the migration-backed RPC', async () => {
     rpc.mockResolvedValue({ error: null });
 
-    await expect(
-      denyPullRefundDecision('entry-1', '  Pulled after the closing date ')
-    ).resolves.toBeUndefined();
+    await expect(denyPullRefundDecision('entry-1')).resolves.toBeUndefined();
     expect(rpc).toHaveBeenCalledWith('set_entry_refund_decision', {
       p_entry_id: 'entry-1',
       p_decision: 'denied',
-      p_reason: 'Pulled after the closing date',
     });
   });
 
@@ -35,13 +32,13 @@ describe('denyPullRefundDecision', () => {
     };
     rpc.mockResolvedValue({ error });
 
-    await expect(denyPullRefundDecision('entry-1', 'Late')).rejects.toBe(error);
+    await expect(denyPullRefundDecision('entry-1')).rejects.toBe(error);
   });
 
   it('does not hide unrelated authorization errors', async () => {
     const error = { code: '42501', message: 'not authorized' };
     rpc.mockResolvedValue({ error });
 
-    await expect(denyPullRefundDecision('entry-1', 'Late')).rejects.toBe(error);
+    await expect(denyPullRefundDecision('entry-1')).rejects.toBe(error);
   });
 });

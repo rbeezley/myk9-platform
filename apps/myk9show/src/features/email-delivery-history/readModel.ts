@@ -133,9 +133,8 @@ function getEmailTypeLabel(sourceKind: string, lifecycleStepType: string | null)
     if (lifecycleStepType === 'judge_changed') return 'Judge changed';
     // MYK9-2126: and when the secretary edits, moves or pulls their entry.
     if (lifecycleStepType === 'entry_changed') return 'Entry changed';
-    // MYK9-2001: when she pulls or withdraws, and when the refund is decided.
+    // MYK9-2001: when she pulls or withdraws.
     if (lifecycleStepType === 'pulled_out') return 'Pulled out';
-    if (lifecycleStepType === 'refund_outcome') return 'Refund decided';
     // MYK9-2127: and when the show is cancelled.
     if (lifecycleStepType === 'show_cancelled') return 'Show cancelled';
     return `Lifecycle — ${lifecycleStepType.replace(/_/g, ' ')}`;

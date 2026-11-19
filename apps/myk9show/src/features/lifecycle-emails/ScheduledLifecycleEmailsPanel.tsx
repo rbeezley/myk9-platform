@@ -36,9 +36,8 @@ const STEP_LABELS: Record<LifecycleEmailStepSummary['stepType'], string> = {
   show_changed: 'Date or venue changed',
   judge_changed: 'Judge changed',
   entry_changed: 'Entry changed',
-  // MYK9-2001: told when she pulls or withdraws, and when the refund is decided.
+  // MYK9-2001: told when she pulls or withdraws.
   pulled_out: 'Pulled out',
-  refund_outcome: 'Refund decided',
   show_cancelled: 'Show cancelled',
 };
 
@@ -55,7 +54,6 @@ const PRODUCER_BACKED_STEP_TYPES = new Set<LifecycleEmailStepSummary['stepType']
   'judge_changed',
   'entry_changed',
   'pulled_out',
-  'refund_outcome',
   'show_cancelled',
 ]);
 
@@ -72,17 +70,14 @@ const AUTOMATIC_STEP_TYPES = new Set<LifecycleEmailStepSummary['stepType']>([
   'judge_changed',
   'entry_changed',
   'pulled_out',
-  'refund_outcome',
   'show_cancelled',
 ]);
 
-// Always sent (MYK9-2126, MYK9-2001): the secretary cannot hold an entry change or a money email
-// back, so its row
-// shows what went out and has no switch.
+// Always sent (MYK9-2126, MYK9-2001): the secretary cannot hold an entry change or a pulling-out email
+// back, so its row shows what went out and has no switch.
 const ALWAYS_ON_STEP_TYPES = new Set<LifecycleEmailStepSummary['stepType']>([
   'entry_changed',
   'pulled_out',
-  'refund_outcome',
   'show_cancelled',
 ]);
 

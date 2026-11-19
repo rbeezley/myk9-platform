@@ -33,7 +33,6 @@ function entry(overrides: Row = {}): Row {
     payment_status: 'paid',
     refund_amount: null,
     refund_decision: null,
-    refund_decision_reason: null,
     handler_id: null,
     deleted_at: null,
     dogs: dog,
@@ -41,7 +40,7 @@ function entry(overrides: Row = {}): Row {
   };
 }
 
-function job(stepType: 'pulled_out' | 'refund_outcome', events: Row[]): Row {
+function job(stepType: 'pulled_out', events: Row[]): Row {
   return autoJob({
     step_type: stepType,
     entry_changes: events,
@@ -51,7 +50,7 @@ function job(stepType: 'pulled_out' | 'refund_outcome', events: Row[]): Row {
 }
 
 function tables(
-  stepType: 'pulled_out' | 'refund_outcome',
+  stepType: 'pulled_out',
   events: Row[],
   entries: Row[] = [entry()],
   extra: Record<string, Row[]> = {}
@@ -241,234 +240,31 @@ describe('drainAutoEmailJobs for pulled_out, a co-owner who pulled (MYK9-2001)',
   });
 });
 
-describe('drainAutoEmailJobs for refund_outcome (MYK9-2001)', () => {
-  it('says what was refunded, from the entry’s own recorded refund', async () => {
-    const fixture = makeAutoSendSupabase(
-      tables(
-        'refund_outcome',
-        [{ kind: 'refunded', entry_id: 'entry-1' }],
-        [entry({ refund_amount: 30 })]
-      )
-    );
-    const { fetch, promise } = drain(fixture);
-
-    await expect(promise).resolves.toMatchObject({ sent: 1 });
-
-    const sent = sentBody(fetch);
-    expect(sent.subject).toBe('Your refund for Spring Scent Trial');
-    expect(sent.html).toContain(
-      'Refunded $30.00 to your card for Vesper in Novice Interior (Saturday Trial, Saturday, November 21, 2026).'
-    );
-    expect(fixture.tables.email_log).toEqual([
-      expect.objectContaining({ related_id: 'job-1', show_id: 'show-1' }),
-    ]);
-  });
-
-  it('says no refund and gives the secretary’s reason', async () => {
-    const fixture = makeAutoSendSupabase(
-      tables(
-        'refund_outcome',
-        [{ kind: 'denied', entry_id: 'entry-1' }],
-        [
-          entry({
-            refund_decision: 'denied',
-            refund_decision_reason: 'Pulled after the closing date.',
-          }),
-        ]
-      )
-    );
-    const { fetch, promise } = drain(fixture);
-
-    await expect(promise).resolves.toMatchObject({ sent: 1 });
-
-    const sent = sentBody(fetch);
-    expect(sent.html).toContain('No refund for Vesper in Novice Interior');
-    expect(sent.html).toContain(
-      'The trial secretary&#039;s reason: Pulled after the closing date.'
-    );
-    expect(sent.html).not.toMatch(/Refunded \$/);
-  });
-
-  it('tells the outcome for every removal the secretary can reconcile: a no-show and a secretary removal', async () => {
-    for (const row of [
-      entry({ entry_status: 'absent', refund_amount: 30 }),
-      entry({
-        entry_status: 'withdrawn',
-        withdrawal_reason_code: null,
-        refund_decision: 'denied',
-        refund_decision_reason: 'Removed by the secretary.',
-      }),
-    ]) {
-      const fixture = makeAutoSendSupabase(
-        tables(
-          'refund_outcome',
-          [{ kind: row.refund_amount ? 'refunded' : 'denied', entry_id: 'entry-1' }],
-          [row]
-        )
-      );
-      const { fetch, promise } = drain(fixture);
-
-      await expect(promise).resolves.toMatchObject({ sent: 1, skipped: 0 });
-      expect(fetch).toHaveBeenCalledTimes(1);
-    }
-  });
-
-  it('says only that the club will contact her when the denial comes after the club was paid', async () => {
-    const fixture = makeAutoSendSupabase(
-      tables(
-        'refund_outcome',
-        [{ kind: 'denied', entry_id: 'entry-1' }],
-        [entry({ refund_decision: 'denied', refund_decision_reason: 'Pulled after closing.' })],
-        { show_payouts: [{ id: 'payout-1', show_id: 'show-1', status: 'completed' }] }
-      )
-    );
-    const { fetch, promise } = drain(fixture);
-
-    await expect(promise).resolves.toMatchObject({ sent: 1 });
-
-    const html = sentBody(fetch).html;
-    expect(html).toContain(CLUB_CONTACTS_YOU);
-    expect(html).not.toContain('No refund for');
-    expect(html).not.toContain('Pulled after closing.');
-  });
-
-  it('still says no refund and the reason while the club has not been paid', async () => {
-    const fixture = makeAutoSendSupabase(
-      tables(
-        'refund_outcome',
-        [{ kind: 'denied', entry_id: 'entry-1' }],
-        [entry({ refund_decision: 'denied', refund_decision_reason: 'Late.' })],
-        { show_payouts: [{ id: 'payout-1', show_id: 'show-1', status: 'awaiting_approval' }] }
-      )
-    );
-    const { fetch, promise } = drain(fixture);
-
-    await promise;
-
-    expect(sentBody(fetch).html).toContain('No refund for Vesper in Novice Interior');
-    expect(sentBody(fetch).html).not.toContain(CLUB_CONTACTS_YOU);
-  });
-
-  it('escapes the reason: it is the secretary’s own typed words', async () => {
-    const fixture = makeAutoSendSupabase(
-      tables(
-        'refund_outcome',
-        [{ kind: 'denied', entry_id: 'entry-1' }],
-        [entry({ refund_decision: 'denied', refund_decision_reason: '<b>late</b>' })]
-      )
-    );
-    const { fetch, promise } = drain(fixture);
-
-    await promise;
-
-    const html = sentBody(fetch).html;
-    expect(html).toContain('&lt;b&gt;late&lt;/b&gt;');
-    expect(html).not.toContain('<b>late</b>');
-  });
-
-  it('skips when the refund or denial no longer stands on the entry', async () => {
-    const fixture = makeAutoSendSupabase(
-      tables('refund_outcome', [{ kind: 'denied', entry_id: 'entry-1' }], [entry()])
-    );
-    const { fetch, promise } = drain(fixture);
-
-    await expect(promise).resolves.toMatchObject({ sent: 0, skipped: 1 });
-    expect(fetch).not.toHaveBeenCalled();
-  });
-
-  it('never tells someone else’s entry', async () => {
-    const fixture = makeAutoSendSupabase(
-      tables(
-        'refund_outcome',
-        [{ kind: 'refunded', entry_id: 'entry-1' }],
-        [entry({ refund_amount: 30, dogs: { ...dog, owner_id: 'person-9' } })]
-      )
-    );
-    const { fetch, promise } = drain(fixture);
-
-    await expect(promise).resolves.toMatchObject({ sent: 0, skipped: 1 });
-    expect(fetch).not.toHaveBeenCalled();
-  });
-
-  it('is not held back by the show switching the step off', async () => {
-    const tableSet = tables(
-      'refund_outcome',
-      [{ kind: 'refunded', entry_id: 'entry-1' }],
-      [entry({ refund_amount: 12.5 })]
-    );
-    tableSet.show_lifecycle_email_steps = [
-      { show_id: 'show-1', step_type: 'refund_outcome', is_enabled: false },
-    ];
-    const fixture = makeAutoSendSupabase(tableSet);
-    const { fetch, promise } = drain(fixture);
-
-    await expect(promise).resolves.toMatchObject({ sent: 1 });
-    expect(sentBody(fetch).html).toContain('Refunded $12.50 to your card');
-  });
-
-  it.each(['check', 'cash'])('sends no money text for a %s pull', async method => {
-    const fixture = makeAutoSendSupabase(
-      tables(
-        'refund_outcome',
-        [{ kind: 'refunded', entry_id: 'entry-1' }],
-        [entry({ payment_method: method, refund_amount: 30 })]
-      )
-    );
-    const { fetch, promise } = drain(fixture);
-
-    await expect(promise).resolves.toMatchObject({ sent: 0, skipped: 1 });
-    expect(fetch).not.toHaveBeenCalled();
-  });
-
-  it('gives an owner and a handler who are different people one email each', async () => {
-    const entries = [
-      entry({ id: 'entry-1', refund_amount: 30, handler_id: 'person-2' }),
-      entry({ id: 'entry-2', refund_amount: 20, handler_id: null }),
-    ];
-    const events = [
-      { kind: 'refunded', entry_id: 'entry-1' },
-      { kind: 'refunded', entry_id: 'entry-2' },
-    ];
-    const ownerFixture = makeAutoSendSupabase(tables('refund_outcome', events, entries));
-    const owner = drain(ownerFixture);
-    await expect(owner.promise).resolves.toMatchObject({ sent: 1 });
-    expect(owner.fetch).toHaveBeenCalledTimes(1);
-    expect(sentBody(owner.fetch).html).toContain('Refunded $30.00');
-    expect(sentBody(owner.fetch).html).toContain('Refunded $20.00');
-
-    const handlerTables = tables('refund_outcome', events, entries);
-    handlerTables.show_lifecycle_email_jobs = [
-      autoJob({
-        step_type: 'refund_outcome',
-        entry_changes: events,
-        idempotency_key: 'k-handler',
-        status: 'held',
-        recipient_person_id: 'person-2',
-        recipient_email: 'handler@example.com',
-      }),
-    ];
-    handlerTables.people = [{ id: 'person-2', email: 'handler@example.com', deleted_at: null }];
-    const handler = drain(makeAutoSendSupabase(handlerTables));
-    await expect(handler.promise).resolves.toMatchObject({ sent: 1 });
-    expect(handler.fetch).toHaveBeenCalledTimes(1);
-    expect(sentBody(handler.fetch).html).toContain('Refunded $30.00');
-    expect(sentBody(handler.fetch).html).not.toContain('Refunded $20.00');
-  });
-
+describe('drainAutoEmailJobs for pulled_out, the show and the money (MYK9-2001)', () => {
   it.each([
     { label: 'unpublished', status: 'draft' },
     { label: 'completed', status: 'completed' },
     { label: 'cancelled', status: 'cancelled' },
-  ])('skips a refund outcome for a $label show', async ({ status }) => {
-    const tableSet = tables(
-      'refund_outcome',
-      [{ kind: 'refunded', entry_id: 'entry-1' }],
-      [entry({ refund_amount: 30 })]
-    );
+  ])('skips a pulled-out email for a $label show', async ({ status }) => {
+    const tableSet = tables('pulled_out', [removed]);
     tableSet.shows = [{ ...publishedShow, status }];
     const { fetch, promise } = drain(makeAutoSendSupabase(tableSet));
 
     await expect(promise).resolves.toMatchObject({ sent: 0, skipped: 1 });
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { label: 'a refund already recorded', overrides: { refund_amount: 30 } },
+    { label: 'a denial already recorded', overrides: { refund_decision: 'denied' } },
+  ])('does not say the refund is waiting when $label', async ({ overrides }) => {
+    const fixture = makeAutoSendSupabase(tables('pulled_out', [removed], [entry(overrides)]));
+    const { fetch, promise } = drain(fixture);
+
+    await expect(promise).resolves.toMatchObject({ sent: 1 });
+    const { html } = sentBody(fetch);
+    expect(html).toContain('Vesper is out of Novice Interior');
+    expect(html).not.toContain(SECRETARY_DECIDES);
+    expect(html).not.toContain(CLUB_CONTACTS_YOU);
   });
 });

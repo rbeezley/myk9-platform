@@ -53,6 +53,25 @@ describe('pullOutMoneyLines', () => {
     ).toEqual(only);
   });
 
+  it('shows the entry fee for an entry paid another way, with a service fee only from a card charge', () => {
+    const fee = 'Entry fee $30.00: the secretary decides on a refund.';
+    expect(pullOutMoneyLines({ paidAs: 'other', entryFee: 30, order: null })).toEqual([fee]);
+    expect(
+      pullOutMoneyLines({
+        paidAs: 'other',
+        entryFee: 30,
+        order: { entryIds: ['e1'], platformFeeCents: 0 },
+      })
+    ).toEqual([fee]);
+    expect(
+      pullOutMoneyLines({
+        paidAs: 'other',
+        entryFee: 30,
+        order: { entryIds: ['e1'], platformFeeCents: 210 },
+      })
+    ).toEqual([fee, 'Service fee $2.10: not refunded.']);
+  });
+
   it('says nothing about money for an entry that has not been paid', () => {
     expect(pullOutMoneyLines({ paidAs: null, entryFee: 30, order: null })).toEqual([]);
     expect(pullOutMoneyLines({ paidAs: 'online', entryFee: 0, order: null })).toEqual([]);
@@ -83,10 +102,13 @@ describe('paidAsFromRow', () => {
     ).toBe('check');
   });
 
-  it('does not guess a method the row does not record', () => {
-    expect(
-      paidAsFromRow({ paymentStatus: PaymentStatus.PAID_ONLINE, paymentMethod: null })
-    ).toBeNull();
+  it('calls a confirmed payment with no card, check or cash method "other", never unpaid', () => {
+    // A paid group_payment, credit, or an unrecorded method: she paid, so the entry fee still shows.
+    for (const paymentMethod of ['group_payment', 'credit', '', null, undefined]) {
+      expect(paidAsFromRow({ paymentStatus: PaymentStatus.PAID_ONLINE, paymentMethod })).toBe(
+        'other'
+      );
+    }
   });
 
   it('says nothing when the reconciled status is not paid, whatever the method', () => {

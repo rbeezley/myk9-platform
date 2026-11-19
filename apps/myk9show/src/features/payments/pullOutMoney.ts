@@ -8,19 +8,24 @@
  *
  * The service fee is charged once on the whole order, not per entry, so its amount is named only
  * when the order paid for this one entry; on a larger order the line says it is not refunded and
- * names no figure rather than inventing a share. A check or cash entry has no service fee line.
+ * names no figure rather than inventing a share. A check or cash entry has no service fee line, and neither has an entry paid another way
+ * unless a card charge for it carried one.
  */
 import { dispositionOf } from '@/utils/effectivePaymentStatus';
 import type { PaymentStatus } from '@/types/show-registration-types';
 
-export type PaidAs = 'online' | 'check' | 'cash';
+/**
+ * `other` is a confirmed payment with no card, check or cash method on the row: a group payment,
+ * an entry settled with credit, or a method not recorded. She paid it, so the entry fee line shows,
+ * but no service fee line unless a card charge for this entry carried one.
+ */
+export type PaidAs = 'online' | 'check' | 'cash' | 'other';
 
 /**
- * How this class row's own money arrived, or null while nothing is paid (or the method is not
- * recorded). `paymentStatus` is the row's RECONCILED status (a reopened desk payment reads as
- * unpaid), never the raw column. The database's generic `paid` maps to PAID_ONLINE even for a
- * check, so the recorded `payment_method` decides how it was paid, and only the method the row
- * itself records is believed.
+ * How this class row's own money arrived, or null while nothing is paid. `paymentStatus` is the
+ * row's RECONCILED status (a reopened desk payment reads as unpaid), never the raw column. The
+ * database's generic `paid` maps to PAID_ONLINE even for a check, so the recorded `payment_method`
+ * decides how it was paid; a method that is none of card, check or cash is `other`, never a guess.
  */
 export function paidAsFromRow(row: {
   paymentStatus: PaymentStatus | undefined;
@@ -28,7 +33,7 @@ export function paidAsFromRow(row: {
 }): PaidAs | null {
   if (!row.paymentStatus || dispositionOf(row.paymentStatus) !== 'paid') return null;
   const method = (row.paymentMethod ?? '').trim().toLowerCase();
-  return method === 'online' || method === 'check' || method === 'cash' ? method : null;
+  return method === 'online' || method === 'check' || method === 'cash' ? method : 'other';
 }
 
 /**
@@ -51,7 +56,7 @@ export interface PullOutMoneyInput {
   paidAs: PaidAs | null;
   /** The entry's own recorded fee, in dollars. */
   entryFee: number;
-  /** The order that paid for it; null for a check or cash entry or while it loads. */
+  /** The card order that paid for it; null for a check or cash entry or while it loads. */
   order: { entryIds: readonly string[]; platformFeeCents: number | null } | null;
 }
 
@@ -61,7 +66,7 @@ const dollars = (value: number) => `$${value.toFixed(2)}`;
 export function pullOutMoneyLines({ paidAs, entryFee, order }: PullOutMoneyInput): string[] {
   if (!paidAs || !(entryFee > 0)) return [];
   const lines = [`Entry fee ${dollars(entryFee)}: the secretary decides on a refund.`];
-  if (paidAs === 'online' && order && (order.platformFeeCents ?? 0) > 0) {
+  if ((paidAs === 'online' || paidAs === 'other') && order && (order.platformFeeCents ?? 0) > 0) {
     lines.push(
       order.entryIds.length === 1
         ? `Service fee ${dollars((order.platformFeeCents ?? 0) / 100)}: not refunded.`

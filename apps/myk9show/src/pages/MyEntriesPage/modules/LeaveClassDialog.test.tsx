@@ -166,6 +166,20 @@ describe('LeaveClassDialog: what she paid (MYK9-2001)', () => {
     );
   });
 
+  it('shows the entry fee, and no service fee, for a confirmed payment with no card, check or cash method', async () => {
+    render(
+      <LeaveClassDialog
+        dialog={{ open: true, target: { ...target, entryFee: 30, paidAs: 'other' } }}
+        onClose={vi.fn()}
+        onUpdate={vi.fn()}
+      />
+    );
+
+    const dialog = within(await chooser());
+    expect(dialog.getByText('Entry fee $30.00: the secretary decides on a refund.')).toBeVisible();
+    expect(dialog.queryByText(/^Service fee( \$|:)/)).not.toBeInTheDocument();
+  });
+
   it('says nothing about money for an unpaid entry', async () => {
     renderDialog();
 

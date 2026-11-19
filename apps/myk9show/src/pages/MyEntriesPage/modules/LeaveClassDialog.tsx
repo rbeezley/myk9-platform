@@ -76,14 +76,14 @@ export const LeaveClassDialog: React.FC<LeaveClassDialogProps> = ({
   const rowEligibility = target ? eligibility[target.classId] : undefined;
 
   // MYK9-2001: what she paid for this class. The entry's own recorded fee, plus the service fee
-  // of the order that paid for it (online only; a check or cash entry has no service fee line).
+  // of the card order that paid for it (a check or cash entry has no service fee line).
   // The order read is best-effort: until it lands, or if it fails, the entry fee alone is shown.
-  const paidOnline = open && target?.paidAs === 'online';
+  const paidByCard = open && (target?.paidAs === 'online' || target?.paidAs === 'other');
   const receiptOrders = useEntryReceiptOrders({
     requestedOrderId: null,
     viewerId,
     entryIds: target ? [target.classId] : [],
-    enabled: paidOnline,
+    enabled: paidByCard,
   });
   const paidSummary = target
     ? pullOutMoneyLines({

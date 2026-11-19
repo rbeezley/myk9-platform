@@ -152,7 +152,6 @@ describe('email delivery history read model', () => {
 
   it.each([
     ['pulled_out', 'Pulled out'],
-    ['refund_outcome', 'Refund decided'],
     ['show_cancelled', 'Show cancelled'],
   ])(
     'labels the automatic %s email in Delivery history as "%s" (MYK9-2001, MYK9-2127)',

@@ -251,16 +251,6 @@ export function buildLifecycleEmailDraft(input: LifecycleEmailPreviewInput): {
           showLine,
         ]),
       };
-    case 'refund_outcome':
-      return {
-        subject: `Your refund for ${showName}`,
-        body: joinLines([
-          greeting,
-          '',
-          `Here is the latest on your refund for ${showName}.`,
-          showLine,
-        ]),
-      };
     case 'registration_number_needed': {
       const dogName = input.entry?.dogName?.trim() || 'your dog';
       const registry = input.entry?.registryName?.trim();

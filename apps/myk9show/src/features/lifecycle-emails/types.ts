@@ -9,7 +9,6 @@ export const LIFECYCLE_EMAIL_STEP_TYPES = [
   'judge_changed',
   'entry_changed',
   'pulled_out',
-  'refund_outcome',
   'show_cancelled',
 ] as const;
 

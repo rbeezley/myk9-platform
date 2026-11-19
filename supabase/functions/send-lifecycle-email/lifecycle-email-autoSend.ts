@@ -23,10 +23,9 @@
  *                                             Producers make these jobs `held` so a sender deployed
  *                                             before this one never mails them as show_changed; the
  *                                             drain releases them (held to ready) before it claims
- *   pulled_out, refund_outcome (MYK9-2001)    same drain, same `held` rule: "you are out" after the
- *                                             exhibitor's own Pull or Withdraw, and the refund's
- *                                             outcome (what was refunded, or no refund and why).
- *                                             Neither issues or schedules a refund; they report one.
+ *   pulled_out (MYK9-2001)                    same drain, same `held` rule: "you are out" after the
+ *                                             exhibitor's own Pull or Withdraw. It issues and
+ *                                             schedules nothing and promises no amount or date.
  *   show_cancelled (MYK9-2127)                same drain, same `held` release; sent only while the show
  *                                             is still cancelled and the person still has an entry
  */
@@ -44,12 +43,7 @@ import {
 import { planJudgeChangedEmail, renderJudgeChangedEmail } from './lifecycle-email-judgeChanged.ts';
 import { planEntryChangedEmail, renderEntryChangedEmail } from './lifecycle-email-entryChanged.ts';
 import { isCancelledShow, renderShowCancelledEmail } from './lifecycle-email-showCancelled.ts';
-import {
-  planPulledOutEmail,
-  planRefundOutcomeEmail,
-  renderPulledOutEmail,
-  renderRefundOutcomeEmail,
-} from './lifecycle-email-pullOut.ts';
+import { planPulledOutEmail, renderPulledOutEmail } from './lifecycle-email-pullOut.ts';
 import {
   isPublishedShow,
   renderShowChangedEmail,
@@ -58,13 +52,8 @@ import {
 
 export const AUTO_SEND_BATCH_SIZE = 25;
 /** Jobs a producer makes `held`, for a sender deployed before this one never to mail them wrongly. */
-const HELD_UNTIL_SENDER_STEP_TYPES = [
-  'entry_changed',
-  'show_cancelled',
-  'pulled_out',
-  'refund_outcome',
-];
-/** Steps the secretary cannot switch off: a change or a money email is never held back. */
+const HELD_UNTIL_SENDER_STEP_TYPES = ['entry_changed', 'show_cancelled', 'pulled_out'];
+/** Steps the secretary cannot switch off: a change or a pulling-out email is never held back. */
 const ALWAYS_ON_STEP_TYPES = HELD_UNTIL_SENDER_STEP_TYPES;
 /** Longer than the function's wall-clock cap, so an attempt cannot still run once its lease ends. */
 export const AUTO_SEND_LEASE_MS = 10 * 60 * 1000;
@@ -307,32 +296,25 @@ async function processClaimedJob(args: {
       recipientName: job.recipient_name,
       lines: plan.lines,
     });
-  } else if (job.step_type === 'pulled_out' || job.step_type === 'refund_outcome') {
+  } else if (job.step_type === 'pulled_out') {
     // MYK9-2001: told only what still stands on the person's own entries.
-    const planArgs = {
+    const plan = await planPulledOutEmail({
       supabase,
       jobId: job.job_id,
       showId: job.show_id,
       personId: job.recipient_person_id,
-    };
-    const plan =
-      job.step_type === 'pulled_out'
-        ? await planPulledOutEmail(planArgs)
-        : await planRefundOutcomeEmail(planArgs);
+    });
     if (plan.kind === 'skip') {
       await finishJob(args, { status: 'skipped' });
       return 'skipped';
     }
-    const common = {
+    text = renderPulledOutEmail({
       showId: job.show_id,
       showName: show.name,
       recipientName: job.recipient_name,
       lines: plan.lines,
-    };
-    text =
-      job.step_type === 'pulled_out'
-        ? renderPulledOutEmail({ ...common, moneyNote: plan.moneyNote })
-        : renderRefundOutcomeEmail(common);
+      moneyNote: plan.moneyNote,
+    });
   } else {
     if (!(await personHasLiveEntry(supabase, job.show_id, job.recipient_person_id))) {
       await finishJob(args, { status: 'skipped' });

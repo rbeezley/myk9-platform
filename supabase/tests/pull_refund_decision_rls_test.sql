@@ -135,8 +135,7 @@ SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000801', true);
 SELECT public.set_entry_refund_decision(
   '00000000-0000-0000-0000-000000000841',
-  'denied',
-  'Outside the refund policy'
+  'denied'
 );
 
 DO $$
@@ -186,9 +185,8 @@ BEGIN
   BEGIN
     PERFORM public.set_entry_refund_decision(
       '00000000-0000-0000-0000-000000000841',
-      'denied',
-  'Outside the refund policy'
-);
+      'denied'
+    );
     RAISE EXCEPTION 'FAIL unrelated club admin denied a refund';
   EXCEPTION WHEN insufficient_privilege THEN
     RAISE NOTICE 'PASS unrelated club admin is rejected';
@@ -201,9 +199,8 @@ BEGIN
   BEGIN
     PERFORM public.set_entry_refund_decision(
       '00000000-0000-0000-0000-000000000843',
-      'denied',
-  'Outside the refund policy'
-);
+      'denied'
+    );
     RAISE EXCEPTION 'FAIL club admin denied a refund for a show in a club nobody manages';
   EXCEPTION WHEN insufficient_privilege THEN
     RAISE NOTICE 'PASS a show in a club nobody manages does not broaden club-admin authorization';

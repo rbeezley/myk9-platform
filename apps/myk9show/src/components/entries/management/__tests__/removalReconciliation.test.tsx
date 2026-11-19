@@ -7,7 +7,7 @@
  * afterwards — an unreachable decision is an entry the exhibitor paid for, did
  * not run, and nobody can resolve.
  */
-import { screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
@@ -266,14 +266,6 @@ const CODED_WITHDRAWAL: ServerRow = {
 
 const CODELESS_WITHDRAWAL: ServerRow = { ...CODED_WITHDRAWAL, withdrawal_reason_code: null };
 
-/** MYK9-2001: Deny refund asks for the reason first; this walks the dialog like a secretary. */
-async function denyWithReason(reason = 'Pulled after the closing date') {
-  await userEvent.click(screen.getByRole('button', { name: /deny refund/i }));
-  const dialog = await screen.findByRole('dialog');
-  await userEvent.type(within(dialog).getByLabelText('Reason'), reason);
-  await userEvent.click(within(dialog).getByRole('button', { name: 'Deny refund' }));
-}
-
 describe('Deny refund reaches a server that accepts it', () => {
   /** Point the fake RPC at one row, applying the transcribed SQL guard. */
   function serveRow(row: ServerRow) {
@@ -303,13 +295,12 @@ describe('Deny refund reaches a server that accepts it', () => {
       />
     );
 
-    await denyWithReason();
+    await userEvent.click(screen.getByRole('button', { name: /deny refund/i }));
 
     await waitFor(() => expect(onResolved).toHaveBeenCalled());
     expect(rpc).toHaveBeenCalledWith('set_entry_refund_decision', {
       p_entry_id: 'entry-1',
       p_decision: 'denied',
-      p_reason: 'Pulled after the closing date',
     });
   });
 
@@ -332,13 +323,12 @@ describe('Deny refund reaches a server that accepts it', () => {
     render(<PullReconciliationCard entry={entry} onOpenRefund={vi.fn()} onResolved={onResolved} />);
 
     expect(screen.getByRole('button', { name: /issue refund/i })).toBeEnabled();
-    await denyWithReason();
+    await userEvent.click(screen.getByRole('button', { name: /deny refund/i }));
 
     await waitFor(() => expect(onResolved).toHaveBeenCalled());
     expect(rpc).toHaveBeenCalledWith('set_entry_refund_decision', {
       p_entry_id: 'entry-1',
       p_decision: 'denied',
-      p_reason: 'Pulled after the closing date',
     });
   });
 
@@ -355,7 +345,7 @@ describe('Deny refund reaches a server that accepts it', () => {
       />
     );
 
-    await denyWithReason();
+    await userEvent.click(screen.getByRole('button', { name: /deny refund/i }));
 
     await waitFor(() => expect(rpc).toHaveBeenCalled());
     expect(onResolved).not.toHaveBeenCalled();

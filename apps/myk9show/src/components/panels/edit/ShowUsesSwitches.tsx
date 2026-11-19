@@ -1,9 +1,9 @@
 /**
- * MYK9-1685: the "This show uses…" section of Edit show > Venue & policies. Six switches say
+ * MYK9-1685: the "This show uses…" section of Edit show > Venue & policies. Five switches say
  * which optional tools this show runs; a secretary who never opens them gets the bare-minimum app.
  *
  * Each switch saves on its own, like the venue cards, and is NOT part of the Edit form's dirty
- * state. Switches 2-6 are columns on `shows` and ride the replicated `updateShow` path, so a flip
+ * state. Switches 2-5 are columns on `shows` and ride the replicated `updateShow` path, so a flip
  * made offline queues and syncs. Switch 1 is `show_visibility_settings.self_checkin_enabled`,
  * an online-only write, so it is disabled with a reason while offline.
  *
@@ -19,12 +19,7 @@ import { useUpdateShowCheckin } from '@/hooks/mutations/useShowSettingsMutations
 import { SHOW_SETTINGS_COPY } from '@/hooks/mutations/showSettingsErrorCopy';
 import type { Show } from '@/types/show-types';
 
-type UsesField =
-  | 'usesDeviceScoring'
-  | 'usesPaperPacket'
-  | 'usesVolunteers'
-  | 'usesLandingPage'
-  | 'publishesOwnPremium';
+type UsesField = 'usesDeviceScoring' | 'usesPaperPacket' | 'usesVolunteers' | 'publishesOwnPremium';
 
 interface ShowUsesRow {
   field: UsesField;
@@ -59,16 +54,10 @@ const SHOW_USES_ROWS: readonly ShowUsesRow[] = [
     fallback: true,
   },
   {
-    field: 'usesLandingPage',
-    label: 'Public landing page',
-    description: 'Shows the Landing page card and its reminder until the page is published.',
-    fallback: false,
-  },
-  {
     field: 'publishesOwnPremium',
     label: 'We publish our own premium list',
     description:
-      'Your club shares its premium list itself, so myK9 stops reminding you to publish one.',
+      'Your club shares its own premium list, uploaded or linked on the About tab, so myK9 stops reminding you to publish one.',
     fallback: false,
   },
 ];

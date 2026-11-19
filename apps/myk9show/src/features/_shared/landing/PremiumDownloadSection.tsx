@@ -9,6 +9,19 @@ interface PremiumDownloadSectionProps {
   style?: CSSProperties;
 }
 
+const DOWNLOAD_STYLE: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: 44,
+  padding: '0.6em 1.2em',
+  border: '2px solid currentColor',
+  borderRadius: 4,
+  color: 'inherit',
+  font: 'inherit',
+  fontWeight: 600,
+  textDecoration: 'none',
+};
+
 export const PREMIUM_DOWNLOAD_LABEL = 'Download premium (PDF)';
 
 /**
@@ -24,6 +37,10 @@ export const PREMIUM_DOWNLOAD_LABEL = 'Download premium (PDF)';
 export function PremiumDownloadSection({ show, className, style }: PremiumDownloadSectionProps) {
   const [state, setState] = useState<'idle' | 'opening' | 'failed'>('idle');
   const showId = show?.id;
+  // MYK9-2054: a club that publishes its own premium may share it as a link; the page offers
+  // that link as is. Only a web address is ever rendered as one.
+  const ownLink =
+    show?.ownPremiumLink && /^https?:\/\//i.test(show.ownPremiumLink) ? show.ownPremiumLink : null;
   const published =
     !!show &&
     isPremiumFilePublished({
@@ -31,6 +48,20 @@ export function PremiumDownloadSection({ show, className, style }: PremiumDownlo
       url: show.publishedPremiumUrl,
       at: show.publishedPremiumAt,
     });
+  if (ownLink) {
+    return (
+      <section
+        data-testid="landing-premium-download"
+        aria-label="Premium list"
+        className={className}
+        style={{ color: 'currentColor', ...style }}
+      >
+        <a href={ownLink} target="_blank" rel="noopener noreferrer" style={DOWNLOAD_STYLE}>
+          {PREMIUM_DOWNLOAD_LABEL}
+        </a>
+      </section>
+    );
+  }
   if (!showId || !published) return null;
 
   const open = async () => {

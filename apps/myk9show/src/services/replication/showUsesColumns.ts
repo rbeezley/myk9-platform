@@ -1,12 +1,11 @@
 /**
- * MYK9-1685 "This show uses…" switches: replica field -> shows column. All five columns are
+ * MYK9-1685 "This show uses…" switches: replica field -> shows column. All four columns are
  * NOT NULL, so an unset replica field is omitted (never sent as null) and the row keeps its value.
  */
 export const SHOW_USES_FIELD_COLUMNS = [
   ['usesDeviceScoring', 'uses_device_scoring'],
   ['usesPaperPacket', 'uses_paper_packet'],
   ['usesVolunteers', 'uses_volunteers'],
-  ['usesLandingPage', 'uses_landing_page'],
   ['publishesOwnPremium', 'publishes_own_premium'],
 ] as const;
 
@@ -30,14 +29,12 @@ export function showUsesFromRow(row: {
   uses_device_scoring?: boolean | null;
   uses_paper_packet?: boolean | null;
   uses_volunteers?: boolean | null;
-  uses_landing_page?: boolean | null;
   publishes_own_premium?: boolean | null;
 }): ShowUsesValues {
   return {
     usesDeviceScoring: row.uses_device_scoring ?? undefined,
     usesPaperPacket: row.uses_paper_packet ?? undefined,
     usesVolunteers: row.uses_volunteers ?? undefined,
-    usesLandingPage: row.uses_landing_page ?? undefined,
     publishesOwnPremium: row.publishes_own_premium ?? undefined,
   };
 }
@@ -56,7 +53,6 @@ export const SHOW_USES_DEFAULTS = {
   usesDeviceScoring: true,
   usesPaperPacket: true,
   usesVolunteers: false,
-  usesLandingPage: false,
   publishesOwnPremium: false,
 } as const;
 

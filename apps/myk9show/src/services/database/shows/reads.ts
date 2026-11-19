@@ -222,6 +222,7 @@ const PREMIUM_PUBLISH_COLUMNS = [
   'published_premium_url',
   'published_premium_at',
   'published_premium_version',
+  'own_premium_link',
 ] as const;
 
 // Get show by ID with complete details (excluding soft-deleted)

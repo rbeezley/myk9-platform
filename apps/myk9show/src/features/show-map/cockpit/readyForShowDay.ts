@@ -130,18 +130,16 @@ export function buildReadyForShowDay(input: ReadyForShowDayInput): ReadyForShowD
     ...(input.premiumInfo ? { premiumInfo: input.premiumInfo } : {}),
   });
 
-  // MYK9-1622: a club that publishes its own premium gets no myK9 premium line (a pass would
-  // claim a premium myK9 never checked); its landing page, if it uses one, is its own line.
-  // Otherwise publishing the premium also publishes the landing page, so one line covers both.
-  const { usesLandingPage, publishesOwnPremium } = resolveShowUses(input.setup.show);
+  // MYK9-1622, MYK9-2054: a club that publishes its own premium gets no myK9 premium line (a
+  // pass would claim a premium myK9 never checked) and no landing line. Otherwise publishing
+  // the premium also publishes the landing page, so one line covers both.
+  const { publishesOwnPremium } = resolveShowUses(input.setup.show);
   const publishLine = (id: string, label: string, signalIds: readonly SetupReadinessSignalId[]) =>
     input.premiumInfo
       ? setupLine(id, label, signals, signalIds)
       : ({ id, label, status: 'unknown', detail: CANT_CHECK } satisfies ReadyLine);
   const publishLines: ReadyLine[] = publishesOwnPremium
-    ? usesLandingPage
-      ? [publishLine('landing', 'Landing page published', ['landing-content-unpublished'])]
-      : []
+    ? []
     : [
         publishLine('premium', 'Premium published and current', [
           'exhibitor-materials-unpublished',

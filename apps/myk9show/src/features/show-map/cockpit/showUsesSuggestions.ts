@@ -5,8 +5,7 @@ import { resolveShowUses, type ShowUses } from '@/features/show-workbench/showUs
  * suggestion per switch that is off, shown once per show per device and never repeated. A
  * per-device localStorage flag is the existing pattern for dismissals; no column, no migration.
  */
-export type SuggestionKey =
-  'selfCheckin' | 'deviceScoring' | 'paperPacket' | 'volunteers' | 'landingPage';
+export type SuggestionKey = 'selfCheckin' | 'deviceScoring' | 'paperPacket' | 'volunteers';
 
 export interface ShowUsesSuggestion {
   key: SuggestionKey;
@@ -38,11 +37,6 @@ const SUGGESTIONS: readonly {
     key: 'volunteers',
     text: 'Want to track volunteer helpers?',
     isOff: state => !state.uses.usesVolunteers,
-  },
-  {
-    key: 'landingPage',
-    text: 'Want a public landing page for this show?',
-    isOff: state => !state.uses.usesLandingPage,
   },
 ];
 

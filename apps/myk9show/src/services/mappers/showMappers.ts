@@ -300,6 +300,7 @@ export const mapDatabaseToShow = (
       ((dbShow as Record<string, unknown>).published_premium_at as string | null) ?? null,
     publishedPremiumVersion:
       ((dbShow as Record<string, unknown>).published_premium_version as number | null) ?? null,
+    ownPremiumLink: ((dbShow as Record<string, unknown>).own_premium_link as string | null) ?? null,
     updatedAt: ((dbShow as Record<string, unknown>).updated_at as string | null) ?? null,
     coverImageUrl:
       dbShow.cover_image_url ||
@@ -655,7 +656,6 @@ export const mapReplicatedShowToDbRow = (
       uses_device_scoring: 'usesDeviceScoring',
       uses_paper_packet: 'usesPaperPacket',
       uses_volunteers: 'usesVolunteers',
-      uses_landing_page: 'usesLandingPage',
       publishes_own_premium: 'publishesOwnPremium',
       logo_url: 'logoUrl',
       cover_image_url: 'coverImageUrl',

@@ -204,6 +204,7 @@ BEGIN
     END IF;
     UPDATE public.shows
        SET own_premium_link = p_link,
+           premium_publish_version = premium_publish_version + 1,
            published_premium_path = NULL,
            published_premium_url = NULL,
            published_premium_at = NULL,
@@ -282,8 +283,11 @@ BEGIN
     RAISE EXCEPTION 'Premium publication found no show row' USING ERRCODE = 'P0002';
   END IF;
 
+  -- Advancing the reservation version supersedes any generated publish another manager has
+  -- already started, so its later commit cannot undo this unpublish.
   UPDATE public.shows
-     SET published_premium_path = NULL,
+     SET premium_publish_version = premium_publish_version + 1,
+         published_premium_path = NULL,
          published_premium_url = NULL,
          published_premium_at = NULL,
          published_premium_version = NULL,

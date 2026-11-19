@@ -32,8 +32,12 @@ interface OwnPremiumCardProps {
  * premium" then points at it. One card, one home: it sits where the generated premium's card sits.
  */
 export function OwnPremiumCard({ showId, canManageShow, entryCount }: OwnPremiumCardProps) {
-  const info = usePublishInfo(showId, canManageShow).data;
-  const link = useOwnPremiumLink(showId, canManageShow).data ?? null;
+  const infoQuery = usePublishInfo(showId, canManageShow);
+  const linkQuery = useOwnPremiumLink(showId, canManageShow);
+  const info = infoQuery.data;
+  const link = linkQuery.data ?? null;
+  const unreadable = infoQuery.isError || linkQuery.isError;
+  const [downloadFailed, setDownloadFailed] = useState(false);
   const refresh = useRefreshPremiumState(showId);
   const fileInput = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState('');
@@ -41,7 +45,9 @@ export function OwnPremiumCard({ showId, canManageShow, entryCount }: OwnPremium
   const [busy, setBusy] = useState(false);
 
   const hasFile = Boolean(info?.hasPublishedPremium);
-  const published = hasFile || Boolean(link);
+  const announced = info?.experienceIsPublished === true;
+  // Unknown (a read failed) keeps Unpublish on offer: a live document must never look absent.
+  const published = hasFile || Boolean(link) || announced || unreadable;
 
   const run = async (action: () => Promise<void>, success: string) => {
     setBusy(true);
@@ -91,11 +97,15 @@ export function OwnPremiumCard({ showId, canManageShow, entryCount }: OwnPremium
         day: 'numeric',
       })
     : '';
-  const status = hasFile
-    ? `Your premium PDF was uploaded ${publishedAt}`.trim()
-    : link
-      ? 'Your premium list is shared as a link'
-      : 'Upload your premium PDF or paste a link to it';
+  const status = unreadable
+    ? 'Could not check what is published right now.'
+    : hasFile
+      ? `Your premium PDF was uploaded ${publishedAt}`.trim()
+      : link
+        ? 'Your premium list is shared as a link'
+        : announced
+          ? 'The public announcement is live, but no premium list is attached'
+          : 'Upload your premium PDF or paste a link to it';
 
   return (
     <Card id={PREMIUM_CARD_ANCHOR} className="scroll-mt-20 space-y-3 p-4">
@@ -119,7 +129,10 @@ export function OwnPremiumCard({ showId, canManageShow, entryCount }: OwnPremium
             type="button"
             size="touch"
             variant="outline"
-            onClick={() => void openPublishedPremium(showId)}
+            onClick={() => {
+              setDownloadFailed(false);
+              void openPublishedPremium(showId).then(opened => setDownloadFailed(!opened));
+            }}
           >
             Download PDF
           </Button>
@@ -130,6 +143,19 @@ export function OwnPremiumCard({ showId, canManageShow, entryCount }: OwnPremium
               <ExternalLink className="mr-2 h-4 w-4" />
               Open link
             </a>
+          </Button>
+        )}
+        {unreadable && (
+          <Button
+            type="button"
+            size="touch"
+            variant="outline"
+            onClick={() => {
+              void infoQuery.refetch();
+              void linkQuery.refetch();
+            }}
+          >
+            Try again
           </Button>
         )}
         {published && (
@@ -177,6 +203,11 @@ export function OwnPremiumCard({ showId, canManageShow, entryCount }: OwnPremium
           }}
         />
       </div>
+      {downloadFailed && (
+        <p role="alert" className="text-sm text-destructive">
+          Couldn't prepare the premium PDF. Allow pop-ups for this site, or try again.
+        </p>
+      )}
       {error && (
         <p role="alert" className="text-sm text-destructive">
           {error}

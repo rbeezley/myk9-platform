@@ -41,6 +41,25 @@ export function isPrimaryKeyDuplicateError(
   );
 }
 
+/**
+ * Columns a migration has dropped, per table. A mutation queued by an older client (an offline
+ * show creation, or a tab not yet reloaded after a deploy) still carries them, and PostgREST
+ * rejects the whole write for an unknown column. Stripped before sending so the rest of the
+ * write still lands. MYK9-2054: shows.uses_landing_page.
+ */
+const RETIRED_COLUMNS: Readonly<Record<string, readonly string[]>> = {
+  shows: ['uses_landing_page'],
+};
+
+export function withoutRetiredColumns<T extends Record<string, unknown>>(
+  tableName: string,
+  data: T
+): T {
+  const retired = RETIRED_COLUMNS[tableName];
+  if (!retired || !retired.some(column => column in data)) return data;
+  return Object.fromEntries(Object.entries(data).filter(([key]) => !retired.includes(key))) as T;
+}
+
 const RINGSIDE_UPDATE_ENTRY_RPC = 'ringside_update_entry';
 
 /**
@@ -119,7 +138,7 @@ export async function executeMutation(
         error,
         status,
       } = await withTimeout(
-        supabase.from(tableName).insert(data).select('id'),
+        supabase.from(tableName).insert(withoutRetiredColumns(tableName, data)).select('id'),
         TIMEOUT_PRESETS.standard,
         `${tableName} insert`,
         signal
@@ -208,10 +227,12 @@ export async function executeMutation(
       // Legacy queued entry edits can still contain deleted_at: null. Strip it
       // before sending so an upload racing a secretary soft-delete cannot
       // restore the row. A non-null tombstone remains an explicit write.
-      const updateData =
+      const updateData = withoutRetiredColumns(
+        tableName,
         tableName === 'entries' && data.deleted_at === null
           ? Object.fromEntries(Object.entries(data).filter(([key]) => key !== 'deleted_at'))
-          : data;
+          : data
+      );
       // Address the row by the queued rowId, not payload.id: write-protected tables send
       // only the columns they may write and omit `id` (MYK9-1132).
       let updateQuery = supabase.from(tableName).update(updateData).eq('id', mutation.rowId);

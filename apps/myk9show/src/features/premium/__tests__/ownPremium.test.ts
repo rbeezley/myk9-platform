@@ -91,6 +91,9 @@ describe('saving and unpublishing', () => {
     const [path, , options] = uploadMock.mock.calls[0] as [string, File, { upsert: boolean }];
     expect(path).toMatch(new RegExp(`^${SHOW_ID}/[0-9a-f-]{36}\\.pdf$`));
     expect(options.upsert).toBe(false);
+    // An extension-accepted PDF reporting an empty type is still sent as application/pdf.
+    const body = uploadMock.mock.calls[0]![1] as Blob;
+    expect(body.type).toBe('application/pdf');
     expect(rpcMock).toHaveBeenCalledWith('set_own_premium', {
       p_show_id: SHOW_ID,
       p_storage_path: path,

@@ -152,6 +152,11 @@ export function PremiumDownloadCard({
               <span className="text-sm text-muted-foreground">{action.disabledReason}</span>
             )}
           </div>
+          {/* The announcement can outlive the document (a club link replaced the PDF), and it
+              must be possible to take it down without publishing another document first. */}
+          {canManageShow && info?.experienceIsPublished === true && (
+            <UnpublishPremiumButton showId={showId} entryCount={entryCount} disabled={isBusy} />
+          )}
         </>
       ) : (
         <>

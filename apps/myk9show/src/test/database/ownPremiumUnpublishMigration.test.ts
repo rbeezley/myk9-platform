@@ -73,4 +73,13 @@ describe('20261120202300_myk9_2054_own_premium_unpublish.sql', () => {
     }
     expect(body).not.toMatch(/entries|enrollments/i);
   });
+
+  it('link save and unpublish advance the reservation version, superseding an in-flight generate', () => {
+    const link = flat.slice(flat.indexOf('SET own_premium_link = p_link'));
+    expect(link.slice(0, 200)).toContain('premium_publish_version = premium_publish_version + 1');
+    const unpublish = flat.slice(
+      flat.indexOf('CREATE OR REPLACE FUNCTION public.unpublish_premium')
+    );
+    expect(unpublish).toContain('SET premium_publish_version = premium_publish_version + 1');
+  });
 });

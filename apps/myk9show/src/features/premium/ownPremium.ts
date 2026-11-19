@@ -1,5 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
+import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
+import { publicShowDetailQueryKey } from '@/hooks/queries/publicShowDetailQuery';
 import { publishInfoQueryKey } from './usePublishInfo';
 
 /**
@@ -46,11 +48,15 @@ export async function saveOwnPremiumFile(showId: string, file: File): Promise<vo
   const invalid = validateOwnPremiumFile(file);
   if (invalid) throw new Error(invalid);
   const path = `${showId}/${crypto.randomUUID()}.pdf`;
-  const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, {
-    contentType: 'application/pdf',
-    upsert: false,
-    cacheControl: '3600',
-  });
+  const { error: uploadError } = await supabase.storage
+    .from(BUCKET)
+    // A PDF-typed blob: a bare `File` keeps its own (possibly empty) MIME type in the multipart
+    // body, and set_own_premium requires application/pdf on the stored object.
+    .upload(path, new Blob([file], { type: 'application/pdf' }), {
+      contentType: 'application/pdf',
+      upsert: false,
+      cacheControl: '3600',
+    });
   if (uploadError) throw uploadError;
   const storageBase = (
     import.meta.env.VITE_SUPABASE_URL || 'https://sojmvhhwsjxmfistvzbe.supabase.co'
@@ -79,7 +85,7 @@ export const ownPremiumLinkQueryKey = (showId: string) =>
 
 /**
  * The club's own premium link, read straight off the show row (the replica does not carry it).
- * A failed read (offline, or the column not deployed yet) is "no link", never an error banner.
+ * A failed read is an error, never "no link": the card says it could not check and offers a retry.
  */
 export function useOwnPremiumLink(showId: string, enabled: boolean) {
   return useQuery({
@@ -92,7 +98,7 @@ export function useOwnPremiumLink(showId: string, enabled: boolean) {
         .select('own_premium_link')
         .eq('id', showId)
         .maybeSingle();
-      if (error) return null;
+      if (error) throw error;
       return (data as { own_premium_link?: string | null } | null)?.own_premium_link ?? null;
     },
   });
@@ -106,6 +112,8 @@ export function useRefreshPremiumState(showId: string): () => Promise<void> {
       queryClient.invalidateQueries({ queryKey: publishInfoQueryKey(showId) }),
       queryClient.invalidateQueries({ queryKey: ownPremiumLinkQueryKey(showId) }),
       queryClient.invalidateQueries({ queryKey: ['shows', showId] }),
+      queryClient.invalidateQueries({ queryKey: showQueryKeys.detail(showId) }),
+      queryClient.invalidateQueries({ queryKey: publicShowDetailQueryKey(showId) }),
     ]);
   };
 }

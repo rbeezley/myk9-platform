@@ -21,7 +21,7 @@ const premiumStyle = z.enum([
 ]);
 
 const generatedPremiumSchema = z.object({
-  org: z.enum(['AKC', 'UKC']),
+  org: z.enum(['AKC', 'UKC', 'ASCA']),
   style: premiumStyle,
   templateId: nullableText,
   show: z.object({
@@ -38,6 +38,8 @@ const generatedPremiumSchema = z.object({
     dayOfFee: nullableAmount,
     acceptChecks: z.boolean(),
     acceptCash: z.boolean(),
+    // MYK9-2220: optional so older premiums parse; without it zod would strip the limit.
+    maxTotalEntries: nullableAmount.optional(),
     // MYK9-1976: optional, so a premium generated before it still parses (and prints no
     // policy row). Without it here zod would strip the policy from every new premium.
     withdrawal: z
@@ -72,7 +74,15 @@ const generatedPremiumSchema = z.object({
     mailingAddress: nullableText,
   }),
   officials: z.object({
-    chairman: z.object({ name: z.string(), email: nullableText, phone: nullableText }).nullable(),
+    chairman: z
+      .object({
+        name: z.string(),
+        email: nullableText,
+        phone: nullableText,
+        // MYK9-2065: absent on a premium generated before the field existed.
+        mailingAddress: nullableText.optional(),
+      })
+      .nullable(),
   }),
   officers: z.array(z.object({ position: z.string(), name: z.string() })).optional(),
   committee: z.array(z.string()).optional(),

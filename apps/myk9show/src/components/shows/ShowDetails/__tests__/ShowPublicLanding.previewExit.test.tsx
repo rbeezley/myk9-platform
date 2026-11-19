@@ -49,7 +49,7 @@ function renderPreview(initialRoute: string) {
         show={makeShow()}
         landingTrials={[makeTrial('trial-1')]}
         hasEntryClassInventory={null}
-        entryWindowNotOpen={false}
+        entryPendingReason={undefined}
         styleMode="manager-draft-preview"
         onSaveDraftStyle={vi.fn().mockResolvedValue(undefined)}
       />

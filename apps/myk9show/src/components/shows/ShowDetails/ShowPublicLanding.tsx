@@ -1,6 +1,7 @@
+import type { EntryPendingReason } from '@/utils/entryStatusUtils';
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { onlineManager } from '@tanstack/react-query';
-import { getShowStyle } from '@/features/registries';
+import { getShowStyle, getTrialTimezone } from '@/features/registries';
 import { STYLED_LANDING_BY_STYLE } from '@/features/_shared/styledLandingRegistry';
 import type { ShowStyle } from '@/features/registries';
 import { useEntitlement } from '@/features/entitlement/useEntitlement';
@@ -12,10 +13,10 @@ import {
   ShowStyleSaveError,
 } from '@/features/premium/showStylePersistence';
 import { StaleShowNotice } from './StaleShowNotice';
-import { MailInEntryNotice } from './MailInEntryNotice';
 import { ServiceFeeNote, useServiceFeeLabel } from '@/features/payments/ServiceFeeNote';
-import { acceptsOnlineEntries, isMailInOnlyShow } from '@/features/payments/onlineEntryGate';
-import { LandingMailInContext } from '@/features/_shared/landing/landingMailIn';
+import { acceptsOnlineEntries } from '@/features/payments/onlineEntryGate';
+import { PendingEntryCopyProvider } from '@/features/_shared/landing/PendingEntryCopyContext';
+import { pendingEntryCopy } from '@/features/_shared/landing/pendingEntryCopy';
 import { ShowResultsSection } from '@/features/_shared/landing/ShowResultsSection';
 import { buildShowResults, hasShowHappened } from '@/features/_shared/landing/showResults';
 import {
@@ -52,8 +53,8 @@ export interface ShowPublicLandingProps {
    * explicit.
    */
   hasEntryClassInventory: boolean | null;
-  /** True when the entry window has not opened yet, or was never set (MYK9-649). */
-  entryWindowNotOpen: boolean;
+  /** Why entries are not open yet (MYK9-649), from `entryPendingReasonFor(status)`. */
+  entryPendingReason: EntryPendingReason | undefined;
   /** True when a cached show is being shown because the refresh failed. */
   refreshFailed?: boolean | undefined;
   onRetry?: (() => void) | undefined;
@@ -77,7 +78,7 @@ export function ShowPublicLanding({
   offeredClasses = [],
   resultClasses,
   hasEntryClassInventory,
-  entryWindowNotOpen,
+  entryPendingReason,
   refreshFailed,
   onRetry,
   styleMode = 'public',
@@ -91,7 +92,6 @@ export function ShowPublicLanding({
       ? getShowStyle({ style: show.experiencePublishedStyle })
       : null;
   const isManagerDraftPreview = styleMode === 'manager-draft-preview';
-  const mailInOnly = isMailInOnlyShow(show);
   // A failed or pending officials read leaves the contact null: the page says the club
   // has not listed a secretary rather than breaking.
   const officialsQuery = useShowOfficials(show.id);
@@ -181,6 +181,25 @@ export function ShowPublicLanding({
   // Monogram default for null/default/unknown values.
   const StyledLanding = STYLED_LANDING_BY_STYLE[publicShowStyle];
 
+  // Built once here, not per style page: a style's countdown re-renders every second, and the
+  // copy (a date formatted in the trial's zone) only changes with these inputs.
+  const effectivePendingReason =
+    entryPendingReason ?? (onlineEntriesOpen ? undefined : 'online_setting_unknown');
+  const trialTimezone = getTrialTimezone(landingTrials[0] ?? null);
+  // The copy follows `entryPendingReason`, which the page re-derives when the opening
+  // boundary passes (useEntryOpenBoundaryTick), so the copy, the reason and the Enter action
+  // change together.
+  const pendingCopy = useMemo(
+    () =>
+      pendingEntryCopy({
+        hasEntryClassInventory,
+        entryPendingReason: effectivePendingReason,
+        entryOpenDate: show.entryOpenDate,
+        timezone: trialTimezone,
+      }),
+    [hasEntryClassInventory, effectivePendingReason, show.entryOpenDate, trialTimezone]
+  );
+
   const handleSaveStyle = async (style: ShowStyle) => {
     if (!onSaveDraftStyle || isSaving) return;
     setIsSaving(true);
@@ -240,7 +259,6 @@ export function ShowPublicLanding({
       )}
       {showResults && <ShowResultsSection released={showResults.released} />}
       {refreshFailed && onRetry && <StaleShowNotice onRetry={onRetry} />}
-      {mailInOnly && <MailInEntryNotice />}
       {/* MYK9-1963: the card service fee is said before the wizard, not first
           met on its third step. Every landing style prints its own fee rows,
           so the one line lives here, above all of them, and only where an
@@ -256,18 +274,15 @@ export function ShowPublicLanding({
       )}
       <LateEntryContactContext.Provider value={lateEntryContact}>
         <ShowHasHappenedContext.Provider value={hasShowHappened(previewShow)}>
-          <LandingMailInContext.Provider value={mailInOnly}>
-            {/* MYK9-979: a mail-in show withholds the Enter CTA through the gate
-            every style already reads; the context swaps the sections'
-            "classes not assigned yet" copy for the mail-in note. */}
+          <PendingEntryCopyProvider value={pendingCopy}>
             <StyledLanding
               show={previewShow}
               trial={landingTrials[0] ?? null}
               allTrials={landingTrials}
               hasEntryClassInventory={hasEntryClassInventory}
-              entryWindowNotOpen={entryWindowNotOpen || !onlineEntriesOpen}
+              entryPendingReason={effectivePendingReason}
             />
-          </LandingMailInContext.Provider>
+          </PendingEntryCopyProvider>
         </ShowHasHappenedContext.Provider>
       </LateEntryContactContext.Provider>
     </>

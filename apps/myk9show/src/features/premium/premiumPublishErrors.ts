@@ -11,6 +11,7 @@ export type PremiumPublishFailureCode =
   | 'intent-conflict'
   | 'judges-syncing'
   | 'app-updated'
+  | 'officials-phone'
   | 'unknown';
 
 export class PremiumPublishError extends Error {
@@ -68,7 +69,7 @@ function isChunkLoadFailure(error: unknown, message: string): boolean {
 
 function classifyMessage(message: string): PremiumPublishFailureCode {
   const normalized = message.toLowerCase();
-  return /only supported for akc and ukc|organization.*(required|missing|invalid)|organization.*null/.test(
+  return /only supported for akc(, ukc and asca| and ukc)|organization.*(required|missing|invalid)|organization.*null/.test(
     normalized
   )
     ? 'missing-organization'
@@ -157,10 +158,13 @@ export async function classifyPremiumFunctionError(
 export const GENERIC_PREMIUM_PUBLISH_FAILURE =
   "We couldn't publish the premium list. Please try again.";
 
+export const OFFICIALS_PHONE_MESSAGE =
+  "Could not read the officials' phone numbers. Try again in a moment.";
+
 export function premiumPublishFailureMessage(error: PremiumPublishError): string {
   switch (error.code) {
     case 'missing-organization':
-      return "Set this show's organization to AKC or UKC in Show settings, then try again.";
+      return "Set this show's organization to AKC, UKC or ASCA in Show settings, then try again.";
     case 'missing-secretary':
       return 'Add a secretary to this show before publishing the premium list.';
     case 'configuration':
@@ -177,6 +181,8 @@ export function premiumPublishFailureMessage(error: PremiumPublishError): string
       return 'Your judge changes haven\'t been sent yet, so the premium list wasn\'t published. Wait until the account menu says "All changes saved", then publish again.';
     case 'app-updated':
       return APP_UPDATED_MESSAGE;
+    case 'officials-phone':
+      return OFFICIALS_PHONE_MESSAGE;
     case 'unknown':
       return GENERIC_PREMIUM_PUBLISH_FAILURE;
     default: {

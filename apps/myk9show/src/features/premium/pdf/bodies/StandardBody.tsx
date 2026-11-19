@@ -9,7 +9,7 @@ import { buildPremiumFacts } from '../../premiumFacts';
 
 interface Props {
   data: GeneratedPremium;
-  org: 'AKC' | 'UKC';
+  org: 'AKC' | 'UKC' | 'ASCA';
   inkSaver?: boolean;
 }
 
@@ -69,16 +69,16 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
         <Text style={s.label}>Entry Method</Text>
         <Text style={{ ...s.value, fontWeight: 700 }}>Online entries via myK9Show</Text>
       </View>
-      {secretary.mailingAddress && (
-        <View style={s.row}>
-          <Text style={s.label}> </Text>
-          <Text style={s.value}>Mail-in entries also accepted (see Trial Secretary).</Text>
-        </View>
-      )}
       {f.recordingFee && (
         <View style={s.row}>
           <Text style={s.label}> </Text>
           <Text style={s.value}>{f.recordingFee}</Text>
+        </View>
+      )}
+      {f.entryLimit && (
+        <View style={s.row}>
+          <Text style={s.label}> </Text>
+          <Text style={s.value}>{f.entryLimit}</Text>
         </View>
       )}
       {f.withdrawalPolicy && (
@@ -144,6 +144,12 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
             <View style={s.row}>
               <Text style={s.label}>Phone</Text>
               <Text style={s.value}>{chair.phone}</Text>
+            </View>
+          )}
+          {chair.mailingAddress && (
+            <View style={s.row}>
+              <Text style={s.label}>Address</Text>
+              <Text style={s.value}>{chair.mailingAddress}</Text>
             </View>
           )}
         </>

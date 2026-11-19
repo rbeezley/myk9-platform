@@ -111,6 +111,12 @@ export function PosterBody({ data, tokens }: Props) {
         </View>
       )}
 
+      {f.entryLimit && (
+        <View style={sectionGap}>
+          <Text style={bodyStyle}>{f.entryLimit}</Text>
+        </View>
+      )}
+
       {f.withdrawalPolicy && (
         <View style={sectionGap}>
           <Text style={labelStyle}>{f.withdrawalPolicy.label}</Text>
@@ -139,6 +145,7 @@ export function PosterBody({ data, tokens }: Props) {
             {chair ? `Chair: ${chair.name}` : ''}
             {chair?.email ? ` · ${chair.email}` : ''}
             {chair?.phone ? ` · ${chair.phone}` : ''}
+            {chair?.mailingAddress ? `\n${chair.mailingAddress}` : ''}
           </Text>
           {f.officers.map(o => (
             <Text key={`${o.title}-${o.name}`} style={bodyStyle}>

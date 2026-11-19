@@ -333,7 +333,9 @@ describe('PremiumDownloadCard', () => {
     renderCard(true);
 
     expect(await screen.findByRole('button', { name: /republish premium/i })).toBeInTheDocument();
-    expect(screen.getByText(/show data has changed since publish/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/the published premium is older than your latest changes/i)
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /download pdf/i })).toBeInTheDocument();
   });
 
@@ -368,7 +370,9 @@ describe('PremiumDownloadCard', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/premium pdf published may 10, 2026/i)).toBeInTheDocument();
-      expect(screen.queryByText(/show data has changed since publish/i)).not.toBeInTheDocument();
+      expect(
+        screen.queryByText(/the published premium is older than your latest changes/i)
+      ).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /republish premium/i })).not.toBeInTheDocument();
     });
   });
@@ -403,7 +407,9 @@ describe('PremiumDownloadCard', () => {
     await user.click(await screen.findByRole('button', { name: /republish premium/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/show data has changed since publish/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/the published premium is older than your latest changes/i)
+      ).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /republish premium/i })).toBeInTheDocument();
     });
   });
@@ -497,14 +503,14 @@ describe('PremiumDownloadCard', () => {
       error: null,
     });
     generateMock.mockRejectedValueOnce(
-      new Error('Premium generation is only supported for AKC and UKC shows (got: null)')
+      new Error('Premium generation is only supported for AKC, UKC and ASCA shows (got: null)')
     );
 
     const { user } = renderCard();
     await user.click(await screen.findByRole('button', { name: /generate & publish premium/i }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      /set this show's organization to akc or ukc in show settings/i
+      /set this show's organization to akc, ukc or asca in show settings/i
     );
   });
 

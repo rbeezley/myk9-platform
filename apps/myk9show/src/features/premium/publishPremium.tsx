@@ -2,8 +2,10 @@ import { pdf } from '@react-pdf/renderer';
 import { supabase } from '@/services/database/supabaseClient';
 import { AKCPremiumTemplate } from './pdf/AKCPremiumTemplate';
 import { UKCPremiumTemplate } from './pdf/UKCPremiumTemplate';
+import { ASCAPremiumTemplate } from './pdf/ASCAPremiumTemplate';
 import type { GeneratedPremium } from '@/types/premium-types';
 import { classifyPremiumPublishError } from './premiumPublishErrors';
+import { appendAkcEntryForm, premiumHasAkcEntryForm } from './akcEntryFormAppendix';
 
 const BUCKET = 'premium-published';
 
@@ -56,14 +58,21 @@ export async function publishPremium(
   return { path };
 }
 
+const PREMIUM_TEMPLATES = {
+  AKC: AKCPremiumTemplate,
+  UKC: UKCPremiumTemplate,
+  ASCA: ASCAPremiumTemplate,
+} as const;
+
 export async function renderPremiumPdf(
   showId: string,
   premium: GeneratedPremium,
   inkSaver: boolean
 ): Promise<Blob> {
-  const Template = premium.org === 'UKC' ? UKCPremiumTemplate : AKCPremiumTemplate;
+  const Template = PREMIUM_TEMPLATES[premium.org];
   try {
-    return await pdf(<Template premium={premium} inkSaver={inkSaver} />).toBlob();
+    const blob = await pdf(<Template premium={premium} inkSaver={inkSaver} />).toBlob();
+    return premiumHasAkcEntryForm(premium) ? await appendAkcEntryForm(blob) : blob;
   } catch (err) {
     console.error('[premium-publish] PDF render failed', {
       showId,

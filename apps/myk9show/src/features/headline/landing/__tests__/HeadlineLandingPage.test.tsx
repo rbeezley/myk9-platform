@@ -3,6 +3,8 @@ import { screen, within } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { HeadlineLandingPage } from '../HeadlineLandingPage';
 import { mockViewportWidth } from '@/test/utils/mockViewportWidth';
+import { PendingEntryCopyProvider } from '@/features/_shared/landing/PendingEntryCopyContext';
+import { NO_CLASSES_COPY } from '@/features/_shared/landing/pendingEntryCopy';
 import { ShowHasHappenedContext } from '@/features/_shared/landing/lateEntryContactContext';
 
 const landingDataState = vi.hoisted(() => ({
@@ -200,7 +202,14 @@ describe('HeadlineLandingPage', () => {
 
   it('gates every entry CTA when hasEntryClassInventory is false', () => {
     render(
-      <HeadlineLandingPage show={null} trial={null} allTrials={[]} hasEntryClassInventory={false} />
+      <PendingEntryCopyProvider value={NO_CLASSES_COPY}>
+        <HeadlineLandingPage
+          show={null}
+          trial={null}
+          allTrials={[]}
+          hasEntryClassInventory={false}
+        />
+      </PendingEntryCopyProvider>
     );
 
     // No anchor links into the registration wizard anywhere on the page.
@@ -322,7 +331,14 @@ describe('HeadlineLandingPage - final section says why entry is unavailable once
 
   it('renders the classes-pending sentence once', () => {
     render(
-      <HeadlineLandingPage show={null} trial={null} allTrials={[]} hasEntryClassInventory={false} />
+      <PendingEntryCopyProvider value={NO_CLASSES_COPY}>
+        <HeadlineLandingPage
+          show={null}
+          trial={null}
+          allTrials={[]}
+          hasEntryClassInventory={false}
+        />
+      </PendingEntryCopyProvider>
     );
     expect(
       within(finalSection()).getAllByText(

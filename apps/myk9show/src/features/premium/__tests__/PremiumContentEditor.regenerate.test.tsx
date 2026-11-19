@@ -29,10 +29,8 @@ vi.mock('@/hooks/queries/usePremiumTemplates', () => ({
 vi.mock('@/services/imageUploadService', () => ({ uploadShowCover: vi.fn() }));
 vi.mock('../pdf/AKCPremiumTemplate', () => ({ AKCPremiumTemplate: () => <div /> }));
 vi.mock('../pdf/UKCPremiumTemplate', () => ({ UKCPremiumTemplate: () => <div /> }));
-vi.mock('@react-pdf/renderer', () => ({
-  PDFDownloadLink: ({ children }: { children: (state: unknown) => React.ReactNode }) => (
-    <>{children({ loading: false, error: null, url: null })}</>
-  ),
+vi.mock('../publishPremium', () => ({
+  renderPremiumPdf: vi.fn(() => new Promise(() => undefined)),
 }));
 
 function premiumWith(showHours: string): GeneratedPremium {
@@ -164,5 +162,32 @@ describe('PremiumContentEditor while Regenerate is pending', () => {
 
     expect(await screen.findByText('Claude timed out')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Saved hours')).not.toHaveAttribute('readonly');
+  });
+});
+
+describe('PremiumContentEditor regenerate held for an unsaved organization (MYK9-2213)', () => {
+  afterEach(() => {
+    generateMock.mockReset();
+  });
+
+  it('disables Regenerate, shows the reason and never calls the generator', async () => {
+    const reason = 'Save the show first. Regenerate builds from the saved organization (AKC).';
+    render(
+      <PremiumContentEditor
+        showId="show-1"
+        clubId="club-1"
+        showOrg="UKC"
+        active
+        initialPremium={premiumWith('Old hours')}
+        regenerateBlockedReason={reason}
+      />
+    );
+    expect(await screen.findByDisplayValue('Old hours')).toBeInTheDocument();
+
+    const button = screen.getByRole('button', { name: 'Regenerate' });
+    expect(button).toBeDisabled();
+    expect(screen.getByText(reason)).toBeInTheDocument();
+    fireEvent.click(button);
+    expect(generateMock).not.toHaveBeenCalled();
   });
 });

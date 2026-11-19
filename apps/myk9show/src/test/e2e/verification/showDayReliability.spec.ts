@@ -47,12 +47,12 @@ test('canonical queue positions and state-only controls agree across roles (MYK9
     {
       name: 'in-ring',
       fields: { ...waiting, run_order: 101, check_in_status: 'in-ring', is_in_ring: true },
-      exhibitor: /in ring/i,
+      exhibitor: /in the ring/i, // CHECK_IN_STATE_WORDS.in-ring (MYK9-2093)
     },
     {
       name: 'pulled',
       fields: { ...waiting, run_order: 101, check_in_status: 'pulled' },
-      exhibitor: /I won.t be running this class/,
+      exhibitor: /pulled at the show/i, // CHECK_IN_STATE_WORDS.pulled (MYK9-2093)
     },
     {
       name: 'completed',
@@ -97,7 +97,7 @@ test('canonical queue positions and state-only controls agree across roles (MYK9
             status === 'checked-in'
               ? /checked[- ]in/i
               : status === 'in-ring'
-                ? /in ring/i
+                ? /in (the )?ring/i
                 : new RegExp(status, 'i');
           // Show Desk's check-in and run-status cells; a scored dog reads Scored there.
           await expect(secRow).toContainText(
@@ -271,9 +271,11 @@ test('expired token after 61 real minutes offline still queues and uploads the s
     expect(await judge.page.evaluate(() => navigator.onLine)).toBe(false);
     const saveStart = performance.now();
     await saveScore(judge.page);
-    await expect(judge.page.getByText(/Saved on this device.*back online/)).toBeVisible({
-      timeout: 15_000,
-    });
+    // MYK9-2012 replaced the Saved screen with the entry list's "Saved:" line; MYK9-2224: the list
+    // must open offline (its chunk is preloaded with the sheet) and say the score is on this device.
+    const savedLine = judge.page.getByTestId('saved-score-line');
+    await expect(savedLine).toBeVisible({ timeout: 15_000 });
+    await expect(savedLine).toContainText(/Saved:.*on this device, not sent yet/);
     expect(performance.now() - saveStart).toBeLessThan(15_000);
     const local = await replica(judge.page, f.willowId);
     expect(local.pending.length).toBeGreaterThan(0);
@@ -331,8 +333,9 @@ test('expired token after 61 real minutes offline still queues and uploads the s
       const ownRow = exhibitor.page.getByTestId(`at-show-my-entry-${f.willowId}`);
       await expect(ownRow).toBeVisible();
       await expect(ownRow.getByRole('group', { name: 'Result', exact: true })).toContainText(/Q/);
+      // Times read m:ss.cc since MYK9-1503 (#3449); the judge typed 01:01.23.
       await expect(ownRow.getByRole('group', { name: 'Result', exact: true })).toContainText(
-        '61.2s'
+        '1:01.23'
       );
       await expect(
         secretaryRow(secretary.page, 'Willow').getByTestId('class-entry-result')

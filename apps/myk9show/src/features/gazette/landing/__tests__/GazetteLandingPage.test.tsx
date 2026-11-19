@@ -8,6 +8,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { GazetteLandingPage } from '../GazetteLandingPage';
+import { PendingEntryCopyProvider } from '@/features/_shared/landing/PendingEntryCopyContext';
+import { pendingEntryCopy } from '@/features/_shared/landing/pendingEntryCopy';
 import type { GazetteLandingData } from '../types';
 import { mockViewportWidth } from '@/test/utils/mockViewportWidth';
 
@@ -20,7 +22,7 @@ const baseData: GazetteLandingData = {
   welcomeText: null,
   trialChairName: null,
   trialChairTitle: null,
-  entryOpenDate: '2026-04-01',
+  entryOpenDate: '2098-04-01',
   entryCloseDate: '2099-01-01',
   confirmationDate: null,
   trialStartDate: '2026-08-01',
@@ -75,7 +77,7 @@ describe('GazetteLandingPage — entry CTA count (MYK9-633)', () => {
         trial={null}
         allTrials={[]}
         hasEntryClassInventory
-        entryWindowNotOpen={false}
+        entryPendingReason={undefined}
       />
     );
 
@@ -90,7 +92,7 @@ describe('GazetteLandingPage — entry CTA count (MYK9-633)', () => {
         trial={null}
         allTrials={[]}
         hasEntryClassInventory
-        entryWindowNotOpen={false}
+        entryPendingReason={undefined}
       />
     );
 
@@ -105,7 +107,7 @@ describe('GazetteLandingPage — entry CTA count (MYK9-633)', () => {
         trial={null}
         allTrials={[]}
         hasEntryClassInventory
-        entryWindowNotOpen={false}
+        entryPendingReason={undefined}
       />
     );
 
@@ -118,5 +120,98 @@ describe('GazetteLandingPage — entry CTA count (MYK9-633)', () => {
     // two accessibly-named "Enter" links — otherwise a stray, differently
     // named link to the same URL would pass the count above undetected.
     expect(container.querySelectorAll(`a[href="${baseData.entryWizardUrl}"]`)).toHaveLength(2);
+  });
+});
+
+const copyFor = (
+  hasEntryClassInventory: boolean,
+  entryPendingReason: Parameters<typeof pendingEntryCopy>[0]['entryPendingReason']
+) =>
+  pendingEntryCopy({
+    hasEntryClassInventory,
+    entryPendingReason,
+    entryOpenDate: baseData.entryOpenDate,
+    timezone: baseData.timezone,
+  });
+
+describe('GazetteLandingPage: entries not open yet with classes assigned', () => {
+  it('says when entries open and never claims classes are missing', () => {
+    mockViewportWidth(1280);
+    const { container } = render(
+      <PendingEntryCopyProvider value={copyFor(true, 'not_yet_open')}>
+        <GazetteLandingPage
+          show={{ id: 'show-1', name: baseData.showName } as never}
+          trial={null}
+          allTrials={[]}
+          hasEntryClassInventory
+          entryPendingReason="not_yet_open"
+        />
+      </PendingEntryCopyProvider>
+    );
+
+    expect(screen.getAllByText('Opens Apr 1').length).toBeGreaterThan(0);
+    expect(container.textContent).toContain('Entries open');
+    expect(container.textContent).toContain('Apr 1');
+    expect(container.textContent).not.toMatch(
+      /classes are assigned|assign classes|Classes pending/
+    );
+    expect(container.querySelectorAll(`a[href="${baseData.entryWizardUrl}"]`)).toHaveLength(0);
+  });
+
+  it.each(['not_yet_open', 'window_unknown', 'online_setting_unknown'] as const)(
+    'withholds the Enter CTA for %s exactly as before',
+    reason => {
+      mockViewportWidth(1280);
+      const { container } = render(
+        <PendingEntryCopyProvider value={copyFor(true, reason)}>
+          <GazetteLandingPage
+            show={{ id: 'show-1', name: baseData.showName } as never}
+            trial={null}
+            allTrials={[]}
+            hasEntryClassInventory
+            entryPendingReason={reason}
+          />
+        </PendingEntryCopyProvider>
+      );
+      expect(container.querySelectorAll(`a[href="${baseData.entryWizardUrl}"]`)).toHaveLength(0);
+    }
+  );
+
+  it.each(['window_unknown', 'online_setting_unknown'] as const)(
+    'never claims an opening date or missing classes for %s',
+    reason => {
+      mockViewportWidth(1280);
+      const { container } = render(
+        <PendingEntryCopyProvider value={copyFor(true, reason)}>
+          <GazetteLandingPage
+            show={{ id: 'show-1', name: baseData.showName } as never}
+            trial={null}
+            allTrials={[]}
+            hasEntryClassInventory
+            entryPendingReason={reason}
+          />
+        </PendingEntryCopyProvider>
+      );
+      expect(screen.getAllByText('Not open yet').length).toBeGreaterThan(0);
+      expect(container.textContent).not.toMatch(/Opens |Entries open |classes are assigned/);
+    }
+  );
+
+  it('keeps the missing-classes copy for a show confirmed to have none', () => {
+    mockViewportWidth(1280);
+    const { container } = render(
+      <PendingEntryCopyProvider value={copyFor(false, undefined)}>
+        <GazetteLandingPage
+          show={{ id: 'show-1', name: baseData.showName } as never}
+          trial={null}
+          allTrials={[]}
+          hasEntryClassInventory={false}
+          entryPendingReason={undefined}
+        />
+      </PendingEntryCopyProvider>
+    );
+
+    expect(screen.getAllByText('Classes pending').length).toBeGreaterThan(0);
+    expect(container.textContent).toContain('assign classes');
   });
 });

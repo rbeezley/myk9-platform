@@ -80,7 +80,7 @@ describe('premium publish error contract', () => {
     expect(error).toBeInstanceOf(PremiumPublishError);
     expect(error.code).toBe('missing-organization');
     expect(premiumPublishFailureMessage(error)).toBe(
-      "Set this show's organization to AKC or UKC in Show settings, then try again."
+      "Set this show's organization to AKC, UKC or ASCA in Show settings, then try again."
     );
   });
 
@@ -125,7 +125,7 @@ describe('premium publish error contract', () => {
     const error = Object.assign(new Error('Edge Function returned a non-2xx status code'), {
       context: new Response(
         JSON.stringify({
-          error: 'Premium generation is only supported for AKC and UKC shows (got: null)',
+          error: 'Premium generation is only supported for AKC, UKC and ASCA shows (got: null)',
         }),
         { status: 400, headers: { 'content-type': 'application/json' } }
       ),
@@ -135,7 +135,7 @@ describe('premium publish error contract', () => {
 
     expect(classified.code).toBe('missing-organization');
     expect(premiumPublishFailureMessage(classified)).toBe(
-      "Set this show's organization to AKC or UKC in Show settings, then try again."
+      "Set this show's organization to AKC, UKC or ASCA in Show settings, then try again."
     );
   });
 

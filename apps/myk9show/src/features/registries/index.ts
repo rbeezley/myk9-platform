@@ -22,7 +22,7 @@ export type {
 } from './types';
 export { akcRegistry, AKC_EXHIBITOR_AGREEMENT, AKC_PREMIUM_SCOUTING_STATEMENT } from './akc';
 export { ukcRegistry, UKC_EXHIBITOR_AGREEMENT } from './ukc';
-export { ascaRegistry, ASCA_EXHIBITOR_AGREEMENT } from './asca';
+export { ascaRegistry, ASCA_EXHIBITOR_AGREEMENT, ASCA_PREMIUM_REQUIRED_STATEMENT } from './asca';
 export {
   getShowStyle,
   getTrialRegistry,
@@ -30,6 +30,7 @@ export {
   resolveBrowserTrialTimezone,
   deriveRegistryId,
   getPremiumScoutingStatement,
+  getPremiumRequiredStatement,
   resolveConfiguredRegistryId,
 } from './helpers';
 export type { ShowStyle } from './helpers';

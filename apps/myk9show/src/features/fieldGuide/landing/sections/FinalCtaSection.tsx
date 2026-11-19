@@ -1,3 +1,4 @@
+import { usePendingEntryCopy } from '@/features/_shared/landing/PendingEntryCopyContext';
 import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
 import { FieldGuideDarkBand } from '../../components/FieldGuideDarkBand';
 import {
@@ -8,7 +9,6 @@ import {
 import { fieldGuideColors, fieldGuideSpacing } from '../../tokens';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { formatDateInTimezone } from '../utils/dateFormat';
-import { pendingEntryCopy, useLandingMailInOnly } from '@/features/_shared/landing/landingMailIn';
 import { LateEntryContact } from '@/features/_shared/landing/LateEntryContact';
 
 interface FinalCtaSectionProps {
@@ -37,7 +37,7 @@ export function FinalCtaSection({
   canEnterOnline = true,
   entryClosed = false,
 }: FinalCtaSectionProps) {
-  const mailInOnly = useLandingMailInOnly();
+  const pending = usePendingEntryCopy();
   const countdown = useCountdown(entryCloseDate, timezone);
   // Gate on countdown.closed (not just entryCloseDate presence) so a past close
   // date doesn't keep reading as still-pending after registration has closed.
@@ -98,11 +98,8 @@ export function FinalCtaSection({
               </>
             ) : (
               <>
-                {mailInOnly ? 'Enter by mail or at the' : 'Entries open when'}{' '}
-                <span style={{ color: fieldGuideColors.orange }}>
-                  {mailInOnly ? 'show' : 'classes are assigned'}
-                </span>
-                .
+                {pending.headlineLead}{' '}
+                <span style={{ color: fieldGuideColors.orange }}>{pending.headlineAccent}</span>.
               </>
             )}
           </h2>
@@ -120,10 +117,7 @@ export function FinalCtaSection({
               entryClosed ? (
                 <LateEntryContact />
               ) : (
-                pendingEntryCopy(
-                  mailInOnly,
-                  'The secretary still needs to assign classes before online entry is available.'
-                )
+                pending.sub
               )
             ) : entryLimit != null ? (
               `${entryLimit} runs · first-received basis until the limit is hit.`

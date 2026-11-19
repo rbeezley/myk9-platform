@@ -70,7 +70,7 @@ describe('PosterLandingPage — entry CTA count (MYK9-633)', () => {
         trial={null}
         allTrials={[]}
         hasEntryClassInventory
-        entryWindowNotOpen={false}
+        entryPendingReason={undefined}
       />
     );
 
@@ -85,7 +85,7 @@ describe('PosterLandingPage — entry CTA count (MYK9-633)', () => {
         trial={null}
         allTrials={[]}
         hasEntryClassInventory
-        entryWindowNotOpen={false}
+        entryPendingReason={undefined}
       />
     );
 
@@ -100,7 +100,7 @@ describe('PosterLandingPage — entry CTA count (MYK9-633)', () => {
         trial={null}
         allTrials={[]}
         hasEntryClassInventory
-        entryWindowNotOpen={false}
+        entryPendingReason={undefined}
       />
     );
 

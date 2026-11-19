@@ -1,3 +1,5 @@
+import { formatCents as dollars } from '@/lib/format/cents';
+
 /**
  * The checkout-success line for an all-overflow checkout (no class could take
  * any line), chosen from the ACTUAL refund and charge, never from a date or a
@@ -32,8 +34,4 @@ export function overflowRefundMessage(input: {
   return issued
     ? `${part} has been refunded: your entry fees. The service fee is not refundable.`
     : `${part} is being refunded: your entry fees. The service fee is not refundable.`;
-}
-
-function dollars(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
 }

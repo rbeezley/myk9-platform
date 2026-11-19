@@ -41,40 +41,23 @@ export const ONLINE_ENTRIES_REQUIRED_MESSAGE =
 export const ONLINE_ENTRIES_ALWAYS_ON_MESSAGE =
   "Every show takes online entries. This can't be turned off.";
 
-/** What exhibitors read on a show that takes no online entries. */
-export const MAIL_IN_ENTRY_NOTE =
-  "This show doesn't take online entries. Mail your entry to the show secretary or enter at the show. The premium has the details.";
-
-/**
- * How a show takes entries, as far as this client knows:
- * - 'online': the switch is on; exhibitors may enter online.
- * - 'mail_in': the switch is off; exhibitors mail theirs in or enter at the show.
- * - 'unknown': no value yet (a replica row cached before the column existed,
- *   until its next sync brings it; the migration re-stamps every show so that
- *   sync happens). Never treated as online: no Enter / Add Entry is offered
- *   for it, and no mail-in claim is made either.
- * The server is the boundary regardless: submit_show_entries and
- * stripe-checkout refuse an online entry for a mail-in show.
- */
-export type OnlineEntryMode = 'online' | 'mail_in' | 'unknown';
+/** MYK9-2197: enforce_show_publish_gate()'s refusal (MK003), verbatim, to publish a show whose
+ * premium list is not published, unless the club publishes its own premium list
+ * (shows.publishes_own_premium). The blocker key is premium_not_published in
+ * public.show_publish_blockers. */
+export const PREMIUM_NOT_PUBLISHED_MESSAGE =
+  'Publish the premium list before publishing the show, or turn on "We publish our own premium list" in the show\'s settings. Exhibitors need the premium to enter.';
 
 type OnlineEntryShow = { onlineEntriesEnabled?: boolean | null | undefined } | null | undefined;
 
-export function onlineEntryMode(show: OnlineEntryShow): OnlineEntryMode {
-  const value = show?.onlineEntriesEnabled;
-  if (value === true) return 'online';
-  if (value === false) return 'mail_in';
-  return 'unknown';
-}
-
-/** True only when the show is known to take online entries. */
+/**
+ * True only when the show is known to take online entries. Every show does (the
+ * server refuses the switch off, MYK9-2163), so false here means no value yet: a
+ * replica row cached before the column existed, until its next sync. Never
+ * treated as online until known: no Enter / Add Entry is offered for it.
+ */
 export function acceptsOnlineEntries(show: OnlineEntryShow): boolean {
-  return onlineEntryMode(show) === 'online';
-}
-
-/** True only when the show is known to be mail-in / at-the-show only. */
-export function isMailInOnlyShow(show: OnlineEntryShow): boolean {
-  return onlineEntryMode(show) === 'mail_in';
+  return show?.onlineEntriesEnabled === true;
 }
 
 /**
@@ -188,6 +171,7 @@ export const PUBLISH_GATE_MESSAGES: readonly string[] = [
   CLUB_UNAUTHORIZED_MESSAGE,
   ONLINE_ENTRIES_REQUIRED_MESSAGE,
   ONLINE_ENTRIES_ALWAYS_ON_MESSAGE,
+  PREMIUM_NOT_PUBLISHED_MESSAGE,
   ENTRY_WINDOW_REQUIRED_MESSAGE,
   ENTRY_WINDOW_ORDER_MESSAGE,
   ENTRY_WINDOW_PUBLISHED_MESSAGE,

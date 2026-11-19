@@ -74,6 +74,13 @@ export function getPremiumScoutingStatement(registryId: RegistryId): string | nu
   return getRegistry(registryId).premiumScoutingStatement;
 }
 
+/** MYK9-2225: the registry's other fixed premium statements (ASCA §1.5), or `null` when none. */
+export function getPremiumRequiredStatement(
+  registryId: RegistryId
+): { label: string; text: string } | null {
+  return getRegistry(registryId).premiumRequiredStatement;
+}
+
 /**
  * Resolve the Registry config for a trial. Defaults to AKC when registry_id
  * is missing — every trial in the system today is AKC-sanctioned.

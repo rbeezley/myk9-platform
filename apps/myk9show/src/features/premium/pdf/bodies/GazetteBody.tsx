@@ -47,13 +47,17 @@ export function GazetteBody({ data, tokens }: Props) {
   };
   const denseStyle = { ...bodyTextStyle, fontSize: tokens.bodyFontSize - 1 };
 
-  const hasOfficials = Boolean(chair || f.officers.length > 0 || f.committee.length > 0);
+  const hasSecretary = Boolean(
+    secretary.name || secretary.email || secretary.phone || secretary.mailingAddress
+  );
+  const hasOfficials = Boolean(
+    chair || hasSecretary || f.officers.length > 0 || f.committee.length > 0
+  );
   const hasJudges = trials.some(t => t.judges.length > 0);
   const hasClasses = trials.some(t => t.classLabels.length > 0);
   const hasFees = f.fees.hasAny;
-  const hasEntry = Boolean(
-    f.entry.opens || f.entry.closes || secretary.email || secretary.mailingAddress
-  );
+  // MYK9-2065: an official's contact is never an entry method; the entry section is online only.
+  // MYK9-2204: every show takes online entries, so the section prints even with no dates set.
   const hasLodging = f.accommodations.length > 0;
   const hasAwards = Boolean(f.awardsDescription);
   const hasNotices = Boolean(f.additionalNotes || f.hospitalityNotes);
@@ -79,7 +83,19 @@ export function GazetteBody({ data, tokens }: Props) {
             {chair && <Text style={bodyTextStyle}>Chair: {chair.name}</Text>}
             {chair?.email && <Text style={bodyTextStyle}>Chair Email: {chair.email}</Text>}
             {chair?.phone && <Text style={bodyTextStyle}>Chair Phone: {chair.phone}</Text>}
+            {chair?.mailingAddress && (
+              <Text style={bodyTextStyle}>Chair Mail: {chair.mailingAddress}</Text>
+            )}
             {secretary.name && <Text style={bodyTextStyle}>Secretary: {secretary.name}</Text>}
+            {secretary.email && (
+              <Text style={bodyTextStyle}>Secretary Email: {secretary.email}</Text>
+            )}
+            {secretary.phone && (
+              <Text style={bodyTextStyle}>Secretary Phone: {secretary.phone}</Text>
+            )}
+            {secretary.mailingAddress && (
+              <Text style={bodyTextStyle}>Secretary Mail: {secretary.mailingAddress}</Text>
+            )}
             {f.officers.map(o => (
               <Text key={`${o.title}-${o.name}`} style={bodyTextStyle}>
                 {o.title}: {o.name}
@@ -141,27 +157,15 @@ export function GazetteBody({ data, tokens }: Props) {
           </View>
         )}
 
-        {hasEntry && (
-          <View style={sectionStyle} wrap={false}>
-            <View style={headerWrapStyle}>
-              <Text style={headerTextStyle}>Entry Methods</Text>
-            </View>
-            <Text style={{ ...bodyTextStyle, fontWeight: 700 }}>Online entries via myK9Show</Text>
-            <Text style={bodyTextStyle}>myk9show.com</Text>
-            {f.entry.opens && <Text style={bodyTextStyle}>Opens: {f.entry.opens}</Text>}
-            {f.entry.closes && <Text style={bodyTextStyle}>Closes: {f.entry.closes}</Text>}
-            {(secretary.email || secretary.mailingAddress || secretary.phone) && (
-              <Text style={{ ...bodyTextStyle, marginTop: 6, color: tokens.secondaryColor }}>
-                Alternate methods:
-              </Text>
-            )}
-            {secretary.email && <Text style={bodyTextStyle}>Email: {secretary.email}</Text>}
-            {secretary.mailingAddress && (
-              <Text style={bodyTextStyle}>Mail: {secretary.mailingAddress}</Text>
-            )}
-            {secretary.phone && <Text style={bodyTextStyle}>Phone: {secretary.phone}</Text>}
+        <View style={sectionStyle} wrap={false}>
+          <View style={headerWrapStyle}>
+            <Text style={headerTextStyle}>Entry Methods</Text>
           </View>
-        )}
+          <Text style={{ ...bodyTextStyle, fontWeight: 700 }}>Online entries via myK9Show</Text>
+          <Text style={bodyTextStyle}>myk9show.com</Text>
+          {f.entry.opens && <Text style={bodyTextStyle}>Opens: {f.entry.opens}</Text>}
+          {f.entry.closes && <Text style={bodyTextStyle}>Closes: {f.entry.closes}</Text>}
+        </View>
 
         {hasLodging && (
           <View style={sectionStyle} wrap={false}>
@@ -201,6 +205,12 @@ export function GazetteBody({ data, tokens }: Props) {
             <Text style={headerTextStyle}>{f.withdrawalPolicy.label}</Text>
           </View>
           <Text style={bodyTextStyle}>{f.withdrawalPolicy.text}</Text>
+        </View>
+      )}
+
+      {f.entryLimit && (
+        <View style={{ marginTop: 16 }} wrap={false}>
+          <Text style={bodyTextStyle}>{f.entryLimit}</Text>
         </View>
       )}
 

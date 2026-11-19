@@ -1,3 +1,4 @@
+import type { EntryPendingReason } from '@/utils/entryStatusUtils';
 import { useEffect } from 'react';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
@@ -28,7 +29,7 @@ interface MonogramLandingPageProps {
   allTrials: Trial[];
   hasEntryClassInventory?: boolean | null;
   /** True when the entry window has not opened yet. */
-  entryWindowNotOpen?: boolean | undefined;
+  entryPendingReason?: EntryPendingReason | undefined;
 }
 
 /**
@@ -46,7 +47,7 @@ export function MonogramLandingPage({
   trial,
   allTrials,
   hasEntryClassInventory,
-  entryWindowNotOpen,
+  entryPendingReason,
 }: MonogramLandingPageProps) {
   useEffect(() => {
     ensureMonogramFontsLoaded();
@@ -55,10 +56,10 @@ export function MonogramLandingPage({
   const data = useMonogramLandingData(show, trial, allTrials);
   const classesHref = publicClassesHref(show);
   const entryCountdown = useCountdown(data.entryCloseDate, data.timezone);
-  // `entryWindowNotOpen` matters as much as closed: a show whose entries open
+  // `entryPendingReason` matters as much as closed: a show whose entries open
   // months from now must not advertise an entry CTA that dead-ends.
   const canEnterOnline =
-    hasEntryClassInventory !== false && !entryCountdown.closed && !entryWindowNotOpen;
+    hasEntryClassInventory !== false && !entryCountdown.closed && !entryPendingReason;
 
   return (
     <div

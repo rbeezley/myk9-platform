@@ -8,11 +8,12 @@
 
 /** The `show_officials` select: the role and the person's printable contact. */
 export const PREMIUM_OFFICIALS_SELECT =
-  'role, created_at, people:person_id(first_name, last_name, email, phone)';
+  'role, created_at, premium_mailing_address, people:person_id(first_name, last_name, email, phone)';
 
 export interface PremiumOfficialRow {
   role: string | null;
   created_at?: string | null;
+  premium_mailing_address?: string | null;
   people: {
     first_name?: string | null;
     last_name?: string | null;
@@ -25,6 +26,8 @@ export interface PremiumOfficial {
   name: string;
   email: string | null;
   phone: string | null;
+  /** MYK9-2065: typed for the premium on the show's official; null until the club enters one. */
+  mailingAddress: string | null;
 }
 
 /**
@@ -42,7 +45,12 @@ export function pickPremiumOfficial(
     const person = row.people!;
     const name = `${person.first_name ?? ''} ${person.last_name ?? ''}`.trim();
     if (!name) continue;
-    return { name, email: person.email ?? null, phone: person.phone ?? null };
+    return {
+      name,
+      email: person.email ?? null,
+      phone: person.phone ?? null,
+      mailingAddress: row.premium_mailing_address?.trim() || null,
+    };
   }
   return null;
 }

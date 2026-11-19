@@ -1,3 +1,5 @@
+import { PendingEntryCopyProvider } from '@/features/_shared/landing/PendingEntryCopyContext';
+import { NO_CLASSES_COPY } from '@/features/_shared/landing/pendingEntryCopy';
 import { render, screen } from '@/test/utils/testUtils';
 import { describe, expect, it, vi, afterEach, beforeEach } from 'vitest';
 import { StickyNav } from '../sections/StickyNav';
@@ -42,12 +44,14 @@ describe('Monogram entry CTAs', () => {
 
   it('replaces the sticky enter link when classes are not ready', () => {
     render(
-      <StickyNav
-        clubName="Monogram Kennel Club"
-        monogramLetters="MKC"
-        entryWizardUrl="/shows/show-1/register"
-        canEnterOnline={false}
-      />
+      <PendingEntryCopyProvider value={NO_CLASSES_COPY}>
+        <StickyNav
+          clubName="Monogram Kennel Club"
+          monogramLetters="MKC"
+          entryWizardUrl="/shows/show-1/register"
+          canEnterOnline={false}
+        />
+      </PendingEntryCopyProvider>
     );
 
     expect(screen.queryByRole('link', { name: /enter this show/i })).not.toBeInTheDocument();
@@ -101,7 +105,11 @@ describe('Monogram entry CTAs', () => {
     });
 
     it('explains that classes are not assigned yet when canEnterOnline is false', () => {
-      render(<HeroBlock {...heroProps} entryCloseDate={null} canEnterOnline={false} />);
+      render(
+        <PendingEntryCopyProvider value={NO_CLASSES_COPY}>
+          <HeroBlock {...heroProps} entryCloseDate={null} canEnterOnline={false} />
+        </PendingEntryCopyProvider>
+      );
       expect(screen.getByText(/no classes are assigned yet/i)).toBeInTheDocument();
     });
 
@@ -195,12 +203,14 @@ describe('Monogram entry CTAs', () => {
     it('renders nothing at mobile width when classes are not ready', () => {
       mockViewport(true);
       render(
-        <FinalCtaBand
-          entryWizardUrl="/shows/show-1/register"
-          entryCloseDate={null}
-          timezone="America/Chicago"
-          canEnterOnline={false}
-        />
+        <PendingEntryCopyProvider value={NO_CLASSES_COPY}>
+          <FinalCtaBand
+            entryWizardUrl="/shows/show-1/register"
+            entryCloseDate={null}
+            timezone="America/Chicago"
+            canEnterOnline={false}
+          />
+        </PendingEntryCopyProvider>
       );
 
       expect(screen.queryByRole('link', { name: /enter this show/i })).not.toBeInTheDocument();

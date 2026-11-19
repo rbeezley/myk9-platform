@@ -1,6 +1,10 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useShowOfficials } from '../useShowOfficials';
+import {
+  fetchShowOfficials,
+  ShowOfficialsPhoneMissingError,
+  useShowOfficials,
+} from '../useShowOfficials';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createElement } from 'react';
 
@@ -63,6 +67,70 @@ describe('useShowOfficials', () => {
     expect(result.current.fetchStatus).toBe('idle');
   });
 
+  it('carries the premium mailing address of the secretary and chair, trimmed, else null (MYK9-2065)', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          user_id: 'p1',
+          first_name: 'Jane',
+          last_name: 'Doe',
+          email: null,
+          role: 'secretary',
+          premium_mailing_address: '  PO Box 9\nTulsa, OK ',
+        },
+        {
+          user_id: 'p2',
+          first_name: 'John',
+          last_name: 'Smith',
+          email: null,
+          role: 'chairman',
+          premium_mailing_address: null,
+        },
+      ],
+      error: null,
+    });
+
+    const { result } = renderHook(() => useShowOfficials('show-1'), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(result.current.data?.secretaries[0].mailingAddress).toBe('PO Box 9\nTulsa, OK');
+    expect(result.current.data?.chairmen[0].mailingAddress).toBeNull();
+  });
+
+  it('carries the current phone, trimmed, else null (MYK9-2204)', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          user_id: 'p1',
+          first_name: 'Jane',
+          last_name: 'Doe',
+          email: null,
+          role: 'secretary',
+          phone: ' 9185550000 ',
+        },
+        {
+          user_id: 'p2',
+          first_name: 'John',
+          last_name: 'Smith',
+          email: null,
+          role: 'chairman',
+          phone: null,
+        },
+      ],
+      error: null,
+    });
+
+    const { result } = renderHook(() => useShowOfficials('show-1'), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(result.current.data?.secretaries[0].phone).toBe('9185550000');
+    expect(result.current.data?.chairmen[0].phone).toBeNull();
+  });
+
   it('groups officials by role', async () => {
     const mockData = [
       {
@@ -96,6 +164,8 @@ describe('useShowOfficials', () => {
       firstName: 'Jane',
       lastName: 'Doe',
       email: 'jane@test.com',
+      mailingAddress: null,
+      phone: null,
       role: 'secretary',
     });
     expect(result.current.data?.chairmen).toHaveLength(1);
@@ -103,5 +173,23 @@ describe('useShowOfficials', () => {
     expect(result.current.data?.stewards).toHaveLength(1);
     expect(result.current.data?.stewards[0].personId).toBe('p3');
     expect(result.current.data?.stewards[0].email).toBeNull();
+  });
+
+  it('requirePhone fails on a row with no phone key but accepts an explicit null (MYK9-2204)', async () => {
+    const row = {
+      user_id: 'p1',
+      first_name: 'Jane',
+      last_name: 'Doe',
+      email: null,
+      role: 'secretary',
+    };
+    mockRpc.mockResolvedValueOnce({ data: [row], error: null });
+    await expect(fetchShowOfficials('show-1', { requirePhone: true })).rejects.toBeInstanceOf(
+      ShowOfficialsPhoneMissingError
+    );
+
+    mockRpc.mockResolvedValueOnce({ data: [{ ...row, phone: null }], error: null });
+    const result = await fetchShowOfficials('show-1', { requirePhone: true });
+    expect(result.secretaries[0].phone).toBeNull();
   });
 });

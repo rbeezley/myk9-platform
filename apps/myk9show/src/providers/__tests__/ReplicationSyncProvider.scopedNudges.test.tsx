@@ -299,6 +299,28 @@ describe('ReplicationSyncProvider: scoped realtime nudges', () => {
     expect(order[0]).toBe('invalidate');
   });
 
+  // MYK9-1930: the server gives a desk entry its entry form on the INSERT. A background or
+  // backoff upload runs outside any provider pass, and the untargeted pass never downloads a
+  // show's entries, so the upload itself must ask for that show's entries.
+  it('pulls the show’s entries after an entries INSERT uploads', async () => {
+    await act(async () => {
+      window.dispatchEvent(
+        new CustomEvent('replication:upload-complete', {
+          detail: {
+            tables: ['entries'],
+            count: 1,
+            mutations: [{ tableName: 'entries', rowId: 'late-1', operation: 'INSERT' }],
+          },
+        })
+      );
+      await vi.advanceTimersByTimeAsync(2_000);
+    });
+    await settle();
+
+    expect(hoisted.getEntry).toHaveBeenCalledWith('late-1');
+    expect(syncSpies.entries).toHaveBeenCalledWith('show-1', expect.anything());
+  });
+
   it('leaves the judge-name cache alone for an upload without a set_class_judge', async () => {
     order.length = 0;
     await act(async () => {

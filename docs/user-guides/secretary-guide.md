@@ -62,14 +62,16 @@ Once you use the paperwork tracking (print a sheet from the app, or record a jud
 
 ## 1 · Create a show, its trials, and its classes
 
+> **Watch:** [How to create a show (2 min 11 s)](https://youtu.be/IAltmLZVG9A)
+
 The wizard creates all three in one pass. **Actions → Add Show** (the Actions button is in the top bar, on any page).
 
 ![Add Show wizard on Step 1, showing the four steps and the starred required fields](../screenshots/S-02.png)
 
-1. **Step 1 — Show Details.** Name, organization (AKC/UKC/ASCA), dates, location, host club, entry fee, and the entry open/close dates. Add your **chairman** and **secretary**.
+1. **Step 1 — Show Details.** Name, organization (AKC/UKC/ASCA), host club, time zone, location, dates, entry fee, and the entry open/close dates. The time zone is filled in for you, and so is the host club if you have only one. Change them if they are wrong: the time zone decides when entries close. When you finish typing the location, the pin is placed on the map. If it is not, check the street, city and ZIP, then try **Locate address**. If the map still cannot find the venue, click the map to place the pin yourself, or leave it: the address is saved as you typed it. Add your **Chair**. The **Secretary** is filled in as you. Change it if someone else is the secretary.
 2. **⚠️ Also on Step 1: add every judge** in the _Show Judges_ field. It looks optional. It is not — see the warning below.
 3. **Step 2 — Trials.** One row per trial: date, time, and (for AKC) the event number.
-4. **Step 3 — Classes.** Pick a template, then tick the classes each trial offers. Assign a judge per class.
+4. **Step 3 — Classes.** Pick a template, then tick the classes each trial offers. Assign a judge per class. If only one of your judges is qualified for this show's classes, that judge is filled in on any class that has no judge yet.
 5. **Step 4 — Review.** Check the summary, then **Add Show**. The show stays private until you publish it (card 2).
 
 > **Adding your judges on Step 1 is still the smoothest path**, but no longer a trap: if you reach Step 3 without any, it now offers a way back to add them.
@@ -277,6 +279,8 @@ In the week before the show (from seven days out to the day before), **Show Desk
 
 ## 11 · Set the run order
 
+> **Watch:** [Show day: run order and check-in (1 min 28 s)](https://youtu.be/mKj5PIHfAmY)
+
 **Show Desk → click the class → ⋯ (Actions) → Auto-sort run order.**
 
 ![Show Desk with a class selected: Status, Judge and Expected start under the class name, the ⋯ menu, and the entries in run order with a drag handle on each waiting dog](../screenshots/S-15.png)
@@ -350,6 +354,8 @@ The **⋯** button at the top right of the class opens **Actions for** that clas
 **Announce a delay** appears before a class starts when it is running late; it opens the delay message already filled in with the class and the minutes.
 
 ## 18 · Check dogs in
+
+> **Watch:** [Show day: run order and check-in (1 min 28 s)](https://youtu.be/mKj5PIHfAmY) Check-in is the second half.
 
 The **Check-in desk** is the one list of exhibitors, with armband, class, time and check-in state for every dog:
 
@@ -494,5 +500,7 @@ Honest list, so nothing surprises you mid-show.
 ---
 
 ## Still need help?
+
+More videos for secretaries: [myK9Show - Secretaries](https://www.youtube.com/playlist?list=PLPE_AEgvi2AU).
 
 Full findings behind this guide, including anything fixed recently: `docs/audits/2026-08-28-secretary-task-walk.md`.

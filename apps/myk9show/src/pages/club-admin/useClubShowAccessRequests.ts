@@ -9,7 +9,7 @@
  */
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Users, Shield, KeyRound } from 'lucide-react';
+import { Users, Shield, KeyRound, ShieldCheck } from 'lucide-react';
 import type { PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import {
   approveClubRoleRequest,
@@ -69,6 +69,8 @@ export function useClubShowAccessRequests(
         icon: KeyRound,
         ...(pendingRoleRequests.length > 0 ? { badge: pendingRoleRequests.length } : {}),
       },
+      // MYK9-2209: add or remove a club admin by email.
+      { id: 'admins', label: 'Admins', icon: ShieldCheck },
     ],
     [pendingRoleRequests.length, pendingMembershipCount]
   );

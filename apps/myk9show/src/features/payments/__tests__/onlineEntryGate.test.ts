@@ -7,6 +7,8 @@ import {
   PUBLISH_GATE_ERRCODE_UNAUTHORIZED,
   CLUB_UNAUTHORIZED_MESSAGE,
   CLUB_REQUIRED_MESSAGE,
+  PREMIUM_NOT_PUBLISHED_MESSAGE,
+  PUBLISH_GATE_MESSAGES,
   entryWindowPublishError,
   ENTRY_WINDOW_REQUIRED_MESSAGE,
   ENTRY_WINDOW_ORDER_MESSAGE,
@@ -69,6 +71,13 @@ describe('publishGateDbErrorMessage', () => {
   it('trusts the DB text verbatim for the missing-club refusal — a DIFFERENT message under the SAME code', () => {
     const dbError = { code: PUBLISH_GATE_ERRCODE, message: CLUB_REQUIRED_MESSAGE };
     expect(publishGateDbErrorMessage(dbError)).toBe(CLUB_REQUIRED_MESSAGE);
+  });
+
+  it('trusts the DB text verbatim for the unpublished-premium refusal (MYK9-2197)', () => {
+    const dbError = { code: PUBLISH_GATE_ERRCODE, message: PREMIUM_NOT_PUBLISHED_MESSAGE };
+    expect(publishGateDbErrorMessage(dbError)).toBe(PREMIUM_NOT_PUBLISHED_MESSAGE);
+    expect(PUBLISH_GATE_MESSAGES).toContain(PREMIUM_NOT_PUBLISHED_MESSAGE);
+    expect(PREMIUM_NOT_PUBLISHED_MESSAGE).not.toContain('\u2014');
   });
 
   it('returns null for any error that is not the publish-gate refusal', () => {

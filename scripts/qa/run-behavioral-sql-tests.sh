@@ -53,6 +53,8 @@ TEST_FILES=(
   "$TEST_DIR/request_new_club_test.sql"
   "$TEST_DIR/club_secretary_grant_test.sql"
   "$TEST_DIR/club_show_managers_visibility_test.sql"
+  "$TEST_DIR/myk9_2209_club_admin_grant_revoke_test.sql"
+  "$TEST_DIR/myk9_2208_show_club_admin_contacts_test.sql"
   "$TEST_DIR/club_officials_visibility_test.sql"
   "$TEST_DIR/club_delete_restrict_test.sql"
   "$TEST_DIR/stripe_ledger_fks_restrict_test.sql"
@@ -69,10 +71,13 @@ TEST_FILES=(
   "$TEST_DIR/myk9_1637_card_money_received_test.sql"
   "$TEST_DIR/myk9_1961_refunded_fee_not_owed_test.sql"
   "$TEST_DIR/myk9_1966_desk_addon_onto_held_money_test.sql"
+  "$TEST_DIR/myk9_1930_late_entry_gets_form_test.sql"
   "$TEST_DIR/show_publish_gate_trigger_test.sql"
   "$TEST_DIR/club_authorization_gate_test.sql"
   "$TEST_DIR/myk9_979_online_entries_switch_test.sql"
   "$TEST_DIR/myk9_2163_publish_needs_payouts_test.sql"
+  "$TEST_DIR/myk9_2197_show_publish_blockers_test.sql"
+  "$TEST_DIR/myk9_2199_club_first_show_published_test.sql"
   "$TEST_DIR/myk9_909_club_creator_select_test.sql"
   "$TEST_DIR/myk9_952_demo_clubs_listing_test.sql"
   "$TEST_DIR/club_routed_role_requests_test.sql"
@@ -141,6 +146,8 @@ TEST_FILES=(
   "$TEST_DIR/placement_soft_delete_ranking_test.sql"
   "$TEST_DIR/pre_rule_table_grants_test.sql"
   "$TEST_DIR/show_officials_label_not_permission_test.sql"
+  "$TEST_DIR/myk9_2065_official_premium_mailing_address_test.sql"
+  "$TEST_DIR/myk9_2204_show_officials_phone_test.sql"
   "$TEST_DIR/show_announcements_scope_test.sql"
   "$TEST_DIR/show_message_tenant_isolation_test.sql"
   "$TEST_DIR/show_organization_immutability_test.sql"
@@ -315,6 +322,17 @@ elif [ "${MYK9_SKIP_HARD_DELETE_CONCURRENCY:-0}" = "1" ]; then
 else
   MYK9_BEHAVIORAL_SQL_DATABASE_URL="$DATABASE_URL" \
     bash "$REPO_ROOT/scripts/qa/hard-delete-show-concurrency.sh"
+fi
+
+# MYK9-2212: two-session proof of the authorization re-check after the per-club lock in
+# grant_club_admin / revoke_club_admin. Same gating as the harness above.
+if [ "$FILTERED" = "1" ]; then
+  echo "SKIP: club-admin re-check concurrency harness (named test files only)"
+elif [ "${MYK9_SKIP_HARD_DELETE_CONCURRENCY:-0}" = "1" ]; then
+  echo "SKIP: local club-admin re-check concurrency harness (source-contract test mode)"
+else
+  MYK9_BEHAVIORAL_SQL_DATABASE_URL="$DATABASE_URL" \
+    bash "$REPO_ROOT/scripts/qa/club-admin-recheck-concurrency.sh"
 fi
 
 echo "BEHAVIORAL SQL TESTS PASSED (${#TEST_FILES[@]} files)"

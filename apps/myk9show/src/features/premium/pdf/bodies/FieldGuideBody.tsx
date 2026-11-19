@@ -60,6 +60,7 @@ export function FieldGuideBody({ data, tokens }: Props) {
     f.fees.preEntry ||
     f.fees.dayOf ||
     f.recordingFee ||
+    f.entryLimit ||
     f.withdrawalPolicy ||
     f.scoutingStatement
   );
@@ -132,6 +133,7 @@ export function FieldGuideBody({ data, tokens }: Props) {
                 {chair.name}
                 {chair.email ? ` · ${chair.email}` : ''}
                 {chair.phone ? ` · ${chair.phone}` : ''}
+                {chair.mailingAddress ? `\n${chair.mailingAddress}` : ''}
               </Text>
             </View>
           )}
@@ -142,6 +144,7 @@ export function FieldGuideBody({ data, tokens }: Props) {
                 {secretary.name}
                 {secretary.email ? ` · ${secretary.email}` : ''}
                 {secretary.phone ? ` · ${secretary.phone}` : ''}
+                {secretary.mailingAddress ? `\n${secretary.mailingAddress}` : ''}
               </Text>
             </View>
           )}
@@ -225,6 +228,12 @@ export function FieldGuideBody({ data, tokens }: Props) {
             <View style={rowStyle}>
               <Text style={labelStyle}>Recording fee</Text>
               <Text style={valueStyle}>{f.recordingFee}</Text>
+            </View>
+          )}
+          {f.entryLimit && (
+            <View style={rowStyle}>
+              <Text style={labelStyle}>Entry limit</Text>
+              <Text style={valueStyle}>{f.entryLimit}</Text>
             </View>
           )}
           {f.withdrawalPolicy && (

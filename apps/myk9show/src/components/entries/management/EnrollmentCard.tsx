@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   AMOUNT_NOT_AVAILABLE,
+  SAVED_ON_DEVICE_PAYMENT_NOTE,
   EMPTY_FULL_PAYMENT_DIALOG,
   EMPTY_PARTIAL_DIALOG,
   EMPTY_REFUND_DIALOG,
@@ -104,6 +105,11 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   // gating this on the status hid the shortfall exactly when it mattered
   // (MYK9-495 round 2).
   const isPartiallyPaid = !amountUnknown && paidDollars > 0 && paidDollars < totalDollars;
+  // MYK9-1930: an owed desk entry not uploaded yet has no entry form to record money on.
+  const awaitingFormOnDevice =
+    !group.enrollmentId &&
+    group.paymentStatus === PaymentStatus.PENDING &&
+    group.entries.some(entry => entry.savedOnDeviceOnly === true);
 
   const openRefundDialog = (isPartial: boolean) => {
     refundSave.reset();
@@ -252,13 +258,21 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
 
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-1.5">
-              {/* Manual payment recording only exists for enrollment (mail-in)
-                  groups. Online-checkout groups have no enrollment row, so the
-                  manual options would silently no-op — and "Refunded…" would
-                  read like a real card refund. Their status follows Stripe via
-                  the per-entry Withdrawn → refund flow. */}
+              {/* Payment is recorded on the entry form, so the controls exist only where
+                  there is one. Online-checkout groups have no form until their card
+                  payment lands (the checkout sync gives them one), and "Refunded…" would
+                  read like a real card refund; their status follows Stripe via the
+                  per-entry Withdrawn → refund flow. A desk entry gets its form from the
+                  server when it syncs (MYK9-1930); until then it says so. */}
               {!group.enrollmentId ? (
-                getPaymentStatusBadge(group.paymentStatus)
+                <>
+                  {getPaymentStatusBadge(group.paymentStatus)}
+                  {awaitingFormOnDevice && (
+                    <span className="text-xs text-muted-foreground">
+                      {SAVED_ON_DEVICE_PAYMENT_NOTE}
+                    </span>
+                  )}
+                </>
               ) : (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>

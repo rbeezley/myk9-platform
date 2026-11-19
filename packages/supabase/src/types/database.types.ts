@@ -1926,6 +1926,7 @@ export type Database = {
           deleted_by: string | null
           description: string | null
           email: string | null
+          first_show_published_at: string | null
           id: string
           is_demo: boolean
           license_key: string | null
@@ -1956,6 +1957,7 @@ export type Database = {
           deleted_by?: string | null
           description?: string | null
           email?: string | null
+          first_show_published_at?: string | null
           id?: string
           is_demo?: boolean
           license_key?: string | null
@@ -1986,6 +1988,7 @@ export type Database = {
           deleted_by?: string | null
           description?: string | null
           email?: string | null
+          first_show_published_at?: string | null
           id?: string
           is_demo?: boolean
           license_key?: string | null
@@ -8568,6 +8571,7 @@ export type Database = {
           created_by: string | null
           id: string
           person_id: string
+          premium_mailing_address: string | null
           role: string
           show_id: string
         }
@@ -8576,6 +8580,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           person_id: string
+          premium_mailing_address?: string | null
           role: string
           show_id: string
         }
@@ -8584,6 +8589,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           person_id?: string
+          premium_mailing_address?: string | null
           role?: string
           show_id?: string
         }
@@ -13577,6 +13583,13 @@ export type Database = {
         Args: { p_person_id: string; p_show_id: string }
         Returns: undefined
       }
+      add_club_admin_by_email: {
+        Args: { p_club_id: string; p_email: string }
+        Returns: {
+          outcome: string
+          person_id: string
+        }[]
+      }
       add_to_waitlist: {
         Args: {
           p_class_id: string
@@ -13954,6 +13967,8 @@ export type Database = {
         Args: { check_club_id: string }
         Returns: boolean
       }
+      club_first_show_state: { Args: { p_club_id: string }; Returns: Json }
+      club_publish_blockers: { Args: { p_club_id: string }; Returns: Json }
       complete_cart_fulfillment: {
         Args: {
           p_amount_cents?: number
@@ -14495,6 +14510,14 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_club_admins: {
+        Args: { p_club_id: string }
+        Returns: {
+          person_email: string
+          person_id: string
+          person_name: string
+        }[]
+      }
       get_club_show_managers: {
         Args: { p_club_id: string }
         Returns: {
@@ -14969,6 +14992,13 @@ export type Database = {
           show_date: string
         }[]
       }
+      get_show_club_admin_contacts: {
+        Args: { p_show_id: string }
+        Returns: {
+          display_name: string
+          email: string
+        }[]
+      }
       get_show_club_officers: {
         Args: { p_show_id: string }
         Returns: {
@@ -15053,6 +15083,8 @@ export type Database = {
           email: string
           first_name: string
           last_name: string
+          phone: string
+          premium_mailing_address: string
           role: string
           user_id: string
         }[]
@@ -15124,6 +15156,10 @@ export type Database = {
           person_id: string
           role_name: string
         }[]
+      }
+      grant_club_admin: {
+        Args: { p_club_id: string; p_person_id: string }
+        Returns: string
       }
       grant_club_secretary: {
         Args: { p_club_id: string; p_person_id: string }
@@ -16005,6 +16041,10 @@ export type Database = {
         Args: { p_show_id: string }
         Returns: boolean
       }
+      revoke_club_admin: {
+        Args: { p_club_id: string; p_person_id: string }
+        Returns: undefined
+      }
       revoke_club_secretary: {
         Args: { p_club_id: string; p_person_id: string }
         Returns: undefined
@@ -16068,6 +16108,15 @@ export type Database = {
       send_waitlist_withdrawal_message_internal: {
         Args: { p_sender_auth_user_id: string; p_waitlist_entry_id: string }
         Returns: string
+      }
+      set_show_official_mailing_address: {
+        Args: {
+          p_address: string
+          p_person_id: string
+          p_role_name: string
+          p_show_id: string
+        }
+        Returns: undefined
       }
       set_class_judge: {
         Args: { p_class_id: string; p_person_id: string }
@@ -16148,6 +16197,7 @@ export type Database = {
         Args: { p_person_id: string; p_show_id: string }
         Returns: boolean
       }
+      show_publish_blockers: { Args: { p_show_id: string }; Returns: Json }
       sign_in_email_drift: { Args: never; Returns: Json }
       soft_delete_class: {
         Args: { p_class_id: string; p_override?: boolean; p_reason?: string }

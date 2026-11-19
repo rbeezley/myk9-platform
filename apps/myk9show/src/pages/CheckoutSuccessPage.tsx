@@ -26,6 +26,7 @@ import { overflowRefundMessage } from '@/features/payments/overflowRefundCopy';
 import { CONFIRMATION_NUMBER_LABEL } from '@/features/registration/confirmationNumberDisplay';
 import { retireDraftsForCheckout } from '@/features/registration/retireDraftsForCheckout';
 import { EntryStatus } from '@/types/show-registration-types';
+import { formatCents } from '@/lib/format/cents';
 
 interface EntryDetails {
   id: string;
@@ -364,9 +365,7 @@ export default function CheckoutSuccessPage() {
     }
   };
 
-  const formatCurrency = (cents: number) => {
-    return `$${(cents / 100).toFixed(2)}`;
-  };
+  const formatCurrency = formatCents;
   const paidEntryCount = orderDetails?.entryIds?.length ?? entries.length;
   const confirmedEntryCount = splitSummary?.confirmedEntryCount ?? paidEntryCount;
   const waitlistEntries = splitSummary?.waitlistEntries ?? [];

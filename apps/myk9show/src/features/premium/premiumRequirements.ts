@@ -24,8 +24,9 @@ export interface PremiumRequirementFacts {
   startDate: PremiumFacts['startDate'];
   fees: Pick<PremiumFacts['fees'], 'hasAny'>;
   entry: PremiumFacts['entry'];
-  secretary: Pick<PremiumFacts['secretary'], 'name'>;
-  chair: Pick<NonNullable<PremiumFacts['chair']>, 'name'> | null;
+  secretary: Pick<PremiumFacts['secretary'], 'name'> & { mailingAddress?: string | null };
+  chair:
+    (Pick<NonNullable<PremiumFacts['chair']>, 'name'> & { mailingAddress?: string | null }) | null;
   committee: PremiumFacts['committee'];
   /**
    * MYK9-2044: the calendar dates the recording fee is priced on (each live trial's date, else
@@ -182,6 +183,22 @@ const CHECKS: Partial<Record<PremiumFactId, Check>> = {
       f.chair && !blank(f.chair.name)
         ? null
         : `${r} requires the Trial Chair. Add them in Edit show, under Personnel.`,
+    href: editShow('personnel'),
+  },
+  // MYK9-2065: asked for only once there is an official to ask about; a missing official is
+  // already listed above and has no address to print.
+  secretaryAddress: {
+    missing: (f, r) =>
+      !blank(f.secretary.name) && blank(f.secretary.mailingAddress)
+        ? `${r} requires the Trial Secretary's mailing address. Add it in Edit show, under Personnel.`
+        : null,
+    href: editShow('personnel'),
+  },
+  chairAddress: {
+    missing: (f, r) =>
+      f.chair && !blank(f.chair.name) && blank(f.chair.mailingAddress)
+        ? `${r} requires the Trial Chair's mailing address. Add it in Edit show, under Personnel.`
+        : null,
     href: editShow('personnel'),
   },
   entryWindow: {

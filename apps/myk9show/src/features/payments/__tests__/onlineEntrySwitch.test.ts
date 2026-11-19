@@ -2,8 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   acceptsOnlineEntries,
   becomesPublic,
-  onlineEntryMode,
-  isMailInOnlyShow,
   isPublicShowStatus,
   PUBLIC_SHOW_STATUSES,
   PUBLISH_GATE_MESSAGES,
@@ -39,23 +37,12 @@ describe('online entries switch — client mirror of the publish gate', () => {
   });
 
   // Codex P2 on #2707: an unknown value (a replica row cached before the
-  // column existed) is never online-capable, and never claimed as mail-in.
-  it('reads an unknown switch as unknown: neither online nor mail-in', () => {
+  // column existed) is never online-capable.
+  it('reads an unknown switch as not online-capable', () => {
     for (const show of [{}, { onlineEntriesEnabled: null }, null, undefined]) {
-      expect(onlineEntryMode(show)).toBe('unknown');
       expect(acceptsOnlineEntries(show)).toBe(false);
-      expect(isMailInOnlyShow(show)).toBe(false);
     }
-    expect(onlineEntryMode({ onlineEntriesEnabled: true })).toBe('online');
     expect(acceptsOnlineEntries({ onlineEntriesEnabled: true })).toBe(true);
-    expect(onlineEntryMode({ onlineEntriesEnabled: false })).toBe('mail_in');
-  });
-
-  it('reads a show as mail-in only when the switch is explicitly off', () => {
-    expect(isMailInOnlyShow({ onlineEntriesEnabled: false })).toBe(true);
-    expect(isMailInOnlyShow({ onlineEntriesEnabled: true })).toBe(false);
-    expect(isMailInOnlyShow({})).toBe(false);
-    expect(isMailInOnlyShow(null)).toBe(false);
   });
 
   it('lists every trigger refusal the sync toast may need to repeat', () => {

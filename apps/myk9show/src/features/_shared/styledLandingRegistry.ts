@@ -12,6 +12,7 @@
 
 import { type ComponentType } from 'react';
 import type { Show } from '@/types/show-types';
+import type { EntryPendingReason } from '@/utils/entryStatusUtils';
 import type { Trial } from '@/components/trials/types/trial.types';
 import type { ShowStyle } from '@/features/registries';
 import { HeritageLandingPage } from '@/features/heritage/landing/HeritageLandingPage';
@@ -29,19 +30,17 @@ export interface StyledLandingProps {
   allTrials: Trial[];
   hasEntryClassInventory?: boolean | null;
   /**
-   * True when entries are not open YET: the window has not opened, or no
-   * window was ever set (`isEntryWindowNotOpen`). Either way, no Enter CTA.
+   * Why entries are not open YET, or undefined when they are not pending:
+   * the window has not opened (`not_yet_open`), no window was ever set
+   * (`window_unknown`), or the show's online-entry setting is unknown. Any
+   * reason means no Enter CTA; only `not_yet_open` may claim a dated opening.
    * Closed is judged by the landing's own countdown, not by this.
-   *
-   * It was named `entryNotYetOpen` until MYK9-649, when a windowless show was
-   * still reported as "not yet open" to keep this CTA hidden.
    *
    * The landings only ever checked `entryClosed`, so a show whose entries open
    * in three months advertised "Enter This Show" to every anonymous visitor and
-   * sent them to a dead end. `getEntryStatus` has always handled `not_yet_open`
-   * correctly -- it was just computed after the public branch had returned.
+   * sent them to a dead end (MYK9-649).
    */
-  entryWindowNotOpen?: boolean | undefined;
+  entryPendingReason?: EntryPendingReason | undefined;
 }
 
 export const STYLED_LANDING_BY_STYLE: Record<ShowStyle, ComponentType<StyledLandingProps>> = {

@@ -1,6 +1,6 @@
+import { usePendingEntryCopy } from '@/features/_shared/landing/PendingEntryCopyContext';
 import { HeritageOrnamentRule } from '../../components/HeritageOrnamentRule';
 import { heritageOrnaments } from '../../tokens';
-import { pendingEntryCopy, useLandingMailInOnly } from '@/features/_shared/landing/landingMailIn';
 import { LateEntryContact } from '@/features/_shared/landing/LateEntryContact';
 
 interface FinalCtaBandProps {
@@ -9,7 +9,7 @@ interface FinalCtaBandProps {
 }
 
 export function FinalCtaBand({ canEnterOnline = true, entryClosed = false }: FinalCtaBandProps) {
-  const mailInOnly = useLandingMailInOnly();
+  const pending = usePendingEntryCopy();
   return (
     <section
       className="hl-on-ink px-6 py-20 text-center"
@@ -46,11 +46,8 @@ export function FinalCtaBand({ canEnterOnline = true, entryClosed = false }: Fin
             </>
           ) : (
             <>
-              {mailInOnly ? 'Enter by mail or at the' : 'Entries open when'}{' '}
-              <em style={{ color: 'var(--hl-gold-on-dark)' }}>
-                {mailInOnly ? 'show' : 'classes are assigned'}
-              </em>
-              .
+              {pending.headlineLead}{' '}
+              <em style={{ color: 'var(--hl-gold-on-dark)' }}>{pending.headlineAccent}</em>.
             </>
           )}
         </p>
@@ -110,14 +107,7 @@ export function FinalCtaBand({ canEnterOnline = true, entryClosed = false }: Fin
             className="text-sm leading-relaxed"
             style={{ color: 'var(--hl-paper-soft)', fontFamily: "'EB Garamond', Georgia, serif" }}
           >
-            {entryClosed ? (
-              <LateEntryContact />
-            ) : (
-              pendingEntryCopy(
-                mailInOnly,
-                'The secretary still needs to assign classes before online entry is available.'
-              )
-            )}
+            {entryClosed ? <LateEntryContact /> : pending.sub}
           </p>
         )}
       </div>

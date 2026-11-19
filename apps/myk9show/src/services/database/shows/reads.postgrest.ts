@@ -307,6 +307,7 @@ export async function postgrestGetShowById(id: string, options: { publicOnly?: b
         timezone,
         registry_id,
         status,
+        deleted_at,
         trial_type,
         display_order,
         max_entries_per_dog,

@@ -17,6 +17,7 @@ import { logger } from '@/services/LoggingService';
 import { PAYMENT_LINK_FAILED, PAYMENT_LINK_SERVER_MESSAGES } from './paymentLinkMessages';
 import { WithdrawalPolicyDisclosure } from '@/features/payments/WithdrawalPolicyDisclosure';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
+import { formatCents } from '@/lib/format/cents';
 
 /** Minimal shape required by RequestPaymentDialog. */
 export type RequestableEntry = Pick<
@@ -39,7 +40,7 @@ interface LinkResult {
   totalCents: number;
 }
 
-const dollars = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+const dollars = formatCents;
 
 export function RequestPaymentDialog({
   open,

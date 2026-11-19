@@ -7,6 +7,10 @@ export interface ShowOfficial {
   firstName: string;
   lastName: string;
   email: string | null;
+  /** MYK9-2065: typed for the premium; null for a steward and until the club enters one. */
+  mailingAddress?: string | null;
+  /** MYK9-2204: the current phone, returned only to a caller who can manage the show. */
+  phone?: string | null;
   role: 'secretary' | 'chairman' | 'steward';
 }
 
@@ -25,9 +29,19 @@ interface ShowOfficialRow {
   last_name: string | null;
   email: string | null;
   role: string;
+  premium_mailing_address?: string | null;
+  phone?: string | null;
 }
 
-export async function fetchShowOfficials(showId: string): Promise<ShowOfficials> {
+/** Thrown by `fetchShowOfficials(..., { requirePhone: true })` when the RPC predates the phone column. */
+export class ShowOfficialsPhoneMissingError extends Error {
+  override readonly name = 'ShowOfficialsPhoneMissingError';
+}
+
+export async function fetchShowOfficials(
+  showId: string,
+  options: { requirePhone?: boolean } = {}
+): Promise<ShowOfficials> {
   const { data, error } = await supabase.rpc('get_show_officials', { p_show_id: showId });
 
   if (error) throw error;
@@ -36,12 +50,19 @@ export async function fetchShowOfficials(showId: string): Promise<ShowOfficials>
 
   for (const row of (data as ShowOfficialRow[] | null) || []) {
     if (!row.user_id) continue;
+    // MYK9-2204: a row with no `phone` key came from an RPC that predates the column (the app
+    // deployed before the migration); an explicit null is a cleared or hidden phone.
+    if (options.requirePhone && !('phone' in row)) {
+      throw new ShowOfficialsPhoneMissingError('get_show_officials returned no phone column');
+    }
     const role = row.role;
     const official: ShowOfficial = {
       personId: row.user_id,
       firstName: row.first_name || '',
       lastName: row.last_name || '',
       email: row.email || null,
+      mailingAddress: row.premium_mailing_address?.trim() || null,
+      phone: row.phone?.trim() || null,
       role: role as ShowOfficial['role'],
     };
 

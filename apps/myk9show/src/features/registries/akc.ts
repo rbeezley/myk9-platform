@@ -114,6 +114,7 @@ export const akcRegistry: Registry = {
   memberClubLanguage: 'A member club of the American Kennel Club',
   exhibitorAgreement: AKC_EXHIBITOR_AGREEMENT,
   premiumScoutingStatement: AKC_PREMIUM_SCOUTING_STATEMENT,
+  premiumRequiredStatement: null,
   registrationField: {
     label: 'A.K.C. registration number',
     pattern: null,

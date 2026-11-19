@@ -17,13 +17,18 @@ import {
   OFFICER_POSITION_ORDER,
   type OfficerPosition,
 } from '@/types/club-membership-types';
-import { getPremiumScoutingStatement, type RegistryId } from '@/features/registries';
+import {
+  getPremiumRequiredStatement,
+  getPremiumScoutingStatement,
+  type RegistryId,
+} from '@/features/registries';
 import { resolveEffectiveWithdrawalTerms } from '@/features/payments/effectiveWithdrawalTerms';
 import { buildWithdrawalDisclosure } from '@/features/payments/withdrawalPolicyText';
 import { formatLongDate } from '@/lib/format/dates';
 import type { GeneratedPremium, PremiumSupplemental } from '@/types/premium-types';
 import { makeClassComparator } from './pdf/bodies/classOrder';
 import { premiumRecordingFeeText } from './premiumRecordingFeeStatement';
+import { premiumEntryLimitText } from './premiumEntryLimit';
 
 // ─── Catalog: what each fact is, where it comes from, who requires it ───────────────────
 
@@ -41,9 +46,11 @@ export type PremiumFactId =
   | 'classes'
   | 'judges'
   | 'secretary'
+  | 'secretaryAddress'
   | 'officers'
   | 'committee'
   | 'chair'
+  | 'chairAddress'
   | 'entryWindow'
   | 'vetClinic'
   | 'accommodations'
@@ -69,15 +76,20 @@ export interface PremiumFactDefinition {
 export const AKC_EVENT_COMMITTEE_MINIMUM = 5;
 
 export const PREMIUM_FACT_CATALOG: readonly PremiumFactDefinition[] = [
-  { id: 'clubName', label: 'Name of club', source: 'club', requiredBy: ['AKC'] },
-  { id: 'venue', label: 'Location', source: 'show', requiredBy: ['AKC'] },
-  { id: 'dates', label: 'Date of the event', source: 'show', requiredBy: ['AKC'] },
+  { id: 'clubName', label: 'Name of club', source: 'club', requiredBy: ['AKC', 'ASCA'] },
+  { id: 'venue', label: 'Location', source: 'show', requiredBy: ['AKC', 'ASCA'] },
+  { id: 'dates', label: 'Date of the event', source: 'show', requiredBy: ['AKC', 'ASCA'] },
   { id: 'eventNumber', label: 'Event number', source: 'trial', requiredBy: ['AKC'] },
-  { id: 'showHours', label: 'Trial hours', source: 'show', requiredBy: ['AKC'] },
+  { id: 'showHours', label: 'Trial hours', source: 'show', requiredBy: ['AKC', 'ASCA'] },
   { id: 'trialInformation', label: 'Trial information', source: 'show', requiredBy: [] },
-  { id: 'fees', label: 'Entry fees', source: 'show', requiredBy: ['AKC'] },
+  { id: 'fees', label: 'Entry fees', source: 'show', requiredBy: ['AKC', 'ASCA'] },
   // MYK9-1976: the club's text (a show may override it), else the registry-correct default.
-  { id: 'withdrawalPolicy', label: 'Withdrawals and Pulls', source: 'club', requiredBy: ['AKC'] },
+  {
+    id: 'withdrawalPolicy',
+    label: 'Withdrawals and Pulls',
+    source: 'club',
+    requiredBy: ['AKC', 'ASCA'],
+  },
   // MYK9-2043: the registry's own words (AKC Ch. 3 §15); the club types nothing.
   {
     id: 'scoutingStatement',
@@ -87,9 +99,17 @@ export const PREMIUM_FACT_CATALOG: readonly PremiumFactDefinition[] = [
   },
   // MYK9-2044: AKC Ch. 3 §15, "AKC recording fee shall be stated"; from the dated table in code.
   { id: 'recordingFee', label: 'AKC recording fee', source: 'registry', requiredBy: ['AKC'] },
-  { id: 'classes', label: 'Classes offered', source: 'class', requiredBy: ['AKC'] },
-  { id: 'judges', label: 'Judges', source: 'person', requiredBy: ['AKC'] },
-  { id: 'secretary', label: 'Trial Secretary', source: 'person', requiredBy: ['AKC'] },
+  { id: 'classes', label: 'Classes offered', source: 'class', requiredBy: ['AKC', 'ASCA'] },
+  { id: 'judges', label: 'Judges', source: 'person', requiredBy: ['AKC', 'ASCA'] },
+  { id: 'secretary', label: 'Trial Secretary', source: 'person', requiredBy: ['AKC', 'ASCA'] },
+  // MYK9-2065: AKC Ch. 3 §15 wants each official's address. It is typed for the premium on the
+  // show's official, never taken from their profile, so a home address prints only by choice.
+  {
+    id: 'secretaryAddress',
+    label: 'Trial Secretary mailing address',
+    source: 'person',
+    requiredBy: ['AKC'],
+  },
   // MYK9-2045: the club's Officers list (Club admin > Officers), the one list the premium prints.
   { id: 'officers', label: 'Club officers', source: 'club', requiredBy: [] },
   // MYK9-2064: the club's Event Committee (Club admin > Officers > Committee), which a show may
@@ -101,8 +121,19 @@ export const PREMIUM_FACT_CATALOG: readonly PremiumFactDefinition[] = [
     requiredBy: ['AKC'],
     minimumBy: { AKC: AKC_EVENT_COMMITTEE_MINIMUM },
   },
-  { id: 'chair', label: 'Trial Chair', source: 'person', requiredBy: ['AKC'] },
-  { id: 'entryWindow', label: 'Entries open and close', source: 'show', requiredBy: ['AKC'] },
+  { id: 'chair', label: 'Trial Chair', source: 'person', requiredBy: ['AKC', 'ASCA'] },
+  {
+    id: 'chairAddress',
+    label: 'Trial Chair mailing address',
+    source: 'person',
+    requiredBy: ['AKC'],
+  },
+  {
+    id: 'entryWindow',
+    label: 'Entries open and close',
+    source: 'show',
+    requiredBy: ['AKC', 'ASCA'],
+  },
   { id: 'vetClinic', label: 'Veterinary services', source: 'template', requiredBy: [] },
   { id: 'accommodations', label: 'Accommodations', source: 'template', requiredBy: [] },
   { id: 'hospitality', label: 'Hospitality', source: 'template', requiredBy: [] },
@@ -197,11 +228,19 @@ export function pickSupplementalFacts(
 
 // ─── The list of facts ──────────────────────────────────────────────────────────────────
 
+/** A typed mailing address with its edge whitespace gone, or null when nothing was typed. */
+function cleanAddress(raw: string | null | undefined): string | null {
+  const trimmed = raw?.trim();
+  return trimmed ? trimmed : null;
+}
+
 export interface PremiumContact {
   name: string;
   email: string | null;
   /** Display-formatted; empty string when there is none. */
   phone: string;
+  /** MYK9-2065: the address the club typed for the premium; null prints nothing. */
+  mailingAddress: string | null;
 }
 
 /** The premium's label for the refund and withdrawal policy row, in every style. */
@@ -241,14 +280,18 @@ export interface PremiumRegistryStatementFact {
 }
 
 /**
- * MYK9-2043: the registry's statement about not scouting the trial location, for the PDF and
- * the public page alike. Null for a registry that requires none, so no style prints it there.
+ * MYK9-2043: the registry's fixed statement, for the PDF and the public page alike: AKC's about
+ * not scouting the trial location, ASCA's required statements (MYK9-2225). Null for a registry
+ * that requires none (UKC), so no style prints it there.
  */
 export function buildScoutingStatementFact(
   registry: RegistryId
 ): PremiumRegistryStatementFact | null {
   const text = getPremiumScoutingStatement(registry);
-  return text ? { label: SCOUTING_STATEMENT_LABEL, text } : null;
+  if (text) return { label: SCOUTING_STATEMENT_LABEL, text };
+  // MYK9-2225: a registry with no scouting rule may still have fixed statements (ASCA §1.5), which
+  // ride the same slot so every PDF body and landing page prints them with no change of its own.
+  return getPremiumRequiredStatement(registry);
 }
 
 /** One line of the club's officers: "Club secretary: Sam Typed". */
@@ -320,9 +363,11 @@ export interface PremiumFacts {
    * AKC or a printed date has no rate in force.
    */
   recordingFee: string | null;
+  /** "Total entry limit: N entries." on a UKC (MYK9-2220) or ASCA (§1.5.12) premium whose show has a limit; else null. */
+  entryLimit: string | null;
   /** Null only on a premium generated before MYK9-1976 part 2. */
   withdrawalPolicy: PremiumWithdrawalPolicyFact | null;
-  /** The registry's fixed statement about scouting; null for UKC and ASCA. */
+  /** The registry's fixed statement (AKC scouting, ASCA §1.5 statements); null for UKC. */
   scoutingStatement: PremiumRegistryStatementFact | null;
   entry: {
     /** Long display dates, null when unset. */
@@ -391,6 +436,7 @@ export function buildPremiumFacts(
       ].filter((m): m is string => Boolean(m)),
     },
     recordingFee: premiumRecordingFeeText(data),
+    entryLimit: premiumEntryLimitText(data),
     withdrawalPolicy: buildWithdrawalPolicyFact(show.withdrawal),
     scoutingStatement: buildScoutingStatementFact(registry),
     entry: {
@@ -401,13 +447,14 @@ export function buildPremiumFacts(
       name: secretary.name,
       email: secretary.email,
       phone: formatPhone(secretary.phone),
-      mailingAddress: secretary.mailingAddress,
+      mailingAddress: cleanAddress(secretary.mailingAddress),
     },
     chair: officials.chairman
       ? {
           name: officials.chairman.name,
           email: officials.chairman.email,
           phone: formatPhone(officials.chairman.phone),
+          mailingAddress: cleanAddress(officials.chairman.mailingAddress),
         }
       : null,
     officers: buildOfficerFacts(data.officers),

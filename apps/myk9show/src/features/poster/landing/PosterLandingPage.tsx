@@ -1,3 +1,4 @@
+import type { EntryPendingReason } from '@/utils/entryStatusUtils';
 import { useEffect } from 'react';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
@@ -31,7 +32,7 @@ interface PosterLandingPageProps {
   allTrials: Trial[];
   hasEntryClassInventory?: boolean | null;
   /** True when the entry window has not opened yet. */
-  entryWindowNotOpen?: boolean | undefined;
+  entryPendingReason?: EntryPendingReason | undefined;
 }
 
 /**
@@ -71,7 +72,7 @@ export function PosterLandingPage({
   trial,
   allTrials,
   hasEntryClassInventory,
-  entryWindowNotOpen,
+  entryPendingReason,
 }: PosterLandingPageProps) {
   useEffect(() => {
     ensurePosterFontsLoaded();
@@ -81,9 +82,9 @@ export function PosterLandingPage({
   const classesHref = publicClassesHref(show);
   const entryCountdown = useCountdown(data.entryCloseDate, data.timezone);
   const entryClosed = entryCountdown.closed;
-  // `entryWindowNotOpen` matters as much as closed: a show whose entries open
+  // `entryPendingReason` matters as much as closed: a show whose entries open
   // months from now must not advertise an entry CTA that dead-ends.
-  const canEnterOnline = hasEntryClassInventory !== false && !entryClosed && !entryWindowNotOpen;
+  const canEnterOnline = hasEntryClassInventory !== false && !entryClosed && !entryPendingReason;
 
   // Build the show abbreviation from the first letters of words, e.g.
   // "Spring Scent Work" → "SSW". Falls back to first 4 chars if too short.

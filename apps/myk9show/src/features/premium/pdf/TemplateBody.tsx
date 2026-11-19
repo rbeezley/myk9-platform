@@ -8,7 +8,7 @@ import { isPosterMinimumDataMet } from './bodies/posterPredicates';
 
 interface Props {
   data: GeneratedPremium;
-  org: 'AKC' | 'UKC';
+  org: 'AKC' | 'UKC' | 'ASCA';
   inkSaver?: boolean;
 }
 

@@ -15,8 +15,8 @@ function completeFacts(): PremiumRequirementFacts {
     startDate: '2026-06-01',
     fees: { hasAny: true },
     entry: { opens: 'April 1, 2026', closes: 'May 15, 2026' },
-    secretary: { name: 'Jane Smith' },
-    chair: { name: 'Bob Jones' },
+    secretary: { name: 'Jane Smith', mailingAddress: 'PO Box 9, Tulsa, OK' },
+    chair: { name: 'Bob Jones', mailingAddress: 'PO Box 77, Tulsa, OK' },
     committee: ['A', 'B', 'C', 'D', 'E'],
     trials: [
       {
@@ -32,6 +32,44 @@ function completeFacts(): PremiumRequirementFacts {
 function idsFor(facts: PremiumRequirementFacts, registry: 'AKC' | 'UKC' | 'ASCA' = 'AKC') {
   return missingPremiumFacts(facts, registry, targets).map(i => i.id);
 }
+
+describe('official mailing addresses (MYK9-2065)', () => {
+  const personnel = '/shows/show-1?edit=true&editTab=personnel';
+
+  it('lists the Secretary and Chair addresses as missing for AKC when both are empty', () => {
+    const items = missingPremiumFacts(
+      {
+        ...completeFacts(),
+        secretary: { name: 'Jane Smith', mailingAddress: null },
+        chair: { name: 'Bob Jones', mailingAddress: '  ' },
+      },
+      'AKC',
+      targets
+    );
+    expect(items.map(i => [i.id, i.href])).toEqual([
+      ['secretaryAddress', personnel],
+      ['chairAddress', personnel],
+    ]);
+    expect(items[0].message).toContain("Trial Secretary's mailing address");
+    expect(items[1].message).toContain("Trial Chair's mailing address");
+  });
+
+  it('lists nothing once both are filled in, and nothing for UKC or ASCA', () => {
+    expect(missingPremiumFacts(completeFacts(), 'AKC', targets)).toEqual([]);
+    const empty = {
+      ...completeFacts(),
+      secretary: { name: 'Jane Smith', mailingAddress: null },
+      chair: { name: 'Bob Jones', mailingAddress: null },
+    };
+    expect(idsFor(empty, 'UKC')).toEqual([]);
+    expect(idsFor(empty, 'ASCA')).toEqual([]);
+  });
+
+  it('does not ask for the address of an official the show does not have yet', () => {
+    const ids = idsFor({ ...completeFacts(), secretary: { name: null }, chair: null });
+    expect(ids).toEqual(['secretary', 'chair']);
+  });
+});
 
 describe('missingPremiumFacts (MYK9-2053)', () => {
   it('lists nothing for an AKC show with every fact present', () => {
@@ -235,7 +273,14 @@ describe('missingPremiumFacts (MYK9-2053)', () => {
       expect.arrayContaining(['clubName', 'venue', 'secretary', 'chair', 'committee', 'classes'])
     );
     expect(idsFor(empty, 'UKC')).toEqual([]);
-    expect(idsFor(empty, 'ASCA')).toEqual([]);
+    // MYK9-2225: ASCA §1.5 asks for the club, location, dates, officials, classes and judges too,
+    // but not AKC's event committee, event number or the officials' mailing addresses.
+    const asca = idsFor(empty, 'ASCA');
+    expect(asca).toEqual(
+      expect.arrayContaining(['clubName', 'venue', 'secretary', 'chair', 'classes'])
+    );
+    expect(asca).not.toEqual(expect.arrayContaining(['committee']));
+    expect(asca.some(id => id.startsWith('eventNumber') || id.endsWith('Address'))).toBe(false);
   });
 
   it('never lists a fact the registry does not require, even when it is empty', () => {

@@ -112,6 +112,13 @@ VALUES
    current_date + 5, current_date + 6, '00000000-0000-0000-0000-000002163001', 'published',
    (current_date - 10)::timestamptz, (current_date + 4)::timestamptz, true);
 
+-- MYK9-2197: publishing also needs the premium list or publishes_own_premium.
+-- The two shows this test expects to publish take the exemption explicitly
+-- (the production column default stays false; the premium line itself is
+-- tested in myk9_2197_show_publish_blockers_test.sql).
+UPDATE public.shows SET publishes_own_premium = true
+ WHERE id IN ('00000000-0000-0000-0000-000002163104', '00000000-0000-0000-0000-000002163105');
+
 INSERT INTO public.people (id, first_name, last_name, email)
 VALUES ('00000000-0000-0000-0000-000002163011', 'MYK9-2163', 'ClubAdmin', 'myk9-2163-admin@example.test');
 

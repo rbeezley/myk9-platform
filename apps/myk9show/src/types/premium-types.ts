@@ -87,7 +87,7 @@ export interface PremiumWithdrawalRow {
 }
 
 export interface GeneratedPremium {
-  org: 'AKC' | 'UKC';
+  org: 'AKC' | 'UKC' | 'ASCA';
   style: PremiumStyle;
   templateId: string | null;
   show: {
@@ -101,6 +101,8 @@ export interface GeneratedPremium {
     dayOfFee: number | null;
     acceptChecks: boolean;
     acceptCash: boolean;
+    /** MYK9-2220: shows.max_total_entries; null or absent means no limit (UKC premiums print it). */
+    maxTotalEntries?: number | null;
     /** Absent on premiums generated before MYK9-1976 part 2: those print no policy row. */
     withdrawal?: PremiumWithdrawalRow | null;
   };
@@ -112,7 +114,13 @@ export interface GeneratedPremium {
     mailingAddress: string | null;
   };
   officials: {
-    chairman: { name: string; email: string | null; phone: string | null } | null;
+    chairman: {
+      name: string;
+      email: string | null;
+      phone: string | null;
+      /** MYK9-2065: typed by the club for the premium; absent before the field existed. */
+      mailingAddress?: string | null;
+    } | null;
   };
   /**
    * MYK9-2045: the host club's Officers list (position and name). Absent on a premium
@@ -161,7 +169,7 @@ export interface PremiumGeneration {
   showId: string;
   clubId: string;
   templateId: string | null;
-  org: 'AKC' | 'UKC';
+  org: 'AKC' | 'UKC' | 'ASCA';
   generatedAt: string;
   fieldOverrides: Record<string, PremiumFieldOverride>;
   narrativeEdits: Record<string, PremiumNarrativeEdit>;

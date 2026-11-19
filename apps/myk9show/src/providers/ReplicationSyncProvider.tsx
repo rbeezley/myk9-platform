@@ -94,6 +94,7 @@ import {
   refetchShowEntriesAfterScopedSync,
 } from './showEntriesPostSync';
 import { getRingsideUploadSyncTargets, type UploadSyncTarget } from './ringsideUploadSyncTargets';
+import { targetsForUploadedEntryInserts } from './showScopeTargets';
 
 interface SyncStatus {
   isSyncing: boolean;
@@ -741,6 +742,13 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
           void triggerSyncRef.current?.();
         }
       });
+      // MYK9-1930: an uploaded entry INSERT came back from the server with fields only it sets
+      // (the entry form it attached). Pull that show's entries, whoever ran the upload.
+      void targetsForUploadedEntryInserts(detail, id => replicatedEntriesTable.get(id)).then(
+        targets => {
+          if (targets.length) void triggerSyncRef.current?.(targets);
+        }
+      );
     };
     window.addEventListener('replication:upload-complete', handleUploadComplete);
     return () => window.removeEventListener('replication:upload-complete', handleUploadComplete);

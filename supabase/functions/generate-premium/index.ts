@@ -23,6 +23,8 @@ import {
   PREMIUM_SHOW_WITHDRAWAL_COLUMNS,
 } from './withdrawalPolicyRow.ts';
 import { livePremiumTrials, type PremiumScheduleTrialRow } from './liveTrials.ts';
+import { buildShowSummary, premiumTemplateTrialType } from './showSummary.ts';
+import { resolvePremiumStyle, SHOW_STYLE_COLUMN } from './premiumStyle.ts';
 
 const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 1024;
@@ -94,9 +96,9 @@ handle<GeneratePremiumPayload>(
       .from('shows')
       .select(
         `
-        id, name, organization, start_date, end_date, location,
+        id, name, organization, start_date, end_date, location, ${SHOW_STYLE_COLUMN},
         entry_open_date, entry_close_date, pre_entry_fee, day_of_show_fee,
-        accept_check_payments, accept_cash_payments, club_id, experience_published_content,
+        accept_check_payments, accept_cash_payments, max_total_entries, club_id, experience_published_content,
         ${PREMIUM_SHOW_WITHDRAWAL_COLUMNS},
         clubs(name, logo_url, ${PREMIUM_CLUB_WITHDRAWAL_COLUMNS}),
         trials(
@@ -114,14 +116,12 @@ handle<GeneratePremiumPayload>(
       throw new HttpError(404, 'Show not found');
     }
 
-    // Step 7: Reject unsupported organizations early. The premium_generations
-    // CHECK constraint only accepts 'AKC' and 'UKC', so anything else would
-    // fail downstream when the client tries to log the generation.
+    // Step 7: Reject unsupported organizations early (MYK9-2225 added ASCA).
     const showOrg = (show.organization as string | null) ?? null;
-    if (showOrg !== 'AKC' && showOrg !== 'UKC') {
+    if (showOrg !== 'AKC' && showOrg !== 'UKC' && showOrg !== 'ASCA') {
       throw new HttpError(
         400,
-        `Premium generation is only supported for AKC and UKC shows (got: ${showOrg ?? 'null'})`
+        `Premium generation is only supported for AKC, UKC and ASCA shows (got: ${showOrg ?? 'null'})`
       );
     }
 
@@ -155,6 +155,7 @@ handle<GeneratePremiumPayload>(
     const secretaryName = secretaryOfficial?.name ?? null;
     const secretaryEmail = secretaryOfficial?.email ?? null;
     const secretaryPhone = secretaryOfficial?.phone ?? null;
+    const secretaryMailingAddress = secretaryOfficial?.mailingAddress ?? null;
     const chairman = pickPremiumOfficial(officials, 'chairman');
 
     // Step 8: Template resolution — find best matching template for this show's trial type
@@ -163,8 +164,7 @@ handle<GeneratePremiumPayload>(
       .select('*')
       .eq('club_id', show.club_id);
 
-    const trialType =
-      (show.trials as Array<{ trial_type: string | null }>)?.[0]?.trial_type ?? null;
+    const trialType = premiumTemplateTrialType(show.trials);
     const template =
       (templates ?? []).find(
         (t: { trial_type: string | null; is_default: boolean }) =>
@@ -262,21 +262,10 @@ handle<GeneratePremiumPayload>(
           }
         : null;
 
-    // Style authority (migration 195+): shows.style is the single source of
-    // truth for all four experience touchpoints. Fall back to the template's
-    // style for shows that haven't been migrated yet, then remap any
-    // pre-migration-191 legacy names so clients never receive an unknown key.
-    const LEGACY_STYLE_REMAP: Record<string, string> = {
-      classic: 'monogram',
-      modern: 'banner',
-      minimal: 'headline',
-      default: 'monogram',
-    };
-    const showStyleRaw = (show as Record<string, unknown>).style as string | null | undefined;
-    const templateStyleRaw =
-      ((template as Record<string, unknown> | null)?.style as string) ?? 'monogram';
-    const rawStyle = showStyleRaw ?? templateStyleRaw;
-    const resolvedStyle = LEGACY_STYLE_REMAP[rawStyle] ?? rawStyle;
+    const resolvedStyle = resolvePremiumStyle(
+      (show as Record<string, unknown>).style as string | null | undefined,
+      (template as Record<string, unknown> | null)?.style as string | null | undefined
+    );
 
     const result = {
       org: showOrg,
@@ -293,6 +282,8 @@ handle<GeneratePremiumPayload>(
         dayOfFee: show.day_of_show_fee,
         acceptChecks: show.accept_check_payments,
         acceptCash: show.accept_cash_payments,
+        // MYK9-2220: the total entry limit a UKC premium states.
+        maxTotalEntries: show.max_total_entries ?? null,
         // MYK9-1976: raw policy columns; the app resolves the text exhibitors read.
         withdrawal: buildPremiumWithdrawalRow(show as Record<string, unknown>),
       },
@@ -304,7 +295,7 @@ handle<GeneratePremiumPayload>(
       secretary: {
         name: secretaryName,
         email: secretaryEmail,
-        mailingAddress: null,
+        mailingAddress: secretaryMailingAddress,
         phone: secretaryPhone,
       },
       officials: {
@@ -337,21 +328,6 @@ handle<GeneratePremiumPayload>(
 // Helpers
 // ---------------------------------------------------------------------------
 
-function formatDateForPrompt(value: unknown): string {
-  if (typeof value !== 'string' || value.length === 0) return 'TBD';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  // Always emit as a human-readable date with no time component. The narratives
-  // are general-purpose, and including raw UTC timestamps caused Claude to
-  // hallucinate phrases like "1:00 PM UTC" that exhibitors don't think in.
-  return d.toLocaleDateString('en-US', {
-    timeZone: 'UTC',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-}
-
 function describeNarrativeGenerationFailure(err: unknown): string {
   const message = err instanceof Error ? err.message.toLowerCase() : '';
   if (message.includes('timeout') || message.includes('timed out')) {
@@ -364,35 +340,6 @@ function describeNarrativeGenerationFailure(err: unknown): string {
     return 'The AI service could not be reached. Please try again.';
   }
   return 'Narrative generation is temporarily unavailable. Please try again.';
-}
-
-function buildShowSummary(show: Record<string, unknown>): string {
-  const trials =
-    (show.trials as Array<{
-      name: string;
-      date: string;
-      trial_type: string | null;
-      classes: Array<{ name: string; level: string | null; element: string | null }>;
-    }>) ?? [];
-
-  const trialLines = trials.map(t => {
-    const classNames = (t.classes ?? [])
-      .map(c => [c.level, c.element, c.name].filter(Boolean).join(' '))
-      .join(', ');
-    return `  - ${t.name} (${formatDateForPrompt(t.date)}): ${t.trial_type ?? 'unknown type'} — classes: ${classNames || 'none'}`;
-  });
-
-  return [
-    `Show: ${show.name}`,
-    `Organization: ${show.organization ?? 'AKC'}`,
-    `Dates: ${formatDateForPrompt(show.start_date)} to ${formatDateForPrompt(show.end_date)}`,
-    `Location: ${show.location ?? 'TBD'}`,
-    `Entry opens: ${formatDateForPrompt(show.entry_open_date)}, closes: ${formatDateForPrompt(show.entry_close_date)}`,
-    `Pre-entry fee: $${show.pre_entry_fee ?? 'TBD'}, day-of fee: $${show.day_of_show_fee ?? 'TBD'}`,
-    `Payment: checks=${show.accept_check_payments}, cash=${show.accept_cash_payments}`,
-    `Trials:\n${trialLines.join('\n')}`,
-    'Note: Do not invent specific clock times or timezones in the narrative — only mention times if explicitly provided above.',
-  ].join('\n');
 }
 
 async function generateNarratives(

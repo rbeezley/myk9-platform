@@ -27,6 +27,7 @@ import type { ShowEditFormData } from './ShowEditPanel.types';
 import { ShowEditBasicInfoTab } from './ShowEditBasicInfoTab';
 import { ShowEditFeesTab } from './ShowEditFeesTab';
 import { ShowEditPremiumTab } from './ShowEditPremiumTab';
+import { premiumOrgOf } from '@/features/premium/premiumOrg';
 import { ShowEditVenueTab } from './ShowEditVenueTab';
 import { ShowEditAddJudgeDialog } from './ShowEditAddJudge';
 import { useShowEditJudgeCreate } from './useShowEditJudgeCreate';
@@ -43,6 +44,8 @@ interface ShowEditFormProps {
   /** The show's status when the panel opened; gates the Basic Info tab's
    * "Published" option (MYK9-579). */
   initialStatus?: string | undefined;
+  /** The organization saved on the show; the Premium tab's Regenerate builds from it. */
+  savedOrganization?: string | undefined;
   /** Closes the panel; the Basic Info tab's trial-days link calls it before it navigates. */
   onClose?: (() => void) | undefined;
   /** Passed to the Premium tab: true while a Regenerate is pending (MYK9-2144). */
@@ -53,6 +56,7 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
   activeTab,
   onTabChange,
   initialStatus,
+  savedOrganization,
   onClose,
   onPremiumPendingChange,
 }) => {
@@ -472,9 +476,8 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
         <ShowEditPremiumTab
           data={data}
           clubId={data.clubId}
-          showOrg={
-            data.organization === 'AKC' || data.organization === 'UKC' ? data.organization : null
-          }
+          showOrg={premiumOrgOf(data.organization)}
+          savedOrganization={savedOrganization}
           isActive={activeTab === 'premium'}
           handleCheckboxChange={handleCheckboxChange}
           handleValueChange={handleValueChange}

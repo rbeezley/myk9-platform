@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { premiumRecordingFeeDates } from '@myk9/core';
+import { isLivePremiumTrial, premiumRecordingFeeDates } from '@myk9/core';
 import { COMMITTEE_QUERY_KEY, committeeScopeKey } from '@/components/committee/useCommittee';
 import {
   getTrialRegistry,
@@ -26,6 +26,8 @@ interface RequirementTrial {
   /** MYK9-2044: the date and status the recording fee is priced from. */
   trialDate?: string | undefined;
   status?: string | undefined;
+  /** MYK9-2186: a soft-deleted trial is not in the premium. */
+  deletedAt?: string | null | undefined;
 }
 
 /** The class fields the checks read; Show Desk class rows and the About tab's both fit. */
@@ -41,7 +43,9 @@ interface PremiumRequirementInputs {
   classes: ReadonlyArray<RequirementClass>;
   judges: ReadonlyArray<ShowJudgeAssignment>;
   secretaryName: string | null;
+  secretaryAddress?: string | null;
   chairName: string | null;
+  chairAddress?: string | null;
   committee: string[];
 }
 
@@ -53,6 +57,10 @@ const positive = (raw: string | undefined) => (Number.parseFloat(raw ?? '') || 0
  */
 export function requirementFactsFromShow(input: PremiumRequirementInputs): PremiumRequirementFacts {
   const { show } = input;
+  // MYK9-2186: the premium covers live trials only, the same rule Regenerate and publish use.
+  const trials = input.trials.filter(trial =>
+    isLivePremiumTrial({ status: trial.status ?? null, deleted_at: trial.deletedAt ?? null })
+  );
   return {
     clubName: show.clubName?.trim() || null,
     venue: show.location?.trim() ?? '',
@@ -62,14 +70,16 @@ export function requirementFactsFromShow(input: PremiumRequirementInputs): Premi
       opens: show.entryOpenDate?.trim() || null,
       closes: show.entryCloseDate?.trim() || null,
     },
-    secretary: { name: input.secretaryName },
-    chair: input.chairName ? { name: input.chairName } : null,
+    secretary: { name: input.secretaryName, mailingAddress: input.secretaryAddress ?? null },
+    chair: input.chairName
+      ? { name: input.chairName, mailingAddress: input.chairAddress ?? null }
+      : null,
     committee: input.committee,
     recordingFeeDates: premiumRecordingFeeDates(
-      input.trials.map(trial => ({ date: trial.trialDate ?? null, status: trial.status ?? null })),
+      trials.map(trial => ({ date: trial.trialDate ?? null, status: trial.status ?? null })),
       show.startDate
     ),
-    trials: input.trials.map(trial => {
+    trials: trials.map(trial => {
       const trialClasses = input.classes.filter(cls => cls.trialId === trial.id);
       const classIds = new Set(trialClasses.map(cls => cls.id));
       return {
@@ -141,6 +151,8 @@ export function usePremiumRequirements(
   if (!officials.data) {
     unavailable.add('secretary');
     unavailable.add('chair');
+    unavailable.add('secretaryAddress');
+    unavailable.add('chairAddress');
   }
   if (!committee.data) unavailable.add('committee');
   if (!judges) unavailable.add('judges');
@@ -151,7 +163,9 @@ export function usePremiumRequirements(
     classes,
     judges: judges ?? [],
     secretaryName: personName(officials.data?.secretaries[0]),
+    secretaryAddress: officials.data?.secretaries[0]?.mailingAddress ?? null,
     chairName: personName(officials.data?.chairmen[0]),
+    chairAddress: officials.data?.chairmen[0]?.mailingAddress ?? null,
     committee: committee.data ?? [],
   });
   return {

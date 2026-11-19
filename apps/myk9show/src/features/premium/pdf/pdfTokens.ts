@@ -163,18 +163,18 @@ export const STYLE_TOKENS: Record<PremiumStyle, StyleTokens> = {
   },
 };
 
-// Org parity matrix. Default: each style supports both AKC and UKC. Narrow
+// Org parity matrix. Default: each style supports AKC, UKC and ASCA. Narrow
 // later if a specific style needs gating to one org's conventions.
-export type OrgKey = 'AKC' | 'UKC';
+export type OrgKey = 'AKC' | 'UKC' | 'ASCA';
 export const STYLE_ORG_SUPPORT: Record<PremiumStyle, OrgKey[]> = {
-  monogram: ['AKC', 'UKC'],
-  banner: ['AKC', 'UKC'],
-  headline: ['AKC', 'UKC'],
-  magazine: ['AKC', 'UKC'],
-  poster: ['AKC', 'UKC'],
-  gazette: ['AKC', 'UKC'],
-  fieldGuide: ['AKC', 'UKC'],
-  heritage: ['AKC', 'UKC'],
+  monogram: ['AKC', 'UKC', 'ASCA'],
+  banner: ['AKC', 'UKC', 'ASCA'],
+  headline: ['AKC', 'UKC', 'ASCA'],
+  magazine: ['AKC', 'UKC', 'ASCA'],
+  poster: ['AKC', 'UKC', 'ASCA'],
+  gazette: ['AKC', 'UKC', 'ASCA'],
+  fieldGuide: ['AKC', 'UKC', 'ASCA'],
+  heritage: ['AKC', 'UKC', 'ASCA'],
 };
 
 export interface ResolveTokensOptions {

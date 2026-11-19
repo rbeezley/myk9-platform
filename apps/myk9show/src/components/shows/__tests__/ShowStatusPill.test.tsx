@@ -3,13 +3,12 @@ import { screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { ShowStatusPill } from '../ShowStatusPill';
-import { useClubAuthorization } from '@/features/payments/useClubStripeAccount';
 import { useUpdateShowMutation } from '@/hooks/queries/useShowsDatabase';
 import { toast } from 'sonner';
-import { CLUB_UNAUTHORIZED_MESSAGE } from '@/features/payments/onlineEntryGate';
 
-vi.mock('@/features/payments/useClubStripeAccount', () => ({
-  useClubAuthorization: vi.fn(),
+vi.mock('@/features/publishing/usePublishBlockers', () => ({
+  showPublishBlockersQueryKey: (id: string) => ['shows', id, 'publish-blockers'],
+  usePublishBlockers: () => ({ state: 'ready', blockers: [] }),
 }));
 vi.mock('@/hooks/queries/useShowsDatabase', () => ({
   useUpdateShowMutation: vi.fn(),
@@ -18,30 +17,7 @@ vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
-// MYK9-716: publishing requires an entry window. Every case here is about
-// another gate, so every render carries a valid one; the missing-window cases
-// live in ShowStatusPill.entryWindow.test.tsx.
-// MYK9-2164: the server decides on the club's payouts; ShowStatusPill.payouts.test.tsx covers
-// its refusals.
-const WINDOW = {
-  entryOpenDate: '2026-10-01T12:00:00.000Z',
-  entryCloseDate: '2026-10-20T04:59:00.000Z',
-};
-
-const mockedUseAuth = vi.mocked(useClubAuthorization);
 const mockedUseMutation = vi.mocked(useUpdateShowMutation);
-
-// MYK9-572: defaults every test to an authorized club so the pre-existing
-// Stripe-only gate tests below are unaffected; the dedicated describe block
-// further down overrides this per-test to exercise the new branch.
-function mockAuthorization(authorizedAt: string | null) {
-  mockedUseAuth.mockReturnValue({
-    data: { authorized_at: authorizedAt },
-    isLoading: false,
-    isError: false,
-    refetch: vi.fn(),
-  } as unknown as ReturnType<typeof useClubAuthorization>);
-}
 
 describe('ShowStatusPill', () => {
   let mutateAsync: ReturnType<typeof vi.fn>;
@@ -53,42 +29,41 @@ describe('ShowStatusPill', () => {
       mutateAsync,
       isPending: false,
     } as unknown as ReturnType<typeof useUpdateShowMutation>);
-    mockAuthorization('2026-01-01T00:00:00Z');
   });
 
   describe('labels', () => {
     it('renders "Draft" label for draft status', () => {
-      render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" />);
+      render(<ShowStatusPill showId="show-1" status="draft" />);
       expect(screen.getByText('Draft')).toBeInTheDocument();
     });
 
     it('renders "Published" for published status, the show family label', () => {
-      render(<ShowStatusPill {...WINDOW} showId="show-1" status="published" />);
+      render(<ShowStatusPill showId="show-1" status="published" />);
       expect(screen.getByText('Published')).toBeInTheDocument();
     });
 
     it('renders "Upcoming" label for upcoming status', () => {
-      render(<ShowStatusPill {...WINDOW} showId="show-1" status="upcoming" />);
+      render(<ShowStatusPill showId="show-1" status="upcoming" />);
       expect(screen.getByText('Upcoming')).toBeInTheDocument();
     });
 
     it('renders "In progress" label for in_progress status', () => {
-      render(<ShowStatusPill {...WINDOW} showId="show-1" status="in_progress" />);
+      render(<ShowStatusPill showId="show-1" status="in_progress" />);
       expect(screen.getByText('In progress')).toBeInTheDocument();
     });
 
     it('renders "Completed" label for completed status', () => {
-      render(<ShowStatusPill {...WINDOW} showId="show-1" status="completed" />);
+      render(<ShowStatusPill showId="show-1" status="completed" />);
       expect(screen.getByText('Completed')).toBeInTheDocument();
     });
 
     it('renders "Cancelled" label for cancelled status', () => {
-      render(<ShowStatusPill {...WINDOW} showId="show-1" status="cancelled" />);
+      render(<ShowStatusPill showId="show-1" status="cancelled" />);
       expect(screen.getByText('Cancelled')).toBeInTheDocument();
     });
 
     it('renders unknown status string as label with muted styling', () => {
-      render(<ShowStatusPill {...WINDOW} showId="show-1" status="unknown_future_status" />);
+      render(<ShowStatusPill showId="show-1" status="unknown_future_status" />);
       expect(screen.getByText('unknown_future_status')).toBeInTheDocument();
       expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
@@ -96,22 +71,22 @@ describe('ShowStatusPill', () => {
 
   describe('available transitions', () => {
     it('renders a button (dropdown trigger) for draft status', () => {
-      render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" />);
+      render(<ShowStatusPill showId="show-1" status="draft" />);
       expect(screen.getByRole('button', { name: /draft/i })).toBeInTheDocument();
     });
 
     it('renders a button (dropdown trigger) for published status', () => {
-      render(<ShowStatusPill {...WINDOW} showId="show-1" status="published" />);
+      render(<ShowStatusPill showId="show-1" status="published" />);
       expect(screen.getByRole('button', { name: /published/i })).toBeInTheDocument();
     });
 
     it('renders a button (dropdown trigger) for upcoming status', () => {
-      render(<ShowStatusPill {...WINDOW} showId="show-1" status="upcoming" />);
+      render(<ShowStatusPill showId="show-1" status="upcoming" />);
       expect(screen.getByRole('button', { name: /upcoming/i })).toBeInTheDocument();
     });
 
     it('renders a button (dropdown trigger) for in_progress status', () => {
-      render(<ShowStatusPill {...WINDOW} showId="show-1" status="in_progress" />);
+      render(<ShowStatusPill showId="show-1" status="in_progress" />);
       expect(screen.getByRole('button', { name: /in progress/i })).toBeInTheDocument();
     });
 
@@ -120,32 +95,32 @@ describe('ShowStatusPill', () => {
     // one-click action here, so neither offers a transition (no dropdown at
     // all, just the static pill).
     it('renders completed status with no dropdown trigger (no transitions)', () => {
-      render(<ShowStatusPill {...WINDOW} showId="show-1" status="completed" />);
+      render(<ShowStatusPill showId="show-1" status="completed" />);
       expect(screen.getByText('Completed')).toBeInTheDocument();
       expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
 
     it('cancelled renders no publish action', () => {
-      render(<ShowStatusPill {...WINDOW} showId="show-1" status="cancelled" />);
+      render(<ShowStatusPill showId="show-1" status="cancelled" />);
       expect(screen.getByText('Cancelled')).toBeInTheDocument();
       expect(screen.queryByRole('button')).not.toBeInTheDocument();
       expect(screen.queryByText('Publish Show')).not.toBeInTheDocument();
     });
 
     it('shows "Publish Show" option when status is draft', async () => {
-      render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" />);
+      render(<ShowStatusPill showId="show-1" status="draft" />);
       fireEvent.click(screen.getByRole('button', { name: /draft/i }));
       expect(await screen.findByText('Publish Show')).toBeInTheDocument();
     });
 
     it('shows "Move to Draft" option when status is published', async () => {
-      render(<ShowStatusPill {...WINDOW} showId="show-1" status="published" />);
+      render(<ShowStatusPill showId="show-1" status="published" />);
       fireEvent.click(screen.getByRole('button', { name: /published/i }));
       expect(await screen.findByText('Move to Draft')).toBeInTheDocument();
     });
 
     it('plain variant: text in a line, no pill chrome, 44px target, menu still opens (MYK9-1282)', async () => {
-      render(<ShowStatusPill {...WINDOW} showId="show-1" status="published" plain />);
+      render(<ShowStatusPill showId="show-1" status="published" plain />);
       const trigger = screen.getByRole('button', { name: /published/i });
       const label = trigger.firstElementChild as HTMLElement;
       expect(label.className).not.toMatch(/\b(bg-|border|rounded-md|px-3)/);
@@ -160,7 +135,7 @@ describe('ShowStatusPill', () => {
         mutateAsync,
         isPending: true,
       } as unknown as ReturnType<typeof useUpdateShowMutation>);
-      render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" />);
+      render(<ShowStatusPill showId="show-1" status="draft" />);
       expect(screen.getByRole('button', { name: /draft/i })).toBeDisabled();
     });
   });
@@ -168,7 +143,7 @@ describe('ShowStatusPill', () => {
   describe('publish gate', () => {
     it('publishes an authorized club', async () => {
       const user = userEvent.setup();
-      render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
+      render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
 
       await user.click(screen.getByRole('button', { name: /draft/i }));
       await user.click(await screen.findByText(/publish show/i));
@@ -177,7 +152,7 @@ describe('ShowStatusPill', () => {
     });
 
     it('calls updateShow with published when "Publish Show" is clicked', async () => {
-      render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
+      render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
       fireEvent.click(screen.getByRole('button', { name: /draft/i }));
       fireEvent.click(await screen.findByText('Publish Show'));
       await waitFor(() =>
@@ -190,7 +165,7 @@ describe('ShowStatusPill', () => {
 
     it('an upcoming show publishes', async () => {
       const user = userEvent.setup();
-      render(<ShowStatusPill {...WINDOW} showId="show-1" status="upcoming" clubId="club-1" />);
+      render(<ShowStatusPill showId="show-1" status="upcoming" clubId="club-1" />);
 
       await user.click(screen.getByRole('button', { name: /upcoming/i }));
       await user.click(await screen.findByText(/publish show/i));
@@ -204,7 +179,7 @@ describe('ShowStatusPill', () => {
       // cannot receive payouts, so publishing it would collect money with
       // nowhere to go.
       const user = userEvent.setup();
-      render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" />);
+      render(<ShowStatusPill showId="show-1" status="draft" />);
 
       await user.click(screen.getByRole('button', { name: /draft/i }));
       await user.click(await screen.findByText(/publish show/i));
@@ -215,7 +190,7 @@ describe('ShowStatusPill', () => {
 
     it('moving a published show back to draft is never gated', async () => {
       const user = userEvent.setup();
-      render(<ShowStatusPill {...WINDOW} showId="show-1" status="published" clubId="club-1" />);
+      render(<ShowStatusPill showId="show-1" status="published" clubId="club-1" />);
 
       await user.click(screen.getByRole('button', { name: /published/i }));
       await user.click(await screen.findByText(/move to draft/i));
@@ -224,7 +199,7 @@ describe('ShowStatusPill', () => {
     });
 
     it('calls updateShow with draft when "Move to Draft" is clicked', async () => {
-      render(<ShowStatusPill {...WINDOW} showId="show-1" status="published" />);
+      render(<ShowStatusPill showId="show-1" status="published" />);
       fireEvent.click(screen.getByRole('button', { name: /published/i }));
       fireEvent.click(await screen.findByText('Move to Draft'));
       await waitFor(() =>
@@ -242,7 +217,7 @@ describe('ShowStatusPill', () => {
           'Assign a club to this show before publishing. Entry fees are paid out to the club.',
       });
       const user = userEvent.setup();
-      render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
+      render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
 
       await user.click(screen.getByRole('button', { name: /draft/i }));
       await user.click(await screen.findByText(/publish show/i));
@@ -257,7 +232,7 @@ describe('ShowStatusPill', () => {
     it('an unrelated mutation failure still shows the generic fallback, not the gate copy', async () => {
       mutateAsync.mockRejectedValueOnce(new Error('Network error'));
       const user = userEvent.setup();
-      render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
+      render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
 
       await user.click(screen.getByRole('button', { name: /draft/i }));
       await user.click(await screen.findByText(/publish show/i));
@@ -267,7 +242,7 @@ describe('ShowStatusPill', () => {
 
     it('shows error toast when mutation fails', async () => {
       mutateAsync.mockRejectedValueOnce(new Error('Network error'));
-      render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
+      render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
       fireEvent.click(screen.getByRole('button', { name: /draft/i }));
       fireEvent.click(await screen.findByText('Publish Show'));
       await waitFor(() =>
@@ -279,9 +254,8 @@ describe('ShowStatusPill', () => {
   });
 });
 
-describe('ShowStatusPill club-authorization gate (MYK9-572)', () => {
+describe('ShowStatusPill server refusal backstop', () => {
   let mutateAsync: ReturnType<typeof vi.fn>;
-  let refetchAuth: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -290,121 +264,22 @@ describe('ShowStatusPill club-authorization gate (MYK9-572)', () => {
       mutateAsync,
       isPending: false,
     } as unknown as ReturnType<typeof useUpdateShowMutation>);
-    refetchAuth = vi.fn();
-  });
-
-  // P2-5/P3-A: fail CLOSED when the club row is unreadable (RLS-hidden,
-  // undefined data despite a "successful" query) — not just when
-  // authorized_at is explicitly null — and kick off a refetch so a retry
-  // right after a site admin authorizes the club can succeed.
-  it('fails closed and refetches when the authorization query has no data', async () => {
-    mockedUseAuth.mockReturnValue({
-      data: undefined,
-      isLoading: false,
-      isError: false,
-      refetch: refetchAuth,
-    } as unknown as ReturnType<typeof useClubAuthorization>);
-    const user = userEvent.setup();
-    render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
-
-    await user.click(screen.getByRole('button', { name: /draft/i }));
-    await user.click(await screen.findByText(/publish show/i));
-
-    expect(mutateAsync).not.toHaveBeenCalled();
-    expect(toast.error).toHaveBeenCalledWith(
-      expect.stringMatching(/waiting for myK9Show approval/i)
-    );
-    expect(refetchAuth).toHaveBeenCalled();
-  });
-
-  // MYK9-1403: the greying is fail-open (an undefined club row leaves the item enabled),
-  // so this click reaches handleTransition with a club the server would refuse.
-  it('names the authorization wait, and nothing about payouts, for an unreadable club row', async () => {
-    mockedUseAuth.mockReturnValue({
-      data: undefined,
-      isLoading: false,
-      isError: false,
-      refetch: refetchAuth,
-    } as unknown as ReturnType<typeof useClubAuthorization>);
-    const user = userEvent.setup();
-    render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
-
-    await user.click(screen.getByRole('button', { name: /draft/i }));
-    await user.click(await screen.findByText(/publish show/i));
-
-    expect(toast.error).toHaveBeenCalledTimes(1);
-    expect(toast.error).toHaveBeenCalledWith(CLUB_UNAUTHORIZED_MESSAGE);
-    expect(mutateAsync).not.toHaveBeenCalled();
-  });
-
-  // P3-5: pin the exact loading/error copy strings — a future edit could
-  // change the wording without anything else catching it.
-  it('shows the exact "checking" copy while the authorization query is still loading', async () => {
-    mockedUseAuth.mockReturnValue({
-      data: { authorized_at: '2026-01-01T00:00:00Z' },
-      isLoading: true,
-      isError: false,
-      refetch: refetchAuth,
-    } as unknown as ReturnType<typeof useClubAuthorization>);
-    const user = userEvent.setup();
-    render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
-
-    await user.click(screen.getByRole('button', { name: /draft/i }));
-    await user.click(await screen.findByText(/publish show/i));
-
-    expect(mutateAsync).not.toHaveBeenCalled();
-    expect(toast.info).toHaveBeenCalledWith(
-      'Still checking the club’s status. Try again in a moment.'
-    );
-  });
-
-  it('shows the exact error copy and refetches when the authorization query errors', async () => {
-    mockedUseAuth.mockReturnValue({
-      data: { authorized_at: '2026-01-01T00:00:00Z' },
-      isLoading: false,
-      isError: true,
-      refetch: refetchAuth,
-    } as unknown as ReturnType<typeof useClubAuthorization>);
-    const user = userEvent.setup();
-    render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
-
-    await user.click(screen.getByRole('button', { name: /draft/i }));
-    await user.click(await screen.findByText(/publish show/i));
-
-    expect(mutateAsync).not.toHaveBeenCalled();
-    expect(toast.error).toHaveBeenCalledWith(
-      "We couldn't check the club's status, so the show was not published. Try again."
-    );
-    expect(refetchAuth).toHaveBeenCalled();
-  });
-
-  it('publishes once the club is authorized', async () => {
-    mockAuthorization('2026-01-01T00:00:00Z');
-    const user = userEvent.setup();
-    render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
-
-    await user.click(screen.getByRole('button', { name: /draft/i }));
-    await user.click(await screen.findByText(/publish show/i));
-
-    expect(mutateAsync).toHaveBeenCalledWith({ id: 'show-1', updates: { status: 'published' } });
   });
 
   it('surfaces the DB publish-gate trigger MK004 refusal with its own copy', async () => {
-    mockAuthorization('2026-01-01T00:00:00Z');
     mutateAsync.mockRejectedValueOnce({
       code: 'MK004',
       message:
         "This club hasn't been authorized by myK9 yet. Shows can be built now and published once the club is approved.",
     });
     const user = userEvent.setup();
-    render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
+    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
 
     await user.click(screen.getByRole('button', { name: /draft/i }));
     await user.click(await screen.findByText(/publish show/i));
 
-    // P2-D: MK004 (club not authorized) has no Stripe setup to send the
-    // admin to, so the toast must NOT carry the "Open Payments" action —
-    // unlike MK003 (payment-account gate), which still does.
+    // MK004 (club not authorized) has no Stripe setup to send the admin to, so the toast must
+    // NOT carry the "Open Payments" action, unlike MK003 (payment-account gate).
     expect(toast.error).toHaveBeenCalledWith(
       "This club hasn't been authorized by myK9 yet. Shows can be built now and published once the club is approved."
     );

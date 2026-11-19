@@ -122,6 +122,7 @@ describe('useGeneratePremium', () => {
         last_name: 'Smith',
         email: 'jane@test.com',
         role: 'secretary',
+        phone: '9185550000',
       },
       {
         user_id: 'p2',
@@ -129,6 +130,7 @@ describe('useGeneratePremium', () => {
         last_name: 'Jones',
         email: 'bob@test.com',
         role: 'chairman',
+        phone: null,
       },
     ];
 
@@ -142,7 +144,11 @@ describe('useGeneratePremium', () => {
       const premium = await result.current.generate('show-1');
 
       expect(rpcMock).toHaveBeenCalledWith('get_show_officials', { p_show_id: 'show-1' });
-      expect(premium.secretary).toMatchObject({ name: 'Jane Smith', email: 'jane@test.com' });
+      expect(premium.secretary).toMatchObject({
+        name: 'Jane Smith',
+        email: 'jane@test.com',
+        phone: '9185550000',
+      });
       expect(premium.officials.chairman).toMatchObject({
         name: 'Bob Jones',
         email: 'bob@test.com',

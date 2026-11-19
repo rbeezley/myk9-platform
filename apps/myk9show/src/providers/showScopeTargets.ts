@@ -7,6 +7,7 @@
  * visibility and online catch-up, in-flight guard) then adds one scoped
  * entries + classes pass per registered show. There is no timer in this module.
  */
+import type { UploadCompleteEventDetail } from '@myk9/replication';
 import { replicatedTrialsTable } from '@/services/replication';
 import type { UploadSyncTarget } from './ringsideUploadSyncTargets';
 
@@ -68,6 +69,38 @@ export async function targetsForTables(
 }
 
 const POLLED_TABLES: ReadonlySet<TargetName> = new Set<TargetName>(['entries', 'classes']);
+const ENTRIES_ONLY: ReadonlySet<TargetName> = new Set<TargetName>(['entries']);
+
+/**
+ * MYK9-1930: the entries target of each show an uploaded plain entries INSERT belongs to.
+ * The server gives a desk entry its entry form on that INSERT, and an upload that ran outside
+ * a provider pass (the debounced auto-upload, a backoff retry) is followed only by the
+ * untargeted pass, which never downloads a show's entries. The show is read from the local
+ * row; a row this device no longer holds names no show and is skipped.
+ */
+export async function targetsForUploadedEntryInserts(
+  detail: UploadCompleteEventDetail,
+  getEntry: (id: string) => Promise<{ showId?: string | undefined } | null>
+): Promise<UploadSyncTarget[]> {
+  const rowIds = new Set(
+    (detail.mutations ?? [])
+      .filter(row => row.tableName === 'entries' && row.operation === 'INSERT' && !row.rpcName)
+      .map(row => row.rowId)
+  );
+  const showIds = new Set<string>();
+  for (const rowId of rowIds) {
+    try {
+      const showId = (await getEntry(rowId))?.showId;
+      if (showId) showIds.add(showId);
+    } catch {
+      // An unreadable row names no show; the mounted-show poll is the backstop.
+    }
+  }
+  const perShow = await Promise.all(
+    [...showIds].map(showId => targetsForTables(showId, ENTRIES_ONLY))
+  );
+  return perShow.flatMap(({ targets }) => targets);
+}
 
 /**
  * Entries + classes targets for every registered show, for the provider's untargeted

@@ -176,12 +176,50 @@ export interface LedgerShow {
 }
 
 export interface LedgerPayout {
+  /** show_payouts.id. Optional only so older fixtures stay valid; the ledger read always sets it. */
+  id?: string;
   show_id: string;
   amount_cents: number;
   status: PayoutStatus;
   stripe_transfer_id: string | null;
   completed_at: string | null;
   created_at: string | null;
+  /** MYK9-2170 approval state, mapped once by the ledger read; absent reads as none. */
+  approval?: PayoutApprovalState;
+}
+
+/** club_stripe_accounts as the payout row points at it, read in the same request. */
+export interface PayoutDestination {
+  stripeAccountId: string;
+  payoutsEnabled: boolean;
+}
+
+/** The payout brake columns of a show_payouts row, and where it will send. */
+export interface PayoutApprovalState {
+  approvedAt: string | null;
+  approvedAmountCents: number | null;
+  approvedStripeAccountId: string | null;
+  holdReason: string | null;
+  approvalResetReason: string | null;
+  /** null when the row has no Stripe account to send to. */
+  destination: PayoutDestination | null;
+}
+
+const NO_APPROVAL: PayoutApprovalState = {
+  approvedAt: null,
+  approvedAmountCents: null,
+  approvedStripeAccountId: null,
+  holdReason: null,
+  approvalResetReason: null,
+  destination: null,
+};
+
+/** What the approval screen needs about a show's canonical payout row. */
+export type LedgerPayoutDetail = PayoutApprovalState & { id: string; amountCents: number };
+
+function toPayoutDetail(payout: LedgerPayout | undefined): LedgerPayoutDetail | null {
+  if (!payout?.id) return null;
+  return { id: payout.id, amountCents: payout.amount_cents, ...(payout.approval ?? NO_APPROVAL) };
 }
 
 // completed > processing > the not-yet-sent live states > failed. The cron keeps exactly one
@@ -248,10 +286,18 @@ export interface LedgerRow {
    * error in their own reconciliation.
    */
   netOwedSource: NetOwedSource;
+  /**
+   * The client's own sum of what the club is owed (calculateShowPayoutCents),
+   * whatever netOwedCents shows. The approval screen sets it beside the stored
+   * amount, because a disagreement between the two is what the operator checks for.
+   */
+  computedNetCents: number;
   /** Settle date = end_date + 3 days, ISO date (null if the show has no end). */
   settleDate: string | null;
   payoutStatus: PayoutStatus | null;
   stripeTransferId: string | null;
+  /** The canonical payout row's id and approval state; null with no payout row. */
+  payout: LedgerPayoutDetail | null;
 }
 
 const SETTLE_BUFFER_DAYS = 3;
@@ -301,9 +347,11 @@ export function buildLedgerRows(
       unresolvedRefundDecisionCount: entries.filter(isUnresolvedRemovalRefundDecision).length,
       netOwedCents: useStoredAmount ? payout.amount_cents : computedNet,
       netOwedSource: useStoredAmount ? 'transfer' : 'computed',
+      computedNetCents: computedNet,
       settleDate: computeSettleDate(show.endDate),
       payoutStatus: payout ? payout.status : null,
       stripeTransferId: payout?.stripe_transfer_id ?? null,
+      payout: toPayoutDetail(payout),
     };
   });
 
@@ -317,6 +365,7 @@ export function buildLedgerRows(
     if (resolvedShowIds.has(showId)) continue;
     const payout = pickCanonicalPayout(payoutsByShow.get(showId) ?? []);
     const useStoredAmount = !!payout && payout.status !== 'failed';
+    const computedNet = calculateShowPayoutCents(entries);
     rows.push({
       showId,
       showName: null,
@@ -328,12 +377,14 @@ export function buildLedgerRows(
       uncollectedRefundCents: sumUncollectedRefundCents(entries),
       uncollectedRefundCount: countUncollectedRefunds(entries),
       unresolvedRefundDecisionCount: entries.filter(isUnresolvedRemovalRefundDecision).length,
-      netOwedCents: useStoredAmount ? payout.amount_cents : calculateShowPayoutCents(entries),
+      netOwedCents: useStoredAmount ? payout.amount_cents : computedNet,
       netOwedSource: useStoredAmount ? 'transfer' : 'computed',
+      computedNetCents: computedNet,
       // No show row means no end_date, so no settle date can be derived.
       settleDate: null,
       payoutStatus: payout ? payout.status : null,
       stripeTransferId: payout?.stripe_transfer_id ?? null,
+      payout: toPayoutDetail(payout),
     });
   }
 

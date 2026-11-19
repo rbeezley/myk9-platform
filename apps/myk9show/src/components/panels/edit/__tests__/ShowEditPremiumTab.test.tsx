@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import { mapDatabaseToShow } from '@/services/mappers/showMappers';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -7,6 +8,7 @@ const premiumEditorProps: Array<{
   onInkSaverChange?: (value: boolean) => void;
   style?: string;
   initialPremium?: unknown;
+  regenerateBlockedReason?: string;
 }> = [];
 let publishedExperienceContentMock: unknown = null;
 let officialsMock: unknown;
@@ -349,6 +351,7 @@ describe('republishing an edited premium without Regenerate keeps the recording 
   function editAndRepublish(trials: ShowTrial[], showOrg: 'AKC' | 'UKC' = 'AKC') {
     const data: ShowEditFormData = {
       ...baseData,
+      organization: showOrg,
       startDate: NEW_YEAR_SHOW.startDate,
       endDate: newYear,
       experiencePublishedContent: PUBLISHED,
@@ -414,11 +417,109 @@ describe('republishing an edited premium without Regenerate keeps the recording 
     expect(snapshot.recordingFee).toBe('AKC recording fee: $4.50 per entry');
   });
 
+  it('neither prints nor prices a soft-deleted trial read from the server row (MYK9-2186)', () => {
+    const mapped = mapDatabaseToShow({
+      id: 'show-1',
+      trials: [
+        { id: '1', name: 'Trial 1', date: eve, status: 'upcoming', deleted_at: null },
+        {
+          id: '2',
+          name: 'Trial 2',
+          date: newYear,
+          status: 'upcoming',
+          deleted_at: '2026-11-01T00:00:00Z',
+        },
+      ],
+    } as unknown as Parameters<typeof mapDatabaseToShow>[0]);
+    const { premium, snapshot } = editAndRepublish(mapped.trials as ShowTrial[]);
+
+    expect(premium.trials.map(t => t.date)).toEqual([eve]);
+    expect(snapshot.recordingFee).toBe('AKC recording fee: $4.50 per entry');
+  });
+
   it('states both rates for a live New Year pair', () => {
     const { snapshot } = editAndRepublish([trial('1', eve), trial('2', newYear)]);
 
     expect(snapshot.recordingFee).toBe(
       'AKC recording fee: $4.50 per entry; $5.50 per entry from January 1, 2027'
     );
+  });
+});
+
+describe('ShowEditPremiumTab unsaved organization (MYK9-2213)', () => {
+  beforeEach(() => {
+    premiumEditorProps.length = 0;
+  });
+
+  const renderTab = (showOrg: 'AKC' | 'UKC', savedOrganization: string) =>
+    render(
+      <ShowEditPremiumTab
+        data={{ ...baseData, organization: showOrg }}
+        clubId="c1"
+        showOrg={showOrg}
+        savedOrganization={savedOrganization}
+        isActive
+        handleCheckboxChange={vi.fn(() => vi.fn())}
+        handleValueChange={vi.fn(() => vi.fn())}
+      />
+    );
+
+  it('holds Regenerate and names the saved organization while the form differs', () => {
+    renderTab('UKC', 'AKC');
+    expect(premiumEditorProps.at(-1)).toMatchObject({
+      regenerateBlockedReason:
+        'Save the show first. Regenerate builds from the saved organization (AKC).',
+    });
+  });
+
+  it('does not hold Regenerate when the form matches the saved organization', () => {
+    renderTab('AKC', 'AKC');
+    expect(premiumEditorProps.at(-1)?.regenerateBlockedReason).toBeUndefined();
+  });
+});
+
+describe('ShowEditPremiumTab entry limit (MYK9-2220)', () => {
+  const snapshot = buildExperienceSnapshot({
+    premium: {
+      org: 'UKC',
+      style: 'monogram',
+      show: { startDate: '2026-05-01' },
+      trials: [],
+      narratives: { showHours: 'Doors at 7.', trialInformation: 'Bring water.' },
+      supplemental: {
+        vetClinic: null,
+        accommodations: [],
+        coverImageUrl: null,
+        hospitalityNotes: null,
+        awardsDescription: null,
+        additionalNotes: null,
+      },
+    },
+    premiumPath: 'show-1/artifact-1.pdf',
+    premiumUrl: 'https://trusted.example/premium-published/show-1/artifact-1.pdf',
+  });
+
+  const draftShow = (maxTotalEntries?: number) => {
+    render(
+      <ShowEditPremiumTab
+        data={{
+          ...baseData,
+          organization: 'UKC',
+          experiencePublishedContent: snapshot,
+          ...(maxTotalEntries === undefined ? {} : { maxTotalEntries }),
+        }}
+        clubId="c1"
+        showOrg="UKC"
+        isActive
+        handleCheckboxChange={vi.fn(() => vi.fn())}
+        handleValueChange={vi.fn(() => vi.fn())}
+      />
+    );
+    return (premiumEditorProps.at(-1)?.initialPremium as GeneratedPremium).show;
+  };
+
+  it('the edit draft carries the show limit, and none when the show has no limit', () => {
+    expect(draftShow(80).maxTotalEntries).toBe(80);
+    expect(draftShow().maxTotalEntries).toBeNull();
   });
 });

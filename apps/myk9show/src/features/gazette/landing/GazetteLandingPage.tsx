@@ -1,3 +1,4 @@
+import type { EntryPendingReason } from '@/utils/entryStatusUtils';
 import { useEffect } from 'react';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
@@ -30,7 +31,7 @@ interface GazetteLandingPageProps {
   allTrials: Trial[];
   hasEntryClassInventory?: boolean | null;
   /** True when the entry window has not opened yet. */
-  entryWindowNotOpen?: boolean | undefined;
+  entryPendingReason?: EntryPendingReason | undefined;
 }
 
 /**
@@ -46,7 +47,7 @@ export function GazetteLandingPage({
   trial,
   allTrials,
   hasEntryClassInventory,
-  entryWindowNotOpen,
+  entryPendingReason,
 }: GazetteLandingPageProps) {
   useEffect(() => {
     ensureGazetteFontsLoaded();
@@ -56,9 +57,9 @@ export function GazetteLandingPage({
   const classesHref = publicClassesHref(show);
   const entryCountdown = useCountdown(data.entryCloseDate, data.timezone);
   const entryClosed = entryCountdown.closed;
-  // `entryWindowNotOpen` matters as much as closed: a show whose entries open
+  // `entryPendingReason` matters as much as closed: a show whose entries open
   // months from now must not advertise an entry CTA that dead-ends.
-  const canEnterOnline = hasEntryClassInventory !== false && !entryClosed && !entryWindowNotOpen;
+  const canEnterOnline = hasEntryClassInventory !== false && !entryClosed && !entryPendingReason;
 
   const editionLabel =
     data.edition != null

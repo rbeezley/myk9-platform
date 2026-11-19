@@ -64,6 +64,7 @@ export function ClubOnboarding() {
   const [createdClubId, setCreatedClubId] = useState<string | null>(null);
   // The club exists but her new roles did not load (see handleSubmit): stay here and say so.
   const [rolesPending, setRolesPending] = useState(false);
+  const [retrying, setRetrying] = useState(false);
   const [error, setError] = useState('');
   const [nameTaken, setNameTaken] = useState(false);
 
@@ -195,6 +196,27 @@ export function ClubOnboarding() {
     }
   };
 
+  // MYK9-2214: the recovery action retries the roles refresh and goes to the dashboard only once
+  // the new club's role is loaded; otherwise she stays here with the same plain line.
+  const retryRolesAndOpenDashboard = async () => {
+    if (!user?.id || !createdClubId) return;
+    setRetrying(true);
+    try {
+      await refreshPermissions();
+      if (await userHoldsClubRole(user.id, createdClubId)) {
+        clearClubOnboardingDraft();
+        setRolesPending(false);
+        navigate(`/secretary/dashboard?clubId=${encodeURIComponent(createdClubId)}`);
+        return;
+      }
+    } catch (refreshError) {
+      logger.warn('Roles retry after club request failed', 'onboarding', {}, refreshError as Error);
+    } finally {
+      setRetrying(false);
+    }
+    setRolesPending(true);
+  };
+
   // --- Card body: the form, or the confirmation once the club exists ---
   let card: React.ReactNode;
 
@@ -227,6 +249,15 @@ export function ClubOnboarding() {
                 Open your club
               </Link>
             </>
+          ) : rolesPending ? (
+            <button
+              type="button"
+              onClick={retryRolesAndOpenDashboard}
+              disabled={retrying}
+              className="l-btn l-btn-primary l-btn-lg inline-flex min-h-11 items-center"
+            >
+              {retrying ? 'Loading your club…' : 'Get your first show published'}
+            </button>
           ) : (
             <Link
               to={`/secretary/dashboard?clubId=${encodeURIComponent(createdClubId)}`}

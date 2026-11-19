@@ -9,6 +9,7 @@ import {
   type PublishBlockerFix,
 } from '@/features/publishing/PublishBlockersList';
 import type { PublishBlocker } from '@/features/publishing/publishBlockers';
+import { useClubQuery } from '@/hooks/queries/useClubsDatabase';
 import { useClubPublishBlockers } from '@/features/publishing/usePublishBlockers';
 
 interface FirstShowCardProps {
@@ -26,6 +27,12 @@ interface FirstShowCardProps {
 export function FirstShowCard({ clubId, draftShowId }: FirstShowCardProps) {
   const blockers = useClubPublishBlockers(clubId);
   const canOpenPayments = useCanOpenClubPayments(clubId);
+  // MYK9-2214: a secretary with several clubs must see which club this is about. Until the name
+  // loads (or if it cannot), the card keeps its plain wording.
+  const clubName = useClubQuery(clubId).data?.name?.trim();
+  const title = clubName
+    ? `Get ${clubName}'s first show published`
+    : 'Get your first show published';
 
   const fixFor = (blocker: PublishBlocker): PublishBlockerFix | undefined =>
     blocker.key === 'payouts_not_enabled' && canOpenPayments
@@ -34,14 +41,14 @@ export function FirstShowCard({ clubId, draftShowId }: FirstShowCardProps) {
 
   return (
     <section
-      aria-label="Get your first show published"
+      aria-label={title}
       data-testid="first-show-card"
       className="mx-5 mb-3 rounded-lg border bg-card p-4"
     >
-      <h2 className="text-base font-semibold">Get your first show published</h2>
+      <h2 className="text-base font-semibold">{title}</h2>
       <p className="mt-1 text-sm text-muted-foreground">
         Publishing makes your show visible, and exhibitors can enter once entries open. Here is what
-        is left for your club.
+        is left{clubName ? ` for ${clubName}` : ' for your club'}.
       </p>
       <div className="mt-3">
         <PublishBlockersList state={blockers} fixFor={fixFor} viewerIsClubAdmin={canOpenPayments} />

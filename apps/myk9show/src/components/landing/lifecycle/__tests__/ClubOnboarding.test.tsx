@@ -153,6 +153,30 @@ describe('ClubOnboarding', () => {
     expect(readClubOnboardingDraft()).not.toBeNull();
   });
 
+  it('retries the roles refresh from the recovery button and navigates only once the club role loads', async () => {
+    mockHoldsClubRole.mockResolvedValue(false);
+    mockSubmit.mockResolvedValue(created);
+    render(<ClubOnboarding />, { initialRoute: '/' });
+    fillRequiredFields();
+    fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: '123' } });
+    submitForm();
+    await screen.findByTestId('club-roles-pending');
+    expect(mockRefreshPermissions).toHaveBeenCalledTimes(1);
+
+    const recover = screen.getByRole('button', { name: /get your first show published/i });
+    fireEvent.click(recover);
+    await waitFor(() => expect(mockRefreshPermissions).toHaveBeenCalledTimes(2));
+    await screen.findByTestId('club-roles-pending');
+    expect(mockNavigate).not.toHaveBeenCalled();
+
+    mockHoldsClubRole.mockResolvedValue(true);
+    fireEvent.click(screen.getByRole('button', { name: /get your first show published/i }));
+    await waitFor(() =>
+      expect(mockNavigate).toHaveBeenCalledWith('/secretary/dashboard?clubId=club-9')
+    );
+    expect(mockRefreshPermissions).toHaveBeenCalledTimes(3);
+  });
+
   it('does not navigate away when she came from the wizard', async () => {
     mockSubmit.mockResolvedValue(created);
     render(<ClubOnboarding />, { initialRoute: '/?returnTo=%2Fwizard' });

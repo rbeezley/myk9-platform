@@ -76,10 +76,14 @@ export function useFirstShowClub(
     const query = queries[index]!;
     // A club that published stays done, even if a later refresh fails.
     if (query.data?.publishedEver) continue;
-    if (query.data) return { clubId, draftShowId: query.data.draftShowId };
-    // Offline or failed with no answer: onboarding is not show-critical, so no card for this club.
-    if (!query.isPending) continue;
-    return null; // still checking this club: show nothing yet
+    // MYK9-2214: show the card only on an answer this visit's own check returned. React Query keeps
+    // the last good answer through a refetch and a failed refetch; that stale answer is not shown.
+    if (query.isSuccess && query.isFetchedAfterMount) {
+      return { clubId, draftShowId: query.data.draftShowId };
+    }
+    // Offline or failed with no fresh answer: onboarding is not show-critical, so no card for this club.
+    if (query.isFetching) return null; // still checking this club: show nothing yet
+    continue;
   }
   return null;
 }

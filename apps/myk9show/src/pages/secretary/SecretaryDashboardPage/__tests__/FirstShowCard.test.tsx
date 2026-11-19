@@ -6,7 +6,15 @@ import { firstShowCandidateClubIds } from '../firstShowClub';
 import { ScopeType, UserRole } from '@/types/auth-types';
 import type { PublishBlockersState } from '@/features/publishing/usePublishBlockers';
 
-const harness = vi.hoisted(() => ({ club: undefined as unknown, canOpenPayments: false }));
+const harness = vi.hoisted(() => ({
+  club: undefined as unknown,
+  canOpenPayments: false,
+  clubName: undefined as string | undefined,
+}));
+
+vi.mock('@/hooks/queries/useClubsDatabase', () => ({
+  useClubQuery: () => ({ data: harness.clubName ? { name: harness.clubName } : undefined }),
+}));
 
 vi.mock('@/features/publishing/usePublishBlockers', () => ({
   useClubPublishBlockers: () => harness.club,
@@ -19,6 +27,7 @@ vi.mock('@/features/payments/useCanOpenClubPayments', async importOriginal => ({
 beforeEach(() => {
   harness.club = { state: 'ready', blockers: [] } satisfies PublishBlockersState;
   harness.canOpenPayments = false;
+  harness.clubName = undefined;
 });
 
 describe('FirstShowCard (MYK9-2199)', () => {
@@ -42,6 +51,15 @@ describe('FirstShowCard (MYK9-2199)', () => {
       'href',
       '/secretary/create-show/wizard?clubId=club-1'
     );
+  });
+
+  it('names the club the card is about', () => {
+    harness.clubName = 'Tri-State Kennel Club';
+    render(<FirstShowCard clubId="club-1" draftShowId={null} />);
+    expect(
+      screen.getByRole('heading', { name: "Get Tri-State Kennel Club's first show published" })
+    ).toBeInTheDocument();
+    expect(screen.getByText(/here is what is left for Tri-State Kennel Club/i)).toBeInTheDocument();
   });
 
   it('continues the draft when the club already has one', () => {

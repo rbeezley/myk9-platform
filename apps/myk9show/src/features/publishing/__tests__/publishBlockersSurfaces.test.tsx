@@ -17,6 +17,7 @@ vi.mock('../usePublishBlockers', () => ({
   usePublishBlockers: () => harness.show,
   useClubPublishBlockers: () => harness.club,
 }));
+vi.mock('../useClubAdminEmail', () => ({ useClubAdminEmail: () => undefined }));
 vi.mock('@/features/payments/useCanOpenClubPayments', async importOriginal => ({
   ...(await importOriginal<typeof import('@/features/payments/useCanOpenClubPayments')>()),
   useCanOpenClubPayments: () => harness.canOpenPayments,

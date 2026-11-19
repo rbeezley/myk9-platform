@@ -14992,6 +14992,13 @@ export type Database = {
           show_date: string
         }[]
       }
+      get_show_club_admin_contacts: {
+        Args: { p_show_id: string }
+        Returns: {
+          display_name: string
+          email: string
+        }[]
+      }
       get_show_club_officers: {
         Args: { p_show_id: string }
         Returns: {

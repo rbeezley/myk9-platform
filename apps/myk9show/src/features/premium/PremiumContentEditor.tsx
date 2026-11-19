@@ -25,6 +25,12 @@ interface PremiumContentEditorProps {
   showOrg: 'AKC' | 'UKC' | 'ASCA' | null;
   style?: PremiumStyle;
   active?: boolean;
+  /**
+   * MYK9-2201: clear the editor when `active` turns false. Right for a dialog that closes
+   * (GeneratePremiumPanel); the Edit show tab passes false, because there `active` only means
+   * the tab is visible and hiding it must not throw the secretary's edits away.
+   */
+  resetWhenInactive?: boolean;
   initialPremium?: GeneratedPremium;
   deferGeneration?: boolean;
   /** Why generating is held (MYK9-2213); disables Regenerate and shows this line. */
@@ -67,6 +73,7 @@ export function PremiumContentEditor({
   showOrg,
   style,
   active = true,
+  resetWhenInactive = true,
   initialPremium,
   deferGeneration = false,
   regenerateBlockedReason,
@@ -207,7 +214,7 @@ export function PremiumContentEditor({
   ]);
 
   useEffect(() => {
-    if (active) return;
+    if (active || !resetWhenInactive) return;
     latestRequestRef.current = 0;
     reset();
     setOriginal(null);
@@ -225,7 +232,7 @@ export function PremiumContentEditor({
     setAutoGenerateAttemptedFor(null);
     onPremiumChangeRef.current?.(undefined);
     onInkSaverChangeRef.current?.(false);
-  }, [active, reset]);
+  }, [active, reset, resetWhenInactive]);
 
   function buildFinalPremium(): GeneratedPremium | null {
     if (!original || !supplemental || !narratives) return null;

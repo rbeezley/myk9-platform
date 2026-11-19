@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@/test/utils/testUtils';
 import { act, fireEvent } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { generatedPremium } from './fixtures/generatedPremium';
 import { PremiumContentEditor } from '../PremiumContentEditor';
 
 const generateMock = vi.hoisted(() => vi.fn());
@@ -184,6 +185,48 @@ describe('PremiumContentEditor', () => {
       expect(onPremiumChange).toHaveBeenCalledWith(expect.objectContaining({ style: 'poster' }))
     );
     expect(generateMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps an edit when the tab is hidden and shown again with resetWhenInactive off (MYK9-2201)', async () => {
+    const onPremiumChange = vi.fn();
+    const onEditedChange = vi.fn();
+    const premium = generatedPremium();
+    const props = {
+      showId: 'show-1',
+      clubId: 'club-1',
+      showOrg: 'AKC' as const,
+      initialPremium: premium,
+      resetWhenInactive: false,
+      onPremiumChange,
+      onEditedChange,
+    };
+    const { rerender, user } = render(<PremiumContentEditor {...props} active />);
+    const hours = await screen.findByDisplayValue(premium.narratives.showHours);
+    await user.clear(hours);
+    await user.type(hours, 'Gates open at 6:30 AM.');
+    await waitFor(() => expect(onEditedChange).toHaveBeenLastCalledWith(true));
+
+    rerender(<PremiumContentEditor {...props} active={false} />);
+    rerender(<PremiumContentEditor {...props} active />);
+
+    expect(onPremiumChange).not.toHaveBeenCalledWith(undefined);
+    expect(screen.getByDisplayValue('Gates open at 6:30 AM.')).toBeInTheDocument();
+    expect(onEditedChange).toHaveBeenLastCalledWith(true);
+  });
+
+  it('still clears when hidden by default, as a closing dialog needs', async () => {
+    const onPremiumChange = vi.fn();
+    const props = {
+      showId: 'show-1',
+      clubId: 'club-1',
+      showOrg: 'AKC' as const,
+      initialPremium: generatedPremium(),
+      onPremiumChange,
+    };
+    const { rerender } = render(<PremiumContentEditor {...props} active />);
+    await waitFor(() => expect(onPremiumChange).toHaveBeenCalled());
+    rerender(<PremiumContentEditor {...props} active={false} />);
+    await waitFor(() => expect(onPremiumChange).toHaveBeenLastCalledWith(undefined));
   });
 
   it('uses initial premium content when it arrives after mount', async () => {

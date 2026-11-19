@@ -160,6 +160,7 @@ export function ShowEditPremiumTab({
               {...(regenerateBlockedReason ? { regenerateBlockedReason } : {})}
               style={(data.style || 'monogram') as PremiumStyle}
               active={isActive}
+              resetWhenInactive={false}
               {...(initialPremium ? { initialPremium } : {})}
               deferGeneration={
                 hasShowId && !data.experiencePublishedContent && publishedContentLoading

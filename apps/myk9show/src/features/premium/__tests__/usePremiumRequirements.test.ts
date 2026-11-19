@@ -114,6 +114,16 @@ describe('firstLiveTrialType (MYK9-2286)', () => {
     ).toBe('Obedience');
   });
 
+  it('orders same-day trials by start time as a clock time before id, as generate-premium does', () => {
+    expect(
+      firstLiveTrialType([
+        { id: 'a', trialDate: '2027-01-01', plannedStartTime: '1:30 PM', trialType: 'Obedience' },
+        { id: 'b', trialDate: '2027-01-01', plannedStartTime: '9:00 AM', trialType: 'Scent Work' },
+        { id: 'c', trialDate: '2027-01-01', trialType: 'Rally' },
+      ])
+    ).toBe('Scent Work');
+  });
+
   it('is null with no live trial', () => {
     expect(firstLiveTrialType([])).toBeNull();
   });

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { isLivePremiumTrial, premiumRecordingFeeDates } from '@myk9/core';
+import { isLivePremiumTrial, parseStoredClockTime, premiumRecordingFeeDates } from '@myk9/core';
 import { COMMITTEE_QUERY_KEY, committeeScopeKey } from '@/components/committee/useCommittee';
 import {
   getTrialRegistry,
@@ -31,6 +31,8 @@ interface RequirementTrial {
   status?: string | undefined;
   /** MYK9-2186: a soft-deleted trial is not in the premium. */
   deletedAt?: string | null | undefined;
+  /** MYK9-2286: orders same-day trials the way generate-premium does (liveTrials.ts). */
+  plannedStartTime?: string | null | undefined;
   /** MYK9-2286: picks the club template the premium reads (the first live trial's). */
   trialType?: string | null | undefined;
 }
@@ -65,16 +67,23 @@ const contactOf = (email: string | null | undefined, phone: string | null | unde
   email === undefined && phone === undefined ? {} : { email: email ?? null, phone: phone ?? null };
 
 /**
- * The trial type of the first live trial in the generator's order (date, then id), so the checklist
- * reads the template generate-premium will. Start time is not held here; same-day trials fall to id.
+ * The trial type of the first live trial in the generator's order (date, then start time as a
+ * clock time, then id; generate-premium/liveTrials.ts), so the checklist reads the template
+ * generate-premium will. A missing or unreadable value sorts after every real one, as there.
  */
 export function firstLiveTrialType(trials: ReadonlyArray<RequirementTrial>): string | null {
   const live = trials.filter(t =>
     isLivePremiumTrial({ status: t.status ?? null, deleted_at: t.deletedAt ?? null })
   );
-  live.sort(
-    (a, b) => (a.trialDate ?? '').localeCompare(b.trialDate ?? '') || a.id.localeCompare(b.id)
-  );
+  const text = (a: string | undefined, b: string | undefined) =>
+    a == null || b == null ? (a == null ? 1 : 0) - (b == null ? 1 : 0) : a.localeCompare(b);
+  const clock = (a: RequirementTrial, b: RequirementTrial) => {
+    const am = parseStoredClockTime(a.plannedStartTime);
+    const bm = parseStoredClockTime(b.plannedStartTime);
+    if (am === null || bm === null) return (am === null ? 1 : 0) - (bm === null ? 1 : 0);
+    return am - bm;
+  };
+  live.sort((a, b) => text(a.trialDate, b.trialDate) || clock(a, b) || a.id.localeCompare(b.id));
   return live[0]?.trialType ?? null;
 }
 

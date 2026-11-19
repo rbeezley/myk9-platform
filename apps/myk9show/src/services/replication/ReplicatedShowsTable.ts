@@ -445,6 +445,19 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
   }
 
   /**
+   * True when the server refused a write for this show: the upload runner moved it out of the
+   * queue into the failed-mutations store, so `hasUnsyncedWork` no longer sees it. Reads only.
+   */
+  async hasRejectedWork(showId: string): Promise<boolean> {
+    const manager = this.showMutationManager;
+    if (!manager) return false;
+    const failed = await manager.getFailedMutations();
+    return failed.some(
+      mutation => mutation.tableName === this.getTableName() && mutation.rowId === showId
+    );
+  }
+
+  /**
    * Create a new show locally (queued for sync)
    * The mutation ID is available via `lastMutationId` for dependency tracking.
    *

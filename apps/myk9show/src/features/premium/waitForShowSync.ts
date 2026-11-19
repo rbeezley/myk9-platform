@@ -18,6 +18,7 @@ export async function waitForShowSync(
   { timeoutMs = 15_000, intervalMs = 500 }: WaitOptions = {}
 ): Promise<void> {
   const deadline = Date.now() + timeoutMs;
+  await refuseRejectedWrites(showId);
   let requested = false;
   for (;;) {
     let unsynced = true;
@@ -26,7 +27,11 @@ export async function waitForShowSync(
     } catch {
       // A queue read can fail before the session resolves; treat it as not yet synced.
     }
-    if (!unsynced) return;
+    if (!unsynced) {
+      // A write the server refused leaves the queue too, so an empty queue is not proof it synced.
+      await refuseRejectedWrites(showId);
+      return;
+    }
     if (!requested) {
       mutationManager.requestUpload();
       requested = true;
@@ -39,5 +44,21 @@ export async function waitForShowSync(
       );
     }
     await new Promise<void>(resolve => setTimeout(resolve, intervalMs));
+  }
+}
+
+async function refuseRejectedWrites(showId: string): Promise<void> {
+  let rejected = false;
+  try {
+    rejected = await replicatedShowsTable.hasRejectedWork(showId);
+  } catch {
+    // Unreadable failed-mutation store: the queue check above already guards the common case.
+  }
+  if (rejected) {
+    throw new PremiumPublishError(
+      'A change to this show was refused by myK9Show',
+      'experience-snapshot',
+      'show-rejected'
+    );
   }
 }

@@ -2,10 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { waitForShowSync } from '../waitForShowSync';
 
 const hasUnsyncedWork = vi.hoisted(() => vi.fn());
+const hasRejectedWork = vi.hoisted(() => vi.fn());
 const requestUpload = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/replication/ReplicatedShowsTable', () => ({
-  replicatedShowsTable: { hasUnsyncedWork },
+  replicatedShowsTable: { hasUnsyncedWork, hasRejectedWork },
 }));
 vi.mock('@/services/replication/sharedMutationManager', () => ({
   mutationManager: { requestUpload },
@@ -14,6 +15,8 @@ vi.mock('@/services/replication/sharedMutationManager', () => ({
 describe('waitForShowSync (MYK9-2244)', () => {
   beforeEach(() => {
     hasUnsyncedWork.mockReset();
+    hasRejectedWork.mockReset();
+    hasRejectedWork.mockResolvedValue(false);
     requestUpload.mockReset();
   });
 
@@ -35,5 +38,12 @@ describe('waitForShowSync (MYK9-2244)', () => {
     await expect(waitForShowSync('show-1', { intervalMs: 1, timeoutMs: 5 })).rejects.toMatchObject({
       code: 'show-syncing',
     });
+  });
+
+  it('blocks the publish when the server refused a write and the queue is empty', async () => {
+    hasUnsyncedWork.mockResolvedValue(false);
+    hasRejectedWork.mockResolvedValue(true);
+    await expect(waitForShowSync('show-1')).rejects.toMatchObject({ code: 'show-rejected' });
+    expect(hasRejectedWork).toHaveBeenCalledWith('show-1');
   });
 });

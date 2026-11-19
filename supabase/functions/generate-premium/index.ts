@@ -223,25 +223,26 @@ handle<GeneratePremiumPayload>(
 
     // Step 10: Assemble and return GeneratedPremium. The schedule prints live trials only
     // (MYK9-2044): a cancelled or soft-deleted trial is not advertised.
-    const trials = (
-      livePremiumTrials(show.trials as PremiumScheduleTrialRow[] | null) as unknown as Array<{
+    const liveTrials = livePremiumTrials(
+      show.trials as PremiumScheduleTrialRow[] | null
+    ) as unknown as Array<{
+      id: string;
+      name: string;
+      date: string;
+      planned_start_time: string | null;
+      event_number: string | null;
+      trial_type: string | null;
+      classes: Array<{
         id: string;
         name: string;
-        date: string;
-        planned_start_time: string | null;
-        event_number: string | null;
-        trial_type: string | null;
-        classes: Array<{
-          id: string;
-          name: string;
-          level: string | null;
-          element: string | null;
-          section: string | null;
-          deleted_at: string | null;
-        }>;
-        max_total_entries: number | null;
-      }>
-    ).map(trial => ({
+        level: string | null;
+        element: string | null;
+        section: string | null;
+        deleted_at: string | null;
+      }>;
+      max_total_entries: number | null;
+    }>;
+    const trials = liveTrials.map(trial => ({
       name: trial.name,
       date: trial.date,
       startTime: trial.planned_start_time,
@@ -249,7 +250,7 @@ handle<GeneratePremiumPayload>(
       type: trial.trial_type ?? '',
       // MYK9-2229: this trial's own entry limit.
       maxTotalEntries: trial.max_total_entries ?? null,
-      judges: premiumTrialJudges(judgeAssignments, trial),
+      judges: premiumTrialJudges(judgeAssignments, trial, liveTrials),
       classes: (trial.classes ?? []).map(cls => ({
         element: cls.element ?? '',
         level: cls.level ?? '',

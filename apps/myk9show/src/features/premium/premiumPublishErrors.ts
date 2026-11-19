@@ -1,5 +1,9 @@
 export type PremiumPublishStage =
-  'generation' | 'pdf-render' | 'pdf-upload' | 'premium-metadata' | 'experience-snapshot';
+  | 'generation'
+  | 'pdf-render'
+  | 'pdf-upload'
+  | 'premium-metadata'
+  | 'experience-snapshot';
 
 export type PremiumPublishFailureCode =
   | 'missing-organization'
@@ -11,6 +15,7 @@ export type PremiumPublishFailureCode =
   | 'intent-conflict'
   | 'judges-syncing'
   | 'show-syncing'
+  | 'show-rejected'
   | 'organization-changed'
   | 'app-updated'
   | 'officials-phone'
@@ -183,6 +188,8 @@ export function premiumPublishFailureMessage(error: PremiumPublishError): string
       return 'Your judge changes haven\'t been sent yet, so the premium list wasn\'t published. Wait until the account menu says "All changes saved", then publish again.';
     case 'show-syncing':
       return 'Your show changes haven\'t been sent yet, so the premium list wasn\'t published. Wait until the account menu says "All changes saved", then publish again.';
+    case 'show-rejected':
+      return "myK9Show refused a change to this show, so the premium list wasn't published. Open the account menu to retry or discard the refused change, then publish again.";
     case 'organization-changed':
       return "This show's organization changed since the premium was built. Open Premium and Regenerate it for the current organization, then publish.";
     case 'app-updated':

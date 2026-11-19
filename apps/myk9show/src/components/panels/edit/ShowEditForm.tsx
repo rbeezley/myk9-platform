@@ -50,7 +50,6 @@ interface ShowEditFormProps {
   onClose?: (() => void) | undefined;
   /** Passed to the Premium tab: true while a Regenerate is pending (MYK9-2144). */
   onPremiumPendingChange?: ((pending: boolean) => void) | undefined;
-  /** Passed to the Premium tab: true once its narratives or details were edited (MYK9-2201). */
   onPremiumEditedChange?: ((edited: boolean) => void) | undefined;
 }
 

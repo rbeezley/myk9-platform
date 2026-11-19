@@ -1,3 +1,4 @@
+import { usePremiumContentEdited } from './usePremiumContentEdited';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import { getErrorMessage } from '@myk9/core';
@@ -355,20 +356,7 @@ export function PremiumContentEditor({
   useEffect(() => {
     onPremiumChangeRef.current?.(finalPremium ?? undefined);
   }, [finalPremium]);
-
-  // MYK9-2201: the content the editor first held is the baseline; the raw state is compared, so
-  // the async cover-image resolve in finalPremium never reads as an edit.
-  const loadedContentKeyRef = useRef<string | null>(null);
-  const onEditedChangeRef = useRef(onEditedChange);
-  useEffect(() => {
-    onEditedChangeRef.current = onEditedChange;
-  }, [onEditedChange]);
-  useEffect(() => {
-    if (!supplemental || !narratives) return;
-    const key = JSON.stringify([supplemental, narratives]);
-    loadedContentKeyRef.current ??= key;
-    onEditedChangeRef.current?.(key !== loadedContentKeyRef.current);
-  }, [supplemental, narratives]);
+  usePremiumContentEdited(supplemental, narratives, onEditedChange);
 
   useEffect(() => {
     onInkSaverChangeRef.current?.(inkSaver);

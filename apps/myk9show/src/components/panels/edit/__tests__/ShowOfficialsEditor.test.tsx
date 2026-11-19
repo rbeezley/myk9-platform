@@ -283,7 +283,7 @@ describe('ShowOfficialsEditor mailing address for the premium (MYK9-2065)', () =
 
     await waitFor(() =>
       expect(harness.error).toHaveBeenCalledWith(
-        'This official was changed by someone else. Reload to see who it is now.'
+        'This official was changed by someone else. Refresh this page to see who it is now.'
       )
     );
   });

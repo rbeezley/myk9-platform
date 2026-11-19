@@ -75,7 +75,7 @@ export function OfficialMailingAddressField({
         notifications.error('You are offline. Reconnect to save this address.');
       } else if (code === 'P0002') {
         notifications.error(
-          'This official was changed by someone else. Reload to see who it is now.'
+          'This official was changed by someone else. Refresh this page to see who it is now.'
         );
       } else {
         notifications.error(`Could not save the ${roleLabel} mailing address: ${message}`);

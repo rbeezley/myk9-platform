@@ -126,7 +126,7 @@ BEGIN
 
   -- The tab that sent this may be showing someone who has since been replaced: write nothing.
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'This official was changed by someone else. Reload to see who it is now.'
+    RAISE EXCEPTION 'This official was changed by someone else. Refresh this page to see who it is now.'
       USING ERRCODE = 'P0002';
   END IF;
 END;

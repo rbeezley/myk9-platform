@@ -59,7 +59,9 @@ const initialPremium = {
 } as unknown as GeneratedPremium;
 
 describe('PremiumContentEditor Rebuild from show details (MYK9-2055)', () => {
-  afterEach(() => rebuildMock.mockReset());
+  afterEach(() => {
+    rebuildMock.mockReset();
+  });
 
   it('puts the freshly built text in the boxes, marks the draft edited, and saves nothing', async () => {
     rebuildMock.mockResolvedValue({

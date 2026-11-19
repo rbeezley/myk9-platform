@@ -24,6 +24,7 @@ import {
 } from './withdrawalPolicyRow.ts';
 import { livePremiumTrials, type PremiumScheduleTrialRow } from './liveTrials.ts';
 import { buildShowSummary, premiumTemplateTrialType } from './showSummary.ts';
+import { resolvePremiumStyle, SHOW_STYLE_COLUMN } from './premiumStyle.ts';
 
 const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 1024;
@@ -95,7 +96,7 @@ handle<GeneratePremiumPayload>(
       .from('shows')
       .select(
         `
-        id, name, organization, start_date, end_date, location,
+        id, name, organization, start_date, end_date, location, ${SHOW_STYLE_COLUMN},
         entry_open_date, entry_close_date, pre_entry_fee, day_of_show_fee,
         accept_check_payments, accept_cash_payments, max_total_entries, club_id, experience_published_content,
         ${PREMIUM_SHOW_WITHDRAWAL_COLUMNS},
@@ -261,21 +262,10 @@ handle<GeneratePremiumPayload>(
           }
         : null;
 
-    // Style authority (migration 195+): shows.style is the single source of
-    // truth for all four experience touchpoints. Fall back to the template's
-    // style for shows that haven't been migrated yet, then remap any
-    // pre-migration-191 legacy names so clients never receive an unknown key.
-    const LEGACY_STYLE_REMAP: Record<string, string> = {
-      classic: 'monogram',
-      modern: 'banner',
-      minimal: 'headline',
-      default: 'monogram',
-    };
-    const showStyleRaw = (show as Record<string, unknown>).style as string | null | undefined;
-    const templateStyleRaw =
-      ((template as Record<string, unknown> | null)?.style as string) ?? 'monogram';
-    const rawStyle = showStyleRaw ?? templateStyleRaw;
-    const resolvedStyle = LEGACY_STYLE_REMAP[rawStyle] ?? rawStyle;
+    const resolvedStyle = resolvePremiumStyle(
+      (show as Record<string, unknown>).style as string | null | undefined,
+      (template as Record<string, unknown> | null)?.style as string | null | undefined
+    );
 
     const result = {
       org: showOrg,

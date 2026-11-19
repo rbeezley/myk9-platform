@@ -333,8 +333,9 @@ test('expired token after 61 real minutes offline still queues and uploads the s
       const ownRow = exhibitor.page.getByTestId(`at-show-my-entry-${f.willowId}`);
       await expect(ownRow).toBeVisible();
       await expect(ownRow.getByRole('group', { name: 'Result', exact: true })).toContainText(/Q/);
+      // Times read m:ss.cc since MYK9-1503 (#3449); the judge typed 01:01.23.
       await expect(ownRow.getByRole('group', { name: 'Result', exact: true })).toContainText(
-        '61.2s'
+        '1:01.23'
       );
       await expect(
         secretaryRow(secretary.page, 'Willow').getByTestId('class-entry-result')

@@ -96,6 +96,16 @@ The scope, revised by #4233's review:
 **What B leaves out:** an email for an issued refund. She still learns of one from My Shows, or
 from Stripe's receipt where receipts are on.
 
+### B-lite. Denial email to the owner and handler only
+
+B without point 3: no puller column. The email goes to the dog's owner and the entry's handler,
+who are both already on the entry.
+
+- **Dropped:** the pull-time recorder, the reinstate-clears-puller rule and the rule for pulls
+  made before rollout. A co-owner who pulled but is neither owner nor handler does not get the
+  denial; the owner does.
+- **Kept:** the reason field, the RPC rollout and the completed-show exception.
+
 ### C. The full outcome email
 
 C covers three cases:
@@ -120,6 +130,24 @@ work, not a quick add-on:
 - a delivery exception.
 
 C is possible later, once MYK9-1953 decides the after-payout wording.
+
+## Implementation notes from review (#4233, round 2)
+
+These apply to whichever of B or B-lite is chosen.
+
+- **Reinstatement clears the puller (B only).** Only a new exhibitor pull or withdrawal sets
+  it. Test the sequence pull, then reinstate, then no-show.
+- **Pulls made before rollout (B only).** Recover the recipient from that entry's existing
+  `pulled_out` job (`recipient_person_id`) where one exists. Otherwise use the owner and handler,
+  and say so.
+- **The old RPC drop.** Gate it on client compatibility, not on the deploy. Show Desk tabs left
+  open across the deploy still call the two-argument version. Add a version gate or refresh
+  prompt before the drop, and test the old-tab flow.
+- **Before the drop.** Move `pull_refund_decision_rls_test.sql`,
+  `withdraw_or_pull_own_entry_test.sql` and `myk9_2099_refund_decision_removed_absent_test.sql`
+  to the three-argument call, and assert that the old signature is gone.
+- **Deploy command.** `supabase functions deploy send-lifecycle-email --project-ref
+sojmvhhwsjxmfistvzbe --no-verify-jwt`.
 
 ## Testing phase
 
@@ -147,10 +175,10 @@ must not stop at the queued row.
 **Deploy, in this order**
 
 1. The migration.
-2. `supabase functions deploy send-lifecycle-email`.
+2. `send-lifecycle-email`, with `--no-verify-jwt` (see the notes above).
 3. The site.
 4. The follow-up drop.
 
 ## Owner decision needed
 
-Choose A, B or C. The recommendation is B, with the scope above.
+Choose A, B, B-lite or C. The recommendation is B-lite: it tells her the outcome she cannot learn anywhere else, without the recipient machinery that most of the review findings came from. Choose B if the co-owner who pulled must hear the denial themselves.

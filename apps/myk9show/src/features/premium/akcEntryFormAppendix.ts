@@ -5,9 +5,9 @@ import { getOrganizationFormTemplateUrl } from '@/features/organization-forms/or
 /**
  * MYK9-2057: AKC Ch. 3 §15 wants "an official AKC entry form" in the premium. The official form is
  * the AKC Scent Work fillable PDF the Reports page fills per dog (`akc-scent-work-entry-form`), so
- * the premium appends that same blank template. react-pdf cannot embed an existing PDF page, so
- * the append happens on the rendered bytes, after the style-specific layout, which is why every
- * style gets it.
+ * the premium ends with that same blank template. react-pdf cannot embed an existing PDF page, so
+ * the join happens on the rendered bytes, after the style-specific layout, which is why every
+ * style gets it. Published, previewed and downloaded premiums all go through `appendAkcEntryForm`.
  */
 
 /**
@@ -28,17 +28,23 @@ async function fetchAkcEntryFormTemplate(): Promise<Uint8Array> {
   return new Uint8Array(await response.arrayBuffer());
 }
 
-/** The premium PDF with the blank official AKC entry form appended as its last page(s). */
+/**
+ * The premium PDF with the blank official AKC entry form as its last page(s).
+ *
+ * The premium's pages are inserted in front of the template's, rather than the template's pages
+ * copied onto the premium: `copyPages` brings widget annotations but not the document's AcroForm,
+ * so the form would print but no longer fill. Building on the template keeps its field tree.
+ */
 export async function appendAkcEntryForm(
   premiumPdf: Blob,
   loadTemplate: () => Promise<Uint8Array> = fetchAkcEntryFormTemplate
 ): Promise<Blob> {
-  const [premiumDoc, templateDoc] = await Promise.all([
+  const [premiumDoc, formDoc] = await Promise.all([
     PDFDocument.load(await premiumPdf.arrayBuffer()),
     loadTemplate().then(bytes => PDFDocument.load(bytes)),
   ]);
-  const pages = await premiumDoc.copyPages(templateDoc, templateDoc.getPageIndices());
-  for (const page of pages) premiumDoc.addPage(page);
-  const bytes = await premiumDoc.save();
+  const premiumPages = await formDoc.copyPages(premiumDoc, premiumDoc.getPageIndices());
+  premiumPages.forEach((page, index) => formDoc.insertPage(index, page));
+  const bytes = await formDoc.save();
   return new Blob([bytes as BlobPart], { type: 'application/pdf' });
 }

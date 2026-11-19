@@ -96,6 +96,36 @@ describe('premium PDF ends with the official AKC entry form (MYK9-2057)', () => 
     expect(premiumHasAkcEntryForm(makePremium('AKC', 'monogram'))).toBe(true);
   });
 
+  it('keeps the entry form fillable: its fields survive, and one fills, saves and reopens', async () => {
+    const templateFields = (await PDFDocument.load(TEMPLATE_BYTES)).getForm().getFields();
+    expect(templateFields.length).toBeGreaterThan(0);
+
+    const out = await appendAkcEntryForm(await fakePremiumBlob(), async () => TEMPLATE_BYTES);
+    const doc = await PDFDocument.load(await out.arrayBuffer());
+    const form = doc.getForm();
+    expect(form.getFields().map(f => f.getName())).toEqual(templateFields.map(f => f.getName()));
+
+    const textField = form.getFields().find(f => f.constructor.name === 'PDFTextField');
+    if (!textField) throw new Error('template has no text field');
+    form.getTextField(textField.getName()).setText('Willow');
+    const reopened = await PDFDocument.load(await doc.save());
+    expect(reopened.getForm().getTextField(textField.getName()).getText()).toBe('Willow');
+  });
+
+  it('puts the premium first and the entry form last', async () => {
+    const premium = await PDFDocument.create();
+    for (let i = 0; i < PREMIUM_PAGES; i++) premium.addPage([500 + i, 700]);
+    const out = await appendAkcEntryForm(
+      new Blob([(await premium.save()) as BlobPart], { type: 'application/pdf' }),
+      async () => TEMPLATE_BYTES
+    );
+    const widths = (await PDFDocument.load(await out.arrayBuffer()))
+      .getPages()
+      .map(p => Math.round(p.getWidth()));
+    expect(widths.slice(0, PREMIUM_PAGES)).toEqual([500, 501, 502]);
+    expect(widths).toHaveLength(PREMIUM_PAGES + templatePages);
+  });
+
   it('reads the trial types as stored (most AKC trials are `scent_work`)', () => {
     for (const type of ['scent_work', 'Scent Work', 'Scent Work Nationals', 'scent-work']) {
       expect(premiumHasAkcEntryForm(makePremium('AKC', 'monogram', type))).toBe(true);

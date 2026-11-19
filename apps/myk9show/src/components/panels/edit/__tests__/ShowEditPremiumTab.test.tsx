@@ -294,9 +294,8 @@ describe('ShowEditPremiumTab', () => {
 
       renderTab();
 
-      expect(premiumEditorProps.at(-1)?.initialPremium?.narratives).toEqual({
-        showHours: 'Edited hours.',
-        trialInformation: 'Built from the show.',
+      expect(premiumEditorProps.at(-1)?.initialPremium).toMatchObject({
+        narratives: { showHours: 'Edited hours.', trialInformation: 'Built from the show.' },
       });
     });
 

@@ -566,7 +566,7 @@ describe('PremiumContentEditor', () => {
 
     render(<PremiumContentEditor showId="show-1" clubId="club-1" showOrg="AKC" active />);
 
-    await screen.findByText(/Narrative generation did not return text/i);
+    await screen.findByRole('button', { name: 'Regenerate' });
     expect(screen.queryByDisplayValue(/to be announced/i)).toBeNull();
   });
 });

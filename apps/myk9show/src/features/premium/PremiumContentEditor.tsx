@@ -389,7 +389,6 @@ export function PremiumContentEditor({
             )}
 
             <PremiumEditorFields
-              showId={showId}
               supplemental={supplemental}
               narratives={narratives}
               setSupplemental={setSupplemental}

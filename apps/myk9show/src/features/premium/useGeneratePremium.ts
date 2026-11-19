@@ -7,9 +7,6 @@ interface UseGeneratePremiumResult {
   isLoading: boolean;
   error: string | null;
   reset: () => void;
-  /** The narratives built fresh from the show's facts, ignoring any published text. */
-  rebuildNarratives: (showId: string) => Promise<GeneratedPremium['narratives']>;
-  isRebuilding: boolean;
 }
 
 export function useGeneratePremium(): UseGeneratePremiumResult {
@@ -19,14 +16,7 @@ export function useGeneratePremium(): UseGeneratePremiumResult {
     },
   });
 
-  const rebuild = useMutation<GeneratedPremium['narratives'], Error, string>({
-    mutationFn: async (showId: string) =>
-      (await fetchPremium(showId, { rebuildNarratives: true })).narratives,
-  });
-
   return {
-    rebuildNarratives: rebuild.mutateAsync,
-    isRebuilding: rebuild.isPending,
     generate: mutation.mutateAsync,
     isLoading: mutation.isPending,
     error: mutation.error?.message ?? null,

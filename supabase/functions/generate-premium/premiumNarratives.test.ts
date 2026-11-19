@@ -95,7 +95,7 @@ describe('buildPremiumNarratives (MYK9-2055)', () => {
       }).trialInformation;
     const expected =
       'One trial is offered. T (March 3, 2027). ' +
-      'Classes: Novice Containers, Excellent Containers, Excellent Containers, Master Interior, Special Class.';
+      'Classes: Novice Containers, Excellent Containers (Section A), Excellent Containers (Section B), Master Interior, Special Class.';
     expect(build(classes)).toBe(expected);
     expect(build([...classes].reverse())).toBe(expected);
     expect(build([classes[2], classes[4], classes[0], classes[3], classes[1]])).toBe(expected);
@@ -173,15 +173,5 @@ describe('resolvePremiumNarratives', () => {
 
   it('uses the built text when nothing was published', () => {
     expect(resolvePremiumNarratives({ showHours: '', trialInformation: '' }, built)).toEqual(built);
-  });
-
-  it('returns the built text, ignoring a published one, when asked to rebuild', () => {
-    expect(
-      resolvePremiumNarratives(
-        { showHours: 'Old hours.', trialInformation: 'Old info.' },
-        built,
-        true
-      )
-    ).toEqual(built);
   });
 });

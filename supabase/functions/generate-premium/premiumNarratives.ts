@@ -187,8 +187,10 @@ function sortedClasses(trial: NarrativeTrialRow): NarrativeClassRow[] {
 }
 
 function classLabel(cls: NarrativeClassRow): string {
-  const label = [clean(cls.level), clean(cls.element)].filter(Boolean).join(' ');
-  return label || clean(cls.name);
+  const label = [clean(cls.level), clean(cls.element)].filter(Boolean).join(' ') || clean(cls.name);
+  // A class offered in more than one section reads the same without its section.
+  const section = clean(cls.section);
+  return label && section ? `${label} (Section ${section})` : label;
 }
 
 function trialInformationText(trials: readonly NarrativeTrialRow[]): string {
@@ -216,15 +218,12 @@ export function buildPremiumNarratives(show: NarrativeShowRow): PremiumNarrative
 
 /**
  * A narrative a secretary already published (and may have edited) is kept as is; only a blank
- * section takes the built text. Saved edits are never overwritten, except when the secretary asks
- * to rebuild from the show details: then the built text is returned for them to review.
+ * section takes the built text. Saved edits are never overwritten.
  */
 export function resolvePremiumNarratives(
   published: PremiumNarratives,
-  built: PremiumNarratives,
-  rebuild = false
+  built: PremiumNarratives
 ): PremiumNarratives {
-  if (rebuild) return built;
   return {
     showHours: published.showHours.trim() ? published.showHours : built.showHours,
     trialInformation: published.trialInformation.trim()

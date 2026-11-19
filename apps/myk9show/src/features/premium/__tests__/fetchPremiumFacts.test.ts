@@ -19,21 +19,18 @@ describe('fetchPremiumFacts (MYK9-2244, MYK9-2055)', () => {
     rpcMock.mockReset().mockResolvedValue({ data: [], error: null });
   });
 
-  it('asks generate-premium for the show, with no model or facts-only switch', async () => {
+  it('still sends factsOnly so an older deployed function never runs a paid generation', async () => {
     await fetchPremiumFacts('show-1');
-    expect(invokeMock).toHaveBeenCalledWith('generate-premium', { body: { show_id: 'show-1' } });
-  });
-
-  it('a rebuild asks the function for the built narratives, not the published ones', async () => {
-    await fetchPremium('show-1', { rebuildNarratives: true });
     expect(invokeMock).toHaveBeenCalledWith('generate-premium', {
-      body: { show_id: 'show-1', rebuild_narratives: true },
+      body: { show_id: 'show-1', factsOnly: true },
     });
   });
 
   it('a regeneration makes the same call', async () => {
     await fetchPremium('show-1');
-    expect(invokeMock).toHaveBeenCalledWith('generate-premium', { body: { show_id: 'show-1' } });
+    expect(invokeMock).toHaveBeenCalledWith('generate-premium', {
+      body: { show_id: 'show-1', factsOnly: true },
+    });
   });
 });
 

@@ -4,11 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { RebuildNarrativesButton } from './RebuildNarrativesButton';
 import type { GeneratedPremium } from '../../types/premium-types';
 
 interface PremiumEditorFieldsProps {
-  showId: string;
   supplemental: GeneratedPremium['supplemental'];
   narratives: GeneratedPremium['narratives'];
   setSupplemental: Dispatch<SetStateAction<GeneratedPremium['supplemental'] | null>>;
@@ -23,7 +21,6 @@ interface PremiumEditorFieldsProps {
 
 /** The supplemental fields and narrative text areas of the premium editor. */
 export function PremiumEditorFields({
-  showId,
   supplemental,
   narratives,
   setSupplemental: setSupplementalState,
@@ -184,14 +181,7 @@ export function PremiumEditorFields({
       </div>
 
       <div className="space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <Label className="text-sm font-medium">Generated Narratives (editable)</Label>
-          <RebuildNarrativesButton
-            showId={showId}
-            disabled={readOnly}
-            onRebuilt={next => setNarrativesState(next)}
-          />
-        </div>
+        <Label className="text-sm font-medium">Generated Narratives (editable)</Label>
         <div className="space-y-1">
           <Label className="text-xs text-muted-foreground">Show Hours</Label>
           <Textarea

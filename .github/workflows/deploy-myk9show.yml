@@ -10,6 +10,10 @@ name: Deploy myK9Show
 #
 #   gh workflow run deploy-myk9show.yml                       # newest green main
 #   gh workflow run deploy-myk9show.yml -f commit_sha=<sha>   # a specific commit
+#
+# Either way the run refuses a commit that does not contain what myk9show.com
+# serves (no rollbacks; use Vercel's Instant Rollback for that) and reports a
+# commit production already serves as nothing to deploy (MYK9-2240).
 
 on:
   workflow_dispatch:
@@ -18,11 +22,20 @@ on:
         description: Full 40-character main commit SHA (blank = newest main commit with a green CI run)
         required: false
         type: string
+      rebuild_live:
+        description: Rebuild even when production already serves this commit (after a Vercel setting change). Never allows a rollback.
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
   actions: read
 
+# One run executes at a time, so the live-commit check below (MYK9-2240) cannot
+# race another dispatch: a run that waited sees what the run before it
+# published. A newer dispatch cancels an older one still PENDING (GitHub keeps
+# one pending run per group); a cancelled run publishes nothing.
 concurrency:
   group: deploy-myk9show
   cancel-in-progress: false
@@ -34,6 +47,7 @@ jobs:
     timeout-minutes: 10
     outputs:
       commit_sha: ${{ steps.pick.outputs.commit_sha }}
+      action: ${{ steps.live.outputs.action }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -49,14 +63,26 @@ jobs:
           git fetch origin main --no-tags
           bash scripts/qa/pick-deploy-commit.sh
 
+      # MYK9-2240: refuse a commit that does not contain what production serves
+      # (a pin can be behind another session's newer deploy), and skip the build
+      # when production already serves it. Checked again right before publish.
+      - name: Refuse a rollback of what production serves
+        id: live
+        env:
+          COMMIT_SHA: ${{ steps.pick.outputs.commit_sha }}
+          REBUILD_LIVE: ${{ inputs.rebuild_live }}
+        run: bash scripts/qa/deploy-live-guard.sh
+
       # MYK9-1527: refuse a frontend that would ship ahead of its schema. Checks
       # the exact commit picked above, so a migration merged after any local
       # check cannot slip through. `supabase db push` stays owner-only.
       - uses: actions/setup-node@v7
+        if: steps.live.outputs.action == 'deploy'
         with:
           node-version: '22.23.4'
 
       - name: Refuse a commit with unapplied migrations
+        if: steps.live.outputs.action == 'deploy'
         env:
           COMMIT_SHA: ${{ steps.pick.outputs.commit_sha }}
           PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
@@ -65,6 +91,9 @@ jobs:
   deploy:
     name: Build and deploy to Vercel production
     needs: preflight
+    # Runs on "nothing to deploy" too: the build and publish steps skip, and
+    # the verify step at the end proves production is consistent (MYK9-2240).
+    if: needs.preflight.outputs.action == 'deploy' || needs.preflight.outputs.action == 'skip'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     environment:
@@ -82,15 +111,29 @@ jobs:
         with:
           ref: ${{ needs.preflight.outputs.commit_sha }}
 
+      # MYK9-2240: the live-commit guard and the verify script come from THIS
+      # workflow's revision, not the checked-out deploy commit, which may
+      # predate them.
+      - name: Load this workflow's deploy guards
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin "$GITHUB_SHA"
+          for script in deploy-live-guard.sh verify-production.sh vercel-env-placeholder-guard.ts; do
+            git show "FETCH_HEAD:scripts/qa/$script" >"$RUNNER_TEMP/$script"
+          done
+
       - uses: pnpm/action-setup@v6
+        if: needs.preflight.outputs.action == 'deploy'
         with:
           run_install: false
 
       - uses: actions/setup-node@v7
+        if: needs.preflight.outputs.action == 'deploy'
         with:
           node-version: '22.23.4'
 
       - name: Pull production project settings and env
+        if: needs.preflight.outputs.action == 'deploy'
         run: pnpm dlx "$VERCEL_CLI" pull --yes --environment=production --token="$VERCEL_TOKEN"
 
       # MYK9-1699: `vercel pull` writes the literal [SENSITIVE] for any env var
@@ -100,22 +143,24 @@ jobs:
       # SENSITIVE_PLACEHOLDER_ALLOWLIST env (comma-separated keys, warn-only)
       # for a deliberate, dated exception.
       - name: Refuse a pulled env with [SENSITIVE] placeholders
+        if: needs.preflight.outputs.action == 'deploy'
         # Load the guard from THIS workflow's revision, not the checked-out
         # deploy commit: a rollback to a commit that predates the guard must
         # still be checked (and must not fail for lack of the script).
+        # (copied to $RUNNER_TEMP by "Load this workflow's deploy guards").
         run: |
           set -euo pipefail
-          git fetch --no-tags --depth=1 origin "$GITHUB_SHA"
-          git show FETCH_HEAD:scripts/qa/vercel-env-placeholder-guard.ts >"$RUNNER_TEMP/vercel-env-placeholder-guard.ts"
           node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON \
             "$RUNNER_TEMP/vercel-env-placeholder-guard.ts" .vercel/.env.production.local
 
       - name: Build
+        if: needs.preflight.outputs.action == 'deploy'
         run: pnpm dlx "$VERCEL_CLI" build --prod --token="$VERCEL_TOKEN"
 
       # MYK9-896: stamp the built output with the commit it was built from, so
       # the verify step can prove production serves THIS commit.
       - name: Stamp the build with its commit
+        if: needs.preflight.outputs.action == 'deploy'
         env:
           COMMIT_SHA: ${{ needs.preflight.outputs.commit_sha }}
         run: |
@@ -123,22 +168,42 @@ jobs:
           [[ "$(git rev-parse HEAD)" == "$COMMIT_SHA" ]]
           printf '%s\n' "$COMMIT_SHA" >.vercel/output/static/build-sha.txt
 
+      # MYK9-2240: the last read of what production serves before publishing,
+      # with main's full history so the ancestry check can see the live commit.
+      # On a re-run of this job alone it may now find the commit already live
+      # and skip the publish; the verify step below still runs.
+      - name: Refuse a rollback of what production serves
+        id: live
+        if: needs.preflight.outputs.action == 'deploy'
+        env:
+          COMMIT_SHA: ${{ needs.preflight.outputs.commit_sha }}
+          REBUILD_LIVE: ${{ inputs.rebuild_live }}
+        run: |
+          set -euo pipefail
+          if [[ "$(git rev-parse --is-shallow-repository)" == true ]]; then
+            git fetch --no-tags --unshallow origin "+refs/heads/main:refs/remotes/origin/main"
+          else
+            git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+          fi
+          bash "$RUNNER_TEMP/deploy-live-guard.sh"
+
       - name: Deploy the prebuilt output
         id: deploy
+        if: steps.live.outputs.action == 'deploy'
         run: |
           set -euo pipefail
           url="$(pnpm dlx "$VERCEL_CLI" deploy --prebuilt --prod --yes --token="$VERCEL_TOKEN")"
           echo "url=$url" >>"$GITHUB_OUTPUT"
           echo "Deployed: $url"
 
-      # MYK9-546: the custom domain once served a bundle days behind the default
-      # alias. Fail the run unless this deployment owns myk9show.com and the
-      # domain serves the same entry chunk as the default production alias (the
-      # per-deployment URL can sit behind Vercel deployment protection).
-      - name: Verify myk9show.com serves this deployment
+      # MYK9-546: fail the run unless the deployment just published is READY,
+      # belongs to this project and owns myk9show.com (the per-deployment URL
+      # can sit behind Vercel deployment protection, so the bundle itself is
+      # compared through the public hosts in the next step).
+      - name: Verify this deployment owns myk9show.com
+        if: steps.live.outputs.action == 'deploy'
         env:
           DEPLOYMENT_URL: ${{ steps.deploy.outputs.url }}
-          COMMIT_SHA: ${{ needs.preflight.outputs.commit_sha }}
         run: |
           set -euo pipefail
           ref="${DEPLOYMENT_URL#https://}"
@@ -160,39 +225,14 @@ jobs:
               throw new Error("this deployment does not own myk9show.com");
             }
           '
-          # Read the whole page before matching: `curl | grep | head` can SIGPIPE
-          # curl, which pipefail turns into a failed step.
-          entry() {
-            local html
-            html="$(curl --fail --silent --show-error --location "$1")"
-            grep -oE 'src="/assets/[^"]*index-[A-Za-z0-9_-]+\.js"' <<<"$html" | sort -u || true
-          }
-          for attempt in 1 2 3 4 5 6; do
-            default_alias="$(entry "https://myk9-platform-myk9show.vercel.app/")"
-            public="$(entry "https://myk9show.com/")"
-            [[ -n "$public" && "$default_alias" == "$public" ]] && break
-            echo "attempt $attempt: default alias=$default_alias myk9show.com=$public"
-            if [[ $attempt -lt 6 ]]; then sleep 10; fi
-          done
-          [[ -n "$public" && "$default_alias" == "$public" ]] || {
-            echo "entry chunk mismatch after 60s: default alias=$default_alias myk9show.com=$public" >&2
-            exit 1
-          }
-          # MYK9-896: the chunk comparison cannot tell an old build from a new
-          # one, so also require the live site to report this exact commit.
-          served=""
-          for attempt in 1 2 3 4 5 6; do
-            served="$(curl --silent --location "https://myk9show.com/build-sha.txt?v=$COMMIT_SHA-$attempt" | tr -d '[:space:]' || true)"
-            [[ "$served" == "$COMMIT_SHA" ]] && break
-            echo "attempt $attempt: myk9show.com/build-sha.txt=$served expected=$COMMIT_SHA"
-            if [[ $attempt -lt 6 ]]; then sleep 10; fi
-          done
-          [[ "$served" == "$COMMIT_SHA" ]] || {
-            echo "myk9show.com serves commit '$served', expected $COMMIT_SHA" >&2
-            exit 1
-          }
           rm -f deployment.json aliases.json
-          {
-            echo "- Deployment: $DEPLOYMENT_URL (\`$deployment_id\`)"
-            echo "- myk9show.com serves \`$public\` built from \`$COMMIT_SHA\`"
-          } >>"$GITHUB_STEP_SUMMARY"
+          echo "- Deployment: $DEPLOYMENT_URL (\`$deployment_id\`)" >>"$GITHUB_STEP_SUMMARY"
+
+      # MYK9-2240: the ONE check that production is consistent, run on every
+      # path (published now, already live per preflight, or already live when
+      # this job was re-run alone): both hosts' `/` serve the same entry chunk
+      # and both report this commit. No `if:` on purpose.
+      - name: Verify production serves this commit
+        env:
+          COMMIT_SHA: ${{ needs.preflight.outputs.commit_sha }}
+        run: bash "$RUNNER_TEMP/verify-production.sh"

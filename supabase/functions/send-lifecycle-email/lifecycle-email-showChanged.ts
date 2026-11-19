@@ -1,3 +1,5 @@
+import { myShowsEntriesUrl } from './lifecycle-email-shared.ts';
+
 /**
  * The "show changed" email (MYK9-2124): rendered when it is SENT, from the show's current
  * dates and venue, so a job that waited out several edits carries the latest values.
@@ -105,7 +107,7 @@ export function renderShowChangedEmail(args: {
     sections.push(`${dates.length === 1 ? 'Date' : 'Dates'}:\n${dates.join('\n')}`);
   if (venue.length > 0) sections.push(`Venue:\n${venue.join('\n')}`);
   sections.push(
-    `Your entries: https://myk9show.com/exhibitor/entries?showId=${args.show.id}`,
+    `Your entries: ${myShowsEntriesUrl(args.show.id)}`,
     'Please contact the show secretary with questions.'
   );
 

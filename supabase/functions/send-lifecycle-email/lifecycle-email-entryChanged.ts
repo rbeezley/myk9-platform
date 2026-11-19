@@ -14,7 +14,11 @@
  * entry was put back, an edit changed back) says nothing, and a later change emails its own
  * new state. Every read is scoped to the job's show.
  */
-import type { LifecycleEmailSupabaseClient, QueryResult } from './lifecycle-email-shared.ts';
+import {
+  myShowsEntriesUrl,
+  type LifecycleEmailSupabaseClient,
+  type QueryResult,
+} from './lifecycle-email-shared.ts';
 import { formatTrialDate } from './lifecycle-email-showChanged.ts';
 
 export interface RenderedEntryChangedEmail {
@@ -345,7 +349,7 @@ export function renderEntryChangedEmail(args: {
       intro,
       args.lines.join('\n'),
       'If this is not what you expected, contact the trial secretary.',
-      `Your entries: https://myk9show.com/exhibitor/entries?showId=${args.showId}`,
+      `Your entries: ${myShowsEntriesUrl(args.showId)}`,
     ].join('\n\n'),
   };
 }

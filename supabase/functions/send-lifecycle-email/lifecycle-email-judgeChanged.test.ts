@@ -366,7 +366,7 @@ describe('judge changed email: vacancy, wording, link', () => {
     const fixture = makeAutoSendSupabase(judgeChangedTables(), LIVE);
     const { fetch, promise } = drain(fixture);
     await promise;
-    const url = 'https://myk9show.com/exhibitor/entries?showId=show-1';
+    const url = 'https://myk9show.com/exhibitor/entries?show=show-1';
     expect(sentBody(fetch).html).toContain(`<a href="${url.replace('&', '&amp;')}"`);
     expect(fixture.tables.email_log[0]).not.toHaveProperty('body_html');
     const { body } = renderJudgeChangedEmail({

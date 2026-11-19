@@ -18,6 +18,7 @@ const BASE_PROPS = {
   dogCallName: 'Pointe',
   classSummary: '3 runs · Excellent Containers, Excellent Interiors · Judge Mrs. Beagles',
   totalFeesFormatted: '$69.00',
+  totalLabel: 'Total · Paid by check',
   registrationNumber: 'MK9-000137',
   fullConfirmationNote:
     'Once the show secretary accepts your entry, we will email you a full confirmation with your armband number, judge and directions.',
@@ -66,9 +67,9 @@ describe('MonogramEntryReceived', () => {
     expect(screen.queryByText(/Registration #/)).not.toBeInTheDocument();
   });
 
-  it('falls back to "Fees due" label when no registration number', () => {
+  it('falls back to the payment label when no registration number', () => {
     render(<MonogramEntryReceived {...BASE_PROPS} registrationNumber={null} />);
-    expect(screen.getByText('Fees due')).toBeInTheDocument();
+    expect(screen.getByText('Total · Paid by check')).toBeInTheDocument();
   });
 
   it('renders the total fees amount', () => {

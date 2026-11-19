@@ -43,6 +43,7 @@ export function MonogramEntryReceived({
   dogCallName,
   classSummary,
   totalFeesFormatted,
+  totalLabel,
   registrationNumber,
   fullConfirmationNote,
   entryBlankActions,
@@ -179,11 +180,26 @@ export function MonogramEntryReceived({
         >
           {classSummary}
         </p>
+        {registrationNumber && (
+          <p
+            style={{
+              fontFamily: MONOGRAM_DISPLAY_FAMILY,
+              fontStyle: 'italic',
+              fontSize: 14,
+              color: QUILL,
+              margin: '0 0 6px',
+            }}
+          >
+            {formatConfirmationNumberLabel(registrationNumber)}
+          </p>
+        )}
         <div
           style={{
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'baseline',
+            flexWrap: 'wrap',
+            columnGap: 16,
             borderTop: '1px dotted rgba(28, 24, 21, 0.3)',
             paddingTop: 12,
           }}
@@ -196,7 +212,7 @@ export function MonogramEntryReceived({
               color: QUILL,
             }}
           >
-            {registrationNumber ? formatConfirmationNumberLabel(registrationNumber) : 'Fees due'}
+            {totalLabel}
           </span>
           <span
             style={{

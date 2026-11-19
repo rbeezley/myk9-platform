@@ -26,7 +26,6 @@ interface QuickCreateFlowProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onFlowCompleted: (exhibitor: User, dogs: Dog[]) => void;
-  searchQuery?: string; // Pre-fill from search if provided
   mode?: 'single' | 'batch'; // Single dog or multiple dogs
   offlineFirst?: boolean;
   /** `YYYY-MM-DD` show start, forwarded to Add Dog so its DOB warning judges age on show day. */
@@ -51,7 +50,6 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
   open,
   onOpenChange,
   onFlowCompleted,
-  searchQuery = '',
   mode = 'single',
   offlineFirst = false,
   showStartDate,
@@ -250,7 +248,6 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
               onOpenChange={isOpen => !isOpen && showSteps()}
               onExhibitorCreated={handleExhibitorCreated}
               onDuplicateSelected={handleDuplicateSelected}
-              searchQuery={searchQuery}
               offlineFirst={offlineFirst}
               createdFromShowId={createdFromShowId}
             />

@@ -112,6 +112,10 @@ export interface GeneratedPremium {
     maxTotalEntries?: number | null;
     /** Absent on premiums generated before MYK9-1976 part 2: those print no policy row. */
     withdrawal?: PremiumWithdrawalRow | null;
+    /** MYK9-2231: shows.allow_waitlist, the default for a class with no setting of its own. */
+    allowWaitlist?: boolean | null;
+    /** MYK9-2231: shows.allow_class_changes_after_close; absent on an older premium (prints no line). */
+    allowClassChangesAfterClose?: boolean | null;
   };
   club: { name: string | null; logoUrl: string | null };
   secretary: {
@@ -153,7 +157,17 @@ export interface GeneratedPremium {
      * carried `elements`; nothing reads `elements` any more.
      */
     judges: Array<{ name: string; residence?: string | null; classes?: string[] }>;
-    classes: Array<{ element: string; level: string; section: string | null }>;
+    classes: Array<{
+      element: string;
+      level: string;
+      section: string | null;
+      /** MYK9-2231: classes.name, the label of a class with no element or level. */
+      name?: string | null;
+      /** MYK9-2231: classes.entry_fee, the class's own pre-entry fee; null or 0 follows the show. */
+      entryFee?: number | null;
+      /** MYK9-2231: classes.allow_waitlist; null follows the show's setting. */
+      allowWaitlist?: boolean | null;
+    }>;
   }>;
   supplemental: PremiumSupplemental;
   narrativeGenerationError?: string | null;

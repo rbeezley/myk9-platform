@@ -18,6 +18,7 @@ import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { deriveRegistryId, getShowStyle, getTrialRegistry } from '@/features/registries';
 import { STYLED_RECEIPT_BY_STYLE } from '@/features/_shared/styledReceiptRegistry';
+import { receiptTotal } from '@/features/registration/receiptTotal';
 import { STYLED_ENTRY_BLANK_BY_STYLE } from '@/features/_shared/styledEntryBlankRegistry';
 import {
   ClassSelectionData,
@@ -44,7 +45,6 @@ import {
 import { buildRegistrationEntryBlankDownloads } from './entryBlankOptions';
 import { everyEntryHandledByOwner } from './ownerHandledEntries';
 import { getDogRegisteredName } from '@/types/dog-types';
-import { FREE_ENTRY_AMOUNT_LABEL, isFreeEntry } from '@/utils/entryAmountOwed';
 
 interface OptimisticRegistrationState {
   formData: RegistrationFormData;
@@ -155,11 +155,12 @@ export function WorkflowStepContent({
   );
   const receiptSelectedDogs = receiptClassSelections.map(selection => selection.dogId);
   const receiptTotalFees = getCreatedOutcomeTotalFees(entryOutcomes, currentRegistrationTotalFees);
-  // MYK9-1908: a Free entry owes nothing, so its receipt says so rather than quoting the class
-  // fee. The server records a `waived` submission as payment_status 'waived'.
-  const receiptIsFree =
-    optimisticState.formData.paymentMethod === 'waived' ||
-    isFreeEntry({ paymentStatus: optimisticState.paymentStatus });
+  const receiptMoney = receiptTotal({
+    paymentMethod: optimisticState.formData.paymentMethod,
+    receivedMethod: getPaymentDetails?.().receivedMethod,
+    paymentStatus: optimisticState.paymentStatus,
+    totalFees: receiptTotalFees,
+  });
 
   // Styled receipt branch — hooks must be top-level (Rules of Hooks);
   // expensive .find() lookups are memoized and only compute during confirmation step.
@@ -328,9 +329,7 @@ export function WorkflowStepContent({
           dogRegisteredName: styledReceipt.dogRegisteredName,
           dogCallName: styledReceipt.dogCallName,
           classSummary: styledReceipt.classSummary,
-          totalFeesFormatted: receiptIsFree
-            ? FREE_ENTRY_AMOUNT_LABEL
-            : `$${receiptTotalFees.toFixed(2)}`,
+          ...receiptMoney,
           registrationNumber: registrationNumber ?? null,
           fullConfirmationNote: styledReceipt.fullConfirmationNote,
           // INTENT: Exhibitor self-service still waits for the post-draw blank.

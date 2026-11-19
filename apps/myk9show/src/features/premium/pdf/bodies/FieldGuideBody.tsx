@@ -61,6 +61,7 @@ export function FieldGuideBody({ data, tokens }: Props) {
     f.fees.dayOf ||
     f.recordingFee ||
     f.entryLimit ||
+    f.classChanges ||
     f.withdrawalPolicy ||
     f.scoutingStatement
   );
@@ -189,6 +190,8 @@ export function FieldGuideBody({ data, tokens }: Props) {
                 <Text style={bodyStyle}>{trial.classLabels.join(' · ')}</Text>
               )}
               {trial.entryLimit && <Text style={bodyStyle}>{trial.entryLimit}</Text>}
+              {trial.classFees && <Text style={bodyStyle}>{trial.classFees}</Text>}
+              {trial.waitlist && <Text style={bodyStyle}>{trial.waitlist}</Text>}
             </View>
           ))}
         </View>
@@ -235,6 +238,12 @@ export function FieldGuideBody({ data, tokens }: Props) {
             <View style={rowStyle}>
               <Text style={labelStyle}>Entry limit</Text>
               <Text style={valueStyle}>{f.entryLimit}</Text>
+            </View>
+          )}
+          {f.classChanges && (
+            <View style={rowStyle}>
+              <Text style={labelStyle}>Class changes</Text>
+              <Text style={valueStyle}>{f.classChanges}</Text>
             </View>
           )}
           {f.withdrawalPolicy && (

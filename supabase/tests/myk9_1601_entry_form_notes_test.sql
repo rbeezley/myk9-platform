@@ -139,6 +139,8 @@ $$;
 --      entry_form_notes_guard: the table's own BEFORE trigger; returns only the new row.
 --      hard_delete_show: site-admin-only; names entry_form_notes_show_id_fkey in its FK
 --        manifest and counts rows to refuse the delete; never returns note text.
+--      seed_demo_fixture_form_untouched (MYK9-2202): service_role only; returns one boolean
+--        (does the form have a note), never note text.
 DO $$
 DECLARE offenders text;
 BEGIN
@@ -148,7 +150,8 @@ BEGIN
     AND p.prosrc ILIKE '%entry_form_notes%'
     AND (n.nspname, p.proname) NOT IN (
       ('public', 'entry_form_notes_guard'),
-      ('public', 'hard_delete_show')
+      ('public', 'hard_delete_show'),
+      ('public', 'seed_demo_fixture_form_untouched')
     );
   IF offenders IS NOT NULL THEN
     RAISE EXCEPTION 'FAIL unreviewed function(s) reference entry_form_notes: %', offenders;

@@ -12,6 +12,15 @@
 --      the newest non-deleted draft (a soft-deleted newer draft is skipped; null
 --      when the club has none).
 --   4. RPC authorization: an outsider is refused with 42501.
+--   5. Trigger through the real path (passing enforce_show_publish_gate): an
+--      authenticated club admin's publish stamps the club, and so does a
+--      secretary-only publish. The secretary holds no club_admin role and cannot
+--      UPDATE the clubs row (clubs_update), so that case fails if the stamp
+--      trigger loses SECURITY DEFINER; the admin case alone would not, because
+--      a club admin may update her own club.
+--   6. RPC edges: NULL club (22023), unknown club (P0002, reachable only past
+--      the authorization check, so as a site admin), a club trial secretary and
+--      a site admin allowed, anon refused (42501).
 --
 -- Run with psql -X -v ON_ERROR_STOP=1 after migrations. All fixtures roll back.
 
@@ -43,7 +52,33 @@ INSERT INTO public.clubs (id, name, authorized_at) VALUES
   ('00000000-0000-0000-0000-000002199004', 'MYK9-2199 Backfill', now()),
   ('00000000-0000-0000-0000-000002199005', 'MYK9-2199 Backfill Draft', now()),
   ('00000000-0000-0000-0000-000002199006', 'MYK9-2199 No Shows', now()),
-  ('00000000-0000-0000-0000-000002199007', 'MYK9-2199 Receives Host', now());
+  ('00000000-0000-0000-0000-000002199007', 'MYK9-2199 Receives Host', now()),
+  ('00000000-0000-0000-0000-000002199008', 'MYK9-2199 Admin Publishes', now()),
+  ('00000000-0000-0000-0000-000002199009', 'MYK9-2199 Secretary Publishes', now());
+
+-- Club 008 can pass enforce_show_publish_gate: approved (above), payouts enabled in the
+-- platform's mode (pinned to test mode, as show_publish_gate_trigger_test.sql does), and a
+-- draft show with an entry window and its own premium (copied from the 2197 fixtures).
+SET LOCAL ROLE service_role;
+UPDATE public.platform_settings SET stripe_livemode = false WHERE id = true;
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub', '', true);
+
+INSERT INTO public.club_stripe_accounts (club_id, stripe_account_id, onboarding_complete, payouts_enabled, livemode)
+VALUES ('00000000-0000-0000-0000-000002199008', 'acct_myk92199_ready', true, true, false),
+       ('00000000-0000-0000-0000-000002199009', 'acct_myk92199_ready_sec', true, true, false);
+
+INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status,
+                          entry_open_date, entry_close_date, online_entries_enabled,
+                          publishes_own_premium)
+VALUES ('00000000-0000-0000-0000-000002199801', 'MYK9-2199 Admin Publish', 'UKC',
+        current_date + 5, current_date + 6, '00000000-0000-0000-0000-000002199008', 'draft',
+        (current_date - 10)::timestamptz, (current_date + 4)::timestamptz, true,
+        true),
+       ('00000000-0000-0000-0000-000002199802', 'MYK9-2199 Secretary Publish', 'UKC',
+        current_date + 5, current_date + 6, '00000000-0000-0000-0000-000002199009', 'draft',
+        (current_date - 10)::timestamptz, (current_date + 4)::timestamptz, true,
+        true);
 
 INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status, created_at) VALUES
   ('00000000-0000-0000-0000-000002199101', 'MYK9-2199 A', 'UKC', current_date + 5, current_date + 6,
@@ -160,7 +195,9 @@ $$;
 -- ---------------------------------------------------------------------------
 INSERT INTO public.people (id, first_name, last_name, email) VALUES
   ('00000000-0000-0000-0000-000002199011', 'MYK9-2199', 'ClubAdmin', 'myk9-2199-admin@example.test'),
-  ('00000000-0000-0000-0000-000002199012', 'MYK9-2199', 'Outsider', 'myk9-2199-outsider@example.test');
+  ('00000000-0000-0000-0000-000002199012', 'MYK9-2199', 'Outsider', 'myk9-2199-outsider@example.test'),
+  ('00000000-0000-0000-0000-000002199013', 'MYK9-2199', 'TrialSecretary', 'myk9-2199-secretary@example.test'),
+  ('00000000-0000-0000-0000-000002199014', 'MYK9-2199', 'SiteAdmin', 'myk9-2199-siteadmin@example.test');
 
 INSERT INTO auth.users (
   id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -173,12 +210,22 @@ VALUES
    '{}', '{}', false, false, false),
   ('00000000-0000-0000-0000-000002199022', '00000000-0000-0000-0000-000000000000',
    'authenticated', 'authenticated', 'myk9-2199-outsider@example.test', '', now(), now(), now(),
+   '{}', '{}', false, false, false),
+  ('00000000-0000-0000-0000-000002199023', '00000000-0000-0000-0000-000000000000',
+   'authenticated', 'authenticated', 'myk9-2199-secretary@example.test', '', now(), now(), now(),
+   '{}', '{}', false, false, false),
+  ('00000000-0000-0000-0000-000002199024', '00000000-0000-0000-0000-000000000000',
+   'authenticated', 'authenticated', 'myk9-2199-siteadmin@example.test', '', now(), now(), now(),
    '{}', '{}', false, false, false);
 
 UPDATE public.people SET auth_user_id = '00000000-0000-0000-0000-000002199021'
  WHERE id = '00000000-0000-0000-0000-000002199011';
 UPDATE public.people SET auth_user_id = '00000000-0000-0000-0000-000002199022'
  WHERE id = '00000000-0000-0000-0000-000002199012';
+UPDATE public.people SET auth_user_id = '00000000-0000-0000-0000-000002199023'
+ WHERE id = '00000000-0000-0000-0000-000002199013';
+UPDATE public.people SET auth_user_id = '00000000-0000-0000-0000-000002199024'
+ WHERE id = '00000000-0000-0000-0000-000002199014';
 
 INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
 SELECT '00000000-0000-0000-0000-000002199011', roles.id, club.id, true,
@@ -186,6 +233,23 @@ SELECT '00000000-0000-0000-0000-000002199011', roles.id, club.id, true,
 FROM public.roles
 CROSS JOIN (SELECT id FROM public.clubs WHERE name LIKE 'MYK9-2199 %') AS club(id)
 WHERE roles.name = 'club_admin';
+
+-- A club trial secretary of club 006 only, and a site admin (no club).
+INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
+SELECT '00000000-0000-0000-0000-000002199013', roles.id,
+       club.id, true,
+       '00000000-0000-0000-0000-000002199023'
+FROM public.roles
+CROSS JOIN (VALUES
+  ('00000000-0000-0000-0000-000002199006'::uuid),
+  ('00000000-0000-0000-0000-000002199009'::uuid)
+) AS club(id)
+WHERE roles.name = 'secretary';
+
+INSERT INTO public.user_roles (user_id, role_id, is_active, auth_user_id)
+SELECT '00000000-0000-0000-0000-000002199014', roles.id, true,
+       '00000000-0000-0000-0000-000002199024'
+FROM public.roles WHERE roles.name = 'site_admin';
 
 -- ---------------------------------------------------------------------------
 -- 3. RPC as the club admin
@@ -256,6 +320,178 @@ BEGIN
     RAISE EXCEPTION 'FAIL 4 an outsider read a club''s first-show state (%)', v_state;
   END IF;
   RAISE NOTICE 'PASS 4 an outsider is refused';
+END;
+$$;
+
+RESET ROLE;
+
+-- ---------------------------------------------------------------------------
+-- 5. Trigger through the real path: an authenticated club admin publishes
+-- ---------------------------------------------------------------------------
+SET LOCAL ROLE authenticated;
+
+DO $$
+DECLARE
+  admin_auth CONSTANT uuid := '00000000-0000-0000-0000-000002199021';
+  v_rows int;
+  v_stamp timestamptz;
+BEGIN
+  PERFORM set_config('request.jwt.claim.sub', admin_auth::text, true);
+  PERFORM set_config('request.jwt.claims',
+    jsonb_build_object('sub', admin_auth, 'role', 'authenticated')::text, true);
+
+  UPDATE public.shows SET status = 'published'
+   WHERE id = '00000000-0000-0000-0000-000002199801';
+  GET DIAGNOSTICS v_rows = ROW_COUNT;
+  IF v_rows <> 1 THEN
+    RAISE EXCEPTION 'FAIL 5a the club admin''s publish affected % rows (the publish gate or RLS refused it)', v_rows;
+  END IF;
+
+  SELECT first_show_published_at INTO v_stamp FROM public.clubs
+   WHERE id = '00000000-0000-0000-0000-000002199008';
+  IF v_stamp IS NULL THEN
+    RAISE EXCEPTION 'FAIL 5b an authenticated club admin''s publish did not stamp the club';
+  END IF;
+  RAISE NOTICE 'PASS 5 a club admin''s publish stamps the club';
+END;
+$$;
+
+RESET ROLE;
+
+-- 5c: a secretary who is NOT a club admin publishes. She cannot update the clubs row, so only the
+-- SECURITY DEFINER trigger can stamp it. The fixture is checked first so a refused publish or a
+-- stray club_admin grant fails loudly instead of passing for the wrong reason.
+SET LOCAL ROLE authenticated;
+
+DO $$
+DECLARE
+  secretary_auth CONSTANT uuid := '00000000-0000-0000-0000-000002199023';
+  v_rows int;
+BEGIN
+  PERFORM set_config('request.jwt.claim.sub', secretary_auth::text, true);
+  PERFORM set_config('request.jwt.claims',
+    jsonb_build_object('sub', secretary_auth, 'role', 'authenticated')::text, true);
+
+  IF public.is_club_admin('00000000-0000-0000-0000-000002199009') THEN
+    RAISE EXCEPTION 'FAIL 5c fixture: the secretary is a club admin of club 009';
+  END IF;
+
+  v_rows := 0;
+  BEGIN
+    UPDATE public.clubs SET first_show_published_at = now()
+     WHERE id = '00000000-0000-0000-0000-000002199009';
+    GET DIAGNOSTICS v_rows = ROW_COUNT;
+  EXCEPTION WHEN insufficient_privilege THEN
+    v_rows := 0;
+  END;
+  IF v_rows <> 0 THEN
+    RAISE EXCEPTION 'FAIL 5c fixture: the secretary can update the clubs row directly';
+  END IF;
+
+  UPDATE public.shows SET status = 'published'
+   WHERE id = '00000000-0000-0000-0000-000002199802';
+  GET DIAGNOSTICS v_rows = ROW_COUNT;
+  IF v_rows <> 1 THEN
+    RAISE EXCEPTION 'FAIL 5c the secretary''s publish affected % rows', v_rows;
+  END IF;
+
+  IF (SELECT first_show_published_at FROM public.clubs
+       WHERE id = '00000000-0000-0000-0000-000002199009') IS NULL THEN
+    RAISE EXCEPTION 'FAIL 5d a secretary-only publish did not stamp the club';
+  END IF;
+  RAISE NOTICE 'PASS 5c a secretary-only publish stamps the club through the trigger';
+END;
+$$;
+
+RESET ROLE;
+
+-- ---------------------------------------------------------------------------
+-- 6. RPC edges
+-- ---------------------------------------------------------------------------
+SET LOCAL ROLE authenticated;
+
+DO $$
+DECLARE
+  admin_auth CONSTANT uuid := '00000000-0000-0000-0000-000002199021';
+  secretary_auth CONSTANT uuid := '00000000-0000-0000-0000-000002199023';
+  site_admin_auth CONSTANT uuid := '00000000-0000-0000-0000-000002199024';
+  v_state text;
+  v jsonb;
+BEGIN
+  -- 6a: NULL club -> 22023 (checked before authorization).
+  PERFORM set_config('request.jwt.claim.sub', admin_auth::text, true);
+  PERFORM set_config('request.jwt.claims',
+    jsonb_build_object('sub', admin_auth, 'role', 'authenticated')::text, true);
+  v_state := NULL;
+  BEGIN
+    PERFORM public.club_first_show_state(NULL);
+  EXCEPTION WHEN OTHERS THEN
+    v_state := SQLSTATE;
+  END;
+  IF v_state IS DISTINCT FROM '22023' THEN
+    RAISE EXCEPTION 'FAIL 6a a NULL club answered with % (expected 22023)', v_state;
+  END IF;
+
+  -- 6b: a club trial secretary of club 006 is allowed.
+  PERFORM set_config('request.jwt.claim.sub', secretary_auth::text, true);
+  PERFORM set_config('request.jwt.claims',
+    jsonb_build_object('sub', secretary_auth, 'role', 'authenticated')::text, true);
+  v := public.club_first_show_state('00000000-0000-0000-0000-000002199006');
+  IF v IS DISTINCT FROM jsonb_build_object('published_ever', false, 'draft_show_id', NULL) THEN
+    RAISE EXCEPTION 'FAIL 6b a club trial secretary was answered %', v;
+  END IF;
+
+  -- 6c: the same secretary is refused another club (the allowance is per club).
+  v_state := NULL;
+  BEGIN
+    PERFORM public.club_first_show_state('00000000-0000-0000-0000-000002199001');
+  EXCEPTION WHEN OTHERS THEN
+    v_state := SQLSTATE;
+  END;
+  IF v_state IS DISTINCT FROM '42501' THEN
+    RAISE EXCEPTION 'FAIL 6c a club trial secretary read another club (%)', v_state;
+  END IF;
+
+  -- 6d: a site admin is allowed, and sees an unknown club as P0002.
+  PERFORM set_config('request.jwt.claim.sub', site_admin_auth::text, true);
+  PERFORM set_config('request.jwt.claims',
+    jsonb_build_object('sub', site_admin_auth, 'role', 'authenticated')::text, true);
+  v := public.club_first_show_state('00000000-0000-0000-0000-000002199001');
+  IF v IS DISTINCT FROM jsonb_build_object('published_ever', true,
+       'draft_show_id', '00000000-0000-0000-0000-000002199101') THEN
+    RAISE EXCEPTION 'FAIL 6d a site admin was answered %', v;
+  END IF;
+
+  v_state := NULL;
+  BEGIN
+    PERFORM public.club_first_show_state('00000000-0000-0000-0000-000002199999');
+  EXCEPTION WHEN OTHERS THEN
+    v_state := SQLSTATE;
+  END;
+  IF v_state IS DISTINCT FROM 'P0002' THEN
+    RAISE EXCEPTION 'FAIL 6e an unknown club answered with % (expected P0002)', v_state;
+  END IF;
+  RAISE NOTICE 'PASS 6 NULL club, trial secretary, site admin and unknown club';
+END;
+$$;
+
+RESET ROLE;
+
+SET LOCAL ROLE anon;
+
+DO $$
+DECLARE
+  v_state text := NULL;
+BEGIN
+  BEGIN
+    PERFORM public.club_first_show_state('00000000-0000-0000-0000-000002199001');
+  EXCEPTION WHEN OTHERS THEN
+    v_state := SQLSTATE;
+  END;
+  IF v_state IS DISTINCT FROM '42501' THEN
+    RAISE EXCEPTION 'FAIL 6f anon was not refused (%)', v_state;
+  END IF;
+  RAISE NOTICE 'PASS 6f anon is refused';
 END;
 $$;
 

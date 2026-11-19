@@ -1,14 +1,15 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@/test/utils/testUtils';
 import { ClubOnboarding } from '../ClubOnboarding';
+import { UserRole } from '@/types/auth-types';
 import { BANNED_COPY } from '../lifecycleStories';
 import { readClubOnboardingDraft, saveClubOnboardingDraft } from '../clubOnboardingDraft';
 
 const mockSubmit = vi.fn();
 const mockRefreshPermissions = vi.hoisted(() => vi.fn());
 const mockNavigate = vi.hoisted(() => vi.fn());
-const mockHoldsClubRole = vi.hoisted(() => vi.fn());
 const auth = vi.hoisted(() => ({
+  userWithRoles: undefined as undefined | { scopes: unknown[] },
   refreshPermissions: (...args: unknown[]) => mockRefreshPermissions(...args),
   user: null as null | {
     id: string;
@@ -24,10 +25,6 @@ const signedInUser = {
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => auth,
-}));
-
-vi.mock('../clubRoleLoaded', () => ({
-  userHoldsClubRole: (...args: unknown[]) => mockHoldsClubRole(...args),
 }));
 
 vi.mock('react-router-dom', async importOriginal => ({
@@ -77,14 +74,21 @@ const fullDraft = {
   message: '',
 };
 
+// What the auth provider holds once the refresh has applied the new club's role.
+const grantClubRole = () => {
+  auth.userWithRoles = {
+    scopes: [{ scopeType: 'club', scopeId: 'club-9', roleId: UserRole.CLUB_ADMIN }],
+  };
+};
+
 const created = { clubId: 'club-9', requestId: 'request-9', alreadyRequested: false };
 
 describe('ClubOnboarding', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sessionStorage.clear();
-    mockRefreshPermissions.mockResolvedValue(undefined);
-    mockHoldsClubRole.mockResolvedValue(true);
+    mockRefreshPermissions.mockImplementation(async () => grantClubRole());
+    auth.userWithRoles = undefined;
     auth.user = signedInUser;
   });
 
@@ -118,7 +122,6 @@ describe('ClubOnboarding', () => {
     submitForm();
 
     await screen.findByText(/waiting for myK9Show approval/i);
-    expect(mockHoldsClubRole).toHaveBeenCalledWith('user-1', 'club-9');
     expect(mockNavigate).toHaveBeenCalledWith('/secretary/dashboard?clubId=club-9');
     expect(screen.queryByTestId('club-roles-pending')).not.toBeInTheDocument();
     expect(readClubOnboardingDraft()).toBeNull();
@@ -128,7 +131,7 @@ describe('ClubOnboarding', () => {
     [
       'the refresh resolves but her roles still lack the club',
       () => {
-        mockHoldsClubRole.mockResolvedValue(false);
+        mockRefreshPermissions.mockResolvedValue(undefined);
       },
     ],
     [
@@ -151,6 +154,32 @@ describe('ClubOnboarding', () => {
     );
     expect(mockNavigate).not.toHaveBeenCalled();
     expect(readClubOnboardingDraft()).not.toBeNull();
+  });
+
+  it('retries the roles refresh from the recovery button and navigates only once the auth context holds the club role', async () => {
+    mockRefreshPermissions.mockResolvedValue(undefined);
+    mockSubmit.mockResolvedValue(created);
+    saveClubOnboardingDraft(fullDraft);
+    render(<ClubOnboarding />, { initialRoute: '/' });
+    fillRequiredFields();
+    fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: '123' } });
+    submitForm();
+    await screen.findByTestId('club-roles-pending');
+    expect(mockRefreshPermissions).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: /get your first show published/i }));
+    await waitFor(() => expect(mockRefreshPermissions).toHaveBeenCalledTimes(2));
+    await screen.findByTestId('club-roles-pending');
+    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(readClubOnboardingDraft()).not.toBeNull();
+
+    mockRefreshPermissions.mockImplementation(async () => grantClubRole());
+    fireEvent.click(screen.getByRole('button', { name: /get your first show published/i }));
+    await waitFor(() =>
+      expect(mockNavigate).toHaveBeenCalledWith('/secretary/dashboard?clubId=club-9')
+    );
+    expect(mockRefreshPermissions).toHaveBeenCalledTimes(3);
+    expect(readClubOnboardingDraft()).toBeNull();
   });
 
   it('does not navigate away when she came from the wizard', async () => {
@@ -219,6 +248,7 @@ describe('ClubOnboarding', () => {
       order.push(
         readClubOnboardingDraft() ? 'refresh (draft still saved)' : 'refresh (draft gone)'
       );
+      grantClubRole();
     });
     render(<ClubOnboarding />, { initialRoute: '/' });
     fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: '123' } });

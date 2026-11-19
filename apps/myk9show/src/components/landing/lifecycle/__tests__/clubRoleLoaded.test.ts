@@ -1,46 +1,25 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { userHoldsClubRole } from '../clubRoleLoaded';
+import { describe, expect, it } from 'vitest';
+import { scopesHoldClubRole } from '../clubRoleLoaded';
+import { ScopeType, UserRole } from '@/types/auth-types';
 
-const getUserPermissions = vi.hoisted(() => vi.fn());
-vi.mock('@/services/rbac/RBACService', () => ({ rbacService: { getUserPermissions } }));
-
-const role = (overrides: Record<string, unknown>) => ({
-  is_active: true,
-  club_id: null,
-  scope_type: undefined,
-  scope_id: undefined,
-  ...overrides,
+const scope = (scopeId: string, roleId: string, scopeType = ScopeType.CLUB) => ({
+  scopeType,
+  scopeId,
+  roleId,
 });
 
-beforeEach(() => {
-  getUserPermissions.mockReset();
-});
-
-describe('userHoldsClubRole (MYK9-2199)', () => {
-  it('is true for an active role on that club', async () => {
-    getUserPermissions.mockResolvedValue({ roles: [role({ club_id: 'club-9' })] });
-    await expect(userHoldsClubRole('user-1', 'club-9')).resolves.toBe(true);
-    expect(getUserPermissions).toHaveBeenCalledWith('user-1');
+describe('scopesHoldClubRole (MYK9-2214)', () => {
+  it('is true for a club admin or secretary scope on the club', () => {
+    expect(scopesHoldClubRole([scope('club-9', UserRole.CLUB_ADMIN)], 'club-9')).toBe(true);
+    expect(scopesHoldClubRole([scope('club-9', UserRole.SECRETARY)], 'club-9')).toBe(true);
   });
 
-  it('is true for a club scope row', async () => {
-    getUserPermissions.mockResolvedValue({
-      roles: [role({ scope_type: 'club', scope_id: 'club-9' })],
-    });
-    await expect(userHoldsClubRole('user-1', 'club-9')).resolves.toBe(true);
-  });
-
-  it('is false when the roles are the old ones or the grant is inactive', async () => {
-    getUserPermissions.mockResolvedValue({ roles: [role({ club_id: 'club-1' })] });
-    await expect(userHoldsClubRole('user-1', 'club-9')).resolves.toBe(false);
-    getUserPermissions.mockResolvedValue({
-      roles: [role({ club_id: 'club-9', is_active: false })],
-    });
-    await expect(userHoldsClubRole('user-1', 'club-9')).resolves.toBe(false);
-  });
-
-  it('is false when the read fails', async () => {
-    getUserPermissions.mockRejectedValue(new Error('offline'));
-    await expect(userHoldsClubRole('user-1', 'club-9')).resolves.toBe(false);
+  it('is false for another club, another role, another scope type, or no scopes', () => {
+    expect(scopesHoldClubRole([scope('club-1', UserRole.CLUB_ADMIN)], 'club-9')).toBe(false);
+    expect(scopesHoldClubRole([scope('club-9', UserRole.EXHIBITOR)], 'club-9')).toBe(false);
+    expect(
+      scopesHoldClubRole([scope('club-9', UserRole.CLUB_ADMIN, ScopeType.SHOW)], 'club-9')
+    ).toBe(false);
+    expect(scopesHoldClubRole(undefined, 'club-9')).toBe(false);
   });
 });

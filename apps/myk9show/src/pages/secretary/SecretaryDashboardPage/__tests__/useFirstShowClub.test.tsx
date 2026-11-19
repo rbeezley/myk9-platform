@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { clubFirstShowStateQueryKey } from '../firstShowClub';
 import type { ReactNode } from 'react';
 import { useFirstShowClub } from '../firstShowClub';
 import { ScopeType, UserRole } from '@/types/auth-types';
@@ -87,5 +88,42 @@ describe('useFirstShowClub (MYK9-2199)', () => {
     await waitFor(() => expect(harness.rpc).toHaveBeenCalled());
     await new Promise(resolve => setTimeout(resolve, 20));
     expect(result.current).toBeNull();
+  });
+
+  it("hides a warm-cache answer when this visit's recheck fails", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    client.setQueryData(clubFirstShowStateQueryKey('club-1'), {
+      publishedEver: false,
+      draftShowId: 'show-7',
+    });
+    answers({ 'club-1': new Error('boom') });
+    const warmWrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    const { result } = renderHook(() => useFirstShowClub([scope('club-1')]), {
+      wrapper: warmWrapper,
+    });
+    await waitFor(() => expect(harness.rpc).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(client.getQueryState(clubFirstShowStateQueryKey('club-1'))?.status).toBe('error')
+    );
+    expect(result.current).toBeNull();
+  });
+
+  it('shows the fresh answer once the recheck succeeds over a warm cache', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    client.setQueryData(clubFirstShowStateQueryKey('club-1'), {
+      publishedEver: false,
+      draftShowId: 'old-draft',
+    });
+    answers({ 'club-1': { published_ever: false, draft_show_id: 'show-8' } });
+    const warmWrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    const { result } = renderHook(() => useFirstShowClub([scope('club-1')]), {
+      wrapper: warmWrapper,
+    });
+    expect(result.current).toBeNull();
+    await waitFor(() => expect(result.current?.draftShowId).toBe('show-8'));
   });
 });

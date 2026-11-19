@@ -1,12 +1,26 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { FirstShowCard } from '../FirstShowCard';
 import { firstShowCandidateClubIds } from '../firstShowClub';
 import { ScopeType, UserRole } from '@/types/auth-types';
 import type { PublishBlockersState } from '@/features/publishing/usePublishBlockers';
 
-const harness = vi.hoisted(() => ({ club: undefined as unknown, canOpenPayments: false }));
+const harness = vi.hoisted(() => ({
+  club: undefined as unknown,
+  canOpenPayments: false,
+  clubName: 'Tri-State Kennel Club' as string | undefined,
+  clubError: false,
+  refetch: vi.fn(),
+}));
+
+vi.mock('@/hooks/queries/useClubsDatabase', () => ({
+  useClubQuery: () => ({
+    data: harness.clubName ? { name: harness.clubName } : undefined,
+    isError: harness.clubError,
+    refetch: harness.refetch,
+  }),
+}));
 
 vi.mock('@/features/publishing/usePublishBlockers', () => ({
   useClubPublishBlockers: () => harness.club,
@@ -19,6 +33,9 @@ vi.mock('@/features/payments/useCanOpenClubPayments', async importOriginal => ({
 beforeEach(() => {
   harness.club = { state: 'ready', blockers: [] } satisfies PublishBlockersState;
   harness.canOpenPayments = false;
+  harness.clubName = 'Tri-State Kennel Club';
+  harness.clubError = false;
+  harness.refetch.mockReset();
 });
 
 describe('FirstShowCard (MYK9-2199)', () => {
@@ -33,7 +50,9 @@ describe('FirstShowCard (MYK9-2199)', () => {
     };
     render(<FirstShowCard clubId="club-1" draftShowId={null} />);
 
-    expect(screen.getByText('Get your first show published')).toBeInTheDocument();
+    expect(
+      screen.getByText("Get Tri-State Kennel Club's first show published")
+    ).toBeInTheDocument();
     expect(screen.getByText(/waiting for myK9Show approval/i)).toBeInTheDocument();
     expect(
       screen.getByRole('link', { name: /fix it: your club has not finished/i })
@@ -42,6 +61,30 @@ describe('FirstShowCard (MYK9-2199)', () => {
       'href',
       '/secretary/create-show/wizard?clubId=club-1'
     );
+  });
+
+  it('shows no club links until the club is named, and offers a retry when the name fails', () => {
+    harness.clubName = undefined;
+    harness.clubError = true;
+    render(<FirstShowCard clubId="club-1" draftShowId="show-7" />);
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(harness.refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows no club links while the name is loading', () => {
+    harness.clubName = undefined;
+    render(<FirstShowCard clubId="club-1" draftShowId={null} />);
+    expect(screen.getByText(/loading your club/i)).toBeInTheDocument();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
+
+  it('names the club the card is about', () => {
+    render(<FirstShowCard clubId="club-1" draftShowId={null} />);
+    expect(
+      screen.getByRole('heading', { name: "Get Tri-State Kennel Club's first show published" })
+    ).toBeInTheDocument();
+    expect(screen.getByText(/here is what is left for Tri-State Kennel Club/i)).toBeInTheDocument();
   });
 
   it('continues the draft when the club already has one', () => {

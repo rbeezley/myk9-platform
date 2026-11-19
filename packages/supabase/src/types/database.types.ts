@@ -15491,6 +15491,10 @@ export type Database = {
         Args: { p_show_id: string }
         Returns: undefined
       }
+      queue_show_cancelled_email: {
+        Args: { p_show_id: string }
+        Returns: undefined
+      }
       queue_substitute_judge_emails: {
         Args: { p_class_id: string; p_judge_id: string }
         Returns: number
@@ -16172,6 +16176,14 @@ export type Database = {
           request_id: string
           request_status: string
         }[]
+      }
+      show_cancelled_email_person_ids: {
+        Args: { p_show_id: string }
+        Returns: string[]
+      }
+      show_cancelled_person_has_entry: {
+        Args: { p_person_id: string; p_show_id: string }
+        Returns: boolean
       }
       show_dogs_limited_view: {
         Args: { p_limit?: number; p_offset?: number; p_show_id: string }

@@ -17,6 +17,7 @@ describe('lifecycle email read model', () => {
       { stepType: 'show_changed', isEnabled: true },
       { stepType: 'judge_changed', isEnabled: true },
       { stepType: 'entry_changed', isEnabled: true },
+      { stepType: 'show_cancelled', isEnabled: true },
     ]);
   });
 

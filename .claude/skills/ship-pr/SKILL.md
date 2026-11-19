@@ -270,10 +270,18 @@ Never report the PR as ready, arm auto-merge, or merge while a review is running
 #      0 green · 1 REQUIRED check failed · 2 head moved
 #      3 timeout (NOT a verdict) · 5 required green, non-required failed
 #      6 PR conflicts with its base (no runs will register): merge the base in
+#    Pin ONE full SHA and give it to the watcher, so the SHA whose checks
+#    passed is the SHA the merge below insists on. Shell variables do not
+#    survive between separate tool calls: write the 40-hex value literally into
+#    the merge command, never a `$HEAD_SHA` the merge call may not have.
 HEAD_SHA=$(gh pr view $PR_NUMBER --json headRefOid -q .headRefOid)
-bash scripts/qa/watch-pr-checks.sh $PR_NUMBER
+[[ "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] || echo "no full head SHA: STOP"
+bash scripts/qa/watch-pr-checks.sh $PR_NUMBER "$HEAD_SHA"
 
-# 2. Switch to main repo BEFORE merging
+# 2. Note the merge waiter's absolute path HERE: the primary checkout is not
+#    updated until Step 7 and may predate the script. Then switch to the main
+#    repo BEFORE merging.
+WAIT_MERGED="$(git rev-parse --show-toplevel)/scripts/qa/wait-pr-merged.sh"
 MAIN="$(git worktree list --porcelain | sed -n '1s/^worktree //p')"
 cd "$MAIN"
 ```
@@ -307,10 +315,12 @@ this an identical Vercel failure blocks shipping when it lands early and is igno
 lands late, purely on timing.
 
 ```bash
-# HEAD_SHA is the SHA the watcher pinned; a push since then is refused, not merged.
-gh pr merge $PR_NUMBER --squash --match-head-commit "$HEAD_SHA"
+# <sha> is the full SHA from step 1, written out literally; a push since then
+# is refused, not merged. Run from the main checkout.
+gh pr merge $PR_NUMBER --squash --match-head-commit <sha>
+# The waiter from the worktree's absolute path noted in step 2.
 # 0 merged (prints the merge commit) · 1 left the queue unmerged · 3 timeout, NOT a verdict
-bash scripts/qa/wait-pr-merged.sh $PR_NUMBER
+bash "<worktree>/scripts/qa/wait-pr-merged.sh" $PR_NUMBER
 ```
 
 Do not proceed until `wait-pr-merged.sh` exits 0. While `main` requires a merge queue

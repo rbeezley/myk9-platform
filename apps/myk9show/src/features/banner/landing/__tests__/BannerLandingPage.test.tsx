@@ -80,7 +80,7 @@ describe('BannerLandingPage — entry CTA count (MYK9-633)', () => {
         trial={null}
         allTrials={[]}
         hasEntryClassInventory
-        entryWindowNotOpen={false}
+        entryPendingReason={undefined}
       />
     );
 
@@ -95,7 +95,7 @@ describe('BannerLandingPage — entry CTA count (MYK9-633)', () => {
         trial={null}
         allTrials={[]}
         hasEntryClassInventory
-        entryWindowNotOpen={false}
+        entryPendingReason={undefined}
       />
     );
 
@@ -110,7 +110,7 @@ describe('BannerLandingPage — entry CTA count (MYK9-633)', () => {
         trial={null}
         allTrials={[]}
         hasEntryClassInventory
-        entryWindowNotOpen={false}
+        entryPendingReason={undefined}
       />
     );
 
@@ -131,7 +131,7 @@ describe('BannerLandingPage — club flag colour (MYK9-751)', () => {
         trial={null}
         allTrials={[]}
         hasEntryClassInventory
-        entryWindowNotOpen={false}
+        entryPendingReason={undefined}
       />
     );
 

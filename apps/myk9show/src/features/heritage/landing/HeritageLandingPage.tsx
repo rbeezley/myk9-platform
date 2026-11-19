@@ -1,3 +1,6 @@
+import { PendingEntryCopyProvider } from '@/features/_shared/landing/PendingEntryCopyContext';
+import type { EntryPendingReason } from '@/utils/entryStatusUtils';
+import { pendingEntryCopy } from '@/features/_shared/landing/pendingEntryCopy';
 import { useEffect } from 'react';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
@@ -30,7 +33,7 @@ interface HeritageLandingPageProps {
   allTrials: Trial[];
   hasEntryClassInventory?: boolean | null;
   /** True when the entry window has not opened yet. */
-  entryWindowNotOpen?: boolean | undefined;
+  entryPendingReason?: EntryPendingReason | undefined;
 }
 
 /**
@@ -44,7 +47,7 @@ export function HeritageLandingPage({
   trial,
   allTrials,
   hasEntryClassInventory,
-  entryWindowNotOpen,
+  entryPendingReason,
 }: HeritageLandingPageProps) {
   // Lazy-load Heritage fonts on first render — preconnect + <link> injected once.
   useEffect(() => {
@@ -58,136 +61,148 @@ export function HeritageLandingPage({
   const classesHref = publicClassesHref(show);
   const entryCountdown = useCountdown(data.entryCloseDate, data.timezone);
   const entryClosed = entryCountdown.closed;
-  // `entryWindowNotOpen` matters as much as closed: a show whose entries open
+  // `entryPendingReason` matters as much as closed: a show whose entries open
   // months from now must not advertise an entry CTA that dead-ends.
-  const canEnterOnline = hasEntryClassInventory !== false && !entryClosed && !entryWindowNotOpen;
+  const canEnterOnline = hasEntryClassInventory !== false && !entryClosed && !entryPendingReason;
 
+  const pendingCopy = pendingEntryCopy({
+    hasEntryClassInventory,
+    entryPendingReason,
+    entryOpenDate: data.entryOpenDate,
+    timezone: data.timezone,
+  });
+
+  // INTENT: Heritage is a deliberately fixed-light public style. It keeps the
+  // warm paper surface in dark app theme, while ink-band sections use separate
+  // AA-safe dark-surface tokens guarded by heritagePaletteContrast tests.
   return (
-    // INTENT: Heritage is a deliberately fixed-light public style. It keeps the
-    // warm paper surface in dark app theme, while ink-band sections use separate
-    // AA-safe dark-surface tokens guarded by heritagePaletteContrast tests.
-    <div
-      data-heritage
-      className="min-h-screen"
-      style={{ background: 'var(--hl-paper)', color: 'var(--hl-ink)' }}
-    >
-      {/* React 19 native head tag hoisting — SEO + OG (§13.5) */}
-      <title>
-        {data.showName} · {data.clubName}
-      </title>
-      <meta
-        name="description"
-        content={data.welcomeText ?? `${data.showName} — ${data.showSubtitle}`}
-      />
-      <meta property="og:title" content={`${data.showName} · ${data.clubName}`} />
-      <meta property="og:description" content={data.showSubtitle} />
-      <meta property="og:type" content="event" />
-      <meta property="og:url" content={typeof window !== 'undefined' ? window.location.href : ''} />
-      <meta name="twitter:card" content="summary" />
+    <PendingEntryCopyProvider value={pendingCopy}>
+      <div
+        data-heritage
+        className="min-h-screen"
+        style={{ background: 'var(--hl-paper)', color: 'var(--hl-ink)' }}
+      >
+        {/* React 19 native head tag hoisting — SEO + OG (§13.5) */}
+        <title>
+          {data.showName} · {data.clubName}
+        </title>
+        <meta
+          name="description"
+          content={data.welcomeText ?? `${data.showName} — ${data.showSubtitle}`}
+        />
+        <meta property="og:title" content={`${data.showName} · ${data.clubName}`} />
+        <meta property="og:description" content={data.showSubtitle} />
+        <meta property="og:type" content="event" />
+        <meta
+          property="og:url"
+          content={typeof window !== 'undefined' ? window.location.href : ''}
+        />
+        <meta name="twitter:card" content="summary" />
 
-      <StickyNav
-        clubName={data.clubName}
-        entryWizardUrl={data.entryWizardUrl}
-        canEnterOnline={canEnterOnline}
-        entryClosed={entryClosed}
-      />
-
-      <main>
-        <HeroBlock
+        <StickyNav
           clubName={data.clubName}
-          showName={data.showName}
-          showSubtitle={data.showSubtitle}
-          entryCloseDate={data.entryCloseDate}
-          trialStartDate={data.trialStartDate}
-          trialEndDate={data.trialEndDate}
-          venueName={data.venueName}
-          venueCity={data.venueCity}
-          timezone={data.timezone}
-          classesHref={classesHref}
+          entryWizardUrl={data.entryWizardUrl}
           canEnterOnline={canEnterOnline}
           entryClosed={entryClosed}
         />
 
-        <WelcomeSection welcomeText={data.welcomeText} trialChairName={data.trialChairName} />
+        <main>
+          <HeroBlock
+            clubName={data.clubName}
+            showName={data.showName}
+            showSubtitle={data.showSubtitle}
+            entryCloseDate={data.entryCloseDate}
+            trialStartDate={data.trialStartDate}
+            trialEndDate={data.trialEndDate}
+            venueName={data.venueName}
+            venueCity={data.venueCity}
+            timezone={data.timezone}
+            classesHref={classesHref}
+            canEnterOnline={canEnterOnline}
+            entryClosed={entryClosed}
+          />
 
-        <JudgesSection judges={data.judges} />
+          <WelcomeSection welcomeText={data.welcomeText} trialChairName={data.trialChairName} />
 
-        <ParticularsSection
-          licenseLanguage={data.licenseLanguage}
-          entryOpenDate={data.entryOpenDate}
-          entryCloseDate={data.entryCloseDate}
-          confirmationDate={data.confirmationDate}
-          entryLimit={data.entryLimit}
-          fees={data.fees}
-          timezone={data.timezone}
-        />
-        <WithdrawalPolicySection showId={show?.id} className="mx-auto max-w-4xl px-6 py-16" />
-        <RecordingFeeSection
-          statement={data.recordingFee}
-          className="mx-auto max-w-4xl px-6 py-16"
-        />
-        <ScoutingStatementSection
-          statement={data.scoutingStatement}
-          className="mx-auto max-w-4xl px-6 py-16"
-        />
-        <PremiumDownloadSection show={show} className="mx-auto max-w-4xl px-6 py-16" />
+          <JudgesSection judges={data.judges} />
 
-        <RosterSection
-          entryCount={data.entryCount}
-          entryLimit={data.entryLimit}
-          journeySteps={data.journeySteps}
-          timezone={data.timezone}
-        />
+          <ParticularsSection
+            licenseLanguage={data.licenseLanguage}
+            entryOpenDate={data.entryOpenDate}
+            entryCloseDate={data.entryCloseDate}
+            confirmationDate={data.confirmationDate}
+            entryLimit={data.entryLimit}
+            fees={data.fees}
+            timezone={data.timezone}
+          />
+          <WithdrawalPolicySection showId={show?.id} className="mx-auto max-w-4xl px-6 py-16" />
+          <RecordingFeeSection
+            statement={data.recordingFee}
+            className="mx-auto max-w-4xl px-6 py-16"
+          />
+          <ScoutingStatementSection
+            statement={data.scoutingStatement}
+            className="mx-auto max-w-4xl px-6 py-16"
+          />
+          <PremiumDownloadSection show={show} className="mx-auto max-w-4xl px-6 py-16" />
 
-        <PlanSection
-          accommodations={data.accommodations}
-          hospitalityNotes={data.hospitalityNotes}
-        />
+          <RosterSection
+            entryCount={data.entryCount}
+            entryLimit={data.entryLimit}
+            journeySteps={data.journeySteps}
+            timezone={data.timezone}
+          />
 
-        <OnTheDaySection
-          venueName={data.venueName}
-          venueAddress={data.venueAddress}
-          awardsDescription={data.awardsDescription}
-          houseRulesNotes={data.houseRulesNotes}
-          hospitalityNotes={data.hospitalityNotes}
-        />
+          <PlanSection
+            accommodations={data.accommodations}
+            hospitalityNotes={data.hospitalityNotes}
+          />
 
-        <OfficersSection
-          officers={data.officers}
+          <OnTheDaySection
+            venueName={data.venueName}
+            venueAddress={data.venueAddress}
+            awardsDescription={data.awardsDescription}
+            houseRulesNotes={data.houseRulesNotes}
+            hospitalityNotes={data.hospitalityNotes}
+          />
+
+          <OfficersSection
+            officers={data.officers}
+            secretaryName={data.secretaryName}
+            secretaryEmail={data.secretaryEmail}
+          />
+
+          <OfferedClassesSection show={show} className="mx-auto max-w-4xl px-6 py-16" />
+
+          <FinalCtaBand canEnterOnline={canEnterOnline} entryClosed={entryClosed} />
+        </main>
+
+        <HeritageFooter
+          clubName={data.clubName}
+          memberClubLanguage={data.memberClubLanguage}
           secretaryName={data.secretaryName}
           secretaryEmail={data.secretaryEmail}
         />
 
-        <OfferedClassesSection show={show} className="mx-auto max-w-4xl px-6 py-16" />
-
-        <FinalCtaBand canEnterOnline={canEnterOnline} entryClosed={entryClosed} />
-      </main>
-
-      <HeritageFooter
-        clubName={data.clubName}
-        memberClubLanguage={data.memberClubLanguage}
-        secretaryName={data.secretaryName}
-        secretaryEmail={data.secretaryEmail}
-      />
-
-      {/* MYK9-633: last child, after the footer — the in-flow spacer this
+        {/* MYK9-633: last child, after the footer — the in-flow spacer this
           renders reserves space at the true end of the document instead of
           opening a gap mid-page (see StickyEntryCtaBar's own doc comment). */}
-      <StickyEntryCtaBar
-        entryWizardUrl={data.entryWizardUrl}
-        canShowEntryCta={canEnterOnline}
-        className="hl-on-ink"
-        surface={{
-          background: 'var(--hl-ink)',
-          borderTop: '1px solid var(--hl-claret)',
-          buttonBackground: 'var(--hl-paper)',
-          buttonColor: 'var(--hl-ink)',
-          fontFamily: "'EB Garamond', Georgia, serif",
-          letterSpacing: '0.08em',
-          textTransform: 'uppercase',
-          fontSize: 14,
-        }}
-      />
-    </div>
+        <StickyEntryCtaBar
+          entryWizardUrl={data.entryWizardUrl}
+          canShowEntryCta={canEnterOnline}
+          className="hl-on-ink"
+          surface={{
+            background: 'var(--hl-ink)',
+            borderTop: '1px solid var(--hl-claret)',
+            buttonBackground: 'var(--hl-paper)',
+            buttonColor: 'var(--hl-ink)',
+            fontFamily: "'EB Garamond', Georgia, serif",
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            fontSize: 14,
+          }}
+        />
+      </div>
+    </PendingEntryCopyProvider>
   );
 }

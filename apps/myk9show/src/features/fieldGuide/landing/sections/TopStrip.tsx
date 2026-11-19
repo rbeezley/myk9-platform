@@ -1,6 +1,6 @@
+import { usePendingEntryCopy } from '@/features/_shared/landing/PendingEntryCopyContext';
 import { FieldGuideDarkBand } from '../../components/FieldGuideDarkBand';
 import { fieldGuideColors } from '../../tokens';
-import { pendingNavLabel, useLandingMailInOnly } from '@/features/_shared/landing/landingMailIn';
 
 interface TopStripProps {
   showCode: string;
@@ -36,7 +36,7 @@ export function TopStrip({
   canEnterOnline = true,
   entryClosed = false,
 }: TopStripProps) {
-  const mailInOnly = useLandingMailInOnly();
+  const pending = usePendingEntryCopy();
   return (
     <FieldGuideDarkBand
       style={{
@@ -102,7 +102,7 @@ export function TopStrip({
             color: fieldGuideColors.paperTranslucent,
           }}
         >
-          {entryClosed ? 'Entries closed' : pendingNavLabel(mailInOnly)}
+          {entryClosed ? 'Entries closed' : pending.nav}
         </span>
       )}
     </FieldGuideDarkBand>

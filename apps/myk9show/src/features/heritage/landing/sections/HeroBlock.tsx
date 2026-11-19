@@ -1,3 +1,4 @@
+import { usePendingEntryCopy } from '@/features/_shared/landing/PendingEntryCopyContext';
 import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
 import { useCountdown } from '../../hooks/useCountdown';
 import { HeritageOrnamentRule } from '../../components/HeritageOrnamentRule';
@@ -5,7 +6,6 @@ import { HeritageEngravedFrame } from '../../components/HeritageEngravedFrame';
 import { HeritageHeading } from '../../components/HeritageHeading';
 import { useRevealOnScroll } from '../../hooks/useRevealOnScroll';
 import { formatDateInTimezone } from '../utils/dateFormat';
-import { pendingEntryCopy, useLandingMailInOnly } from '@/features/_shared/landing/landingMailIn';
 import { LateEntryContact } from '@/features/_shared/landing/LateEntryContact';
 
 interface HeroBlockProps {
@@ -102,7 +102,7 @@ export function HeroBlock({
   canEnterOnline = true,
   entryClosed = false,
 }: HeroBlockProps) {
-  const mailInOnly = useLandingMailInOnly();
+  const pending = usePendingEntryCopy();
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>(0.1);
   const { days, hours, minutes, closed } = useCountdown(entryCloseDate, timezone);
 
@@ -230,10 +230,7 @@ export function HeroBlock({
                   <LateEntryContact lead="Entries are closed for this show. " />
                 </>
               ) : (
-                pendingEntryCopy(
-                  mailInOnly,
-                  'Entries are not available yet because no classes are assigned yet.'
-                )
+                pending.sentence
               )}
             </p>
           )}

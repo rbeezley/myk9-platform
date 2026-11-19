@@ -1,3 +1,7 @@
+import { usePendingEntryCopy } from '@/features/_shared/landing/PendingEntryCopyContext';
+import { PendingEntryCopyProvider } from '@/features/_shared/landing/PendingEntryCopyContext';
+import type { EntryPendingReason } from '@/utils/entryStatusUtils';
+import { pendingEntryCopy } from '@/features/_shared/landing/pendingEntryCopy';
 import { formatEntryLimit } from '@/features/_shared/landing/entryLimit';
 import { useEffect } from 'react';
 import type { Show } from '@/types/show-types';
@@ -21,11 +25,6 @@ import { SectionHead } from './HeadlineLandingPrimitives';
 import { formatDateRange, shortDate } from './headlineLandingDates';
 import '../headline.css';
 import '../headline-detail.css';
-import {
-  pendingEntryCopy,
-  pendingNavLabel,
-  useLandingMailInOnly,
-} from '@/features/_shared/landing/landingMailIn';
 import { LateEntryContact } from '@/features/_shared/landing/LateEntryContact';
 
 interface HeadlineLandingPageProps {
@@ -34,7 +33,7 @@ interface HeadlineLandingPageProps {
   allTrials: Trial[];
   hasEntryClassInventory?: boolean | null;
   /** True when the entry window has not opened yet. */
-  entryWindowNotOpen?: boolean | undefined;
+  entryPendingReason?: EntryPendingReason | undefined;
 }
 
 function formatTimezoneName(timezone: string): string {
@@ -76,7 +75,7 @@ function HeadlineNav({
   canEnterOnline?: boolean;
   entryClosed?: boolean;
 }) {
-  const mailInOnly = useLandingMailInOnly();
+  const pending = usePendingEntryCopy();
   return (
     <>
       <div className="hd-topbar" />
@@ -102,9 +101,7 @@ function HeadlineNav({
               Enter this show
             </a>
           ) : (
-            <span className="hd-nav-cta">
-              {entryClosed ? 'Entries closed' : pendingNavLabel(mailInOnly)}
-            </span>
+            <span className="hd-nav-cta">{entryClosed ? 'Entries closed' : pending.nav}</span>
           )}
         </div>
       </nav>
@@ -123,7 +120,7 @@ function Hero({
   canEnterOnline?: boolean;
   entryClosed?: boolean;
 }) {
-  const mailInOnly = useLandingMailInOnly();
+  const pending = usePendingEntryCopy();
   const countdown = useCountdown(data.entryCloseDate, data.timezone);
   const totalRuns = formatEntryLimit(data.entryLimit);
   const title = getHeroTitleParts(data.showName);
@@ -179,10 +176,7 @@ function Hero({
                   <LateEntryContact lead="Entries are closed for this show. " />
                 </>
               ) : (
-                pendingEntryCopy(
-                  mailInOnly,
-                  'Entries are not available yet because no classes are assigned yet.'
-                )
+                pending.sentence
               )}
             </span>
           )}
@@ -422,7 +416,7 @@ export function HeadlineLandingPage({
   trial,
   allTrials,
   hasEntryClassInventory,
-  entryWindowNotOpen,
+  entryPendingReason,
 }: HeadlineLandingPageProps) {
   useEffect(() => {
     ensureHeadlineFontsLoaded();
@@ -432,62 +426,71 @@ export function HeadlineLandingPage({
   const classesHref = publicClassesHref(show);
   const entryCountdown = useCountdown(data.entryCloseDate, data.timezone);
   const entryClosed = entryCountdown.closed;
-  // `entryWindowNotOpen` matters as much as closed: a show whose entries open
+  // `entryPendingReason` matters as much as closed: a show whose entries open
   // months from now must not advertise an entry CTA that dead-ends.
-  const canEnterOnline = hasEntryClassInventory !== false && !entryClosed && !entryWindowNotOpen;
+  const canEnterOnline = hasEntryClassInventory !== false && !entryClosed && !entryPendingReason;
+
+  const pendingCopy = pendingEntryCopy({
+    hasEntryClassInventory,
+    entryPendingReason,
+    entryOpenDate: data.entryOpenDate,
+    timezone: data.timezone,
+  });
 
   return (
-    <div data-headline className="hd-shell">
-      <title>
-        {data.clubName} · {data.showName}
-      </title>
-      <meta
-        name="description"
-        content={`${data.showName} — ${data.showSubtitle}. Entries close ${shortDate(
-          data.entryCloseDate,
-          data.timezone
-        )}.`}
-      />
-      <meta property="og:title" content={`${data.clubName} · ${data.showName}`} />
-      <meta property="og:description" content={data.showSubtitle} />
-      <meta property="og:type" content="event" />
-
-      <HeadlineNav data={data} canEnterOnline={canEnterOnline} entryClosed={entryClosed} />
-      <main>
-        <Hero
-          data={data}
-          classesHref={classesHref}
-          canEnterOnline={canEnterOnline}
-          entryClosed={entryClosed}
+    <PendingEntryCopyProvider value={pendingCopy}>
+      <div data-headline className="hd-shell">
+        <title>
+          {data.clubName} · {data.showName}
+        </title>
+        <meta
+          name="description"
+          content={`${data.showName} — ${data.showSubtitle}. Entries close ${shortDate(
+            data.entryCloseDate,
+            data.timezone
+          )}.`}
         />
-        <Judges data={data} />
-        <Particulars data={data} />
-        <WithdrawalPolicySection showId={show?.id} className="hd-section" />
-        <RecordingFeeSection statement={data.recordingFee} className="hd-section" />
-        <ScoutingStatementSection statement={data.scoutingStatement} className="hd-section" />
-        <PremiumDownloadSection show={show} className="hd-section" />
-        <Roster data={data} />
-        <ScheduleAndPlan data={data} />
-        <Officers data={data} />
-        <OfferedClassesSection show={show} className="hd-section" />
+        <meta property="og:title" content={`${data.clubName} · ${data.showName}`} />
+        <meta property="og:description" content={data.showSubtitle} />
+        <meta property="og:type" content="event" />
 
-        <FinalCta data={data} canEnterOnline={canEnterOnline} entryClosed={entryClosed} />
-      </main>
-      <Footer data={data} />
+        <HeadlineNav data={data} canEnterOnline={canEnterOnline} entryClosed={entryClosed} />
+        <main>
+          <Hero
+            data={data}
+            classesHref={classesHref}
+            canEnterOnline={canEnterOnline}
+            entryClosed={entryClosed}
+          />
+          <Judges data={data} />
+          <Particulars data={data} />
+          <WithdrawalPolicySection showId={show?.id} className="hd-section" />
+          <RecordingFeeSection statement={data.recordingFee} className="hd-section" />
+          <ScoutingStatementSection statement={data.scoutingStatement} className="hd-section" />
+          <PremiumDownloadSection show={show} className="hd-section" />
+          <Roster data={data} />
+          <ScheduleAndPlan data={data} />
+          <Officers data={data} />
+          <OfferedClassesSection show={show} className="hd-section" />
 
-      {/* MYK9-633: last child, after the footer — see StickyEntryCtaBar's
+          <FinalCta data={data} canEnterOnline={canEnterOnline} entryClosed={entryClosed} />
+        </main>
+        <Footer data={data} />
+
+        {/* MYK9-633: last child, after the footer — see StickyEntryCtaBar's
           doc comment for why placement matters. */}
-      <StickyEntryCtaBar
-        entryWizardUrl={data.entryWizardUrl}
-        canShowEntryCta={canEnterOnline}
-        surface={{
-          background: 'var(--hd-ink)',
-          buttonBackground: 'var(--hd-accent)',
-          buttonColor: 'var(--hd-paper)',
-          fontWeight: 700,
-          fontSize: 15,
-        }}
-      />
-    </div>
+        <StickyEntryCtaBar
+          entryWizardUrl={data.entryWizardUrl}
+          canShowEntryCta={canEnterOnline}
+          surface={{
+            background: 'var(--hd-ink)',
+            buttonBackground: 'var(--hd-accent)',
+            buttonColor: 'var(--hd-paper)',
+            fontWeight: 700,
+            fontSize: 15,
+          }}
+        />
+      </div>
+    </PendingEntryCopyProvider>
   );
 }

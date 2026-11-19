@@ -1,3 +1,5 @@
+import { PendingEntryCopyProvider } from '@/features/_shared/landing/PendingEntryCopyContext';
+import { NO_CLASSES_COPY } from '@/features/_shared/landing/pendingEntryCopy';
 import { describe, it, expect } from 'vitest';
 import { render, screen, within } from '@/test/utils/testUtils';
 import { TopStrip } from '../sections/TopStrip';
@@ -36,7 +38,11 @@ describe('FieldGuide Enter CTA gating', () => {
     });
 
     it('hides the Enter link and shows fallback when canEnterOnline is false', () => {
-      render(<TopStrip {...baseProps} canEnterOnline={false} />);
+      render(
+        <PendingEntryCopyProvider value={NO_CLASSES_COPY}>
+          <TopStrip {...baseProps} canEnterOnline={false} />
+        </PendingEntryCopyProvider>
+      );
       expect(screen.queryByRole('link', { name: /enter/i })).toBeNull();
       expect(screen.getByText('Classes pending')).toBeInTheDocument();
     });
@@ -70,7 +76,11 @@ describe('FieldGuide Enter CTA gating', () => {
     });
 
     it('hides the link and shows fallback copy when canEnterOnline is false', () => {
-      render(<FinalCtaSection {...baseProps} canEnterOnline={false} />);
+      render(
+        <PendingEntryCopyProvider value={NO_CLASSES_COPY}>
+          <FinalCtaSection {...baseProps} canEnterOnline={false} />
+        </PendingEntryCopyProvider>
+      );
       expect(screen.queryByRole('link', { name: /submit entry/i })).toBeNull();
       expect(
         screen.getByText(

@@ -1,3 +1,6 @@
+import { PendingEntryCopyProvider } from '@/features/_shared/landing/PendingEntryCopyContext';
+import type { EntryPendingReason } from '@/utils/entryStatusUtils';
+import { pendingEntryCopy } from '@/features/_shared/landing/pendingEntryCopy';
 import { useEffect } from 'react';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
@@ -31,7 +34,7 @@ interface BannerLandingPageProps {
   allTrials: Trial[];
   hasEntryClassInventory?: boolean | null;
   /** True when the entry window has not opened yet. */
-  entryWindowNotOpen?: boolean | undefined;
+  entryPendingReason?: EntryPendingReason | undefined;
 }
 
 /**
@@ -57,7 +60,7 @@ export function BannerLandingPage({
   trial,
   allTrials,
   hasEntryClassInventory,
-  entryWindowNotOpen,
+  entryPendingReason,
 }: BannerLandingPageProps) {
   useEffect(() => {
     ensureBannerFontsLoaded();
@@ -68,157 +71,169 @@ export function BannerLandingPage({
   const { brandColors } = data;
   const entryCountdown = useCountdown(data.entryCloseDate, data.timezone);
   const entryClosed = entryCountdown.closed;
-  // `entryWindowNotOpen` matters as much as closed: a show whose entries open
+  // `entryPendingReason` matters as much as closed: a show whose entries open
   // months from now must not advertise an entry CTA that dead-ends.
-  const canEnterOnline = hasEntryClassInventory !== false && !entryClosed && !entryWindowNotOpen;
+  const canEnterOnline = hasEntryClassInventory !== false && !entryClosed && !entryPendingReason;
+
+  const pendingCopy = pendingEntryCopy({
+    hasEntryClassInventory,
+    entryPendingReason,
+    entryOpenDate: data.entryOpenDate,
+    timezone: data.timezone,
+  });
 
   return (
-    <div
-      data-banner
-      className="min-h-screen"
-      style={
-        {
-          background: 'var(--bn-paper, #fafaf8)',
-          color: 'var(--bn-ink, #111111)',
-          ['--bn-flag' as string]: brandColors.flag,
-          ['--bn-flag-text' as string]: brandColors.flagText,
-          ['--bn-flag-deep' as string]: brandColors.flagDeep,
-          ['--bn-flag-bright' as string]: brandColors.flagBright,
-          ['--bn-text-on-flag' as string]: brandColors.textOnFlag,
-        } as React.CSSProperties
-      }
-    >
-      <title>
-        {data.showName} · {data.clubName}
-      </title>
-      <meta
-        name="description"
-        content={data.welcomeText ?? `${data.showName} — ${data.showSubtitle}`}
-      />
-      <meta property="og:title" content={`${data.showName} · ${data.clubName}`} />
-      <meta property="og:description" content={data.showSubtitle} />
-      <meta property="og:type" content="event" />
-      <meta property="og:url" content={typeof window !== 'undefined' ? window.location.href : ''} />
-      <meta name="twitter:card" content="summary" />
+    <PendingEntryCopyProvider value={pendingCopy}>
+      <div
+        data-banner
+        className="min-h-screen"
+        style={
+          {
+            background: 'var(--bn-paper, #fafaf8)',
+            color: 'var(--bn-ink, #111111)',
+            ['--bn-flag' as string]: brandColors.flag,
+            ['--bn-flag-text' as string]: brandColors.flagText,
+            ['--bn-flag-deep' as string]: brandColors.flagDeep,
+            ['--bn-flag-bright' as string]: brandColors.flagBright,
+            ['--bn-text-on-flag' as string]: brandColors.textOnFlag,
+          } as React.CSSProperties
+        }
+      >
+        <title>
+          {data.showName} · {data.clubName}
+        </title>
+        <meta
+          name="description"
+          content={data.welcomeText ?? `${data.showName} — ${data.showSubtitle}`}
+        />
+        <meta property="og:title" content={`${data.showName} · ${data.clubName}`} />
+        <meta property="og:description" content={data.showSubtitle} />
+        <meta property="og:type" content="event" />
+        <meta
+          property="og:url"
+          content={typeof window !== 'undefined' ? window.location.href : ''}
+        />
+        <meta name="twitter:card" content="summary" />
 
-      <FlagMasthead
-        brandColors={brandColors}
-        showName={data.showName}
-        showSubtitle={data.showSubtitle}
-        clubName={data.clubName}
-        trialStartDate={data.trialStartDate}
-        trialEndDate={data.trialEndDate}
-        entryCloseDate={data.entryCloseDate}
-        entryLimit={data.entryLimit}
-        venueName={data.venueName}
-        venueCity={data.venueCity}
-        timezone={data.timezone}
-        classesHref={classesHref}
-        canEnterOnline={canEnterOnline}
-        entryClosed={entryClosed}
-      />
-
-      <StickyNav
-        entryWizardUrl={data.entryWizardUrl}
-        entryCount={data.entryCount}
-        entryLimit={data.entryLimit}
-        canEnterOnline={canEnterOnline}
-        entryClosed={entryClosed}
-      />
-
-      <main>
-        <WelcomeSection
-          welcomeText={data.welcomeText}
-          trialChairName={data.trialChairName}
-          flagText={brandColors.flagText}
-        />
-        <ParticularsSection
-          licenseLanguage={data.licenseLanguage}
-          entryOpenDate={data.entryOpenDate}
-          entryCloseDate={data.entryCloseDate}
-          confirmationDate={data.confirmationDate}
-          entryLimit={data.entryLimit}
-          fees={data.fees}
-          trialsCount={data.trials.length}
-          timezone={data.timezone}
-          flag={brandColors.flag}
-          flagText={brandColors.flagText}
-        />
-        <WithdrawalPolicySection
-          showId={show?.id}
-          className="bn-section"
-          style={SHARED_SECTION_STYLE}
-        />
-        <RecordingFeeSection
-          statement={data.recordingFee}
-          className="bn-section"
-          style={SHARED_SECTION_STYLE}
-        />
-        <ScoutingStatementSection
-          statement={data.scoutingStatement}
-          className="bn-section"
-          style={SHARED_SECTION_STYLE}
-        />
-        <PremiumDownloadSection show={show} className="bn-section" style={SHARED_SECTION_STYLE} />
-        <JudgesSection
-          judges={data.judges}
-          trialsCount={data.trials.length}
-          flagText={brandColors.flagText}
-        />
-        <RosterSection
-          entryCount={data.entryCount}
-          entryLimit={data.entryLimit}
-          flag={brandColors.flag}
-          flagText={brandColors.flagText}
-          flagBright={brandColors.flagBright}
-          pastShow={data.showHasHappened}
-        />
-        <PlanSection accommodations={data.accommodations} flagText={brandColors.flagText} />
-        <OnTheDaySection
-          items={data.onTheDay}
-          hospitalityNotes={data.hospitalityNotes}
-          awardsDescription={data.awardsDescription}
-          houseRulesNotes={data.houseRulesNotes}
-          flagText={brandColors.flagText}
-        />
-        <OfficersSection
-          officers={data.officers}
-          secretaryName={data.secretaryName}
-          secretaryEmail={data.secretaryEmail}
-          flagText={brandColors.flagText}
-        />
-        <OfferedClassesSection show={show} className="bn-section" />
-
-        <FinalFlagBand
+        <FlagMasthead
           brandColors={brandColors}
+          showName={data.showName}
+          showSubtitle={data.showSubtitle}
+          clubName={data.clubName}
+          trialStartDate={data.trialStartDate}
+          trialEndDate={data.trialEndDate}
           entryCloseDate={data.entryCloseDate}
+          entryLimit={data.entryLimit}
+          venueName={data.venueName}
+          venueCity={data.venueCity}
           timezone={data.timezone}
+          classesHref={classesHref}
           canEnterOnline={canEnterOnline}
           entryClosed={entryClosed}
         />
-      </main>
 
-      <BannerFooter
-        clubName={data.clubName}
-        memberClubLanguage={data.memberClubLanguage}
-        licenseLanguage={data.licenseLanguage}
-        venueAddress={data.venueAddress}
-      />
+        <StickyNav
+          entryWizardUrl={data.entryWizardUrl}
+          entryCount={data.entryCount}
+          entryLimit={data.entryLimit}
+          canEnterOnline={canEnterOnline}
+          entryClosed={entryClosed}
+        />
 
-      {/* MYK9-633: last child, after the footer — see StickyEntryCtaBar's
+        <main>
+          <WelcomeSection
+            welcomeText={data.welcomeText}
+            trialChairName={data.trialChairName}
+            flagText={brandColors.flagText}
+          />
+          <ParticularsSection
+            licenseLanguage={data.licenseLanguage}
+            entryOpenDate={data.entryOpenDate}
+            entryCloseDate={data.entryCloseDate}
+            confirmationDate={data.confirmationDate}
+            entryLimit={data.entryLimit}
+            fees={data.fees}
+            trialsCount={data.trials.length}
+            timezone={data.timezone}
+            flag={brandColors.flag}
+            flagText={brandColors.flagText}
+          />
+          <WithdrawalPolicySection
+            showId={show?.id}
+            className="bn-section"
+            style={SHARED_SECTION_STYLE}
+          />
+          <RecordingFeeSection
+            statement={data.recordingFee}
+            className="bn-section"
+            style={SHARED_SECTION_STYLE}
+          />
+          <ScoutingStatementSection
+            statement={data.scoutingStatement}
+            className="bn-section"
+            style={SHARED_SECTION_STYLE}
+          />
+          <PremiumDownloadSection show={show} className="bn-section" style={SHARED_SECTION_STYLE} />
+          <JudgesSection
+            judges={data.judges}
+            trialsCount={data.trials.length}
+            flagText={brandColors.flagText}
+          />
+          <RosterSection
+            entryCount={data.entryCount}
+            entryLimit={data.entryLimit}
+            flag={brandColors.flag}
+            flagText={brandColors.flagText}
+            flagBright={brandColors.flagBright}
+            pastShow={data.showHasHappened}
+          />
+          <PlanSection accommodations={data.accommodations} flagText={brandColors.flagText} />
+          <OnTheDaySection
+            items={data.onTheDay}
+            hospitalityNotes={data.hospitalityNotes}
+            awardsDescription={data.awardsDescription}
+            houseRulesNotes={data.houseRulesNotes}
+            flagText={brandColors.flagText}
+          />
+          <OfficersSection
+            officers={data.officers}
+            secretaryName={data.secretaryName}
+            secretaryEmail={data.secretaryEmail}
+            flagText={brandColors.flagText}
+          />
+          <OfferedClassesSection show={show} className="bn-section" />
+
+          <FinalFlagBand
+            brandColors={brandColors}
+            entryCloseDate={data.entryCloseDate}
+            timezone={data.timezone}
+            canEnterOnline={canEnterOnline}
+            entryClosed={entryClosed}
+          />
+        </main>
+
+        <BannerFooter
+          clubName={data.clubName}
+          memberClubLanguage={data.memberClubLanguage}
+          licenseLanguage={data.licenseLanguage}
+          venueAddress={data.venueAddress}
+        />
+
+        {/* MYK9-633: last child, after the footer — see StickyEntryCtaBar's
           doc comment for why placement matters. */}
-      <StickyEntryCtaBar
-        entryWizardUrl={data.entryWizardUrl}
-        canShowEntryCta={canEnterOnline}
-        surface={{
-          background: bannerColors.ink,
-          buttonBackground: bannerColors.paper,
-          buttonColor: bannerColors.ink,
-          fontFamily: BANNER_DISPLAY_FAMILY,
-          fontWeight: 800,
-          fontSize: 14,
-        }}
-      />
-    </div>
+        <StickyEntryCtaBar
+          entryWizardUrl={data.entryWizardUrl}
+          canShowEntryCta={canEnterOnline}
+          surface={{
+            background: bannerColors.ink,
+            buttonBackground: bannerColors.paper,
+            buttonColor: bannerColors.ink,
+            fontFamily: BANNER_DISPLAY_FAMILY,
+            fontWeight: 800,
+            fontSize: 14,
+          }}
+        />
+      </div>
+    </PendingEntryCopyProvider>
   );
 }

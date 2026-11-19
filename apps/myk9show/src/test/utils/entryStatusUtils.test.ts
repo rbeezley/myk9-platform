@@ -8,6 +8,7 @@ import {
   getEntryStatus,
   getEntryStatusBadgeStyle,
   isEntryWindowNotOpen,
+  entryPendingReasonFor,
   userHasEntriesForShow,
   type EntryStatus,
 } from '@/utils/entryStatusUtils';
@@ -544,6 +545,21 @@ describe('entryStatusUtils', () => {
       ['setup_incomplete', false],
     ] as const)('%s -> %s', (status, expected) => {
       expect(isEntryWindowNotOpen(status)).toBe(expected);
+    });
+  });
+
+  describe('entryPendingReasonFor (the reason behind the landing Enter gate)', () => {
+    it.each([
+      ['not_yet_open', 'not_yet_open'],
+      ['window_unknown', 'window_unknown'],
+      ['accepting', undefined],
+      ['closing_soon', undefined],
+      ['closed', undefined],
+      ['submitted', undefined],
+      ['setup_incomplete', undefined],
+    ] as const)('%s -> %s, gating unchanged', (status, reason) => {
+      expect(entryPendingReasonFor(status)).toBe(reason);
+      expect(entryPendingReasonFor(status) !== undefined).toBe(isEntryWindowNotOpen(status));
     });
   });
 });

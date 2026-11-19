@@ -1,3 +1,5 @@
+import { PendingEntryCopyProvider } from '@/features/_shared/landing/PendingEntryCopyContext';
+import { NO_CLASSES_COPY } from '@/features/_shared/landing/pendingEntryCopy';
 import { describe, it, expect } from 'vitest';
 import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
@@ -49,7 +51,11 @@ describe('Banner Enter CTA gating', () => {
     });
 
     it('shows the pending-classes fallback when canEnterOnline is false', () => {
-      render(<FlagMasthead {...mastheadProps} canEnterOnline={false} />);
+      render(
+        <PendingEntryCopyProvider value={NO_CLASSES_COPY}>
+          <FlagMasthead {...mastheadProps} canEnterOnline={false} />
+        </PendingEntryCopyProvider>
+      );
       expect(screen.queryByRole('link', { name: 'Enter this show' })).not.toBeInTheDocument();
       expect(
         screen.getByText('Entries are not available yet because no classes are assigned yet.')
@@ -93,7 +99,11 @@ describe('Banner Enter CTA gating', () => {
     });
 
     it('replaces the Enter link with a "Classes pending" fallback when canEnterOnline is false', () => {
-      render(<StickyNav {...stickyNavProps} canEnterOnline={false} />);
+      render(
+        <PendingEntryCopyProvider value={NO_CLASSES_COPY}>
+          <StickyNav {...stickyNavProps} canEnterOnline={false} />
+        </PendingEntryCopyProvider>
+      );
       expect(screen.queryByRole('link', { name: 'Enter this show' })).not.toBeInTheDocument();
       expect(screen.getByText('Classes pending')).toBeInTheDocument();
     });
@@ -119,7 +129,11 @@ describe('Banner Enter CTA gating', () => {
     });
 
     it('hides the Enter link and shows the fallback when canEnterOnline is false', () => {
-      render(<FinalFlagBand {...finalBandProps} canEnterOnline={false} />);
+      render(
+        <PendingEntryCopyProvider value={NO_CLASSES_COPY}>
+          <FinalFlagBand {...finalBandProps} canEnterOnline={false} />
+        </PendingEntryCopyProvider>
+      );
       expect(screen.queryByRole('link', { name: 'Enter this show' })).not.toBeInTheDocument();
       expect(
         screen.getByText(

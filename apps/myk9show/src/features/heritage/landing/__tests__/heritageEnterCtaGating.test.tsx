@@ -1,3 +1,5 @@
+import { PendingEntryCopyProvider } from '@/features/_shared/landing/PendingEntryCopyContext';
+import { NO_CLASSES_COPY } from '@/features/_shared/landing/pendingEntryCopy';
 import { screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { render } from '@/test/utils/testUtils';
@@ -19,11 +21,13 @@ describe('Heritage entry CTAs', () => {
 
     it('replaces the enter link with a fallback when classes are not ready', () => {
       render(
-        <StickyNav
-          clubName="Heritage Kennel Club"
-          entryWizardUrl={WIZARD_URL}
-          canEnterOnline={false}
-        />
+        <PendingEntryCopyProvider value={NO_CLASSES_COPY}>
+          <StickyNav
+            clubName="Heritage Kennel Club"
+            entryWizardUrl={WIZARD_URL}
+            canEnterOnline={false}
+          />
+        </PendingEntryCopyProvider>
       );
 
       expect(screen.queryByRole('link', { name: /enter this show/i })).not.toBeInTheDocument();
@@ -73,19 +77,21 @@ describe('Heritage entry CTAs', () => {
 
     it('shows the pending-classes fallback when classes are not ready', () => {
       render(
-        <HeroBlock
-          clubName="Heritage Kennel Club"
-          showName="Heritage Trial"
-          showSubtitle="AKC Licensed Trial"
-          entryCloseDate={null}
-          trialStartDate="2026-06-12"
-          trialEndDate="2026-06-14"
-          venueName="Show Grounds"
-          venueCity="Austin"
-          timezone="America/Chicago"
-          classesHref={null}
-          canEnterOnline={false}
-        />
+        <PendingEntryCopyProvider value={NO_CLASSES_COPY}>
+          <HeroBlock
+            clubName="Heritage Kennel Club"
+            showName="Heritage Trial"
+            showSubtitle="AKC Licensed Trial"
+            entryCloseDate={null}
+            trialStartDate="2026-06-12"
+            trialEndDate="2026-06-14"
+            venueName="Show Grounds"
+            venueCity="Austin"
+            timezone="America/Chicago"
+            classesHref={null}
+            canEnterOnline={false}
+          />
+        </PendingEntryCopyProvider>
       );
 
       expect(screen.queryByRole('link', { name: /enter this show/i })).not.toBeInTheDocument();
@@ -132,7 +138,11 @@ describe('Heritage entry CTAs', () => {
     });
 
     it('shows the pending-classes fallback when classes are not ready', () => {
-      render(<FinalCtaBand canEnterOnline={false} />);
+      render(
+        <PendingEntryCopyProvider value={NO_CLASSES_COPY}>
+          <FinalCtaBand canEnterOnline={false} />
+        </PendingEntryCopyProvider>
+      );
 
       expect(screen.queryByRole('link', { name: /enter this show/i })).not.toBeInTheDocument();
       expect(screen.getByText(/secretary still needs to assign classes/i)).toBeInTheDocument();

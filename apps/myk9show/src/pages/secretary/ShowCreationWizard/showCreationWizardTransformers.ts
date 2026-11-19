@@ -3,6 +3,7 @@
  */
 
 import type { Show } from '@/types/show-types';
+import { toLocalDateOnly } from '@/utils/date-format';
 import type { ShowInput } from '@/store/showStore';
 import type { ClassData } from '@/components/classes/types/classTypes';
 import { resolvePremiumStyle, type PremiumStyle } from '@/types/premium-types';
@@ -199,16 +200,18 @@ export function showToShowInput(show: Show): ShowInput {
   return {
     name: show.name,
     organization: show.organization,
-    startDate: show.startDate,
-    endDate: show.endDate,
+    // MYK9-2284: the calendar days the online create writes (buildCreateShowPayload),
+    // not the wizard's local-midnight datetimes.
+    startDate: toLocalDateOnly(show.startDate),
+    endDate: toLocalDateOnly(show.endDate),
     location: show.location,
     latitude: show.latitude ?? null,
     longitude: show.longitude ?? null,
     status: show.status,
     events: show.events,
     source: show.source,
-    entryOpenDate: show.entryOpenDate,
-    entryCloseDate: show.entryCloseDate,
+    entryOpenDate: toLocalDateOnly(show.entryOpenDate),
+    entryCloseDate: toLocalDateOnly(show.entryCloseDate),
     preEntryFee: show.preEntryFee,
     dayOfShowFee: show.dayOfShowFee,
     ...(show.juniorHandlerFee !== undefined ? { juniorHandlerFee: show.juniorHandlerFee } : {}),

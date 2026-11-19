@@ -1,5 +1,6 @@
 import { addDays, differenceInCalendarDays, format, startOfDay } from 'date-fns';
 import { parseLocalDateString } from '@/utils/dateLocal';
+import { toLocalDateOnly } from '@/utils/date-format';
 
 /**
  * Parse a wizard date string. Date-only strings are read as local; full ISO
@@ -16,6 +17,23 @@ export function parseWizardDateTime(str: string | undefined): Date | undefined {
 export function parseWizardDay(str: string | undefined): Date | undefined {
   const parsed = parseWizardDateTime(str);
   return parsed ? startOfDay(parsed) : undefined;
+}
+
+/** A calendar day stored at midnight UTC, in either separator style Postgres returns. */
+const STORED_UTC_MIDNIGHT = /^(\d{4}-\d{2}-\d{2})[T ]00:00:00(?:\.0+)?(?:Z|\+00(?::?00)?)$/;
+
+/**
+ * A stored show day (`shows.start_date`, `end_date`, entry dates) as the wizard's
+ * value, which every wizard reader parses with `Date` (MYK9-2284). The columns are
+ * timestamptz holding the calendar day at midnight UTC, which west of UTC reads
+ * as the previous evening, so the day is taken from the string and returned as
+ * local midnight of that day. A value already in the wizard's own form (the
+ * picker's local day, still in the store right after a create) keeps its local day.
+ */
+export function toWizardShowDay(value: string | undefined | null): string {
+  if (!value) return '';
+  const day = STORED_UTC_MIDNIGHT.exec(value)?.[1] ?? toLocalDateOnly(value);
+  return parseWizardDateTime(day)?.toISOString() ?? value;
 }
 
 interface DatedTrial {

@@ -275,7 +275,10 @@ describe('ShowOfficialsEditor mailing address for the premium (MYK9-2065)', () =
     harness.rpc.mockResolvedValue({ error: { code: 'P0002', message: 'raw server text' } });
     renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
 
-    await userEvent.type(screen.getByLabelText('Chair: Mailing address for the premium'), 'PO Box 7');
+    await userEvent.type(
+      screen.getByLabelText('Chair: Mailing address for the premium'),
+      'PO Box 7'
+    );
     await userEvent.tab();
 
     await waitFor(() =>
@@ -291,7 +294,10 @@ describe('ShowOfficialsEditor mailing address for the premium (MYK9-2065)', () =
     const online = vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false);
     renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
 
-    await userEvent.type(screen.getByLabelText('Chair: Mailing address for the premium'), 'PO Box 7');
+    await userEvent.type(
+      screen.getByLabelText('Chair: Mailing address for the premium'),
+      'PO Box 7'
+    );
     await userEvent.tab();
 
     await waitFor(() =>
@@ -301,7 +307,9 @@ describe('ShowOfficialsEditor mailing address for the premium (MYK9-2065)', () =
   });
 
   it('shows a refreshed server address in a clean field but keeps an unsaved draft', async () => {
-    harness.officials.chairmen = [{ ...holder('c1', 'Caleb', 'Morgan'), mailingAddress: 'PO Box 1' }];
+    harness.officials.chairmen = [
+      { ...holder('c1', 'Caleb', 'Morgan'), mailingAddress: 'PO Box 1' },
+    ];
     const view = renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
     const label = 'Chair: Mailing address for the premium';
     expect(screen.getByLabelText(label)).toHaveValue('PO Box 1');

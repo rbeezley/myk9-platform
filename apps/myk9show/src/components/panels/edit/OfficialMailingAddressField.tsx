@@ -63,7 +63,9 @@ export function OfficialMailingAddressField({
       );
     } catch (err) {
       const code =
-        err && typeof err === 'object' && 'code' in err ? String((err as { code: unknown }).code) : '';
+        err && typeof err === 'object' && 'code' in err
+          ? String((err as { code: unknown }).code)
+          : '';
       const message =
         err && typeof err === 'object' && 'message' in err
           ? String((err as { message: unknown }).message)
@@ -72,7 +74,9 @@ export function OfficialMailingAddressField({
       if (typeof navigator !== 'undefined' && navigator.onLine === false) {
         notifications.error('You are offline. Reconnect to save this address.');
       } else if (code === 'P0002') {
-        notifications.error('This official was changed by someone else. Reload to see who it is now.');
+        notifications.error(
+          'This official was changed by someone else. Reload to see who it is now.'
+        );
       } else {
         notifications.error(`Could not save the ${roleLabel} mailing address: ${message}`);
       }

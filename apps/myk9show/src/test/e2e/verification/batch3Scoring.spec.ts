@@ -4,11 +4,13 @@ import {
   evidence,
   isolatedClient,
   judgeRow,
+  queueSnapshot,
   replica,
   rolePage,
   row,
   screenshot,
   setState,
+  settledValue,
 } from './showDayProof.helpers';
 
 registerDisposableProofHooks();
@@ -56,7 +58,33 @@ test('paper scoring persists one-entry and multi-entry results after reload (MYK
         (await page.getByLabel('Search Time', { exact: true }).inputValue()).replace(/\D/g, '')
       )
       .toBe('10203');
-    await expect.poll(async () => (await replica(page, f.willowId)).pending.length).toBe(0);
+    // MYK9-2111: this drain is intermittent. When it times out, attach the server row and the
+    // device's own queue so the leftover mutation is named; the original error is rethrown.
+    // The queue may drain between the last poll and the catch, so the last non-empty sample is
+    // kept too.
+    let lastPending: unknown[] = [];
+    try {
+      await expect
+        .poll(async () => {
+          const { pending } = await replica(page, f.willowId);
+          if (pending.length > 0) lastPending = pending;
+          return pending.length;
+        })
+        .toBe(0);
+    } catch (error) {
+      const [server, device, local] = await Promise.allSettled([
+        row(client, f.willowId),
+        queueSnapshot(page),
+        replica(page, f.willowId),
+      ]);
+      await evidence(info, `paper-${cardinality}-entry-pending-failure`, {
+        server: settledValue(server),
+        device: settledValue(device),
+        replica: settledValue(local),
+        lastPending,
+      }).catch(() => undefined);
+      throw error;
+    }
     expect(secretary.nonLocalSocketUrls).toEqual([]);
     await evidence(info, `paper-${cardinality}-entry`, {
       ...f,

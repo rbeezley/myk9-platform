@@ -9,6 +9,11 @@ import {
   WAITLIST_ENTRY_CHANGED_MESSAGE,
 } from '@/services/database/waitlists/deleteWaitlistEntry';
 import { getTrialTimezone } from '@/features/registries';
+import {
+  WAITLIST_CARD_PAUSED_MESSAGE,
+  isPayoutsOffRefusal,
+} from '@/features/payments/cardPausedCopy';
+import { readPaymentLinkServerMessage } from '@/components/entries/management/paymentLinkMessages';
 import type { WaitListEntry } from '@/types/waitlist-types';
 
 /** Stable empty result. `query.data ?? []` would allocate a fresh array on
@@ -181,6 +186,12 @@ export function useMyWaitlistEntries(
         },
       });
       if (error || !data?.url) {
+        // MYK9-2166: the club's payouts are off, so card payment is paused for this show.
+        const response = (error as { context?: Response } | null)?.context;
+        const serverMessage = error ? await readPaymentLinkServerMessage(error) : undefined;
+        if (isPayoutsOffRefusal(response?.status ?? null, serverMessage)) {
+          throw new Error(WAITLIST_CARD_PAUSED_MESSAGE);
+        }
         throw new Error('We could not start payment. Please try again.');
       }
 

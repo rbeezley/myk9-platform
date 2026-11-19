@@ -108,7 +108,7 @@ const AKC_POLICY: RegistryWithdrawalPolicy = {
       code: 'in_season',
       label: IN_SEASON_LABEL,
       documentationNote:
-        'AKC clubs may ask for documentation, and withdrawals are expected at least 30 minutes before the first class of the day — check the premium.',
+        'At AKC shows, an in-season withdrawal must be made at least 30 minutes before the first class of the day. The club may ask for documentation that the female is in season.',
     },
     { code: 'judge_change', label: JUDGE_CHANGE_LABEL },
   ],
@@ -124,7 +124,7 @@ const UKC_POLICY: RegistryWithdrawalPolicy = {
       code: 'in_season',
       label: IN_SEASON_LABEL,
       documentationNote:
-        'UKC requires a veterinary certificate showing the female came into season after the entry deadline.',
+        'For an in-season withdrawal, UKC requires a veterinary certificate showing the female came into season after the entry deadline.',
     },
     { code: 'judge_change', label: JUDGE_CHANGE_LABEL },
   ],

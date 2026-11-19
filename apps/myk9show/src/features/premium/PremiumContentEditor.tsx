@@ -372,6 +372,14 @@ export function PremiumContentEditor({
           </Alert>
         )}
 
+        {/* MYK9-2213: first-time generation is held too, so say why here, not only beside Regenerate. */}
+        {!original && !isLoading && showOrg && regenerateBlockedReason && (
+          <Alert>
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>{regenerateBlockedReason}</AlertDescription>
+          </Alert>
+        )}
+
         {(isLoading || isGenerating) && (
           <div
             role="status"

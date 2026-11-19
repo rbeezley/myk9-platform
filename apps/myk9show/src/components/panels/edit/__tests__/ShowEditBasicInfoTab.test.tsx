@@ -260,3 +260,44 @@ describe('ShowEditBasicInfoTab note to exhibitors (MYK9-2114)', () => {
     );
   });
 });
+
+describe('ShowEditBasicInfoTab organization (MYK9-2213, MYK9-604)', () => {
+  function renderWithTrials(trials: ShowEditFormData['trials']) {
+    return render(
+      <Tabs value="basic">
+        <ShowEditBasicInfoTab
+          data={{ ...baseFormData('draft'), trials }}
+          initialStatus="draft"
+          availableShowTypes={['AKC', 'UKC']}
+          clubs={[{ id: 'club-1', name: 'Test Club' }]}
+          handleInputChange={() => vi.fn()}
+          handleSelectChange={() => vi.fn()}
+          handleDateChange={() => vi.fn()}
+        />
+      </Tabs>
+    );
+  }
+
+  function organizationCombobox(): HTMLElement {
+    const label = screen.getByText('Organization');
+    const container = label.closest('.form-field');
+    if (!container) throw new Error('Organization FormField container not found');
+    return within(container as HTMLElement).getByRole('combobox');
+  }
+
+  it('locks the organization once the show has a trial, and says why', () => {
+    renderWithTrials([
+      { id: 't1', name: 'Trial 1', date: '2026-05-22', trialNumber: '1', status: 'planned' },
+    ]);
+    expect(organizationCombobox()).toHaveAttribute('data-disabled');
+    expect(
+      screen.getByText(/organization cannot change once the show has trials/i)
+    ).toBeInTheDocument();
+  });
+
+  it('leaves the organization editable for a show with no trials', () => {
+    renderWithTrials([]);
+    expect(organizationCombobox()).not.toHaveAttribute('data-disabled');
+    expect(screen.queryByText(/organization cannot change/i)).not.toBeInTheDocument();
+  });
+});

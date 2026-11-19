@@ -5,6 +5,11 @@ import { notifications } from '@/lib/notifications';
 import { publishInfoQueryKey } from './usePublishInfo';
 import { useGeneratePremium } from './useGeneratePremium';
 import {
+  applyDraftToPremium,
+  fetchPremiumContentDraft,
+  premiumContentDraftQueryKey,
+} from './premiumContentDraft';
+import {
   classifyPremiumPublishError,
   GENERIC_PREMIUM_PUBLISH_FAILURE,
   premiumPublishFailureMessage,
@@ -110,13 +115,22 @@ export function useGenerateAndPublishPremium(showId: string): GenerateAndPublish
         mode: 'generated',
         intentKey: GENERATED_PREMIUM_INTENT_KEY,
         inkSaver: false,
-        createPremium: () => generate(showId),
+        // MYK9-2201: the saved premium draft is what the secretary last wrote; publish it, not
+        // freshly generated text. A failed draft read fails the publish rather than dropping it.
+        createPremium: async () => {
+          const [generated, draft] = await Promise.all([
+            generate(showId),
+            fetchPremiumContentDraft(showId),
+          ]);
+          return applyDraftToPremium(generated, draft?.content);
+        },
       });
       await Promise.all([
         queryClient.refetchQueries({ queryKey: publishInfoQueryKey(showId), type: 'active' }),
         queryClient.invalidateQueries({
           queryKey: ['shows', showId, 'published-experience-content'],
         }),
+        queryClient.invalidateQueries({ queryKey: premiumContentDraftQueryKey(showId) }),
         queryClient.invalidateQueries({
           queryKey: ['shows'],
           predicate: query => query.queryKey[2] !== 'publish-info',

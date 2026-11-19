@@ -38,6 +38,10 @@ import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
 import { SHOW_TABS, type ShowTabId } from '@/routes/showManagementSections';
 import { publishAnchorFromHash } from '@/features/show-workbench/setupReadinessSignals';
 import type { Show } from '@/types/show-types';
+import {
+  persistPremiumDraftOnSave,
+  premiumContentDraftQueryKey,
+} from '@/features/premium/premiumContentDraft';
 import type { GeneratedPremium } from '@/types/premium-types';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
 import { applyShowFormDataToPremium } from './showFormPremiumSync';
@@ -394,12 +398,31 @@ function AuthorizedShowManagementShell({
               );
             };
 
+            // MYK9-2201: the Premium tab's narrative and supplemental edits are kept as a draft
+            // on every save, so unticking "Generate exhibitor documents on save" no longer
+            // discards them. Republish premium publishes this draft.
+            const persistPremiumDraft = async () => {
+              const edited = publishableShowData.generatedPremium;
+              if (!edited) return;
+              try {
+                await persistPremiumDraftOnSave(id, edited, show.experiencePublishedContent);
+              } catch (error) {
+                console.error('[premium-draft] save failed', { showId: id, error });
+                throw new Error(
+                  'Your show changes were saved, but the premium text could not be saved. Check your connection and save again.'
+                );
+              }
+              queryClient.invalidateQueries({ queryKey: premiumContentDraftQueryKey(id) });
+              queryClient.invalidateQueries({ queryKey: ['shows', id, 'publish-info'] });
+            };
+
             if (publishableShowData.publishExperience && publishableShowData.generatedPremium) {
               // Save the edits first. Publication can fail before it ever asks
               // for the premium (reservation denied, RPC unavailable, or a
               // lost-response retry that reconciles as already committed), and
               // none of those may discard what the secretary just typed.
               await persistShowChanges();
+              await persistPremiumDraft();
               try {
                 // The form's judge list is a device read and is empty when that
                 // read failed; the published premium lists the server's judges,
@@ -443,6 +466,7 @@ function AuthorizedShowManagementShell({
               queryClient.invalidateQueries({ queryKey: showQueryKeys.lists() });
             } else {
               await persistShowChanges();
+              await persistPremiumDraft();
             }
           }
           setShowEditPanel(false);

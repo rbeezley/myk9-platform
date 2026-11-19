@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { TabsContent } from '@/components/ui/tabs';
 import { usePublishedExperienceContent } from '@/features/experience/usePublishedExperienceContent';
+import { usePremiumContentDraft } from '@/features/premium/premiumContentDraft';
 import { PremiumContentEditor } from '@/features/premium/PremiumContentEditor';
 import { getShowPreviewHref } from '@/components/shows/showPreviewRoutes';
 import { getShowEditHref } from '@/components/shows/showEditRoutes';
@@ -57,10 +58,14 @@ export function ShowEditPremiumTab({
   );
   // The preview lists the same secretary and chair the published premium will (MYK9-2053).
   const { data: officials } = useShowOfficials(showId);
+  // MYK9-2201: the saved draft is what the secretary last wrote, so it seeds the editor over
+  // the published snapshot. A pending read holds generation back so it cannot beat the draft.
+  const { data: savedDraft, isLoading: draftLoading } = usePremiumContentDraft(showId);
   const initialPremium = useMemo(() => {
-    const draft = buildLocalPremiumDraft(data, showOrg, publishedContent);
+    const content = savedDraft?.content ?? publishedContent;
+    const draft = buildLocalPremiumDraft(data, showOrg, content);
     return draft && officials ? applyOfficialsToPremium(draft, officials) : draft;
-  }, [data, publishedContent, showOrg, officials]);
+  }, [data, publishedContent, savedDraft, showOrg, officials]);
 
   return (
     <TabsContent
@@ -143,7 +148,8 @@ export function ShowEditPremiumTab({
               active={isActive}
               {...(initialPremium ? { initialPremium } : {})}
               deferGeneration={
-                hasShowId && !data.experiencePublishedContent && publishedContentLoading
+                hasShowId &&
+                ((!data.experiencePublishedContent && publishedContentLoading) || draftLoading)
               }
               onPremiumChange={handleGeneratedPremiumChange}
               onInkSaverChange={handleInkSaverChange}
@@ -170,7 +176,7 @@ function currencyToNumber(value: string): number {
 function buildLocalPremiumDraft(
   data: ShowEditFormData,
   showOrg: 'AKC' | 'UKC' | null,
-  publishedContent: ShowExperienceSnapshot | null
+  publishedContent: Pick<ShowExperienceSnapshot, 'narratives' | 'supplemental'> | null
 ): GeneratedPremium | undefined {
   if (!showOrg || !publishedContent) return undefined;
 

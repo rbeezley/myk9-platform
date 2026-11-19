@@ -58,4 +58,21 @@ describe('classifyPremiumPublishState', () => {
       })
     ).toBe('published-stale');
   });
+
+  it('is stale when a premium draft was saved after the publish (MYK9-2201)', () => {
+    const base = {
+      publishedPremiumUrl: URL,
+      publishedPremiumAt: PUBLISHED,
+      updatedAt: at(-60_000),
+    };
+    expect(classifyPremiumPublishState({ ...base, contentDraftAt: at(3_600_000) })).toBe(
+      'published-stale'
+    );
+    expect(classifyPremiumPublishState({ ...base, contentDraftAt: at(-60_000) })).toBe(
+      'published-current'
+    );
+    expect(
+      classifyPremiumPublishState({ ...base, contentDraftAt: at(PREMIUM_STALE_TOLERANCE_MS) })
+    ).toBe('published-current');
+  });
 });

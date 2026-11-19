@@ -9224,6 +9224,8 @@ export type Database = {
           online_entries_enabled: boolean
           organization: string
           pre_entry_fee: number | null
+          premium_content_draft: Json | null
+          premium_content_draft_at: string | null
           premium_publish_version: number
           published_premium_at: string | null
           published_premium_path: string | null
@@ -9304,6 +9306,8 @@ export type Database = {
           online_entries_enabled?: boolean
           organization: string
           pre_entry_fee?: number | null
+          premium_content_draft?: Json | null
+          premium_content_draft_at?: string | null
           premium_publish_version?: number
           published_premium_at?: string | null
           published_premium_path?: string | null
@@ -9384,6 +9388,8 @@ export type Database = {
           online_entries_enabled?: boolean
           organization?: string
           pre_entry_fee?: number | null
+          premium_content_draft?: Json | null
+          premium_content_draft_at?: string | null
           premium_publish_version?: number
           published_premium_at?: string | null
           published_premium_path?: string | null

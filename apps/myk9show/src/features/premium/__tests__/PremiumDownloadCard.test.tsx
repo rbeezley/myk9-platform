@@ -35,6 +35,11 @@ vi.mock('@/services/database/supabaseClient', () => ({
   },
 }));
 
+vi.mock('../premiumContentDraft', async importOriginal => ({
+  ...(await importOriginal<typeof import('../premiumContentDraft')>()),
+  fetchPremiumContentDraft: vi.fn(async () => null),
+}));
+
 vi.mock('../useGeneratePremium', () => ({
   useGeneratePremium: () => ({
     generate: generateMock,

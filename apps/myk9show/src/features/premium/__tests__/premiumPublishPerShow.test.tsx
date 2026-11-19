@@ -18,6 +18,7 @@ const edges = vi.hoisted(() => ({
   getUser: vi.fn(async () => ({ data: { user: { id: 'user-a' } }, error: null })),
   rpc: vi.fn(async () => ({ data: { status: 'reserved', version: 1 }, error: null })),
   publishExperience: vi.fn(async (_options: Record<string, unknown>) => undefined),
+  fetchDraft: vi.fn(),
   release: {} as Record<string, (value?: unknown) => void>,
 }));
 
@@ -28,6 +29,11 @@ vi.mock('../useGeneratePremium', () => ({
     error: null,
     reset: vi.fn(),
   }),
+}));
+
+vi.mock('../premiumContentDraft', async importOriginal => ({
+  ...(await importOriginal<typeof import('../premiumContentDraft')>()),
+  fetchPremiumContentDraft: edges.fetchDraft,
 }));
 
 vi.mock('@/features/experience/publishExperience', () => ({
@@ -58,6 +64,7 @@ beforeEach(() => {
   usePremiumPublishStore.setState({ byShowId: {} });
   resetPremiumPublishCoordinatorForTests();
   edges.generate.mockReset();
+  edges.fetchDraft.mockReset().mockResolvedValue(null);
   edges.getUser.mockReset();
   edges.getUser.mockResolvedValue({ data: { user: { id: 'user-a' } }, error: null });
   edges.rpc.mockReset();

@@ -10,6 +10,7 @@ const premiumEditorProps: Array<{
 }> = [];
 let publishedExperienceContentMock: unknown = null;
 let officialsMock: unknown;
+let savedDraftMock: unknown;
 
 vi.mock('@/components/ui/tabs', () => import('../../../common/__tests__/mockTabs'));
 vi.mock('react-router-dom', () => ({
@@ -30,6 +31,9 @@ vi.mock('@/features/premium/PremiumContentEditor', () => ({
     return <div data-testid="premium-content-editor" />;
   },
 }));
+vi.mock('@/features/premium/premiumContentDraft', () => ({
+  usePremiumContentDraft: () => ({ data: savedDraftMock, isLoading: false }),
+}));
 vi.mock('@/features/experience/usePublishedExperienceContent', () => ({
   usePublishedExperienceContent: () => ({ data: publishedExperienceContentMock, isLoading: false }),
 }));
@@ -44,6 +48,7 @@ import { applyShowFormDataToPremium } from '@/components/shows/ShowDetails/showF
 import { buildExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import { buildPremiumFacts } from '@/features/premium/premiumFacts';
 import { NEW_YEAR_SHOW } from '@/test/fixtures/recordingFeeCalendar';
+import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import type { GeneratedPremium } from '@/types/premium-types';
 import type { ShowTrial } from '@/types/show-types';
 
@@ -71,6 +76,7 @@ describe('ShowEditPremiumTab', () => {
     premiumEditorProps.length = 0;
     publishedExperienceContentMock = null;
     officialsMock = undefined;
+    savedDraftMock = undefined;
   });
 
   it('links the settings surface to the canonical show Preview editor', () => {
@@ -218,6 +224,46 @@ describe('ShowEditPremiumTab', () => {
         vetClinic: { name: 'Vet', address: '1 Main', phone: '555-0100' },
       },
       trials: [{ name: 'Trial 1', eventNumber: '2026123401' }],
+    });
+  });
+
+  it('seeds the editor from the saved draft over the published snapshot (MYK9-2201)', () => {
+    const published: ShowExperienceSnapshot = {
+      style: 'fieldGuide',
+      generatedAt: '2026-05-09T14:00:00.000Z',
+      narratives: { showHours: 'Published hours.', trialInformation: 'Published trial info.' },
+      supplemental: {
+        vetClinic: null,
+        accommodations: [],
+        coverImageUrl: null,
+        hospitalityNotes: null,
+        awardsDescription: null,
+        additionalNotes: null,
+      },
+      outputs: { premiumUrl: 'https://example.test/premium.pdf' },
+    };
+    savedDraftMock = {
+      content: {
+        narratives: { showHours: 'Draft hours.', trialInformation: 'Draft trial info.' },
+        supplemental: { ...published.supplemental, hospitalityNotes: 'Draft coffee.' },
+      },
+      savedAt: '2026-05-10T14:00:00.000Z',
+    };
+
+    render(
+      <ShowEditPremiumTab
+        data={{ ...baseData, experiencePublishedContent: published }}
+        clubId="c1"
+        showOrg="AKC"
+        isActive
+        handleCheckboxChange={vi.fn(() => vi.fn())}
+        handleValueChange={vi.fn(() => vi.fn())}
+      />
+    );
+
+    expect(premiumEditorProps[0]?.initialPremium).toMatchObject({
+      narratives: { showHours: 'Draft hours.', trialInformation: 'Draft trial info.' },
+      supplemental: { hospitalityNotes: 'Draft coffee.' },
     });
   });
 

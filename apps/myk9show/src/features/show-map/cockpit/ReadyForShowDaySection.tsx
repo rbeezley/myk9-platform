@@ -116,6 +116,7 @@ function ReadyForShowDayContent({
             publishedPremiumUrl: info.publishedLocator || info.publishedPath,
             publishedPremiumAt: info.publishedAt,
             updatedAt: info.updatedAt,
+            contentDraftAt: info.contentDraftSavedAt,
             experienceIsPublished: info.experienceIsPublished,
           }
         : null,

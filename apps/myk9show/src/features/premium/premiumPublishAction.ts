@@ -78,6 +78,7 @@ export function derivePremiumPublish({
       publishedPremiumUrl: publishedLocator,
       publishedPremiumAt: publishedAt,
       updatedAt: info?.updatedAt,
+      contentDraftAt: info?.contentDraftSavedAt,
     }) === 'published-stale';
   const landingUnpublished = showStaleBadge && info?.experienceIsPublished === false;
   const needsRepublish = stale || landingUnpublished;

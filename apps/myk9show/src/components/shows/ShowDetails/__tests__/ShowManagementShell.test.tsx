@@ -21,12 +21,17 @@ const saveHarness = vi.hoisted(() => ({
   persistJudges: vi.fn(),
   publishJudges: vi.fn(),
   officials: vi.fn(),
+  persistDraft: vi.fn(),
   payload: undefined as Record<string, unknown> | undefined,
 }));
 
 vi.mock('@/features/premium/premiumPublishCoordinator', () => ({
   premiumPublishDraftKey: () => 'draft-key',
   runPremiumPublishOperation: saveHarness.runPublish,
+}));
+vi.mock('@/features/premium/premiumContentDraft', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/premium/premiumContentDraft')>()),
+  persistPremiumDraftOnSave: (...args: unknown[]) => saveHarness.persistDraft(...args),
 }));
 vi.mock('@/features/premium/premiumOfficials', async importOriginal => ({
   ...(await importOriginal<typeof import('@/features/premium/premiumOfficials')>()),
@@ -857,6 +862,59 @@ describe('Save & Publish keeps the show edits when publication cannot start', ()
     );
     // Publication did not complete, so the panel stays open with its error.
     expect(saveHarness.runPublish).toHaveBeenCalled();
+    expect(screen.getByTestId('edit-panel-open')).toBeInTheDocument();
+  });
+});
+
+// MYK9-2201: premium narrative edits are kept as a draft on every save.
+describe('Edit Show keeps the premium narrative edits whether or not publish is ticked', () => {
+  function arrange(publishExperience: boolean) {
+    saveHarness.updateShow.mockReset().mockResolvedValue({ ...makeShow(), name: 'Renamed Show' });
+    saveHarness.persistJudges.mockReset().mockResolvedValue(undefined);
+    saveHarness.publishJudges.mockReset().mockResolvedValue([]);
+    saveHarness.officials.mockReset().mockResolvedValue(NO_OFFICIALS);
+    saveHarness.runPublish.mockReset().mockResolvedValue(undefined);
+    saveHarness.persistDraft.mockReset().mockResolvedValue(true);
+    saveHarness.payload = {
+      name: 'Renamed Show',
+      assignedJudges: [],
+      publishExperience,
+      generatedPremium: generatedPremium(),
+    };
+    renderShell({}, '/shows/show-1?edit=true');
+  }
+
+  it('saves the draft with the tick box off, and publishes nothing', async () => {
+    arrange(false);
+    fireEvent.click(await screen.findByTestId('edit-panel-save'));
+
+    await waitFor(() =>
+      expect(saveHarness.persistDraft).toHaveBeenCalledWith(
+        'show-1',
+        expect.objectContaining({ narratives: generatedPremium().narratives }),
+        undefined
+      )
+    );
+    expect(saveHarness.runPublish).not.toHaveBeenCalled();
+  });
+
+  it('saves the draft before publishing with the tick box on', async () => {
+    arrange(true);
+    fireEvent.click(await screen.findByTestId('edit-panel-save'));
+
+    await waitFor(() => expect(saveHarness.runPublish).toHaveBeenCalled());
+    expect(saveHarness.persistDraft).toHaveBeenCalledTimes(1);
+    expect(saveHarness.persistDraft.mock.invocationCallOrder[0]).toBeLessThan(
+      saveHarness.runPublish.mock.invocationCallOrder[0] as number
+    );
+  });
+
+  it('keeps the panel open and says so when the draft cannot be saved', async () => {
+    arrange(false);
+    saveHarness.persistDraft.mockRejectedValueOnce(new Error('offline'));
+    fireEvent.click(await screen.findByTestId('edit-panel-save'));
+
+    await waitFor(() => expect(saveHarness.persistDraft).toHaveBeenCalled());
     expect(screen.getByTestId('edit-panel-open')).toBeInTheDocument();
   });
 });

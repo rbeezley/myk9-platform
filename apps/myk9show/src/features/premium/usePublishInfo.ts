@@ -8,6 +8,8 @@ export interface PublishInfo {
   publishedPath?: string | null;
   publishedAt: string | null;
   updatedAt: string | null;
+  /** MYK9-2201: when premium narrative/supplemental edits were last saved as a draft. */
+  contentDraftSavedAt?: string | null;
   /** Whether the exhibitor-facing experience snapshot is published. */
   experienceIsPublished: boolean | null;
   /** False only when the migration's versioned publish API is not installed. */
@@ -30,16 +32,18 @@ export function publishInfoQueryKey(showId: string) {
   return ['shows', showId, 'publish-info'] as const;
 }
 
-function isMissingVersionedPublishColumn(error: unknown): boolean {
+function isMissingColumn(error: unknown, column: string): boolean {
   if (!error || typeof error !== 'object') return false;
   const record = error as Record<string, unknown>;
   if (record.code !== 'PGRST204' && record.code !== '42703') return false;
   return [record.message, record.details, record.hint].some(
     value =>
-      typeof value === 'string' &&
-      value.includes('published_premium_path') &&
-      /column|schema cache/i.test(value)
+      typeof value === 'string' && value.includes(column) && /column|schema cache/i.test(value)
   );
+}
+
+function isMissingVersionedPublishColumn(error: unknown): boolean {
+  return isMissingColumn(error, 'published_premium_path');
 }
 
 export async function fetchPublishInfo(showId: string): Promise<PublishInfo> {
@@ -48,9 +52,13 @@ export async function fetchPublishInfo(showId: string): Promise<PublishInfo> {
   const query = (columns: string) =>
     supabase.from('shows').select(columns).eq('id', showId).maybeSingle();
   let versionedSchemaAvailable = true;
-  let { data, error } = await query(
-    'published_premium_path, published_premium_url, published_premium_at, updated_at, experience_is_published'
-  );
+  const baseColumns =
+    'published_premium_path, published_premium_url, published_premium_at, updated_at, experience_is_published';
+  let { data, error } = await query(`${baseColumns}, premium_content_draft_at`);
+  // The draft column ships in a migration; before it lands the read must still work.
+  if (error && isMissingColumn(error, 'premium_content_draft_at')) {
+    ({ data, error } = await query(baseColumns));
+  }
   if (error && isMissingVersionedPublishColumn(error)) {
     versionedSchemaAvailable = false;
     ({ data, error } = await query(
@@ -72,6 +80,7 @@ export async function fetchPublishInfo(showId: string): Promise<PublishInfo> {
     publishedPath,
     publishedAt,
     updatedAt: (row?.updated_at as string | null) ?? null,
+    contentDraftSavedAt: (row?.premium_content_draft_at as string | null) ?? null,
     experienceIsPublished: (row?.experience_is_published as boolean | null) ?? null,
     versionedSchemaAvailable,
   };

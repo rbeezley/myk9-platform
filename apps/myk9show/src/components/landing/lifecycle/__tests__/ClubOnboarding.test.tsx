@@ -122,7 +122,11 @@ describe('ClubOnboarding', () => {
     submitForm();
 
     await screen.findByText(/waiting for myK9Show approval/i);
-    expect(mockNavigate).toHaveBeenCalledWith('/secretary/dashboard?clubId=club-9');
+    // The navigate happens in a passive effect after the render that shows the text, so it can
+    // land a tick after the text appears; wait for the call itself, not for the text.
+    await waitFor(() =>
+      expect(mockNavigate).toHaveBeenCalledWith('/secretary/dashboard?clubId=club-9')
+    );
     expect(screen.queryByTestId('club-roles-pending')).not.toBeInTheDocument();
     expect(readClubOnboardingDraft()).toBeNull();
   });
@@ -256,7 +260,7 @@ describe('ClubOnboarding', () => {
 
     expect(await screen.findByText(/waiting for myK9Show approval/i)).toBeInTheDocument();
     expect(order).toEqual(['refresh (draft still saved)']);
-    expect(readClubOnboardingDraft()).toBeNull();
+    await waitFor(() => expect(readClubOnboardingDraft()).toBeNull());
   });
 
   it('still shows success and keeps the draft when the roles refresh fails', async () => {

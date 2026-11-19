@@ -76,6 +76,14 @@ all three of these are done and recorded in the ledger row (`premise:`, `approac
    the copy, not the code; link to the surface that already does it, not a new page; fix the
    root cause the repro exposed, not the symptom. If the chosen approach changes what the
    criteria ask for, route the unresolved product decision through that same table.
+
+   **Does the screen state a fact only the server knows right now?** Money, permissions,
+   availability and an account's readiness change on the server, so a message built from a
+   cached or replicated copy can be stale in either direction. Prefer showing the server's
+   own answer at the moment the user acts (a refusal reworded in plain words) over a warning
+   computed earlier from a copy. Choose the copy only when the earlier warning is worth a
+   freshness design, and record which in the `approach:` line. MYK9-2166 spent four review
+   rounds on a cached payouts check before the owner removed it (MYK9-2237).
 3. **Size it: one concern per PR.** Review findings scale with PR size, and every fix round adds
    code the next round reads, so a broad PR rarely converges inside the 3-round cap (Wave 3,
    2026-10-31: 7 of 9 reviewed PRs needed an override; MYK9-1506 bundled about ten class-card

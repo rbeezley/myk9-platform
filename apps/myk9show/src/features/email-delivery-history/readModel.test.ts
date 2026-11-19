@@ -153,7 +153,8 @@ describe('email delivery history read model', () => {
   it.each([
     ['pulled_out', 'Pulled out'],
     ['refund_outcome', 'Refund decided'],
-  ])('lists the %s money email in Delivery history as "%s" (MYK9-2001)', (step, label) => {
+    ['show_cancelled', 'Show cancelled'],
+  ])('labels the automatic %s email in Delivery history as "%s" (MYK9-2001, MYK9-2127)', (step, label) => {
     const row = normalizeEmailDeliveryRow({
       id: 'attempt-6',
       show_id: 'show-1',

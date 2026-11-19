@@ -1,7 +1,8 @@
 /**
  * MYK9-2208: the club's admins as a secretary who is not one sees them on the payouts line:
  * their names ("Waiting on Pat Lee, the club admin") and one tap to email them the Payments link.
- * The read is public.get_show_club_admin_contacts, which is scoped to a show the caller manages.
+ * The read is public.get_show_club_admin_contacts (a show the caller manages) or, where no show
+ * exists yet (MYK9-2217), public.get_club_admin_contacts (a club the caller manages).
  */
 
 export interface ClubAdminContact {

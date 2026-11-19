@@ -14496,6 +14496,13 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_club_admin_contacts: {
+        Args: { p_club_id: string }
+        Returns: {
+          display_name: string
+          email: string
+        }[]
+      }
       get_club_officials: {
         Args: { p_club_id: string }
         Returns: {
@@ -15488,6 +15495,10 @@ export type Database = {
         Returns: undefined
       }
       queue_show_changed_email_for_show: {
+        Args: { p_show_id: string }
+        Returns: undefined
+      }
+      queue_show_cancelled_email: {
         Args: { p_show_id: string }
         Returns: undefined
       }

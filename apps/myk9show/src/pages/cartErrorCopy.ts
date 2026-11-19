@@ -8,6 +8,7 @@
 import { ensureError } from '@myk9/core';
 import { OWNER_ADDRESS_REQUIRED_CODE } from '@/features/registration/ownerAddress';
 import { CheckoutSessionError } from '@/lib/stripe';
+import { CART_CARD_PAUSED_MESSAGE, isPayoutsOffRefusal } from '@/features/payments/cardPausedCopy';
 import { logger } from '@/services/LoggingService';
 import {
   CART_OPEN_FAILED_MESSAGE,
@@ -48,6 +49,10 @@ const SERVER_WORDED_STATUSES = new Set([403, 404, 409, 503]);
 export function checkoutErrorMessage(err: unknown): string {
   if (!(err instanceof CheckoutSessionError)) return CART_ERROR.checkoutFailed;
   if (err.status === 401) return CART_ERROR.signedOut;
+  // MYK9-2166: the club's payouts are off. Card payment is paused; it is not a failed payment.
+  if (err.fromServerBody && isPayoutsOffRefusal(err.status, err.message)) {
+    return CART_CARD_PAUSED_MESSAGE;
+  }
   const serverWorded =
     err.fromServerBody &&
     (err.code === OWNER_ADDRESS_REQUIRED_CODE ||

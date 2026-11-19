@@ -7,6 +7,7 @@
 
 import React from 'react';
 import { Users } from 'lucide-react';
+import { WAITLIST_CARD_PAUSED_MESSAGE } from '@/features/payments/cardPausedCopy';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/alert-dialog/confirm-dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -184,6 +185,10 @@ export const WaitListSection: React.FC<WaitListSectionProps> = ({
               const isDecliningOffer = decliningOfferId === entry.id;
               const hasPaymentError =
                 entry.joinedVia !== 'mail_in' && paymentErrorOfferId === entry.id && !!paymentError;
+              // MYK9-2166: retrying cannot fix a club whose payouts are off, so a paused offer
+              // gets the paused sentence and keeps the plain button label.
+              const cardPausedOffer =
+                hasPaymentError && paymentError === WAITLIST_CARD_PAUSED_MESSAGE;
               const hasDeclineError = declineErrorOfferId === entry.id && !!declineError;
 
               return (
@@ -261,7 +266,7 @@ export const WaitListSection: React.FC<WaitListSectionProps> = ({
                           >
                             {isPayingOffer
                               ? 'Starting payment…'
-                              : hasPaymentError
+                              : hasPaymentError && !cardPausedOffer
                                 ? 'Try payment again'
                                 : 'Complete payment'}
                           </button>
@@ -286,7 +291,9 @@ export const WaitListSection: React.FC<WaitListSectionProps> = ({
                   </div>
                   {displayState === 'offered' && hasPaymentError && (
                     <p className="mt-3 text-sm text-muted-foreground" role="status">
-                      Your spot is still held. Please try payment again.
+                      {cardPausedOffer
+                        ? WAITLIST_CARD_PAUSED_MESSAGE
+                        : 'Your spot is still held. Please try payment again.'}
                     </p>
                   )}
                   {displayState === 'offered' && hasDeclineError && (

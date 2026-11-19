@@ -136,6 +136,8 @@ function getEmailTypeLabel(sourceKind: string, lifecycleStepType: string | null)
     // MYK9-2001: when she pulls or withdraws, and when the refund is decided.
     if (lifecycleStepType === 'pulled_out') return 'Pulled out';
     if (lifecycleStepType === 'refund_outcome') return 'Refund decided';
+    // MYK9-2127: and when the show is cancelled.
+    if (lifecycleStepType === 'show_cancelled') return 'Show cancelled';
     return `Lifecycle — ${lifecycleStepType.replace(/_/g, ' ')}`;
   }
   switch (sourceKind) {

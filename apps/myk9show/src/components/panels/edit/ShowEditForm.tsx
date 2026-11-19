@@ -50,6 +50,7 @@ interface ShowEditFormProps {
   onClose?: (() => void) | undefined;
   /** Passed to the Premium tab: true while a Regenerate is pending (MYK9-2144). */
   onPremiumPendingChange?: ((pending: boolean) => void) | undefined;
+  onPremiumEditedChange?: ((edited: boolean) => void) | undefined;
 }
 
 export const ShowEditForm: React.FC<ShowEditFormProps> = ({
@@ -59,6 +60,7 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
   savedOrganization,
   onClose,
   onPremiumPendingChange,
+  onPremiumEditedChange,
 }) => {
   const { data, form } = useEditPanel<ShowEditFormData>();
 
@@ -482,6 +484,7 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
           handleCheckboxChange={handleCheckboxChange}
           handleValueChange={handleValueChange}
           {...(onPremiumPendingChange ? { onPremiumPendingChange } : {})}
+          {...(onPremiumEditedChange ? { onPremiumEditedChange } : {})}
         />
       </Tabs>
       {judgeCreate.supportedOrg && (

@@ -10,6 +10,7 @@ export const LIFECYCLE_EMAIL_STEP_TYPES = [
   'entry_changed',
   'pulled_out',
   'refund_outcome',
+  'show_cancelled',
 ] as const;
 
 export type LifecycleEmailStepType = (typeof LIFECYCLE_EMAIL_STEP_TYPES)[number];

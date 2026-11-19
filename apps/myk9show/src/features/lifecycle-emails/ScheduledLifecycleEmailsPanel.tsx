@@ -39,6 +39,7 @@ const STEP_LABELS: Record<LifecycleEmailStepSummary['stepType'], string> = {
   // MYK9-2001: told when she pulls or withdraws, and when the refund is decided.
   pulled_out: 'Pulled out',
   refund_outcome: 'Refund decided',
+  show_cancelled: 'Show cancelled',
 };
 
 // The reminder batches remain deferred until a producer exists (MYK9-318; follow-up tracked
@@ -55,6 +56,7 @@ const PRODUCER_BACKED_STEP_TYPES = new Set<LifecycleEmailStepSummary['stepType']
   'entry_changed',
   'pulled_out',
   'refund_outcome',
+  'show_cancelled',
 ]);
 
 // Sent one at a time from the Registration number needed list, never as a batch: the toggle
@@ -71,6 +73,7 @@ const AUTOMATIC_STEP_TYPES = new Set<LifecycleEmailStepSummary['stepType']>([
   'entry_changed',
   'pulled_out',
   'refund_outcome',
+  'show_cancelled',
 ]);
 
 // Always sent (MYK9-2126, MYK9-2001): the secretary cannot hold an entry change or a money email
@@ -80,6 +83,7 @@ const ALWAYS_ON_STEP_TYPES = new Set<LifecycleEmailStepSummary['stepType']>([
   'entry_changed',
   'pulled_out',
   'refund_outcome',
+  'show_cancelled',
 ]);
 
 const queryKey = (showId: string) => ['show-lifecycle-emails', showId] as const;

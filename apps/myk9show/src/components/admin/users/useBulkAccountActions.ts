@@ -34,7 +34,7 @@ import { BulkItemSkippedError } from '@/hooks/bulkDispatch';
 import { useUpdateUserMutation, type AdminUser } from '@/hooks/queries/useUsersQuery';
 import { restoreUser } from '@/services/database/users';
 import { queryKeys } from '@/lib/queryClient';
-import { invokeAdminInvite } from '@/components/users/UserDetails/useSendUserInvitation';
+import { invokeAdminInvite } from '@/services/admin/adminInvite';
 import { accountTargets, nameOf, type AccountAction } from './bulkAccountTargets';
 
 export type { AccountAction as BulkAccountAction } from './bulkAccountTargets';

@@ -16,7 +16,7 @@ vi.mock('@/hooks/queries/useUsersQuery', () => ({
 }));
 
 const invokeAdminInvite = vi.hoisted(() => vi.fn());
-vi.mock('@/components/users/UserDetails/useSendUserInvitation', () => ({ invokeAdminInvite }));
+vi.mock('@/services/admin/adminInvite', () => ({ invokeAdminInvite }));
 
 const restoreUser = vi.hoisted(() => vi.fn());
 vi.mock('@/services/database/users', () => ({ restoreUser }));

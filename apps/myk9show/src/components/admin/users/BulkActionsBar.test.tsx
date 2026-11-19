@@ -17,7 +17,7 @@ import type { AdminUser } from '@/hooks/queries/useUsersQuery';
 vi.mock('@/services/database/users', () => ({
   restoreUser: vi.fn().mockResolvedValue({ error: null }),
 }));
-vi.mock('@/components/users/UserDetails/useSendUserInvitation', () => ({
+vi.mock('@/services/admin/adminInvite', () => ({
   invokeAdminInvite: vi.fn().mockResolvedValue({ data: null }),
 }));
 

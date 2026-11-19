@@ -243,4 +243,211 @@ BEGIN
 END;
 $$;
 
+-- ---------------------------------------------------------------------------------------------
+-- Round 1 additions.
+-- ---------------------------------------------------------------------------------------------
+
+-- The unknown address's grant lapses after about a week (squatting guard); an account's never does.
+DO $$
+DECLARE
+  invited record;
+BEGIN
+  SELECT * INTO invited FROM public.get_club_admins('00000000-0000-0000-0000-000000220901') a
+  WHERE a.person_email = 'new.admin@example.test';
+  IF invited.expires_at IS NULL
+     OR invited.expires_at < now() + interval '6 days 23 hours'
+     OR invited.expires_at > now() + interval '7 days 1 hour' THEN
+    RAISE EXCEPTION 'FAIL the unclaimed grant should expire in 7 days: %', invited.expires_at;
+  END IF;
+  RAISE NOTICE 'PASS an unclaimed admin grant expires in 7 days';
+END;
+$$;
+
+-- Re-adding a revoked account reactivates it, with no expiry, and a double add makes no duplicates.
+DO $$
+DECLARE
+  again record;
+  invited_a uuid;
+  invited_b uuid;
+BEGIN
+  SELECT * INTO again FROM public.add_club_admin_by_email(
+    '00000000-0000-0000-0000-000000220901', 'bystander@example.test');
+  SELECT person_id INTO invited_a FROM public.add_club_admin_by_email(
+    '00000000-0000-0000-0000-000000220901', 'new.admin@example.test');
+  SELECT person_id INTO invited_b FROM public.add_club_admin_by_email(
+    '00000000-0000-0000-0000-000000220901', ' NEW.admin@example.test ');
+  IF invited_a IS DISTINCT FROM invited_b THEN
+    RAISE EXCEPTION 'FAIL double add by email made two people';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.get_club_admins('00000000-0000-0000-0000-000000220901') a
+    WHERE a.person_id = again.person_id AND a.expires_at IS NULL
+  ) THEN
+    RAISE EXCEPTION 'FAIL the revoked account was not reactivated without an expiry';
+  END IF;
+END;
+$$;
+
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000220813', true);
+DO $$
+BEGIN
+  IF NOT public.is_club_admin('00000000-0000-0000-0000-000000220901') THEN
+    RAISE EXCEPTION 'FAIL is_club_admin stayed false after the re-grant';
+  END IF;
+END;
+$$;
+
+RESET ROLE;
+DO $$
+BEGIN
+  IF (SELECT count(*) FROM public.user_roles ur JOIN public.roles r ON r.id = ur.role_id
+      WHERE ur.user_id = '00000000-0000-0000-0000-000000220913'
+        AND ur.club_id = '00000000-0000-0000-0000-000000220901' AND r.name = 'club_admin') <> 1 THEN
+    RAISE EXCEPTION 'FAIL re-grant duplicated the user_roles row';
+  END IF;
+  IF (SELECT count(*) FROM public.people WHERE lower(email) = 'new.admin@example.test') <> 1 THEN
+    RAISE EXCEPTION 'FAIL double add duplicated the people row';
+  END IF;
+  RAISE NOTICE 'PASS re-grant reactivates; double add creates no duplicate';
+END;
+$$;
+
+-- Step-up: a stale or missing amr is refused with MKAUT; a fresh one passes. All three writers.
+SET LOCAL ROLE authenticated;
+DO $$
+DECLARE
+  v_club constant uuid := '00000000-0000-0000-0000-000000220901';
+  v_case record;
+  v_state text;
+BEGIN
+  FOR v_case IN
+    SELECT * FROM (VALUES
+      ('missing amr', false, NULL::integer),
+      ('stale amr', false, 3600),
+      ('fresh amr', true, 5)
+    ) AS t(label, should_pass, age_seconds)
+  LOOP
+    PERFORM set_config('request.jwt.claims', jsonb_build_object(
+      'sub', '00000000-0000-0000-0000-000000220811', 'role', 'authenticated',
+      'amr', CASE WHEN v_case.age_seconds IS NULL THEN NULL ELSE jsonb_build_array(jsonb_build_object(
+        'method', 'password',
+        'timestamp', floor(extract(epoch FROM now())) - v_case.age_seconds)) END)::text, true);
+
+    FOR v_state IN SELECT unnest(ARRAY['grant', 'add', 'revoke']) LOOP
+      BEGIN
+        IF v_state = 'grant' THEN
+          PERFORM public.grant_club_admin(v_club, '00000000-0000-0000-0000-000000220912');
+        ELSIF v_state = 'add' THEN
+          PERFORM * FROM public.add_club_admin_by_email(v_club, 'existing.account@example.test');
+        ELSE
+          PERFORM public.revoke_club_admin(v_club, '00000000-0000-0000-0000-000000220912');
+        END IF;
+        IF NOT v_case.should_pass THEN
+          RAISE EXCEPTION 'FAIL % was allowed with a % token', v_state, v_case.label;
+        END IF;
+      EXCEPTION WHEN SQLSTATE 'MKAUT' THEN
+        IF v_case.should_pass THEN
+          RAISE EXCEPTION 'FAIL % was refused with a % token', v_state, v_case.label;
+        END IF;
+      END;
+    END LOOP;
+  END LOOP;
+  PERFORM set_config('request.jwt.claims', '', true);
+  RAISE NOTICE 'PASS grant, add by email and revoke need a fresh sign-in confirmation';
+END;
+$$;
+
+-- An expired grant does not count toward the last-admin guard, and neither does the unclaimed
+-- invite: with the bystander's grant lapsed, the only admin who counts is 220911.
+RESET ROLE;
+UPDATE public.user_roles ur SET expires_at = now() - interval '1 hour'
+FROM public.roles r
+WHERE r.id = ur.role_id AND r.name = 'club_admin'
+  AND ur.club_id = '00000000-0000-0000-0000-000000220901'
+  AND ur.user_id IN ('00000000-0000-0000-0000-000000220913', '00000000-0000-0000-0000-000000220912');
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000220811', true);
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.revoke_club_admin(
+      '00000000-0000-0000-0000-000000220901', '00000000-0000-0000-0000-000000220911');
+    RAISE EXCEPTION 'FAIL an expired or unclaimed admin counted toward the last-admin guard';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM IS DISTINCT FROM 'A club needs at least one admin. Add another admin first.' THEN
+      RAISE;
+    END IF;
+  END;
+  RAISE NOTICE 'PASS expired and unclaimed admins do not count toward the last-admin guard';
+END;
+$$;
+
+-- A site admin who administers no club can grant and revoke.
+RESET ROLE;
+INSERT INTO public.people (id, first_name, last_name, email)
+VALUES ('00000000-0000-0000-0000-000000220915', 'Site', 'Admin', 'site.admin@example.test');
+INSERT INTO auth.users (
+  id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+  created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
+  is_super_admin, is_sso_user, is_anonymous
+) VALUES ('00000000-0000-0000-0000-000000220815', '00000000-0000-0000-0000-000000000000',
+          'authenticated', 'authenticated', 'site.admin@example.test', '', now(), now(), now(),
+          '{}', '{}', false, false, false);
+INSERT INTO public.user_roles (user_id, role_id, is_active, auth_user_id)
+SELECT '00000000-0000-0000-0000-000000220915', r.id, true, '00000000-0000-0000-0000-000000220815'
+FROM public.roles r WHERE r.name = 'site_admin';
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000220815', true);
+DO $$
+BEGIN
+  PERFORM public.grant_club_admin(
+    '00000000-0000-0000-0000-000000220902', '00000000-0000-0000-0000-000000220912');
+  PERFORM public.revoke_club_admin(
+    '00000000-0000-0000-0000-000000220902', '00000000-0000-0000-0000-000000220912');
+  RAISE NOTICE 'PASS a site admin can grant and revoke';
+END;
+$$;
+
+-- The claim path end to end: the invited person signs up with the address.
+RESET ROLE;
+INSERT INTO auth.users (
+  id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+  created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
+  is_super_admin, is_sso_user, is_anonymous
+) VALUES ('00000000-0000-0000-0000-000000220816', '00000000-0000-0000-0000-000000000000',
+          'authenticated', 'authenticated', 'new.admin@example.test', '', now(), now(), now(),
+          '{}', '{}', false, false, false);
+DO $$
+DECLARE
+  v_person uuid;
+  v_role record;
+BEGIN
+  SELECT id INTO v_person FROM public.people
+  WHERE auth_user_id = '00000000-0000-0000-0000-000000220816';
+  IF v_person IS NULL THEN
+    RAISE EXCEPTION 'FAIL sign-up did not adopt the invited people row';
+  END IF;
+  SELECT ur.auth_user_id, ur.expires_at INTO v_role
+  FROM public.user_roles ur JOIN public.roles r ON r.id = ur.role_id
+  WHERE ur.user_id = v_person AND r.name = 'club_admin'
+    AND ur.club_id = '00000000-0000-0000-0000-000000220901' AND ur.is_active;
+  IF v_role.auth_user_id IS DISTINCT FROM '00000000-0000-0000-0000-000000220816'::uuid THEN
+    RAISE EXCEPTION 'FAIL the role did not follow the new auth id: %', v_role.auth_user_id;
+  END IF;
+  IF v_role.expires_at IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL the expiry was not cleared on sign-up: %', v_role.expires_at;
+  END IF;
+END;
+$$;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000220816', true);
+DO $$
+BEGIN
+  IF NOT public.is_club_admin('00000000-0000-0000-0000-000000220901') THEN
+    RAISE EXCEPTION 'FAIL the invited admin is not a club admin after signing up';
+  END IF;
+  RAISE NOTICE 'PASS sign-up claims the invited grant: auth ids follow, expiry cleared, is_club_admin true';
+END;
+$$;
+
 ROLLBACK;

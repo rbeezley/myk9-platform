@@ -27,7 +27,8 @@ RETURNS TABLE (
   person_id uuid,
   person_name text,
   person_email text,
-  has_account boolean
+  has_account boolean,
+  expires_at timestamptz
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -45,7 +46,8 @@ BEGIN
     p.id,
     NULLIF(BTRIM(COALESCE(p.first_name, '') || ' ' || COALESCE(p.last_name, '')), ''),
     p.email,
-    (p.auth_user_id IS NOT NULL)
+    (p.auth_user_id IS NOT NULL),
+    ur.expires_at
   FROM public.user_roles ur
   JOIN public.roles r ON r.id = ur.role_id
   JOIN public.people p ON p.id = ur.user_id
@@ -177,7 +179,7 @@ BEGIN
 
   SELECT p.id, p.auth_user_id INTO v_person_id, v_auth_user_id
   FROM public.people p
-  WHERE lower(p.email) = v_email
+  WHERE lower(btrim(p.email)) = v_email
     AND p.deleted_at IS NULL
   LIMIT 1;
 
@@ -185,11 +187,25 @@ BEGIN
     -- No one has this address yet. An unclaimed row (auth_user_id NULL) is what
     -- handle_new_user adopts when the invite is accepted; the grant below rides on it.
     INSERT INTO public.people (first_name, last_name, email)
-    VALUES ('Invited', 'Admin', v_email)
+    VALUES (split_part(v_email, '@', 1), '', v_email)
     RETURNING id INTO v_person_id;
   END IF;
 
   PERFORM public.grant_club_admin(p_club_id, v_person_id);
+
+  -- An unclaimed row is adopted by whoever first signs up with this address, so the grant on it
+  -- lapses after a week. people_clear_admin_expiry_on_claim clears the clock when the invited
+  -- person actually signs up; an existing account's grant never expires.
+  IF v_auth_user_id IS NULL THEN
+    UPDATE public.user_roles ur
+    SET expires_at = now() + interval '7 days'
+    FROM public.roles r
+    WHERE r.id = ur.role_id
+      AND r.name = 'club_admin'
+      AND ur.user_id = v_person_id
+      AND ur.club_id = p_club_id
+      AND ur.show_id IS NULL;
+  END IF;
 
   RETURN QUERY SELECT v_person_id, (v_auth_user_id IS NOT NULL);
 END;
@@ -224,6 +240,9 @@ BEGIN
   PERFORM public.require_recent_reauth();
 
   SELECT id INTO v_role_id FROM public.roles WHERE name = 'club_admin';
+  IF v_role_id IS NULL THEN
+    RAISE EXCEPTION 'club_admin role is missing' USING ERRCODE = 'P0002';
+  END IF;
 
   -- Serialize removals for one club so two admins removing each other cannot both pass the
   -- last-admin check below.
@@ -286,6 +305,39 @@ COMMENT ON FUNCTION public.revoke_club_admin(uuid, uuid) IS
 
 REVOKE ALL ON FUNCTION public.revoke_club_admin(uuid, uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.revoke_club_admin(uuid, uuid) TO authenticated;
+
+-- When an invited person signs up (people.auth_user_id NULL -> value), their still-valid
+-- club_admin grants stop expiring. Same shape as propagate_people_auth_user_id_to_user_roles
+-- (migration 159). An already-lapsed grant stays lapsed: it needs a fresh add.
+CREATE OR REPLACE FUNCTION public.people_clear_admin_expiry_on_claim()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  IF OLD.auth_user_id IS NULL AND NEW.auth_user_id IS NOT NULL THEN
+    UPDATE public.user_roles ur
+    SET expires_at = NULL
+    FROM public.roles r
+    WHERE r.id = ur.role_id
+      AND r.name = 'club_admin'
+      AND ur.user_id = NEW.id
+      AND ur.is_active = true
+      AND ur.expires_at IS NOT NULL
+      AND ur.expires_at > now();
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.people_clear_admin_expiry_on_claim() FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS people_clear_admin_expiry_on_claim_trigger ON public.people;
+CREATE TRIGGER people_clear_admin_expiry_on_claim_trigger
+  AFTER UPDATE OF auth_user_id ON public.people
+  FOR EACH ROW
+  EXECUTE FUNCTION public.people_clear_admin_expiry_on_claim();
 
 NOTIFY pgrst, 'reload schema';
 

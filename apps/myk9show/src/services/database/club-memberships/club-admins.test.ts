@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const mocks = vi.hoisted(() => ({ rpc: vi.fn(), invokeAdminInvite: vi.fn() }));
 vi.mock('../supabaseClient', () => ({ supabase: { rpc: mocks.rpc } }));
-vi.mock('@/components/users/UserDetails/useSendUserInvitation', () => ({
+vi.mock('@/services/admin/adminInvite', () => ({
   invokeAdminInvite: mocks.invokeAdminInvite,
 }));
 
@@ -15,12 +15,26 @@ beforeEach(() => {
 describe('club admins service', () => {
   it('lists admins through get_club_admins', async () => {
     mocks.rpc.mockResolvedValue({
-      data: [{ person_id: 'p1', person_name: 'Ada', person_email: 'a@x.test', has_account: false }],
+      data: [
+        {
+          person_id: 'p1',
+          person_name: 'Ada',
+          person_email: 'a@x.test',
+          has_account: false,
+          expires_at: '2026-12-01T00:00:00Z',
+        },
+      ],
       error: null,
     });
 
     await expect(getClubAdmins('club-1')).resolves.toEqual([
-      { personId: 'p1', personName: 'Ada', personEmail: 'a@x.test', hasAccount: false },
+      {
+        personId: 'p1',
+        personName: 'Ada',
+        personEmail: 'a@x.test',
+        hasAccount: false,
+        expiresAt: '2026-12-01T00:00:00Z',
+      },
     ]);
     expect(mocks.rpc).toHaveBeenCalledWith('get_club_admins', { p_club_id: 'club-1' });
   });
@@ -55,14 +69,27 @@ describe('club admins service', () => {
     });
   });
 
-  it('keeps the grant and reports the error when only the invitation fails', async () => {
+  it('keeps the grant and reports not invited when the invitation call fails', async () => {
     mocks.rpc.mockResolvedValue({ data: [{ person_id: 'p2', has_account: false }], error: null });
     mocks.invokeAdminInvite.mockRejectedValue(new Error('mail down'));
 
-    const result = await addClubAdminByEmail('club-1', 'new@x.test');
-    expect(result.invited).toBe(false);
-    expect(result.inviteError?.message).toBe('mail down');
+    await expect(addClubAdminByEmail('club-1', 'new@x.test')).resolves.toMatchObject({
+      personId: 'p2',
+      invited: false,
+    });
   });
+
+  it.each([['not_found'], ['skipped'], [undefined]])(
+    'reports not invited when the server answers %s',
+    async outcome => {
+      mocks.rpc.mockResolvedValue({ data: [{ person_id: 'p2', has_account: false }], error: null });
+      mocks.invokeAdminInvite.mockResolvedValue({ data: outcome ? { outcome } : null });
+
+      await expect(addClubAdminByEmail('club-1', 'new@x.test')).resolves.toMatchObject({
+        invited: false,
+      });
+    }
+  );
 
   it('removes through revoke_club_admin and throws its refusal', async () => {
     mocks.rpc.mockResolvedValue({ data: null, error: null });

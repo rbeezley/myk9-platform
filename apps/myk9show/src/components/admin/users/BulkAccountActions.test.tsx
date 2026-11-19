@@ -20,7 +20,7 @@ vi.mock('sonner', () => ({
 vi.mock('@/hooks/queries/useUsersQuery', () => ({
   useUpdateUserMutation: () => ({ mutateAsync }),
 }));
-vi.mock('@/components/users/UserDetails/useSendUserInvitation', () => ({ invokeAdminInvite }));
+vi.mock('@/services/admin/adminInvite', () => ({ invokeAdminInvite }));
 vi.mock('@/services/database/users', () => ({ restoreUser }));
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({

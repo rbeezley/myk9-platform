@@ -124,7 +124,7 @@ async function assertMayInvite(
   supabase: HandlerCtx<InviteUserRequest>['supabase'],
   authUserId: string,
   body: InviteUserRequest
-): Promise<string> {
+): Promise<{ callerId: string; isSiteAdmin: boolean }> {
   const { data: callerPerson, error: callerError } = await supabase
     .from('people')
     .select('id')
@@ -148,7 +148,7 @@ async function assertMayInvite(
   }
 
   if (rolesInclude(rbacRoles, 'site_admin')) {
-    return callerPerson.id;
+    return { callerId: callerPerson.id, isSiteAdmin: true };
   }
 
   const clubId = body.clubId;
@@ -171,7 +171,7 @@ async function assertMayInvite(
     throw new HttpError(403, 'Unauthorized: add this person as a club admin first');
   }
 
-  return callerPerson.id;
+  return { callerId: callerPerson.id, isSiteAdmin: false };
 }
 
 /**
@@ -283,7 +283,7 @@ export async function inviteUserHandler(
     throw new HttpError(401, 'Authentication failed');
   }
 
-  await assertMayInvite(supabase, user.id, body);
+  const { isSiteAdmin } = await assertMayInvite(supabase, user.id, body);
 
   // MYK9-1393: an invitation mints a sign-in for an account that may already hold roles
   // (staff are created with their roles assigned), so it needs a password confirmed in the
@@ -404,10 +404,12 @@ export async function inviteUserHandler(
   });
 
   const html = buildAdminInviteHtml({
-    firstName: body.firstName ?? '',
+    // A club admin does not choose what the email says: it names the club_admin role and greets
+    // the recipient generically, so the function cannot be used to send arbitrary wording.
+    firstName: isSiteAdmin ? (body.firstName ?? '') : '',
     actionUrl: actionLink,
     inviterName: '',
-    roleLabels: body.roleLabels ?? [],
+    roleLabels: isSiteAdmin ? (body.roleLabels ?? []) : ['club_admin'],
   });
 
   const response = await deps.sendEmail({

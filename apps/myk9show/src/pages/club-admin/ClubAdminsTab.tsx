@@ -22,9 +22,10 @@ import { useClubAdmins } from './useClubAdmins';
 
 interface ClubAdminsTabProps {
   clubId: string;
+  clubName: string;
 }
 
-export const ClubAdminsTab: React.FC<ClubAdminsTabProps> = ({ clubId }) => {
+export const ClubAdminsTab: React.FC<ClubAdminsTabProps> = ({ clubId, clubName }) => {
   const {
     admins,
     isLoading,
@@ -40,12 +41,21 @@ export const ClubAdminsTab: React.FC<ClubAdminsTabProps> = ({ clubId }) => {
   } = useClubAdmins(clubId);
   const [email, setEmail] = useState('');
 
-  const handleAdd = async (event: React.FormEvent) => {
+  // Adding grants real access (and may email a stranger), so the address is confirmed first.
+  const [confirmingEmail, setConfirmingEmail] = useState<string | null>(null);
+
+  const handleAdd = (event: React.FormEvent) => {
     event.preventDefault();
     const trimmed = email.trim();
-    if (!trimmed) return;
+    if (trimmed) setConfirmingEmail(trimmed);
+  };
+
+  const confirmAdd = async () => {
+    const target = confirmingEmail;
+    setConfirmingEmail(null);
+    if (!target) return;
     try {
-      await addAdmin(trimmed);
+      await addAdmin(target);
       setEmail('');
     } catch {
       // The hook already told the admin; keep the address so they can fix it.
@@ -105,7 +115,9 @@ export const ClubAdminsTab: React.FC<ClubAdminsTabProps> = ({ clubId }) => {
                   {admin.personName ?? admin.personEmail ?? 'Unnamed'}
                   {!admin.hasAccount && (
                     <Badge className="ml-2 bg-[color:var(--chip-stone-bg)] text-[color:var(--chip-stone-fg)] border-transparent">
-                      Invited
+                      {admin.expiresAt
+                        ? `Invited, expires ${new Date(admin.expiresAt).toLocaleDateString()}`
+                        : 'Invited'}
                     </Badge>
                   )}
                 </p>
@@ -127,6 +139,27 @@ export const ClubAdminsTab: React.FC<ClubAdminsTabProps> = ({ clubId }) => {
           ))}
         </ul>
       )}
+
+      <AlertDialog
+        open={!!confirmingEmail}
+        onOpenChange={open => !open && setConfirmingEmail(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Add {confirmingEmail} as an admin of {clubName}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              They will be able to edit the club, manage members and open Payments. If they have no
+              account yet, we email them an invitation that is good for 7 days.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void confirmAdd()}>Add admin</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!pendingRemoval} onOpenChange={open => !open && cancelRemoval()}>
         <AlertDialogContent>

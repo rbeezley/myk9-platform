@@ -227,6 +227,24 @@ describe('inviteUserHandler — club admin invites their new co-admin (MYK9-2209
     expect(sendEmail).toHaveBeenCalledTimes(1);
   });
 
+  it("ignores a club admin's firstName and roleLabels: the email names club_admin only", async () => {
+    const { supabase } = makeSupabase({
+      rbacRoles: clubAdmin,
+      targetRoles: clubAdmin,
+      targetPerson: target,
+    });
+    const { deps, sendEmail } = makeDeps();
+
+    await invoke(supabase, deps, {
+      ...body,
+      firstName: 'Click-here-to-claim-your-prize',
+      roleLabels: ['site_admin'],
+    });
+    const html = JSON.parse(sendEmail.mock.calls[0]![0].body as string).html as string;
+    expect(html).not.toContain('Click-here-to-claim-your-prize');
+    expect(html).not.toContain('site_admin');
+  });
+
   it('refuses a club admin of a DIFFERENT club', async () => {
     const { supabase, generateLink } = makeSupabase({
       rbacRoles: [{ club_id: 'other-club', show_id: null, role: { name: 'club_admin' } }],

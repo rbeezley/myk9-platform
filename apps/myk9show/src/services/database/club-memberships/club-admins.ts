@@ -4,7 +4,7 @@
 // Online-only by design: role changes need a recent password confirmation.
 
 import { supabase } from '../supabaseClient';
-import { invokeAdminInvite } from '@/components/users/UserDetails/useSendUserInvitation';
+import { invokeAdminInvite } from '@/services/admin/adminInvite';
 
 export interface ClubAdmin {
   personId: string;
@@ -12,6 +12,8 @@ export interface ClubAdmin {
   personEmail: string | null;
   /** False for someone who was added by email and has not signed up yet. */
   hasAccount: boolean;
+  /** When an unclaimed invitation lapses; null once they have signed up. */
+  expiresAt: string | null;
 }
 
 export async function getClubAdmins(clubId: string): Promise<ClubAdmin[]> {
@@ -23,16 +25,15 @@ export async function getClubAdmins(clubId: string): Promise<ClubAdmin[]> {
     personName: row.person_name,
     personEmail: row.person_email,
     hasAccount: row.has_account,
+    expiresAt: row.expires_at ?? null,
   }));
 }
 
 export interface AddClubAdminResult {
   personId: string;
   hasAccount: boolean;
-  /** True when a sign-up invitation went out (the address had no account yet). */
+  /** True only when the server confirms an invitation email went out. */
   invited: boolean;
-  /** Set when the role was granted but the invitation email could not be sent. */
-  inviteError?: Error;
 }
 
 /**
@@ -57,21 +58,18 @@ export async function addClubAdminByEmail(
   if (hasAccount) return { personId, hasAccount, invited: false };
 
   try {
-    await invokeAdminInvite({
+    const { data: invite } = await invokeAdminInvite({
       personId,
       email,
       roleNames: ['club_admin'],
       clubId,
     });
-    return { personId, hasAccount, invited: true };
-  } catch (inviteError) {
+    // Anything but a sent invitation (not_found, skipped, an empty answer) is "not sent".
+    const sent = invite?.outcome === 'invited' || invite?.outcome === 'reinvited';
+    return { personId, hasAccount, invited: sent };
+  } catch {
     // The role is already granted; only the email failed. The caller says so.
-    return {
-      personId,
-      hasAccount,
-      invited: false,
-      inviteError: inviteError instanceof Error ? inviteError : new Error(String(inviteError)),
-    };
+    return { personId, hasAccount, invited: false };
   }
 }
 

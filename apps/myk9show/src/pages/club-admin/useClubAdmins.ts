@@ -6,6 +6,7 @@
  * admin removed themselves.
  */
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   addClubAdminByEmail,
@@ -18,6 +19,10 @@ import { notifications } from '@/lib/notifications';
 import { logger } from '@/services/LoggingService';
 
 const LAST_ADMIN_MESSAGE = 'A club needs at least one admin. Add another admin first.';
+
+// Role changes need a recent password and are never replayed: offline fails at once with the toast,
+// and a cancelled step-up prompt does not open a second one (same options as the payout decisions).
+const ADMIN_MUTATION_OPTIONS = { retry: false, networkMode: 'always' } as const;
 
 export function clubAdminsQueryKey(clubId: string) {
   return ['club-admins', clubId] as const;
@@ -34,7 +39,8 @@ function failureMessage(error: unknown, fallback: string): string {
 
 export function useClubAdmins(clubId: string) {
   const queryClient = useQueryClient();
-  const { refreshPermissions } = useAuthContext();
+  const { refreshPermissions, userWithRoles } = useAuthContext();
+  const navigate = useNavigate();
   const [pendingRemoval, setPendingRemoval] = useState<ClubAdmin | null>(null);
 
   const adminsQuery = useQuery({
@@ -50,6 +56,7 @@ export function useClubAdmins(clubId: string) {
   };
 
   const addMutation = useMutation({
+    ...ADMIN_MUTATION_OPTIONS,
     mutationFn: (email: string) => addClubAdminByEmail(clubId, email),
     onSuccess: async (result, email) => {
       if (result.hasAccount) {
@@ -60,7 +67,7 @@ export function useClubAdmins(clubId: string) {
         );
       } else {
         notifications.error(
-          `${email} is added as an admin, but the invitation could not be sent. Add them again to retry.`
+          `${email} is added as an admin, but we could not send the invitation. Add them again to retry.`
         );
       }
       await afterChange();
@@ -74,8 +81,17 @@ export function useClubAdmins(clubId: string) {
   });
 
   const removeMutation = useMutation({
+    ...ADMIN_MUTATION_OPTIONS,
     mutationFn: (personId: string) => removeClubAdmin(clubId, personId),
-    onSuccess: async () => {
+    onSuccess: async (_data, personId) => {
+      // Removing yourself ends your access to this tab: say so and leave, rather than refetching a
+      // list you may no longer be allowed to read.
+      if (userWithRoles?.databaseUserId && personId === userWithRoles.databaseUserId) {
+        notifications.success('You are no longer an admin of this club.');
+        await refreshPermissions();
+        navigate(`/clubs/${clubId}`);
+        return;
+      }
       notifications.success('Admin removed.');
       await afterChange();
     },

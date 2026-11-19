@@ -263,7 +263,7 @@ export const ClubMembersManager: React.FC<ClubMembersManagerProps> = ({ clubId, 
 
               {/* Admins Tab (MYK9-2209) */}
               <TabsContent value="admins" className="mt-6 space-y-4">
-                <ClubAdminsTab clubId={clubId} />
+                <ClubAdminsTab clubId={clubId} clubName={clubName} />
               </TabsContent>
             </PrimaryTabs>
           </CardContent>

@@ -14508,6 +14508,7 @@ export type Database = {
       get_club_admins: {
         Args: { p_club_id: string }
         Returns: {
+          expires_at: string | null
           has_account: boolean
           person_email: string
           person_id: string

@@ -15,9 +15,20 @@ import {
 
 registerDisposableProofHooks();
 
+// MYK9-2111: how long a stale-token ringside_update_entry write may stay queued after the
+// server already holds its values. The OCC rejection advances only the row's token, so the
+// write is rebased by the next download pass that carries the row (syncCadence.ts: 3-5 min
+// poll while a show channel is subscribed, 60 s otherwise), then waits out its own backoff
+// (MAX_BACKOFF_MS 30 s). The 50-attempt park is ~23 min away, so it is not a wait target.
+const SLOW_POLL_MAX_MS = 300_000;
+const MAX_OCC_BACKOFF_MS = 30_000;
+const DRAIN_MARGIN_MS = 30_000;
+const PENDING_DRAIN_TIMEOUT_MS = SLOW_POLL_MAX_MS + MAX_OCC_BACKOFF_MS + DRAIN_MARGIN_MS;
+
 test('paper scoring persists one-entry and multi-entry results after reload (MYK9-1246)', async ({
   browser,
 }, info) => {
+  test.setTimeout(2 * (PENDING_DRAIN_TIMEOUT_MS + 3 * 60_000));
   const client = isolatedClient();
   for (const cardinality of [1, 2] as const) {
     const f = await scenario(client, cardinality);
@@ -65,11 +76,14 @@ test('paper scoring persists one-entry and multi-entry results after reload (MYK
     let lastPending: unknown[] = [];
     try {
       await expect
-        .poll(async () => {
-          const { pending } = await replica(page, f.willowId);
-          if (pending.length > 0) lastPending = pending;
-          return pending.length;
-        })
+        .poll(
+          async () => {
+            const { pending } = await replica(page, f.willowId);
+            if (pending.length > 0) lastPending = pending;
+            return pending.length;
+          },
+          { timeout: PENDING_DRAIN_TIMEOUT_MS, intervals: [1_000, 2_000, 5_000] }
+        )
         .toBe(0);
     } catch (error) {
       const [server, device, local] = await Promise.allSettled([
@@ -83,7 +97,9 @@ test('paper scoring persists one-entry and multi-entry results after reload (MYK
         replica: settledValue(local),
         lastPending,
       }).catch(() => undefined);
-      throw error;
+      throw new Error(
+        `${error instanceof Error ? error.message : String(error)}\nlastPending: ${JSON.stringify(lastPending)}`
+      );
     }
     expect(secretary.nonLocalSocketUrls).toEqual([]);
     await evidence(info, `paper-${cardinality}-entry`, {

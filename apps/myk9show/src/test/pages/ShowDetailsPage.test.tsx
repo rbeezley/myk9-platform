@@ -204,18 +204,32 @@ vi.mock('@/store/showStore', () => ({
 vi.mock('@/services/database/judges', () => ({
   persistShowJudgeAssignments: vi.fn(async () => undefined),
   saveShowJudgeChanges: vi.fn(async () => undefined),
-  // The server's judges once this save's edits have uploaded.
-  fetchShowJudgesForPublish: vi.fn(async () => [
-    {
-      judgeId: 'judge-1',
-      judgeName: 'Fresh Judge',
-      assignedDate: '2026-01-01',
-      classLabels: ['Container Novice'],
-      residence: 'Springfield, IL',
-    },
-  ]),
 }));
 
+// MYK9-2244: a copy-only publish prints the server's current facts (the facts-only call).
+vi.mock('@/features/premium/fetchPremium', () => ({
+  fetchPremiumFacts: vi.fn(async () => {
+    const premium = makeGeneratedPremium();
+    return {
+      ...premium,
+      show: { ...premium.show, name: 'Server Name', address: '1 Server Rd' },
+      trials: [
+        {
+          name: 'Saturday',
+          date: '2026-03-22',
+          startTime: null,
+          eventNumber: '2026123401',
+          type: 'Scent Work',
+          maxTotalEntries: 40,
+          judges: [
+            { name: 'Fresh Judge', residence: 'Springfield, IL', classes: ['Container Novice'] },
+          ],
+          classes: [],
+        },
+      ],
+    };
+  }),
+}));
 vi.mock('@/features/experience/publishExperience', () => ({
   publishExperience: (args: unknown) => publishExperienceMock(args),
 }));
@@ -1290,23 +1304,21 @@ describe('ShowDetailsPage', () => {
     const draftOperation = runPremiumPublishOperationMock.mock.calls[0]?.[0] as {
       createPremium: () => Promise<GeneratedPremium>;
     };
-    await expect(draftOperation.createPremium()).resolves.toMatchObject({
+    const published = await draftOperation.createPremium();
+    // The facts are the server's; the editor contributes only its copy and style.
+    expect(published).toMatchObject({
       style: 'heritage',
-      show: expect.objectContaining({
-        name: 'Bluegrass Classic Renamed',
-        venue: 'Lexington, KY',
-        preEntryFee: 31.5,
-        dayOfFee: 41,
-        acceptChecks: true,
-        acceptCash: true,
-      }),
-      trials: expect.arrayContaining([
+      show: expect.objectContaining({ name: 'Server Name', address: '1 Server Rd' }),
+      trials: [
         expect.objectContaining({
+          eventNumber: '2026123401',
+          maxTotalEntries: 40,
           judges: [
             { name: 'Fresh Judge', residence: 'Springfield, IL', classes: ['Container Novice'] },
           ],
         }),
-      ]),
+      ],
+      narratives: makeGeneratedPremium('heritage').narratives,
     });
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: ['shows', 'show-1', 'publish-info'],

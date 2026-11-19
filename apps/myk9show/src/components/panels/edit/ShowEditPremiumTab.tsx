@@ -15,6 +15,8 @@ import { getShowEditHref } from '@/components/shows/showEditRoutes';
 import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import type { GeneratedPremium, PremiumStyle } from '@/types/premium-types';
 import { normalizeEntryLimit } from '@/features/premium/premiumEntryLimit';
+import { usePremiumFacts } from '@/features/premium/usePremiumFacts';
+import { applyEditorCopyToPremium } from '@/features/premium/premiumEditorCopy';
 import type { ShowEditFormData } from './ShowEditPanel.types';
 
 interface ShowEditPremiumTabProps {
@@ -64,10 +66,27 @@ export function ShowEditPremiumTab({
   );
   // The preview lists the same secretary and chair the published premium will (MYK9-2053).
   const { data: officials } = useShowOfficials(showId);
+  // MYK9-2244: online, the preview's facts are the server's (the same ones Save & Publish uses),
+  // with only the editor's own copy and style laid over them. Offline or on failure the form-built
+  // draft stands. The editor takes its first premium once, so nothing is handed over until the
+  // facts call settles.
+  const hasPublishedContent = publishedContent !== null;
+  const { data: serverFacts, isLoading: factsLoading } = usePremiumFacts(
+    showId,
+    isActive && Boolean(showOrg) && hasPublishedContent
+  );
   const initialPremium = useMemo(() => {
+    if (factsLoading) return undefined;
+    if (serverFacts && publishedContent && serverFacts.org === showOrg) {
+      return applyEditorCopyToPremium(serverFacts, {
+        style: data.style || 'monogram',
+        supplemental: publishedContent.supplemental,
+        narratives: publishedContent.narratives,
+      });
+    }
     const draft = buildLocalPremiumDraft(data, showOrg, publishedContent);
     return draft && officials ? applyOfficialsToPremium(draft, officials) : draft;
-  }, [data, publishedContent, showOrg, officials]);
+  }, [data, publishedContent, showOrg, officials, serverFacts, factsLoading]);
 
   // MYK9-2213: generate-premium reads the SAVED organization, so while the form's differs a
   // Regenerate would build the premium for the wrong one.
@@ -158,7 +177,8 @@ export function ShowEditPremiumTab({
               active={isActive}
               {...(initialPremium ? { initialPremium } : {})}
               deferGeneration={
-                hasShowId && !data.experiencePublishedContent && publishedContentLoading
+                factsLoading ||
+                (hasShowId && !data.experiencePublishedContent && publishedContentLoading)
               }
               onPremiumChange={handleGeneratedPremiumChange}
               onInkSaverChange={handleInkSaverChange}

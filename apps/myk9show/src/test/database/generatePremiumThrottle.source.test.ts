@@ -16,7 +16,7 @@ describe('generate-premium throttle integration', () => {
 
     const authorization = source.indexOf("throw new HttpError(404, 'Show not found')");
     const gate = source.indexOf('runPremiumGenerationAttempt({');
-    const claude = source.indexOf('generateNarratives(showSummary, anthropicKey)');
+    const claude = source.indexOf('generateNarratives(showSummary, anthropicKey as string)');
 
     expect(authorization).toBeGreaterThan(-1);
     expect(gate).toBeGreaterThan(authorization);
@@ -27,7 +27,7 @@ describe('generate-premium throttle integration', () => {
   it('rethrows limiter HttpErrors instead of converting them into Claude fallback copy', () => {
     const gate = source.indexOf('runPremiumGenerationAttempt({');
     const rethrow = source.indexOf('if (err instanceof HttpError)');
-    const fallback = source.indexOf('narratives = publishedNarratives(');
+    const fallback = source.indexOf('generated = publishedNarratives(');
 
     expect(gate).toBeGreaterThan(-1);
     expect(rethrow).toBeGreaterThan(gate);

@@ -144,15 +144,14 @@ test.describe('Show CRUD Operations', () => {
         return { success: false, error: createError?.message || 'Failed to create show' };
       }
 
-      // Update the show. MYK9-579: enforce_show_publish_gate() refuses a
-      // draft->published update with no club, or a club with no
-      // payouts-enabled Stripe account -- the e2e client can't self-seed a
-      // club_stripe_accounts row (only SELECT is granted to `authenticated`;
-      // writing it needs the service role). 'upcoming' exercises the same
-      // status-column UPDATE machinery this test cares about without
-      // depending on any seed club's Stripe fixture staying payouts-enabled.
+      // Update non-public fields only. Public statuses (e.g. 'upcoming', see
+      // private.show_status_is_public) are gated by enforce_show_publish_gate()
+      // (MYK9-579, MYK9-979): they need entry dates, an approved club with
+      // payouts enabled and the premium exemption/list. The e2e client can't
+      // seed club_stripe_accounts (service role only), so the gate is covered
+      // by the SQL behavioural tests, and this test keeps the show a draft.
       const updatedLocation = 'Updated Venue, New City';
-      const updatedStatus = 'upcoming'; // Valid status per check constraint, not gated
+      const updatedStatus = 'draft';
       const { data: updatedShow, error: updateError } = await updateShow(createdShow.id, {
         location: updatedLocation,
         status: updatedStatus,
@@ -174,6 +173,7 @@ test.describe('Show CRUD Operations', () => {
         updatedStatus: updatedShow?.status,
         locationMatches: updatedShow?.location === updatedLocation,
         statusMatches: updatedShow?.status === updatedStatus,
+        maxEntriesMatches: updatedShow?.max_total_entries === 150,
       };
     });
 
@@ -181,6 +181,7 @@ test.describe('Show CRUD Operations', () => {
     expect(result.success).toBe(true);
     expect(result.locationMatches).toBe(true);
     expect(result.statusMatches).toBe(true);
+    expect(result.maxEntriesMatches).toBe(true);
   });
 
   test('should delete a show from database (DELETE)', async ({ page }) => {

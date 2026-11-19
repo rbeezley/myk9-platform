@@ -8,6 +8,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { GazetteLandingPage } from '../GazetteLandingPage';
+import { PendingEntryCopyProvider } from '@/features/_shared/landing/PendingEntryCopyContext';
+import { pendingEntryCopy } from '@/features/_shared/landing/pendingEntryCopy';
 import type { GazetteLandingData } from '../types';
 import { mockViewportWidth } from '@/test/utils/mockViewportWidth';
 
@@ -121,17 +123,30 @@ describe('GazetteLandingPage — entry CTA count (MYK9-633)', () => {
   });
 });
 
+const copyFor = (
+  hasEntryClassInventory: boolean,
+  entryPendingReason: Parameters<typeof pendingEntryCopy>[0]['entryPendingReason']
+) =>
+  pendingEntryCopy({
+    hasEntryClassInventory,
+    entryPendingReason,
+    entryOpenDate: baseData.entryOpenDate,
+    timezone: baseData.timezone,
+  });
+
 describe('GazetteLandingPage: entries not open yet with classes assigned', () => {
   it('says when entries open and never claims classes are missing', () => {
     mockViewportWidth(1280);
     const { container } = render(
-      <GazetteLandingPage
-        show={{ id: 'show-1', name: baseData.showName } as never}
-        trial={null}
-        allTrials={[]}
-        hasEntryClassInventory
-        entryPendingReason="not_yet_open"
-      />
+      <PendingEntryCopyProvider value={copyFor(true, 'not_yet_open')}>
+        <GazetteLandingPage
+          show={{ id: 'show-1', name: baseData.showName } as never}
+          trial={null}
+          allTrials={[]}
+          hasEntryClassInventory
+          entryPendingReason="not_yet_open"
+        />
+      </PendingEntryCopyProvider>
     );
 
     expect(screen.getAllByText('Opens Apr 1').length).toBeGreaterThan(0);
@@ -148,13 +163,15 @@ describe('GazetteLandingPage: entries not open yet with classes assigned', () =>
     reason => {
       mockViewportWidth(1280);
       const { container } = render(
-        <GazetteLandingPage
-          show={{ id: 'show-1', name: baseData.showName } as never}
-          trial={null}
-          allTrials={[]}
-          hasEntryClassInventory
-          entryPendingReason={reason}
-        />
+        <PendingEntryCopyProvider value={copyFor(true, reason)}>
+          <GazetteLandingPage
+            show={{ id: 'show-1', name: baseData.showName } as never}
+            trial={null}
+            allTrials={[]}
+            hasEntryClassInventory
+            entryPendingReason={reason}
+          />
+        </PendingEntryCopyProvider>
       );
       expect(container.querySelectorAll(`a[href="${baseData.entryWizardUrl}"]`)).toHaveLength(0);
     }
@@ -165,13 +182,15 @@ describe('GazetteLandingPage: entries not open yet with classes assigned', () =>
     reason => {
       mockViewportWidth(1280);
       const { container } = render(
-        <GazetteLandingPage
-          show={{ id: 'show-1', name: baseData.showName } as never}
-          trial={null}
-          allTrials={[]}
-          hasEntryClassInventory
-          entryPendingReason={reason}
-        />
+        <PendingEntryCopyProvider value={copyFor(true, reason)}>
+          <GazetteLandingPage
+            show={{ id: 'show-1', name: baseData.showName } as never}
+            trial={null}
+            allTrials={[]}
+            hasEntryClassInventory
+            entryPendingReason={reason}
+          />
+        </PendingEntryCopyProvider>
       );
       expect(screen.getAllByText('Not open yet').length).toBeGreaterThan(0);
       expect(container.textContent).not.toMatch(/Opens |Entries open |classes are assigned/);
@@ -181,13 +200,15 @@ describe('GazetteLandingPage: entries not open yet with classes assigned', () =>
   it('keeps the missing-classes copy for a show confirmed to have none', () => {
     mockViewportWidth(1280);
     const { container } = render(
-      <GazetteLandingPage
-        show={{ id: 'show-1', name: baseData.showName } as never}
-        trial={null}
-        allTrials={[]}
-        hasEntryClassInventory={false}
-        entryPendingReason={undefined}
-      />
+      <PendingEntryCopyProvider value={copyFor(false, undefined)}>
+        <GazetteLandingPage
+          show={{ id: 'show-1', name: baseData.showName } as never}
+          trial={null}
+          allTrials={[]}
+          hasEntryClassInventory={false}
+          entryPendingReason={undefined}
+        />
+      </PendingEntryCopyProvider>
     );
 
     expect(screen.getAllByText('Classes pending').length).toBeGreaterThan(0);

@@ -41,6 +41,13 @@ export const ONLINE_ENTRIES_REQUIRED_MESSAGE =
 export const ONLINE_ENTRIES_ALWAYS_ON_MESSAGE =
   "Every show takes online entries. This can't be turned off.";
 
+/** MYK9-2197: enforce_show_publish_gate()'s refusal (MK003), verbatim, to publish a show whose
+ * premium list is not published, unless the club publishes its own premium list
+ * (shows.publishes_own_premium). The blocker key is premium_not_published in
+ * public.show_publish_blockers. */
+export const PREMIUM_NOT_PUBLISHED_MESSAGE =
+  'Publish the premium list before publishing the show, or turn on "We publish our own premium list" in the show\'s settings. Exhibitors need the premium to enter.';
+
 type OnlineEntryShow = { onlineEntriesEnabled?: boolean | null | undefined } | null | undefined;
 
 /**
@@ -164,6 +171,7 @@ export const PUBLISH_GATE_MESSAGES: readonly string[] = [
   CLUB_UNAUTHORIZED_MESSAGE,
   ONLINE_ENTRIES_REQUIRED_MESSAGE,
   ONLINE_ENTRIES_ALWAYS_ON_MESSAGE,
+  PREMIUM_NOT_PUBLISHED_MESSAGE,
   ENTRY_WINDOW_REQUIRED_MESSAGE,
   ENTRY_WINDOW_ORDER_MESSAGE,
   ENTRY_WINDOW_PUBLISHED_MESSAGE,

@@ -13964,6 +13964,7 @@ export type Database = {
         Args: { check_club_id: string }
         Returns: boolean
       }
+      club_publish_blockers: { Args: { p_club_id: string }; Returns: Json }
       complete_cart_fulfillment: {
         Args: {
           p_amount_cents?: number
@@ -16184,6 +16185,7 @@ export type Database = {
         Args: { p_person_id: string; p_show_id: string }
         Returns: boolean
       }
+      show_publish_blockers: { Args: { p_show_id: string }; Returns: Json }
       sign_in_email_drift: { Args: never; Returns: Json }
       soft_delete_class: {
         Args: { p_class_id: string; p_override?: boolean; p_reason?: string }

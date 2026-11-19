@@ -18,6 +18,7 @@ import {
   ONLINE_ENTRIES_BLOCKED_MESSAGE,
   ONLINE_ENTRIES_REQUIRED_MESSAGE,
   ONLINE_ENTRIES_ALWAYS_ON_MESSAGE,
+  PREMIUM_NOT_PUBLISHED_MESSAGE,
   PUBLIC_SHOW_STATUSES,
   PUBLISH_GATE_ERRCODE_ENTRY_WINDOW,
 } from '@/features/payments/onlineEntryGate';
@@ -66,6 +67,23 @@ function onlineEntriesSwitchSql(): string {
   );
 }
 
+/** MYK9-2163's migration: the payouts helper, the column default and the data
+ * UPDATE live here; the gate function was later re-created by MYK9-2197. */
+function payoutsMigrationSql(): string {
+  return readFileSync(
+    resolve(MIGRATIONS_DIR, '20261119051700_myk9_2163_publish_needs_payouts.sql'),
+    'utf8'
+  );
+}
+
+/** MYK9-2197's migration: the shared blocker list and the two RPCs. */
+function blockersMigrationSql(): string {
+  return readFileSync(
+    resolve(MIGRATIONS_DIR, '20261119223100_myk9_2197_show_publish_blockers.sql'),
+    'utf8'
+  );
+}
+
 function triggerSql(): string {
   return latestMigrationContaining(/CREATE TRIGGER trg_enforce_show_publish_gate\b/);
 }
@@ -79,14 +97,14 @@ function sqlEscaped(text: string): string {
 describe('enforce_show_publish_gate migration text', () => {
   it('resolves the latest enforce_show_publish_gate definition', () => {
     expect(() => migrationSql()).not.toThrow();
-    expect(migrationSql()).toMatch(/MYK9-2163/);
+    expect(migrationSql()).toMatch(/MYK9-2197/);
   });
 
   // MYK9-1887: secretary-facing refusal text carries no em dash. The
   // client constants mirror it, so checking the function body covers both.
   it('raises no message with an em dash', () => {
     const raised = [...gateFunctionBody().matchAll(/RAISE EXCEPTION '((?:[^']|'')*)'/g)];
-    expect(raised).toHaveLength(10);
+    expect(raised).toHaveLength(11);
     for (const [, message] of raised) expect(message).not.toContain('\u2014');
   });
 
@@ -108,7 +126,7 @@ describe('enforce_show_publish_gate migration text', () => {
   // function body only.
   it('raises every club / Stripe / online-entries refusal with SQLSTATE MK003', () => {
     const mk003Count = (gateFunctionBody().match(/USING ERRCODE = 'MK003'/g) ?? []).length;
-    expect(mk003Count).toBe(7);
+    expect(mk003Count).toBe(8);
   });
 
   it('raises ONLINE_ENTRIES_BLOCKED_MESSAGE verbatim for turning online entries on (MYK9-979)', () => {
@@ -121,9 +139,8 @@ describe('enforce_show_publish_gate migration text', () => {
   it('checks payouts on becoming public whatever online entries say (MYK9-2163)', () => {
     const body = gateFunctionBody();
     expect(body).not.toContain('IF NEW.online_entries_enabled IS TRUE THEN');
-    const payoutsGuard = body.lastIndexOf(
-      'IF NOT private.club_publish_payouts_ok(NEW.club_id) THEN'
-    );
+    // MYK9-2197: the condition is the shared blocker list's key, not an inline helper call.
+    const payoutsGuard = body.lastIndexOf("IF 'payouts_not_enabled' = ANY (v_keys) THEN");
     expect(payoutsGuard).toBeGreaterThan(-1);
     const blocked = body.indexOf(sqlEscaped(PUBLISH_BLOCKED_MESSAGE));
     expect(blocked).toBeGreaterThan(payoutsGuard);
@@ -162,7 +179,7 @@ describe('enforce_show_publish_gate migration text', () => {
   });
 
   it('exempts demo clubs from the payouts check in one helper, in the platform mode (MYK9-2163)', () => {
-    const helper = migrationSql().match(
+    const helper = payoutsMigrationSql().match(
       /CREATE OR REPLACE FUNCTION private\.club_publish_payouts_ok\(p_club_id uuid\)[\s\S]*?\$\$;/
     )?.[0];
     expect(helper).toBeTruthy();
@@ -173,7 +190,7 @@ describe('enforce_show_publish_gate migration text', () => {
   });
 
   it('starts new shows with online entries on and turns every existing show on (MYK9-2163)', () => {
-    const sql = migrationSql();
+    const sql = payoutsMigrationSql();
     expect(sql).toMatch(/ALTER COLUMN online_entries_enabled SET DEFAULT true;/);
     // The Add Show RPC ignores p_show.online_entries_enabled: every new show is on.
     expect(sql).toContain(
@@ -230,11 +247,13 @@ describe('enforce_show_publish_gate migration text', () => {
   // entry-open/close guard uses, never as a raw timestamptz: a legacy
   // non-midnight value must not invert a same-day window by its time of day.
   it('compares the entry dates by UTC calendar day, never as raw timestamps', () => {
-    const sql = migrationSql();
+    // MYK9-2197: the comparison lives in the shared blocker list (the gate reads its key).
+    const sql = blockersMigrationSql();
     const dayComparison =
-      /\(NEW\.entry_open_date AT TIME ZONE 'UTC'\)::date\s+>\s+\(NEW\.entry_close_date AT TIME ZONE 'UTC'\)::date/g;
-    expect(sql.match(dayComparison)).toHaveLength(2);
-    expect(sql).not.toMatch(/NEW\.entry_open_date\s*>\s*NEW\.entry_close_date/);
+      /\(p_show\.entry_open_date AT TIME ZONE 'UTC'\)::date\s+>\s+\(p_show\.entry_close_date AT TIME ZONE 'UTC'\)::date/g;
+    expect(sql.match(dayComparison)).toHaveLength(1);
+    expect(sql).not.toMatch(/p_show\.entry_open_date\s*>\s*p_show\.entry_close_date/);
+    expect(gateFunctionBody()).not.toMatch(/entry_open_date AT TIME ZONE/);
   });
 
   // Codex P2: every stored date is midnight UTC of its UTC calendar day, so a
@@ -299,5 +318,52 @@ describe('enforce_show_publish_gate migration text', () => {
 
   it('raises the published-window refusal verbatim', () => {
     expect(migrationSql()).toContain(sqlEscaped(ENTRY_WINDOW_PUBLISHED_MESSAGE));
+  });
+
+  // MYK9-2197: one blocker list, read by both triggers and both RPCs.
+  describe('shared blocker list (MYK9-2197)', () => {
+    it('raises PREMIUM_NOT_PUBLISHED_MESSAGE verbatim, MK003, after the online-entries refusal and before the window', () => {
+      const body = gateFunctionBody();
+      const message = sqlEscaped(PREMIUM_NOT_PUBLISHED_MESSAGE);
+      expect(body.split(message)).toHaveLength(2);
+      const guard = body.indexOf("IF 'premium_not_published' = ANY (v_keys) THEN");
+      expect(guard).toBeGreaterThan(-1);
+      expect(body.indexOf(message)).toBeGreaterThan(guard);
+      expect(body.slice(body.indexOf(message))).toMatch(/^[^;]*USING ERRCODE = 'MK003'/);
+      expect(guard).toBeGreaterThan(body.lastIndexOf(sqlEscaped(ONLINE_ENTRIES_REQUIRED_MESSAGE)));
+      expect(guard).toBeLessThan(body.indexOf(sqlEscaped(ENTRY_WINDOW_REQUIRED_MESSAGE)));
+    });
+
+    it('makes both triggers read the shared helpers, never an inline payouts or approval check', () => {
+      const sql = blockersMigrationSql();
+      const gate = gateFunctionBody();
+      expect(gate).toMatch(/FROM private\.show_publish_blockers_for\(NEW\) b/);
+      expect(gate).not.toMatch(/club_publish_payouts_ok|authorized_at/);
+      const auth = sql.slice(
+        sql.indexOf('CREATE OR REPLACE FUNCTION public.enforce_show_club_authorization()')
+      );
+      expect(auth.slice(0, auth.indexOf('$$;', 100))).toMatch(
+        /FROM private\.club_publish_blockers_for\(NEW\.club_id\) b/
+      );
+      expect(sql).toMatch(/FROM private\.show_publish_blockers_for\(v_show\) b/);
+      expect(sql).toMatch(/FROM private\.club_publish_blockers_for\(p_club_id\) b/);
+    });
+
+    it('reads the premium the way the app does and exempts a club that publishes its own', () => {
+      const helper = blockersMigrationSql().match(
+        /CREATE OR REPLACE FUNCTION private\.show_publish_blockers_for[\s\S]*?\$\$;/
+      )?.[0];
+      expect(helper).toMatch(/NOT coalesce\(p_show\.publishes_own_premium, false\)/);
+      expect(helper).toMatch(/nullif\(btrim\(p_show\.published_premium_url\), ''\) IS NOT NULL/);
+      expect(helper).toMatch(/p_show\.published_premium_at IS NOT NULL/);
+    });
+
+    it('opens both RPCs to signed-in users only', () => {
+      const sql = blockersMigrationSql();
+      for (const fn of ['show_publish_blockers', 'club_publish_blockers']) {
+        expect(sql).toContain(`REVOKE ALL ON FUNCTION public.${fn}(uuid) FROM anon;`);
+        expect(sql).toContain(`GRANT EXECUTE ON FUNCTION public.${fn}(uuid) TO authenticated;`);
+      }
+    });
   });
 });

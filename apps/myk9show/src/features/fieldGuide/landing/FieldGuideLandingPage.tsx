@@ -1,6 +1,4 @@
-import { PendingEntryCopyProvider } from '@/features/_shared/landing/PendingEntryCopyContext';
 import type { EntryPendingReason } from '@/utils/entryStatusUtils';
-import { pendingEntryCopy } from '@/features/_shared/landing/pendingEntryCopy';
 import { useEffect } from 'react';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
@@ -72,151 +70,139 @@ export function FieldGuideLandingPage({
   // months from now must not advertise an entry CTA that dead-ends.
   const canEnterOnline = hasEntryClassInventory !== false && !entryClosed && !entryPendingReason;
 
-  const pendingCopy = pendingEntryCopy({
-    hasEntryClassInventory,
-    entryPendingReason,
-    entryOpenDate: data.entryOpenDate,
-    timezone: data.timezone,
-  });
-
   return (
-    <PendingEntryCopyProvider value={pendingCopy}>
-      <div data-field-guide className="min-h-screen">
-        <title>
-          {data.showName} · {data.clubName}
-        </title>
-        <meta
-          name="description"
-          content={data.welcomeText ?? `${data.showName} — ${data.showSubtitle}`}
-        />
-        <meta property="og:title" content={`${data.showName} · ${data.clubName}`} />
-        <meta property="og:description" content={data.showSubtitle} />
-        <meta property="og:type" content="event" />
-        <meta
-          property="og:url"
-          content={typeof window !== 'undefined' ? window.location.href : ''}
-        />
-        <meta name="twitter:card" content="summary" />
+    <div data-field-guide className="min-h-screen">
+      <title>
+        {data.showName} · {data.clubName}
+      </title>
+      <meta
+        name="description"
+        content={data.welcomeText ?? `${data.showName} — ${data.showSubtitle}`}
+      />
+      <meta property="og:title" content={`${data.showName} · ${data.clubName}`} />
+      <meta property="og:description" content={data.showSubtitle} />
+      <meta property="og:type" content="event" />
+      <meta property="og:url" content={typeof window !== 'undefined' ? window.location.href : ''} />
+      <meta name="twitter:card" content="summary" />
 
-        <TopStrip
-          showCode={data.showCode}
+      <TopStrip
+        showCode={data.showCode}
+        licenseLanguage={data.licenseLanguage}
+        entryWizardUrl={data.entryWizardUrl}
+        entryLimit={data.entryLimit}
+        canEnterOnline={canEnterOnline}
+        entryClosed={entryClosed}
+      />
+
+      <DataGridHero
+        showName={data.showName}
+        showSubtitle={data.showSubtitle}
+        heroChips={[
+          { label: 'OPEN', variant: 'orange' },
+          { label: data.licenseLanguage.toUpperCase() },
+          {
+            label: `${data.trials.length} TRIAL${data.trials.length === 1 ? '' : 'S'}`,
+            variant: 'cyan',
+          },
+        ]}
+        description={data.welcomeText}
+        cells={data.quickRefCells}
+      />
+
+      <main>
+        <WelcomeSection
+          welcomeText={data.welcomeText}
+          trialChairName={data.trialChairName}
+          trialChairEmail={data.trialChairEmail}
+        />
+        <ParticularsSection
           licenseLanguage={data.licenseLanguage}
-          entryWizardUrl={data.entryWizardUrl}
+          entryOpenDate={data.entryOpenDate}
+          entryCloseDate={data.entryCloseDate}
+          confirmationDate={data.confirmationDate}
           entryLimit={data.entryLimit}
-          canEnterOnline={canEnterOnline}
-          entryClosed={entryClosed}
+          fees={data.fees}
+          trialsCount={data.trials.length}
+          timezone={data.timezone}
         />
-
-        <DataGridHero
-          showName={data.showName}
-          showSubtitle={data.showSubtitle}
-          heroChips={[
-            { label: 'OPEN', variant: 'orange' },
-            { label: data.licenseLanguage.toUpperCase() },
-            {
-              label: `${data.trials.length} TRIAL${data.trials.length === 1 ? '' : 'S'}`,
-              variant: 'cyan',
-            },
-          ]}
-          description={data.welcomeText}
-          cells={data.quickRefCells}
+        <WithdrawalPolicySection
+          showId={show?.id}
+          className="fg-section"
+          style={SHARED_SECTION_STYLE}
         />
-
-        <main>
-          <WelcomeSection
-            welcomeText={data.welcomeText}
-            trialChairName={data.trialChairName}
-            trialChairEmail={data.trialChairEmail}
-          />
-          <ParticularsSection
-            licenseLanguage={data.licenseLanguage}
-            entryOpenDate={data.entryOpenDate}
-            entryCloseDate={data.entryCloseDate}
-            confirmationDate={data.confirmationDate}
-            entryLimit={data.entryLimit}
-            fees={data.fees}
-            trialsCount={data.trials.length}
-            timezone={data.timezone}
-          />
-          <WithdrawalPolicySection
-            showId={show?.id}
-            className="fg-section"
-            style={SHARED_SECTION_STYLE}
-          />
-          <RecordingFeeSection
-            statement={data.recordingFee}
-            className="fg-section"
-            style={SHARED_SECTION_STYLE}
-          />
-          <ScoutingStatementSection
-            statement={data.scoutingStatement}
-            className="fg-section"
-            style={SHARED_SECTION_STYLE}
-          />
-          <PremiumDownloadSection show={show} className="fg-section" style={SHARED_SECTION_STYLE} />
-          <JudgesSection judges={data.judges} trialsCount={data.trials.length} />
-          <RosterSection
-            entryCount={data.entryCount}
-            entryLimit={data.entryLimit}
-            entryOpenDate={data.entryOpenDate}
-            entryCloseDate={data.entryCloseDate}
-            timezone={data.timezone}
-          />
-          <ScheduleSection
-            items={data.onTheDay}
-            hospitalityNotes={data.hospitalityNotes}
-            awardsDescription={data.awardsDescription}
-            houseRulesNotes={data.houseRulesNotes}
-          />
-          <PlanSection accommodations={data.accommodations} />
-          <OfficersSection
-            officers={data.officers}
-            secretaryName={data.secretaryName}
-            secretaryEmail={data.secretaryEmail}
-          />
-        </main>
-
-        <OfferedClassesSection show={show} className="fg-section" />
-
-        <FinalCtaSection
-          entryWizardUrl={data.entryWizardUrl}
-          classesHref={classesHref}
+        <RecordingFeeSection
+          statement={data.recordingFee}
+          className="fg-section"
+          style={SHARED_SECTION_STYLE}
+        />
+        <ScoutingStatementSection
+          statement={data.scoutingStatement}
+          className="fg-section"
+          style={SHARED_SECTION_STYLE}
+        />
+        <PremiumDownloadSection show={show} className="fg-section" style={SHARED_SECTION_STYLE} />
+        <JudgesSection judges={data.judges} trialsCount={data.trials.length} />
+        <RosterSection
+          entryCount={data.entryCount}
+          entryLimit={data.entryLimit}
+          entryOpenDate={data.entryOpenDate}
           entryCloseDate={data.entryCloseDate}
           timezone={data.timezone}
-          entryLimit={data.entryLimit}
-          canEnterOnline={canEnterOnline}
-          entryClosed={entryClosed}
         />
-
-        <FieldGuideFooter
-          showCode={data.showCode}
-          clubName={data.clubName}
-          memberClubLanguage={data.memberClubLanguage}
-          licenseLanguage={data.licenseLanguage}
-          venueAddress={data.venueAddress}
+        <ScheduleSection
+          items={data.onTheDay}
+          hospitalityNotes={data.hospitalityNotes}
+          awardsDescription={data.awardsDescription}
+          houseRulesNotes={data.houseRulesNotes}
+        />
+        <PlanSection accommodations={data.accommodations} />
+        <OfficersSection
+          officers={data.officers}
           secretaryName={data.secretaryName}
           secretaryEmail={data.secretaryEmail}
         />
+      </main>
 
-        {/* MYK9-633: last child, after the footer — see StickyEntryCtaBar's
+      <OfferedClassesSection show={show} className="fg-section" />
+
+      <FinalCtaSection
+        entryWizardUrl={data.entryWizardUrl}
+        classesHref={classesHref}
+        entryCloseDate={data.entryCloseDate}
+        timezone={data.timezone}
+        entryLimit={data.entryLimit}
+        canEnterOnline={canEnterOnline}
+        entryClosed={entryClosed}
+      />
+
+      <FieldGuideFooter
+        showCode={data.showCode}
+        clubName={data.clubName}
+        memberClubLanguage={data.memberClubLanguage}
+        licenseLanguage={data.licenseLanguage}
+        venueAddress={data.venueAddress}
+        secretaryName={data.secretaryName}
+        secretaryEmail={data.secretaryEmail}
+      />
+
+      {/* MYK9-633: last child, after the footer — see StickyEntryCtaBar's
           doc comment for why placement matters. */}
-        <StickyEntryCtaBar
-          entryWizardUrl={data.entryWizardUrl}
-          canShowEntryCta={canEnterOnline}
-          label="ENTER →"
-          ariaLabel="Enter show"
-          surface={{
-            background: fieldGuideColors.ink,
-            buttonBackground: fieldGuideColors.orange,
-            buttonColor: fieldGuideColors.paper,
-            fontFamily: FIELD_GUIDE_DISPLAY_FAMILY,
-            fontWeight: 700,
-            fontSize: 14,
-            letterSpacing: '0.04em',
-            textTransform: 'uppercase',
-          }}
-        />
-      </div>
-    </PendingEntryCopyProvider>
+      <StickyEntryCtaBar
+        entryWizardUrl={data.entryWizardUrl}
+        canShowEntryCta={canEnterOnline}
+        label="ENTER →"
+        ariaLabel="Enter show"
+        surface={{
+          background: fieldGuideColors.ink,
+          buttonBackground: fieldGuideColors.orange,
+          buttonColor: fieldGuideColors.paper,
+          fontFamily: FIELD_GUIDE_DISPLAY_FAMILY,
+          fontWeight: 700,
+          fontSize: 14,
+          letterSpacing: '0.04em',
+          textTransform: 'uppercase',
+        }}
+      />
+    </div>
   );
 }

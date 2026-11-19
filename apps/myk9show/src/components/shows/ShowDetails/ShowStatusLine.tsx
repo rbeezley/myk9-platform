@@ -1,6 +1,7 @@
 import React from 'react';
 import { ShowStatusPill } from '@/components/shows/ShowStatusPill';
 import { SHOW_STATUS_CONTROL_ANCHOR } from '@/features/show-workbench/publishReadiness';
+import { SETUP_PUBLISH_ANCHOR } from '@/features/show-workbench/setupReadinessSignals';
 import { PublishAttentionChip } from './PublishAttentionChip';
 import type { Show } from '@/types/show-types';
 
@@ -22,8 +23,7 @@ export const ShowStatusLine: React.FC<{
       showId={show.id}
       status={show.status}
       clubId={show.clubId}
-      entryOpenDate={show.entryOpenDate}
-      entryCloseDate={show.entryCloseDate}
+      onSeeBlockers={() => onOpenPublishing(SETUP_PUBLISH_ANCHOR)}
     />
     {showPublishing && (
       <PublishAttentionChip

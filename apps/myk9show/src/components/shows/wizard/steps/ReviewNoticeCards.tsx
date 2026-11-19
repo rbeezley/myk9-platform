@@ -2,10 +2,8 @@ import type React from 'react';
 import { AlertTriangle, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-  ENTRY_WINDOW_REQUIRED_MESSAGE,
-  entryWindowPublishError,
-} from '@/features/payments/onlineEntryGate';
+import { ShowPublishBlockers } from '@/features/publishing/ShowPublishBlockers';
+import { WizardPublishBlockers } from '@/features/publishing/WizardPublishBlockers';
 
 interface ReviewWarningCardProps {
   title: string;
@@ -71,58 +69,28 @@ export function ReviewWarningCard({
   );
 }
 
-interface ReviewEntryWindowNoticeProps {
-  entryOpenDate: string | null | undefined;
-  entryCloseDate: string | null | undefined;
-  /** Jump back to the step that holds the Entry Period. */
-  onSetWindow: () => void;
-}
-
-/**
- * MYK9-716: a draft may be saved without an entry window, but publishing
- * requires one (the status pill and enforce_show_publish_gate refuse it). Review
- * is where the wizard asks for it: a readiness item that links back to the
- * field, never a blocking error. Renders nothing once the window is valid.
- */
-export function ReviewEntryWindowNotice({
-  entryOpenDate,
-  entryCloseDate,
-  onSetWindow,
-}: ReviewEntryWindowNoticeProps) {
-  const problem = entryWindowPublishError(entryOpenDate, entryCloseDate);
-  if (!problem) return null;
-  const missing = problem === ENTRY_WINDOW_REQUIRED_MESSAGE;
-  return (
-    <ReviewWarningCard
-      title={missing ? 'No entry window yet' : 'The entry window needs fixing'}
-      actionLabel="Set the entry window"
-      onAction={onSetWindow}
-      data-testid="review-entry-window-warning"
-    >
-      {missing
-        ? 'You can save this show as a draft, but it can’t be published until entries have an open and a close date. Go back to Show Details and set the Entry Period.'
-        : 'Entries have to open before they close. You can save this show as a draft, but it can’t be published until the Entry Period is fixed.'}
-    </ReviewWarningCard>
-  );
-}
-
 interface ReviewReadinessNoticesProps {
   unassignedPoolJudgeNames: string[];
+  clubId: string | undefined;
   entryOpenDate: string | null | undefined;
   entryCloseDate: string | null | undefined;
   missingVenuePin: boolean;
   /** False when the edit mode cannot reach Show Details (add-classes): the notices that only link there are omitted. */
   canEditDetails: boolean;
+  /** The saved show's id when editing one: its list comes from the server, and only while it is a draft. */
+  existingShowId: string | undefined;
   onGoToStep: (step: number) => void;
 }
 
 /** The non-blocking readiness notices at the top of Review. */
 export function ReviewReadinessNotices({
   unassignedPoolJudgeNames,
+  clubId,
   entryOpenDate,
   entryCloseDate,
   missingVenuePin,
   canEditDetails,
+  existingShowId,
   onGoToStep,
 }: ReviewReadinessNoticesProps) {
   return (
@@ -144,12 +112,21 @@ export function ReviewReadinessNotices({
         </ReviewWarningCard>
       )}
 
-      {canEditDetails && (
-        <ReviewEntryWindowNotice
-          entryOpenDate={entryOpenDate}
-          entryCloseDate={entryCloseDate}
-          onSetWindow={() => onGoToStep(0)}
+      {/* MYK9-2198: the one "Before you can publish" list (it replaced the entry-window notice). */}
+      {existingShowId ? (
+        <ShowPublishBlockers
+          showId={existingShowId}
+          onEditEntryDates={canEditDetails ? () => onGoToStep(0) : undefined}
         />
+      ) : (
+        canEditDetails && (
+          <WizardPublishBlockers
+            clubId={clubId}
+            entryOpenDate={entryOpenDate}
+            entryCloseDate={entryCloseDate}
+            onEditDetails={() => onGoToStep(0)}
+          />
+        )
       )}
 
       {/* MYK9-686: location text with no pin is allowed, but never silent. */}

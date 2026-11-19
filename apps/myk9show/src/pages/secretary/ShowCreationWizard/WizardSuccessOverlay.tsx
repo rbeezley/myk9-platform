@@ -2,6 +2,7 @@ import React from 'react';
 import { CheckCircle } from 'lucide-react';
 import { ShowAccessCodesCard } from '@/components/secretary/ShowAccessCodesCard';
 import { Button } from '@/components/ui/button';
+import { ShowPublishBlockers } from '@/features/publishing/ShowPublishBlockers';
 import type { CreatedShow } from './show-creation-wizard-types';
 
 interface WizardSuccessOverlayProps {
@@ -28,6 +29,9 @@ export const WizardSuccessOverlay: React.FC<WizardSuccessOverlayProps> = ({
       <div className="text-center">
         <h1 className="text-3xl font-bold">Show Created!</h1>
         <p className="mt-1 text-muted-foreground">{createdShow.name}</p>
+      </div>
+      <div className="w-full max-w-md empty:hidden">
+        <ShowPublishBlockers showId={createdShow.id} clubId={createdShow.clubId} status="draft" />
       </div>
       <div className="w-full max-w-md space-y-2 text-center">
         <h2 className="text-xl font-semibold">Role-specific access codes</h2>

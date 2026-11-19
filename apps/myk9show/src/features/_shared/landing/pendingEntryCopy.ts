@@ -1,4 +1,5 @@
 import type { EntryPendingReason } from '@/utils/entryStatusUtils';
+import { calendarDateInTimeZone } from '@/utils/calendarDate';
 import { formatShowDate, getCalendarDayParts } from './calendarDate';
 
 /**
@@ -58,12 +59,7 @@ export const NOT_OPEN_NO_DATE: PendingEntryCopy = {
 function isFutureOpenDate(iso: string, timezone: string, now: Date): boolean {
   const day = getCalendarDayParts(iso);
   if (day) {
-    const today = new Intl.DateTimeFormat('en-CA', {
-      timeZone: timezone,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).format(now);
+    const today = calendarDateInTimeZone(now, timezone);
     const open = `${day.year}-${String(day.month).padStart(2, '0')}-${String(day.day).padStart(2, '0')}`;
     return open > today;
   }

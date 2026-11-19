@@ -132,6 +132,10 @@ test.describe('Show CRUD Operations', () => {
         end_date: endDate.toISOString().split('T')[0],
         location: 'Original Venue',
         status: 'draft',
+        // MYK9-2197: becoming public also needs the premium list published, or
+        // the club publishing its own. This show only exercises the status
+        // UPDATE, so it takes the exemption.
+        publishes_own_premium: true,
       };
 
       const { data: createdShow, error: createError } = await createShow(testShowData);

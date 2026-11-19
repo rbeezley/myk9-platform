@@ -60,8 +60,17 @@ test('paper scoring persists one-entry and multi-entry results after reload (MYK
       .toBe('10203');
     // MYK9-2111: this drain is intermittent. When it times out, attach the server row and the
     // device's own queue so the leftover mutation is named; the original error is rethrown.
+    // The queue may drain between the last poll and the catch, so the last non-empty sample is
+    // kept too.
+    let lastPending: unknown[] = [];
     try {
-      await expect.poll(async () => (await replica(page, f.willowId)).pending.length).toBe(0);
+      await expect
+        .poll(async () => {
+          const { pending } = await replica(page, f.willowId);
+          if (pending.length > 0) lastPending = pending;
+          return pending.length;
+        })
+        .toBe(0);
     } catch (error) {
       const [server, device, local] = await Promise.allSettled([
         row(client, f.willowId),
@@ -72,6 +81,7 @@ test('paper scoring persists one-entry and multi-entry results after reload (MYK
         server: settledValue(server),
         device: settledValue(device),
         replica: settledValue(local),
+        lastPending,
       }).catch(() => undefined);
       throw error;
     }

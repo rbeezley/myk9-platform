@@ -86,9 +86,8 @@ describe('premiumTrialClassFeeText (MYK9-2231)', () => {
   // Owner decision on MYK9-2231: day-of pricing stays with the show's fee table.
   it('never prints a day-of price, even when the show has a day-of fee', () => {
     const trial = { classes: [cls('Containers', { entryFee: 20 })] };
-    expect(
-      premiumTrialClassFeeText(trial, { preEntryFee: 25, dayOfFee: 30 }, comparator)
-    ).not.toMatch(/day|surcharge|\$5/i);
+    const show = { preEntryFee: 25, dayOfFee: 30 };
+    expect(premiumTrialClassFeeText(trial, show, comparator)).not.toMatch(/day|surcharge|\$5/i);
   });
 });
 

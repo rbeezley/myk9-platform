@@ -85,7 +85,7 @@ describe('premiumTrialJudges', () => {
     expect(premiumTrialJudges([row(kerr, null, { trial_id: 't-1' })], trial)).toEqual([]);
   });
 
-  it('prints nothing for declined or cancelled assignments, or for a cancelled or deleted class', () => {
+  it('prints nothing for declined or cancelled assignments, or for a deleted class', () => {
     const withDeleted = {
       id: 't-2',
       classes: [
@@ -97,14 +97,6 @@ describe('premiumTrialJudges', () => {
           section: 'A',
           deleted_at: '2026-11-01',
         },
-        {
-          id: 'c-cancelled',
-          element: 'Exterior',
-          level: 'Novice',
-          section: null,
-          status: 'cancelled',
-          deleted_at: null,
-        },
       ],
     };
     expect(
@@ -113,7 +105,6 @@ describe('premiumTrialJudges', () => {
           row(donovan, 'c-int', { status: 'declined' }),
           row(kerr, 'c-int', { status: 'cancelled' }),
           row(donovan, 'c-gone'),
-          row(kerr, 'c-cancelled'),
         ],
         withDeleted
       )

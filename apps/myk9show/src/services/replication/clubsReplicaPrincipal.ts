@@ -29,15 +29,15 @@ export function principalMarkerFor(
   return user && user.is_anonymous !== true ? user.id : ANONYMOUS_PRINCIPAL_MARKER;
 }
 
-export async function readReplicaPrincipalMarker(
-  table: ReplicatedTable<{ id: string }>
+export async function readReplicaPrincipalMarker<T extends { id: string }>(
+  table: ReplicatedTable<T>
 ): Promise<string | undefined> {
   return (await table.getSyncMetadataOrThrow())?.syncedByAuthUserId;
 }
 
 /** Record whose sync produced the rows now stored. */
-export async function stampReplicaPrincipal(
-  table: ReplicatedTable<{ id: string }>,
+export async function stampReplicaPrincipal<T extends { id: string }>(
+  table: ReplicatedTable<T>,
   marker: string
 ): Promise<void> {
   await table.updateSyncMetadata({}, { scopeSyncedBy: marker });
@@ -51,8 +51,8 @@ export async function stampReplicaPrincipal(
  * changes, so the same account keeps its rows offline.
  * @returns true when the replica was purged.
  */
-export async function purgeReplicaForOtherPrincipal(
-  table: ReplicatedTable<{ id: string }>,
+export async function purgeReplicaForOtherPrincipal<T extends { id: string }>(
+  table: ReplicatedTable<T>,
   marker: string,
   signal?: AbortSignal
 ): Promise<boolean> {
@@ -81,8 +81,8 @@ export async function purgeReplicaForOtherPrincipal(
  * @returns the current principal's marker, or null when the session cannot be
  * read: nothing is purged then, and the caller must not trust the rows.
  */
-export async function reconcileReplicaPrincipal(
-  table: ReplicatedTable<{ id: string }>,
+export async function reconcileReplicaPrincipal<T extends { id: string }>(
+  table: ReplicatedTable<T>,
   signal?: AbortSignal
 ): Promise<string | null> {
   let marker: string;
@@ -100,8 +100,8 @@ export async function reconcileReplicaPrincipal(
 }
 
 /** {@link purgeReplicaForOtherPrincipal} plus a log line, for a caller that knows the marker. */
-export async function purgeReplicaForMarker(
-  table: ReplicatedTable<{ id: string }>,
+export async function purgeReplicaForMarker<T extends { id: string }>(
+  table: ReplicatedTable<T>,
   marker: string,
   signal?: AbortSignal
 ): Promise<void> {
@@ -116,8 +116,8 @@ export async function purgeReplicaForMarker(
  * mismatches the new principal, whose next reconcile purges the rows. Never
  * throws: a failed stamp only costs one extra full sync.
  */
-export async function stampReplicaPrincipalSafely(
-  table: ReplicatedTable<{ id: string }>,
+export async function stampReplicaPrincipalSafely<T extends { id: string }>(
+  table: ReplicatedTable<T>,
   syncedMarker: string
 ): Promise<void> {
   try {

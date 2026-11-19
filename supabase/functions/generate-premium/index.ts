@@ -103,7 +103,7 @@ handle<GeneratePremiumPayload>(
         clubs(name, logo_url, ${PREMIUM_CLUB_WITHDRAWAL_COLUMNS}),
         trials(
           id, name, date, planned_start_time, event_number, trial_type, registry_id, status,
-          deleted_at,
+          deleted_at, max_total_entries,
           classes(id, name, level, element, section, deleted_at)
         )
       `
@@ -229,6 +229,7 @@ handle<GeneratePremiumPayload>(
           section: string | null;
           deleted_at: string | null;
         }>;
+        max_total_entries: number | null;
       }>
     ).map(trial => ({
       name: trial.name,
@@ -236,6 +237,8 @@ handle<GeneratePremiumPayload>(
       startTime: trial.planned_start_time,
       eventNumber: trial.event_number,
       type: trial.trial_type ?? '',
+      // MYK9-2229: this trial's own entry limit.
+      maxTotalEntries: trial.max_total_entries ?? null,
       judges: premiumTrialJudges(judgeAssignments, trial),
       classes: (trial.classes ?? []).map(cls => ({
         element: cls.element ?? '',

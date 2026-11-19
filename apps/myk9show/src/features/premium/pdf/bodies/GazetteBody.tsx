@@ -136,11 +136,12 @@ export function GazetteBody({ data, tokens }: Props) {
                     color: tokens.secondaryColor,
                   }}
                 >
-                  {trial.name}
+                  {trial.name} · {trial.date}
                 </Text>
                 {trial.classLabels.length > 0 && (
                   <Text style={denseStyle}>{trial.classLabels.join(' · ')}</Text>
                 )}
+                {trial.entryLimit && <Text style={denseStyle}>{trial.entryLimit}</Text>}
               </View>
             ))}
           </View>
@@ -179,6 +180,17 @@ export function GazetteBody({ data, tokens }: Props) {
                 {a.phone && <Text style={denseStyle}>{a.phone}</Text>}
               </View>
             ))}
+          </View>
+        )}
+
+        {f.vetClinic && (
+          <View style={sectionStyle} wrap={false}>
+            <View style={headerWrapStyle}>
+              <Text style={headerTextStyle}>Emergency Vet</Text>
+            </View>
+            <Text style={{ ...denseStyle, fontWeight: 700 }}>{f.vetClinic.name}</Text>
+            <Text style={denseStyle}>{f.vetClinic.address}</Text>
+            {f.vetClinic.phone && <Text style={denseStyle}>{f.vetClinic.phone}</Text>}
           </View>
         )}
 

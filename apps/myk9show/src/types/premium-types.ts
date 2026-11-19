@@ -138,6 +138,8 @@ export interface GeneratedPremium {
     startTime: string | null;
     eventNumber: string | null;
     type: string;
+    /** MYK9-2229: trials.max_total_entries; null or absent means no limit for this trial. */
+    maxTotalEntries?: number | null;
     /**
      * MYK9-2067: `residence` is "City, ST" and `classes` are "Element Level Section" labels (empty
      * for a judge on every class). Both are absent on a premium generated before it, which also

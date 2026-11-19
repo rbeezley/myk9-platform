@@ -22,3 +22,16 @@ export function premiumEntryLimitText(
   // An entry is one dog in one class, so the limit counts entries, not dogs.
   return `Total entry limit: ${limit} ${limit === 1 ? 'entry' : 'entries'}.`;
 }
+
+/**
+ * MYK9-2229: the line a trial with its own entry limit (trials.max_total_entries) prints beside
+ * that trial in every style and registry, or null when the trial has none. It does not depend on
+ * the show's limit or the registry: a trial cap is a fact about that trial.
+ */
+export function premiumTrialEntryLimitText(
+  trial: Pick<GeneratedPremium['trials'][number], 'maxTotalEntries'>
+): string | null {
+  const limit = normalizeEntryLimit(trial.maxTotalEntries);
+  if (limit === null) return null;
+  return `Trial entry limit: ${limit} ${limit === 1 ? 'entry' : 'entries'}.`;
+}

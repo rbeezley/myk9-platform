@@ -34,6 +34,13 @@ describe('matchesDogSearch (MYK9-2020)', () => {
     expect(matchesDogSearch(rex, 'OF MYK9')).toBe(true);
   });
 
+  it('treats commas and parentheses as word breaks (MYK9-2148)', () => {
+    const rex = dog({ ownerName: 'Mary Smith' });
+    expect(matchesDogSearch(rex, 'Smith, Mary')).toBe(true);
+    expect(matchesDogSearch(rex, 'smith,mary')).toBe(true);
+    expect(matchesDogSearch(rex, '(Smith)')).toBe(true);
+  });
+
   it('matches every dog for a blank query', () => {
     expect(matchesDogSearch(dog({}), '   ')).toBe(true);
   });

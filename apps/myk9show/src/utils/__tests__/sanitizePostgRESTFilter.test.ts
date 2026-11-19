@@ -48,7 +48,7 @@ describe('searchAllDogs filter text (MYK9-2148)', () => {
       'registration_number.ilike."%Smith, Jo (Jr)%",registered_name.ilike."%Smith, Jo (Jr)%",breed.ilike."%Smith, Jo (Jr)%"'
     );
     expect(ownerNameFilter('Smith, Jo')).toBe(
-      'first_name.ilike."%Smith, Jo%",last_name.ilike."%Smith, Jo%",and(first_name.ilike."%Smith,%",last_name.ilike."%Jo%")'
+      'first_name.ilike."%Smith, Jo%",last_name.ilike."%Smith, Jo%",and(first_name.ilike."%Smith%",last_name.ilike."%Jo%")'
     );
   });
 });

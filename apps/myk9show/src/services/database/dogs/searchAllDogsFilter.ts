@@ -6,6 +6,7 @@
  */
 
 import { ilikeContains } from '@/utils/sanitizePostgRESTFilter';
+import { searchTermWords } from '@/utils/searchTermWords';
 
 /** Most first-name / last-name splits tried for a typed full name. */
 const OWNER_NAME_MAX_SPLITS = 3;
@@ -30,7 +31,7 @@ export function ownerNameFilter(term: string): string {
     `first_name.ilike.${ilikeContains(term)}`,
     `last_name.ilike.${ilikeContains(term)}`,
   ];
-  const words = term.split(/\s+/).filter(Boolean);
+  const words = searchTermWords(term);
   const splits = Math.min(words.length - 1, OWNER_NAME_MAX_SPLITS);
   for (let k = 1; k <= splits; k += 1) {
     const first = words.slice(0, k).join(' ');
@@ -50,12 +51,13 @@ export function registrationFilter(term: string): string {
 
 /**
  * The words of a multi-word search that the server matches one by one:
- * case-insensitively distinct, at most `SEARCH_MAX_WORDS`. Empty for a one-word search, which the whole-term match
- * already covers.
+ * case-insensitively distinct, at most `SEARCH_MAX_WORDS`. Commas and
+ * parentheses separate words (MYK9-2148). Empty when the term is one bare word,
+ * which the whole-term match already covers; "Smith," still yields "Smith".
  */
 export function searchWords(term: string): string[] {
-  const words = term.split(/\s+/).filter(Boolean);
-  if (words.length < 2) return [];
+  const words = searchTermWords(term);
+  if (words.length === 0 || (words.length === 1 && words[0] === term.trim())) return [];
   const distinct = new Map<string, string>();
   for (const word of words) {
     if (!distinct.has(word.toLowerCase())) {

@@ -114,6 +114,30 @@ all three of these are done and recorded in the ledger row (`premise:`, `approac
    whether the design is wrong (shared rules, Gates § 3). If the paths are only known once the
    implementer reports, run the same check on its diff before opening the PR.
 
+   **Design first means no code first.** An issue that says "design first", or whose fix
+   touches sign-in, permissions, sync or replication, or money, gets a design before any
+   implementer. Post a design comment on the issue of about one page with these parts:
+   - the existing design it touches, and why that design is the way it is, read from the code's
+     comments and from `git log -S`;
+   - the shape you propose;
+   - the "do nothing / delete it / link to what exists" option, weighed honestly.
+
+   Run `pnpm qa:codex-review` on that comment, not on code. Put the delete-or-do-nothing option
+   to the owner as `needs:decision` before building, not after a convergence stop. Record
+   `size: design first` until the design is accepted.
+
+   **One failed design, then ask.** After the FIRST convergence stop on an issue, do not
+   dispatch a second design. Hold it as `needs:decision` with a restructure proposal that leads
+   with "delete it" or "defer it". Count earlier attempts, closed PRs included, from the
+   issue's attachments.
+
+   Why these rules exist: on 2026-11-19 three issues closed six PRs unmerged after three
+   attempts each, and each was resolved in minutes by an owner answer that was available from
+   the start:
+   - MYK9-2168, clubs replica account boundary: deferred.
+   - MYK9-2211, invite with no account: deleted.
+   - MYK9-2111, a fix that fought the deliberate OCC token design: no code change.
+
    For an escaped bug (found after merge by a walk, staging, Sentry or a user), also record
    `verifier gap:` in the ledger row and the `approach:` line, per **Escaped bugs** in
    `docs/agents/issue-tracker.md`; the dispatch carries the check to update.

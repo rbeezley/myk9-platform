@@ -238,11 +238,6 @@ export function MagazineEntryReceived({
               color: MUTE,
             }}
           >
-            {registrationNumber && (
-              <span style={{ display: 'block' }}>
-                {formatConfirmationNumberLabel(registrationNumber)}
-              </span>
-            )}
             {totalLabel}
           </span>
           <span

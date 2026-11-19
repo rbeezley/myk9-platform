@@ -180,6 +180,19 @@ export function MonogramEntryReceived({
         >
           {classSummary}
         </p>
+        {registrationNumber && (
+          <p
+            style={{
+              fontFamily: MONOGRAM_DISPLAY_FAMILY,
+              fontStyle: 'italic',
+              fontSize: 14,
+              color: QUILL,
+              margin: '0 0 6px',
+            }}
+          >
+            {formatConfirmationNumberLabel(registrationNumber)}
+          </p>
+        )}
         <div
           style={{
             display: 'flex',
@@ -199,11 +212,6 @@ export function MonogramEntryReceived({
               color: QUILL,
             }}
           >
-            {registrationNumber && (
-              <span style={{ display: 'block' }}>
-                {formatConfirmationNumberLabel(registrationNumber)}
-              </span>
-            )}
             {totalLabel}
           </span>
           <span

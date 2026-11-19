@@ -365,9 +365,10 @@ describe('WorkflowStepContent receipt payment label', () => {
     expect(screen.queryByText(/fees due/i)).not.toBeInTheDocument();
   });
 
-  it('says Due at the show when the exhibitor pays by check at the show', () => {
+  it('claims nothing about payment when the exhibitor pays by check at the show', () => {
     renderConfirmation(outcomes(), undefined, 'check');
 
-    expect(screen.getByText('Total · Due at the show')).toBeInTheDocument();
+    expect(screen.getByText('Total')).toBeInTheDocument();
+    expect(screen.queryByText(/fees due|paid/i)).not.toBeInTheDocument();
   });
 });

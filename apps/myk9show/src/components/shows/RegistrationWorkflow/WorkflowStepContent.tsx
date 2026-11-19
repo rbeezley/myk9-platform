@@ -156,7 +156,6 @@ export function WorkflowStepContent({
   const receiptSelectedDogs = receiptClassSelections.map(selection => selection.dogId);
   const receiptTotalFees = getCreatedOutcomeTotalFees(entryOutcomes, currentRegistrationTotalFees);
   const receiptMoney = receiptTotal({
-    formHeldMoney: desk?.outcome != null || (desk?.formHeldCents ?? 0) > 0,
     paymentMethod: optimisticState.formData.paymentMethod,
     receivedMethod: getPaymentDetails?.().receivedMethod,
     paymentStatus: optimisticState.paymentStatus,

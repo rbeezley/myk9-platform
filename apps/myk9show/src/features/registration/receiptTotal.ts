@@ -8,8 +8,6 @@ import { FREE_ENTRY_AMOUNT_LABEL, isFreeEntry } from '@/utils/entryAmountOwed';
  * fee. The server records a `waived` submission as payment_status 'waived'.
  */
 export function receiptTotal(input: {
-  /** The desk read that the exhibitor's form already held money before this submit. */
-  formHeldMoney: boolean;
   paymentMethod: PaymentMethod | '' | undefined;
   receivedMethod: PaymentDetails['receivedMethod'];
   paymentStatus: PaymentStatus;
@@ -19,30 +17,26 @@ export function receiptTotal(input: {
     input.paymentMethod === 'waived' || isFreeEntry({ paymentStatus: input.paymentStatus });
   return {
     totalFeesFormatted: isFree ? FREE_ENTRY_AMOUNT_LABEL : `$${input.totalFees.toFixed(2)}`,
-    totalLabel: receiptTotalLabel(input.paymentMethod, input.receivedMethod, input.formHeldMoney),
+    totalLabel: receiptTotalLabel(input.paymentMethod, input.receivedMethod),
   };
 }
 
 /**
- * MYK9-2235: the label beside the total on the entry receipt. Every receipt style shows it
- * (Heritage, Magazine, Monogram and Gazette under the confirmation number).
+ * MYK9-2235: the label beside the total on the entry receipt, in every receipt style.
  *
  * The receipt is shown right after the entry is written. Card payments never reach it (they
- * leave for Stripe and come back to the checkout success page), so the method the wizard just
- * submitted says what happened to the money:
+ * leave for Stripe and come back to the checkout success page). It says "Paid" only for money
+ * that came in with this entry:
  *
  * - "Check received" / "Cash received" (`secretary_paid`): paid with the entry.
  * - "Paid by a club or group" (`group_payment`): paid.
- * - Check or cash at the show (`check` / `cash`): still owed, at the show. Not when the desk
- *   read that the form already held money: the server pays what it can from that money, so
- *   the label says only "Total" and the form-money notice on the same screen says what is owed.
- * - Free entry, money already on the form, or unknown: just "Total". The amount already says
- *   Free entry, and the form-money notice on the same screen says what is still owed.
+ * - Everything else (check or cash at the show, Free entry, money already on the form): just
+ *   "Total". What is still owed depends on money the form may already hold, which the server
+ *   settles, so the receipt does not guess it; the form-money notice says it where it is known.
  */
 export function receiptTotalLabel(
   paymentMethod: PaymentMethod | '' | undefined,
-  receivedMethod: PaymentDetails['receivedMethod'],
-  formHeldMoney = false
+  receivedMethod: PaymentDetails['receivedMethod']
 ): string {
   switch (paymentMethod) {
     case 'secretary_paid':
@@ -51,9 +45,6 @@ export function receiptTotalLabel(
       return 'Total · Paid';
     case 'group_payment':
       return 'Total · Paid by a club or group';
-    case 'check':
-    case 'cash':
-      return formHeldMoney ? 'Total' : 'Total · Due at the show';
     default:
       return 'Total';
   }

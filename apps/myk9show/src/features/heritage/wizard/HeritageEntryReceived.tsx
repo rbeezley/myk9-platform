@@ -199,6 +199,19 @@ export function HeritageEntryReceived({
           {classSummary}
         </p>
 
+        {registrationNumber && (
+          <p
+            style={{
+              fontFamily: "'Cormorant Garamond', Georgia, serif",
+              fontStyle: 'italic',
+              fontSize: '0.85rem',
+              color: QUILL,
+              margin: '0 0 6px',
+            }}
+          >
+            {formatConfirmationNumberLabel(registrationNumber)}
+          </p>
+        )}
         <div
           style={{
             display: 'flex',
@@ -218,11 +231,6 @@ export function HeritageEntryReceived({
               color: QUILL,
             }}
           >
-            {registrationNumber && (
-              <span style={{ display: 'block' }}>
-                {formatConfirmationNumberLabel(registrationNumber)}
-              </span>
-            )}
             {totalLabel}
           </span>
           <span

@@ -160,11 +160,6 @@ export function GazetteEntryReceived({
             className="text-[10px] font-medium"
             style={{ color: QUILL, letterSpacing: '0.18em', fontFamily: META }}
           >
-            {registrationNumber && (
-              <span style={{ display: 'block' }}>
-                {formatConfirmationNumberLabel(registrationNumber)}
-              </span>
-            )}
             {totalLabel}
           </span>
           <span style={{ fontFamily: DISPLAY, fontWeight: 900, fontSize: 28, color: BROWN }}>

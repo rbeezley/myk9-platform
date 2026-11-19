@@ -29,10 +29,8 @@ vi.mock('@/hooks/queries/usePremiumTemplates', () => ({
 vi.mock('@/services/imageUploadService', () => ({ uploadShowCover: vi.fn() }));
 vi.mock('../pdf/AKCPremiumTemplate', () => ({ AKCPremiumTemplate: () => <div /> }));
 vi.mock('../pdf/UKCPremiumTemplate', () => ({ UKCPremiumTemplate: () => <div /> }));
-vi.mock('@react-pdf/renderer', () => ({
-  PDFDownloadLink: ({ children }: { children: (state: unknown) => React.ReactNode }) => (
-    <>{children({ loading: false, error: null, url: null })}</>
-  ),
+vi.mock('../publishPremium', () => ({
+  renderPremiumPdf: vi.fn(() => new Promise(() => undefined)),
 }));
 
 function premiumWith(showHours: string): GeneratedPremium {

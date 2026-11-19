@@ -1,8 +1,8 @@
 -- MYK9-2208: the show's club's admins (name + email) for a secretary who is not one.
 -- Everything rolls back.
 --
--- Proves: a club-wide secretary and a show-scoped secretary can read the list; a club admin can;
--- an outsider and another club's secretary get 42501; anon cannot execute; an inactive, expired,
+-- Proves: a club-wide secretary and a club admin can read the list; an outsider, another club's
+-- secretary and a show-pinned secretary (a show-pinned row grants nothing) get 42501; anon cannot execute; an inactive, expired,
 -- show-pinned, banned, suspended, never-signed-in or deleted admin is not listed.
 
 BEGIN;
@@ -93,7 +93,7 @@ $$;
 
 SET LOCAL ROLE authenticated;
 
--- A club-wide secretary and a show-scoped secretary each see exactly Pat Lee and Sam Roe.
+-- A club-wide secretary and a club admin each see exactly Pat Lee and Sam Roe.
 DO $$
 DECLARE
   who uuid;
@@ -102,7 +102,6 @@ DECLARE
 BEGIN
   FOREACH who IN ARRAY ARRAY[
     '00000000-0000-0000-0000-000000220712'::uuid,
-    '00000000-0000-0000-0000-000000220713'::uuid,
     '00000000-0000-0000-0000-000000220711'::uuid
   ] LOOP
     PERFORM set_config('request.jwt.claim.sub', who::text, true);
@@ -114,18 +113,19 @@ BEGIN
       RAISE EXCEPTION 'FAIL % saw names % emails % (expected Pat Lee and Sam Roe only)', who, names, emails;
     END IF;
   END LOOP;
-  RAISE NOTICE 'PASS club-wide secretary, show-scoped secretary and club admin see only the live admins';
+  RAISE NOTICE 'PASS club-wide secretary and club admin see only the live admins';
 END;
 $$;
 
--- An outsider and another club's secretary are refused; so is a call with no show.
+-- An outsider, another club's secretary and a show-pinned secretary are refused; so is a call with no show.
 DO $$
 DECLARE
   who uuid;
 BEGIN
   FOREACH who IN ARRAY ARRAY[
     '00000000-0000-0000-0000-000000220714'::uuid,
-    '00000000-0000-0000-0000-000000220715'::uuid
+    '00000000-0000-0000-0000-000000220715'::uuid,
+    '00000000-0000-0000-0000-000000220713'::uuid
   ] LOOP
     PERFORM set_config('request.jwt.claim.sub', who::text, true);
     BEGIN
@@ -135,7 +135,7 @@ BEGIN
       NULL;
     END;
   END LOOP;
-  RAISE NOTICE 'PASS an outsider and another club''s secretary are refused';
+  RAISE NOTICE 'PASS an outsider, another club''s secretary and a show-pinned secretary are refused';
 END;
 $$;
 

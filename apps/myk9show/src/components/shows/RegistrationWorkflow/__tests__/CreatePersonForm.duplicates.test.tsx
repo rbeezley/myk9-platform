@@ -1,6 +1,6 @@
 /**
- * MYK9-931 review fixes for the entry-flow Add Person: a prefilled name is
- * saveable without edits, and the possible-duplicate prompt is announced and in
+ * MYK9-931 review fixes for the entry-flow Add Person: a typed name saves as typed, and the
+ * possible-duplicate prompt is announced and in
  * view, re-checks when the identity changes, and runs when leaving Basic Info
  * (Next) as well as at the final save.
  */
@@ -34,13 +34,13 @@ const existing = {
 
 const next = () => screen.findByRole('button', { name: /Next: Contact/ });
 
-describe('CreatePersonForm prefill and duplicate prompt', () => {
+describe('CreatePersonForm name and duplicate prompt', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useUserStore.setState({ people: [existing], users: [existing] } as never);
   });
 
-  it('a prefilled name is saveable without any edit', async () => {
+  it('a typed name is saved as typed', async () => {
     createUserMock.mockResolvedValue(
       fromAny({
         data: { id: 'p9', first_name: 'Jane', last_name: 'Doe', email: null, phone: null },
@@ -48,14 +48,9 @@ describe('CreatePersonForm prefill and duplicate prompt', () => {
       })
     );
     const user = userEvent.setup();
-    render(
-      <CreatePersonForm
-        open
-        onOpenChange={vi.fn()}
-        onExhibitorCreated={vi.fn()}
-        searchQuery="Jane Doe"
-      />
-    );
+    render(<CreatePersonForm open onOpenChange={vi.fn()} onExhibitorCreated={vi.fn()} />);
+    await user.type(await screen.findByLabelText(/First Name/), 'Jane');
+    await user.type(screen.getByLabelText(/Last Name/), 'Doe');
     await user.click(await next());
     const add = await screen.findByRole('button', { name: 'Add Person' });
     expect(add).toBeEnabled();

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { UserEditPanel } from '@/components/panels/edit/UserEditPanel';
 import type { EditPanelVariant } from '@/components/panels/edit/EditPanelWrapper';
 import { PanelSaveHandledError } from '@/components/panels/edit/panelSaveErrors';
@@ -32,7 +32,6 @@ interface CreatePersonFormProps {
     existingExhibitor: User,
     metadata?: { pendingMutationIds?: string[] | undefined }
   ) => void;
-  searchQuery?: string; // Pre-fill from search if provided
   offlineFirst?: boolean;
   /** The show whose add-entry flow this is; recorded as `created_from_show_id` (MYK9-1059). */
   createdFromShowId?: string | undefined;
@@ -62,15 +61,8 @@ const DuplicateNotice: React.FC<{ children: React.ReactNode }> = ({ children }) 
   );
 };
 
-/** Pre-fill the name from what the secretary searched for. */
-function nameFromSearch(searchQuery: string): Partial<PersonRecord> {
-  const trimmed = searchQuery.trim();
-  if (!trimmed) return {};
-  const parts = trimmed.split(' ');
-  return parts.length >= 2
-    ? { firstName: parts[0] ?? '', lastName: parts.slice(1).join(' ') }
-    : { lastName: trimmed };
-}
+/** Add Person always opens blank: the dog search it comes from is not a person's name (MYK9-2243). */
+const EMPTY_PERSON: Partial<PersonRecord> = {};
 
 /**
  * The entry flow's Add Person form, hosted inline in Quick Create's slide-out
@@ -85,7 +77,6 @@ export const CreatePersonForm: React.FC<CreatePersonFormProps> = ({
   onOpenChange,
   onExhibitorCreated,
   onDuplicateSelected,
-  searchQuery = '',
   offlineFirst = false,
   createdFromShowId,
   variant = 'panel',
@@ -105,8 +96,6 @@ export const CreatePersonForm: React.FC<CreatePersonFormProps> = ({
   React.useEffect(() => {
     if (open && people.length === 0) loadUsers();
   }, [loadUsers, open, people.length]);
-
-  const initialUserData = useMemo(() => nameFromSearch(searchQuery), [searchQuery]);
 
   const handleClose = () => {
     setDuplicates({ candidates: [], key: '' });
@@ -261,7 +250,7 @@ export const CreatePersonForm: React.FC<CreatePersonFormProps> = ({
       onClose={handleClose}
       userId=""
       userName="New Person"
-      initialUserData={initialUserData}
+      initialUserData={EMPTY_PERSON}
       onSave={handleSave}
       variant={variant}
       closeRequestRef={closeRequestRef}

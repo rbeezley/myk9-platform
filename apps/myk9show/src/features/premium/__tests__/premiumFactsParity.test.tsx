@@ -409,3 +409,81 @@ describe('premium PDF prints the registry recording fee (MYK9-2044)', () => {
     expect(pdfText('AKC', unknown)).not.toMatch(/recording fee/i);
   });
 });
+
+describe('premium PDF prints the official mailing addresses (MYK9-2065)', () => {
+  const CHAIR_ADDRESS = 'PO Box 77, Tulsa, OK 74101';
+  const SECRETARY_ADDRESS = 'PO Box 9, Broken Arrow, OK 74012';
+
+  function withAddresses(style: PremiumStyle, chair: string | null, secretary: string | null) {
+    const premium = fullPremium('AKC', style);
+    return {
+      ...premium,
+      secretary: { ...premium.secretary, mailingAddress: secretary },
+      officials: { chairman: { ...premium.officials.chairman!, mailingAddress: chair } },
+    };
+  }
+
+  it.each(ALL_STYLES)('%s prints the Chair and Secretary addresses the club typed', style => {
+    const text = pdfText('AKC', withAddresses(style, CHAIR_ADDRESS, SECRETARY_ADDRESS));
+    expect(text).toContain(CHAIR_ADDRESS);
+    expect(text).toContain(SECRETARY_ADDRESS);
+  });
+
+  it.each(ALL_STYLES)('%s prints no address, and no placeholder, when none was typed', style => {
+    const text = pdfText('AKC', withAddresses(style, null, null));
+    expect(text).not.toContain('PO Box');
+    expect(text).not.toMatch(/Chair Mail|\bAddress\b|undefined|null/);
+  });
+});
+
+describe('no style says mail-in entries are accepted (MYK9-2065)', () => {
+  const ADDRESS = 'PO Box 9, Broken Arrow, OK 74012';
+
+  it.each(ALL_STYLES)(
+    '%s prints the address under the official, never as an entry method',
+    style => {
+      for (const acceptChecks of [false, true]) {
+        const premium = fullPremium('AKC', style);
+        const text = pdfText('AKC', {
+          ...premium,
+          show: { ...premium.show, acceptChecks },
+          secretary: { ...premium.secretary, mailingAddress: ADDRESS },
+        });
+        expect(text).toContain(ADDRESS);
+        expect(text).not.toMatch(/Mail-in entries|Alternate methods:\s*\n?Mail/i);
+        expect(text).not.toMatch(/^Mail: /m);
+      }
+    }
+  );
+
+  it.each(ALL_STYLES)(
+    '%s never presents the secretary email or phone as an entry method',
+    style => {
+      const text = pdfText('AKC', fullPremium('AKC', style));
+      expect(text).not.toMatch(/Alternate methods/i);
+    }
+  );
+
+  it('gazette shows the Officials block, with the address, for a secretary-only premium', () => {
+    const premium = fullPremium('AKC', 'gazette');
+    const text = pdfText('AKC', {
+      ...premium,
+      officials: { chairman: null },
+      secretary: { ...premium.secretary, mailingAddress: ADDRESS },
+    });
+    expect(text).toContain('Officials');
+    expect(text).toContain(`Secretary Mail: ${ADDRESS}`);
+    expect(text).toContain('Secretary Email: jane@test.com');
+    expect(text).not.toMatch(/Chair/);
+  });
+
+  it.each(ALL_STYLES)('%s prints nothing for a vacant secretary and chair', style => {
+    const premium = fullPremium('AKC', style);
+    const text = pdfText('AKC', {
+      ...premium,
+      officials: { chairman: null },
+      secretary: { name: null, email: null, phone: null, mailingAddress: null },
+    });
+    expect(text).not.toMatch(/Jane Smith|Bob Jones|jane@test\.com|bob@test\.com|456 Oak Ave/);
+  });
+});

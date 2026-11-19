@@ -9,6 +9,7 @@ import { supabase } from '@/services/database/supabaseClient';
 import { createUser } from '@/services/database/users';
 import { UserRole } from '@/types/auth-types';
 import { notifications } from '@/lib/notifications';
+import { OfficialMailingAddressField } from './OfficialMailingAddressField';
 import { replaceShowOfficial } from './replaceShowOfficial';
 import { logger } from '@/services/LoggingService';
 
@@ -113,6 +114,8 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
   const currentChairman = officials?.chairmen[0]?.personId;
   const currentSecretary = officials?.secretaries[0]?.personId;
   const currentSteward = officials?.stewards[0]?.personId;
+  const chairman = officials?.chairmen[0];
+  const secretary = officials?.secretaries[0];
 
   return (
     <div className="space-y-4">
@@ -152,6 +155,31 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
           onCreatePerson={handleCreatePerson}
         />
       </div>
+
+      {(chairman || secretary) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {chairman && (
+            <OfficialMailingAddressField
+              key={`chairman-${chairman.personId}`}
+              showId={showId}
+              personId={chairman.personId}
+              role="chairman"
+              roleLabel="Chair"
+              savedAddress={chairman.mailingAddress ?? null}
+            />
+          )}
+          {secretary && (
+            <OfficialMailingAddressField
+              key={`secretary-${secretary.personId}`}
+              showId={showId}
+              personId={secretary.personId}
+              role="secretary"
+              roleLabel="Secretary"
+              savedAddress={secretary.mailingAddress ?? null}
+            />
+          )}
+        </div>
+      )}
 
       <ShowCommitteeEditor showId={showId} people={people} />
 

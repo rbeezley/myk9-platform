@@ -72,7 +72,15 @@ const generatedPremiumSchema = z.object({
     mailingAddress: nullableText,
   }),
   officials: z.object({
-    chairman: z.object({ name: z.string(), email: nullableText, phone: nullableText }).nullable(),
+    chairman: z
+      .object({
+        name: z.string(),
+        email: nullableText,
+        phone: nullableText,
+        // MYK9-2065: absent on a premium generated before the field existed.
+        mailingAddress: nullableText.optional(),
+      })
+      .nullable(),
   }),
   officers: z.array(z.object({ position: z.string(), name: z.string() })).optional(),
   committee: z.array(z.string()).optional(),

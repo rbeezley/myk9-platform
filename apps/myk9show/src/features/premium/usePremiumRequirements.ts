@@ -41,7 +41,9 @@ interface PremiumRequirementInputs {
   classes: ReadonlyArray<RequirementClass>;
   judges: ReadonlyArray<ShowJudgeAssignment>;
   secretaryName: string | null;
+  secretaryAddress?: string | null;
   chairName: string | null;
+  chairAddress?: string | null;
   committee: string[];
 }
 
@@ -62,8 +64,10 @@ export function requirementFactsFromShow(input: PremiumRequirementInputs): Premi
       opens: show.entryOpenDate?.trim() || null,
       closes: show.entryCloseDate?.trim() || null,
     },
-    secretary: { name: input.secretaryName },
-    chair: input.chairName ? { name: input.chairName } : null,
+    secretary: { name: input.secretaryName, mailingAddress: input.secretaryAddress ?? null },
+    chair: input.chairName
+      ? { name: input.chairName, mailingAddress: input.chairAddress ?? null }
+      : null,
     committee: input.committee,
     recordingFeeDates: premiumRecordingFeeDates(
       input.trials.map(trial => ({ date: trial.trialDate ?? null, status: trial.status ?? null })),
@@ -141,6 +145,8 @@ export function usePremiumRequirements(
   if (!officials.data) {
     unavailable.add('secretary');
     unavailable.add('chair');
+    unavailable.add('secretaryAddress');
+    unavailable.add('chairAddress');
   }
   if (!committee.data) unavailable.add('committee');
   if (!judges) unavailable.add('judges');
@@ -151,7 +157,9 @@ export function usePremiumRequirements(
     classes,
     judges: judges ?? [],
     secretaryName: personName(officials.data?.secretaries[0]),
+    secretaryAddress: officials.data?.secretaries[0]?.mailingAddress ?? null,
     chairName: personName(officials.data?.chairmen[0]),
+    chairAddress: officials.data?.chairmen[0]?.mailingAddress ?? null,
     committee: committee.data ?? [],
   });
   return {

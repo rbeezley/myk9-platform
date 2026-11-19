@@ -112,7 +112,13 @@ export interface GeneratedPremium {
     mailingAddress: string | null;
   };
   officials: {
-    chairman: { name: string; email: string | null; phone: string | null } | null;
+    chairman: {
+      name: string;
+      email: string | null;
+      phone: string | null;
+      /** MYK9-2065: typed by the club for the premium; absent before the field existed. */
+      mailingAddress?: string | null;
+    } | null;
   };
   /**
    * MYK9-2045: the host club's Officers list (position and name). Absent on a premium

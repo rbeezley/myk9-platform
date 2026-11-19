@@ -98,7 +98,10 @@ describe('ShowAboutPage premium requirements (MYK9-2053)', () => {
       await screen.findByText(/at least 5 Event Committee members; 3 are listed/)
     ).toBeInTheDocument();
     // Present facts are not listed.
-    expect(screen.queryByText(/requires the Trial Secretary/)).toBeNull();
+    expect(screen.queryByText(/requires the Trial Secretary\. Add/)).toBeNull();
+    // A named Secretary with no typed mailing address is listed (MYK9-2065); no Chair, so no Chair address.
+    expect(screen.getByText(/requires the Trial Secretary's mailing address/)).toBeInTheDocument();
+    expect(screen.queryByText(/Trial Chair's mailing address/)).toBeNull();
     expect(screen.queryByText(/requires the name of the club/)).toBeNull();
 
     expect(

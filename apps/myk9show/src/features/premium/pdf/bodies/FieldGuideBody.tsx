@@ -132,6 +132,7 @@ export function FieldGuideBody({ data, tokens }: Props) {
                 {chair.name}
                 {chair.email ? ` · ${chair.email}` : ''}
                 {chair.phone ? ` · ${chair.phone}` : ''}
+                {chair.mailingAddress ? `\n${chair.mailingAddress}` : ''}
               </Text>
             </View>
           )}
@@ -142,6 +143,7 @@ export function FieldGuideBody({ data, tokens }: Props) {
                 {secretary.name}
                 {secretary.email ? ` · ${secretary.email}` : ''}
                 {secretary.phone ? ` · ${secretary.phone}` : ''}
+                {secretary.mailingAddress ? `\n${secretary.mailingAddress}` : ''}
               </Text>
             </View>
           )}

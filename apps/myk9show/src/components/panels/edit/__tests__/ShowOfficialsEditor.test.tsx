@@ -56,6 +56,7 @@ const holder = (personId: string, firstName: string, lastName: string) => ({
   firstName,
   lastName,
   email: null,
+  mailingAddress: null as string | null,
 });
 
 const SHOW = 'show-1';
@@ -195,5 +196,137 @@ describe('ShowOfficialsEditor replace', () => {
 
     await waitFor(() => expect(harness.success).toHaveBeenCalled());
     expect(harness.rpc).not.toHaveBeenCalled();
+  });
+});
+
+describe('ShowOfficialsEditor mailing address for the premium (MYK9-2065)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    harness.rpc.mockResolvedValue({ error: null });
+    harness.officials = { secretaries: [], chairmen: [], stewards: [] };
+    harness.cached = null;
+    harness.fetchError = null;
+  });
+
+  it('offers no field until a Chair or Secretary is named', () => {
+    renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
+    expect(screen.queryByLabelText(/Mailing address for the premium/)).toBeNull();
+  });
+
+  it('saves what is typed for the Chair when the field loses focus', async () => {
+    harness.officials.chairmen = [holder('c1', 'Caleb', 'Morgan')];
+    renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
+
+    const field = screen.getByLabelText('Chair: Mailing address for the premium');
+    await userEvent.type(field, 'PO Box 77');
+    await userEvent.tab();
+
+    await waitFor(() =>
+      expect(harness.rpc).toHaveBeenCalledWith('set_show_official_mailing_address', {
+        p_show_id: SHOW,
+        p_role_name: 'chairman',
+        p_person_id: 'c1',
+        p_address: 'PO Box 77',
+      })
+    );
+    expect(harness.success).toHaveBeenCalledWith('Chair mailing address saved');
+  });
+
+  it('starts from the saved address and clears it when emptied', async () => {
+    harness.officials.secretaries = [{ ...holder('s1', 'Sam', 'Sec'), mailingAddress: 'PO Box 9' }];
+    renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
+
+    const field = screen.getByLabelText('Secretary: Mailing address for the premium');
+    expect(field).toHaveValue('PO Box 9');
+    await userEvent.clear(field);
+    await userEvent.tab();
+
+    await waitFor(() =>
+      expect(harness.rpc).toHaveBeenCalledWith('set_show_official_mailing_address', {
+        p_show_id: SHOW,
+        p_role_name: 'secretary',
+        p_person_id: 's1',
+        p_address: '',
+      })
+    );
+  });
+
+  it('does not call the server when nothing changed, and says so when a save fails', async () => {
+    harness.officials.chairmen = [
+      { ...holder('c1', 'Caleb', 'Morgan'), mailingAddress: 'PO Box 1' },
+    ];
+    renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
+    const field = screen.getByLabelText('Chair: Mailing address for the premium');
+
+    await userEvent.click(field);
+    await userEvent.tab();
+    expect(harness.rpc).not.toHaveBeenCalled();
+
+    harness.rpc.mockResolvedValue({ error: { message: 'denied' } });
+    await userEvent.type(field, 'x');
+    await userEvent.tab();
+    await waitFor(() =>
+      expect(harness.error).toHaveBeenCalledWith('Could not save the Chair mailing address: denied')
+    );
+  });
+
+  it('says the official changed when the server reports the saved person is no longer named', async () => {
+    harness.officials.chairmen = [holder('c1', 'Caleb', 'Morgan')];
+    harness.rpc.mockResolvedValue({ error: { code: 'P0002', message: 'raw server text' } });
+    renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
+
+    await userEvent.type(
+      screen.getByLabelText('Chair: Mailing address for the premium'),
+      'PO Box 7'
+    );
+    await userEvent.tab();
+
+    await waitFor(() =>
+      expect(harness.error).toHaveBeenCalledWith(
+        'This official was changed by someone else. Refresh this page to see who it is now.'
+      )
+    );
+  });
+
+  it('says to reconnect when the browser is offline', async () => {
+    harness.officials.chairmen = [holder('c1', 'Caleb', 'Morgan')];
+    harness.rpc.mockRejectedValue(new TypeError('Failed to fetch'));
+    const online = vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false);
+    renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
+
+    await userEvent.type(
+      screen.getByLabelText('Chair: Mailing address for the premium'),
+      'PO Box 7'
+    );
+    await userEvent.tab();
+
+    await waitFor(() =>
+      expect(harness.error).toHaveBeenCalledWith('You are offline. Reconnect to save this address.')
+    );
+    online.mockRestore();
+  });
+
+  it('shows a refreshed server address in a clean field but keeps an unsaved draft', async () => {
+    harness.officials.chairmen = [
+      { ...holder('c1', 'Caleb', 'Morgan'), mailingAddress: 'PO Box 1' },
+    ];
+    const view = renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
+    const label = 'Chair: Mailing address for the premium';
+    expect(screen.getByLabelText(label)).toHaveValue('PO Box 1');
+
+    harness.officials = {
+      ...harness.officials,
+      chairmen: [{ ...holder('c1', 'Caleb', 'Morgan'), mailingAddress: 'PO Box 2' }],
+    };
+    view.rerender(<ShowOfficialsEditor showId={SHOW} />);
+    expect(screen.getByLabelText(label)).toHaveValue('PO Box 2');
+
+    await userEvent.type(screen.getByLabelText(label), 'x');
+    harness.officials = {
+      ...harness.officials,
+      chairmen: [{ ...holder('c1', 'Caleb', 'Morgan'), mailingAddress: 'PO Box 3' }],
+    };
+    view.rerender(<ShowOfficialsEditor showId={SHOW} />);
+    expect(screen.getByLabelText(label)).toHaveValue('PO Box 2x');
   });
 });

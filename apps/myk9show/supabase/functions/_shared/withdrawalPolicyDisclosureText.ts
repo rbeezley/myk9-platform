@@ -49,8 +49,8 @@ export const REGISTRY_WITHDRAWAL_REASON_LABELS: Readonly<Record<string, readonly
  * documentationNote; the app test fails if they drift.
  */
 export const REGISTRY_WITHDRAWAL_DOCUMENTATION_NOTES: Readonly<Record<string, string>> = {
-  AKC: 'AKC clubs may ask for documentation, and withdrawals are expected at least 30 minutes before the first class of the day, so check the premium.',
-  UKC: 'UKC requires a veterinary certificate showing the female came into season after the entry deadline.',
+  AKC: 'For an in-season withdrawal, AKC clubs may ask for documentation, and it is expected at least 30 minutes before the first class of the day.',
+  UKC: 'For an in-season withdrawal, UKC requires a veterinary certificate showing the female came into season after the entry deadline.',
 };
 
 /** A configured registry id from a raw `trials.registry_id`, or null. */
@@ -85,21 +85,21 @@ function documentationSuffix(registryIds: readonly string[]): string {
     .join('');
 }
 
-function withdrawParagraph(registryId: string | null): string {
+function withdrawParagraph(registryId: string | null, withNotes = true): string {
   const labels = registryId ? REGISTRY_WITHDRAWAL_REASON_LABELS[registryId] : undefined;
   if (registryId && labels) {
     const reasons = joinWords(
       labels.map(label => label.toLowerCase()),
       'or'
     );
-    return `Withdraw: an entry may be withdrawn only for a reason the ${registryId} rules cover: ${reasons}. A withdrawal for that reason follows the ${registryId} rule. ${WITHDRAW_REFUND_NOTE_TEXT}${documentationSuffix([registryId])}`;
+    return `Withdraw: an entry may be withdrawn only for a reason the ${registryId} rules cover: ${reasons}. A withdrawal for that reason follows the ${registryId} rule. ${WITHDRAW_REFUND_NOTE_TEXT}${withNotes ? documentationSuffix([registryId]) : ''}`;
   }
   // No registry in hand (the club's own card, which serves every show it hosts): name what
   // each registry covers rather than offer one registry's list as everyone's.
   const inSeason = Object.keys(REGISTRY_WITHDRAWAL_REASON_LABELS).filter(id =>
     REGISTRY_WITHDRAWAL_REASON_LABELS[id].includes('Dog in season')
   );
-  return `Withdraw: an entry may be withdrawn only for a reason the show's registry covers: judge change, and dog in season at ${joinWords(inSeason, 'and')} shows. A withdrawal for that reason follows that registry's rule. ${WITHDRAW_REFUND_NOTE_TEXT}${documentationSuffix(Object.keys(REGISTRY_WITHDRAWAL_DOCUMENTATION_NOTES))}`;
+  return `Withdraw: an entry may be withdrawn only for a reason the show's registry covers: judge change, and dog in season at ${joinWords(inSeason, 'and')} shows. A withdrawal for that reason follows that registry's rule. ${WITHDRAW_REFUND_NOTE_TEXT}${withNotes ? documentationSuffix(Object.keys(REGISTRY_WITHDRAWAL_DOCUMENTATION_NOTES)) : ''}`;
 }
 
 const PULL_PARAGRAPH = `Pull: the dog does not run, for any other reason. ${PULL_REFUND_NOTE_TEXT}`;
@@ -119,14 +119,19 @@ export function buildDefaultWithdrawalPolicyTextFromParts(parts: {
   notes: string | null;
   registryId: string | null;
 }): string {
-  return [
-    withoutServiceFeeSentence(parts.refundLine),
-    parts.notes?.trim() || null,
-    withdrawParagraph(parts.registryId),
-    PULL_PARAGRAPH,
-  ]
-    .filter((part): part is string => Boolean(part))
-    .join('\n\n');
+  const build = (withNotes: boolean) =>
+    [
+      withoutServiceFeeSentence(parts.refundLine),
+      parts.notes?.trim() || null,
+      withdrawParagraph(parts.registryId, withNotes),
+      PULL_PARAGRAPH,
+    ]
+      .filter((part): part is string => Boolean(part))
+      .join('\n\n');
+  // MYK9-2066: the registry's in-season documentation note is added only while the disclosure
+  // still fits Stripe's payment page, so a show whose text fitted before never stops fitting.
+  const full = build(true);
+  return withdrawalDisclosureFitsPaymentPage(full) ? full : build(false);
 }
 
 /**

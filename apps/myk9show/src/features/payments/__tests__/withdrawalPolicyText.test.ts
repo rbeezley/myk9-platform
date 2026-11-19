@@ -22,7 +22,7 @@ describe('buildDefaultWithdrawalPolicyText (MYK9-1976)', () => {
     expect(text).toBe(
       [
         'Full refund of the entry fee until June 1, 2026; after that, $10.00 is kept.',
-        "Withdraw: an entry may be withdrawn only for a reason the AKC rules cover: dog in season or judge change. A withdrawal for that reason follows the AKC rule. Refund per the premium's rules; the show secretary confirms it. AKC clubs may ask for documentation, and withdrawals are expected at least 30 minutes before the first class of the day, so check the premium.",
+        "Withdraw: an entry may be withdrawn only for a reason the AKC rules cover: dog in season or judge change. A withdrawal for that reason follows the AKC rule. Refund per the premium's rules; the show secretary confirms it. For an in-season withdrawal, AKC clubs may ask for documentation, and it is expected at least 30 minutes before the first class of the day.",
         "Pull: the dog does not run, for any other reason. Refunds for a pull are at the club's discretion.",
       ].join('\n\n')
     );
@@ -33,7 +33,7 @@ describe('buildDefaultWithdrawalPolicyText (MYK9-1976)', () => {
     expect(text).toContain('the UKC rules cover: dog in season or judge change.');
     expect(text).toContain('follows the UKC rule.');
     expect(text).toContain(
-      "Refund per the premium's rules; the show secretary confirms it. UKC requires a veterinary certificate showing the female came into season after the entry deadline.\n\nPull:"
+      "Refund per the premium's rules; the show secretary confirms it. For an in-season withdrawal, UKC requires a veterinary certificate showing the female came into season after the entry deadline.\n\nPull:"
     );
   });
 
@@ -52,7 +52,7 @@ describe('buildDefaultWithdrawalPolicyText (MYK9-1976)', () => {
     );
     expect(text.startsWith('Refund policy: contact the club.')).toBe(true);
     expect(text).toContain(
-      'the show secretary confirms it. AKC clubs may ask for documentation, and withdrawals are expected at least 30 minutes before the first class of the day, so check the premium. UKC requires a veterinary certificate showing the female came into season after the entry deadline.\n\nPull:'
+      'the show secretary confirms it. For an in-season withdrawal, AKC clubs may ask for documentation, and it is expected at least 30 minutes before the first class of the day. For an in-season withdrawal, UKC requires a veterinary certificate showing the female came into season after the entry deadline.\n\nPull:'
     );
   });
 

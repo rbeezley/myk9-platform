@@ -115,14 +115,12 @@ handle<GeneratePremiumPayload>(
       throw new HttpError(404, 'Show not found');
     }
 
-    // Step 7: Reject unsupported organizations early. The premium_generations
-    // CHECK constraint only accepts 'AKC' and 'UKC', so anything else would
-    // fail downstream when the client tries to log the generation.
+    // Step 7: Reject unsupported organizations early (MYK9-2225 added ASCA).
     const showOrg = (show.organization as string | null) ?? null;
-    if (showOrg !== 'AKC' && showOrg !== 'UKC') {
+    if (showOrg !== 'AKC' && showOrg !== 'UKC' && showOrg !== 'ASCA') {
       throw new HttpError(
         400,
-        `Premium generation is only supported for AKC and UKC shows (got: ${showOrg ?? 'null'})`
+        `Premium generation is only supported for AKC, UKC and ASCA shows (got: ${showOrg ?? 'null'})`
       );
     }
 

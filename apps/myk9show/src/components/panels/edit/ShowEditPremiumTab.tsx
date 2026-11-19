@@ -20,7 +20,7 @@ import type { ShowEditFormData } from './ShowEditPanel.types';
 interface ShowEditPremiumTabProps {
   data: ShowEditFormData;
   clubId: string;
-  showOrg: 'AKC' | 'UKC' | null;
+  showOrg: 'AKC' | 'UKC' | 'ASCA' | null;
   /** The organization saved on the show; the generator reads it, not the unsaved form value. */
   savedOrganization?: string | undefined;
   isActive: boolean;
@@ -181,7 +181,7 @@ function currencyToNumber(value: string): number {
 
 function buildLocalPremiumDraft(
   data: ShowEditFormData,
-  showOrg: 'AKC' | 'UKC' | null,
+  showOrg: 'AKC' | 'UKC' | 'ASCA' | null,
   publishedContent: ShowExperienceSnapshot | null
 ): GeneratedPremium | undefined {
   if (!showOrg || !publishedContent) return undefined;

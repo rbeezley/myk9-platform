@@ -21,7 +21,7 @@ const GENERATION_TIMEOUT_MS = 20_000;
 interface PremiumContentEditorProps {
   showId: string;
   clubId: string;
-  showOrg: 'AKC' | 'UKC' | null;
+  showOrg: 'AKC' | 'UKC' | 'ASCA' | null;
   style?: PremiumStyle;
   active?: boolean;
   initialPremium?: GeneratedPremium;
@@ -364,7 +364,7 @@ export function PremiumContentEditor({
           <Alert>
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              This show has no organization set. Set AKC or UKC before generating a premium.
+              This show has no organization set. Set AKC, UKC or ASCA before generating a premium.
             </AlertDescription>
           </Alert>
         )}

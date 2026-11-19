@@ -2,14 +2,18 @@ import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
 import { AKCPremiumTemplate } from '../pdf/AKCPremiumTemplate';
 import { UKCPremiumTemplate } from '../pdf/UKCPremiumTemplate';
+import { ASCAPremiumTemplate } from '../pdf/ASCAPremiumTemplate';
 import { STYLE_TOKENS } from '../pdf/pdfStyles';
 import type { GeneratedPremium, PremiumStyle } from '../../../types/premium-types';
-import { AKC_PREMIUM_SCOUTING_STATEMENT } from '@/features/registries';
+import {
+  AKC_PREMIUM_SCOUTING_STATEMENT,
+  ASCA_PREMIUM_REQUIRED_STATEMENT,
+} from '@/features/registries';
 
-type Org = 'AKC' | 'UKC';
+type Org = 'AKC' | 'UKC' | 'ASCA';
 
 const ALL_STYLES = Object.keys(STYLE_TOKENS) as PremiumStyle[];
-const ORGS: Org[] = ['AKC', 'UKC'];
+const ORGS: Org[] = ['AKC', 'UKC', 'ASCA'];
 const INK_SAVER_STATES: boolean[] = [true, false];
 
 function makePremium(org: Org, style: PremiumStyle): GeneratedPremium {
@@ -64,9 +68,10 @@ function makePremium(org: Org, style: PremiumStyle): GeneratedPremium {
 }
 
 function renderTemplate(org: Org, premium: GeneratedPremium, inkSaver: boolean) {
-  return org === 'AKC'
-    ? render(<AKCPremiumTemplate premium={premium} inkSaver={inkSaver} />)
-    : render(<UKCPremiumTemplate premium={premium} inkSaver={inkSaver} />);
+  const Template = { AKC: AKCPremiumTemplate, UKC: UKCPremiumTemplate, ASCA: ASCAPremiumTemplate }[
+    org
+  ];
+  return render(<Template premium={premium} inkSaver={inkSaver} />);
 }
 
 // 3-deep parametrization: every (style × org × inkSaver) combination must
@@ -76,7 +81,7 @@ const matrix = ALL_STYLES.flatMap(style =>
   ORGS.flatMap(org => INK_SAVER_STATES.map(inkSaver => [style, org, inkSaver] as const))
 );
 
-describe('All-styles render matrix (8 styles × 2 orgs × 2 ink-saver states)', () => {
+describe('All-styles render matrix (8 styles × 3 orgs × 2 ink-saver states)', () => {
   it.each(matrix)(
     'renders style=%s org=%s inkSaver=%s without throwing',
     (style, org, inkSaver) => {
@@ -95,9 +100,14 @@ describe('All-styles render matrix (8 styles × 2 orgs × 2 ink-saver states)', 
       // typographic effect, so strip whitespace before asserting.
       expect(doc.textContent?.replace(/\s+/g, '')).toContain('SpringScentTrial');
       // MYK9-2043: the AKC scouting statement prints on AKC premiums only.
+      const text = doc.textContent?.replace(/\s+/g, '');
       const scouting = AKC_PREMIUM_SCOUTING_STATEMENT.replace(/\s+/g, '');
-      if (org === 'AKC') expect(doc.textContent?.replace(/\s+/g, '')).toContain(scouting);
-      else expect(doc.textContent?.replace(/\s+/g, '')).not.toContain(scouting);
+      if (org === 'AKC') expect(text).toContain(scouting);
+      else expect(text).not.toContain(scouting);
+      // MYK9-2225: ASCA's §1.5 statements print on ASCA premiums only, in every style.
+      const ascaStatement = ASCA_PREMIUM_REQUIRED_STATEMENT.text.replace(/\s+/g, '');
+      if (org === 'ASCA') expect(text).toContain(ascaStatement);
+      else expect(text).not.toContain(ascaStatement);
     }
   );
 });

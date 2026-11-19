@@ -9,7 +9,7 @@ import { buildPremiumFacts } from '../../premiumFacts';
 
 interface Props {
   data: GeneratedPremium;
-  org: 'AKC' | 'UKC';
+  org: 'AKC' | 'UKC' | 'ASCA';
   inkSaver?: boolean;
 }
 

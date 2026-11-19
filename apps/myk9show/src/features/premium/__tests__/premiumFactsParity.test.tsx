@@ -8,6 +8,7 @@ import { render } from '@testing-library/react';
 import { fromAny } from '@total-typescript/shoehorn';
 import { AKCPremiumTemplate } from '../pdf/AKCPremiumTemplate';
 import { UKCPremiumTemplate } from '../pdf/UKCPremiumTemplate';
+import { ASCAPremiumTemplate } from '../pdf/ASCAPremiumTemplate';
 import { STYLE_TOKENS } from '../pdf/pdfStyles';
 import type { GeneratedPremium, PremiumStyle } from '@/types/premium-types';
 import { STYLED_LANDING_BY_STYLE } from '@/features/_shared/styledLandingRegistry';
@@ -15,14 +16,17 @@ import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { render as renderWithProviders } from '@/test/utils/testUtils';
 import { SERVICE_FEE_SENTENCE } from '@/features/payments/withdrawalPolicyText';
-import { AKC_PREMIUM_SCOUTING_STATEMENT } from '@/features/registries';
+import {
+  AKC_PREMIUM_SCOUTING_STATEMENT,
+  ASCA_PREMIUM_REQUIRED_STATEMENT,
+} from '@/features/registries';
 
 vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
   useEntriesByShowQuery: () => ({ data: [] }),
 }));
 
 const ALL_STYLES = Object.keys(STYLE_TOKENS) as PremiumStyle[];
-type Org = 'AKC' | 'UKC';
+type Org = 'AKC' | 'UKC' | 'ASCA';
 
 const CLUB_POLICY_TEXT =
   "Full refund until May 15.\nAfter May 15 the club keeps $5.\n\nPulls are at the club's discretion.";
@@ -146,13 +150,10 @@ function sparsePremium(org: Org, style: PremiumStyle): GeneratedPremium {
 
 /** Every text node, one per line, so a snapshot diff names the exact fact that moved. */
 function pdfText(org: Org, premium: GeneratedPremium, inkSaver = false): string {
-  const result = render(
-    org === 'AKC' ? (
-      <AKCPremiumTemplate premium={premium} inkSaver={inkSaver} />
-    ) : (
-      <UKCPremiumTemplate premium={premium} inkSaver={inkSaver} />
-    )
-  );
+  const Template = { AKC: AKCPremiumTemplate, UKC: UKCPremiumTemplate, ASCA: ASCAPremiumTemplate }[
+    org
+  ];
+  const result = render(<Template premium={premium} inkSaver={inkSaver} />);
   const pages = result.getAllByTestId('pdf-page');
   const lines = pages.map((page, i) => {
     const spans = Array.from(page.querySelectorAll('span')).filter(
@@ -249,6 +250,40 @@ describe("premium PDF prints the registry's scouting statement (MYK9-2043)", () 
     expect(text).not.toContain('Scouting the Trial Location');
     expect(text).not.toMatch(/scout the trial location/);
   });
+});
+
+describe("premium PDF prints ASCA's required statements (MYK9-2225)", () => {
+  it.each(ALL_STYLES)('%s prints the §1.5 statements in the rulebook’s words', style => {
+    const text = pdfText('ASCA', fullPremium('ASCA', style));
+    expect(text).toContain(ASCA_PREMIUM_REQUIRED_STATEMENT.label);
+    expect(text).toContain(
+      'This trial will be held under the current rules and regulations of ASCA.'
+    );
+    expect(text).toContain(
+      'No entry shall be accepted from a dog or handler disqualified from the ASCA programs or a person not in good standing with ASCA.'
+    );
+    expect(text).toContain('QTracker number');
+    expect(text).not.toMatch(/https?:\/\//);
+  });
+
+  it.each(ALL_STYLES)('%s prints them on an ASCA show with nothing else filled in', style => {
+    expect(pdfText('ASCA', sparsePremium('ASCA', style))).toContain(
+      ASCA_PREMIUM_REQUIRED_STATEMENT.text
+    );
+  });
+
+  it.each(ALL_STYLES)(
+    '%s prints neither ASCA wording nor scouting on UKC, nor ASCA on AKC',
+    style => {
+      expect(pdfText('UKC', fullPremium('UKC', style))).not.toContain('ASCA');
+      expect(pdfText('AKC', fullPremium('AKC', style))).not.toContain(
+        ASCA_PREMIUM_REQUIRED_STATEMENT.label
+      );
+      expect(pdfText('ASCA', fullPremium('ASCA', style))).not.toContain(
+        'Scouting the Trial Location'
+      );
+    }
+  );
 });
 
 describe("premium PDF prints the club's officers (MYK9-2045)", () => {

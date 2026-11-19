@@ -87,7 +87,7 @@ export interface PremiumWithdrawalRow {
 }
 
 export interface GeneratedPremium {
-  org: 'AKC' | 'UKC';
+  org: 'AKC' | 'UKC' | 'ASCA';
   style: PremiumStyle;
   templateId: string | null;
   show: {
@@ -169,7 +169,7 @@ export interface PremiumGeneration {
   showId: string;
   clubId: string;
   templateId: string | null;
-  org: 'AKC' | 'UKC';
+  org: 'AKC' | 'UKC' | 'ASCA';
   generatedAt: string;
   fieldOverrides: Record<string, PremiumFieldOverride>;
   narrativeEdits: Record<string, PremiumNarrativeEdit>;

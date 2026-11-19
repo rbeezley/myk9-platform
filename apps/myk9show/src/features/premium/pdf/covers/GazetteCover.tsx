@@ -10,6 +10,7 @@ import {
 import { makeClassComparator, compareLevelsByProgression } from '../bodies/classOrder';
 import { PdfFooter } from '../PdfFooter';
 import type { RegistryId } from '@/features/registries';
+import { premiumOrgOf } from '../../premiumOrg';
 
 // ─── Layout constants ────────────────────────────────────────────────────────
 // Hoisted from inline literals so a designer can tune the masthead in one
@@ -36,10 +37,10 @@ export function renderGazetteCover(ctx: CoverContext) {
   // it on AKC mastheads only so the gazette label has parity with sanction
   // expectations without inventing a new field.
   const akcLicenseNumber = org === 'AKC' ? (facts.trials[0]?.eventNumber ?? null) : null;
-  // CoverContext.org is a loose `string` (not the narrower GeneratedPremium.org union), and
-  // premium generation isn't offered for non-AKC/UKC shows (generate-premium's CHECK-constraint
-  // gate) — fall back to AKC rather than let an unrecognized id throw mid-render.
-  const registryId: RegistryId = org === 'UKC' ? 'UKC' : 'AKC';
+  // CoverContext.org is a loose `string` (not the narrower GeneratedPremium.org union). Premium
+  // generation is offered for AKC, UKC and ASCA (MYK9-2225); anything else falls back to AKC
+  // rather than let an unrecognized id throw mid-render. ASCA must keep its own level ladder.
+  const registryId: RegistryId = premiumOrgOf(org) ?? 'AKC';
   const classComparator = makeClassComparator(registryId);
 
   // Pull a city/state-ish fragment from the venue address. Newspaper

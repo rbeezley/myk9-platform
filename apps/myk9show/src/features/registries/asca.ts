@@ -97,6 +97,23 @@ const ascaScentDetection: RegistrySport = {
   elements: ASCA_ELEMENTS,
 };
 
+/**
+ * MYK9-2225: ASCA Scent Detection Rules §1.5 (docs/rulebooks/asca-scent-detection-rules.txt) lists
+ * four statements every premium must carry. Worded from the rule text, one sentence each: §1.5.3
+ * (current rules), §1.5.27 (no entry from a disqualified dog or handler), §1.5.28 (entry forms on
+ * the ASCA website) and §1.5.29 (QTracker number and Service Membership). The rulebook gives no web
+ * address, so none is printed: the app never invents one.
+ */
+export const ASCA_PREMIUM_REQUIRED_STATEMENT = {
+  label: 'ASCA Trial Requirements',
+  text: [
+    'This trial will be held under the current rules and regulations of ASCA.',
+    'No entry shall be accepted from a dog or handler disqualified from the ASCA programs or a person not in good standing with ASCA.',
+    'The appropriate entry forms are on the ASCA website.',
+    "Information about the QTracker number and the Service Membership Application is on the ASCA website. Dogs are not required to be registered with ASCA or have a QTracker number, but if you want your dog's titles to be tracked, the dog MUST have a QTracker number.",
+  ].join(' '),
+} as const;
+
 export const ascaRegistry: Registry = {
   id: 'ASCA',
   name: 'The Australian Shepherd Club of America',
@@ -107,6 +124,7 @@ export const ascaRegistry: Registry = {
   exhibitorAgreement: ASCA_EXHIBITOR_AGREEMENT,
   // MYK9-2043: the rulebook requires no scouting statement in the premium.
   premiumScoutingStatement: null,
+  premiumRequiredStatement: ASCA_PREMIUM_REQUIRED_STATEMENT,
   registrationField: {
     // Accepts LEP / QT (QTracker) / REGULAR ids.
     label: 'ASCA Registration # (LEP/QT/REGULAR)',

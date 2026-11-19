@@ -19,6 +19,12 @@ describe('premiumEntryLimitText (MYK9-2220)', () => {
     expect(premiumEntryLimitText(ukc(limit))).toBeNull();
   });
 
+  it('states the limit on an ASCA premium too (§1.5.12)', () => {
+    const premium = ukc(80);
+    premium.org = 'ASCA';
+    expect(premiumEntryLimitText(premium)).toBe('Total entry limit: 80 entries.');
+  });
+
   it('says nothing on AKC, even with a limit', () => {
     const premium = ukc(120);
     premium.org = 'AKC';

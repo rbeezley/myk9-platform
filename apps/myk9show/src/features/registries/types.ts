@@ -109,6 +109,12 @@ export interface Registry {
    * registry requires none. The club never types it.
    */
   premiumScoutingStatement: string | null;
+  /**
+   * MYK9-2225: fixed statements a registry's rules require in the premium list that are not the
+   * scouting statement (ASCA Scent Detection Rules §1.5.3, 1.5.27, 1.5.28, 1.5.29), as one
+   * labelled block in the rulebook's words, or `null` when the registry requires none.
+   */
+  premiumRequiredStatement: { label: string; text: string } | null;
   /** Registration-number input config. */
   registrationField: RegistryRegistrationField;
   /** Sport definitions keyed by sport id (e.g. 'scent-work'). */

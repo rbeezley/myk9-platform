@@ -88,6 +88,7 @@ export const ukcRegistry: Registry = {
   exhibitorAgreement: UKC_EXHIBITOR_AGREEMENT,
   // MYK9-2043: the rulebook requires no scouting statement in the premium.
   premiumScoutingStatement: null,
+  premiumRequiredStatement: null,
   registrationField: {
     // Accepts a permanent UKC registration number, or a PL/LP/TL number.
     label: 'UKC registration number',

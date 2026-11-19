@@ -128,8 +128,8 @@ function buildRows(data: GeneratedPremium): Row[] {
     rows.push({ label: 'Elements', value: elements.join(' · ') });
   }
 
-  // GeneratedPremium.org is 'AKC' | 'UKC' (premium generation isn't offered for other
-  // registries — see generate-premium's CHECK-constraint gate), both valid RegistryIds.
+  // GeneratedPremium.org is 'AKC' | 'UKC' | 'ASCA' (premium generation isn't offered for other
+  // registries — see generate-premium's org gate), all valid RegistryIds.
   const registryId = (data.org ?? 'AKC') as RegistryId;
   const levels = unique(
     trials.flatMap(t => (t.classes ?? []).map(c => c.level)).filter(Boolean)

@@ -27,6 +27,7 @@ import type { ShowEditFormData } from './ShowEditPanel.types';
 import { ShowEditBasicInfoTab } from './ShowEditBasicInfoTab';
 import { ShowEditFeesTab } from './ShowEditFeesTab';
 import { ShowEditPremiumTab } from './ShowEditPremiumTab';
+import { premiumOrgOf } from '@/features/premium/premiumOrg';
 import { ShowEditVenueTab } from './ShowEditVenueTab';
 import { ShowEditAddJudgeDialog } from './ShowEditAddJudge';
 import { useShowEditJudgeCreate } from './useShowEditJudgeCreate';
@@ -475,9 +476,7 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
         <ShowEditPremiumTab
           data={data}
           clubId={data.clubId}
-          showOrg={
-            data.organization === 'AKC' || data.organization === 'UKC' ? data.organization : null
-          }
+          showOrg={premiumOrgOf(data.organization)}
           savedOrganization={savedOrganization}
           isActive={activeTab === 'premium'}
           handleCheckboxChange={handleCheckboxChange}

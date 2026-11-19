@@ -83,6 +83,8 @@ describe('WaitListSection offered payment recovery', () => {
     });
 
     expect(screen.getByRole('status')).toHaveTextContent(WAITLIST_CARD_PAUSED_MESSAGE);
+    expect(screen.getByRole('button', { name: 'Complete payment' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Try payment again' })).not.toBeInTheDocument();
     expect(
       screen.queryByText('Your spot is still held. Please try payment again.')
     ).not.toBeInTheDocument();

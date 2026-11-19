@@ -16,7 +16,10 @@ import { getOrganizationFormTemplateUrl } from '@/features/organization-forms/or
  * does not get it.
  */
 export function premiumHasAkcEntryForm(premium: GeneratedPremium): boolean {
-  return premium.org === 'AKC' && premium.trials.some(trial => /scent\s*work/i.test(trial.type));
+  // Stored trial types vary in spelling: `scent_work` (most rows), "Scent Work", "Scent Work Nationals".
+  return (
+    premium.org === 'AKC' && premium.trials.some(trial => /scent[\s_-]*work/i.test(trial.type))
+  );
 }
 
 async function fetchAkcEntryFormTemplate(): Promise<Uint8Array> {

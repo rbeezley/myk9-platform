@@ -95,4 +95,11 @@ describe('premium PDF ends with the official AKC entry form (MYK9-2057)', () => 
     expect(premiumHasAkcEntryForm(makePremium('AKC', 'monogram', 'Fast CAT'))).toBe(false);
     expect(premiumHasAkcEntryForm(makePremium('AKC', 'monogram'))).toBe(true);
   });
+
+  it('reads the trial types as stored (most AKC trials are `scent_work`)', () => {
+    for (const type of ['scent_work', 'Scent Work', 'Scent Work Nationals', 'scent-work']) {
+      expect(premiumHasAkcEntryForm(makePremium('AKC', 'monogram', type))).toBe(true);
+    }
+    expect(premiumHasAkcEntryForm(makePremium('AKC', 'monogram', 'nosework'))).toBe(false);
+  });
 });

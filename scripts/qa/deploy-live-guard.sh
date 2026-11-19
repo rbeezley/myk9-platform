@@ -25,6 +25,9 @@
 #   LIVE_SHA_URLS     space-separated build-sha.txt URLs (default: both hosts)
 #   LIVE_READ_TRIES   attempts per URL before giving up (default 3)
 #   LIVE_READ_SLEEP   seconds between attempts (default 5)
+#   REBUILD_LIVE      "true" turns the no-op into action=deploy, so a changed
+#                     Vercel setting can be rebuilt into the live commit; the
+#                     rollback refusal is unchanged
 #
 # Needs curl and a checkout whose history contains the live commit(s).
 # Writes action=deploy|skip to $GITHUB_OUTPUT and a line to $GITHUB_STEP_SUMMARY
@@ -90,7 +93,10 @@ for url in $urls; do
   fi
 done
 
-if [[ $all_equal -eq 1 ]]; then
+if [[ $all_equal -eq 1 && "${REBUILD_LIVE:-}" == true ]]; then
+  action=deploy
+  echo "Rebuilding the live commit on request (rebuild_live): $(describe "$commit_sha")"
+elif [[ $all_equal -eq 1 ]]; then
   action=skip
   echo "Nothing to deploy: production already serves $(describe "$commit_sha")"
 else

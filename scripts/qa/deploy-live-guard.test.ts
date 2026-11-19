@@ -54,7 +54,8 @@ function makeRepo(): { repo: string; shas: string[] } {
 function run(
   repo: string,
   commitSha: string,
-  served: Record<string, string | null>
+  served: Record<string, string | null>,
+  extraEnv: Record<string, string> = {}
 ): { status: number | null; stdout: string; stderr: string; output: string; urls: string } {
   const bin = mkdtempSync(join(tmpdir(), 'curl-stub-'));
   dirs.push(bin);
@@ -91,6 +92,7 @@ function run(
       COMMIT_SHA: commitSha,
       LIVE_READ_TRIES: '2',
       LIVE_READ_SLEEP: '0',
+      ...extraEnv,
     },
   });
   return {
@@ -119,6 +121,39 @@ describe('deploy-live-guard.sh', () => {
     expect(r.status).toBe(0);
     expect(r.output).toBe('action=skip\n');
     expect(r.stdout).toContain(`Nothing to deploy: production already serves ${shas[2]}`);
+  });
+
+  it('rebuilds the live commit only when rebuild_live asks for it', () => {
+    const { repo, shas } = makeRepo();
+    const r = run(
+      repo,
+      shas[2]!,
+      { [DOMAIN]: shas[2]!, [ALIAS]: shas[2]! },
+      { REBUILD_LIVE: 'true' }
+    );
+    expect(r.status).toBe(0);
+    expect(r.output).toBe('action=deploy\n');
+    expect(r.stdout).toContain('Rebuilding the live commit on request');
+    const unset = run(
+      repo,
+      shas[2]!,
+      { [DOMAIN]: shas[2]!, [ALIAS]: shas[2]! },
+      { REBUILD_LIVE: 'false' }
+    );
+    expect(unset.output).toBe('action=skip\n');
+  });
+
+  it('still refuses a rollback when rebuild_live is set', () => {
+    const { repo, shas } = makeRepo();
+    const r = run(
+      repo,
+      shas[1]!,
+      { [DOMAIN]: shas[3]!, [ALIAS]: shas[3]! },
+      { REBUILD_LIVE: 'true' }
+    );
+    expect(r.status).toBe(1);
+    expect(r.output).toBe('');
+    expect(r.stderr).toContain('Refusing to roll production back');
   });
 
   it('deploys a pin ahead of what production serves', () => {

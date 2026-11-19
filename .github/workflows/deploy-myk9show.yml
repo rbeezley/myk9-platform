@@ -22,6 +22,11 @@ on:
         description: Full 40-character main commit SHA (blank = newest main commit with a green CI run)
         required: false
         type: string
+      rebuild_live:
+        description: Rebuild even when production already serves this commit (after a Vercel setting change). Never allows a rollback.
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -65,7 +70,33 @@ jobs:
         id: live
         env:
           COMMIT_SHA: ${{ steps.pick.outputs.commit_sha }}
+          REBUILD_LIVE: ${{ inputs.rebuild_live }}
         run: bash scripts/qa/deploy-live-guard.sh
+
+      # "Nothing to deploy" holds only when both hosts also serve the same
+      # bundle: a run whose verify step failed on an entry-chunk mismatch
+      # (MYK9-546) must not turn green when retried with the same commit.
+      - name: Confirm both hosts serve the same bundle
+        if: steps.live.outputs.action == 'skip'
+        run: |
+          set -euo pipefail
+          entry() {
+            local html
+            html="$(curl --fail --silent --show-error --location "$1")"
+            grep -oE 'src="/assets/[^"]*index-[A-Za-z0-9_-]+\.js"' <<<"$html" | sort -u || true
+          }
+          for attempt in 1 2 3; do
+            default_alias="$(entry "https://myk9-platform-myk9show.vercel.app/?v=$GITHUB_RUN_ID-$attempt")"
+            public="$(entry "https://myk9show.com/?v=$GITHUB_RUN_ID-$attempt")"
+            [[ -n "$public" && "$default_alias" == "$public" ]] && break
+            echo "attempt $attempt: default alias=$default_alias myk9show.com=$public"
+            if [[ $attempt -lt 3 ]]; then sleep 10; fi
+          done
+          [[ -n "$public" && "$default_alias" == "$public" ]] || {
+            echo "production already serves this commit, but the hosts serve different bundles (default alias=$default_alias myk9show.com=$public); rerun with rebuild_live=true" >&2
+            exit 1
+          }
+          echo "- Both hosts serve \`$public\`" >>"$GITHUB_STEP_SUMMARY"
 
       # MYK9-1527: refuse a frontend that would ship ahead of its schema. Checks
       # the exact commit picked above, so a migration merged after any local
@@ -151,6 +182,7 @@ jobs:
         id: live
         env:
           COMMIT_SHA: ${{ needs.preflight.outputs.commit_sha }}
+          REBUILD_LIVE: ${{ inputs.rebuild_live }}
         run: |
           set -euo pipefail
           if [[ "$(git rev-parse --is-shallow-repository)" == true ]]; then

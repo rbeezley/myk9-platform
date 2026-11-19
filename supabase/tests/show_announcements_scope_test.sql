@@ -54,6 +54,12 @@
 
 BEGIN;
 
+-- MYK9-2197: publishing also needs the premium list (or publishes_own_premium).
+-- This test is about its own gate, so every show here starts exempt from the
+-- premium line; the premium line is tested in myk9_2197_show_publish_blockers_test.sql.
+-- Rolled back with the rest of the transaction.
+ALTER TABLE public.shows ALTER COLUMN publishes_own_premium SET DEFAULT true;
+
 -- A schema-only isolated database has no seed data; a seeded one already has
 -- these rows and the ON CONFLICT makes the insert a no-op. Either way the
 -- lookups below resolve by NAME, never by the fixture id.

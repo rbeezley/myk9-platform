@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { PREMIUM_NOT_PUBLISHED_MESSAGE } from '@/features/payments/onlineEntryGate';
 import {
   formatClassJudgeRefusal,
   formatSyncFailureReason,
@@ -44,5 +45,25 @@ describe('class judge refusal (RS403)', () => {
     const other = detail('new row violates row-level security policy');
     expect(formatClassJudgeRefusal(other.mutations)).toBeUndefined();
     expect(formatSyncFailureToast(other)).toContain("You're not authorized to score this class");
+  });
+});
+
+describe('publish-gate refusal in the sync-failure toast (MYK9-2197)', () => {
+  it('says the unpublished-premium refusal instead of the generic line', () => {
+    const showUpdate: SyncFailedEventDetail = {
+      count: 1,
+      message: PREMIUM_NOT_PUBLISHED_MESSAGE,
+      mutations: [
+        {
+          id: 'm2',
+          tableName: 'shows',
+          operation: 'UPDATE',
+          error: `Non-retryable error: ${PREMIUM_NOT_PUBLISHED_MESSAGE}`,
+        },
+      ],
+    };
+    expect(formatSyncFailureToast(showUpdate)).toBe(
+      `We couldn't save this show change. ${PREMIUM_NOT_PUBLISHED_MESSAGE}`
+    );
   });
 });

@@ -13,9 +13,14 @@ const GENERATION_FAILURE_MESSAGE = "We couldn't generate the premium list. Pleas
  * facts, with the narratives built from them (MYK9-2055; no model call), except a narrative
  * already published, which is kept.
  */
-export async function fetchPremium(showId: string): Promise<GeneratedPremium> {
+export async function fetchPremium(
+  showId: string,
+  options: { rebuildNarratives?: boolean } = {}
+): Promise<GeneratedPremium> {
   const { data, error: fnError } = await supabase.functions.invoke('generate-premium', {
-    body: { show_id: showId },
+    body: options.rebuildNarratives
+      ? { show_id: showId, rebuild_narratives: true }
+      : { show_id: showId },
   });
   if (fnError) {
     console.error('[premium-generation] request failed', { showId, error: fnError });

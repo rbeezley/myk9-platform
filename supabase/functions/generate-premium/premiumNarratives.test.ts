@@ -80,6 +80,47 @@ describe('buildPremiumNarratives (MYK9-2055)', () => {
     );
   });
 
+  it("lists classes in the app's class order whatever order they arrive in", () => {
+    const classes = [
+      { id: '5', name: 'Interior', level: 'Master', element: 'Interior', section: null },
+      { id: '4', name: 'Special Class', level: null, element: null },
+      { id: '3', name: 'Containers', level: 'Excellent', element: 'Containers', section: 'B' },
+      { id: '2', name: 'Containers', level: 'Excellent', element: 'Containers', section: 'A' },
+      { id: '1', name: 'Containers', level: 'Novice', element: 'Containers', section: null },
+    ];
+    const build = (rows: typeof classes) =>
+      buildPremiumNarratives({
+        name: 'S',
+        trials: [{ id: 't', name: 'T', date: '2027-03-03', registry_id: 'AKC', classes: rows }],
+      }).trialInformation;
+    const expected =
+      'One trial is offered. T (March 3, 2027). ' +
+      'Classes: Novice Containers, Excellent Containers, Excellent Containers, Master Interior, Special Class.';
+    expect(build(classes)).toBe(expected);
+    expect(build([...classes].reverse())).toBe(expected);
+    expect(build([classes[2], classes[4], classes[0], classes[3], classes[1]])).toBe(expected);
+  });
+
+  it('prints the trial type as a readable label', () => {
+    const type = (trial_type: string) =>
+      buildPremiumNarratives({ name: 'S', trials: [{ id: 't', name: 'T', trial_type }] })
+        .trialInformation;
+    expect(type('scent_work')).toContain('T: Scent Work.');
+    expect(type('OBEDIENCE_RALLY')).toContain('T: Obedience & Rally.');
+    expect(type('fastcat')).toContain('T: FastCAT.');
+    expect(type('akc_nosework')).toContain('T: AKC Nosework.');
+  });
+
+  it('reads a show with only a start date, or only an end date, as one date', () => {
+    const trials = [{ id: 't', name: 'T', date: '2027-03-03', planned_start_time: '9:00 AM' }];
+    expect(buildPremiumNarratives({ name: 'S', start_date: '2027-03-03', trials }).showHours).toBe(
+      'S takes place on March 3, 2027. T (March 3, 2027) starts at 9:00 AM.'
+    );
+    expect(buildPremiumNarratives({ name: 'S', end_date: '2027-03-03', trials }).showHours).toBe(
+      'S takes place on March 3, 2027. T (March 3, 2027) starts at 9:00 AM.'
+    );
+  });
+
   it('never prints a cancelled trial or its classes', () => {
     const text = JSON.stringify(buildPremiumNarratives(show));
     expect(text).not.toContain('Cancelled Trial');
@@ -132,5 +173,15 @@ describe('resolvePremiumNarratives', () => {
 
   it('uses the built text when nothing was published', () => {
     expect(resolvePremiumNarratives({ showHours: '', trialInformation: '' }, built)).toEqual(built);
+  });
+
+  it('returns the built text, ignoring a published one, when asked to rebuild', () => {
+    expect(
+      resolvePremiumNarratives(
+        { showHours: 'Old hours.', trialInformation: 'Old info.' },
+        built,
+        true
+      )
+    ).toEqual(built);
   });
 });

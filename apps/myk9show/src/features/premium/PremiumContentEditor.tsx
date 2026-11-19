@@ -14,10 +14,9 @@ import { useUpdatePremiumTemplate } from '../../hooks/queries/usePremiumTemplate
 import { uploadShowCover } from '../../services/imageUploadService';
 import { computePremiumDiff } from './logPremiumGeneration';
 import { fileToDataUrl, resolvePdfCoverImageSrc } from './coverImageDataUrl';
+import { withGenerationTimeout } from './withGenerationTimeout';
 import { stripPlaceholderNarratives } from './premiumNarratives';
 import type { GeneratedPremium, PremiumStyle } from '../../types/premium-types';
-
-const GENERATION_TIMEOUT_MS = 20_000;
 
 interface PremiumContentEditorProps {
   showId: string;
@@ -39,27 +38,6 @@ interface PremiumContentEditorProps {
 
 // Loaded on demand: the PDF buttons (and the templates) pull in @react-pdf/renderer.
 const PremiumPdfDownloadLink = lazy(() => import('./PremiumPdfDownloadLink'));
-
-function withGenerationTimeout<T>(promise: Promise<T>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const timeout = window.setTimeout(() => {
-      reject(
-        new Error('We could not finish generating this content. Please try again in a moment.')
-      );
-    }, GENERATION_TIMEOUT_MS);
-
-    promise.then(
-      value => {
-        window.clearTimeout(timeout);
-        resolve(value);
-      },
-      err => {
-        window.clearTimeout(timeout);
-        reject(err);
-      }
-    );
-  });
-}
 
 export function PremiumContentEditor({
   showId,
@@ -411,6 +389,7 @@ export function PremiumContentEditor({
             )}
 
             <PremiumEditorFields
+              showId={showId}
               supplemental={supplemental}
               narratives={narratives}
               setSupplemental={setSupplemental}

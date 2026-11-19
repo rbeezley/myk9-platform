@@ -32,6 +32,8 @@ import { resolvePremiumStyle, SHOW_STYLE_COLUMN } from './premiumStyle.ts';
 
 interface GeneratePremiumPayload {
   show_id?: string;
+  /** Answer with the text built from the show's facts, ignoring any published narrative. */
+  rebuild_narratives?: boolean;
 }
 
 handle<GeneratePremiumPayload>(
@@ -165,7 +167,8 @@ handle<GeneratePremiumPayload>(
     // section a secretary already published keeps its text, edits included.
     const narratives = resolvePremiumNarratives(
       publishedNarratives(show.experience_published_content),
-      buildPremiumNarratives(show)
+      buildPremiumNarratives(show),
+      body.rebuild_narratives === true
     );
 
     // Step 10: Assemble and return GeneratedPremium. The schedule prints live trials only

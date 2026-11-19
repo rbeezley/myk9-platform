@@ -47,7 +47,7 @@ test('canonical queue positions and state-only controls agree across roles (MYK9
     {
       name: 'in-ring',
       fields: { ...waiting, run_order: 101, check_in_status: 'in-ring', is_in_ring: true },
-      exhibitor: /in ring/i,
+      exhibitor: /in (the )?ring/i, // MYK9-2223: "In the ring" since MYK9-2093
     },
     {
       name: 'pulled',
@@ -97,7 +97,7 @@ test('canonical queue positions and state-only controls agree across roles (MYK9
             status === 'checked-in'
               ? /checked[- ]in/i
               : status === 'in-ring'
-                ? /in ring/i
+                ? /in (the )?ring/i
                 : new RegExp(status, 'i');
           // Show Desk's check-in and run-status cells; a scored dog reads Scored there.
           await expect(secRow).toContainText(

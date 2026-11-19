@@ -28,7 +28,7 @@ import { formatLongDate } from '@/lib/format/dates';
 import type { GeneratedPremium, PremiumSupplemental } from '@/types/premium-types';
 import { makeClassComparator } from './pdf/bodies/classOrder';
 import { premiumRecordingFeeText } from './premiumRecordingFeeStatement';
-import { premiumEntryLimitText } from './premiumEntryLimit';
+import { premiumEntryLimitText, premiumTrialEntryLimitText } from './premiumEntryLimit';
 
 // ─── Catalog: what each fact is, where it comes from, who requires it ───────────────────
 
@@ -333,6 +333,8 @@ export interface PremiumTrialFacts {
   judges: Array<{ name: string; residence: string | null; classes: string[] }>;
   /** "Element Level Section" in the registry's progression order. */
   classLabels: string[];
+  /** MYK9-2229: "Trial entry limit: N entries." when this trial has its own limit, else null. */
+  entryLimit: string | null;
 }
 
 export interface PremiumFacts {
@@ -473,6 +475,7 @@ export function buildPremiumFacts(
           classes: [...new Set(classLabels.filter(label => (j.classes ?? []).includes(label)))],
         })),
         classLabels,
+        entryLimit: premiumTrialEntryLimitText(trial),
       };
     }),
     vetClinic: supplemental.vetClinic

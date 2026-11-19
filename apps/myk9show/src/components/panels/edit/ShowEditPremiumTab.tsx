@@ -228,6 +228,7 @@ function buildLocalPremiumDraft(
       startTime: null,
       eventNumber: trial.trialNumber,
       type: trial.trialType ?? '',
+      maxTotalEntries: normalizeEntryLimit(trial.maxTotalEntries),
       judges: (data.assignedJudges ?? []).map(judge => ({
         name: judge.judgeName,
         residence: judge.residence ?? null,

@@ -54,7 +54,13 @@ export function GazetteBody({ data, tokens }: Props) {
     chair || hasSecretary || f.officers.length > 0 || f.committee.length > 0
   );
   const hasJudges = trials.some(t => t.judges.length > 0);
-  const hasClasses = trials.some(t => t.classLabels.length > 0);
+  // MYK9-2229: list trials (date, limit) even before classes are assigned; class labels stay conditional.
+  const hasTrials = trials.length > 0;
+  // An editor-cleared clinic keeps an object of empty strings, so check for a real field.
+  const vetClinic =
+    f.vetClinic && [f.vetClinic.name, f.vetClinic.address, f.vetClinic.phone].some(v => v?.trim())
+      ? f.vetClinic
+      : null;
   const hasFees = f.fees.hasAny;
   // MYK9-2065: an official's contact is never an entry method; the entry section is online only.
   // MYK9-2204: every show takes online entries, so the section prints even with no dates set.
@@ -122,7 +128,7 @@ export function GazetteBody({ data, tokens }: Props) {
           </View>
         )}
 
-        {hasClasses && (
+        {hasTrials && (
           <View style={sectionStyle} wrap={false}>
             <View style={headerWrapStyle}>
               <Text style={headerTextStyle}>Classes</Text>
@@ -136,11 +142,12 @@ export function GazetteBody({ data, tokens }: Props) {
                     color: tokens.secondaryColor,
                   }}
                 >
-                  {trial.name}
+                  {trial.date ? `${trial.name} · ${trial.date}` : trial.name}
                 </Text>
                 {trial.classLabels.length > 0 && (
                   <Text style={denseStyle}>{trial.classLabels.join(' · ')}</Text>
                 )}
+                {trial.entryLimit && <Text style={denseStyle}>{trial.entryLimit}</Text>}
               </View>
             ))}
           </View>
@@ -179,6 +186,17 @@ export function GazetteBody({ data, tokens }: Props) {
                 {a.phone && <Text style={denseStyle}>{a.phone}</Text>}
               </View>
             ))}
+          </View>
+        )}
+
+        {vetClinic && (
+          <View style={sectionStyle} wrap={false}>
+            <View style={headerWrapStyle}>
+              <Text style={headerTextStyle}>Emergency Vet</Text>
+            </View>
+            <Text style={{ ...denseStyle, fontWeight: 700 }}>{vetClinic.name}</Text>
+            {vetClinic.address && <Text style={denseStyle}>{vetClinic.address}</Text>}
+            {vetClinic.phone && <Text style={denseStyle}>{vetClinic.phone}</Text>}
           </View>
         )}
 

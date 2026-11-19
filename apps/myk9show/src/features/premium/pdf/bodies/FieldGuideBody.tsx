@@ -188,6 +188,7 @@ export function FieldGuideBody({ data, tokens }: Props) {
               {trial.classLabels.length > 0 && (
                 <Text style={bodyStyle}>{trial.classLabels.join(' · ')}</Text>
               )}
+              {trial.entryLimit && <Text style={bodyStyle}>{trial.entryLimit}</Text>}
             </View>
           ))}
         </View>

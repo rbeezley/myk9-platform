@@ -51,7 +51,7 @@ AS $fn$
       AND COALESCE(en.refund_amount, 0) = 0
       AND COALESCE(en.card_covered_cents, 0) = 0
       AND en.refunded_at IS NULL
-      AND en.payment_method IS NULL
+      AND (en.payment_method IS NULL OR en.payment_method = 'online')  -- the column default
       AND en.check_number IS NULL
       AND en.payment_reference IS NULL
       AND en.payment_date IS NULL

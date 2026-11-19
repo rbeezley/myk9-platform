@@ -268,6 +268,7 @@ Never report the PR as ready, arm auto-merge, or merge while a review is running
 #      0 green · 1 REQUIRED check failed · 2 head moved
 #      3 timeout (NOT a verdict) · 5 required green, non-required failed
 #      6 PR conflicts with its base (no runs will register): merge the base in
+HEAD_SHA=$(gh pr view $PR_NUMBER --json headRefOid -q .headRefOid)
 bash scripts/qa/watch-pr-checks.sh $PR_NUMBER
 
 # 2. Switch to main repo BEFORE merging
@@ -304,11 +305,21 @@ this an identical Vercel failure blocks shipping when it lands early and is igno
 lands late, purely on timing.
 
 ```bash
-gh pr merge $PR_NUMBER --squash
-gh pr view $PR_NUMBER --json state,mergedAt
+# HEAD_SHA is the SHA the watcher pinned; a push since then is refused, not merged.
+gh pr merge $PR_NUMBER --squash --match-head-commit "$HEAD_SHA"
+# 0 merged (prints the merge commit) · 1 left the queue unmerged · 3 timeout, NOT a verdict
+bash scripts/qa/wait-pr-merged.sh $PR_NUMBER
 ```
 
-Do not proceed until `state == "MERGED"`.
+Do not proceed until `wait-pr-merged.sh` exits 0. While `main` requires a merge queue
+(MYK9-2239, [`docs/plan-merge-queue.md`](../../../docs/plan-merge-queue.md)), `gh pr merge`
+does not merge: it **joins the queue**, which tests the PR on top of current `main` and merges it
+minutes later (`gh` ignores `--squash`; the queue's own method is squash). Before the queue is
+on, the same command merges at once and the wait script returns on its first read, so this
+block is correct either way. Exit 1 means the queue dropped the PR: read its timeline (a
+failed queue run is a red check on `main`'s newest state, so merge `origin/main` in and go
+back to Step 3, like any other red). Exit 3: run the wait script again; never re-run
+`gh pr merge` on a PR that may still be queued.
 
 **Path B — the watcher exited 3 (timeout — NOT a verdict):** after Step 4 has passed,
 auto-merge may be armed, but only when the user explicitly authorized merging or shipping

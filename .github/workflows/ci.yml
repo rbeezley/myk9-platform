@@ -14,6 +14,13 @@ on:
   # blocks the merge indefinitely. Turbo cache hits keep docs-only test runs fast.
   push:
     branches: [main]
+  # The merge queue (MYK9-2239, docs/plan-merge-queue.md) tests a PR squashed
+  # on top of the current `main` before it lands. The required checks must
+  # report on that queue commit, or the queue times every PR out. The `main`
+  # push run that follows skips its jobs when this run already passed on the
+  # same SHA (the `queue-verdict` job below).
+  merge_group:
+    types: [checks_requested]
 
 # PR runs are superseded by the next push (one group per ref, cancel on push).
 # A `main` run is never cancelled OR replaced: merges land minutes apart and
@@ -22,16 +29,52 @@ on:
 # only ONE queued run per group, so `cancel-in-progress: false` alone would
 # still let a third merge replace the second's pending run (Codex review of
 # #2110). Keying main's group by SHA gives every main commit its own run.
-# scripts/qa/ci-concurrency.test.ts pins both halves.
+# A merge-queue run gets the same treatment: cancelling it would leave the
+# queued PR without a verdict. The event name is in the key so the queue run
+# and the later `main` push run for the same SHA never share a group (the push
+# run's `queue-verdict` job waits on the queue run; a shared group would
+# deadlock that wait behind it).
+# scripts/qa/ci-concurrency.test.ts pins all three cases.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  group: ${{ github.workflow }}-${{ (github.ref == 'refs/heads/main' || github.event_name == 'merge_group') && format('{0}-{1}', github.event_name, github.sha) || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.event_name != 'merge_group' }}
 
 env:
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   TURBO_TEAM: ${{ vars.TURBO_TEAM }}
 
 jobs:
+  # Runs only on `main` pushes. When the merge queue already ran this workflow
+  # green on exactly this SHA, it outputs `tested=true` and every other job
+  # skips, so a queued PR is not tested twice (MYK9-2239). Anything else (a
+  # direct push, a failed or missing queue run, a GitHub query that fails)
+  # outputs `tested=false` and the full suite runs: see
+  # scripts/qa/ci-queue-verdict.sh. On PR and merge-queue runs it is skipped,
+  # and the other jobs' `!failure() && !cancelled()` lets them run anyway; a
+  # bare `needs:` on a skipped job would skip them too.
+  queue-verdict:
+    name: Queue verdict
+    runs-on: ubuntu-latest
+    # The script waits up to 30 minutes for an in-progress queue run.
+    timeout-minutes: 35
+    if: github.event_name == 'push'
+    outputs:
+      tested: ${{ steps.verdict.outputs.tested }}
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/qa/ci-queue-verdict.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Did the merge queue already test this commit?
+        id: verdict
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+        run: bash scripts/qa/ci-queue-verdict.sh
+
   # Browser smoke tests are valuable for runtime/UI changes, but too expensive
   # for docs/tooling-only PRs. This job keeps required CI checks present while
   # letting E2E/a11y smoke run only when relevant paths changed. Add the
@@ -42,7 +85,8 @@ jobs:
     name: Smoke scope
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    if: github.event_name == 'push' || github.event.pull_request.draft == false
+    needs: [queue-verdict]
+    if: ${{ !failure() && !cancelled() && needs.queue-verdict.outputs.tested != 'true' && (github.event_name == 'push' || github.event_name == 'merge_group' || github.event.pull_request.draft == false) }}
     outputs:
       run: ${{ steps.scope.outputs.run }}
       reason: ${{ steps.scope.outputs.reason }}
@@ -57,7 +101,7 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           BASE_REF: ${{ github.base_ref }}
-          PUSH_BEFORE_SHA: ${{ github.event.before }}
+          PUSH_BEFORE_SHA: ${{ github.event.before || github.event.merge_group.base_sha }}
           PR_LABELS: ${{ github.event_name == 'pull_request' && join(github.event.pull_request.labels.*.name, ',') || '' }}
         run: |
           set -euo pipefail
@@ -123,8 +167,10 @@ jobs:
     timeout-minutes: 15
     # On push events `github.event.pull_request` is null, and `null.draft == false`
     # evaluates to false in GHA expressions — which would silently skip CI on main.
-    # Allow push runs through unconditionally; gate only PRs on non-draft.
-    if: github.event_name == 'push' || github.event.pull_request.draft == false
+    # Push and merge-queue runs pass (unless Queue verdict says the queue already
+    # tested this SHA); only PRs are gated on non-draft.
+    needs: [queue-verdict]
+    if: ${{ !failure() && !cancelled() && needs.queue-verdict.outputs.tested != 'true' && (github.event_name == 'push' || github.event_name == 'merge_group' || github.event.pull_request.draft == false) }}
 
     steps:
       - uses: actions/checkout@v7
@@ -173,7 +219,7 @@ jobs:
       - name: Detect backup integration changes
         id: backup-scope
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before || github.event.merge_group.base_sha }}
         run: |
           if [[ -n "$BASE_SHA" ]] && git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null && git diff --quiet "$BASE_SHA" HEAD -- scripts/backup .github/actions/setup-backup-clients; then
             echo 'native=false' >> "$GITHUB_OUTPUT"
@@ -239,7 +285,7 @@ jobs:
           # `origin/main` IS `HEAD` and a merge-base diff is empty — without
           # this the guard scanned zero files and passed on every
           # direct-to-main commit, which is the path it most needs to watch.
-          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
+          GITHUB_EVENT_BEFORE: ${{ github.event.before || github.event.merge_group.base_sha }}
         run: |
           pnpm qa:bulk-pii:test
           pnpm qa:bulk-pii
@@ -279,6 +325,7 @@ jobs:
           pnpm qa:no-ci-polling:test
           pnpm qa:prelaunch-tripwire:test
           pnpm qa:ci-concurrency:test
+          pnpm qa:merge-queue:test
           pnpm qa:deploy-picker:test
           pnpm qa:shared-rules:test
           pnpm qa:shared-rules
@@ -359,9 +406,9 @@ jobs:
         run: pnpm qa:golden-replay:test
 
       - name: Migration version guard
-        if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+        if: github.event_name == 'push' || github.event_name == 'merge_group' || github.event.pull_request.head.repo.full_name == github.repository
         env:
-          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
+          GITHUB_EVENT_BEFORE: ${{ github.event.before || github.event.merge_group.base_sha }}
           MYK9_MIGRATION_DATABASE_URL: postgresql://postgres.sojmvhhwsjxmfistvzbe@aws-1-us-east-2.pooler.supabase.com:5432/postgres
           PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
@@ -383,7 +430,8 @@ jobs:
     name: Supabase types drift (report-only)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    needs: [queue-verdict]
+    if: ${{ !failure() && !cancelled() && needs.queue-verdict.outputs.tested != 'true' && (github.event_name == 'push' || github.event_name == 'merge_group' || github.event.pull_request.head.repo.full_name == github.repository) }}
 
     steps:
       - uses: actions/checkout@v7
@@ -418,7 +466,8 @@ jobs:
     name: SQL tests
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    if: github.event_name == 'push' || github.event.pull_request.draft == false
+    needs: [queue-verdict]
+    if: ${{ !failure() && !cancelled() && needs.queue-verdict.outputs.tested != 'true' && (github.event_name == 'push' || github.event_name == 'merge_group' || github.event.pull_request.draft == false) }}
 
     steps:
       - uses: actions/checkout@v7
@@ -470,7 +519,8 @@ jobs:
     name: Test packages
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    if: github.event_name == 'push' || github.event.pull_request.draft == false
+    needs: [queue-verdict]
+    if: ${{ !failure() && !cancelled() && needs.queue-verdict.outputs.tested != 'true' && (github.event_name == 'push' || github.event_name == 'merge_group' || github.event.pull_request.draft == false) }}
 
     steps:
       - uses: actions/checkout@v7
@@ -528,7 +578,8 @@ jobs:
     # Coverage-enabled shards can exceed the normal test budget on a cold
     # runner. Keep the job alive long enough to report the actual test result.
     timeout-minutes: 30
-    if: github.event_name == 'push' || github.event.pull_request.draft == false
+    needs: [queue-verdict]
+    if: ${{ !failure() && !cancelled() && needs.queue-verdict.outputs.tested != 'true' && (github.event_name == 'push' || github.event_name == 'merge_group' || github.event.pull_request.draft == false) }}
     strategy:
       matrix:
         shard: [1, 2, 3, 4, 5, 6]
@@ -581,8 +632,8 @@ jobs:
     name: Test myK9Show (coverage gate)
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [test-show]
-    if: always() && (github.event_name == 'push' || github.event.pull_request.draft == false) && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
+    needs: [queue-verdict, test-show]
+    if: always() && needs.queue-verdict.outputs.tested != 'true' && (github.event_name == 'push' || github.event_name == 'merge_group' || github.event.pull_request.draft == false) && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
 
     steps:
       - uses: actions/checkout@v7
@@ -625,8 +676,8 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
-    needs: [test-packages, test-show, test-show-coverage-gate, sql-tests]
-    if: always() && (github.event_name == 'push' || github.event.pull_request.draft == false)
+    needs: [queue-verdict, test-packages, test-show, test-show-coverage-gate, sql-tests]
+    if: always() && needs.queue-verdict.outputs.tested != 'true' && (github.event_name == 'push' || github.event_name == 'merge_group' || github.event.pull_request.draft == false)
 
     steps:
       - name: All tests passed
@@ -643,7 +694,8 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: github.event_name == 'push' || github.event.pull_request.draft == false
+    needs: [queue-verdict]
+    if: ${{ !failure() && !cancelled() && needs.queue-verdict.outputs.tested != 'true' && (github.event_name == 'push' || github.event_name == 'merge_group' || github.event.pull_request.draft == false) }}
 
     steps:
       - uses: actions/checkout@v7
@@ -714,7 +766,7 @@ jobs:
     needs: [build, smoke-scope]
     # Runs on Dependabot PRs too, with the Dependabot-scope secrets (MYK9-520):
     # see the comment above.
-    if: (github.event_name == 'push' || github.event.pull_request.draft == false) && vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true' && needs.smoke-scope.outputs.run == 'true'
+    if: (github.event_name == 'push' || github.event_name == 'merge_group' || github.event.pull_request.draft == false) && vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true' && needs.smoke-scope.outputs.run == 'true'
 
     steps:
       - uses: actions/checkout@v7
@@ -847,7 +899,7 @@ jobs:
     needs: [build, smoke-scope]
     # Runs on Dependabot PRs too, with the Dependabot-scope secrets (MYK9-520):
     # see the comment above the a11y job.
-    if: (github.event_name == 'push' || github.event.pull_request.draft == false) && vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true' && needs.smoke-scope.outputs.run == 'true'
+    if: (github.event_name == 'push' || github.event_name == 'merge_group' || github.event.pull_request.draft == false) && vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true' && needs.smoke-scope.outputs.run == 'true'
 
     steps:
       - uses: actions/checkout@v7

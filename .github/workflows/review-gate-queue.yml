@@ -1,0 +1,67 @@
+# Review gate, merge-queue half (MYK9-2239, docs/plan-merge-queue.md).
+#
+# `Review gate` is a required commit status, posted by review-gate.yml on the
+# PR HEAD SHA. A merge queue tests a different commit (the PR squashed on top
+# of `main` and anything queued ahead), and the required checks must report on
+# THAT commit, or the queue times every PR out. This workflow copies the PR
+# head's `Review gate` verdict onto the queue commit; it never evaluates review
+# evidence itself (scripts/qa/review-gate.ts stays the only evaluator).
+#
+# It lives in its own file because review-gate.yml's tests parse that file as
+# one job. Like review-gate.yml, it runs no PR-controlled code: the checkout is
+# the queue's BASE commit (the `main` the PR is queued onto), not the queue
+# commit. A PR can only join the queue once its own head already carries a
+# green `Review gate`, so mirroring cannot let an unreviewed change through.
+name: Review gate (merge queue)
+
+on:
+  merge_group:
+    types: [checks_requested]
+
+permissions:
+  contents: read
+  statuses: write
+
+jobs:
+  mirror:
+    name: Mirror review gate to the merge queue
+    runs-on: ubuntu-latest
+    # Backstop above the sum of the step timeouts (2 + 3 + 2), so a STEP always
+    # hits its limit first and the failure step below still runs (a job that
+    # trips its own limit is CANCELLED, and `if: failure()` skips).
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      HEAD_REF: ${{ github.event.merge_group.head_ref }}
+      HEAD_SHA: ${{ github.event.merge_group.head_sha }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+    steps:
+      - name: Check out the queue's base commit
+        uses: actions/checkout@v7
+        timeout-minutes: 2
+        with:
+          ref: ${{ github.event.merge_group.base_sha }}
+          sparse-checkout: scripts/qa/merge-queue-review-gate.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Post the PR head's Review gate on the queue commit
+        timeout-minutes: 3
+        shell: bash
+        run: bash scripts/qa/merge-queue-review-gate.sh
+
+      # Without a status the queue waits out its whole check timeout before it
+      # drops the PR. A red status drops it at once.
+      - name: Post a failure status when the mirror itself failed
+        if: failure()
+        timeout-minutes: 2
+        shell: bash
+        run: |
+          case "$HEAD_SHA" in *[!0-9a-f]* | '') exit 0 ;; esac
+          [ "${#HEAD_SHA}" -eq 40 ] || exit 0
+          gh api --method POST "repos/$REPO/statuses/$HEAD_SHA" \
+            -f state=failure \
+            -f context='Review gate' \
+            -f description='the merge-queue review-gate mirror failed before it could post a verdict' \
+            -f target_url="$RUN_URL"

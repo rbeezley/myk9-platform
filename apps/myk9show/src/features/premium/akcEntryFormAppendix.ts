@@ -1,4 +1,4 @@
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, PDFName } from 'pdf-lib';
 import type { GeneratedPremium } from '@/types/premium-types';
 import { getOrganizationFormTemplateUrl } from '@/features/organization-forms/organizationFormTemplates';
 
@@ -7,7 +7,7 @@ import { getOrganizationFormTemplateUrl } from '@/features/organization-forms/or
  * the AKC Scent Work fillable PDF the Reports page fills per dog (`akc-scent-work-entry-form`), so
  * the premium ends with that same blank template. react-pdf cannot embed an existing PDF page, so
  * the join happens on the rendered bytes, after the style-specific layout, which is why every
- * style gets it. Published, previewed and downloaded premiums all go through `appendAkcEntryForm`.
+ * style gets it. The published premium goes through `appendAkcEntryForm`.
  */
 
 /**
@@ -45,6 +45,11 @@ export async function appendAkcEntryForm(
   ]);
   const premiumPages = await formDoc.copyPages(premiumDoc, premiumDoc.getPageIndices());
   premiumPages.forEach((page, index) => formDoc.insertPage(index, page));
+  // The template is a tagged PDF whose structure tree covers only its own page. Kept, it would
+  // tell a screen reader the document is just the form; untagged, readers follow page order,
+  // premium first. (The react-pdf premium itself is untagged.)
+  formDoc.catalog.delete(PDFName.of('StructTreeRoot'));
+  formDoc.catalog.delete(PDFName.of('MarkInfo'));
   const bytes = await formDoc.save();
   return new Blob([bytes as BlobPart], { type: 'application/pdf' });
 }

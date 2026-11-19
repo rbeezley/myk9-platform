@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, PDFName } from 'pdf-lib';
 import type { GeneratedPremium, PremiumStyle } from '../../../types/premium-types';
 import { STYLE_TOKENS } from '../pdf/pdfStyles';
 
@@ -110,6 +110,16 @@ describe('premium PDF ends with the official AKC entry form (MYK9-2057)', () => 
     form.getTextField(textField.getName()).setText('Willow');
     const reopened = await PDFDocument.load(await doc.save());
     expect(reopened.getForm().getTextField(textField.getName()).getText()).toBe('Willow');
+  });
+
+  it('does not advertise the template’s form-only reading order', async () => {
+    const template = await PDFDocument.load(TEMPLATE_BYTES);
+    expect(template.catalog.get(PDFName.of('StructTreeRoot'))).toBeDefined();
+
+    const out = await appendAkcEntryForm(await fakePremiumBlob(), async () => TEMPLATE_BYTES);
+    const doc = await PDFDocument.load(await out.arrayBuffer());
+    expect(doc.catalog.get(PDFName.of('StructTreeRoot'))).toBeUndefined();
+    expect(doc.catalog.get(PDFName.of('MarkInfo'))).toBeUndefined();
   });
 
   it('puts the premium first and the entry form last', async () => {

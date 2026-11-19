@@ -150,7 +150,12 @@ handle<GeneratePremiumPayload>(
     const { data: templates } = await userClient
       .from('club_premium_templates')
       .select('*')
-      .eq('club_id', show.club_id);
+      .eq('club_id', show.club_id)
+      // MYK9-2286: the same order the app's checklist reads them in (getClubPremiumTemplates),
+      // so both pick the same template when a club has several of one trial type.
+      .order('is_default', { ascending: false })
+      .order('name')
+      .order('id');
 
     const trialType = premiumTemplateTrialType(show.trials);
     const template =

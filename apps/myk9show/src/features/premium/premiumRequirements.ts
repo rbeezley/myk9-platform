@@ -17,6 +17,16 @@ import {
   type PremiumFacts,
 } from './premiumFacts';
 
+/**
+ * What an official's row adds to the name. An email or phone key left out (undefined) means the
+ * contact is not known here, so nothing is said; null or '' means known and empty.
+ */
+interface OfficialExtras {
+  mailingAddress?: string | null;
+  email?: string | null;
+  phone?: string | null;
+}
+
 /** The slice of {@link PremiumFacts} the requirement checks read. A full PremiumFacts fits. */
 export interface PremiumRequirementFacts {
   clubName: PremiumFacts['clubName'];
@@ -24,10 +34,18 @@ export interface PremiumRequirementFacts {
   startDate: PremiumFacts['startDate'];
   fees: Pick<PremiumFacts['fees'], 'hasAny'>;
   entry: PremiumFacts['entry'];
-  secretary: Pick<PremiumFacts['secretary'], 'name'> & { mailingAddress?: string | null };
-  chair:
-    (Pick<NonNullable<PremiumFacts['chair']>, 'name'> & { mailingAddress?: string | null }) | null;
+  secretary: Pick<PremiumFacts['secretary'], 'name'> & OfficialExtras;
+  chair: (Pick<NonNullable<PremiumFacts['chair']>, 'name'> & OfficialExtras) | null;
   committee: PremiumFacts['committee'];
+  /**
+   * MYK9-2286: the club template's facts (ASCA §1.5.8, §1.5.20, §1.5.21). Absent means not known
+   * here, and nothing is said; a club with no template passes empty values.
+   */
+  template?: {
+    vetClinic: { name: string; phone: string; address: string } | null;
+    accommodationCount: number;
+    awardsDescription: string | null;
+  };
   /**
    * MYK9-2044: the calendar dates the recording fee is priced on (each live trial's date, else
    * the show's start date). Absent means not known here, and nothing is said about the fee.
@@ -91,6 +109,14 @@ const trialLabel = (t: { name: string }, index: number) => t.name.trim() || `Tri
 const blank = (value: string | null | undefined) => !value?.trim();
 const editShow = (tab: Parameters<typeof getShowEditHref>[1]) => (t: PremiumRequirementTargets) =>
   getShowEditHref(t.showId, tab);
+
+const clubPage = (t: PremiumRequirementTargets) => (t.clubId ? `/clubs/${t.clubId}` : null);
+
+/** True once the official's contact is known here and holds neither a phone nor an email. */
+function contactMissing(o: OfficialExtras): boolean {
+  if (o.email === undefined && o.phone === undefined) return false;
+  return blank(o.email) && blank(o.phone);
+}
 
 function committeeMessage(
   registry: RegistryId,
@@ -200,6 +226,43 @@ const CHECKS: Partial<Record<PremiumFactId, Check>> = {
         ? `${r} requires the Trial Chair's mailing address. Add it in Edit show, under Personnel.`
         : null,
     href: editShow('personnel'),
+  },
+  secretaryContact: {
+    missing: (f, r) =>
+      !blank(f.secretary.name) && contactMissing(f.secretary)
+        ? `${r} requires a phone or email for the Trial Secretary. It comes from their own profile, so ask them to add one, or choose another Secretary in Edit show, under Personnel.`
+        : null,
+    href: editShow('personnel'),
+  },
+  chairContact: {
+    missing: (f, r) =>
+      f.chair && !blank(f.chair.name) && contactMissing(f.chair)
+        ? `${r} requires a phone or email for the Trial Chair. It comes from their own profile, so ask them to add one, or choose another Chair in Edit show, under Personnel.`
+        : null,
+    href: editShow('personnel'),
+  },
+  vetClinic: {
+    missing: (f, r) =>
+      f.template &&
+      (blank(f.template.vetClinic?.name) ||
+        (blank(f.template.vetClinic?.phone) && blank(f.template.vetClinic?.address)))
+        ? `${r} requires the emergency veterinarian, with a phone or address. Add it to the club's premium template.`
+        : null,
+    href: clubPage,
+  },
+  accommodations: {
+    missing: (f, r) =>
+      f.template && f.template.accommodationCount === 0
+        ? `${r} requires accommodations. Add them to the club's premium template.`
+        : null,
+    href: clubPage,
+  },
+  awards: {
+    missing: (f, r) =>
+      f.template && blank(f.template.awardsDescription)
+        ? `${r} requires the awards. Add them to the club's premium template.`
+        : null,
+    href: clubPage,
   },
   entryWindow: {
     missing: (f, r) =>

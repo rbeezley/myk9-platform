@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type { Show } from '@/types/show-types';
-import { requirementFactsFromShow } from '../usePremiumRequirements';
+import { firstLiveTrialType, requirementFactsFromShow } from '../usePremiumRequirements';
 
 const show = {
   id: 'show-1',
@@ -99,5 +99,32 @@ describe('requirementFactsFromShow trial scope (MYK9-2186)', () => {
       committee: [],
     });
     expect(facts.trials.map(t => t.id)).toEqual(['t1']);
+  });
+});
+
+describe('firstLiveTrialType (MYK9-2286)', () => {
+  it('reads the earliest live trial by date then id, whatever order the caller holds', () => {
+    expect(
+      firstLiveTrialType([
+        { id: 'b', trialDate: '2027-01-02', trialType: 'Scent Work' },
+        { id: 'c', trialDate: '2027-01-01', trialType: 'Agility' },
+        { id: 'a', trialDate: '2027-01-01', trialType: 'Obedience' },
+        { id: 'z', trialDate: '2026-12-31', status: 'cancelled', trialType: 'Rally' },
+      ])
+    ).toBe('Obedience');
+  });
+
+  it('orders same-day trials by start time as a clock time before id, as generate-premium does', () => {
+    expect(
+      firstLiveTrialType([
+        { id: 'a', trialDate: '2027-01-01', plannedStartTime: '1:30 PM', trialType: 'Obedience' },
+        { id: 'b', trialDate: '2027-01-01', plannedStartTime: '9:00 AM', trialType: 'Scent Work' },
+        { id: 'c', trialDate: '2027-01-01', trialType: 'Rally' },
+      ])
+    ).toBe('Scent Work');
+  });
+
+  it('is null with no live trial', () => {
+    expect(firstLiveTrialType([])).toBeNull();
   });
 });

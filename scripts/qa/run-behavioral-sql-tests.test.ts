@@ -51,6 +51,7 @@ const launchCriticalSqlTests = [
   'entry_requires_dog_registration_test.sql',
   'emergency_packet_handler_identity_test.sql',
   'club_secretary_grant_test.sql',
+  'myk9_2286_premium_generations_asca_test.sql',
   'club_show_managers_visibility_test.sql',
   'myk9_2209_club_admin_grant_revoke_test.sql',
   'myk9_2208_show_club_admin_contacts_test.sql',

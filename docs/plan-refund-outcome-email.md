@@ -179,6 +179,8 @@ must not stop at the queued row.
 3. The site.
 4. The follow-up drop.
 
-## Owner decision needed
+## Owner decision
 
-Choose A, B, B-lite or C. The recommendation is B-lite: it tells her the outcome she cannot learn anywhere else, without the recipient machinery that most of the review findings came from. Choose B if the co-owner who pulled must hear the denial themselves.
+**B-lite** (owner, 2026-11-19). The denial email goes to the owner and the handler only, so B's
+point 3 (the puller column) and the notes marked "B only" do not apply. Implementation follows
+B-lite's scope, the "Implementation notes from review" and the testing phase above.

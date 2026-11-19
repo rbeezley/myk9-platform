@@ -12,9 +12,12 @@
 --      the newest non-deleted draft (a soft-deleted newer draft is skipped; null
 --      when the club has none).
 --   4. RPC authorization: an outsider is refused with 42501.
---   5. Trigger through the real path: an authenticated club admin's publish
---      (passing enforce_show_publish_gate) stamps the club, though the admin
---      cannot write clubs.first_show_published_at herself.
+--   5. Trigger through the real path (passing enforce_show_publish_gate): an
+--      authenticated club admin's publish stamps the club, and so does a
+--      secretary-only publish. The secretary holds no club_admin role and cannot
+--      UPDATE the clubs row (clubs_update), so that case fails if the stamp
+--      trigger loses SECURITY DEFINER; the admin case alone would not, because
+--      a club admin may update her own club.
 --   6. RPC edges: NULL club (22023), unknown club (P0002, reachable only past
 --      the authorization check, so as a site admin), a club trial secretary and
 --      a site admin allowed, anon refused (42501).
@@ -50,7 +53,8 @@ INSERT INTO public.clubs (id, name, authorized_at) VALUES
   ('00000000-0000-0000-0000-000002199005', 'MYK9-2199 Backfill Draft', now()),
   ('00000000-0000-0000-0000-000002199006', 'MYK9-2199 No Shows', now()),
   ('00000000-0000-0000-0000-000002199007', 'MYK9-2199 Receives Host', now()),
-  ('00000000-0000-0000-0000-000002199008', 'MYK9-2199 Admin Publishes', now());
+  ('00000000-0000-0000-0000-000002199008', 'MYK9-2199 Admin Publishes', now()),
+  ('00000000-0000-0000-0000-000002199009', 'MYK9-2199 Secretary Publishes', now());
 
 -- Club 008 can pass enforce_show_publish_gate: approved (above), payouts enabled in the
 -- platform's mode (pinned to test mode, as show_publish_gate_trigger_test.sql does), and a
@@ -61,13 +65,18 @@ RESET ROLE;
 SELECT set_config('request.jwt.claim.sub', '', true);
 
 INSERT INTO public.club_stripe_accounts (club_id, stripe_account_id, onboarding_complete, payouts_enabled, livemode)
-VALUES ('00000000-0000-0000-0000-000002199008', 'acct_myk92199_ready', true, true, false);
+VALUES ('00000000-0000-0000-0000-000002199008', 'acct_myk92199_ready', true, true, false),
+       ('00000000-0000-0000-0000-000002199009', 'acct_myk92199_ready_sec', true, true, false);
 
 INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status,
                           entry_open_date, entry_close_date, online_entries_enabled,
                           publishes_own_premium)
 VALUES ('00000000-0000-0000-0000-000002199801', 'MYK9-2199 Admin Publish', 'UKC',
         current_date + 5, current_date + 6, '00000000-0000-0000-0000-000002199008', 'draft',
+        (current_date - 10)::timestamptz, (current_date + 4)::timestamptz, true,
+        true),
+       ('00000000-0000-0000-0000-000002199802', 'MYK9-2199 Secretary Publish', 'UKC',
+        current_date + 5, current_date + 6, '00000000-0000-0000-0000-000002199009', 'draft',
         (current_date - 10)::timestamptz, (current_date + 4)::timestamptz, true,
         true);
 
@@ -228,9 +237,14 @@ WHERE roles.name = 'club_admin';
 -- A club trial secretary of club 006 only, and a site admin (no club).
 INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
 SELECT '00000000-0000-0000-0000-000002199013', roles.id,
-       '00000000-0000-0000-0000-000002199006', true,
+       club.id, true,
        '00000000-0000-0000-0000-000002199023'
-FROM public.roles WHERE roles.name = 'secretary';
+FROM public.roles
+CROSS JOIN (VALUES
+  ('00000000-0000-0000-0000-000002199006'::uuid),
+  ('00000000-0000-0000-0000-000002199009'::uuid)
+) AS club(id)
+WHERE roles.name = 'secretary';
 
 INSERT INTO public.user_roles (user_id, role_id, is_active, auth_user_id)
 SELECT '00000000-0000-0000-0000-000002199014', roles.id, true,
@@ -339,6 +353,53 @@ BEGIN
     RAISE EXCEPTION 'FAIL 5b an authenticated club admin''s publish did not stamp the club';
   END IF;
   RAISE NOTICE 'PASS 5 a club admin''s publish stamps the club';
+END;
+$$;
+
+RESET ROLE;
+
+-- 5c: a secretary who is NOT a club admin publishes. She cannot update the clubs row, so only the
+-- SECURITY DEFINER trigger can stamp it. The fixture is checked first so a refused publish or a
+-- stray club_admin grant fails loudly instead of passing for the wrong reason.
+SET LOCAL ROLE authenticated;
+
+DO $$
+DECLARE
+  secretary_auth CONSTANT uuid := '00000000-0000-0000-0000-000002199023';
+  v_rows int;
+BEGIN
+  PERFORM set_config('request.jwt.claim.sub', secretary_auth::text, true);
+  PERFORM set_config('request.jwt.claims',
+    jsonb_build_object('sub', secretary_auth, 'role', 'authenticated')::text, true);
+
+  IF public.is_club_admin('00000000-0000-0000-0000-000002199009') THEN
+    RAISE EXCEPTION 'FAIL 5c fixture: the secretary is a club admin of club 009';
+  END IF;
+
+  v_rows := 0;
+  BEGIN
+    UPDATE public.clubs SET first_show_published_at = now()
+     WHERE id = '00000000-0000-0000-0000-000002199009';
+    GET DIAGNOSTICS v_rows = ROW_COUNT;
+  EXCEPTION WHEN insufficient_privilege THEN
+    v_rows := 0;
+  END;
+  IF v_rows <> 0 THEN
+    RAISE EXCEPTION 'FAIL 5c fixture: the secretary can update the clubs row directly';
+  END IF;
+
+  UPDATE public.shows SET status = 'published'
+   WHERE id = '00000000-0000-0000-0000-000002199802';
+  GET DIAGNOSTICS v_rows = ROW_COUNT;
+  IF v_rows <> 1 THEN
+    RAISE EXCEPTION 'FAIL 5c the secretary''s publish affected % rows', v_rows;
+  END IF;
+
+  IF (SELECT first_show_published_at FROM public.clubs
+       WHERE id = '00000000-0000-0000-0000-000002199009') IS NULL THEN
+    RAISE EXCEPTION 'FAIL 5d a secretary-only publish did not stamp the club';
+  END IF;
+  RAISE NOTICE 'PASS 5c a secretary-only publish stamps the club through the trigger';
 END;
 $$;
 

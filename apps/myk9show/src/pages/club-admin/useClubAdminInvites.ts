@@ -7,6 +7,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   cancelClubAdminInvite,
+  ClubAdminInviteSendError,
   getClubAdminInvites,
   inviteClubAdmin,
   sendClubAdminInviteEmail,
@@ -35,6 +36,25 @@ function inviteFailureMessage(error: unknown, fallback: string): string {
   if (message === INVALID_EMAIL_MESSAGE) return message;
   if (code === 'MKAUT') return 'Confirm your password to continue.';
   return fallback;
+}
+
+// The real reason a resend was refused, from the RPC's reason code (carried by the edge function).
+function resendFailureMessage(error: unknown, email: string): string {
+  if (error instanceof ClubAdminInviteSendError) {
+    switch (error.reason) {
+      case 'cap':
+        return 'This invite has been sent the most times allowed. Cancel it and invite again.';
+      case 'expired':
+        return 'This invite has expired. Cancel it and invite again.';
+      case 'inactive':
+        return 'This invite is no longer pending.';
+      case 'throttled':
+        return 'That invite was just sent. Wait a moment and try again.';
+      default:
+        if (error.status === 403) return "You can't send this invite.";
+    }
+  }
+  return `We couldn't resend the invite to ${email}. Please try again.`;
 }
 
 const SEND_FAILED = (email: string) =>
@@ -108,10 +128,7 @@ export function useClubAdminInvites(clubId: string) {
       logger.error('Failed to resend club admin invite', 'club-admin', {
         error: errorFields(error).message ?? String(error),
       });
-      // The edge function reports its throttle as a 409 with the server's sentence in the body.
-      notifications.error(
-        `We couldn't resend the invite to ${email}. Wait a moment and try again.`
-      );
+      notifications.error(resendFailureMessage(error, email));
     },
   });
 

@@ -13610,6 +13610,7 @@ export type Database = {
           invite_email: string
           invite_id: string
           invited_by_name: string
+          is_expired: boolean
           last_sent_at: string
         }[]
       }

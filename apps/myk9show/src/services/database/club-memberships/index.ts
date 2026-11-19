@@ -27,6 +27,7 @@ export {
   inviteClubAdmin,
   sendClubAdminInviteEmail,
   cancelClubAdminInvite,
+  ClubAdminInviteSendError,
 } from './club-admin-invites';
 export type {
   ClubAdminInvite,

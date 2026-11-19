@@ -28,7 +28,7 @@ export interface InviteSendDeps {
   /** Calls resend_club_admin_invite as the caller. */
   prepareSend: (inviteId: string) => Promise<{
     data: PreparedInviteSend[] | null;
-    error: { code?: string; message?: string } | null;
+    error: { code?: string; message?: string; hint?: string } | null;
   }>;
 }
 
@@ -46,7 +46,11 @@ export async function sendClubAdminInviteHandler(
   const { data, error } = await deps.prepareSend(inviteId);
   if (error) {
     if (error.code === '42501') throw new HttpError(403, 'Not allowed to send this invite');
-    if (error.code === 'P0001') throw new HttpError(409, error.message ?? 'Invite cannot be sent');
+    // The RPC's HINT (expired, cap, throttled, inactive) rides along as the body's `code` so the
+    // page can say the real reason.
+    if (error.code === 'P0001') {
+      throw new HttpError(409, error.message ?? 'Invite cannot be sent', error.hint || undefined);
+    }
     throw new HttpError(500, 'Could not prepare the invite');
   }
   const row = data?.[0];

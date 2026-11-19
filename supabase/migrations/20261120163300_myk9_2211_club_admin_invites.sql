@@ -7,12 +7,19 @@
 -- An invite is NOT a role. It is a row in club_admin_invites and grants nothing by itself:
 --   * invite time        : no user_roles row, so it never counts toward the last-admin guard
 --                          (revoke_club_admin counts user_roles rows only).
---   * consumption        : when the invitee's account first has a VERIFIED email equal to the
---                          invited address (email confirmed on sign-up, or an OAuth sign-in), a
---                          live invite (not consumed, cancelled or expired) inserts ONE active
---                          club-wide club_admin row for that club only and stamps consumed_at.
---                          It never updates an existing row, never touches other roles or other
---                          clubs, and an invite for club A grants nothing at club B.
+--   * invite refused     : when ANY auth.users row exists for the address, confirmed or not,
+--                          signed in or not. An unconfirmed sign-up could be held by someone
+--                          who does not own the mailbox, so such an address goes through
+--                          add_club_admin_by_email, which needs a real sign-in.
+--   * consumption        : when a confirmation step AFTER sign-up proves the mailbox
+--                          (email_confirmed_at > created_at) on an auth.users row created AFTER
+--                          the invite, a live invite (not consumed, cancelled or expired) for a
+--                          live club gives that person ONE active club-wide club_admin row for
+--                          that club only (reusing an inactive one, as grant_club_admin does)
+--                          and stamps consumed_at. It never touches other roles or other clubs.
+--                          An account whose email was stamped confirmed at creation (OAuth, an
+--                          admin-created account, confirmations off) never consumes: it is added
+--                          with add_club_admin_by_email.
 --   * cancel / expiry    : a cancelled or expired invite is inert.
 --
 --   club_admin_invites                   the invites (RLS on, no client grants; RPCs only)
@@ -107,7 +114,9 @@ BEGIN
     RAISE EXCEPTION 'Club % not found', p_club_id USING ERRCODE = 'P0002';
   END IF;
 
-  -- An address that already has an account that can sign in is added directly, not invited.
+  -- An address with ANY account is added directly, not invited: confirmed or not, signed in or
+  -- not. An unconfirmed account may be held by someone who does not own the mailbox, and the
+  -- invite would hand it the role the moment the mailbox owner confirms it.
   IF EXISTS (
     SELECT 1
     FROM public.people p
@@ -117,9 +126,7 @@ BEGIN
   ) OR EXISTS (
     SELECT 1
     FROM auth.users u
-    WHERE lower(u.email) = v_email
-      AND u.last_sign_in_at IS NOT NULL
-      AND u.deleted_at IS NULL
+    WHERE lower(btrim(u.email)) = v_email
   ) THEN
     RETURN QUERY SELECT 'has_account'::text, NULL::uuid, v_email;
     RETURN;
@@ -176,7 +183,10 @@ GRANT EXECUTE ON FUNCTION public.invite_club_admin(uuid, text) TO authenticated;
 
 -- ---------------------------------------------------------------------------
 -- resend_club_admin_invite: authorizes and throttles a send, returns what the email needs.
--- Grants nothing and does not extend the invite.
+-- Grants nothing and does not extend the invite. It deliberately skips require_recent_reauth:
+-- it changes no access, is throttled (30 seconds apart, five sends) and can only email the address
+-- the invite already names, so a stale session gains nothing from it. Cancel is the opposite case
+-- (see below).
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.resend_club_admin_invite(p_invite_id uuid)
 RETURNS TABLE (
@@ -208,19 +218,23 @@ BEGIN
 
   SELECT * INTO v_invite FROM public.club_admin_invites WHERE id = p_invite_id;
 
-  IF v_invite.consumed_at IS NOT NULL OR v_invite.cancelled_at IS NOT NULL
-     OR v_invite.expires_at <= now() THEN
-    RAISE EXCEPTION 'This invite is no longer pending.' USING ERRCODE = 'P0001';
+  -- HINT carries a machine-readable reason the edge function passes to the page.
+  IF v_invite.consumed_at IS NOT NULL OR v_invite.cancelled_at IS NOT NULL THEN
+    RAISE EXCEPTION 'This invite is no longer pending.' USING ERRCODE = 'P0001', HINT = 'inactive';
+  END IF;
+
+  IF v_invite.expires_at <= now() THEN
+    RAISE EXCEPTION 'This invite has expired.' USING ERRCODE = 'P0001', HINT = 'expired';
   END IF;
 
   IF v_invite.last_sent_at IS NOT NULL AND v_invite.last_sent_at > now() - interval '30 seconds' THEN
     RAISE EXCEPTION 'That invite was just sent. Wait a moment before sending it again.'
-      USING ERRCODE = 'P0001';
+      USING ERRCODE = 'P0001', HINT = 'throttled';
   END IF;
 
   IF v_invite.send_count >= 5 THEN
     RAISE EXCEPTION 'That invite has been sent too many times. Cancel it and invite again.'
-      USING ERRCODE = 'P0001';
+      USING ERRCODE = 'P0001', HINT = 'cap';
   END IF;
 
   UPDATE public.club_admin_invites
@@ -263,6 +277,9 @@ BEGIN
     RAISE EXCEPTION 'Only site admins or this club''s admins can cancel an invite'
       USING ERRCODE = '42501';
   END IF;
+
+  -- MYK9-1208: counterpart of revoke_club_admin, so a stale or hijacked session cannot cancel.
+  PERFORM public.require_recent_reauth();
 
   PERFORM pg_advisory_xact_lock(hashtextextended('club_admin_revoke:' || v_club_id::text, 0));
 
@@ -308,7 +325,8 @@ RETURNS TABLE (
   invited_by_name text,
   created_at timestamptz,
   expires_at timestamptz,
-  last_sent_at timestamptz
+  last_sent_at timestamptz,
+  is_expired boolean
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -327,19 +345,19 @@ BEGIN
          NULLIF(BTRIM(COALESCE(p.first_name, '') || ' ' || COALESCE(p.last_name, '')), ''),
          i.created_at,
          i.expires_at,
-         i.last_sent_at
+         i.last_sent_at,
+         (i.expires_at <= now())
   FROM public.club_admin_invites i
   LEFT JOIN public.people p ON p.id = i.invited_by
   WHERE i.club_id = p_club_id
     AND i.consumed_at IS NULL
     AND i.cancelled_at IS NULL
-    AND i.expires_at > now()
   ORDER BY i.created_at DESC;
 END;
 $$;
 
 COMMENT ON FUNCTION public.list_club_admin_invites(uuid) IS
-  'Pending (not consumed, cancelled or expired) club-admin invites for the club. Caller must be a site admin or an admin of this club.';
+  'Club-admin invites for the club that are neither consumed nor cancelled, expired ones included (is_expired) so the page can say so. Caller must be a site admin or an admin of this club.';
 
 REVOKE ALL ON FUNCTION public.list_club_admin_invites(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.list_club_admin_invites(uuid) TO authenticated;
@@ -347,9 +365,11 @@ GRANT EXECUTE ON FUNCTION public.list_club_admin_invites(uuid) TO authenticated;
 -- ---------------------------------------------------------------------------
 -- Consumption
 -- ---------------------------------------------------------------------------
--- Returns how many invites were consumed. Requires a VERIFIED email on a live account that is
--- linked to a live, unsuspended person; anything else consumes nothing and leaves the invite
--- pending. Inserts at most one club-wide club_admin row per invite and never updates a row.
+-- Returns how many invites were consumed. Requires a mailbox confirmed AFTER sign-up
+-- (email_confirmed_at > created_at) on a live account linked to a live, unsuspended person, and
+-- only invites made BEFORE that account existed; anything else consumes nothing and leaves the
+-- invite pending. Gives at most one club-wide club_admin row per invite, reusing an inactive
+-- one for the same person as grant_club_admin does.
 CREATE OR REPLACE FUNCTION private.consume_club_admin_invites(p_auth_user_id uuid)
 RETURNS integer
 LANGUAGE plpgsql
@@ -358,18 +378,21 @@ SET search_path = ''
 AS $$
 DECLARE
   v_email text;
+  v_user_created_at timestamptz;
   v_person_id uuid;
   v_role_id uuid;
   v_invite record;
   v_consumed_id uuid;
   v_assignment_id uuid;
+  v_was_active boolean;
   v_count integer := 0;
 BEGIN
-  SELECT lower(btrim(u.email)) INTO v_email
+  SELECT lower(btrim(u.email)), u.created_at INTO v_email, v_user_created_at
   FROM auth.users u
   WHERE u.id = p_auth_user_id
     AND u.email IS NOT NULL
     AND u.email_confirmed_at IS NOT NULL
+    AND u.email_confirmed_at > u.created_at
     AND u.deleted_at IS NULL
     AND (u.banned_until IS NULL OR u.banned_until < now());
 
@@ -397,6 +420,7 @@ BEGIN
     SELECT i.id, i.club_id, i.invited_by
     FROM public.club_admin_invites i
     WHERE i.email = v_email
+      AND i.created_at < v_user_created_at
       AND i.consumed_at IS NULL
       AND i.cancelled_at IS NULL
       AND i.expires_at > now()
@@ -406,6 +430,10 @@ BEGIN
       -- Same lock order as the RPCs: club lock first, then the invite row.
       PERFORM pg_advisory_xact_lock(
         hashtextextended('club_admin_revoke:' || v_invite.club_id::text, 0));
+
+      -- A club deleted since the invite grants nothing; the invite stays pending (and inert).
+      CONTINUE WHEN NOT EXISTS (
+        SELECT 1 FROM public.clubs c WHERE c.id = v_invite.club_id AND c.deleted_at IS NULL);
 
       -- Claim under the lock: a cancel that won the race leaves nothing to consume.
       v_consumed_id := NULL;
@@ -419,21 +447,30 @@ BEGIN
 
       CONTINUE WHEN v_consumed_id IS NULL;
 
-      SELECT ur.id INTO v_assignment_id
+      v_assignment_id := NULL;
+      v_was_active := false;
+      SELECT ur.id, (ur.is_active AND (ur.expires_at IS NULL OR ur.expires_at > now()))
+        INTO v_assignment_id, v_was_active
       FROM public.user_roles ur
       WHERE ur.user_id = v_person_id
         AND ur.role_id = v_role_id
         AND ur.club_id = v_invite.club_id
         AND ur.show_id IS NULL
-        AND ur.is_active = true
-        AND (ur.expires_at IS NULL OR ur.expires_at > now())
+      ORDER BY (ur.is_active AND (ur.expires_at IS NULL OR ur.expires_at > now())) DESC
       LIMIT 1;
 
       IF v_assignment_id IS NULL THEN
         INSERT INTO public.user_roles (user_id, role_id, club_id, granted_by, is_active)
         VALUES (v_person_id, v_role_id, v_invite.club_id, v_invite.invited_by, true)
         RETURNING id INTO v_assignment_id;
+      ELSIF NOT v_was_active THEN
+        -- Same as grant_club_admin: revive the person's inactive club-wide row, no second row.
+        UPDATE public.user_roles
+        SET is_active = true, expires_at = NULL, granted_by = v_invite.invited_by, granted_at = now()
+        WHERE id = v_assignment_id;
+      END IF;
 
+      IF v_assignment_id IS NOT NULL AND NOT COALESCE(v_was_active, false) THEN
         INSERT INTO public.permission_audit_log (user_id, action, target_type, target_id, new_value)
         VALUES (
           v_invite.invited_by,
@@ -451,8 +488,8 @@ BEGIN
 
       v_count := v_count + 1;
     EXCEPTION WHEN OTHERS THEN
-      -- One invite that cannot be applied (for example its club was deleted since) rolls back
-      -- only its own step: the invite stays pending and the other invites still apply.
+      -- One invite that cannot be applied rolls back only its own step: the invite stays
+      -- pending and the other invites still apply.
       RAISE WARNING 'club admin invite % not consumed: %', v_invite.id, SQLERRM;
     END;
   END LOOP;
@@ -462,7 +499,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION private.consume_club_admin_invites(uuid) IS
-  'MYK9-2211: for an account with a verified email, turns each live invite for that address into one club-wide club_admin row for the invite''s club, stamping consumed_at. Never updates an existing row.';
+  'MYK9-2211: for an account whose email was confirmed after sign-up, turns each live invite made before the account existed into one club-wide club_admin row for the invite''s live club (reusing an inactive row), stamping consumed_at. Touches no other role or club.';
 
 REVOKE ALL ON FUNCTION private.consume_club_admin_invites(uuid)
   FROM PUBLIC, anon, authenticated, service_role;
@@ -488,23 +525,15 @@ REVOKE ALL ON FUNCTION public.consume_club_admin_invites_trigger() FROM PUBLIC, 
 GRANT EXECUTE ON FUNCTION public.consume_club_admin_invites_trigger() TO supabase_auth_admin;
 
 -- zz_ sorts after on_auth_user_created, so handle_new_user has linked the people row first.
--- Insert covers an OAuth sign-up (email already verified); the update covers the email
--- confirmation and the first sign-in of an account that was created unconfirmed.
+-- Only the confirmation step consumes: an account stamped confirmed at creation (OAuth, admin
+-- created, confirmations off) cannot satisfy email_confirmed_at > created_at, so there is no
+-- insert trigger, and an unrelated later update (a sign-in, a password change) fires nothing.
 DROP TRIGGER IF EXISTS zz_consume_club_admin_invites_ins ON auth.users;
-CREATE TRIGGER zz_consume_club_admin_invites_ins
-  AFTER INSERT ON auth.users
-  FOR EACH ROW
-  WHEN (NEW.email_confirmed_at IS NOT NULL)
-  EXECUTE FUNCTION public.consume_club_admin_invites_trigger();
-
 DROP TRIGGER IF EXISTS zz_consume_club_admin_invites_upd ON auth.users;
 CREATE TRIGGER zz_consume_club_admin_invites_upd
-  AFTER UPDATE OF email_confirmed_at, last_sign_in_at ON auth.users
+  AFTER UPDATE OF email_confirmed_at ON auth.users
   FOR EACH ROW
-  WHEN (
-    NEW.email_confirmed_at IS NOT NULL
-    AND (OLD.email_confirmed_at IS NULL OR OLD.last_sign_in_at IS NULL)
-  )
+  WHEN (OLD.email_confirmed_at IS NULL AND NEW.email_confirmed_at IS NOT NULL)
   EXECUTE FUNCTION public.consume_club_admin_invites_trigger();
 
 NOTIFY pgrst, 'reload schema';

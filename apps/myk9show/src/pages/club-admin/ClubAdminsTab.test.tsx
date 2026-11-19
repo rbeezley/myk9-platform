@@ -11,6 +11,15 @@ import { render } from '@/test/utils/testUtils';
 import { ClubAdminsTab } from './ClubAdminsTab';
 
 const mocks = vi.hoisted(() => ({
+  SendError: class SendError extends Error {
+    constructor(
+      message: string,
+      readonly status: number | undefined,
+      readonly reason: string | undefined
+    ) {
+      super(message);
+    }
+  },
   getClubAdmins: vi.fn(),
   addClubAdminByEmail: vi.fn(),
   removeClubAdmin: vi.fn(),
@@ -37,6 +46,7 @@ vi.mock('@/services/database/club-memberships', () => ({
   inviteClubAdmin: mocks.inviteClubAdmin,
   sendClubAdminInviteEmail: mocks.sendClubAdminInviteEmail,
   cancelClubAdminInvite: mocks.cancelClubAdminInvite,
+  ClubAdminInviteSendError: mocks.SendError,
 }));
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
@@ -194,6 +204,7 @@ describe('ClubAdminsTab', () => {
         createdAt: '2026-11-20T00:00:00Z',
         expiresAt: '2026-12-04T12:00:00Z',
         lastSentAt: null,
+        isExpired: false,
       },
     ]);
     mocks.sendClubAdminInviteEmail.mockResolvedValue(undefined);
@@ -208,6 +219,57 @@ describe('ClubAdminsTab', () => {
     await user.click(screen.getByRole('button', { name: 'Cancel invite to pending@example.test' }));
     await waitFor(() => expect(mocks.cancelClubAdminInvite).toHaveBeenCalledWith('inv-9'));
     expect(mocks.refreshPermissions).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['cap', 409, 'This invite has been sent the most times allowed. Cancel it and invite again.'],
+    ['expired', 409, 'This invite has expired. Cancel it and invite again.'],
+    ['throttled', 409, 'That invite was just sent. Wait a moment and try again.'],
+    [undefined, 403, "You can't send this invite."],
+  ])('says why a resend was refused (%s, %s)', async (reason, status, message) => {
+    mocks.getClubAdminInvites.mockResolvedValue([
+      {
+        inviteId: 'inv-9',
+        email: 'pending@example.test',
+        invitedByName: null,
+        createdAt: '2026-11-20T00:00:00Z',
+        expiresAt: '2026-12-04T12:00:00Z',
+        lastSentAt: null,
+        isExpired: false,
+      },
+    ]);
+    mocks.sendClubAdminInviteEmail.mockRejectedValue(new mocks.SendError('x', status, reason));
+    const user = userEvent.setup();
+    render(<ClubAdminsTab clubId={CLUB} clubName="Heartland Club" />);
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Resend invite to pending@example.test' })
+    );
+    await waitFor(() => expect(mocks.error).toHaveBeenCalledWith(message));
+  });
+
+  it('shows an expired invite as expired, with Resend off and Cancel on', async () => {
+    mocks.getClubAdminInvites.mockResolvedValue([
+      {
+        inviteId: 'inv-old',
+        email: 'lapsed@example.test',
+        invitedByName: null,
+        createdAt: '2026-10-01T00:00:00Z',
+        expiresAt: '2026-10-15T12:00:00Z',
+        lastSentAt: null,
+        isExpired: true,
+      },
+    ]);
+    render(<ClubAdminsTab clubId={CLUB} clubName="Heartland Club" />);
+
+    expect(await screen.findByText('lapsed@example.test')).toBeInTheDocument();
+    expect(screen.getByText(/^Expired Oct 15, 2026$/)).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Resend invite to lapsed@example.test' })
+    ).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: 'Cancel invite to lapsed@example.test' })
+    ).toBeEnabled();
   });
 
   it("shows the server's invalid-email message from a PostgREST error object", async () => {

@@ -27,6 +27,7 @@ describe('club admin invites service', () => {
           created_at: '2026-11-20T00:00:00Z',
           expires_at: '2026-12-04T00:00:00Z',
           last_sent_at: null,
+          is_expired: false,
         },
       ],
       error: null,
@@ -40,6 +41,7 @@ describe('club admin invites service', () => {
         createdAt: '2026-11-20T00:00:00Z',
         expiresAt: '2026-12-04T00:00:00Z',
         lastSentAt: null,
+        isExpired: false,
       },
     ]);
     expect(mocks.rpc).toHaveBeenCalledWith('list_club_admin_invites', { p_club_id: 'club-1' });
@@ -83,6 +85,20 @@ describe('club admin invites service', () => {
     await sendClubAdminInviteEmail('i1');
     expect(mocks.invoke).toHaveBeenCalledWith('send-club-admin-invite-email', {
       body: { inviteId: 'i1' },
+    });
+  });
+
+  it('turns an edge refusal into a send error carrying its status and reason', async () => {
+    const body = { error: 'This invite has expired.', code: 'expired' };
+    mocks.invoke.mockResolvedValue({
+      data: null,
+      error: { context: new Response(JSON.stringify(body), { status: 409 }) },
+    });
+    await expect(sendClubAdminInviteEmail('i1')).rejects.toMatchObject({
+      name: 'ClubAdminInviteSendError',
+      message: 'This invite has expired.',
+      status: 409,
+      reason: 'expired',
     });
   });
 

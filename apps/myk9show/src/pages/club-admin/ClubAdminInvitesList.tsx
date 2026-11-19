@@ -37,7 +37,8 @@ export const ClubAdminInvitesList: React.FC<ClubAdminInvitesListProps> = ({
       </h3>
       <p className="text-xs text-muted-foreground">
         These people are not admins yet. They become admins when they create an account with the
-        invited address and confirm it.
+        invited address and confirm it. An expired invite can only be cancelled, then sent again as
+        a new invite.
       </p>
       <ul className="divide-y divide-border rounded-lg border border-border">
         {invites.map(invite => {
@@ -49,15 +50,22 @@ export const ClubAdminInvitesList: React.FC<ClubAdminInvitesListProps> = ({
             >
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-foreground">{invite.email}</p>
-                <p className="text-xs text-muted-foreground">
-                  Expires {dateFormat.format(new Date(invite.expiresAt))}
+                <p
+                  className={
+                    invite.isExpired
+                      ? 'text-xs font-medium text-destructive'
+                      : 'text-xs text-muted-foreground'
+                  }
+                >
+                  {invite.isExpired ? 'Expired' : 'Expires'}{' '}
+                  {dateFormat.format(new Date(invite.expiresAt))}
                 </p>
               </div>
               <div className="flex gap-2">
                 <Button
                   variant="outline"
                   className="min-h-11"
-                  disabled={resendingId === invite.inviteId}
+                  disabled={invite.isExpired || resendingId === invite.inviteId}
                   onClick={() => onResend(target)}
                   aria-label={`Resend invite to ${invite.email}`}
                 >

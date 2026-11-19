@@ -67,6 +67,18 @@ describe('sendClubAdminInviteHandler', () => {
     expect(sendEmail).not.toHaveBeenCalled();
   });
 
+  it('passes the RPC hint through as the body code', async () => {
+    const { deps } = makeDeps({
+      prepareSend: async () => ({
+        data: null,
+        error: { code: 'P0001', message: 'This invite has expired.', hint: 'expired' },
+      }),
+    });
+    await expect(
+      sendClubAdminInviteHandler({ body: { inviteId: INVITE_ID } }, deps)
+    ).rejects.toMatchObject({ status: 409, code: 'expired' });
+  });
+
   it('rejects a missing or malformed inviteId before touching the RPC', async () => {
     const { deps, prepareSend } = makeDeps();
     await expect(sendClubAdminInviteHandler({ body: {} }, deps)).rejects.toMatchObject({

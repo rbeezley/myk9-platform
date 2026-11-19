@@ -12,6 +12,20 @@ export interface ClubAdminInvite {
   createdAt: string;
   expiresAt: string;
   lastSentAt: string | null;
+  /** Past its expiry: shown as expired and can only be cancelled and re-invited. */
+  isExpired: boolean;
+}
+
+/** Why a send was refused: the edge function's HTTP status and the RPC's reason code. */
+export class ClubAdminInviteSendError extends Error {
+  constructor(
+    message: string,
+    readonly status: number | undefined,
+    readonly reason: string | undefined
+  ) {
+    super(message);
+    this.name = 'ClubAdminInviteSendError';
+  }
 }
 
 /**
@@ -36,6 +50,7 @@ export async function getClubAdminInvites(clubId: string): Promise<ClubAdminInvi
     createdAt: row.created_at,
     expiresAt: row.expires_at,
     lastSentAt: row.last_sent_at,
+    isExpired: row.is_expired,
   }));
 }
 
@@ -62,7 +77,22 @@ export async function sendClubAdminInviteEmail(inviteId: string): Promise<void> 
   const { error } = await supabase.functions.invoke('send-club-admin-invite-email', {
     body: { inviteId },
   });
-  if (error) throw error;
+  if (!error) return;
+  // On a non-2xx the edge body ({ error, code }) rides in FunctionsHttpError.context.
+  const context = (error as { context?: Response }).context;
+  if (context && typeof context.json === 'function') {
+    try {
+      const body = (await context.json()) as { error?: string; code?: string };
+      throw new ClubAdminInviteSendError(
+        body?.error ?? 'Invite not sent',
+        context.status,
+        body?.code
+      );
+    } catch (parseError) {
+      if (parseError instanceof ClubAdminInviteSendError) throw parseError;
+    }
+  }
+  throw error;
 }
 
 export async function cancelClubAdminInvite(inviteId: string): Promise<void> {

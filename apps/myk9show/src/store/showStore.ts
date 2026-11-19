@@ -424,6 +424,8 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
         replicatedUpdates.preEntryFee = parseFloat(updates.preEntryFee);
       if (updates.dayOfShowFee !== undefined)
         replicatedUpdates.dayOfShowFee = parseFloat(updates.dayOfShowFee);
+      // MYK9-2220: present means the form decides; a cleared box clears the limit.
+      if ('maxTotalEntries' in updates) replicatedUpdates.maxTotalEntries = updates.maxTotalEntries;
       if (updates.juniorHandlerFee !== undefined)
         replicatedUpdates.juniorHandlerFee =
           updates.juniorHandlerFee.trim() === '' ? null : Number(updates.juniorHandlerFee);
@@ -485,6 +487,7 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
         definedUpdates.entryCloseDate = updates.entryCloseDate;
       if (updates.preEntryFee !== undefined) definedUpdates.preEntryFee = updates.preEntryFee;
       if (updates.dayOfShowFee !== undefined) definedUpdates.dayOfShowFee = updates.dayOfShowFee;
+      if ('maxTotalEntries' in updates) definedUpdates.maxTotalEntries = updates.maxTotalEntries;
       if (updates.juniorHandlerFee !== undefined)
         definedUpdates.juniorHandlerFee = updates.juniorHandlerFee;
       if (updates.clubId !== undefined) definedUpdates.clubId = updates.clubId;

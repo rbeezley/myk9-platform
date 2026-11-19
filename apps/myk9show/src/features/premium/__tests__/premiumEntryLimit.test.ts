@@ -11,8 +11,8 @@ describe('premiumEntryLimitText (MYK9-2220)', () => {
   };
 
   it('states the limit as one plain line on a UKC premium', () => {
-    expect(premiumEntryLimitText(ukc(120))).toBe('Entries are limited to 120 dogs in total.');
-    expect(premiumEntryLimitText(ukc(1))).toBe('Entries are limited to 1 dog in total.');
+    expect(premiumEntryLimitText(ukc(120))).toBe('Total entry limit: 120 entries.');
+    expect(premiumEntryLimitText(ukc(1))).toBe('Total entry limit: 1 entry.');
   });
 
   it.each([null, undefined, 0, -5])('says nothing for no limit (%s)', limit => {

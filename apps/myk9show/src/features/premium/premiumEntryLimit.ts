@@ -19,5 +19,6 @@ export function premiumEntryLimitText(
   if (premium.org !== 'UKC') return null;
   const limit = normalizeEntryLimit(premium.show.maxTotalEntries);
   if (limit === null) return null;
-  return `Entries are limited to ${limit} ${limit === 1 ? 'dog' : 'dogs'} in total.`;
+  // An entry is one dog in one class, so the limit counts entries, not dogs.
+  return `Total entry limit: ${limit} ${limit === 1 ? 'entry' : 'entries'}.`;
 }

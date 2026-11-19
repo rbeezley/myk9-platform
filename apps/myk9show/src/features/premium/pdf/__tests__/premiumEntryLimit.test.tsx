@@ -15,7 +15,7 @@ const STYLES: PremiumStyle[] = [
   'fieldGuide',
   'heritage',
 ];
-const LINE = 'Entries are limited to 120 dogs in total.';
+const LINE = 'Total entry limit: 120 entries.';
 
 function premiumFor(style: PremiumStyle, org: 'AKC' | 'UKC', limit: number | null) {
   const premium = generatedPremium();
@@ -49,13 +49,13 @@ describe('UKC premium total entry limit, every style (MYK9-2220)', () => {
   });
 
   it.each(STYLES)('%s: a show with no limit says nothing', style => {
-    expect(ukcText(style, null)).not.toContain('Entries are limited');
+    expect(ukcText(style, null)).not.toContain('Total entry limit');
   });
 
   it.each(STYLES)('%s: AKC premium is unchanged', style => {
     const text =
       render(<AKCPremiumTemplate premium={premiumFor(style, 'AKC', 120)} />).container
         .textContent ?? '';
-    expect(text).not.toContain('Entries are limited');
+    expect(text).not.toContain('Total entry limit');
   });
 });

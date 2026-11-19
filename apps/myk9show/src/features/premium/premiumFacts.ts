@@ -345,7 +345,7 @@ export interface PremiumFacts {
    * AKC or a printed date has no rate in force.
    */
   recordingFee: string | null;
-  /** MYK9-2220: "Entries are limited to N dogs in total." on a UKC premium whose show has a limit; else null. */
+  /** MYK9-2220: "Total entry limit: N entries." on a UKC premium whose show has a limit; else null. */
   entryLimit: string | null;
   /** Null only on a premium generated before MYK9-1976 part 2. */
   withdrawalPolicy: PremiumWithdrawalPolicyFact | null;

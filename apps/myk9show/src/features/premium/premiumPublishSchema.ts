@@ -119,6 +119,7 @@ const generatedPremiumSchema = z.object({
           level: z.string(),
           section: nullableText,
           // MYK9-2231: optional and nullable; zod would strip them otherwise.
+          name: nullableText.optional(),
           entryFee: nullableAmount.optional(),
           allowWaitlist: z.boolean().nullable().optional(),
         })

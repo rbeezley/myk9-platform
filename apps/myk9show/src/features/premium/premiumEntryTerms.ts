@@ -35,13 +35,12 @@ const formatFee = (n: number): string => `$${Number.isInteger(n) ? n : n.toFixed
 
 /**
  * The pre-entry fee of each class with its own fee (classes.entry_fee above 0, MYK9-1931). A
- * class fee equal to the show's pre-entry fee prints nothing. When the show has a day-of fee
- * above its pre-entry fee, a class with its own fee costs that fee plus the difference on the
- * day (migration 20261115072007), which the line says.
+ * class fee equal to the show's pre-entry fee prints nothing. Day-of pricing stays with the
+ * show's fee table (owner decision on MYK9-2231). Each class and fee prints once.
  */
 export function premiumTrialClassFeeText(
   trial: Pick<PremiumTrial, 'classes'>,
-  show: Pick<PremiumShow, 'preEntryFee' | 'dayOfFee'>,
+  show: Pick<PremiumShow, 'preEntryFee'>,
   comparator: ClassComparator
 ): string | null {
   const parts = [
@@ -54,16 +53,7 @@ export function premiumTrialClassFeeText(
         .map(c => `${formatPremiumClassLabel(c)} ${formatFee(c.entryFee as number)}`)
     ),
   ];
-  if (parts.length === 0) return null;
-  const pre = show.preEntryFee;
-  const dayOf = show.dayOfFee;
-  const surcharge =
-    typeof pre === 'number' && pre > 0 && typeof dayOf === 'number' && dayOf > pre
-      ? dayOf - pre
-      : 0;
-  const dayOfNote =
-    surcharge > 0 ? ` Day-of entries in these classes add ${formatFee(surcharge)}.` : '';
-  return `Class fees (pre-entry): ${parts.join('; ')}.${dayOfNote}`;
+  return parts.length > 0 ? `Class fees (pre-entry): ${parts.join('; ')}.` : null;
 }
 
 /** The owner's exact wording; null (no line) on a premium generated before the column. */

@@ -161,6 +161,8 @@ export interface GeneratedPremium {
       element: string;
       level: string;
       section: string | null;
+      /** MYK9-2231: classes.name, the label of a class with no element or level. */
+      name?: string | null;
       /** MYK9-2231: classes.entry_fee, the class's own pre-entry fee; null or 0 follows the show. */
       entryFee?: number | null;
       /** MYK9-2231: classes.allow_waitlist; null follows the show's setting. */

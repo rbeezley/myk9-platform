@@ -1,3 +1,5 @@
+import { livePremiumClasses } from './liveTrials.ts';
+
 /**
  * MYK9-2056 / MYK9-2067: a trial's judges as the premium prints them, "Name, City, ST" with the
  * classes each one judges (AKC Ch. 3 §15: judges' names, cities of residence, assignments).
@@ -35,6 +37,7 @@ export interface PremiumTrialClassRow {
   element: string | null;
   level: string | null;
   section: string | null;
+  status?: string | null;
   deleted_at?: string | null;
 }
 
@@ -66,13 +69,13 @@ export function formatClassLabel(cls: PremiumTrialClassRow): string | null {
  * `created_at`). A row applies to this trial when its class is one of the trial's live classes.
  * A row with no class covers every class of its trial, or of every trial when it has no trial
  * either (a whole-show judge); that judge lists no classes, so the renderer prints the name and
- * residence alone. Declined and cancelled assignments, and deleted classes, print nothing.
+ * residence alone. Declined and cancelled assignments, and cancelled or deleted classes, print nothing.
  */
 export function premiumTrialJudges(
   rows: ReadonlyArray<PremiumJudgeAssignmentRow> | null | undefined,
   trial: { id: string; classes: ReadonlyArray<PremiumTrialClassRow> | null | undefined }
 ): PremiumTrialJudge[] {
-  const liveClasses = (trial.classes ?? []).filter(cls => !cls.deleted_at);
+  const liveClasses = livePremiumClasses(trial.classes);
   const classOrder = new Map(liveClasses.map((cls, index) => [cls.id, index]));
   const classById = new Map(liveClasses.map(cls => [cls.id, cls]));
   const byPerson = new Map<

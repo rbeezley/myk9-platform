@@ -49,7 +49,7 @@ describe('premiumTrialWaitlistText (MYK9-2231)', () => {
 describe('premiumTrialClassFeeText (MYK9-2231)', () => {
   it('prints the pre-entry fee of a class unlike the show fee', () => {
     const trial = { classes: [cls('Containers', { entryFee: 17.5 }), cls('Buried')] };
-    expect(premiumTrialClassFeeText(trial, { preEntryFee: 25, dayOfFee: null }, comparator)).toBe(
+    expect(premiumTrialClassFeeText(trial, { preEntryFee: 25 }, comparator)).toBe(
       'Class fees (pre-entry): Containers Novice $17.50.'
     );
   });
@@ -62,32 +62,33 @@ describe('premiumTrialClassFeeText (MYK9-2231)', () => {
         cls('Interior', { entryFee: null }),
       ],
     };
-    expect(
-      premiumTrialClassFeeText(trial, { preEntryFee: 25, dayOfFee: null }, comparator)
-    ).toBeNull();
-  });
-
-  it('says a class with its own fee adds the show day-of difference on the day', () => {
-    const trial = { classes: [cls('Containers', { entryFee: 17.5 })] };
-    expect(premiumTrialClassFeeText(trial, { preEntryFee: 25, dayOfFee: 30 }, comparator)).toBe(
-      'Class fees (pre-entry): Containers Novice $17.50. Day-of entries in these classes add $5.'
-    );
+    expect(premiumTrialClassFeeText(trial, { preEntryFee: 25 }, comparator)).toBeNull();
   });
 
   it('prints a repeated class and fee once', () => {
     const trial = {
       classes: [cls('Containers', { entryFee: 20 }), cls('Containers', { entryFee: 20 })],
     };
-    expect(premiumTrialClassFeeText(trial, { preEntryFee: 25, dayOfFee: null }, comparator)).toBe(
+    expect(premiumTrialClassFeeText(trial, { preEntryFee: 25 }, comparator)).toBe(
       'Class fees (pre-entry): Containers Novice $20.'
     );
   });
 
-  it('says nothing about the day when the show has no day-of tier', () => {
+  it('labels a name-only class by its name', () => {
+    const trial = {
+      classes: [{ element: '', level: '', section: null, name: 'Detective', entryFee: 30 }],
+    };
+    expect(premiumTrialClassFeeText(trial, { preEntryFee: 25 }, comparator)).toBe(
+      'Class fees (pre-entry): Detective $30.'
+    );
+  });
+
+  // Owner decision on MYK9-2231: day-of pricing stays with the show's fee table.
+  it('never prints a day-of price, even when the show has a day-of fee', () => {
     const trial = { classes: [cls('Containers', { entryFee: 20 })] };
     expect(
-      premiumTrialClassFeeText(trial, { preEntryFee: 25, dayOfFee: null }, comparator)
-    ).not.toMatch(/day|surcharge/i);
+      premiumTrialClassFeeText(trial, { preEntryFee: 25, dayOfFee: 30 }, comparator)
+    ).not.toMatch(/day|surcharge|\$5/i);
   });
 });
 

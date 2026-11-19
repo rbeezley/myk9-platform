@@ -28,8 +28,14 @@ interface ServerJudgeRow {
     element: string | null;
     level: string | null;
     section: string | null;
+    status?: string | null;
     deleted_at: string | null;
-    trial: { name: string; date: string; deleted_at: string | null } | null;
+    trial: {
+      name: string;
+      date: string;
+      status?: string | null;
+      deleted_at: string | null;
+    } | null;
   } | null;
 }
 
@@ -55,8 +61,17 @@ function collectClassLabels(
   >();
   for (const row of rows) {
     const cls = row.assigned_class;
-    // A deleted class or trial is not on the premium, so it gives the judge no class there.
-    if (!cls?.element || !cls.level || cls.deleted_at || cls.trial?.deleted_at) continue;
+    // A cancelled or deleted class or trial is not on the premium, so it gives the judge no
+    // class there (MYK9-2231: the generator's live-class rule).
+    if (
+      !cls?.element ||
+      !cls.level ||
+      cls.deleted_at ||
+      cls.status === 'cancelled' ||
+      cls.trial?.deleted_at ||
+      cls.trial?.status === 'cancelled'
+    )
+      continue;
     const label = formatPremiumClassLabel({
       element: cls.element,
       level: cls.level,
@@ -100,8 +115,8 @@ async function readServerJudges(
         `id, person_id, show_id, class_id, invited_at, confirmed_at,
          judge:people!judge_assignments_person_id_fkey(id, first_name, last_name, city, state),
          assigned_class:classes!judge_assignments_class_id_fkey(
-           element, level, section, deleted_at,
-           trial:trials!classes_trial_id_fkey(name, date, deleted_at)
+           element, level, section, status, deleted_at,
+           trial:trials!classes_trial_id_fkey(name, date, status, deleted_at)
          )`
       )
       .eq('show_id', showId)

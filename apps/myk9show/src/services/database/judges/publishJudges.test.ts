@@ -240,7 +240,7 @@ describe('fetchShowJudgesForPublish', () => {
       ]);
     });
 
-    it('gives no class for a deleted class or a class in a deleted trial', async () => {
+    it('gives no class for a cancelled or deleted class, or a class in a cancelled or deleted trial', async () => {
       server.range.mockResolvedValue({
         data: [
           withPlace('j1', { city: null, state: null }, {
@@ -257,6 +257,21 @@ describe('fetchShowJudgesForPublish', () => {
             deleted_at: null,
             trial: { name: 'Trial 2', date: '2026-05-02', deleted_at: '2026-05-01T00:00:00Z' },
           } as never),
+          withPlace('j3', { city: null, state: null }, {
+            element: 'Exterior',
+            level: 'Novice',
+            section: null,
+            status: 'cancelled',
+            deleted_at: null,
+            trial: { name: 'Trial 1', date: '2026-05-01', deleted_at: null },
+          } as never),
+          withPlace('j4', { city: null, state: null }, {
+            element: 'Vehicle',
+            level: 'Novice',
+            section: null,
+            deleted_at: null,
+            trial: { name: 'Trial 3', date: '2026-05-03', status: 'cancelled', deleted_at: null },
+          } as never),
         ],
         error: null,
       });
@@ -267,6 +282,8 @@ describe('fetchShowJudgesForPublish', () => {
       expect(judges).toEqual([
         expect.objectContaining({ judgeId: 'j1', classLabels: [], classLabelsByTrial: [] }),
         expect.objectContaining({ judgeId: 'j2', classLabels: [], classLabelsByTrial: [] }),
+        expect.objectContaining({ judgeId: 'j3', classLabels: [], classLabelsByTrial: [] }),
+        expect.objectContaining({ judgeId: 'j4', classLabels: [], classLabelsByTrial: [] }),
       ]);
     });
 

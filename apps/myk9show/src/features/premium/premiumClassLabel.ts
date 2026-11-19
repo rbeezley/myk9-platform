@@ -1,10 +1,16 @@
-/** "Element Level Section", the one label a premium prints for a class. */
+/**
+ * "Element Level Section", the one label a premium prints for a class. A class with no element
+ * or level (a name-only class such as "Detective") prints its name (MYK9-2231).
+ */
 export function formatPremiumClassLabel(cls: {
   element: string;
   level: string;
   section?: string | null;
+  name?: string | null;
 }): string {
-  return `${cls.element} ${cls.level}${cls.section ? ` ${cls.section}` : ''}`;
+  const base = [cls.element, cls.level].map(part => part.trim()).filter(Boolean);
+  const label = base.length === 2 ? base.join(' ') : cls.name?.trim() || base.join(' ');
+  return `${label}${cls.section ? ` ${cls.section}` : ''}`;
 }
 
 /**

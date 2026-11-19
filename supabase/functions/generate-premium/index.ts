@@ -252,6 +252,8 @@ handle<GeneratePremiumPayload>(
         element: cls.element ?? '',
         level: cls.level ?? '',
         section: cls.section,
+        // MYK9-2231: the label of a class with no element or level.
+        name: cls.name ?? null,
         // MYK9-2231: the class's own pre-entry fee and waitlist setting (null follows the show).
         entryFee: cls.entry_fee ?? null,
         allowWaitlist: cls.allow_waitlist ?? null,

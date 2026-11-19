@@ -11,6 +11,7 @@ import {
   type PremiumOfficialRow,
 } from './showOfficialsRow.ts';
 import { runPremiumGenerationAttempt } from './premiumRateLimit.ts';
+import { resolvePremiumNarratives } from './premiumNarratives.ts';
 import {
   PREMIUM_JUDGE_ASSIGNMENTS_SELECT,
   premiumTrialJudges,
@@ -39,6 +40,8 @@ const NARRATIVE_TIMEOUT_MS = 14_000;
 
 interface GeneratePremiumPayload {
   show_id?: string;
+  /** MYK9-2244: return the current facts only; no narrative model call, no allowance used. */
+  factsOnly?: boolean;
 }
 
 handle<GeneratePremiumPayload>(
@@ -48,9 +51,11 @@ handle<GeneratePremiumPayload>(
       throw new HttpError(401, 'Unauthorized');
     }
 
-    // Step 2: Validate required env vars
+    const factsOnly = body.factsOnly === true;
+
+    // Step 2: Validate required env vars (a facts-only request never calls the model)
     const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
-    if (!anthropicKey) {
+    if (!anthropicKey && !factsOnly) {
       console.error('Missing required env var: ANTHROPIC_API_KEY');
       throw new HttpError(500, 'Service configuration error');
     }
@@ -180,66 +185,72 @@ handle<GeneratePremiumPayload>(
 
     // Step 9: Claude API call — generate narrative sections
     const showSummary = buildShowSummary(show);
-    let narratives: { showHours: string; trialInformation: string } = {
-      showHours: '',
-      trialInformation: '',
-    };
-    let narrativeGenerationError: string | null = null;
-
-    try {
-      narratives = await runPremiumGenerationAttempt({
-        authUserId: user.id,
-        showId: show_id,
-        checkRateLimit: ({ authUserId, showId }) =>
-          supabase.rpc('check_and_record_premium_generation_attempt', {
-            p_auth_user_id: authUserId,
-            p_show_id: showId,
-          }),
-        generate: () => generateNarratives(showSummary, anthropicKey),
-      });
-      const completed = completeNarratives(
-        narratives,
-        publishedNarratives(show.experience_published_content)
-      );
-      narratives = completed.narratives;
-      if (completed.incomplete) {
-        narrativeGenerationError =
-          'The AI service returned an incomplete answer. Please try again.';
-      }
-    } catch (err) {
-      if (err instanceof HttpError) {
-        throw err;
-      }
-      console.error('Claude narrative generation failed:', err);
-      narrativeGenerationError = describeNarrativeGenerationFailure(err);
-      // Never invent placeholder narratives: fall back to what is already published.
-      narratives = publishedNarratives(show.experience_published_content);
-    }
+    const { narratives, narrativeGenerationError } = await resolvePremiumNarratives({
+      factsOnly,
+      published: publishedNarratives(show.experience_published_content),
+      generate: async () => {
+        let generated: { showHours: string; trialInformation: string } = {
+          showHours: '',
+          trialInformation: '',
+        };
+        let generationError: string | null = null;
+        try {
+          generated = await runPremiumGenerationAttempt({
+            authUserId: user.id,
+            showId: show_id,
+            checkRateLimit: ({ authUserId, showId }) =>
+              supabase.rpc('check_and_record_premium_generation_attempt', {
+                p_auth_user_id: authUserId,
+                p_show_id: showId,
+              }),
+            generate: () => generateNarratives(showSummary, anthropicKey as string),
+          });
+          const completed = completeNarratives(
+            generated,
+            publishedNarratives(show.experience_published_content)
+          );
+          generated = completed.narratives;
+          if (completed.incomplete) {
+            generationError = 'The AI service returned an incomplete answer. Please try again.';
+          }
+        } catch (err) {
+          if (err instanceof HttpError) {
+            throw err;
+          }
+          console.error('Claude narrative generation failed:', err);
+          generationError = describeNarrativeGenerationFailure(err);
+          // Never invent placeholder narratives: fall back to what is already published.
+          generated = publishedNarratives(show.experience_published_content);
+        }
+        return { narratives: generated, narrativeGenerationError: generationError };
+      },
+    });
 
     // Step 10: Assemble and return GeneratedPremium. The schedule prints live trials only
     // (MYK9-2044): a cancelled or soft-deleted trial is not advertised.
-    const trials = (
-      livePremiumTrials(show.trials as PremiumScheduleTrialRow[] | null) as unknown as Array<{
+    const liveTrials = livePremiumTrials(
+      show.trials as PremiumScheduleTrialRow[] | null
+    ) as unknown as Array<{
+      id: string;
+      name: string;
+      date: string;
+      planned_start_time: string | null;
+      event_number: string | null;
+      trial_type: string | null;
+      classes: Array<{
         id: string;
         name: string;
-        date: string;
-        planned_start_time: string | null;
-        event_number: string | null;
-        trial_type: string | null;
-        classes: Array<{
-          id: string;
-          name: string;
-          level: string | null;
-          element: string | null;
-          section: string | null;
-          status: string | null;
-          deleted_at: string | null;
-          entry_fee: number | null;
-          allow_waitlist: boolean | null;
-        }>;
-        max_total_entries: number | null;
-      }>
-    ).map(trial => ({
+        level: string | null;
+        element: string | null;
+        section: string | null;
+        status: string | null;
+        deleted_at: string | null;
+        entry_fee: number | null;
+        allow_waitlist: boolean | null;
+      }>;
+      max_total_entries: number | null;
+    }>;
+    const trials = liveTrials.map(trial => ({
       name: trial.name,
       date: trial.date,
       startTime: trial.planned_start_time,
@@ -247,7 +258,7 @@ handle<GeneratePremiumPayload>(
       type: trial.trial_type ?? '',
       // MYK9-2229: this trial's own entry limit.
       maxTotalEntries: trial.max_total_entries ?? null,
-      judges: premiumTrialJudges(judgeAssignments, trial),
+      judges: premiumTrialJudges(judgeAssignments, trial, liveTrials),
       classes: livePremiumClasses(trial.classes).map(cls => ({
         element: cls.element ?? '',
         level: cls.level ?? '',

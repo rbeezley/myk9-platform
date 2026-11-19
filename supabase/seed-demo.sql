@@ -1775,7 +1775,7 @@ VALUES (
   'paid',
   'pi_seeddemo_multidog_order',
   'online',
-  18000  -- cents: 6 paid entries x $30.00
+  18000  -- cents: 6 paid entries x $30.00 (the form derives its own total; section 9b records the $180 received)
 );
 
 -- Willow (051/052, Saturday trial) and Scout (055 Saturday + 056 Sunday) — two
@@ -1981,6 +1981,15 @@ WHERE id IN (
   'dededede-0000-0000-0000-000000000058',
   'dededede-0000-0000-0000-000000000069'
 );
+-- The six paid entries on ...070 are paid by the demo order (6b), but the form derives its
+-- total from its entries and counts only desk money (paid_amount) and succeeded Stripe orders
+-- as received; the seed has neither, so the form would owe their $180 on top of the $90 the
+-- three pending entries owe. Record that money on the form the way submit_show_entries records
+-- a secretary_paid payment: on paid_amount, no ledger row (this is not box money), so the form
+-- owes exactly the $90 of the pending entries.
+UPDATE public.enrollments
+SET paid_amount = 180
+WHERE id = 'dededede-0000-0000-0000-000000000070';
 RESET ROLE;
 
 -- ---------------------------------------------------------------------------

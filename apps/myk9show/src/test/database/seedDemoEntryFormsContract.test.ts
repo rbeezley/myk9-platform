@@ -36,11 +36,20 @@ describe('seed-demo entry forms (MYK9-2190)', () => {
     expect(insert).not.toMatch(/paid_amount|total_amount|payment_method/);
   });
 
-  it('links every seeded desk entry the 6b order does not already cover', () => {
-    const linked = [...idsLinkedTo(EXHIBITOR_FORM), ...idsLinkedTo(SECRETARY_FORM)].map(id =>
-      id.slice(-2)
+  it("links each seeded desk entry to its owner's form, per form", () => {
+    const last = (ids: string[]) => ids.map(id => id.slice(-2)).sort();
+    // Ranger, Juniper and Maple are the exhibitor's dogs; 059/060 are their refunded pair.
+    expect(last(idsLinkedTo(EXHIBITOR_FORM))).toEqual(['53', '54', '57', '59', '60']);
+    // Cooper is the secretary's dog, including 069, which the exhibitor handles.
+    expect(last(idsLinkedTo(SECRETARY_FORM))).toEqual(['58', '69']);
+  });
+
+  it('records the paid entries money on the exhibitor form so it owes only the pending ones', () => {
+    expect(block).toMatch(
+      new RegExp(
+        `UPDATE public\\.enrollments\\s+SET paid_amount = 180\\s+WHERE id = '${EXHIBITOR_FORM}'`
+      )
     );
-    expect(linked.sort()).toEqual(['53', '54', '57', '58', '59', '60', '69']);
   });
 
   it('seeds the secretary form entries as owing, never as paid money that is not recorded', () => {

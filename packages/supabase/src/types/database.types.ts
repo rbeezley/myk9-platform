@@ -1926,6 +1926,7 @@ export type Database = {
           deleted_by: string | null
           description: string | null
           email: string | null
+          first_show_published_at: string | null
           id: string
           is_demo: boolean
           license_key: string | null
@@ -1956,6 +1957,7 @@ export type Database = {
           deleted_by?: string | null
           description?: string | null
           email?: string | null
+          first_show_published_at?: string | null
           id?: string
           is_demo?: boolean
           license_key?: string | null
@@ -1986,6 +1988,7 @@ export type Database = {
           deleted_by?: string | null
           description?: string | null
           email?: string | null
+          first_show_published_at?: string | null
           id?: string
           is_demo?: boolean
           license_key?: string | null
@@ -13964,6 +13967,7 @@ export type Database = {
         Args: { check_club_id: string }
         Returns: boolean
       }
+      club_first_show_state: { Args: { p_club_id: string }; Returns: Json }
       club_publish_blockers: { Args: { p_club_id: string }; Returns: Json }
       complete_cart_fulfillment: {
         Args: {

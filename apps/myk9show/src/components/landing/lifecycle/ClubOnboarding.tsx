@@ -13,6 +13,7 @@ import {
   saveClubOnboardingDraft,
 } from './clubOnboardingDraft';
 import { buildClubOnboardingNote } from './clubOnboardingNote';
+import { userHoldsClubRole } from './clubRoleLoaded';
 import { logger } from '@/services/LoggingService';
 import {
   CLUB_NUMBER_HELP_TEXT,
@@ -61,6 +62,8 @@ export function ClubOnboarding() {
   // UI state
   const [submitting, setSubmitting] = useState(false);
   const [createdClubId, setCreatedClubId] = useState<string | null>(null);
+  // The club exists but her new roles did not load (see handleSubmit): stay here and say so.
+  const [rolesPending, setRolesPending] = useState(false);
   const [error, setError] = useState('');
   const [nameTaken, setNameTaken] = useState(false);
 
@@ -151,9 +154,13 @@ export function ClubOnboarding() {
       // profile step. Load those roles before the saved draft (the other exemption) goes.
       // If the refresh fails she still has her club: keep the draft so the exemption
       // holds, and the next load picks the roles up.
+      let rolesLoaded = false;
       try {
         await refreshPermissions();
-        clearClubOnboardingDraft();
+        // A resolved refresh is not proof (a failed fetch resolves too): confirm the roles now
+        // include a scope for the new club before the draft goes and she is sent to the dashboard.
+        rolesLoaded = Boolean(user?.id) && (await userHoldsClubRole(user!.id, result.clubId));
+        if (rolesLoaded) clearClubOnboardingDraft();
       } catch (refreshError) {
         logger.warn(
           'Roles refresh after club request failed',
@@ -163,6 +170,12 @@ export function ClubOnboarding() {
         );
       }
       setCreatedClubId(result.clubId);
+      setRolesPending(!rolesLoaded);
+      // MYK9-2199: land on the first-show card for THIS club. Only once her roles are loaded
+      // (the dashboard needs them) and not when the wizard sent her here (returnTo leads back).
+      if (rolesLoaded && !returnTo) {
+        navigate(`/secretary/dashboard?clubId=${encodeURIComponent(result.clubId)}`);
+      }
     } catch (err) {
       if (err instanceof ClubNameTakenError) {
         setNameTaken(true);
@@ -189,6 +202,11 @@ export function ClubOnboarding() {
     card = (
       <div className="l-onboard-card" role="status" aria-live="polite">
         <p className="l-success-title">Your club is waiting for myK9Show approval.</p>
+        {rolesPending ? (
+          <p data-testid="club-roles-pending">
+            Your club was created. We couldn&apos;t load it yet; open your dashboard in a moment.
+          </p>
+        ) : null}
         <p>
           You can start now: build a draft show and connect the club&apos;s bank account. Nothing is
           public until we approve the club, usually within a day.
@@ -211,10 +229,10 @@ export function ClubOnboarding() {
             </>
           ) : (
             <Link
-              to={`/clubs/${createdClubId}`}
+              to={`/secretary/dashboard?clubId=${encodeURIComponent(createdClubId)}`}
               className="l-btn l-btn-primary l-btn-lg inline-flex min-h-11 items-center"
             >
-              Open your club
+              Get your first show published
             </Link>
           )}
         </div>

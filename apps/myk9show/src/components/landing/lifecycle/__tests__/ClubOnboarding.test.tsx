@@ -7,6 +7,7 @@ import { readClubOnboardingDraft, saveClubOnboardingDraft } from '../clubOnboard
 const mockSubmit = vi.fn();
 const mockRefreshPermissions = vi.hoisted(() => vi.fn());
 const mockNavigate = vi.hoisted(() => vi.fn());
+const mockHoldsClubRole = vi.hoisted(() => vi.fn());
 const auth = vi.hoisted(() => ({
   refreshPermissions: (...args: unknown[]) => mockRefreshPermissions(...args),
   user: null as null | {
@@ -23,6 +24,10 @@ const signedInUser = {
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => auth,
+}));
+
+vi.mock('../clubRoleLoaded', () => ({
+  userHoldsClubRole: (...args: unknown[]) => mockHoldsClubRole(...args),
 }));
 
 vi.mock('react-router-dom', async importOriginal => ({
@@ -79,6 +84,7 @@ describe('ClubOnboarding', () => {
     vi.clearAllMocks();
     sessionStorage.clear();
     mockRefreshPermissions.mockResolvedValue(undefined);
+    mockHoldsClubRole.mockResolvedValue(true);
     auth.user = signedInUser;
   });
 
@@ -91,9 +97,9 @@ describe('ClubOnboarding', () => {
 
     expect(await screen.findByText(/waiting for myK9Show approval/i)).toBeInTheDocument();
     expect(screen.queryByText(/unauthorized/i)).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /open your club/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /get your first show published/i })).toHaveAttribute(
       'href',
-      '/clubs/club-9'
+      '/secretary/dashboard?clubId=club-9'
     );
     expect(mockSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -102,6 +108,60 @@ describe('ClubOnboarding', () => {
         note: expect.stringContaining('Organization: AKC'),
       })
     );
+  });
+
+  it('lands on the dashboard for the new club once her roles are loaded', async () => {
+    mockSubmit.mockResolvedValue(created);
+    render(<ClubOnboarding />, { initialRoute: '/' });
+    fillRequiredFields();
+    fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: '123' } });
+    submitForm();
+
+    await screen.findByText(/waiting for myK9Show approval/i);
+    expect(mockHoldsClubRole).toHaveBeenCalledWith('user-1', 'club-9');
+    expect(mockNavigate).toHaveBeenCalledWith('/secretary/dashboard?clubId=club-9');
+    expect(screen.queryByTestId('club-roles-pending')).not.toBeInTheDocument();
+    expect(readClubOnboardingDraft()).toBeNull();
+  });
+
+  it.each([
+    [
+      'the refresh resolves but her roles still lack the club',
+      () => {
+        mockHoldsClubRole.mockResolvedValue(false);
+      },
+    ],
+    [
+      'the refresh throws',
+      () => {
+        mockRefreshPermissions.mockRejectedValue(new Error('offline'));
+      },
+    ],
+  ])('keeps her here, with her draft, when %s', async (_name, arrange) => {
+    arrange();
+    mockSubmit.mockResolvedValue(created);
+    saveClubOnboardingDraft(fullDraft);
+    render(<ClubOnboarding />, { initialRoute: '/' });
+    fillRequiredFields();
+    fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: '123' } });
+    submitForm();
+
+    expect(await screen.findByTestId('club-roles-pending')).toHaveTextContent(
+      "Your club was created. We couldn't load it yet; open your dashboard in a moment."
+    );
+    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(readClubOnboardingDraft()).not.toBeNull();
+  });
+
+  it('does not navigate away when she came from the wizard', async () => {
+    mockSubmit.mockResolvedValue(created);
+    render(<ClubOnboarding />, { initialRoute: '/?returnTo=%2Fwizard' });
+    fillRequiredFields();
+    fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: '123' } });
+    submitForm();
+
+    await screen.findByRole('link', { name: /back to your show/i });
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 
   it('leads back to the show she started, with the new club chosen', async () => {
@@ -130,7 +190,9 @@ describe('ClubOnboarding', () => {
     fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: '123' } });
     submitForm();
 
-    expect(await screen.findByRole('link', { name: /open your club/i })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('link', { name: /get your first show published/i })
+    ).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /back to your show/i })).not.toBeInTheDocument();
   });
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -14,10 +14,7 @@ import {
 } from '@/features/show-map/attention';
 import { AttentionNeededStrip } from './AttentionNeededStrip';
 import { FirstShowCard } from './FirstShowCard';
-import { findFirstShowClub } from './firstShowClub';
-import { hasFirstShowPublished, markFirstShowPublished } from './firstShowPublished';
-import { isPublicShowStatus } from '@/features/payments/onlineEntryGate';
-import { useOptionalReplicationSync } from '@/hooks/useOptionalReplicationSync';
+import { useFirstShowClub } from './firstShowClub';
 import { YourEntriesTodayCard } from './YourEntriesTodayCard';
 import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
 import { MyShowsSection, MyShowsSectionSkeleton } from './MyShowsSection';
@@ -116,25 +113,9 @@ export function SecretaryDashboardPage() {
   );
   const entryCountsByShow = useShowEntryCounts(allShowIds);
 
-  // The club still waiting on its first public show (MYK9-2199); none while shows load.
-  // An empty list only means "no shows" once replication has answered; a failed first sync is not that.
-  const showsSyncStatus = useOptionalReplicationSync()?.status.tablesStatus['shows'];
-  const showsKnown = shows.length > 0 || !showsSyncStatus || showsSyncStatus === 'success';
+  // The club still waiting on its first published show, from the server alone (MYK9-2199).
   const [searchParams] = useSearchParams();
-  const publishedClubIds = useMemo(() => {
-    const ids = new Set(shows.filter(s => isPublicShowStatus(s.status)).map(s => s.clubId));
-    return ids;
-  }, [shows]);
-  useEffect(() => {
-    publishedClubIds.forEach(markFirstShowPublished);
-  }, [publishedClubIds]);
-  const firstShowClub =
-    showsLoading || !showsKnown
-      ? null
-      : findFirstShowClub(userWithRoles?.scopes, shows, {
-          preferClubId: searchParams.get('clubId'),
-          isDismissed: hasFirstShowPublished,
-        });
+  const firstShowClub = useFirstShowClub(userWithRoles?.scopes, searchParams.get('clubId'));
 
   // first show's clubId; used by TasksTab to scope new tasks
   const clubId = shows[0]?.clubId ?? '';
@@ -156,7 +137,7 @@ export function SecretaryDashboardPage() {
       </div>
 
       {firstShowClub ? (
-        <FirstShowCard clubId={firstShowClub.clubId} draftShowId={firstShowClub.draftShowId} />
+        <FirstShowCard clubId={firstShowClub.clubId} firstShow={firstShowClub.firstShow} />
       ) : null}
 
       {/* Attention strip */}

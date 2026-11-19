@@ -34,14 +34,18 @@ pause="${VERIFY_SLEEP:-10}"
 
 # Read the whole page before matching: `curl | grep | head` can SIGPIPE curl,
 # which pipefail turns into a failed step.
+# Output from a failed or timed-out transfer (curl exits non-zero after
+# printing part of the body) is discarded, never parsed.
 entry() {
   local html
-  html="$(curl --fail --silent --show-error --location --max-time 20 "$1" || true)"
+  html="$(curl --fail --silent --show-error --location --max-time 20 "$1")" || return 0
   grep -oE 'src="/assets/[^"]*index-[A-Za-z0-9_-]+\.js"' <<<"$html" | sort -u || true
 }
 
 served_sha() {
-  curl --fail --silent --location --max-time 20 "$1/build-sha.txt?v=$commit_sha-$(date +%s)-$2" 2>/dev/null | tr -d '[:space:]' || true
+  local body
+  body="$(curl --fail --silent --location --max-time 20 "$1/build-sha.txt?v=$commit_sha-$(date +%s)-$2" 2>/dev/null)" || return 0
+  tr -d '[:space:]' <<<"$body"
 }
 
 public=""

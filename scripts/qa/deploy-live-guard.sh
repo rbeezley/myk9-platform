@@ -55,8 +55,13 @@ describe() {
 read_live() {
   local url="$1" attempt body
   for ((attempt = 1; attempt <= tries; attempt += 1)); do
-    body="$(curl --fail --silent --show-error --location --max-time 20 \
-      "$url?v=$commit_sha-$(date +%s)-$attempt" 2>/dev/null | tr -d '[:space:]' || true)"
+    # A failed or timed-out transfer may still print part of the body; discard it.
+    if body="$(curl --fail --silent --show-error --location --max-time 20 \
+      "$url?v=$commit_sha-$(date +%s)-$attempt" 2>/dev/null)"; then
+      body="$(tr -d '[:space:]' <<<"$body")"
+    else
+      body=""
+    fi
     if [[ "$body" =~ ^[0-9a-f]{40}$ ]]; then
       echo "$body"
       return 0

@@ -22,15 +22,21 @@ afterEach(() => {
   for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true });
 });
 
-/** `served` maps an exact URL (query stripped) to its body; anything else 404s. */
+/**
+ * `served` maps an exact URL (query stripped) to its body; anything else 404s.
+ * A URL in `stalled` prints its body and then exits 28, like a curl transfer
+ * that hit --max-time partway through.
+ */
 function run(
   served: Record<string, string>,
-  commitSha = SHA
+  commitSha = SHA,
+  stalled: string[] = []
 ): { status: number | null; stdout: string; stderr: string; summary: string; urls: string[] } {
   const bin = mkdtempSync(join(tmpdir(), 'verify-prod-'));
   dirs.push(bin);
   for (const [url, body] of Object.entries(served))
     writeFileSync(join(bin, encodeURIComponent(url)), body);
+  for (const url of stalled) writeFileSync(join(bin, `${encodeURIComponent(url)}.stall`), '');
   const log = join(bin, 'requested.txt');
   writeFileSync(log, '');
   writeFileSync(
@@ -43,6 +49,8 @@ function run(
       `f="${bin}/$(node -e 'process.stdout.write(encodeURIComponent(process.argv[1]))' "$base")"`,
       '[ -f "$f" ] || { echo "curl: (22) The requested URL returned error: 404" >&2; exit 22; }',
       'cat "$f"',
+      '[ -f "$f.stall" ] && { echo "curl: (28) Operation timed out" >&2; exit 28; }',
+      'exit 0',
       '',
     ].join('\n')
   );
@@ -98,6 +106,15 @@ describe('verify-production.sh', { timeout: 30_000 }, () => {
     const curls = src.split('\n').filter(l => /\bcurl --/.test(l));
     expect(curls.length).toBeGreaterThanOrEqual(2);
     for (const l of curls) expect(l).toContain('--max-time');
+  });
+
+  it('never accepts output from a transfer that timed out partway', () => {
+    const homepage = run(healthy(), SHA, [`${DOMAIN}/`]);
+    expect(homepage.status).toBe(1);
+    expect(homepage.stderr).toContain('entry chunk mismatch');
+    const sha = run(healthy(), SHA, [`${ALIAS}/build-sha.txt`]);
+    expect(sha.status).toBe(1);
+    expect(sha.stderr).toContain(`${ALIAS} serves commit ''`);
   });
 
   it('fails when the hosts serve different bundles, even if both report the commit', () => {

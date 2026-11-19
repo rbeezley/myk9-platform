@@ -55,13 +55,16 @@ function run(
   repo: string,
   commitSha: string,
   served: Record<string, string | null>,
-  extraEnv: Record<string, string> = {}
+  extraEnv: Record<string, string> = {},
+  stalled: string[] = []
 ): { status: number | null; stdout: string; stderr: string; output: string; urls: string } {
   const bin = mkdtempSync(join(tmpdir(), 'curl-stub-'));
   dirs.push(bin);
   for (const [url, body] of Object.entries(served)) {
     if (body !== null) writeFileSync(join(bin, encodeURIComponent(url)), body);
   }
+  // A URL in `stalled` prints its body, then exits 28 like a --max-time hit.
+  for (const url of stalled) writeFileSync(join(bin, `${encodeURIComponent(url)}.stall`), '');
   const log = join(bin, 'requested.txt');
   writeFileSync(log, '');
   // Stub for: curl --fail ... "<url>?v=<bust>" -> the body set for <url>, or
@@ -76,6 +79,8 @@ function run(
       `f="${bin}/$(node -e 'process.stdout.write(encodeURIComponent(process.argv[1]))' "$base")"`,
       '[ -f "$f" ] || { echo "curl: (22) The requested URL returned error: 404" >&2; exit 22; }',
       'cat "$f"',
+      '[ -f "$f.stall" ] && { echo "curl: (28) Operation timed out" >&2; exit 28; }',
+      'exit 0',
       '',
     ].join('\n')
   );
@@ -167,6 +172,14 @@ describe('deploy-live-guard.sh', { timeout: 30_000 }, () => {
   it('refuses when the live file cannot be read', () => {
     const { repo, shas } = makeRepo();
     const r = run(repo, shas[3]!, { [DOMAIN]: null, [ALIAS]: `${shas[1]}\n` });
+    expect(r.status).toBe(1);
+    expect(r.output).toBe('');
+    expect(r.stderr).toContain(`Could not read the live commit from ${DOMAIN}`);
+  });
+
+  it('never accepts a live SHA from a transfer that timed out partway', () => {
+    const { repo, shas } = makeRepo();
+    const r = run(repo, shas[3]!, { [DOMAIN]: shas[1]!, [ALIAS]: shas[1]! }, {}, [DOMAIN]);
     expect(r.status).toBe(1);
     expect(r.output).toBe('');
     expect(r.stderr).toContain(`Could not read the live commit from ${DOMAIN}`);

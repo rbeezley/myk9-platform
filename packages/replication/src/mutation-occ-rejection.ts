@@ -166,8 +166,18 @@ export async function handleOccRejection(ctx: OccRejectionContext): Promise<numb
     return null;
   }
   if (stillQueued) {
+    // MYK9-2111: an RPC delta carries only the fields it sets, so it is re-stamped
+    // with the version the server reported, exactly as the cap's park and the
+    // containment pause do. Left on the stale token it was re-sent, and rejected,
+    // on every backoff (paper save pending for 30+ s with the server already at
+    // the final values). A full-row UPDATE keeps its token for the resolver.
+    const restamp =
+      stillQueued.rpc !== undefined && typeof freshServerVersion === 'number'
+        ? { serverVersion: freshServerVersion }
+        : {};
     await db.put(REPLICATION_STORES.PENDING_MUTATIONS, {
       ...stillQueued,
+      ...restamp,
       occRetries,
       nextRetryAt,
     });

@@ -13,12 +13,14 @@ import { buildShowManagementTabDefs } from '@/pages/ShowDetailsPage.tabDefs';
 import type { Show } from '@/types/show-types';
 import { generatedPremium } from '@/features/premium/__tests__/fixtures/generatedPremium';
 
+const NO_OFFICIALS = { secretaries: [], chairmen: [], stewards: [] };
+
 const saveHarness = vi.hoisted(() => ({
   updateShow: vi.fn(),
   runPublish: vi.fn(),
   persistJudges: vi.fn(),
   publishJudges: vi.fn(),
-  generate: vi.fn(),
+  officials: vi.fn(),
   payload: undefined as Record<string, unknown> | undefined,
 }));
 
@@ -26,8 +28,9 @@ vi.mock('@/features/premium/premiumPublishCoordinator', () => ({
   premiumPublishDraftKey: () => 'draft-key',
   runPremiumPublishOperation: saveHarness.runPublish,
 }));
-vi.mock('@/features/premium/useGeneratePremium', () => ({
-  useGeneratePremium: () => ({ generate: saveHarness.generate }),
+vi.mock('@/features/premium/premiumOfficials', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/premium/premiumOfficials')>()),
+  fetchOfficialsForPublish: (...args: unknown[]) => saveHarness.officials(...args),
 }));
 vi.mock('@/services/database/judges', () => ({
   saveShowJudgeChanges: saveHarness.persistJudges,
@@ -831,8 +834,8 @@ describe('Save & Publish keeps the show edits when publication cannot start', ()
   it('persists the form changes even when the publish reservation fails', async () => {
     saveHarness.updateShow.mockReset().mockResolvedValue({ ...makeShow(), name: 'Renamed Show' });
     saveHarness.persistJudges.mockReset().mockResolvedValue(undefined);
-    saveHarness.generate.mockReset().mockResolvedValue(generatedPremium());
     saveHarness.publishJudges.mockReset().mockResolvedValue([]);
+    saveHarness.officials.mockReset().mockResolvedValue(NO_OFFICIALS);
     // Reservation fails (e.g. the RPC is not deployed yet), so the operation
     // rejects before it would ever call createPremium.
     saveHarness.runPublish.mockReset().mockRejectedValue(new Error('function not found'));
@@ -860,8 +863,8 @@ describe('Save & Publish keeps the show edits when publication cannot start', ()
   it('saves an organization change but never publishes a premium built for the old one (MYK9-2213)', async () => {
     saveHarness.updateShow.mockReset().mockResolvedValue({ ...makeShow(), organization: 'UKC' });
     saveHarness.persistJudges.mockReset().mockResolvedValue(undefined);
-    saveHarness.generate.mockReset().mockResolvedValue(generatedPremium());
     saveHarness.publishJudges.mockReset().mockResolvedValue([]);
+    saveHarness.officials.mockReset().mockResolvedValue(NO_OFFICIALS);
     saveHarness.runPublish.mockReset().mockResolvedValue(undefined);
     saveHarness.payload = {
       organization: 'UKC',
@@ -894,7 +897,6 @@ describe('Edit Show saves judges as a change from the loaded list', () => {
   async function saveWith(loaded: unknown[], saved: unknown[]) {
     saveHarness.updateShow.mockReset().mockResolvedValue({ ...makeShow(), name: 'Renamed Show' });
     saveHarness.persistJudges.mockReset().mockResolvedValue(undefined);
-    saveHarness.generate.mockReset().mockResolvedValue(generatedPremium());
     saveHarness.runPublish.mockReset();
     saveHarness.payload = { name: 'Renamed Show', assignedJudges: saved };
     renderShell(
@@ -933,26 +935,14 @@ describe('Save & Publish lists the server judges on the premium', () => {
     const saved: unknown[] = [];
     saveHarness.updateShow.mockReset().mockResolvedValue(makeShow());
     saveHarness.persistJudges.mockReset().mockResolvedValue(undefined);
-    saveHarness.generate.mockReset().mockResolvedValue(generatedPremium());
+    // Publish now awaits the officials (MYK9-2053); reset it so a sibling test's rejection
+    // cannot leak in under shuffle and refuse this publish.
+    saveHarness.officials.mockReset().mockResolvedValue(NO_OFFICIALS);
     saveHarness.publishJudges
       .mockReset()
       .mockResolvedValue([
         { judgeId: 'j1', judgeName: 'Pat Judge', assignedDate: '', assignedClasses: [] },
       ]);
-    saveHarness.generate.mockReset().mockResolvedValue({
-      ...generatedPremium(),
-      trials: [
-        {
-          name: 'Saturday',
-          date: '2026-05-01',
-          startTime: null,
-          eventNumber: null,
-          type: 'Scent Work',
-          judges: [],
-          classes: [],
-        },
-      ],
-    });
     let published: { trials: { judges: { name: string }[] }[] } | undefined;
     saveHarness.runPublish
       .mockReset()
@@ -991,78 +981,51 @@ describe('Save & Publish lists the server judges on the premium', () => {
     ]);
   });
 
-  it('takes the facts from the server generation and only the copy from the editor (MYK9-2230)', async () => {
+  it('publishes the show officials as the premium secretary and chair (MYK9-2053)', async () => {
     saveHarness.updateShow.mockReset().mockResolvedValue(makeShow());
     saveHarness.persistJudges.mockReset().mockResolvedValue(undefined);
-    saveHarness.generate.mockReset().mockResolvedValue(generatedPremium());
     saveHarness.publishJudges.mockReset().mockResolvedValue([]);
-    const server = generatedPremium('Louisville');
-    server.show = { ...server.show, address: '100 Austin Avenue', city: 'Austin', state: 'TX' };
-    server.secretary = {
-      name: 'Jane Smith',
-      email: 'jane@test.com',
-      phone: null,
-      mailingAddress: null,
-    };
-    server.trials = [
-      {
-        name: 'Saturday',
-        date: '2026-05-01',
-        startTime: '8:00 AM',
-        eventNumber: '2026-1234',
-        type: 'Scent Work',
-        judges: [],
-        classes: [{ element: 'Container', level: 'Novice', section: 'B' }],
-      },
-    ];
-    saveHarness.generate.mockReset().mockResolvedValue(server);
+    saveHarness.officials.mockReset().mockResolvedValue({
+      secretaries: [
+        {
+          personId: 'p1',
+          firstName: 'Jane',
+          lastName: 'Smith',
+          email: 'jane@test.com',
+          role: 'secretary',
+        },
+      ],
+      chairmen: [
+        { personId: 'p2', firstName: 'Bob', lastName: 'Jones', email: null, role: 'chairman' },
+      ],
+      stewards: [],
+    });
     let published: ReturnType<typeof generatedPremium> | undefined;
     saveHarness.runPublish
       .mockReset()
       .mockImplementation(async (op: { createPremium: () => Promise<typeof published> }) => {
         published = await op.createPremium();
       });
-    const edited = generatedPremium('Stale');
-    edited.narratives = { showHours: 'Edited hours', trialInformation: 'Edited info' };
-    edited.supplemental = { ...edited.supplemental, additionalNotes: 'Edited note' };
-    edited.trials = [
-      {
-        name: 'Saturday',
-        date: '2026-05-01',
-        startTime: null,
-        eventNumber: '1',
-        type: '',
-        judges: [],
-        classes: [{ element: 'Container', level: 'Novice', section: null }],
-      },
-    ];
-    saveHarness.payload = { assignedJudges: [], publishExperience: true, generatedPremium: edited };
+    saveHarness.payload = {
+      assignedJudges: [],
+      publishExperience: true,
+      generatedPremium: generatedPremium(),
+    };
 
     renderShell({}, '/shows/show-1?edit=true');
     fireEvent.click(await screen.findByTestId('edit-panel-save'));
 
     await waitFor(() => expect(published).toBeDefined());
-    expect(saveHarness.generate).toHaveBeenCalledWith('show-1');
-    expect(published?.narratives).toEqual({
-      showHours: 'Edited hours',
-      trialInformation: 'Edited info',
-    });
-    expect(published?.supplemental.additionalNotes).toBe('Edited note');
-    expect(published?.show).toMatchObject({ address: '100 Austin Avenue', city: 'Austin' });
-    expect(published?.secretary).toMatchObject({ name: 'Jane Smith' });
-    expect(published?.trials[0]).toMatchObject({
-      eventNumber: '2026-1234',
-      startTime: '8:00 AM',
-      classes: [{ element: 'Container', level: 'Novice', section: 'B' }],
-    });
+    expect(saveHarness.officials).toHaveBeenCalledWith('show-1');
+    expect(published?.secretary).toMatchObject({ name: 'Jane Smith', email: 'jane@test.com' });
+    expect(published?.officials.chairman).toMatchObject({ name: 'Bob Jones' });
   });
 
-  it('does not publish when the server generation fails', async () => {
+  it('does not publish a blank when the officials cannot be read', async () => {
     saveHarness.updateShow.mockReset().mockResolvedValue(makeShow());
     saveHarness.persistJudges.mockReset().mockResolvedValue(undefined);
-    saveHarness.generate.mockReset().mockResolvedValue(generatedPremium());
     saveHarness.publishJudges.mockReset().mockResolvedValue([]);
-    saveHarness.generate.mockReset().mockRejectedValue(new Error('boom'));
+    saveHarness.officials.mockReset().mockRejectedValue(new Error('boom'));
     saveHarness.runPublish.mockReset();
     saveHarness.payload = {
       assignedJudges: [],
@@ -1073,7 +1036,7 @@ describe('Save & Publish lists the server judges on the premium', () => {
     renderShell({}, '/shows/show-1?edit=true');
     fireEvent.click(await screen.findByTestId('edit-panel-save'));
 
-    await waitFor(() => expect(saveHarness.generate).toHaveBeenCalled());
+    await waitFor(() => expect(saveHarness.officials).toHaveBeenCalled());
     expect(saveHarness.runPublish).not.toHaveBeenCalled();
   });
 });

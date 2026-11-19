@@ -16,6 +16,12 @@ export interface ShowExperienceSnapshot {
    * on a snapshot published before it, which shows no line.
    */
   recordingFee?: string | null;
+  /**
+   * MYK9-2230: the premium as published, so a copy-only republish from Edit show starts from every
+   * fact it printed (address, trial limits, officers) and overlays only what the form edits.
+   * Absent on a snapshot published before it.
+   */
+  premium?: GeneratedPremium;
   outputs: {
     /** New snapshots persist both values committed together by PostgreSQL. */
     premiumPath?: string | null;
@@ -42,6 +48,7 @@ export function buildExperienceSnapshot({
     narratives: premium.narratives,
     supplemental: premium.supplemental,
     recordingFee: premiumRecordingFeeText(premium),
+    ...(isFullPremium(premium) ? { premium } : {}),
     outputs: { premiumPath, premiumUrl },
   };
 }
@@ -52,4 +59,9 @@ export function getLiveExperienceSnapshot(show: {
 }): ShowExperienceSnapshot | null {
   if (!show.experienceIsPublished) return null;
   return show.experiencePublishedContent ?? null;
+}
+
+function isFullPremium(premium: object): premium is GeneratedPremium {
+  const p = premium as Partial<GeneratedPremium>;
+  return Boolean(p.org && p.show && p.club && p.trials);
 }

@@ -14,6 +14,7 @@ import { getShowPreviewHref } from '@/components/shows/showPreviewRoutes';
 import { getShowEditHref } from '@/components/shows/showEditRoutes';
 import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import type { GeneratedPremium, PremiumStyle } from '@/types/premium-types';
+import { premiumTrialKey } from '@/features/premium/premiumClassLabel';
 import { normalizeEntryLimit } from '@/features/premium/premiumEntryLimit';
 import type { ShowEditFormData } from './ShowEditPanel.types';
 
@@ -186,17 +187,35 @@ function buildLocalPremiumDraft(
 ): GeneratedPremium | undefined {
   if (!showOrg || !publishedContent) return undefined;
 
+  // MYK9-2230: start from the premium as published and overlay only what this form edits, so a
+  // copy-only republish keeps every fact the form does not hold (address parts, officers, trial
+  // start times). A snapshot published before it carries no premium and builds from the form.
+  const stored =
+    publishedContent.premium && publishedContent.premium.org === showOrg
+      ? publishedContent.premium
+      : null;
+  const storedTrials = new Map(
+    (stored?.trials ?? []).map(trial => [premiumTrialKey(trial.name, trial.date), trial])
+  );
+
   // MYK9-2044: a cancelled trial is not printed, so the recording fee derived from this schedule
   // does not price it either.
   const liveTrials = (data.trials ?? []).filter(trial =>
     isLivePremiumTrial({ status: trial.status ?? null, deleted_at: trial.deletedAt ?? null })
   );
+  const formJudges = (data.assignedJudges ?? []).map(judge => ({
+    name: judge.judgeName,
+    residence: judge.residence ?? null,
+    classes: judge.classLabels ?? [],
+  }));
 
   return {
+    templateId: null,
+    ...stored,
     org: showOrg,
     style: (data.style || 'monogram') as PremiumStyle,
-    templateId: null,
     show: {
+      ...stored?.show,
       name: data.name,
       startDate: data.startDate,
       endDate: data.endDate,
@@ -213,33 +232,36 @@ function buildLocalPremiumDraft(
       name: data.clubName ?? '',
       logoUrl: data.logoUrl || null,
     },
-    secretary: {
+    secretary: stored?.secretary ?? {
       name: null,
       email: null,
       phone: null,
       mailingAddress: null,
     },
-    officials: {
+    officials: stored?.officials ?? {
       chairman: null,
     },
-    trials: liveTrials.map(trial => ({
-      name: trial.name,
-      date: trial.date,
-      startTime: null,
-      eventNumber: trial.trialNumber,
-      type: trial.trialType ?? '',
-      maxTotalEntries: normalizeEntryLimit(trial.maxTotalEntries),
-      judges: (data.assignedJudges ?? []).map(judge => ({
-        name: judge.judgeName,
-        residence: judge.residence ?? null,
-        classes: judge.classLabels ?? [],
-      })),
-      classes: (trial.classes ?? []).map(cls => ({
-        element: cls.element ?? '',
-        level: cls.level ?? '',
-        section: null,
-      })),
-    })),
+    trials: liveTrials.map(trial => {
+      const prior = storedTrials.get(premiumTrialKey(trial.name, trial.date));
+      const priorClasses = new Map(
+        (prior?.classes ?? []).map(cls => [`${cls.element}|${cls.level}`, cls])
+      );
+      return {
+        startTime: null,
+        ...prior,
+        name: trial.name,
+        date: trial.date,
+        eventNumber: trial.trialNumber,
+        type: trial.trialType ?? '',
+        maxTotalEntries: normalizeEntryLimit(trial.maxTotalEntries),
+        judges: formJudges.length > 0 ? formJudges : (prior?.judges ?? []),
+        classes: (trial.classes ?? []).map(cls => {
+          const element = cls.element ?? '';
+          const level = cls.level ?? '';
+          return priorClasses.get(`${element}|${level}`) ?? { element, level, section: null };
+        }),
+      };
+    }),
     supplemental: publishedContent.supplemental,
     narratives: publishedContent.narratives,
   };

@@ -29,6 +29,7 @@ import type { GeneratedPremium, PremiumSupplemental } from '@/types/premium-type
 import { makeClassComparator } from './pdf/bodies/classOrder';
 import { premiumRecordingFeeText } from './premiumRecordingFeeStatement';
 import { premiumEntryLimitText, premiumTrialEntryLimitText } from './premiumEntryLimit';
+import { composePremiumVenue } from './premiumVenue';
 
 // ─── Catalog: what each fact is, where it comes from, who requires it ───────────────────
 
@@ -422,7 +423,7 @@ export function buildPremiumFacts(
     clubName: club.name,
     club: club.name ?? 'Host Club',
     monogram: buildMonogram(club.name ?? 'Host Club'),
-    venue: show.venue ?? '',
+    venue: composePremiumVenue(show),
     startDate: show.startDate,
     fees: {
       preEntry: show.preEntryFee,

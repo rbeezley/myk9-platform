@@ -95,6 +95,13 @@ export interface GeneratedPremium {
     startDate: string;
     endDate: string;
     venue: string | null;
+    /** MYK9-2230: shows.venue_name, the label printed ahead of the street address. */
+    venueName?: string | null;
+    /** MYK9-2230: the street address and its locality; absent on a premium generated before. */
+    address?: string | null;
+    city?: string | null;
+    state?: string | null;
+    zipCode?: string | null;
     entryOpenDate: string | null;
     entryCloseDate: string | null;
     preEntryFee: number | null;

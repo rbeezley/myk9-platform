@@ -523,3 +523,149 @@ describe('ShowEditPremiumTab entry limit (MYK9-2220)', () => {
     expect(draftShow().maxTotalEntries).toBeNull();
   });
 });
+
+describe('ShowEditPremiumTab copy-only republish (MYK9-2230)', () => {
+  beforeEach(() => {
+    premiumEditorProps.length = 0;
+    officialsMock = undefined;
+  });
+
+  const publishedPremium: GeneratedPremium = {
+    org: 'AKC',
+    style: 'monogram',
+    templateId: null,
+    show: {
+      name: 'Test Show',
+      startDate: '2026-05-01',
+      endDate: '2026-05-02',
+      venue: 'County Fairgrounds',
+      venueName: 'Fairgrounds Hall',
+      address: '12 Fair Road',
+      city: 'Lexington',
+      state: 'KY',
+      zipCode: '40502',
+      entryOpenDate: null,
+      entryCloseDate: null,
+      preEntryFee: 15,
+      dayOfFee: 20,
+      acceptChecks: false,
+      acceptCash: false,
+    },
+    club: { name: 'Test Club', logoUrl: null },
+    secretary: { name: null, email: null, phone: null, mailingAddress: null },
+    officials: { chairman: null },
+    trials: [
+      {
+        name: 'Trial 1',
+        date: '2026-05-01',
+        startTime: '08:00',
+        eventNumber: '2026123401',
+        type: 'Scent Work',
+        maxTotalEntries: 60,
+        judges: [],
+        classes: [{ element: 'Container', level: 'Novice', section: 'A' }],
+      },
+    ],
+    supplemental: {
+      vetClinic: null,
+      accommodations: [],
+      coverImageUrl: null,
+      hospitalityNotes: null,
+      awardsDescription: null,
+      additionalNotes: null,
+    },
+    narratives: { showHours: 'Hours.', trialInformation: 'Info.' },
+  };
+
+  it('keeps the stored address and trial limit through the form-only republish path', () => {
+    const experiencePublishedContent = buildExperienceSnapshot({
+      premium: publishedPremium,
+      premiumPath: 'show-1/artifact-1.pdf',
+      premiumUrl: 'https://trusted.example/premium-published/show-1/artifact-1.pdf',
+    });
+    render(
+      <ShowEditPremiumTab
+        data={{
+          ...baseData,
+          location: 'County Fairgrounds',
+          clubName: 'Test Club',
+          experiencePublishedContent,
+          trials: [
+            {
+              id: 'trial-1',
+              name: 'Trial 1',
+              date: '2026-05-01',
+              trialNumber: '2026123401',
+              status: 'published',
+              trialType: 'Scent Work',
+              maxTotalEntries: 60,
+              classes: [
+                { id: 'c1', name: 'Novice Container', element: 'Container', level: 'Novice' },
+              ],
+            },
+          ],
+        }}
+        clubId="c1"
+        showOrg="AKC"
+        isActive
+        handleCheckboxChange={vi.fn(() => vi.fn())}
+        handleValueChange={vi.fn(() => vi.fn())}
+      />
+    );
+
+    const draft = premiumEditorProps.at(-1)?.initialPremium as GeneratedPremium;
+    // The Shell publishes the draft through applyShowFormDataToPremium.
+    const published = applyShowFormDataToPremium(draft, { location: 'County Fairgrounds' }, []);
+
+    expect(published.show).toMatchObject({
+      venueName: 'Fairgrounds Hall',
+      address: '12 Fair Road',
+      city: 'Lexington',
+      state: 'KY',
+      zipCode: '40502',
+    });
+    expect(buildPremiumFacts(published).venue).toBe(
+      'Fairgrounds Hall, 12 Fair Road, Lexington, KY 40502'
+    );
+    expect(published.trials[0]).toMatchObject({
+      maxTotalEntries: 60,
+      startTime: '08:00',
+      classes: [{ element: 'Container', level: 'Novice', section: 'A' }],
+    });
+  });
+
+  it('lets the form overlay an edited trial limit', () => {
+    const experiencePublishedContent = buildExperienceSnapshot({
+      premium: publishedPremium,
+      premiumPath: null,
+      premiumUrl: 'https://trusted.example/p.pdf',
+    });
+    render(
+      <ShowEditPremiumTab
+        data={{
+          ...baseData,
+          experiencePublishedContent,
+          trials: [
+            {
+              id: 'trial-1',
+              name: 'Trial 1',
+              date: '2026-05-01',
+              trialNumber: '2026123401',
+              status: 'published',
+              maxTotalEntries: 40,
+              classes: [],
+            },
+          ],
+        }}
+        clubId="c1"
+        showOrg="AKC"
+        isActive
+        handleCheckboxChange={vi.fn(() => vi.fn())}
+        handleValueChange={vi.fn(() => vi.fn())}
+      />
+    );
+    const draft = premiumEditorProps.at(-1)?.initialPremium as GeneratedPremium;
+    expect(draft.trials[0]?.maxTotalEntries).toBe(40);
+    expect(draft.show.address).toBe('12 Fair Road');
+  });
+});

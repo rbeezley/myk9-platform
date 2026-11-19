@@ -11,6 +11,12 @@ describe('composePremiumVenue (MYK9-2230)', () => {
     );
   });
 
+  it('keeps the location when only a venue name is set, no address', () => {
+    expect(composePremiumVenue({ venue: 'Louisville, KY', venueName: 'Expo Hall' })).toBe(
+      'Louisville, KY'
+    );
+  });
+
   it('composes label, street and locality from separate columns', () => {
     expect(
       composePremiumVenue({

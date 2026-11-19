@@ -40,11 +40,12 @@ import { publishAnchorFromHash } from '@/features/show-workbench/setupReadinessS
 import type { Show } from '@/types/show-types';
 import type { GeneratedPremium } from '@/types/premium-types';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
-import { applyShowFormDataToPremium, premiumOrganizationMismatch } from './showFormPremiumSync';
 import {
-  applyOfficialsToPremium,
-  fetchOfficialsForPublish,
-} from '@/features/premium/premiumOfficials';
+  applyEditorCopyToPremium,
+  applyShowFormDataToPremium,
+  premiumOrganizationMismatch,
+} from './showFormPremiumSync';
+import { useGeneratePremium } from '@/features/premium/useGeneratePremium';
 import { showHeroParent } from './showHeroParent';
 import { showPublishBlockersQueryKey } from '@/features/publishing/usePublishBlockers';
 import { carriedClassSearch } from './showTabClass';
@@ -147,6 +148,7 @@ function AuthorizedShowManagementShell({
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const updateShowLocally = useShowStore(s => s.updateShow);
+  const { generate: generatePremium } = useGeneratePremium();
   // Read from the ROUTER's params, not `window.location`: this shell is mounted
   // by the router, and an in-app navigation that never touches `window.location`
   // must be seen the same way a cold load is. Captured in a `useState`
@@ -412,16 +414,16 @@ function AuthorizedShowManagementShell({
                 // read failed; the published premium lists the server's judges,
                 // and only when this device agrees with them (MYK9-774).
                 const judges = await fetchShowJudgesForPublish(id);
-                // The secretary and chair come from show_officials, which the generated
-                // premium does not read (MYK9-2053); an unreadable read fails the publish.
-                const officials = await fetchOfficialsForPublish(id);
-                const premium = applyOfficialsToPremium(
-                  applyShowFormDataToPremium(
-                    publishableShowData.generatedPremium,
-                    showData as Partial<ShowInput>,
-                    judges
+                // MYK9-2230: the facts (address, event numbers, class sections, trial limits, the
+                // secretary and chair) come from the server, the same generation the Premium List
+                // card publishes; the editor contributes only its copy and style choices.
+                const premium = applyShowFormDataToPremium(
+                  applyEditorCopyToPremium(
+                    await generatePremium(id),
+                    publishableShowData.generatedPremium
                   ),
-                  officials
+                  showData as Partial<ShowInput>,
+                  judges
                 );
                 await runPremiumPublishOperation({
                   showId: id,

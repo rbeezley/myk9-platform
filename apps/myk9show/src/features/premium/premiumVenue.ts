@@ -1,6 +1,6 @@
 /**
  * MYK9-2230: the venue a premium prints, composed from the show's separate columns, never by
- * guessing at substrings of one free-text field. The label is the venue name, else the location;
+ * guessing at substrings of one free-text field. Without an address the location prints as it always has. With one, the label is the venue name, else the location;
  * a street address and a "City, ST 12345" line follow only when the show has an address.
  */
 export interface PremiumVenueParts {
@@ -17,10 +17,10 @@ export interface PremiumVenueParts {
 const clean = (value: string | null | undefined): string => (value ?? '').trim();
 
 export function composePremiumVenue(parts: PremiumVenueParts): string {
-  const label = clean(parts.venueName) || clean(parts.venue);
   const address = clean(parts.address);
-  // No address: the location prints exactly as it always has.
-  if (!address) return label;
+  // No address: the location prints exactly as it always has, even when a venue name is set.
+  if (!address) return clean(parts.venue);
+  const label = clean(parts.venueName) || clean(parts.venue);
   const city = clean(parts.city);
   const stateZip = [clean(parts.state), clean(parts.zipCode)].filter(Boolean).join(' ');
   const locality = [city, stateZip].filter(Boolean).join(', ');

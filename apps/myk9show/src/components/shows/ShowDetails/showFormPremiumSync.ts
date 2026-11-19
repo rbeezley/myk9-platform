@@ -103,3 +103,20 @@ export function premiumOrganizationMismatch(
   if (!organization || organization === premium.org) return null;
   return `The premium was built for ${premium.org}. Open Premium and Regenerate it for ${organization}, then publish.`;
 }
+
+/**
+ * MYK9-2230: a copy-only publish from Edit show starts from the premium the server generated and
+ * takes from the editor ONLY what it owns: the narratives, the supplemental details and the style.
+ * Every printed fact (address parts, event numbers, class sections, officers) stays the server's.
+ */
+export function applyEditorCopyToPremium(
+  generated: GeneratedPremium,
+  edited: GeneratedPremium
+): GeneratedPremium {
+  return {
+    ...generated,
+    style: edited.style,
+    narratives: edited.narratives,
+    supplemental: edited.supplemental,
+  };
+}

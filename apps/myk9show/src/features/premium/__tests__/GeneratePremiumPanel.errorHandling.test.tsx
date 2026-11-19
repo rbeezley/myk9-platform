@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
 import userEvent from '@testing-library/user-event';
-import { render, screen, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { screen, waitFor } from '@testing-library/react';
+import { QueryClient } from '@tanstack/react-query';
+import { render } from '@/test/utils/testUtils';
 import type { GeneratedPremium } from '../../../types/premium-types';
 
 // renderPremiumPdf is the one PDF build the editor uses. Each test settles it by hand.
@@ -50,9 +51,11 @@ const fakePremium: GeneratedPremium = {
   narratives: { showHours: 'h', trialInformation: 't' },
 };
 
+const generateMock = vi.hoisted(() => vi.fn());
+
 vi.mock('../useGeneratePremium', () => ({
   useGeneratePremium: () => ({
-    generate: vi.fn().mockResolvedValue(fakePremium),
+    generate: generateMock,
     isLoading: false,
     error: null,
     reset: vi.fn(),
@@ -90,11 +93,7 @@ function renderPanel() {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
-  render(
-    <QueryClientProvider client={client}>
-      <PanelUnderTest />
-    </QueryClientProvider>
-  );
+  render(<PanelUnderTest />, { queryClient: client });
 }
 
 async function openPanel() {
@@ -119,6 +118,7 @@ describe('GeneratePremiumPanel: PDF error toast deduplication', () => {
   }, 60_000);
 
   beforeEach(() => {
+    generateMock.mockReset().mockResolvedValue(fakePremium);
     errorMock.mockClear();
     successMock.mockClear();
     renderMock.mockReset();
@@ -176,5 +176,7 @@ describe('GeneratePremiumPanel: PDF error toast deduplication', () => {
     expect(link).toHaveAttribute('href', 'blob:x');
     expect(link).toHaveAttribute('download', expect.stringMatching(/premium\.pdf$/));
     expect(renderMock).toHaveBeenCalledTimes(2);
+    // Try again rebuilt the PDF only: the premium was generated once, when the panel opened.
+    expect(generateMock).toHaveBeenCalledTimes(1);
   });
 });

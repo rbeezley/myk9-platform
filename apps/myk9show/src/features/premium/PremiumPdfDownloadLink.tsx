@@ -16,6 +16,9 @@ interface PremiumPdfDownloadLinkProps {
   onPreview: () => void;
 }
 
+/** How long the inputs must be still before a PDF build starts (MYK9-2215). */
+export const PDF_BUILD_SETTLE_MS = 300;
+
 type PdfKey = { premium: GeneratedPremium; inkSaver: boolean; showId: string; attempt: number };
 type PdfResult = { url: string } | { error: Error };
 type PdfBuild = { status: 'preparing' } | { status: 'ready'; url: string } | { status: 'failed' };
@@ -35,6 +38,7 @@ function usePremiumPdfBuild(
   // The result is tagged with the inputs it was built for, so a changed premium reads as
   // "preparing" without a synchronous reset inside the effect.
   const [attempt, setAttempt] = useState(0);
+  const builtAttemptRef = useRef(attempt);
   const [result, setResult] = useState<{ key: PdfKey; value: PdfResult } | null>(null);
   // Callers pass inline callbacks; the build must not restart when they change.
   const onErrorRef = useRef(onError);
@@ -48,22 +52,33 @@ function usePremiumPdfBuild(
     const key = { premium, inkSaver, showId, attempt };
     let cancelled = false;
     let objectUrl: string | null = null;
-    renderPremiumPdf(showId, premium, inkSaver).then(
-      blob => {
-        if (cancelled) return;
-        objectUrl = URL.createObjectURL(blob);
-        setResult({ key, value: { url: objectUrl } });
-        onUrlRef.current(objectUrl);
+    const retrying = attempt !== builtAttemptRef.current;
+    builtAttemptRef.current = attempt;
+    // Coalesce edits: the secretary's typing changes `premium` on every keystroke, and a full
+    // render (plus the AKC entry-form join) per character is wasted work. Build only once the
+    // inputs have been still for a moment; a retry builds at once.
+    const timer = setTimeout(
+      () => {
+        renderPremiumPdf(showId, premium, inkSaver).then(
+          blob => {
+            if (cancelled) return;
+            objectUrl = URL.createObjectURL(blob);
+            setResult({ key, value: { url: objectUrl } });
+            onUrlRef.current(objectUrl);
+          },
+          (err: unknown) => {
+            if (cancelled) return;
+            const error = err instanceof Error ? err : new Error(String(err));
+            setResult({ key, value: { error } });
+            onErrorRef.current(error);
+          }
+        );
       },
-      (err: unknown) => {
-        if (cancelled) return;
-        const error = err instanceof Error ? err : new Error(String(err));
-        setResult({ key, value: { error } });
-        onErrorRef.current(error);
-      }
+      retrying ? 0 : PDF_BUILD_SETTLE_MS
     );
     return () => {
       cancelled = true;
+      clearTimeout(timer);
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [showId, premium, inkSaver, attempt]);
@@ -108,7 +123,7 @@ export default function PremiumPdfDownloadLink({
     return (
       <div className="flex flex-col gap-2" role="alert">
         <p className="text-sm text-destructive">
-          We could not build the PDF. Try again, or pick a different style.
+          We could not build the PDF. Try again in a moment.
         </p>
         <Button className="w-full" variant="outline" onClick={retry}>
           Try again

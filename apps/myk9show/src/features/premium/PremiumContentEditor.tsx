@@ -135,9 +135,7 @@ export function PremiumContentEditor({
   const handlePdfError = useCallback((err: Error) => {
     if (lastPdfErrorMessageRef.current === err.message) return;
     lastPdfErrorMessageRef.current = err.message;
-    notifications.error(
-      'This style failed to render - please try a different one or report the issue.'
-    );
+    notifications.error('We could not build the PDF. Use Try again below the preview buttons.');
   }, []);
 
   const handleGenerate = useCallback(async () => {

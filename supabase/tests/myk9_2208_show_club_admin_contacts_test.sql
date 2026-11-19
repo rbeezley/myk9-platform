@@ -139,6 +139,24 @@ BEGIN
 END;
 $$;
 
+-- A secretary who is authorized by role but suspended, or banned, is refused (their JWT may still
+-- be valid). Done as the table owner so the people/auth rows can be changed, then restored.
+RESET ROLE;
+UPDATE public.people SET status = 'suspended' WHERE id = '00000000-0000-0000-0000-000000220812';
+SET LOCAL ROLE authenticated;
+DO $$
+BEGIN
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000220712', true);
+  BEGIN
+    PERFORM * FROM public.get_show_club_admin_contacts('00000000-0000-0000-0000-000000220851');
+    RAISE EXCEPTION 'FAIL a suspended secretary read the admin contacts';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
+  RAISE NOTICE 'PASS a suspended secretary is refused';
+END;
+$$;
+
 -- With no signed-in user the call is refused.
 DO $$
 BEGIN

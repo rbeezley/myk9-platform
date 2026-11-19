@@ -8,7 +8,7 @@
 -- Authorization: exactly show_publish_blockers' rule (20261119223100): can_manage_show (platform
 -- admin, a club admin of the show's club, or a club-wide secretary; latest definition
 -- 20261113222900) OR site admin. A show-pinned secretary row grants nothing (20260830240000), so
--- it does not pass here either. 42501 otherwise, and anon cannot execute.
+-- it does not pass here either. The caller must also have a live account. 42501 otherwise, and anon cannot execute.
 --
 -- Who is listed: the same "club admin" the client treats as one (an active, unexpired, club-wide
 -- club_admin row), only people who can actually sign in (person_can_sign_in): a banned, suspended,
@@ -33,7 +33,17 @@ BEGIN
     RAISE EXCEPTION 'p_show_id is required' USING ERRCODE = '22023';
   END IF;
 
-  IF NOT (public.can_manage_show(p_show_id) OR public.is_site_admin()) THEN
+  -- The caller's own account must be live too (signed in, not banned, suspended or deleted): the
+  -- role checks read assignments only, so a suspended manager with a valid session is refused here.
+  IF NOT (
+    (public.can_manage_show(p_show_id) OR public.is_site_admin())
+    AND EXISTS (
+      SELECT 1 FROM public.people cp
+      WHERE cp.auth_user_id = auth.uid()
+        AND auth.uid() IS NOT NULL
+        AND public.person_can_sign_in(cp.id)
+    )
+  ) THEN
     RAISE EXCEPTION 'not authorized to read the club admins for show %', p_show_id
       USING ERRCODE = '42501';
   END IF;

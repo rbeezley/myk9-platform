@@ -22,7 +22,7 @@
 --          Pull is told by MYK9-2126's entry_changed email and a secretary removal (withdrawn,
 --          no code) is nobody's act, so neither is told here: the exhibitor is never told twice.
 --        * refund_outcome: AFTER UPDATE OF refund_amount, refund_decision when a pulled or
---          withdrawn entry gets a refund recorded (refund_amount from nothing to a positive
+--          withdrawn or absent entry gets a refund recorded (refund_amount from nothing to a positive
 --          amount) or a denial. Whoever wrote it, including the service role that records a Stripe
 --          refund: the exhibitor is told what happened to her money either way.
 --      The jobs store ids only, in entry_changes ({"kind":"removed"|"refunded"|"denied",
@@ -35,7 +35,7 @@
 -- Rollback: DROP TRIGGER trg_queue_pulled_out_email, trg_queue_refund_outcome_email ON
 -- public.entries; DROP FUNCTION public.queue_pulled_out_email_from_update(),
 -- public.queue_refund_outcome_email_from_update(), public.queue_entry_money_email(uuid, text,
--- jsonb); DROP INDEX show_lifecycle_email_jobs_one_unsent_entry_money; delete pulled_out and
+-- jsonb, uuid); DROP INDEX show_lifecycle_email_jobs_one_unsent_entry_money; delete pulled_out and
 -- refund_outcome jobs and steps, restore the ten-value step_type CHECKs,
 -- ensure_show_lifecycle_email_steps from 20261120052300, set_entry_refund_decision and
 -- restrict_entry_refund_decision_columns from 20261117152900, then ALTER TABLE public.entries
@@ -335,11 +335,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS show_lifecycle_email_jobs_one_unsent_entry_mon
     AND recipient_person_id IS NOT NULL;
 
 -- p_event happened to p_entry_id just now. Safe to call for any entry: it does nothing for an
--- unpublished show. Who may be told is the CALLER's decision (pulled_out checks the actor).
+-- unpublished show. Who may be told is the CALLER's decision (pulled_out checks the actor). The
+-- recipients are the dog's owner and the entry's handler, plus p_also_person_id when given.
 CREATE OR REPLACE FUNCTION public.queue_entry_money_email(
   p_entry_id uuid,
   p_step_type text,
-  p_event jsonb
+  p_event jsonb,
+  p_also_person_id uuid DEFAULT NULL
 )
 RETURNS void
 LANGUAGE plpgsql
@@ -411,7 +413,8 @@ BEGIN
   FROM public.people p
   WHERE nullif(btrim(coalesce(p.email, '')), '') IS NOT NULL
     AND p.deleted_at IS NULL
-    AND p.id IN (v_owner_id, v_handler_id)
+    -- p_also_person_id: the person who acted, when they are neither (a co-owner who pulled).
+    AND p.id IN (v_owner_id, v_handler_id, p_also_person_id)
   -- Another one in the same sitting: the one waiting job stays, waits again and adds the event.
   -- A job the drain has claimed is not in the index: it is frozen, and the new event becomes a
   -- job of its own.
@@ -428,7 +431,7 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.queue_entry_money_email(uuid, text, jsonb)
+REVOKE ALL ON FUNCTION public.queue_entry_money_email(uuid, text, jsonb, uuid)
   FROM PUBLIC, anon, authenticated, service_role;
 
 -- "You're out": the exhibitor's OWN Pull or Withdraw. entry_change_actor is MYK9-2126's rule for
@@ -440,12 +443,18 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
 AS $$
+DECLARE
+  v_actor_id uuid;
 BEGIN
   IF public.entry_change_actor(new.show_id, new.dog_id, old.handler_id) = 'exhibitor' THEN
+    -- entry_change_actor counts the dog's co-owner as the exhibitor, so the person who pulled may
+    -- be neither the owner nor the handler: they are told too.
+    SELECT p.id INTO v_actor_id FROM public.people p WHERE p.auth_user_id = auth.uid() LIMIT 1;
     PERFORM public.queue_entry_money_email(
       new.id,
       'pulled_out',
-      jsonb_build_object('kind', 'removed', 'entry_id', new.id)
+      jsonb_build_object('kind', 'removed', 'entry_id', new.id),
+      v_actor_id
     );
   END IF;
   RETURN NULL;
@@ -472,7 +481,7 @@ CREATE TRIGGER trg_queue_pulled_out_email
   )
   EXECUTE FUNCTION public.queue_pulled_out_email_from_update();
 
--- "The outcome": a refund recorded, or a refund denied, on a pulled or withdrawn entry.
+-- "The outcome": a refund recorded, or a refund denied, on a pulled, withdrawn or absent entry.
 CREATE OR REPLACE FUNCTION public.queue_refund_outcome_email_from_update()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -480,7 +489,9 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 BEGIN
-  IF new.entry_status IN ('scratched', 'withdrawn') THEN
+  -- Every removal the secretary can reconcile: exactly what set_entry_refund_decision accepts (a
+  -- pull, a withdrawal or secretary removal, a no-show), so the dialog's promise of an email holds.
+  IF new.entry_status IN ('scratched', 'withdrawn', 'absent') THEN
     IF coalesce(old.refund_amount, 0) <= 0 AND coalesce(new.refund_amount, 0) > 0 THEN
       PERFORM public.queue_entry_money_email(
         new.id,

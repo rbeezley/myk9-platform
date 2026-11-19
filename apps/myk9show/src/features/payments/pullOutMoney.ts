@@ -10,22 +10,41 @@
  * when the order paid for this one entry; on a larger order the line says it is not refunded and
  * names no figure rather than inventing a share. A check or cash entry has no service fee line.
  */
-import { PaymentStatus } from '@/types/show-registration-types';
+import { dispositionOf } from '@/utils/effectivePaymentStatus';
+import type { PaymentStatus } from '@/types/show-registration-types';
 
 export type PaidAs = 'online' | 'check' | 'cash';
 
-/** How this entry's own money arrived, or null while nothing has been paid. */
-export function paidAsFromStatus(status: PaymentStatus | undefined): PaidAs | null {
-  switch (status) {
-    case PaymentStatus.PAID_ONLINE:
-      return 'online';
-    case PaymentStatus.PAID_BY_CHECK:
-      return 'check';
-    case PaymentStatus.PAID_BY_CASH:
-      return 'cash';
-    default:
-      return null;
-  }
+/**
+ * How this class row's own money arrived, or null while nothing is paid (or the method is not
+ * recorded). `paymentStatus` is the row's RECONCILED status (a reopened desk payment reads as
+ * unpaid), never the raw column. The database's generic `paid` maps to PAID_ONLINE even for a
+ * check, so the recorded `payment_method` decides how it was paid, and only the method the row
+ * itself records is believed.
+ */
+export function paidAsFromRow(row: {
+  paymentStatus: PaymentStatus | undefined;
+  paymentMethod: string | null | undefined;
+}): PaidAs | null {
+  if (!row.paymentStatus || dispositionOf(row.paymentStatus) !== 'paid') return null;
+  const method = (row.paymentMethod ?? '').trim().toLowerCase();
+  return method === 'online' || method === 'check' || method === 'cash' ? method : null;
+}
+
+/**
+ * The one settled charge that paid for this entry, or null when none or more than one did. The
+ * receipt read returns every overlapping order, oldest first, failed or pending attempts included
+ * (a checkout retry, a waitlist promotion); a service fee is quoted only from a charge that
+ * settled, and only when it is the only one, so an earlier attempt's fee is never quoted.
+ */
+export function orderThatPaidFor<T extends { entryIds: readonly string[]; status: string }>(
+  entryId: string,
+  orders: readonly T[] | undefined
+): T | null {
+  const settled = (orders ?? []).filter(
+    order => order.status === 'succeeded' && order.entryIds.includes(entryId)
+  );
+  return settled.length === 1 ? (settled[0] ?? null) : null;
 }
 
 export interface PullOutMoneyInput {

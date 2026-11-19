@@ -58,7 +58,10 @@ interface EntryRow {
   refund_decision_reason: string | null;
   handler_id: string | null;
   deleted_at: string | null;
-  dogs: DogRow | DogRow[] | null;
+  dogs:
+    | (DogRow & { co_owner_id?: string | null })
+    | Array<DogRow & { co_owner_id?: string | null }>
+    | null;
 }
 
 export type PullOutPlan =
@@ -73,6 +76,16 @@ function parseEvents(value: unknown, kinds: readonly string[]): RecordedEvent[] 
       kinds.includes((event as RecordedEvent).kind) &&
       typeof (event as RecordedEvent).entry_id === 'string'
   );
+}
+
+/**
+ * A removal the secretary can reconcile: exactly what set_entry_refund_decision accepts, so the
+ * outcome email and the Deny refund dialog agree. A pull, a withdrawal or secretary removal (any
+ * 'withdrawn', coded or not) and a no-show (absent).
+ */
+function isReconcilable(entry: EntryRow): boolean {
+  if (entry.deleted_at) return false;
+  return ['scratched', 'withdrawn', 'absent'].includes(clean(entry.entry_status));
 }
 
 /** A Pull is 'scratched'; a Withdraw is 'withdrawn' WITH a reason code. A codeless one is no act of hers. */
@@ -99,7 +112,7 @@ interface LoadedEntries {
 }
 
 /**
- * The recorded entries, restricted to the person's own (owner or handler) and to this show, with
+ * The recorded entries, restricted to the person's own (owner, co-owner or handler) and to this show, with
  * the live classes' labels. A failed read throws: it must not read as "nothing to say".
  */
 async function loadEntries(args: {
@@ -122,7 +135,7 @@ async function loadEntries(args: {
   const entryRead = (await supabase
     .from('entries')
     .select(
-      'id, class_id, entry_status, withdrawal_reason_code, payment_method, payment_status, refund_amount, refund_decision, refund_decision_reason, handler_id, deleted_at, dogs(name, call_name, owner_id, deleted_at)'
+      'id, class_id, entry_status, withdrawal_reason_code, payment_method, payment_status, refund_amount, refund_decision, refund_decision_reason, handler_id, deleted_at, dogs(name, call_name, owner_id, co_owner_id, deleted_at)'
     )
     .eq('show_id', args.showId)
     .in('id', [...new Set(events.map(event => event.entry_id))])) as QueryResult<EntryRow[]>;
@@ -131,7 +144,10 @@ async function loadEntries(args: {
   const entries = (entryRead.data ?? []).filter(
     entry =>
       !first(entry.dogs)?.deleted_at &&
-      (entry.handler_id === args.personId || first(entry.dogs)?.owner_id === args.personId)
+      // The co-owner is here for the person who pulled: entry_change_actor treats a co-owner as the exhibitor.
+      (entry.handler_id === args.personId ||
+        first(entry.dogs)?.owner_id === args.personId ||
+        first(entry.dogs)?.co_owner_id === args.personId)
   );
   const classIds = [...new Set(entries.map(entry => entry.class_id).filter(Boolean))] as string[];
   const classes = new Map<string, ClassRow>();
@@ -209,7 +225,7 @@ export async function planPulledOutEmail(args: {
   return { kind: 'send', lines: lines.map(line => line.text), moneyNote };
 }
 
-/** "The outcome": a refund still recorded, or a denial still standing, on an entry still removed. */
+/** "The outcome": a refund still recorded, or a denial still standing, on an entry still removed or marked absent. */
 export async function planRefundOutcomeEmail(args: {
   supabase: LifecycleEmailSupabaseClient;
   jobId: string;
@@ -220,8 +236,11 @@ export async function planRefundOutcomeEmail(args: {
   if (!loaded) return { kind: 'skip' };
 
   const lines: Array<{ dog: string; text: string }> = [];
+  let clubPaid: boolean | null = null;
   for (const entry of loaded.entries) {
-    if (!isRemoved(entry)) continue;
+    // The removals a secretary can reconcile, not only the exhibitor's own acts (a no-show or a
+    // secretary removal can be refunded or denied too, and the dialog promises an email for each).
+    if (!isReconcilable(entry)) continue;
     // Only an online payment has a card to refund or a denial to explain; cash and check carry no money text.
     if (clean(entry.payment_method) !== 'online') continue;
     const label = loaded.labelFor(entry);
@@ -233,6 +252,12 @@ export async function planRefundOutcomeEmail(args: {
         text: `Refunded ${formatDollars(Number(entry.refund_amount))} to your card for ${dog} in ${label}.`,
       });
     } else if (entry.refund_decision === 'denied') {
+      // After the club has been paid out, the same wording as the pull email: MYK9-1953 is undecided.
+      clubPaid ??= await clubHasBeenPaid(args.supabase, args.showId);
+      if (clubPaid) {
+        lines.push({ dog, text: `${dog} in ${label}: ${CLUB_CONTACTS_YOU}` });
+        continue;
+      }
       const reason = clean(entry.refund_decision_reason);
       lines.push({
         dog,
@@ -282,7 +307,7 @@ export function renderRefundOutcomeEmail(args: {
     subject: `Your refund for ${showName}`,
     body: [
       `Hi ${firstName(args.recipientName)},`,
-      `The trial secretary has decided on your refund for ${showName}.`,
+      `Here is the latest on your refund for ${showName}.`,
       args.lines.join('\n'),
       `Your entries: https://myk9show.com/exhibitor/entries?showId=${args.showId}`,
     ].join('\n\n'),

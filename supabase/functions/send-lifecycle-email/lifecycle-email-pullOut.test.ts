@@ -201,6 +201,46 @@ describe('drainAutoEmailJobs for pulled_out (MYK9-2001)', () => {
   });
 });
 
+describe('drainAutoEmailJobs for pulled_out, a co-owner who pulled (MYK9-2001)', () => {
+  it('tells the co-owner who is neither the owner nor the handler', async () => {
+    const fixture = makeAutoSendSupabase(
+      tables(
+        'pulled_out',
+        [removed],
+        [
+          entry({
+            handler_id: 'person-8',
+            dogs: { ...dog, owner_id: 'person-9', co_owner_id: 'person-1' },
+          }),
+        ]
+      )
+    );
+    const { fetch, promise } = drain(fixture);
+
+    await expect(promise).resolves.toMatchObject({ sent: 1, skipped: 0 });
+    expect(sentBody(fetch).html).toContain('Vesper is out of Novice Interior');
+  });
+
+  it('does not tell a person who is none of owner, co-owner or handler', async () => {
+    const fixture = makeAutoSendSupabase(
+      tables(
+        'pulled_out',
+        [removed],
+        [
+          entry({
+            handler_id: 'person-8',
+            dogs: { ...dog, owner_id: 'person-9', co_owner_id: 'person-7' },
+          }),
+        ]
+      )
+    );
+    const { fetch, promise } = drain(fixture);
+
+    await expect(promise).resolves.toMatchObject({ sent: 0, skipped: 1 });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+});
+
 describe('drainAutoEmailJobs for refund_outcome (MYK9-2001)', () => {
   it('says what was refunded, from the entry’s own recorded refund', async () => {
     const fixture = makeAutoSendSupabase(
@@ -247,6 +287,66 @@ describe('drainAutoEmailJobs for refund_outcome (MYK9-2001)', () => {
       'The trial secretary&#039;s reason: Pulled after the closing date.'
     );
     expect(sent.html).not.toMatch(/Refunded \$/);
+  });
+
+  it('tells the outcome for every removal the secretary can reconcile: a no-show and a secretary removal', async () => {
+    for (const row of [
+      entry({ entry_status: 'absent', refund_amount: 30 }),
+      entry({
+        entry_status: 'withdrawn',
+        withdrawal_reason_code: null,
+        refund_decision: 'denied',
+        refund_decision_reason: 'Removed by the secretary.',
+      }),
+    ]) {
+      const fixture = makeAutoSendSupabase(
+        tables(
+          'refund_outcome',
+          [{ kind: row.refund_amount ? 'refunded' : 'denied', entry_id: 'entry-1' }],
+          [row]
+        )
+      );
+      const { fetch, promise } = drain(fixture);
+
+      await expect(promise).resolves.toMatchObject({ sent: 1, skipped: 0 });
+      expect(fetch).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it('says only that the club will contact her when the denial comes after the club was paid', async () => {
+    const fixture = makeAutoSendSupabase(
+      tables(
+        'refund_outcome',
+        [{ kind: 'denied', entry_id: 'entry-1' }],
+        [entry({ refund_decision: 'denied', refund_decision_reason: 'Pulled after closing.' })],
+        { show_payouts: [{ id: 'payout-1', show_id: 'show-1', status: 'completed' }] }
+      )
+    );
+    const { fetch, promise } = drain(fixture);
+
+    await expect(promise).resolves.toMatchObject({ sent: 1 });
+
+    const html = sentBody(fetch).html;
+    expect(html).toContain(CLUB_CONTACTS_YOU);
+    expect(html).not.toContain('No refund for');
+    expect(html).not.toContain('Pulled after closing.');
+  });
+
+  it('still says no refund and the reason while the club has not been paid', async () => {
+    const fixture = makeAutoSendSupabase(
+      tables(
+        'refund_outcome',
+        [{ kind: 'denied', entry_id: 'entry-1' }],
+        [entry({ refund_decision: 'denied', refund_decision_reason: 'Late.' })],
+        { show_payouts: [{ id: 'payout-1', show_id: 'show-1', status: 'awaiting_approval' }] }
+      )
+    );
+    const { fetch, promise } = drain(fixture);
+
+    await promise;
+
+    expect(sentBody(fetch).html).toContain('No refund for Vesper in Novice Interior');
+    expect(sentBody(fetch).html).not.toContain(CLUB_CONTACTS_YOU);
   });
 
   it('escapes the reason: it is the secretary’s own typed words', async () => {

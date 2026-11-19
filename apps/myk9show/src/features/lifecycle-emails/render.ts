@@ -257,7 +257,7 @@ export function buildLifecycleEmailDraft(input: LifecycleEmailPreviewInput): {
         body: joinLines([
           greeting,
           '',
-          `The trial secretary has decided on your refund for ${showName}.`,
+          `Here is the latest on your refund for ${showName}.`,
           showLine,
         ]),
       };

@@ -75,7 +75,9 @@ describe('LeaveClassDialog: what she paid (MYK9-2001)', () => {
 
   it('shows the entry fee and the recorded service fee before she confirms', async () => {
     mocks.useEntryReceiptOrders.mockReturnValue({
-      data: [{ id: 'order-1', entryIds: [target.classId], platformFeeCents: 210 }],
+      data: [
+        { id: 'order-1', status: 'succeeded', entryIds: [target.classId], platformFeeCents: 210 },
+      ],
     });
     const user = userEvent.setup();
     render(
@@ -104,6 +106,46 @@ describe('LeaveClassDialog: what she paid (MYK9-2001)', () => {
     await user.click(dialog.getByRole('button', { name: /^pull$/i }));
     expect(dialog.getByText('Entry fee $30.00: the secretary decides on a refund.')).toBeVisible();
     expect(dialog.getByText('Service fee $2.10: not refunded.')).toBeVisible();
+  });
+
+  it('quotes the settled charge’s service fee, not an earlier attempt that covers the same entry', async () => {
+    mocks.useEntryReceiptOrders.mockReturnValue({
+      data: [
+        { id: 'retry', status: 'pending', entryIds: [target.classId], platformFeeCents: 999 },
+        { id: 'paid', status: 'succeeded', entryIds: [target.classId], platformFeeCents: 210 },
+      ],
+    });
+    render(
+      <LeaveClassDialog
+        dialog={{ open: true, target: paidOnline }}
+        onClose={vi.fn()}
+        onUpdate={vi.fn()}
+      />
+    );
+
+    const dialog = within(await chooser());
+    expect(dialog.getByText('Service fee $2.10: not refunded.')).toBeVisible();
+    expect(dialog.queryByText(/9\.99/)).not.toBeInTheDocument();
+  });
+
+  it('omits the service fee when two settled charges cover the entry', async () => {
+    mocks.useEntryReceiptOrders.mockReturnValue({
+      data: [
+        { id: 'a', status: 'succeeded', entryIds: [target.classId], platformFeeCents: 210 },
+        { id: 'b', status: 'succeeded', entryIds: [target.classId], platformFeeCents: 175 },
+      ],
+    });
+    render(
+      <LeaveClassDialog
+        dialog={{ open: true, target: paidOnline }}
+        onClose={vi.fn()}
+        onUpdate={vi.fn()}
+      />
+    );
+
+    const dialog = within(await chooser());
+    expect(dialog.getByText('Entry fee $30.00: the secretary decides on a refund.')).toBeVisible();
+    expect(dialog.queryByText(/^Service fee( \$|:)/)).not.toBeInTheDocument();
   });
 
   it('shows the entry fee alone for a check entry and does not read an order', async () => {

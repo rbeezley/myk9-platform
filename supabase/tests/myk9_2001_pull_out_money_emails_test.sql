@@ -14,6 +14,8 @@
 --      one waiting job; a refund on an entry still running queues nothing
 --   F. a job the drain has claimed is frozen: the next event is a new job
 --   G. the producer function is not callable by an API role
+--   J. outcome emails cover every reconcilable removal (a no-show, a secretary removal)
+--   K. a co-owner who pulls gets the pulled_out email too
 --
 -- Fixtures roll back.
 
@@ -34,7 +36,8 @@ insert into public.classes (id, trial_id, name, status, element, level, section)
 
 insert into public.people (id, first_name, last_name, email) values
   ('00000000-0000-0000-0000-000002001021', 'Ada', 'Owner', 'ada@example.test'),
-  ('00000000-0000-0000-0000-000002001026', 'Sue', 'Secretary', 'sue@example.test');
+  ('00000000-0000-0000-0000-000002001026', 'Sue', 'Secretary', 'sue@example.test'),
+  ('00000000-0000-0000-0000-000002001027', 'Cory', 'CoOwner', 'cory@example.test');
 insert into auth.users (
   id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
   created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
@@ -45,7 +48,12 @@ insert into auth.users (
    '{}', '{}', false, false, false),
   ('00000000-0000-0000-0000-000002001102', '00000000-0000-0000-0000-000000000000',
    'authenticated', 'authenticated', 'sue@example.test', '', now(), now(), now(),
+   '{}', '{}', false, false, false),
+  ('00000000-0000-0000-0000-000002001103', '00000000-0000-0000-0000-000000000000',
+   'authenticated', 'authenticated', 'cory@example.test', '', now(), now(), now(),
    '{}', '{}', false, false, false);
+update public.people set auth_user_id = '00000000-0000-0000-0000-000002001103'
+ where id = '00000000-0000-0000-0000-000002001027';
 update public.people set auth_user_id = '00000000-0000-0000-0000-000002001101'
  where id = '00000000-0000-0000-0000-000002001021';
 update public.people set auth_user_id = '00000000-0000-0000-0000-000002001102'
@@ -57,12 +65,15 @@ select '00000000-0000-0000-0000-000002001026', id, '00000000-0000-0000-0000-0000
        '00000000-0000-0000-0000-000002001102'
   from public.roles where name = 'secretary';
 
-insert into public.dogs (id, name, call_name, breed, owner_id) values
-  ('00000000-0000-0000-0000-000002001031', 'Ada Dog One', 'One', 'Beagle', '00000000-0000-0000-0000-000002001021'),
-  ('00000000-0000-0000-0000-000002001032', 'Ada Dog Two', 'Two', 'Beagle', '00000000-0000-0000-0000-000002001021'),
-  ('00000000-0000-0000-0000-000002001033', 'Ada Dog Three', 'Three', 'Beagle', '00000000-0000-0000-0000-000002001021'),
-  ('00000000-0000-0000-0000-000002001034', 'Ada Dog Four', 'Four', 'Beagle', '00000000-0000-0000-0000-000002001021'),
-  ('00000000-0000-0000-0000-000002001035', 'Ada Dog Five', 'Five', 'Beagle', '00000000-0000-0000-0000-000002001021');
+insert into public.dogs (id, name, call_name, breed, owner_id, co_owner_id) values
+  ('00000000-0000-0000-0000-000002001031', 'Ada Dog One', 'One', 'Beagle', '00000000-0000-0000-0000-000002001021', null),
+  ('00000000-0000-0000-0000-000002001032', 'Ada Dog Two', 'Two', 'Beagle', '00000000-0000-0000-0000-000002001021', null),
+  ('00000000-0000-0000-0000-000002001033', 'Ada Dog Three', 'Three', 'Beagle', '00000000-0000-0000-0000-000002001021', null),
+  ('00000000-0000-0000-0000-000002001034', 'Ada Dog Four', 'Four', 'Beagle', '00000000-0000-0000-0000-000002001021', null),
+  ('00000000-0000-0000-0000-000002001035', 'Ada Dog Five', 'Five', 'Beagle', '00000000-0000-0000-0000-000002001021', null),
+  ('00000000-0000-0000-0000-000002001036', 'Ada Dog Six', 'Six', 'Beagle', '00000000-0000-0000-0000-000002001021', '00000000-0000-0000-0000-000002001027'),
+  ('00000000-0000-0000-0000-000002001037', 'Ada Dog Seven', 'Seven', 'Beagle', '00000000-0000-0000-0000-000002001021', null),
+  ('00000000-0000-0000-0000-000002001038', 'Ada Dog Eight', 'Eight', 'Beagle', '00000000-0000-0000-0000-000002001021', null);
 
 alter table public.entries disable trigger trg_entries_require_dog_registration;
 insert into public.entries (id, dog_id, class_id, show_id, trial_id, entry_status, armband, run_order,
@@ -72,7 +83,10 @@ insert into public.entries (id, dog_id, class_id, show_id, trial_id, entry_statu
   ('00000000-0000-0000-0000-000002001043', '00000000-0000-0000-0000-000002001033', '00000000-0000-0000-0000-000002001004', '00000000-0000-0000-0000-000002001002', '00000000-0000-0000-0000-000002001003', 'confirmed', '3', 3, 'no-status', 'online', 'paid', 30),
   ('00000000-0000-0000-0000-000002001044', '00000000-0000-0000-0000-000002001034', '00000000-0000-0000-0000-000002001004', '00000000-0000-0000-0000-000002001002', '00000000-0000-0000-0000-000002001003', 'confirmed', '4', 4, 'no-status', 'online', 'paid', 30),
   ('00000000-0000-0000-0000-000002001045', '00000000-0000-0000-0000-000002001035', '00000000-0000-0000-0000-000002001004', '00000000-0000-0000-0000-000002001002', '00000000-0000-0000-0000-000002001003', 'confirmed', '5', 5, 'no-status', 'online', 'paid', 30),
-  ('00000000-0000-0000-0000-000002001046', '00000000-0000-0000-0000-000002001031', '00000000-0000-0000-0000-000002001014', '00000000-0000-0000-0000-000002001012', '00000000-0000-0000-0000-000002001013', 'confirmed', '1', 1, 'no-status', 'online', 'paid', 30);
+  ('00000000-0000-0000-0000-000002001046', '00000000-0000-0000-0000-000002001031', '00000000-0000-0000-0000-000002001014', '00000000-0000-0000-0000-000002001012', '00000000-0000-0000-0000-000002001013', 'confirmed', '1', 1, 'no-status', 'online', 'paid', 30),
+  ('00000000-0000-0000-0000-000002001047', '00000000-0000-0000-0000-000002001036', '00000000-0000-0000-0000-000002001004', '00000000-0000-0000-0000-000002001002', '00000000-0000-0000-0000-000002001003', 'confirmed', '6', 6, 'no-status', 'online', 'paid', 30),
+  ('00000000-0000-0000-0000-000002001048', '00000000-0000-0000-0000-000002001037', '00000000-0000-0000-0000-000002001004', '00000000-0000-0000-0000-000002001002', '00000000-0000-0000-0000-000002001003', 'confirmed', '7', 7, 'no-status', 'online', 'paid', 30),
+  ('00000000-0000-0000-0000-000002001049', '00000000-0000-0000-0000-000002001038', '00000000-0000-0000-0000-000002001004', '00000000-0000-0000-0000-000002001002', '00000000-0000-0000-0000-000002001003', 'confirmed', '8', 8, 'no-status', 'online', 'paid', 30);
 alter table public.entries enable trigger trg_entries_require_dog_registration;
 
 -- Act as a signed-in user ('' = nobody: the service role, a cron job).
@@ -364,6 +378,54 @@ begin
   exception when check_violation then
     raise notice 'PASS I NULLing refund_decision while a reason is set is refused by the CHECK';
   end;
+end $$;
+
+-- J: the outcome email covers every removal the secretary can reconcile (what
+-- set_entry_refund_decision accepts), so the dialog's promise of an email holds: a no-show
+-- refunded, and a secretary removal (withdrawn, no reason code) denied
+do $$
+begin
+  perform pg_temp.act('00000000-0000-0000-0000-000002001102');
+  update public.entries set entry_status = 'absent' where id = '00000000-0000-0000-0000-000002001048';
+  update public.entries set refund_amount = 10 where id = '00000000-0000-0000-0000-000002001048';
+  if pg_temp.events('refund_outcome', 'refunded', '00000000-0000-0000-0000-000002001048') <> 1 then
+    raise exception 'FAIL J a refund on a no-show queued no outcome email';
+  end if;
+  update public.entries set entry_status = 'withdrawn' where id = '00000000-0000-0000-0000-000002001049';
+  update public.entries set refund_decision = 'denied', refund_decision_reason = 'Removed by the secretary'
+   where id = '00000000-0000-0000-0000-000002001049';
+  if pg_temp.events('refund_outcome', 'denied', '00000000-0000-0000-0000-000002001049') <> 1 then
+    raise exception 'FAIL J a denial on a secretary removal queued no outcome email';
+  end if;
+  raise notice 'PASS J outcome emails cover no-shows and secretary removals';
+end $$;
+
+-- K: a co-owner who pulls is the acting exhibitor (entry_change_actor): they get the confirmation
+-- too, though they are neither the owner nor the handler
+do $$
+begin
+  perform pg_temp.act('00000000-0000-0000-0000-000002001103');
+  update public.entries set entry_status = 'scratched' where id = '00000000-0000-0000-0000-000002001047';
+  if not exists (
+    select 1 from public.show_lifecycle_email_jobs j
+     where j.step_type = 'pulled_out' and j.status in ('held', 'ready')
+       and j.recipient_person_id = '00000000-0000-0000-0000-000002001027'
+       and j.recipient_email = 'cory@example.test'
+       and j.entry_changes @> jsonb_build_array(jsonb_build_object(
+             'kind', 'removed', 'entry_id', '00000000-0000-0000-0000-000002001047'))
+  ) then
+    raise exception 'FAIL K the co-owner who pulled was not queued a pulled_out email';
+  end if;
+  if not exists (
+    select 1 from public.show_lifecycle_email_jobs j
+     where j.step_type = 'pulled_out' and j.status in ('held', 'ready')
+       and j.recipient_person_id = '00000000-0000-0000-0000-000002001021'
+       and j.entry_changes @> jsonb_build_array(jsonb_build_object(
+             'kind', 'removed', 'entry_id', '00000000-0000-0000-0000-000002001047'))
+  ) then
+    raise exception 'FAIL K the owner is still told too';
+  end if;
+  raise notice 'PASS K a co-owner who pulls is told, and so is the owner';
 end $$;
 
 rollback;

@@ -26,7 +26,7 @@ import { useShowRegistryId } from '@/components/entries/useShowRegistryId';
 import { useWithdrawEligibility } from '@/components/entries/useWithdrawEligibility';
 import { withdrawEntry } from '@/services/database/entries';
 import { useEntryReceiptOrders } from '@/features/payments/entryReceiptOrder';
-import { pullOutMoneyLines } from '@/features/payments/pullOutMoney';
+import { orderThatPaidFor, pullOutMoneyLines } from '@/features/payments/pullOutMoney';
 import { withdrawErrorMessage } from '@/services/database/entries/withdrawEligibility';
 import { logger } from '@/services/LoggingService';
 import { GENERIC_FAILURE_MESSAGE } from '@/utils/errorMessages';
@@ -89,7 +89,7 @@ export const LeaveClassDialog: React.FC<LeaveClassDialogProps> = ({
     ? pullOutMoneyLines({
         paidAs: target.paidAs,
         entryFee: target.entryFee,
-        order: receiptOrders.data?.find(order => order.entryIds.includes(target.classId)) ?? null,
+        order: orderThatPaidFor(target.classId, receiptOrders.data),
       })
     : [];
 

@@ -10,7 +10,7 @@
  * @module MyEntriesPage/modules/MyShowGroup
  */
 
-import { paidAsFromStatus } from '@/features/payments/pullOutMoney';
+import { paidAsFromRow } from '@/features/payments/pullOutMoney';
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Check, CreditCard } from 'lucide-react';
@@ -433,7 +433,11 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
                   dogCardId: leavingDog.id,
                   showId: group.showId,
                   entryFee: cls.fee,
-                  paidAs: paidAsFromStatus(cls.rawPaymentStatus),
+                  // The RECONCILED status and the recorded method, as the card's own badge reads them.
+                  paidAs: paidAsFromRow({
+                    paymentStatus: cls.paymentStatus,
+                    paymentMethod: cls.paymentMethod,
+                  }),
                 })
               }
               onClassChanged={onClassChanged}

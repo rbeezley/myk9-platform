@@ -307,4 +307,63 @@ begin
   end;
 end $$;
 
+-- H: the step_type CHECKs accept every step type on main (this migration sorts BEFORE 2127's in
+-- file order if re-applied with --include-all, so it must carry show_cancelled itself)
+do $$
+declare
+  v_step text;
+  v_show constant uuid := '00000000-0000-0000-0000-000002001012';
+begin
+  delete from public.show_lifecycle_email_steps where show_id = v_show;
+  foreach v_step in array array['show_cancelled', 'pulled_out', 'refund_outcome'] loop
+    insert into public.show_lifecycle_email_steps (show_id, step_type, is_enabled) values (v_show, v_step, true);
+  end loop;
+  delete from public.show_lifecycle_email_steps where show_id = v_show;
+  perform public.ensure_show_lifecycle_email_steps(v_show);
+  if (select count(*) from public.show_lifecycle_email_steps
+       where show_id = v_show
+         and step_type in ('show_cancelled', 'pulled_out', 'refund_outcome')) <> 3 then
+    raise exception 'FAIL H ensure_show_lifecycle_email_steps should seed show_cancelled, pulled_out and refund_outcome';
+  end if;
+  begin
+    insert into public.show_lifecycle_email_steps (show_id, step_type, is_enabled) values (v_show, 'not_a_step', true);
+    raise exception 'FAIL H the steps CHECK accepted an unknown step type';
+  exception when check_violation then
+    null;
+  end;
+  foreach v_step in array array['show_cancelled', 'pulled_out', 'refund_outcome', 'not_a_step'] loop
+    begin
+      insert into public.show_lifecycle_email_jobs (
+        show_id, step_id, step_type, status, recipient_scope, recipient_person_id,
+        recipient_email, recipient_name, subject, idempotency_key, due_at, auto_send)
+      select v_show, id, v_step, 'held', 'show_recipient', '00000000-0000-0000-0000-000002001021',
+             'ada@example.test', 'Ada Owner', 'H check', 'h-check-' || v_step, now(), true
+        from public.show_lifecycle_email_steps where show_id = v_show limit 1;
+      if v_step = 'not_a_step' then
+        raise exception 'FAIL H the jobs CHECK accepted an unknown step type';
+      end if;
+    exception when check_violation then
+      if v_step <> 'not_a_step' then
+        raise exception 'FAIL H the jobs CHECK refused %', v_step;
+      end if;
+    end;
+  end loop;
+  raise notice 'PASS H both CHECKs accept show_cancelled, pulled_out and refund_outcome, and refuse others';
+end $$;
+
+-- I: NULLing refund_decision while a reason is set breaks entries_refund_decision_reason_check
+-- (a reason belongs to a denial); written as the owner role, so only the CHECK can refuse it
+do $$
+begin
+  update public.entries
+     set refund_decision = 'denied', refund_decision_reason = 'Late pull'
+   where id = '00000000-0000-0000-0000-000002001042';
+  begin
+    update public.entries set refund_decision = null where id = '00000000-0000-0000-0000-000002001042';
+    raise exception 'FAIL I a reason with no denial was accepted';
+  exception when check_violation then
+    raise notice 'PASS I NULLing refund_decision while a reason is set is refused by the CHECK';
+  end;
+end $$;
+
 rollback;

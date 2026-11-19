@@ -36,8 +36,8 @@
 -- public.entries; DROP FUNCTION public.queue_pulled_out_email_from_update(),
 -- public.queue_refund_outcome_email_from_update(), public.queue_entry_money_email(uuid, text,
 -- jsonb); DROP INDEX show_lifecycle_email_jobs_one_unsent_entry_money; delete pulled_out and
--- refund_outcome jobs and steps, restore the nine-value step_type CHECKs,
--- ensure_show_lifecycle_email_steps from 20261119045700, set_entry_refund_decision and
+-- refund_outcome jobs and steps, restore the ten-value step_type CHECKs,
+-- ensure_show_lifecycle_email_steps from 20261120052300, set_entry_refund_decision and
 -- restrict_entry_refund_decision_columns from 20261117152900, then ALTER TABLE public.entries
 -- DROP COLUMN refund_decision_reason.
 -- =============================================================================
@@ -272,6 +272,7 @@ ALTER TABLE public.show_lifecycle_email_steps
       'show_changed',
       'judge_changed',
       'entry_changed',
+      'show_cancelled',
       'pulled_out',
       'refund_outcome'
     )
@@ -289,12 +290,15 @@ ALTER TABLE public.show_lifecycle_email_jobs
       'show_changed',
       'judge_changed',
       'entry_changed',
+      'show_cancelled',
       'pulled_out',
       'refund_outcome'
     )
   );
 
--- Copied from its LATEST definition (20261119045700), plus the tenth and eleventh steps.
+-- Copied from its LATEST definition (20261120052300, MYK9-2127), plus the eleventh and twelfth
+-- steps. Every step type already on main is listed above and here: this file sorts after
+-- 20261120052300, but it must not depend on the order it is applied in.
 CREATE OR REPLACE FUNCTION public.ensure_show_lifecycle_email_steps(p_show_id uuid)
 RETURNS void
 LANGUAGE sql
@@ -312,6 +316,7 @@ AS $$
     (p_show_id, 'show_changed', true),
     (p_show_id, 'judge_changed', true),
     (p_show_id, 'entry_changed', true),
+    (p_show_id, 'show_cancelled', true),
     (p_show_id, 'pulled_out', true),
     (p_show_id, 'refund_outcome', true)
   ON CONFLICT (show_id, step_type) DO NOTHING;
@@ -509,6 +514,35 @@ CREATE TRIGGER trg_queue_refund_outcome_email
     OR old.refund_decision IS DISTINCT FROM new.refund_decision
   )
   EXECUTE FUNCTION public.queue_refund_outcome_email_from_update();
+
+-- Self-check, so the push fails loudly instead of leaving a CHECK that refuses an email type
+-- another migration relies on: this file may be applied before or after 20261120052300.
+DO $$
+DECLARE
+  v_table text;
+  v_step text;
+  v_def text;
+BEGIN
+  FOREACH v_table IN ARRAY ARRAY['show_lifecycle_email_steps', 'show_lifecycle_email_jobs'] LOOP
+    SELECT string_agg(pg_get_constraintdef(c.oid), ' ') INTO v_def
+      FROM pg_constraint c
+     WHERE c.conrelid = ('public.' || v_table)::regclass
+       AND c.contype = 'c'
+       AND pg_get_constraintdef(c.oid) LIKE '%step_type%';
+    FOREACH v_step IN ARRAY ARRAY['show_cancelled', 'pulled_out', 'refund_outcome'] LOOP
+      IF v_def IS NULL OR position('''' || v_step || '''' IN v_def) = 0 THEN
+        RAISE EXCEPTION 'MYK9-2001: the % step_type CHECK does not accept %', v_table, v_step;
+      END IF;
+    END LOOP;
+  END LOOP;
+
+  IF (SELECT prosrc FROM pg_proc
+       WHERE oid = 'public.ensure_show_lifecycle_email_steps(uuid)'::regprocedure)
+       NOT LIKE '%''show_cancelled''%' THEN
+    RAISE EXCEPTION 'MYK9-2001: ensure_show_lifecycle_email_steps does not seed show_cancelled';
+  END IF;
+END
+$$;
 
 COMMIT;
 

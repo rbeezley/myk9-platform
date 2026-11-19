@@ -305,4 +305,70 @@ describe('drainAutoEmailJobs for refund_outcome (MYK9-2001)', () => {
     await expect(promise).resolves.toMatchObject({ sent: 1 });
     expect(sentBody(fetch).html).toContain('Refunded $12.50 to your card');
   });
+
+  it.each(['check', 'cash'])('sends no money text for a %s pull', async method => {
+    const fixture = makeAutoSendSupabase(
+      tables(
+        'refund_outcome',
+        [{ kind: 'refunded', entry_id: 'entry-1' }],
+        [entry({ payment_method: method, refund_amount: 30 })]
+      )
+    );
+    const { fetch, promise } = drain(fixture);
+
+    await expect(promise).resolves.toMatchObject({ sent: 0, skipped: 1 });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('gives an owner and a handler who are different people one email each', async () => {
+    const entries = [
+      entry({ id: 'entry-1', refund_amount: 30, handler_id: 'person-2' }),
+      entry({ id: 'entry-2', refund_amount: 20, handler_id: null }),
+    ];
+    const events = [
+      { kind: 'refunded', entry_id: 'entry-1' },
+      { kind: 'refunded', entry_id: 'entry-2' },
+    ];
+    const ownerFixture = makeAutoSendSupabase(tables('refund_outcome', events, entries));
+    const owner = drain(ownerFixture);
+    await expect(owner.promise).resolves.toMatchObject({ sent: 1 });
+    expect(owner.fetch).toHaveBeenCalledTimes(1);
+    expect(sentBody(owner.fetch).html).toContain('Refunded $30.00');
+    expect(sentBody(owner.fetch).html).toContain('Refunded $20.00');
+
+    const handlerTables = tables('refund_outcome', events, entries);
+    handlerTables.show_lifecycle_email_jobs = [
+      autoJob({
+        step_type: 'refund_outcome',
+        entry_changes: events,
+        idempotency_key: 'k-handler',
+        status: 'held',
+        recipient_person_id: 'person-2',
+        recipient_email: 'handler@example.com',
+      }),
+    ];
+    handlerTables.people = [{ id: 'person-2', email: 'handler@example.com', deleted_at: null }];
+    const handler = drain(makeAutoSendSupabase(handlerTables));
+    await expect(handler.promise).resolves.toMatchObject({ sent: 1 });
+    expect(handler.fetch).toHaveBeenCalledTimes(1);
+    expect(sentBody(handler.fetch).html).toContain('Refunded $30.00');
+    expect(sentBody(handler.fetch).html).not.toContain('Refunded $20.00');
+  });
+
+  it.each([
+    { label: 'unpublished', status: 'draft' },
+    { label: 'completed', status: 'completed' },
+    { label: 'cancelled', status: 'cancelled' },
+  ])('skips a refund outcome for a $label show', async ({ status }) => {
+    const tableSet = tables(
+      'refund_outcome',
+      [{ kind: 'refunded', entry_id: 'entry-1' }],
+      [entry({ refund_amount: 30 })]
+    );
+    tableSet.shows = [{ ...publishedShow, status }];
+    const { fetch, promise } = drain(makeAutoSendSupabase(tableSet));
+
+    await expect(promise).resolves.toMatchObject({ sent: 0, skipped: 1 });
+    expect(fetch).not.toHaveBeenCalled();
+  });
 });

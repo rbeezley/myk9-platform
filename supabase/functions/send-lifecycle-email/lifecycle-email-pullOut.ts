@@ -222,6 +222,8 @@ export async function planRefundOutcomeEmail(args: {
   const lines: Array<{ dog: string; text: string }> = [];
   for (const entry of loaded.entries) {
     if (!isRemoved(entry)) continue;
+    // Only an online payment has a card to refund or a denial to explain; cash and check carry no money text.
+    if (clean(entry.payment_method) !== 'online') continue;
     const label = loaded.labelFor(entry);
     if (!label) continue;
     const dog = dogName(entry);

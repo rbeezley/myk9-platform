@@ -9,6 +9,8 @@ export interface ShowOfficial {
   email: string | null;
   /** MYK9-2065: typed for the premium; null for a steward and until the club enters one. */
   mailingAddress?: string | null;
+  /** MYK9-2204: the current phone, returned only to a caller who can manage the show. */
+  phone?: string | null;
   role: 'secretary' | 'chairman' | 'steward';
 }
 
@@ -28,6 +30,7 @@ interface ShowOfficialRow {
   email: string | null;
   role: string;
   premium_mailing_address?: string | null;
+  phone?: string | null;
 }
 
 export async function fetchShowOfficials(showId: string): Promise<ShowOfficials> {
@@ -46,6 +49,7 @@ export async function fetchShowOfficials(showId: string): Promise<ShowOfficials>
       lastName: row.last_name || '',
       email: row.email || null,
       mailingAddress: row.premium_mailing_address?.trim() || null,
+      phone: row.phone?.trim() || null,
       role: role as ShowOfficial['role'],
     };
 

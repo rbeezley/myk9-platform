@@ -95,6 +95,38 @@ describe('useShowOfficials', () => {
     expect(result.current.data?.chairmen[0].mailingAddress).toBeNull();
   });
 
+  it('carries the current phone, trimmed, else null (MYK9-2204)', async () => {
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          user_id: 'p1',
+          first_name: 'Jane',
+          last_name: 'Doe',
+          email: null,
+          role: 'secretary',
+          phone: ' 9185550000 ',
+        },
+        {
+          user_id: 'p2',
+          first_name: 'John',
+          last_name: 'Smith',
+          email: null,
+          role: 'chairman',
+          phone: null,
+        },
+      ],
+      error: null,
+    });
+
+    const { result } = renderHook(() => useShowOfficials('show-1'), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(result.current.data?.secretaries[0].phone).toBe('9185550000');
+    expect(result.current.data?.chairmen[0].phone).toBeNull();
+  });
+
   it('groups officials by role', async () => {
     const mockData = [
       {
@@ -129,6 +161,7 @@ describe('useShowOfficials', () => {
       lastName: 'Doe',
       email: 'jane@test.com',
       mailingAddress: null,
+      phone: null,
       role: 'secretary',
     });
     expect(result.current.data?.chairmen).toHaveLength(1);

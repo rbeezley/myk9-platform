@@ -75,7 +75,7 @@ describe('applyOfficialsToPremium mailing addresses (MYK9-2065)', () => {
     expect(premium.officials.chairman).toBeNull();
   });
 
-  it('prints no draft phone for a replaced secretary or chair (MYK9-2204)', () => {
+  it('prints the current holder phone from the officials read, not the draft (MYK9-2204)', () => {
     const draft = generatedPremium();
     draft.secretary = {
       name: 'Old Sec',
@@ -92,65 +92,42 @@ describe('applyOfficialsToPremium mailing addresses (MYK9-2065)', () => {
       },
     };
     const premium = applyOfficialsToPremium(draft, {
-      secretaries: [official('secretary', 'Sam', null)],
+      secretaries: [{ ...official('secretary', 'Sam', null), phone: '9187770000' }],
+      chairmen: [{ ...official('chairman', 'Cara', null), phone: '9187770001' }],
+      stewards: [],
+    });
+
+    expect(premium.secretary.name).toBe('Sam Person');
+    expect(premium.secretary.phone).toBe('9187770000');
+    expect(premium.officials.chairman?.name).toBe('Cara Person');
+    expect(premium.officials.chairman?.phone).toBe('9187770001');
+  });
+
+  it('prints no phone when the same holder cleared it after the draft was made (MYK9-2204)', () => {
+    const draft = generatedPremium();
+    draft.secretary = {
+      name: 'Sam Person',
+      email: 'sam@example.com',
+      phone: '9185550000',
+      mailingAddress: null,
+    };
+    draft.officials = {
+      chairman: {
+        name: 'Cara Person',
+        email: 'cara@example.com',
+        phone: '9185550001',
+        mailingAddress: null,
+      },
+    };
+    const premium = applyOfficialsToPremium(draft, {
+      secretaries: [{ ...official('secretary', 'Sam', null), phone: null }],
       chairmen: [official('chairman', 'Cara', null)],
       stewards: [],
     });
 
     expect(premium.secretary.name).toBe('Sam Person');
     expect(premium.secretary.phone).toBeNull();
-    expect(premium.officials.chairman?.name).toBe('Cara Person');
     expect(premium.officials.chairman?.phone).toBeNull();
-  });
-
-  it('keeps the draft phone for the same person, by email ignoring case and spaces', () => {
-    const draft = generatedPremium();
-    draft.secretary = {
-      name: 'S. Person',
-      email: ' SAM@Example.com ',
-      phone: '9185550000',
-      mailingAddress: null,
-    };
-    draft.officials = {
-      chairman: { name: 'C', email: 'cara@example.com', phone: '9185550001', mailingAddress: null },
-    };
-    const premium = applyOfficialsToPremium(draft, {
-      secretaries: [official('secretary', 'Sam', null)],
-      chairmen: [official('chairman', 'Cara', null)],
-      stewards: [],
-    });
-
-    expect(premium.secretary.phone).toBe('9185550000');
-    expect(premium.officials.chairman?.phone).toBe('9185550001');
-  });
-
-  it('keeps the phone when an email is missing on one side but the full name matches', () => {
-    const draft = generatedPremium();
-    draft.secretary = {
-      name: 'sam person',
-      email: null,
-      phone: '9185550000',
-      mailingAddress: null,
-    };
-    const premium = applyOfficialsToPremium(draft, {
-      secretaries: [official('secretary', 'Sam', null)],
-      chairmen: [],
-      stewards: [],
-    });
-
-    expect(premium.secretary.phone).toBe('9185550000');
-  });
-
-  it('clears the phone when no email exists and the name differs', () => {
-    const draft = generatedPremium();
-    draft.secretary = { name: 'Old Sec', email: null, phone: '9185550000', mailingAddress: null };
-    const premium = applyOfficialsToPremium(draft, {
-      secretaries: [{ ...official('secretary', 'Sam', null), email: null }],
-      chairmen: [],
-      stewards: [],
-    });
-
-    expect(premium.secretary.phone).toBeNull();
   });
 
   it('keeps the draft only when the officials could not be read: the publish fails instead', async () => {

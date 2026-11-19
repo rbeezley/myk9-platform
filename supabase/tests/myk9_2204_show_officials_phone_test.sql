@@ -148,13 +148,12 @@ $$;
 RESET ROLE;
 
 -- 5. Officials come back in assignment order, so the first row of a role is the first-named
---    official the premium prints, whatever order the rows were inserted in.
+--    official the premium prints, whatever order the rows were inserted in. The later-inserted,
+--    higher person-ID secretary gets the EARLIER created_at, so a regression to person-ID
+--    ordering (or insertion order) returns the wrong first row and fails.
 INSERT INTO public.show_officials (show_id, person_id, role, created_at)
 VALUES
-  ('00000000-0000-0000-0000-000000220403', '00000000-0000-0000-0000-000000220414', 'secretary', now() + interval '1 day');
-UPDATE public.show_officials SET created_at = now() - interval '1 day'
-WHERE show_id = '00000000-0000-0000-0000-000000220403'
-  AND person_id = '00000000-0000-0000-0000-000000220411';
+  ('00000000-0000-0000-0000-000000220403', '00000000-0000-0000-0000-000000220414', 'secretary', now() - interval '1 day');
 
 DO $$
 DECLARE
@@ -163,7 +162,7 @@ BEGIN
   SELECT o.user_id INTO first_secretary
   FROM public.get_show_officials('00000000-0000-0000-0000-000000220403') o
   WHERE o.role = 'secretary' LIMIT 1;
-  IF first_secretary IS DISTINCT FROM '00000000-0000-0000-0000-000000220411'::uuid THEN
+  IF first_secretary IS DISTINCT FROM '00000000-0000-0000-0000-000000220414'::uuid THEN
     RAISE EXCEPTION 'FAIL the first row of a role is not the earliest-assigned official';
   END IF;
 

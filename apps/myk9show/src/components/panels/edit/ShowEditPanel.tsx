@@ -119,6 +119,7 @@ const ShowEditPanelSession: React.FC<ShowEditPanelProps> = ({
         activeTab={activeTab}
         onTabChange={setActiveTab}
         initialStatus={initialShowData?.status}
+        savedOrganization={initialShowData?.organization}
         onClose={onClose}
         onPremiumPendingChange={setPremiumPending}
       />

@@ -25,15 +25,23 @@ let mockPendingEntries: Array<{
 // The Home entries card has its own test and reads My Shows' data hooks.
 vi.mock('../YourEntriesTodayCard', () => ({ YourEntriesTodayCard: () => null }));
 
+const mockScopes = vi.hoisted(() => ({
+  value: [{ scopeType: 'club', scopeId: 'club-1' }] as Array<Record<string, string>>,
+}));
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
     firstName: 'Sam',
     isAdmin: false,
     hasRole: () => false,
-    userWithRoles: {
-      scopes: [{ scopeType: ScopeType.CLUB, scopeId: 'club-1' }],
-    },
+    userWithRoles: { scopes: mockScopes.value },
   }),
+}));
+const mockFirstShowClub = vi.hoisted(() => ({ value: null as unknown }));
+vi.mock('../firstShowClub', () => ({ useFirstShowClub: () => mockFirstShowClub.value }));
+vi.mock('../FirstShowCard', () => ({
+  FirstShowCard: ({ clubId }: { clubId: string }) => (
+    <div data-testid="first-show-card">{clubId}</div>
+  ),
 }));
 
 vi.mock('@/store/showStore', () => ({
@@ -94,6 +102,8 @@ describe('SecretaryDashboardPage', () => {
     useCurrentShowPinStore.setState({ pinnedId: null });
     mockCurrentShow.managingShows = [];
     mockPendingEntries = [];
+    mockScopes.value = [{ scopeType: ScopeType.CLUB, scopeId: 'club-1' }];
+    mockFirstShowClub.value = null;
     mockEntryCounts = new Map();
     mockUseShowEntryCounts.mockImplementation(() => mockEntryCounts);
     mockUseSecretaryTasks.mockReturnValue({ data: [] });
@@ -102,6 +112,21 @@ describe('SecretaryDashboardPage', () => {
       isLoading: false,
       classesByStage: new Map(),
     });
+  });
+
+  it('shows the first-show card for the club the server says is still waiting', () => {
+    mockFirstShowClub.value = {
+      clubId: 'club-1',
+      draftShowId: null,
+    };
+    renderPage();
+    expect(screen.getByTestId('first-show-card')).toHaveTextContent('club-1');
+  });
+
+  it('shows no card when the server has nothing waiting (published before, or still checking)', () => {
+    mockFirstShowClub.value = null;
+    renderPage();
+    expect(screen.queryByTestId('first-show-card')).not.toBeInTheDocument();
   });
 
   it("renders TasksTab which queries useSecretaryTasks scoped to personal tasks ('general' filter)", () => {

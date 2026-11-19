@@ -117,6 +117,9 @@ export function ReviewReadinessNotices({
         <ShowPublishBlockers
           showId={existingShowId}
           onEditEntryDates={canEditDetails ? () => onGoToStep(0) : undefined}
+          draftEntryDates={
+            canEditDetails ? { open: entryOpenDate, close: entryCloseDate } : undefined
+          }
         />
       ) : (
         canEditDetails && (

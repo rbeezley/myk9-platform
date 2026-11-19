@@ -6,8 +6,10 @@ import { PREMIUM_CARD_ANCHOR } from '@/features/show-workbench/publishReadiness'
 import { getShowEditHref } from '@/components/shows/showEditRoutes';
 import { useShowStore } from '@/store/showStore';
 import { PublishBlockersList, type PublishBlockerFix } from './PublishBlockersList';
+import { entryWindowPublishError } from '@/features/payments/onlineEntryGate';
 import type { PublishBlocker } from './publishBlockers';
 import { usePublishBlockers } from './usePublishBlockers';
+import { useClubAdminEmail } from './useClubAdminEmail';
 
 interface ShowPublishBlockersProps {
   showId: string;
@@ -17,6 +19,9 @@ interface ShowPublishBlockersProps {
   status?: string | undefined;
   /** Inside an edit wizard: the entry-date lines jump to its Show Details step instead of leaving. */
   onEditEntryDates?: (() => void) | undefined;
+  /** Inside an edit wizard: the draft's entry dates, which may already fix what the saved row lacks. */
+  draftEntryDates?:
+    { open: string | null | undefined; close: string | null | undefined } | undefined;
 }
 
 /** A saved show's list, read from the server, with each line linked to where it is fixed. */
@@ -25,6 +30,7 @@ export function ShowPublishBlockers({
   clubId,
   status,
   onEditEntryDates,
+  draftEntryDates,
 }: ShowPublishBlockersProps) {
   const stored = useShowStore(state => state.shows.find(s => s.id === showId));
   const resolvedClubId = clubId ?? stored?.clubId;
@@ -33,6 +39,15 @@ export function ShowPublishBlockers({
   const isDraft = (status ?? stored?.status) === 'draft';
   const state = usePublishBlockers(showId, isDraft);
   const canOpenPayments = useCanOpenClubPayments(resolvedClubId);
+
+  const waitsOnClubAdminPayouts = state.blockers.some(
+    blocker => blocker.key === 'payouts_not_enabled' && blocker.waitingOn === 'club_admin'
+  );
+  const clubAdminEmail = useClubAdminEmail(
+    showId,
+    resolvedClubId,
+    isDraft && waitsOnClubAdminPayouts && !canOpenPayments
+  );
 
   const fixFor = (blocker: PublishBlocker): PublishBlockerFix | undefined => {
     switch (blocker.key) {
@@ -47,6 +62,12 @@ export function ShowPublishBlockers({
         return { href: `/shows/${showId}/about#${PREMIUM_CARD_ANCHOR}` };
       case 'entry_dates_missing':
       case 'entry_dates_out_of_order':
+        // The list reads the saved row; the draft may already hold valid dates (MYK9-2205).
+        if (
+          draftEntryDates &&
+          !entryWindowPublishError(draftEntryDates.open, draftEntryDates.close)
+        )
+          return { fixedInDraft: true };
         return onEditEntryDates
           ? { onFix: onEditEntryDates }
           : { href: getShowEditHref(showId, 'basic') };
@@ -56,5 +77,12 @@ export function ShowPublishBlockers({
   };
 
   if (!isDraft) return null;
-  return <PublishBlockersList state={state} fixFor={fixFor} viewerIsClubAdmin={canOpenPayments} />;
+  return (
+    <PublishBlockersList
+      state={state}
+      fixFor={fixFor}
+      viewerIsClubAdmin={canOpenPayments}
+      clubAdminEmail={clubAdminEmail}
+    />
+  );
 }

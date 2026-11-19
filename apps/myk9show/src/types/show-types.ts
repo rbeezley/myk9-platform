@@ -27,6 +27,8 @@ export interface ShowTrial {
   date: string;
   trialNumber: string;
   status: string;
+  /** MYK9-2186: set when the trial is soft-deleted, so a premium can leave it out. */
+  deletedAt?: string | null | undefined;
   timezone?: string | null | undefined;
   registryId?: string | null | undefined;
   trialType?: string | undefined;

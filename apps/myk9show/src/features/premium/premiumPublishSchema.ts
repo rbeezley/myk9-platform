@@ -38,6 +38,8 @@ const generatedPremiumSchema = z.object({
     dayOfFee: nullableAmount,
     acceptChecks: z.boolean(),
     acceptCash: z.boolean(),
+    // MYK9-2220: optional so older premiums parse; without it zod would strip the limit.
+    maxTotalEntries: nullableAmount.optional(),
     // MYK9-1976: optional, so a premium generated before it still parses (and prints no
     // policy row). Without it here zod would strip the policy from every new premium.
     withdrawal: z

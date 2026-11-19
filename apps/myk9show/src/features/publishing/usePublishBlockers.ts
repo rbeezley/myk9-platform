@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { withTimeout } from '@myk9/core';
+import { withTimeout } from '@myk9/replication';
 import { supabase } from '@/lib/supabase';
 import { useShowStore } from '@/store/showStore';
 import { useIsOnline } from '@/hooks/useNetworkStatus';

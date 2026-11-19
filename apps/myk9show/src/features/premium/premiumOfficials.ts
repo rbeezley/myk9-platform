@@ -11,7 +11,7 @@ import {
   type ShowOfficials,
 } from '@/hooks/queries/useShowOfficials';
 import type { GeneratedPremium } from '@/types/premium-types';
-import { PremiumPublishError } from './premiumPublishErrors';
+import { OFFICIALS_PHONE_MESSAGE, PremiumPublishError } from './premiumPublishErrors';
 
 const fullName = (o: ShowOfficial) => `${o.firstName} ${o.lastName}`.trim() || null;
 
@@ -72,9 +72,9 @@ export async function fetchOfficialsForPublish(showId: string): Promise<ShowOffi
   } catch (error) {
     if (error instanceof ShowOfficialsPhoneMissingError) {
       throw new PremiumPublishError(
-        "Could not read the officials' phone numbers. Try again in a moment.",
+        OFFICIALS_PHONE_MESSAGE,
         'generation',
-        'unknown',
+        'officials-phone',
         error
       );
     }

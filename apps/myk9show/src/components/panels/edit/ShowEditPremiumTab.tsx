@@ -14,12 +14,15 @@ import { getShowPreviewHref } from '@/components/shows/showPreviewRoutes';
 import { getShowEditHref } from '@/components/shows/showEditRoutes';
 import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import type { GeneratedPremium, PremiumStyle } from '@/types/premium-types';
+import { normalizeEntryLimit } from '@/features/premium/premiumEntryLimit';
 import type { ShowEditFormData } from './ShowEditPanel.types';
 
 interface ShowEditPremiumTabProps {
   data: ShowEditFormData;
   clubId: string;
   showOrg: 'AKC' | 'UKC' | null;
+  /** The organization saved on the show; the generator reads it, not the unsaved form value. */
+  savedOrganization?: string | undefined;
   isActive: boolean;
   handleCheckboxChange: (field: keyof ShowEditFormData) => (checked: boolean) => void;
   handleValueChange: <K extends keyof ShowEditFormData>(
@@ -33,6 +36,7 @@ export function ShowEditPremiumTab({
   data,
   clubId,
   showOrg,
+  savedOrganization,
   isActive,
   handleCheckboxChange,
   handleValueChange,
@@ -61,6 +65,13 @@ export function ShowEditPremiumTab({
     const draft = buildLocalPremiumDraft(data, showOrg, publishedContent);
     return draft && officials ? applyOfficialsToPremium(draft, officials) : draft;
   }, [data, publishedContent, showOrg, officials]);
+
+  // MYK9-2213: generate-premium reads the SAVED organization, so while the form's differs a
+  // Regenerate would build the premium for the wrong one.
+  const regenerateBlockedReason =
+    showOrg && savedOrganization && savedOrganization !== showOrg
+      ? `Save the show first. Regenerate builds from the saved organization (${savedOrganization}).`
+      : undefined;
 
   return (
     <TabsContent
@@ -139,6 +150,7 @@ export function ShowEditPremiumTab({
               showId={data.id as string}
               clubId={clubId}
               showOrg={showOrg}
+              {...(regenerateBlockedReason ? { regenerateBlockedReason } : {})}
               style={(data.style || 'monogram') as PremiumStyle}
               active={isActive}
               {...(initialPremium ? { initialPremium } : {})}
@@ -176,7 +188,9 @@ function buildLocalPremiumDraft(
 
   // MYK9-2044: a cancelled trial is not printed, so the recording fee derived from this schedule
   // does not price it either.
-  const liveTrials = (data.trials ?? []).filter(trial => isLivePremiumTrial(trial));
+  const liveTrials = (data.trials ?? []).filter(trial =>
+    isLivePremiumTrial({ status: trial.status ?? null, deleted_at: trial.deletedAt ?? null })
+  );
 
   return {
     org: showOrg,
@@ -193,6 +207,7 @@ function buildLocalPremiumDraft(
       dayOfFee: currencyToNumber(data.dayOfShowFee),
       acceptChecks: Boolean(data.acceptCheckPayments),
       acceptCash: Boolean(data.acceptCashPayments),
+      maxTotalEntries: normalizeEntryLimit(data.maxTotalEntries),
     },
     club: {
       name: data.clubName ?? '',

@@ -72,7 +72,8 @@ export function publishBlockerSentence(blocker: PublishBlocker): string {
  */
 export function publishBlockerWaitingText(
   blocker: PublishBlocker,
-  viewerIsClubAdmin: boolean
+  viewerIsClubAdmin: boolean,
+  clubAdmins?: { names: string; count: number } | undefined
 ): string | null {
   const wait = blocker.eta ? `, usually ${blocker.eta}` : '';
   switch (blocker.waitingOn) {
@@ -81,7 +82,11 @@ export function publishBlockerWaitingText(
     case 'stripe':
       return `Waiting on Stripe${wait}`;
     case 'club_admin':
-      return viewerIsClubAdmin ? null : `Waiting on your club admin${wait}`;
+      if (viewerIsClubAdmin) return null;
+      // MYK9-2208: name the admins when the read succeeded; otherwise today's wording.
+      return clubAdmins
+        ? `Waiting on ${clubAdmins.names}, the club admin${clubAdmins.count === 1 ? '' : 's'}${wait}`
+        : `Waiting on your club admin${wait}`;
     default:
       return null;
   }

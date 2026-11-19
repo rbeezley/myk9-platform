@@ -13,6 +13,7 @@ import {
   saveClubOnboardingDraft,
 } from './clubOnboardingDraft';
 import { buildClubOnboardingNote } from './clubOnboardingNote';
+import { scopesHoldClubRole } from './clubRoleLoaded';
 import { logger } from '@/services/LoggingService';
 import {
   CLUB_NUMBER_HELP_TEXT,
@@ -40,7 +41,7 @@ import { addYourClubPath, returnPathWithClub, safeReturnPath } from './landingCt
 // back to the form with what she typed.
 
 export function ClubOnboarding() {
-  const { user, refreshPermissions } = useAuthContext();
+  const { user, refreshPermissions, userWithRoles } = useAuthContext();
   const navigate = useNavigate();
   // The show wizard sends its own address here so a new host club leads back to the draft.
   const [searchParams] = useSearchParams();
@@ -61,8 +62,23 @@ export function ClubOnboarding() {
   // UI state
   const [submitting, setSubmitting] = useState(false);
   const [createdClubId, setCreatedClubId] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
   const [error, setError] = useState('');
   const [nameTaken, setNameTaken] = useState(false);
+
+  // MYK9-2214: the new club's role counts as loaded only when the auth context itself holds it
+  // (the dashboard reads that, not a separate server read). Until then she stays here with a
+  // plain line; the moment it arrives the draft goes and she is sent to the dashboard.
+  const rolesLoaded = Boolean(
+    createdClubId && scopesHoldClubRole(userWithRoles?.scopes, createdClubId)
+  );
+  const rolesPending = Boolean(createdClubId) && !rolesLoaded;
+  useEffect(() => {
+    if (!createdClubId || !rolesLoaded) return;
+    clearClubOnboardingDraft();
+    // Not when the wizard sent her here (returnTo leads back).
+    if (!returnTo) navigate(`/secretary/dashboard?clubId=${encodeURIComponent(createdClubId)}`);
+  }, [createdClubId, rolesLoaded, returnTo, navigate]);
 
   // Required-field and format errors sit under their own field; `error` keeps only
   // what belongs to no field (a failed submission).
@@ -148,12 +164,10 @@ export function ClubOnboarding() {
         }),
       });
       // She now holds club admin and secretary, which exempts her from the first-run
-      // profile step. Load those roles before the saved draft (the other exemption) goes.
-      // If the refresh fails she still has her club: keep the draft so the exemption
-      // holds, and the next load picks the roles up.
+      // profile step. Ask for the new roles; the draft (the other exemption) stays until the
+      // auth context actually holds the club (effect above). A failed refresh leaves her here.
       try {
         await refreshPermissions();
-        clearClubOnboardingDraft();
       } catch (refreshError) {
         logger.warn(
           'Roles refresh after club request failed',
@@ -182,6 +196,19 @@ export function ClubOnboarding() {
     }
   };
 
+  // MYK9-2214: the recovery action retries the roles refresh; the effect above navigates only
+  // once the new club's role is in the auth context, otherwise she keeps the same plain line.
+  const retryRolesRefresh = async () => {
+    setRetrying(true);
+    try {
+      await refreshPermissions();
+    } catch (refreshError) {
+      logger.warn('Roles retry after club request failed', 'onboarding', {}, refreshError as Error);
+    } finally {
+      setRetrying(false);
+    }
+  };
+
   // --- Card body: the form, or the confirmation once the club exists ---
   let card: React.ReactNode;
 
@@ -189,6 +216,11 @@ export function ClubOnboarding() {
     card = (
       <div className="l-onboard-card" role="status" aria-live="polite">
         <p className="l-success-title">Your club is waiting for myK9Show approval.</p>
+        {rolesPending ? (
+          <p data-testid="club-roles-pending">
+            Your club was created. We couldn&apos;t load it yet; open your dashboard in a moment.
+          </p>
+        ) : null}
         <p>
           You can start now: build a draft show and connect the club&apos;s bank account. Nothing is
           public until we approve the club, usually within a day.
@@ -209,12 +241,21 @@ export function ClubOnboarding() {
                 Open your club
               </Link>
             </>
-          ) : (
-            <Link
-              to={`/clubs/${createdClubId}`}
+          ) : rolesPending ? (
+            <button
+              type="button"
+              onClick={retryRolesRefresh}
+              disabled={retrying}
               className="l-btn l-btn-primary l-btn-lg inline-flex min-h-11 items-center"
             >
-              Open your club
+              {retrying ? 'Loading your club…' : 'Get your first show published'}
+            </button>
+          ) : (
+            <Link
+              to={`/secretary/dashboard?clubId=${encodeURIComponent(createdClubId)}`}
+              className="l-btn l-btn-primary l-btn-lg inline-flex min-h-11 items-center"
+            >
+              Get your first show published
             </Link>
           )}
         </div>

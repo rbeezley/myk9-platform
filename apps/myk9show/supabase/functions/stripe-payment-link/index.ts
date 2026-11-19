@@ -11,6 +11,7 @@ import {
 import { showTimeZoneFromTrials, type ShowTrialZoneRow } from '../_shared/showTimeZone.ts';
 import { buildEntryPaymentLinkSession } from '../_shared/entryPaymentLink.ts';
 import { isStripeLiveMode } from '../_shared/stripeMode.ts';
+import { clubPayoutsRefusal, type ClubAccountLookup } from '../_shared/clubPayoutsGate.ts';
 import {
   WITHDRAWAL_DISCLOSURE_SELECT,
   withdrawalDisclosureForShowRow,
@@ -270,17 +271,22 @@ Deno.serve(async req => {
         403
       );
     }
-    const { data: connect } = await supabase
+    // MYK9-2193: a failed read answers "try again", never the payouts-off 403.
+    const clubAccountLookup: ClubAccountLookup = await supabase
       .from('club_stripe_accounts')
       .select('payouts_enabled')
       .eq('club_id', show.club_id)
       .eq('livemode', stripeLivemode)
       .maybeSingle();
-    if (connect?.payouts_enabled !== true) {
+    const clubAccountRefusal = clubPayoutsRefusal(clubAccountLookup);
+    if (clubAccountRefusal) {
+      if (clubAccountLookup.error) {
+        console.error('Club payment account lookup failed:', clubAccountLookup.error);
+      }
       return corsResponse(
         corsHeaders,
-        { error: "This club's payment account is not set up to receive online entry fees." },
-        403
+        { error: clubAccountRefusal.error },
+        clubAccountRefusal.status
       );
     }
 

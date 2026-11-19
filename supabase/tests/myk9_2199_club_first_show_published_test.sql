@@ -42,7 +42,8 @@ INSERT INTO public.clubs (id, name, authorized_at) VALUES
   ('00000000-0000-0000-0000-000002199003', 'MYK9-2199 Draft Only', now()),
   ('00000000-0000-0000-0000-000002199004', 'MYK9-2199 Backfill', now()),
   ('00000000-0000-0000-0000-000002199005', 'MYK9-2199 Backfill Draft', now()),
-  ('00000000-0000-0000-0000-000002199006', 'MYK9-2199 No Shows', now());
+  ('00000000-0000-0000-0000-000002199006', 'MYK9-2199 No Shows', now()),
+  ('00000000-0000-0000-0000-000002199007', 'MYK9-2199 Receives Host', now());
 
 INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status, created_at) VALUES
   ('00000000-0000-0000-0000-000002199101', 'MYK9-2199 A', 'UKC', current_date + 5, current_date + 6,
@@ -105,7 +106,17 @@ BEGIN
   IF (SELECT first_show_published_at FROM public.clubs WHERE id = '00000000-0000-0000-0000-000002199003') IS NOT NULL THEN
     RAISE EXCEPTION 'FAIL 1f a club with only drafts was stamped';
   END IF;
-  RAISE NOTICE 'PASS 1 trigger stamps once, never clears, ignores drafts';
+  -- 1g: a host-only change on a public show stamps the receiving club and
+  -- leaves the original club's stamp alone.
+  UPDATE public.shows SET club_id = '00000000-0000-0000-0000-000002199007'
+   WHERE id = '00000000-0000-0000-0000-000002199201';
+  IF (SELECT first_show_published_at FROM public.clubs WHERE id = '00000000-0000-0000-0000-000002199007') IS NULL THEN
+    RAISE EXCEPTION 'FAIL 1g moving a public show to another host did not stamp the receiving club';
+  END IF;
+  IF (SELECT first_show_published_at FROM public.clubs WHERE id = '00000000-0000-0000-0000-000002199002') IS NULL THEN
+    RAISE EXCEPTION 'FAIL 1g moving a public show away cleared the original club''s stamp';
+  END IF;
+  RAISE NOTICE 'PASS 1 trigger stamps once, never clears, ignores drafts, follows a host change';
 END;
 $$;
 

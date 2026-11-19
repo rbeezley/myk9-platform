@@ -37,6 +37,9 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 BEGIN
+  -- MYK9-2199 r3: UPDATE OF club_id too, so moving an already-public show to
+  -- another host club stamps the receiving club (the editor sends club_id
+  -- without the unchanged status). The original club keeps its stamp.
   IF private.show_status_is_public(NEW.status) THEN
     UPDATE public.clubs
        SET first_show_published_at = now()
@@ -48,7 +51,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION private.stamp_club_first_show_published() IS
-  'MYK9-2199: AFTER INSERT OR UPDATE OF status on shows. When the row is publicly visible, stamps clubs.first_show_published_at if still null. SECURITY DEFINER so a club admin''s publish can write the club row regardless of clubs RLS.';
+  'MYK9-2199: AFTER INSERT OR UPDATE OF status, club_id on shows. When the row is publicly visible, stamps clubs.first_show_published_at if still null. SECURITY DEFINER so a club admin''s publish can write the club row regardless of clubs RLS.';
 
 REVOKE ALL ON FUNCTION private.stamp_club_first_show_published() FROM PUBLIC;
 REVOKE ALL ON FUNCTION private.stamp_club_first_show_published() FROM anon;
@@ -56,7 +59,7 @@ REVOKE ALL ON FUNCTION private.stamp_club_first_show_published() FROM authentica
 
 DROP TRIGGER IF EXISTS trg_shows_stamp_club_first_published ON public.shows;
 CREATE TRIGGER trg_shows_stamp_club_first_published
-  AFTER INSERT OR UPDATE OF status ON public.shows
+  AFTER INSERT OR UPDATE OF status, club_id ON public.shows
   FOR EACH ROW
   EXECUTE FUNCTION private.stamp_club_first_show_published();
 

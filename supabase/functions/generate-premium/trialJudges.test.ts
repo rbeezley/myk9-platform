@@ -138,9 +138,71 @@ describe('generate-premium wiring', () => {
     expect(source).toContain(".from('judge_assignments')");
     expect(source).toContain('.select(PREMIUM_JUDGE_ASSIGNMENTS_SELECT)');
     expect(source).toContain(".order('created_at', { ascending: true })");
-    expect(source).toContain('judges: premiumTrialJudges(judgeAssignments, trial)');
+    expect(source).toContain('judges: premiumTrialJudges(judgeAssignments, trial, liveTrials)');
     // The nested trials(judge_assignments(...)) embed dropped rows with no trial_id.
     expect(source).not.toMatch(/^\s*judge_assignments\(/m);
     expect(source).not.toContain('elements: [] as string[]');
+  });
+});
+
+describe('a roster judge with class assignments (MYK9-2244)', () => {
+  const t1 = {
+    id: 't-1',
+    classes: [{ id: 'c-t1', element: 'Buried', level: 'Novice', section: null }],
+  };
+  const t2 = {
+    id: 't-2',
+    classes: [{ id: 'c-t2', element: 'Buried', level: 'Novice', section: null }],
+  };
+  const rosterRow = row(donovan, null, { trial_id: null });
+  const classRow = row(donovan, 'c-t1', { trial_id: null });
+
+  it('lists the judge only on the trial of their class, with that class', () => {
+    expect(premiumTrialJudges([rosterRow, classRow], t1)).toEqual([
+      { name: 'Pat Donovan', residence: 'Demoville, KS', classes: ['Buried Novice'] },
+    ]);
+    expect(premiumTrialJudges([rosterRow, classRow], t2)).toEqual([]);
+  });
+
+  it('a roster-only judge still lists on every trial with no class line', () => {
+    for (const trialRow of [t1, t2]) {
+      expect(premiumTrialJudges([rosterRow], trialRow)).toEqual([
+        { name: 'Pat Donovan', residence: 'Demoville, KS', classes: [] },
+      ]);
+    }
+  });
+
+  it('a trial-level row with no class still covers that whole trial', () => {
+    const wholeTrial = row(donovan, null, { trial_id: 't-1' });
+    expect(premiumTrialJudges([wholeTrial, classRow], t1)[0]?.classes).toEqual([]);
+  });
+
+  describe('only live classes make a judge a class judge', () => {
+    const live = { id: 't-1', status: 'scheduled', classes: t1.classes };
+    const dead = (over: object) => ({
+      id: 't-x',
+      classes: [{ id: 'c-dead', element: 'Buried', level: 'Novice', section: null }],
+      ...over,
+    });
+    const deadRow = row(donovan, 'c-dead', { trial_id: null });
+
+    it.each([
+      [
+        'a soft-deleted class',
+        dead({
+          classes: [{ id: 'c-dead', element: 'B', level: 'N', section: null, deleted_at: 'x' }],
+        }),
+      ],
+      ['a cancelled trial', dead({ status: 'cancelled' })],
+      ['a deleted trial', dead({ deleted_at: 'x' })],
+    ])('a pick on %s leaves the roster judge on the whole trial', (_label, other) => {
+      expect(premiumTrialJudges([rosterRow, deadRow], live, [live, other])).toEqual([
+        { name: 'Pat Donovan', residence: 'Demoville, KS', classes: [] },
+      ]);
+    });
+
+    it('a pick on a live class still suppresses the roster row', () => {
+      expect(premiumTrialJudges([rosterRow, deadRow], live, [live, dead({})])).toEqual([]);
+    });
   });
 });

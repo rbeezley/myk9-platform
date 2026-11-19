@@ -81,6 +81,12 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
           <Text style={s.value}>{f.entryLimit}</Text>
         </View>
       )}
+      {f.classChanges && (
+        <View style={s.row}>
+          <Text style={s.label}> </Text>
+          <Text style={s.value}>{f.classChanges}</Text>
+        </View>
+      )}
       {f.withdrawalPolicy && (
         <View style={s.row}>
           <Text style={s.label}>{f.withdrawalPolicy.label}</Text>
@@ -211,6 +217,18 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
             <View style={s.row}>
               <Text style={s.label}> </Text>
               <Text style={s.value}>{trial.entryLimit}</Text>
+            </View>
+          )}
+          {trial.classFees && (
+            <View style={s.row}>
+              <Text style={s.label}> </Text>
+              <Text style={s.value}>{trial.classFees}</Text>
+            </View>
+          )}
+          {trial.waitlist && (
+            <View style={s.row}>
+              <Text style={s.label}> </Text>
+              <Text style={s.value}>{trial.waitlist}</Text>
             </View>
           )}
         </View>

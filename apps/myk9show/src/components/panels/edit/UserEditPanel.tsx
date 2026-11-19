@@ -402,7 +402,7 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
       {...(closeRequestRef ? { closeRequestRef } : {})}
       {...(onExited ? { onExited } : {})}
       onValidationFail={handleValidationFail}
-      // A valid create form (e.g. a name prefilled from search) saves without edits.
+      // A valid create form saves without a further edit.
       forceHasChanges={isCreateMode}
       {...(onDataChange ? { onDataChange: handleDataChange } : {})}
       {...(isCreateMode

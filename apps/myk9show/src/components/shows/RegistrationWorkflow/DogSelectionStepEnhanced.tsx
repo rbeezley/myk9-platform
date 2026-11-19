@@ -368,7 +368,6 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
         open={showQuickCreateFlow}
         onOpenChange={setShowQuickCreateFlow}
         onFlowCompleted={handleQuickCreateFlowCompleted}
-        searchQuery={searchQuery}
         mode="batch"
         showStartDate={showStartDate}
         createdFromShowId={createdFromShowId}

@@ -11,7 +11,11 @@ const JOBS = 'show_lifecycle_email_jobs';
  */
 export function makeAutoSendSupabase(
   initial: Record<string, Row[]>,
-  options: { liveEntryPeople?: string[]; liveEntryClasses?: Record<string, string[]> } = {}
+  options: {
+    liveEntryPeople?: string[];
+
+    liveEntryClasses?: Record<string, string[]>;
+  } = {}
 ) {
   const tables: Record<string, Row[]> = Object.fromEntries(
     Object.entries(initial).map(([name, rows]) => [name, rows.map(row => ({ ...row }))])
@@ -21,6 +25,7 @@ export function makeAutoSendSupabase(
     { show_id: 'show-1', step_type: 'show_changed', is_enabled: true },
     { show_id: 'show-1', step_type: 'judge_changed', is_enabled: true },
     { show_id: 'show-1', step_type: 'entry_changed', is_enabled: true },
+    { show_id: 'show-1', step_type: 'show_cancelled', is_enabled: true },
   ];
   // person-1's current address, unless a test says otherwise.
   tables.people ??= [];

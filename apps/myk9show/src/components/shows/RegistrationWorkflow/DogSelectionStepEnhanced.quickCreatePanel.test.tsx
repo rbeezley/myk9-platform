@@ -55,4 +55,19 @@ describe('DogSelectionStepEnhanced Exhibitor & Dog(s)', { timeout: JOURNEY_TIMEO
     expect(panel()).not.toBeNull();
     expect(within(panel() as HTMLElement).getByLabelText(/First Name/i)).toBeInTheDocument();
   });
+
+  // MYK9-2243: the search takes a dog's name, an owner, a breed or a registration number, so
+  // what was typed there is never copied into the new owner's name.
+  it('opens the Person form with empty name fields whatever was searched', async () => {
+    const { user } = render(
+      <DogSelectionStepEnhanced selectedDogs={[]} onSelectionChange={vi.fn()} />
+    );
+
+    await user.type(screen.getByPlaceholderText(/Search all dogs/), 'Prairie View Sadie');
+    await user.click(screen.getByRole('button', { name: /Create New/ }));
+    await user.click(await screen.findByRole('menuitem', { name: /Exhibitor & Dog/ }));
+
+    expect(await screen.findByLabelText(/First Name/i)).toHaveValue('');
+    expect(screen.getByLabelText(/Last Name/i)).toHaveValue('');
+  });
 });

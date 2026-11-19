@@ -226,6 +226,31 @@ export function buildLifecycleEmailDraft(input: LifecycleEmailPreviewInput): {
           showLine,
         ]),
       };
+    // MYK9-2127: written and sent by the server at send time (send-lifecycle-email,
+    // lifecycle-email-showCancelled.ts); no screen drafts it. The money line is the owner's.
+    case 'show_cancelled':
+      return {
+        subject: `${showName} has been cancelled`,
+        body: joinLines([
+          greeting,
+          '',
+          `${showName} has been cancelled.`,
+          'The club will contact you about your entry fees.',
+          showLine,
+        ]),
+      };
+    // MYK9-2001: written and sent by the server from the entries' recorded state at send time
+    // (send-lifecycle-email, lifecycle-email-pullOut.ts); no screen drafts it.
+    case 'pulled_out':
+      return {
+        subject: `Entries removed at ${showName}`,
+        body: joinLines([
+          greeting,
+          '',
+          `Here is what we recorded for you at ${showName}.`,
+          showLine,
+        ]),
+      };
     case 'registration_number_needed': {
       const dogName = input.entry?.dogName?.trim() || 'your dog';
       const registry = input.entry?.registryName?.trim();

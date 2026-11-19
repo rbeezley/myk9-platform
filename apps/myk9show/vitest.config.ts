@@ -80,6 +80,8 @@ export default defineConfig({
       '../../supabase/functions/send-lifecycle-email/lifecycle-email-autoSend.test.ts',
       '../../supabase/functions/send-lifecycle-email/lifecycle-email-judgeChanged.test.ts',
       '../../supabase/functions/send-lifecycle-email/lifecycle-email-entryChanged.test.ts',
+      '../../supabase/functions/send-lifecycle-email/lifecycle-email-pullOut.test.ts',
+      '../../supabase/functions/send-lifecycle-email/lifecycle-email-showCancelled.test.ts',
       '../../supabase/functions/send-lifecycle-email/lifecycle-email-route.test.ts',
       '../../supabase/functions/send-results/authz.test.ts',
       '../../supabase/functions/send-email/authz.test.ts',

@@ -87,10 +87,20 @@ const AtShowLeaderboardPage = createEnhancedLazy(
  */
 function ScoresheetReturnPreload({ children }: { children: ReactNode }) {
   useEffect(() => {
-    for (const page of [AtShowEntryListPage, AtShowCombinedEntryListPage]) {
-      // Offline already or a flaky venue network: the sheet still works, so a miss is silent.
-      page.preload().catch(() => undefined);
+    const preload = () => {
+      for (const page of [AtShowEntryListPage, AtShowCombinedEntryListPage]) {
+        // A flaky venue network: the sheet still works, so a miss is silent.
+        page.preload().catch(() => undefined);
+      }
+    };
+    // Never spend the first attempt offline: Safari and older Chromium cache a failed dynamic
+    // import for the document's lifetime (see chunkLoadRecovery.ts), so wait for the network.
+    if (typeof navigator === 'undefined' || navigator.onLine) {
+      preload();
+      return undefined;
     }
+    window.addEventListener('online', preload, { once: true });
+    return () => window.removeEventListener('online', preload);
   }, []);
   return <>{children}</>;
 }

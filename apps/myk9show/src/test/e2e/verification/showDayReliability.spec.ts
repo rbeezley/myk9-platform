@@ -273,10 +273,9 @@ test('expired token after 61 real minutes offline still queues and uploads the s
     await saveScore(judge.page);
     // MYK9-2012 replaced the Saved screen with the entry list's "Saved:" line; MYK9-2224: the list
     // must open offline (its chunk is preloaded with the sheet) and say the score is on this device.
-    await expect(judge.page.getByTestId('saved-score-line')).toContainText(
-      /Saved:.*on this device, not sent yet/,
-      { timeout: 15_000 }
-    );
+    const savedLine = judge.page.getByTestId('saved-score-line');
+    await expect(savedLine).toBeVisible({ timeout: 15_000 });
+    await expect(savedLine).toContainText(/Saved:.*on this device, not sent yet/);
     expect(performance.now() - saveStart).toBeLessThan(15_000);
     const local = await replica(judge.page, f.willowId);
     expect(local.pending.length).toBeGreaterThan(0);

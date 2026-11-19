@@ -82,3 +82,22 @@ describe('requirementFactsFromShow recording fee dates (MYK9-2044)', () => {
     expect(feeDates([{ id: 't1' }])).toEqual(['2026-06-01']);
   });
 });
+
+describe('requirementFactsFromShow trial scope (MYK9-2186)', () => {
+  it('ignores a cancelled or soft-deleted trial', () => {
+    const facts = requirementFactsFromShow({
+      show,
+      trials: [
+        { id: 't1', name: 'Live', status: 'upcoming' },
+        { id: 't2', name: 'Cancelled', status: 'cancelled' },
+        { id: 't3', name: 'Deleted', status: 'upcoming', deletedAt: '2026-11-01T00:00:00Z' },
+      ],
+      classes: [],
+      judges: [],
+      secretaryName: null,
+      chairName: null,
+      committee: [],
+    });
+    expect(facts.trials.map(t => t.id)).toEqual(['t1']);
+  });
+});

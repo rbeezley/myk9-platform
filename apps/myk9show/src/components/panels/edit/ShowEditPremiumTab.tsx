@@ -176,7 +176,9 @@ function buildLocalPremiumDraft(
 
   // MYK9-2044: a cancelled trial is not printed, so the recording fee derived from this schedule
   // does not price it either.
-  const liveTrials = (data.trials ?? []).filter(trial => isLivePremiumTrial(trial));
+  const liveTrials = (data.trials ?? []).filter(trial =>
+    isLivePremiumTrial({ status: trial.status ?? null, deleted_at: trial.deletedAt ?? null })
+  );
 
   return {
     org: showOrg,

@@ -124,6 +124,7 @@ export const mapDatabaseToShow = (
       date: (trialObj.date || '') as string,
       trialNumber: (trialObj.trial_number || '') as string,
       status: (trialObj.status || 'planned') as string,
+      deletedAt: (trialObj.deleted_at ?? trialObj.deletedAt ?? null) as string | null,
       timezone: getTrialTimezone({
         id: trialObj.id as string | null | undefined,
         timezone: trialObj.timezone as string | null | undefined,

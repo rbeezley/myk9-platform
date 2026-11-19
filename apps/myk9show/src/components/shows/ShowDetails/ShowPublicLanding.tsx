@@ -27,7 +27,6 @@ import {
 import { useShowOfficials } from '@/hooks/queries/useShowOfficials';
 import { PreviewExitBar } from './PreviewExitBar';
 import { AllShowsBar, useScrollToTopOnShow } from './ShowPublicLanding.frame';
-import { useNow } from '@/hooks/useNow';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
@@ -187,10 +186,9 @@ export function ShowPublicLanding({
   const effectivePendingReason =
     entryPendingReason ?? (onlineEntriesOpen ? undefined : 'online_setting_unknown');
   const trialTimezone = getTrialTimezone(landingTrials[0] ?? null);
-  // A landing left open across the opening day must stop saying "Opens <today>", so the clock
-  // is an input: it ticks once a minute (not every second like the countdown) and the copy is
-  // rebuilt only then.
-  const clockMinute = Math.floor(useNow(60_000) / 60_000);
+  // The copy follows `entryPendingReason`, which the page re-derives when the opening
+  // boundary passes (useEntryOpenBoundaryTick), so the copy, the reason and the Enter action
+  // change together.
   const pendingCopy = useMemo(
     () =>
       pendingEntryCopy({
@@ -198,9 +196,8 @@ export function ShowPublicLanding({
         entryPendingReason: effectivePendingReason,
         entryOpenDate: show.entryOpenDate,
         timezone: trialTimezone,
-        now: new Date(clockMinute * 60_000),
       }),
-    [hasEntryClassInventory, effectivePendingReason, show.entryOpenDate, trialTimezone, clockMinute]
+    [hasEntryClassInventory, effectivePendingReason, show.entryOpenDate, trialTimezone]
   );
 
   const handleSaveStyle = async (style: ShowStyle) => {

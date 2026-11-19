@@ -672,7 +672,7 @@ describe('ShowDetailsPage', () => {
   });
 
   it('lets entry eligibility flip when the opening day passes while the landing stays open', () => {
-    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
     try {
       vi.setSystemTime(new Date('2026-11-18T12:00:00Z'));
       mockAuthContext.user = null;
@@ -685,8 +685,20 @@ describe('ShowDetailsPage', () => {
       );
 
       act(() => {
-        vi.advanceTimersByTime(3 * 24 * 60 * 60 * 1000);
+        vi.advanceTimersByTime(60 * 60 * 1000);
       });
+      expect(screen.getByTestId('monogram-landing')).toHaveAttribute(
+        'data-entry-pending-reason',
+        'not_yet_open'
+      );
+
+      // Each wake re-renders (and so re-arms the next timeout) only once React flushes, so
+      // step a day at a time rather than jumping past the chain in one advance.
+      for (let day = 0; day < 4; day += 1) {
+        act(() => {
+          vi.advanceTimersByTime(24 * 60 * 60 * 1000);
+        });
+      }
       expect(screen.getByTestId('monogram-landing')).toHaveAttribute(
         'data-entry-pending-reason',
         'undefined'

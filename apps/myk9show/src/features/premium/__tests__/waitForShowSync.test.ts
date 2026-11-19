@@ -46,4 +46,19 @@ describe('waitForShowSync (MYK9-2244)', () => {
     await expect(waitForShowSync('show-1')).rejects.toMatchObject({ code: 'show-rejected' });
     expect(hasRejectedWork).toHaveBeenCalledWith('show-1');
   });
+
+  it('stops the publish when the refused-write store cannot be read', async () => {
+    hasUnsyncedWork.mockResolvedValue(false);
+    hasRejectedWork.mockRejectedValue(new Error('IDB closed'));
+    await expect(waitForShowSync('show-1')).rejects.toMatchObject({ code: 'show-syncing' });
+  });
+
+  it('reports a refusal that arrives while a new show stays local-only, not a timeout', async () => {
+    hasUnsyncedWork.mockResolvedValue(true);
+    hasRejectedWork.mockResolvedValueOnce(false).mockResolvedValue(true);
+    await expect(
+      waitForShowSync('show-1', { intervalMs: 1, timeoutMs: 1000 })
+    ).rejects.toMatchObject({ code: 'show-rejected' });
+    expect(requestUpload).toHaveBeenCalledTimes(1);
+  });
 });

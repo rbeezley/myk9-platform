@@ -18,7 +18,6 @@ export async function waitForShowSync(
   { timeoutMs = 15_000, intervalMs = 500 }: WaitOptions = {}
 ): Promise<void> {
   const deadline = Date.now() + timeoutMs;
-  await refuseRejectedWrites(showId);
   let requested = false;
   for (;;) {
     let unsynced = true;
@@ -27,11 +26,10 @@ export async function waitForShowSync(
     } catch {
       // A queue read can fail before the session resolves; treat it as not yet synced.
     }
-    if (!unsynced) {
-      // A write the server refused leaves the queue too, so an empty queue is not proof it synced.
-      await refuseRejectedWrites(showId);
-      return;
-    }
+    // A write the server refused leaves the queue too, so an empty queue is not proof it synced;
+    // and a refused insert keeps a new show local-only, so a non-empty queue is rechecked too.
+    await refuseRejectedWrites(showId);
+    if (!unsynced) return;
     if (!requested) {
       mutationManager.requestUpload();
       requested = true;
@@ -48,11 +46,17 @@ export async function waitForShowSync(
 }
 
 async function refuseRejectedWrites(showId: string): Promise<void> {
-  let rejected = false;
+  let rejected: boolean;
   try {
     rejected = await replicatedShowsTable.hasRejectedWork(showId);
   } catch {
-    // Unreadable failed-mutation store: the queue check above already guards the common case.
+    // Unreadable failed-mutation store: unverified, so the publish stops rather than printing
+    // facts the server may not hold.
+    throw new PremiumPublishError(
+      "This device's show changes haven't reached myK9Show yet",
+      'experience-snapshot',
+      'show-syncing'
+    );
   }
   if (rejected) {
     throw new PremiumPublishError(

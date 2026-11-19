@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import { mapDatabaseToShow } from '@/services/mappers/showMappers';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -409,6 +410,26 @@ describe('republishing an edited premium without Regenerate keeps the recording 
       trial('1', eve),
       trial('2', newYear, 'cancelled'),
     ]);
+
+    expect(premium.trials.map(t => t.date)).toEqual([eve]);
+    expect(snapshot.recordingFee).toBe('AKC recording fee: $4.50 per entry');
+  });
+
+  it('neither prints nor prices a soft-deleted trial read from the server row (MYK9-2186)', () => {
+    const mapped = mapDatabaseToShow({
+      id: 'show-1',
+      trials: [
+        { id: '1', name: 'Trial 1', date: eve, status: 'upcoming', deleted_at: null },
+        {
+          id: '2',
+          name: 'Trial 2',
+          date: newYear,
+          status: 'upcoming',
+          deleted_at: '2026-11-01T00:00:00Z',
+        },
+      ],
+    } as unknown as Parameters<typeof mapDatabaseToShow>[0]);
+    const { premium, snapshot } = editAndRepublish(mapped.trials as ShowTrial[]);
 
     expect(premium.trials.map(t => t.date)).toEqual([eve]);
     expect(snapshot.recordingFee).toBe('AKC recording fee: $4.50 per entry');

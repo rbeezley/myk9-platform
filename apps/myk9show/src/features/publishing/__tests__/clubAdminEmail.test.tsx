@@ -19,10 +19,14 @@ vi.mock('@/lib/supabase', async importOriginal => {
 vi.mock('@/hooks/useNetworkStatus', () => ({ useIsOnline: () => harness.online }));
 vi.mock('../usePublishBlockers', async importOriginal => ({
   ...(await importOriginal<typeof import('../usePublishBlockers')>()),
-  useClubPublishBlockers: (): PublishBlockersState => ({
-    state: 'ready',
-    blockers: [{ key: 'payouts_not_enabled', waitingOn: 'club_admin', eta: null }],
-  }),
+  // As the real hook does: offline, the club's blockers are not read at all.
+  useClubPublishBlockers: (): PublishBlockersState =>
+    harness.online
+      ? {
+          state: 'ready',
+          blockers: [{ key: 'payouts_not_enabled', waitingOn: 'club_admin', eta: null }],
+        }
+      : { state: 'offline', blockers: [] },
   usePublishBlockers: (): PublishBlockersState => ({
     state: 'ready',
     blockers: [{ key: 'payouts_not_enabled', waitingOn: 'club_admin', eta: null }],
@@ -148,11 +152,13 @@ describe('payouts line in the new-show wizard, where no show exists (MYK9-2217)'
     expect(screen.queryByRole('link', { name: 'Email them the link' })).not.toBeInTheDocument();
   });
 
-  it('keeps today’s wording offline without asking the server', () => {
+  it('offline, says to reconnect, offers no mailto and asks the server nothing', () => {
     harness.online = false;
     renderWizard();
     expect(harness.rpc).not.toHaveBeenCalled();
-    expect(screen.getByText(/Waiting on your club admin$/)).toBeInTheDocument();
+    expect(screen.getByText(/You are offline\. Reconnect/)).toBeInTheDocument();
+    expect(screen.queryByText(/Waiting on your club admin/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Email them the link' })).not.toBeInTheDocument();
   });
 
   it('never asks the server for a club admin', () => {

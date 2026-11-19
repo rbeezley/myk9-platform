@@ -13,12 +13,6 @@ import { buildMoveUpClassLabeler, classIdsEnteredByDog } from './buildMoveUpTarg
 import { computeShowDeskPendingSignals } from './showDeskPendingSignals';
 import { useShowDeskWaiting } from '@/features/waiting-for-you/useShowDeskWaiting';
 import { getTrialTimezone } from '@/features/registries';
-import { useFreshPayoutsKnownOff } from '@/features/payments/useFreshPayoutsKnownOff';
-import {
-  clubPaymentsHref,
-  useCanOpenClubPayments,
-} from '@/features/payments/useCanOpenClubPayments';
-import { isPublicShowStatus } from '@/features/payments/onlineEntryGate';
 import { computeShowDeskStatus } from './showDeskStatus';
 import { getRankedActions } from './showMapActions';
 import { resolveShowMapActionExecution } from './showMapActionExecution';
@@ -93,15 +87,6 @@ export default function ShowDeskPanel({
     timeZone: trials.length > 0 ? getTrialTimezone(trials[0]) : null,
     enabled: canManageShow,
   });
-  // MYK9-2166: only a current, successful answer of "not ready" on a published show counts.
-  const payoutsOffThisOpen = useFreshPayoutsKnownOff(canManageShow ? show.clubId : undefined);
-  const canOpenClubPayments = useCanOpenClubPayments(show.clubId);
-  const paymentsHref = canOpenClubPayments ? clubPaymentsHref(show.clubId) : null;
-  const payoutsOff =
-    canManageShow &&
-    isPublicShowStatus(show.status) &&
-    show.status !== 'completed' &&
-    payoutsOffThisOpen;
   const pendingSignals = useMemo(
     () =>
       canManageShow
@@ -112,20 +97,9 @@ export default function ShowDeskPanel({
             currentDate: effectiveScopeNow,
             waiting,
             trials,
-            ...(payoutsOff && { cardPaused: { paymentsHref } }),
           })
         : [],
-    [
-      canManageShow,
-      effectiveScopeNow,
-      entries,
-      payoutsOff,
-      paymentsHref,
-      show.id,
-      tree,
-      trials,
-      waiting,
-    ]
+    [canManageShow, effectiveScopeNow, entries, show.id, tree, trials, waiting]
   );
   const returnTo = `${location.pathname}${location.search}`;
   const trialRefs = useMemo(

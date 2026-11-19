@@ -17,8 +17,6 @@ import { hasScopedClubRole, hasClubAdminGrant } from '@/utils/roleScopes';
 import { UserRole } from '@/types/auth-types';
 import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
 import { useClubStripePaymentReadiness } from '@/features/payments/useClubStripeAccount';
-import { cardPausedMessage } from '@/features/payments/cardPausedCopy';
-import { useFreshPayoutsKnownOff } from '@/features/payments/useFreshPayoutsKnownOff';
 import type { Show } from '@/types/show-types';
 import type { PaymentMethod } from '@/types/show-registration-types';
 import {
@@ -33,11 +31,6 @@ export interface PaymentMethodResolution {
   effectivePaymentMethod: PaymentMethod | '';
   acceptedMethods: AcceptedPaymentMethods;
   cardCheckoutAvailable: boolean;
-  /**
-   * MYK9-2166: the club's payouts are known to be off (a current answer, not an unread, offline
-   * or errored one) and this person would pay by card. Check and cash entry carry on.
-   */
-  cardPaused: boolean;
   /** The club's Stripe readiness is still in flight; a card pick may yet stand. */
   accountCheckPending: boolean;
   /** Why card is not on offer, or undefined when it is (or the user is staff). */
@@ -93,8 +86,6 @@ export function usePaymentMethodResolution(
     !noEntryFeeSet &&
     clubStripeAccountQuery.isSuccess &&
     clubStripeAccountQuery.data === true;
-  const payoutsOffThisOpen = useFreshPayoutsKnownOff(show?.clubId);
-  const cardPaused = !isOnBehalf && !noEntryFeeSet && payoutsOffThisOpen;
   const accountCheckPending =
     !isOnBehalf &&
     !noEntryFeeSet &&
@@ -112,7 +103,6 @@ export function usePaymentMethodResolution(
     }),
     acceptedMethods,
     cardCheckoutAvailable,
-    cardPaused,
     accountCheckPending,
     noEntryFeeSet,
     isOnBehalf,
@@ -138,11 +128,9 @@ export function usePaymentMethodResolution(
             )
           : clubStripeAccountQuery.isPending || clubStripeAccountQuery.isFetching
             ? 'Checking online payment availability for this club.'
-            : cardPaused
-              ? cardPausedMessage(acceptedMethods)
-              : withOfferedAlternatives(
-                  "Online card payment isn't available for this club.",
-                  acceptedMethods
-                ),
+            : withOfferedAlternatives(
+                "Online card payment isn't available for this club.",
+                acceptedMethods
+              ),
   };
 }

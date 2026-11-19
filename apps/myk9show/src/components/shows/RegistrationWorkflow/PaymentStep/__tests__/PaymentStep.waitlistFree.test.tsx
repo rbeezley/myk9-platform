@@ -5,11 +5,6 @@ import { PaymentStep } from '../index';
 import { usePaymentMethodResolution } from '../usePaymentMethodResolution';
 import type { PaymentStepProps } from '../types';
 
-// MYK9-2166: the open-time recheck of payouts readiness is covered in useFreshPayoutsKnownOff.test.tsx.
-vi.mock('@/features/payments/useFreshPayoutsKnownOff', () => ({
-  useFreshPayoutsKnownOff: () => false,
-}));
-
 vi.mock('@/hooks/useDogStoreCompat', () => ({
   useDogStoreCompat: () => ({ dogs: [] }),
 }));

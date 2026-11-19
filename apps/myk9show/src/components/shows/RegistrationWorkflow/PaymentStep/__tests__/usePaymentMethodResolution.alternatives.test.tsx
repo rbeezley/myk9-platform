@@ -11,24 +11,18 @@ const mocks = vi.hoisted(() => ({
   useRegistrationPermissions: vi.fn(),
 }));
 
-// MYK9-2166: the open-time recheck of payouts readiness is covered in useFreshPayoutsKnownOff.test.tsx.
-vi.mock('@/features/payments/useFreshPayoutsKnownOff', () => ({
-  useFreshPayoutsKnownOff: () => true,
-}));
-
 vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: mocks.useAuthContext }));
 vi.mock('@/store/showStore', () => ({ useShowStore: mocks.useShowStore }));
 vi.mock('@/hooks/useRegistrationPermissions', () => ({
   useRegistrationPermissions: mocks.useRegistrationPermissions,
 }));
 vi.mock('@/features/payments/useClubStripeAccount', () => ({
-  useClubStripePaymentReadiness: () => ({ isSuccess: true, data: false, fetchStatus: 'idle' }),
+  useClubStripePaymentReadiness: () => ({ isSuccess: true, data: false }),
 }));
 
 import { usePaymentMethodResolution } from '../usePaymentMethodResolution';
 
-// MYK9-2166: a current answer of "not ready" reads as paused, not as unavailable.
-const FIRST = "Card payment is paused for this show. The club's bank account needs attention.";
+const FIRST = "Online card payment isn't available for this club.";
 
 function reasonFor(show: { acceptCheckPayments: boolean; acceptCashPayments: boolean }) {
   mocks.useAuthContext.mockReturnValue({ hasRole: () => false, userWithRoles: { scopes: [] } });

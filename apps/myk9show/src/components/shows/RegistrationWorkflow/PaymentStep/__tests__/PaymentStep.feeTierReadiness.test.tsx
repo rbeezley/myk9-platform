@@ -62,11 +62,6 @@ const CLASS_SELECTIONS = [
   { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
 ];
 
-// MYK9-2166: the open-time recheck of payouts readiness is covered in useFreshPayoutsKnownOff.test.tsx.
-vi.mock('@/features/payments/useFreshPayoutsKnownOff', () => ({
-  useFreshPayoutsKnownOff: () => false,
-}));
-
 vi.mock('@/hooks/useDogStoreCompat', () => ({
   useDogStoreCompat: () => ({ dogs: DOGS }),
 }));

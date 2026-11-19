@@ -12,11 +12,6 @@ const mocks = vi.hoisted(() => ({
   readiness: { isSuccess: false, isPending: true, isFetching: true, data: undefined as unknown },
 }));
 
-// MYK9-2166: the open-time recheck of payouts readiness is covered in useFreshPayoutsKnownOff.test.tsx.
-vi.mock('@/features/payments/useFreshPayoutsKnownOff', () => ({
-  useFreshPayoutsKnownOff: () => false,
-}));
-
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({ hasRole: () => false, userWithRoles: { scopes: [] } }),
 }));

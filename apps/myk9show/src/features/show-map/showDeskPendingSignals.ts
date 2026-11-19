@@ -14,7 +14,6 @@ import { getCheckInDeskHref } from '@/components/entries/management/checkInDesk/
 import { ENTRY_LIST_LABELS } from '@/components/entries/management/entryManagementViews';
 import { isTrialDateToday } from '@/features/_shared/trialDateEligibility';
 import { buildClassChangeSignal, type ClassChangeTrial } from './showDeskClassChangeSignal';
-import { buildCardPausedSignal, type ShowDeskCardPausedInput } from './showDeskCardPausedSignal';
 import { buildWaitingSignals, type ShowDeskWaitingInput } from './showDeskWaitingSignals';
 
 /**
@@ -37,8 +36,7 @@ export type ShowDeskPendingSignalId =
   | 'entries-held'
   | 'waitlist-waiting'
   | 'refunds-to-decide'
-  | 'class-changes-waiting'
-  | 'card-payment-paused';
+  | 'class-changes-waiting';
 
 export type ShowDeskPendingSignalPriority = 'highest' | 'high' | 'medium';
 
@@ -84,8 +82,6 @@ export interface ComputeShowDeskPendingSignalsInput {
   waiting?: ShowDeskWaitingInput | undefined;
   /** The show's trials, for the class change pill's "starting soon" (MYK9-2122). */
   trials?: readonly ClassChangeTrial[] | undefined;
-  /** Set only when the club's payouts are KNOWN off on a published show (MYK9-2166). */
-  cardPaused?: ShowDeskCardPausedInput | undefined;
 }
 
 const PRIORITY_ORDER: Record<ShowDeskPendingSignalPriority, number> = {
@@ -165,12 +161,9 @@ export function computeShowDeskPendingSignals({
   currentDate,
   waiting,
   trials,
-  cardPaused,
 }: ComputeShowDeskPendingSignalsInput): ShowDeskPendingSignal[] {
   const signals: ShowDeskPendingSignal[] = [];
   const scope: ShowDeskPendingSignalScope = { kind: 'show', showId };
-
-  if (cardPaused) signals.push(buildCardPausedSignal(cardPaused, scope));
 
   const waitingReview = countEntriesWaitingReview(entries);
   if (waitingReview > 0) {

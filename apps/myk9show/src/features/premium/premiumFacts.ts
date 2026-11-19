@@ -24,6 +24,7 @@ import { formatLongDate } from '@/lib/format/dates';
 import type { GeneratedPremium, PremiumSupplemental } from '@/types/premium-types';
 import { makeClassComparator } from './pdf/bodies/classOrder';
 import { premiumRecordingFeeText } from './premiumRecordingFeeStatement';
+import { premiumEntryLimitText } from './premiumEntryLimit';
 
 // ─── Catalog: what each fact is, where it comes from, who requires it ───────────────────
 
@@ -344,6 +345,8 @@ export interface PremiumFacts {
    * AKC or a printed date has no rate in force.
    */
   recordingFee: string | null;
+  /** MYK9-2220: "Entries are limited to N dogs in total." on a UKC premium whose show has a limit; else null. */
+  entryLimit: string | null;
   /** Null only on a premium generated before MYK9-1976 part 2. */
   withdrawalPolicy: PremiumWithdrawalPolicyFact | null;
   /** The registry's fixed statement about scouting; null for UKC and ASCA. */
@@ -415,6 +418,7 @@ export function buildPremiumFacts(
       ].filter((m): m is string => Boolean(m)),
     },
     recordingFee: premiumRecordingFeeText(data),
+    entryLimit: premiumEntryLimitText(data),
     withdrawalPolicy: buildWithdrawalPolicyFact(show.withdrawal),
     scoutingStatement: buildScoutingStatementFact(registry),
     entry: {

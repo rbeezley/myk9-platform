@@ -75,6 +75,12 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
           <Text style={s.value}>{f.recordingFee}</Text>
         </View>
       )}
+      {f.entryLimit && (
+        <View style={s.row}>
+          <Text style={s.label}> </Text>
+          <Text style={s.value}>{f.entryLimit}</Text>
+        </View>
+      )}
       {f.withdrawalPolicy && (
         <View style={s.row}>
           <Text style={s.label}>{f.withdrawalPolicy.label}</Text>

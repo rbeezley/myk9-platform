@@ -101,6 +101,8 @@ export interface GeneratedPremium {
     dayOfFee: number | null;
     acceptChecks: boolean;
     acceptCash: boolean;
+    /** MYK9-2220: shows.max_total_entries; null or absent means no limit (UKC premiums print it). */
+    maxTotalEntries?: number | null;
     /** Absent on premiums generated before MYK9-1976 part 2: those print no policy row. */
     withdrawal?: PremiumWithdrawalRow | null;
   };

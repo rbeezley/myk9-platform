@@ -477,3 +477,49 @@ describe('ShowEditPremiumTab unsaved organization (MYK9-2213)', () => {
     expect(premiumEditorProps.at(-1)?.regenerateBlockedReason).toBeUndefined();
   });
 });
+
+describe('ShowEditPremiumTab entry limit (MYK9-2220)', () => {
+  const snapshot = buildExperienceSnapshot({
+    premium: {
+      org: 'UKC',
+      style: 'monogram',
+      show: { startDate: '2026-05-01' },
+      trials: [],
+      narratives: { showHours: 'Doors at 7.', trialInformation: 'Bring water.' },
+      supplemental: {
+        vetClinic: null,
+        accommodations: [],
+        coverImageUrl: null,
+        hospitalityNotes: null,
+        awardsDescription: null,
+        additionalNotes: null,
+      },
+    },
+    premiumPath: 'show-1/artifact-1.pdf',
+    premiumUrl: 'https://trusted.example/premium-published/show-1/artifact-1.pdf',
+  });
+
+  const draftShow = (maxTotalEntries?: number) => {
+    render(
+      <ShowEditPremiumTab
+        data={{
+          ...baseData,
+          organization: 'UKC',
+          experiencePublishedContent: snapshot,
+          ...(maxTotalEntries === undefined ? {} : { maxTotalEntries }),
+        }}
+        clubId="c1"
+        showOrg="UKC"
+        isActive
+        handleCheckboxChange={vi.fn(() => vi.fn())}
+        handleValueChange={vi.fn(() => vi.fn())}
+      />
+    );
+    return (premiumEditorProps.at(-1)?.initialPremium as GeneratedPremium).show;
+  };
+
+  it('the edit draft carries the show limit, and none when the show has no limit', () => {
+    expect(draftShow(80).maxTotalEntries).toBe(80);
+    expect(draftShow().maxTotalEntries).toBeNull();
+  });
+});

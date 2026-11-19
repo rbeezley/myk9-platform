@@ -190,6 +190,7 @@ export interface ShowInput {
   entryCloseDate: string;
   preEntryFee: string;
   dayOfShowFee?: string | undefined;
+  maxTotalEntries?: number | undefined;
   juniorHandlerFee?: string | undefined;
   clubId: string;
   clubName: string;

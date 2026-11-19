@@ -1,3 +1,4 @@
+import { usePremiumContentEdited } from './usePremiumContentEdited';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import { getErrorMessage } from '@myk9/core';
@@ -29,6 +30,8 @@ interface PremiumContentEditorProps {
   /** Why generating is held (MYK9-2213); disables Regenerate and shows this line. */
   regenerateBlockedReason?: string;
   onPremiumChange?: (premium: GeneratedPremium | undefined) => void;
+  /** True once the narratives or supplemental details differ from what first loaded (MYK9-2201). */
+  onEditedChange?: (edited: boolean) => void;
   onInkSaverChange?: (inkSaver: boolean) => void;
   /** True while a Regenerate is pending, so the parent can hold Save-with-publish. */
   onPendingChange?: (pending: boolean) => void;
@@ -68,6 +71,7 @@ export function PremiumContentEditor({
   deferGeneration = false,
   regenerateBlockedReason,
   onPremiumChange,
+  onEditedChange,
   onInkSaverChange,
   onPendingChange,
 }: PremiumContentEditorProps) {
@@ -352,6 +356,7 @@ export function PremiumContentEditor({
   useEffect(() => {
     onPremiumChangeRef.current?.(finalPremium ?? undefined);
   }, [finalPremium]);
+  usePremiumContentEdited(supplemental, narratives, onEditedChange);
 
   useEffect(() => {
     onInkSaverChangeRef.current?.(inkSaver);

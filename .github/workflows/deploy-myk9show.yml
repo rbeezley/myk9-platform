@@ -10,6 +10,10 @@ name: Deploy myK9Show
 #
 #   gh workflow run deploy-myk9show.yml                       # newest green main
 #   gh workflow run deploy-myk9show.yml -f commit_sha=<sha>   # a specific commit
+#
+# Either way the run refuses a commit that does not contain what myk9show.com
+# serves (no rollbacks; use Vercel's Instant Rollback for that) and reports a
+# commit production already serves as nothing to deploy (MYK9-2240).
 
 on:
   workflow_dispatch:
@@ -23,6 +27,10 @@ permissions:
   contents: read
   actions: read
 
+# One run executes at a time, so the live-commit check below (MYK9-2240) cannot
+# race another dispatch: a run that waited sees what the run before it
+# published. A newer dispatch cancels an older one still PENDING (GitHub keeps
+# one pending run per group); a cancelled run publishes nothing.
 concurrency:
   group: deploy-myk9show
   cancel-in-progress: false
@@ -34,6 +42,7 @@ jobs:
     timeout-minutes: 10
     outputs:
       commit_sha: ${{ steps.pick.outputs.commit_sha }}
+      action: ${{ steps.live.outputs.action }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -49,14 +58,25 @@ jobs:
           git fetch origin main --no-tags
           bash scripts/qa/pick-deploy-commit.sh
 
+      # MYK9-2240: refuse a commit that does not contain what production serves
+      # (a pin can be behind another session's newer deploy), and skip the build
+      # when production already serves it. Checked again right before publish.
+      - name: Refuse a rollback of what production serves
+        id: live
+        env:
+          COMMIT_SHA: ${{ steps.pick.outputs.commit_sha }}
+        run: bash scripts/qa/deploy-live-guard.sh
+
       # MYK9-1527: refuse a frontend that would ship ahead of its schema. Checks
       # the exact commit picked above, so a migration merged after any local
       # check cannot slip through. `supabase db push` stays owner-only.
       - uses: actions/setup-node@v7
+        if: steps.live.outputs.action == 'deploy'
         with:
           node-version: '22.23.4'
 
       - name: Refuse a commit with unapplied migrations
+        if: steps.live.outputs.action == 'deploy'
         env:
           COMMIT_SHA: ${{ steps.pick.outputs.commit_sha }}
           PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
@@ -65,6 +85,7 @@ jobs:
   deploy:
     name: Build and deploy to Vercel production
     needs: preflight
+    if: needs.preflight.outputs.action == 'deploy'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     environment:
@@ -123,8 +144,22 @@ jobs:
           [[ "$(git rev-parse HEAD)" == "$COMMIT_SHA" ]]
           printf '%s\n' "$COMMIT_SHA" >.vercel/output/static/build-sha.txt
 
+      # MYK9-2240: the last read of what production serves before publishing.
+      # Loaded from THIS workflow's revision (the deploy commit may predate it),
+      # with main's full history so the ancestry check can see the live commit.
+      - name: Refuse a rollback of what production serves
+        id: live
+        env:
+          COMMIT_SHA: ${{ needs.preflight.outputs.commit_sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --unshallow origin "+refs/heads/main:refs/remotes/origin/main"
+          git show "$GITHUB_SHA:scripts/qa/deploy-live-guard.sh" >"$RUNNER_TEMP/deploy-live-guard.sh"
+          bash "$RUNNER_TEMP/deploy-live-guard.sh"
+
       - name: Deploy the prebuilt output
         id: deploy
+        if: steps.live.outputs.action == 'deploy'
         run: |
           set -euo pipefail
           url="$(pnpm dlx "$VERCEL_CLI" deploy --prebuilt --prod --yes --token="$VERCEL_TOKEN")"
@@ -136,6 +171,7 @@ jobs:
       # domain serves the same entry chunk as the default production alias (the
       # per-deployment URL can sit behind Vercel deployment protection).
       - name: Verify myk9show.com serves this deployment
+        if: steps.live.outputs.action == 'deploy'
         env:
           DEPLOYMENT_URL: ${{ steps.deploy.outputs.url }}
           COMMIT_SHA: ${{ needs.preflight.outputs.commit_sha }}

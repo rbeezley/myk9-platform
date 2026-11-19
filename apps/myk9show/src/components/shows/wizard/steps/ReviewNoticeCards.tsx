@@ -76,6 +76,8 @@ interface ReviewReadinessNoticesProps {
   missingVenuePin: boolean;
   /** False when the edit mode cannot reach Show Details (add-classes): the notices that only link there are omitted. */
   canEditDetails: boolean;
+  /** False for an existing show: its list lives on the show page, and is empty once public. */
+  showPublishBlockers: boolean;
   onGoToStep: (step: number) => void;
 }
 
@@ -87,6 +89,7 @@ export function ReviewReadinessNotices({
   entryCloseDate,
   missingVenuePin,
   canEditDetails,
+  showPublishBlockers,
   onGoToStep,
 }: ReviewReadinessNoticesProps) {
   return (
@@ -109,7 +112,7 @@ export function ReviewReadinessNotices({
       )}
 
       {/* MYK9-2198: the one "Before you can publish" list (it replaced the entry-window notice). */}
-      {canEditDetails && (
+      {canEditDetails && showPublishBlockers && (
         <WizardPublishBlockers
           clubId={clubId}
           entryOpenDate={entryOpenDate}

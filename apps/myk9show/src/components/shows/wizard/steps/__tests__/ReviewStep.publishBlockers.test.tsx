@@ -117,4 +117,11 @@ describe('ReviewStep publish blockers (MYK9-2198)', () => {
     expect(list).toHaveTextContent('Publish the premium list');
     expect(list).not.toHaveTextContent('Set when entries open');
   });
+
+  it('does not list publish blockers when the wizard is editing a show that already exists', () => {
+    render(<ReviewStep trialView={trialView} onCreateShow={vi.fn()} isExistingShow />);
+
+    expect(screen.queryByTestId('publish-blockers')).not.toBeInTheDocument();
+    expect(screen.queryByText('Before you can publish')).not.toBeInTheDocument();
+  });
 });

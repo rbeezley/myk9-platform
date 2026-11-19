@@ -173,7 +173,7 @@ describe('a stale full-row write re-fetches its row (MYK9-771)', () => {
     expect((await table.getReplicatedRow('1'))?.serverVersion).toBe(3);
   });
 
-  it('an OCC-rejected ringside score (RPC delta) is never re-fetched and stays queued', async () => {
+  it('an OCC-rejected ringside score (RPC delta) asks for a re-fetch and keeps its own token (MYK9-2111)', async () => {
     const serverRow: ServerRow = { status: 'scored', final_placement: 2, version: 8 };
     const adapter = adapterFor(serverRow);
     const table = new RefetchingEntriesTable(tableName, adapter);
@@ -200,10 +200,14 @@ describe('a stale full-row write re-fetches its row (MYK9-771)', () => {
       requestRowRefetch,
     });
 
-    expect(requestRowRefetch).not.toHaveBeenCalled();
-    expect(adapter.fetchRowsById).not.toHaveBeenCalled();
+    // The re-fetch decides (dequeue, conflict or rebase); the write is not re-stamped.
+    expect(requestRowRefetch).toHaveBeenCalledWith(tableName, '1');
     expect(await pending()).toMatchObject([
-      { rpc: { name: 'ringside_update_entry', fields: { status: 'done' } }, occRetries: 1 },
+      {
+        rpc: { name: 'ringside_update_entry', fields: { status: 'done' } },
+        occRetries: 1,
+        serverVersion: 3,
+      },
     ]);
   });
 

@@ -1237,6 +1237,30 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   }
 
   /**
+   * MYK9-2111: dequeue this row's RPC deltas the fresh server row already holds, and release
+   * the row when nothing is left to send. The caller found no same-field conflict.
+   */
+  async acknowledgeAppliedRpcWrites(
+    id: string,
+    isApplied: (field: string, value: unknown) => boolean
+  ): Promise<number> {
+    if (!this.mutationManager) return 0;
+    const rowId = String(id);
+    const acked = await this.mutationManager.acknowledgeAppliedRpcWrites(
+      this.tableName,
+      rowId,
+      isApplied
+    );
+    if (acked === 0) return 0;
+    const left = await this.mutationManager.getPendingMutationsForRow(this.tableName, rowId);
+    if (left.length === 0) {
+      const row = await this.getReplicatedRow(rowId);
+      if (row) await this.markAsSynced(rowId, row.version);
+    }
+    return acked;
+  }
+
+  /**
    * Delete a row from local cache
    */
   async delete(id: string, by?: SyncDeleteAuthority): Promise<void> {

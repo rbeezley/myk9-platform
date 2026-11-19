@@ -1,5 +1,9 @@
 import type { ReplicatedTable } from './core/ReplicatedTable';
-import { detectDirtyRowConflict, instantFieldsFor } from './conflict/detectDirtyRowConflict';
+import {
+  deepEqual,
+  detectDirtyRowConflict,
+  instantFieldsFor,
+} from './conflict/detectDirtyRowConflict';
 import { resolveInFlightMergeBase } from './inflight-written-base';
 import type { SyncReplicatedTableAdapter } from './syncReplicatedTable';
 import type { ReplicatedRow, ReplicationConflictSnapshot } from './types';
@@ -99,5 +103,18 @@ export async function reconcileDirtyRemoteRow<TRemote, TLocal extends { id: stri
       : undefined,
     rebuildPayload: adapter.rebuildUpdatePayload,
   });
-  return { conflict: false, changed: reconciled };
+  // MYK9-2111: a queued RPC delta whose every field the server already holds landed; only its
+  // acknowledgement was lost. Dequeue it instead of resending (a different field is never
+  // dropped here: it stays queued, or was surfaced as a conflict above).
+  const instantFields = instantFieldsFor(table.getTableName());
+  const normalize = adapter.dirtyRowComparePolicy?.normalizeValue;
+  const acked = await table.acknowledgeAppliedRpcWrites(id, (field, value) => {
+    const remoteValue = (remoteLocal as Record<string, unknown>)[field];
+    return deepEqual(
+      normalize ? normalize(field, value) : value,
+      normalize ? normalize(field, remoteValue) : remoteValue,
+      instantFields.has(field)
+    );
+  });
+  return { conflict: false, changed: reconciled || acked > 0 };
 }

@@ -166,18 +166,8 @@ export async function handleOccRejection(ctx: OccRejectionContext): Promise<numb
     return null;
   }
   if (stillQueued) {
-    // MYK9-2111: an RPC delta carries only the fields it sets, so it is re-stamped
-    // with the version the server reported, exactly as the cap's park and the
-    // containment pause do. Left on the stale token it was re-sent, and rejected,
-    // on every backoff (paper save pending for 30+ s with the server already at
-    // the final values). A full-row UPDATE keeps its token for the resolver.
-    const restamp =
-      stillQueued.rpc !== undefined && typeof freshServerVersion === 'number'
-        ? { serverVersion: freshServerVersion }
-        : {};
     await db.put(REPLICATION_STORES.PENDING_MUTATIONS, {
       ...stillQueued,
-      ...restamp,
       occRetries,
       nextRetryAt,
     });
@@ -187,8 +177,13 @@ export async function handleOccRejection(ctx: OccRejectionContext): Promise<numb
     // Re-fetch that one row: a stale token alone rebases the write for its next
     // retry; a same-field change marks the row for the user. Only after the
     // backoff is persisted, so the rebase is not overwritten by this put.
-    // RPC deltas (ringside scoring) keep their existing path: the cap above.
-    if (stillQueued.rpc === undefined && stillQueued.operation === 'UPDATE') {
+    // MYK9-2111: an RPC delta (ringside scoring) is NOT re-stamped with the server's
+    // version here: the server's token says only that the row moved, not that the
+    // moved fields are disjoint from this write, and a stale judge's score must not
+    // overwrite a secretary's correction. The re-fetch decides: every field already on
+    // the server dequeues the write as acknowledged, a same-field difference surfaces
+    // as a conflict, and a disjoint change rebases it. Until then it backs off.
+    if (stillQueued.operation === 'UPDATE') {
       requestRowRefetch?.(error.tableName, error.rowId);
     }
   }

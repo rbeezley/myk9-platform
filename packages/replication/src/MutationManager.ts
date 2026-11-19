@@ -16,6 +16,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Logger } from './dependencies';
 import { noopLogger } from './dependencies';
+import { acknowledgeAppliedRpcWrites } from './mutation-ack-applied';
+import { databaseManager } from './core/DatabaseManager';
 import { getMutationQueueCapacity } from './mutation-queue-capacity';
 import { MutationBackupStore } from './MutationBackupStore';
 import { MutationQueueStore } from './MutationQueueStore';
@@ -566,6 +568,22 @@ export class MutationManager {
       authUserId
     );
     if (changed > 0) await this.backupStore.writeCurrent();
+  }
+
+  /** Dequeue this row's RPC deltas the server row already holds (MYK9-2111). */
+  async acknowledgeAppliedRpcWrites(
+    tableName: string,
+    rowId: string,
+    isApplied: (field: string, value: unknown) => boolean
+  ): Promise<number> {
+    const authUserId = await this.requireCurrentUserId();
+    const acked = await acknowledgeAppliedRpcWrites(
+      await databaseManager.getDatabase('MutationManager'),
+      { tableName, rowId, authUserId },
+      isApplied
+    );
+    if (acked > 0) await this.backupStore.writeCurrent();
+    return acked;
   }
 
   // ========================================

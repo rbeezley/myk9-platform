@@ -12,6 +12,7 @@ const harness = vi.hoisted(() => ({
   clubName: 'Tri-State Kennel Club' as string | undefined,
   clubError: false,
   refetch: vi.fn(),
+  adminEmail: vi.fn(),
 }));
 
 vi.mock('@/hooks/queries/useClubsDatabase', () => ({
@@ -25,6 +26,9 @@ vi.mock('@/hooks/queries/useClubsDatabase', () => ({
 vi.mock('@/features/publishing/usePublishBlockers', () => ({
   useClubPublishBlockers: () => harness.club,
 }));
+vi.mock('@/features/publishing/useClubAdminEmail', () => ({
+  useClubAdminEmail: (...args: unknown[]) => harness.adminEmail(...args),
+}));
 vi.mock('@/features/payments/useCanOpenClubPayments', async importOriginal => ({
   ...(await importOriginal<typeof import('@/features/payments/useCanOpenClubPayments')>()),
   useCanOpenClubPayments: () => harness.canOpenPayments,
@@ -36,6 +40,7 @@ beforeEach(() => {
   harness.clubName = 'Tri-State Kennel Club';
   harness.clubError = false;
   harness.refetch.mockReset();
+  harness.adminEmail.mockReset().mockReturnValue(undefined);
 });
 
 describe('FirstShowCard (MYK9-2199)', () => {
@@ -61,6 +66,40 @@ describe('FirstShowCard (MYK9-2199)', () => {
       'href',
       '/secretary/create-show/wizard?clubId=club-1'
     );
+  });
+
+  it('names the club admins and offers the email link on the payouts line (MYK9-2217)', () => {
+    harness.club = {
+      state: 'ready',
+      blockers: [{ key: 'payouts_not_enabled', waitingOn: 'club_admin', eta: null }],
+    };
+    harness.adminEmail.mockReturnValue({
+      names: 'Pat Lee',
+      count: 1,
+      mailto: 'mailto:pat@example.test?subject=x',
+    });
+    render(<FirstShowCard clubId="club-1" draftShowId={null} />);
+
+    expect(screen.getByText(/Waiting on Pat Lee, the club admin$/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Email them the link' })).toHaveAttribute(
+      'href',
+      'mailto:pat@example.test?subject=x'
+    );
+    // No draft: read by club. A draft: read by its show.
+    expect(harness.adminEmail).toHaveBeenLastCalledWith(undefined, 'club-1', true);
+  });
+
+  it('reads the admins by show when a draft exists, and not for a club admin', () => {
+    harness.club = {
+      state: 'ready',
+      blockers: [{ key: 'payouts_not_enabled', waitingOn: 'club_admin', eta: null }],
+    };
+    render(<FirstShowCard clubId="club-1" draftShowId="show-7" />);
+    expect(harness.adminEmail).toHaveBeenLastCalledWith('show-7', 'club-1', true);
+
+    harness.canOpenPayments = true;
+    render(<FirstShowCard clubId="club-1" draftShowId="show-7" />);
+    expect(harness.adminEmail).toHaveBeenLastCalledWith('show-7', 'club-1', false);
   });
 
   it('shows no club links until the club is named, and offers a retry when the name fails', () => {

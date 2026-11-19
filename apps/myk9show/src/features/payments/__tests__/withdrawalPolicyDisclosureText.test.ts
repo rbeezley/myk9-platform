@@ -7,6 +7,7 @@ import {
 } from '@/features/registries';
 import {
   PULL_REFUND_NOTE_TEXT,
+  REGISTRY_WITHDRAWAL_DOCUMENTATION_NOTES,
   REGISTRY_WITHDRAWAL_REASON_LABELS,
   SERVICE_FEE_SENTENCE,
   WITHDRAWAL_DISCLOSURE_MAX_LENGTH,
@@ -26,6 +27,12 @@ describe('shared withdrawal policy text resolver (MYK9-1976)', () => {
       expect(REGISTRY_WITHDRAWAL_REASON_LABELS[id]).toEqual(rules.reasons.map(r => r.label));
       expect(rules.withdrawRefundNote).toBe(WITHDRAW_REFUND_NOTE_TEXT);
       expect(rules.pullRefundNote).toBe(PULL_REFUND_NOTE_TEXT);
+    }
+    for (const id of listRegistries()) {
+      const notes = getWithdrawalPolicy(id)
+        .reasons.map(r => r.documentationNote)
+        .filter(Boolean);
+      expect(REGISTRY_WITHDRAWAL_DOCUMENTATION_NOTES[id]).toBe(notes[0]);
     }
     expect(WITHDRAW_REFUND_NOTE).toBe(WITHDRAW_REFUND_NOTE_TEXT);
     expect(PULL_REFUND_NOTE).toBe(PULL_REFUND_NOTE_TEXT);

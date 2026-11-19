@@ -108,7 +108,7 @@ const AKC_POLICY: RegistryWithdrawalPolicy = {
       code: 'in_season',
       label: IN_SEASON_LABEL,
       documentationNote:
-        'AKC clubs may ask for documentation, and withdrawals are expected at least 30 minutes before the first class of the day — check the premium.',
+        'AKC clubs may ask for documentation, and withdrawals are expected at least 30 minutes before the first class of the day, so check the premium.',
     },
     { code: 'judge_change', label: JUDGE_CHANGE_LABEL },
   ],

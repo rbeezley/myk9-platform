@@ -15,20 +15,16 @@ import {
 
 registerDisposableProofHooks();
 
-// MYK9-2111: how long a stale-token ringside_update_entry write may stay queued after the
-// server already holds its values. The OCC rejection advances only the row's token, so the
-// write is rebased by the next download pass that carries the row (syncCadence.ts: 3-5 min
-// poll while a show channel is subscribed, 60 s otherwise), then waits out its own backoff
-// (MAX_BACKOFF_MS 30 s). The 50-attempt park is ~23 min away, so it is not a wait target.
-const SLOW_POLL_MAX_MS = 300_000;
-const MAX_OCC_BACKOFF_MS = 30_000;
-const DRAIN_MARGIN_MS = 30_000;
-const PENDING_DRAIN_TIMEOUT_MS = SLOW_POLL_MAX_MS + MAX_OCC_BACKOFF_MS + DRAIN_MARGIN_MS;
+// MYK9-2111: a stale-token ringside_update_entry write stays queued after the server already
+// holds its values (the OCC rejection advances only the row's token). It is rebased by the next
+// download pass that carries the row. That pass is forced below instead of waited for (the poll
+// is 3-5 min while a show channel is subscribed), so the drain after it is short.
+const FORCED_PASS_DRAIN_TIMEOUT_MS = 60_000;
 
 test('paper scoring persists one-entry and multi-entry results after reload (MYK9-1246)', async ({
   browser,
 }, info) => {
-  test.setTimeout(2 * (PENDING_DRAIN_TIMEOUT_MS + 3 * 60_000));
+  test.setTimeout(10 * 60_000);
   const client = isolatedClient();
   for (const cardinality of [1, 2] as const) {
     const f = await scenario(client, cardinality);
@@ -69,6 +65,15 @@ test('paper scoring persists one-entry and multi-entry results after reload (MYK
         (await page.getByLabel('Search Time', { exact: true }).inputValue()).replace(/\D/g, '')
       )
       .toBe('10203');
+    await screenshot(page, info, `paper-${cardinality}-after-reload`);
+    // MYK9-2111: the server holds the score (read back above), but the queued write is cleared
+    // only by a download pass that carries the row. Entries download per show, and the provider
+    // runs a show's scoped pass only for a show a surface has mounted (showScopeTargets.ts
+    // registerMountedShow, called by useShowLiveSync under ShowPresenceProvider, which the scoring
+    // page does not mount; Show Desk does). The pass rides the visibility trigger
+    // (useSyncPassScheduler.ts handleVisibilityChange -> scheduler.requestUntargeted, spaced
+    // >= 15 s). So open Show Desk, then nudge that trigger on every poll until the queue is empty.
+    await page.goto(`/shows/${f.showId}?focus=${f.classId}`);
     // MYK9-2111: this drain is intermittent. When it times out, attach the server row and the
     // device's own queue so the leftover mutation is named; the original error is rethrown.
     // The queue may drain between the last poll and the catch, so the last non-empty sample is
@@ -78,11 +83,12 @@ test('paper scoring persists one-entry and multi-entry results after reload (MYK
       await expect
         .poll(
           async () => {
+            await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
             const { pending } = await replica(page, f.willowId);
             if (pending.length > 0) lastPending = pending;
             return pending.length;
           },
-          { timeout: PENDING_DRAIN_TIMEOUT_MS, intervals: [1_000, 2_000, 5_000] }
+          { timeout: FORCED_PASS_DRAIN_TIMEOUT_MS, intervals: [1_000, 2_000, 5_000] }
         )
         .toBe(0);
     } catch (error) {
@@ -108,7 +114,6 @@ test('paper scoring persists one-entry and multi-entry results after reload (MYK
       sql: await row(client, f.willowId),
       replica: await replica(page, f.willowId),
     });
-    await screenshot(page, info, `paper-${cardinality}-after-reload`);
     await secretary.context.close();
   }
 });

@@ -76,15 +76,20 @@ export interface PremiumFactDefinition {
 export const AKC_EVENT_COMMITTEE_MINIMUM = 5;
 
 export const PREMIUM_FACT_CATALOG: readonly PremiumFactDefinition[] = [
-  { id: 'clubName', label: 'Name of club', source: 'club', requiredBy: ['AKC'] },
-  { id: 'venue', label: 'Location', source: 'show', requiredBy: ['AKC'] },
-  { id: 'dates', label: 'Date of the event', source: 'show', requiredBy: ['AKC'] },
+  { id: 'clubName', label: 'Name of club', source: 'club', requiredBy: ['AKC', 'ASCA'] },
+  { id: 'venue', label: 'Location', source: 'show', requiredBy: ['AKC', 'ASCA'] },
+  { id: 'dates', label: 'Date of the event', source: 'show', requiredBy: ['AKC', 'ASCA'] },
   { id: 'eventNumber', label: 'Event number', source: 'trial', requiredBy: ['AKC'] },
-  { id: 'showHours', label: 'Trial hours', source: 'show', requiredBy: ['AKC'] },
+  { id: 'showHours', label: 'Trial hours', source: 'show', requiredBy: ['AKC', 'ASCA'] },
   { id: 'trialInformation', label: 'Trial information', source: 'show', requiredBy: [] },
-  { id: 'fees', label: 'Entry fees', source: 'show', requiredBy: ['AKC'] },
+  { id: 'fees', label: 'Entry fees', source: 'show', requiredBy: ['AKC', 'ASCA'] },
   // MYK9-1976: the club's text (a show may override it), else the registry-correct default.
-  { id: 'withdrawalPolicy', label: 'Withdrawals and Pulls', source: 'club', requiredBy: ['AKC'] },
+  {
+    id: 'withdrawalPolicy',
+    label: 'Withdrawals and Pulls',
+    source: 'club',
+    requiredBy: ['AKC', 'ASCA'],
+  },
   // MYK9-2043: the registry's own words (AKC Ch. 3 §15); the club types nothing.
   {
     id: 'scoutingStatement',
@@ -94,9 +99,9 @@ export const PREMIUM_FACT_CATALOG: readonly PremiumFactDefinition[] = [
   },
   // MYK9-2044: AKC Ch. 3 §15, "AKC recording fee shall be stated"; from the dated table in code.
   { id: 'recordingFee', label: 'AKC recording fee', source: 'registry', requiredBy: ['AKC'] },
-  { id: 'classes', label: 'Classes offered', source: 'class', requiredBy: ['AKC'] },
-  { id: 'judges', label: 'Judges', source: 'person', requiredBy: ['AKC'] },
-  { id: 'secretary', label: 'Trial Secretary', source: 'person', requiredBy: ['AKC'] },
+  { id: 'classes', label: 'Classes offered', source: 'class', requiredBy: ['AKC', 'ASCA'] },
+  { id: 'judges', label: 'Judges', source: 'person', requiredBy: ['AKC', 'ASCA'] },
+  { id: 'secretary', label: 'Trial Secretary', source: 'person', requiredBy: ['AKC', 'ASCA'] },
   // MYK9-2065: AKC Ch. 3 §15 wants each official's address. It is typed for the premium on the
   // show's official, never taken from their profile, so a home address prints only by choice.
   {
@@ -116,14 +121,19 @@ export const PREMIUM_FACT_CATALOG: readonly PremiumFactDefinition[] = [
     requiredBy: ['AKC'],
     minimumBy: { AKC: AKC_EVENT_COMMITTEE_MINIMUM },
   },
-  { id: 'chair', label: 'Trial Chair', source: 'person', requiredBy: ['AKC'] },
+  { id: 'chair', label: 'Trial Chair', source: 'person', requiredBy: ['AKC', 'ASCA'] },
   {
     id: 'chairAddress',
     label: 'Trial Chair mailing address',
     source: 'person',
     requiredBy: ['AKC'],
   },
-  { id: 'entryWindow', label: 'Entries open and close', source: 'show', requiredBy: ['AKC'] },
+  {
+    id: 'entryWindow',
+    label: 'Entries open and close',
+    source: 'show',
+    requiredBy: ['AKC', 'ASCA'],
+  },
   { id: 'vetClinic', label: 'Veterinary services', source: 'template', requiredBy: [] },
   { id: 'accommodations', label: 'Accommodations', source: 'template', requiredBy: [] },
   { id: 'hospitality', label: 'Hospitality', source: 'template', requiredBy: [] },

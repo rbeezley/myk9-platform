@@ -273,7 +273,14 @@ describe('missingPremiumFacts (MYK9-2053)', () => {
       expect.arrayContaining(['clubName', 'venue', 'secretary', 'chair', 'committee', 'classes'])
     );
     expect(idsFor(empty, 'UKC')).toEqual([]);
-    expect(idsFor(empty, 'ASCA')).toEqual([]);
+    // MYK9-2225: ASCA §1.5 asks for the club, location, dates, officials, classes and judges too,
+    // but not AKC's event committee, event number or the officials' mailing addresses.
+    const asca = idsFor(empty, 'ASCA');
+    expect(asca).toEqual(
+      expect.arrayContaining(['clubName', 'venue', 'secretary', 'chair', 'classes'])
+    );
+    expect(asca).not.toEqual(expect.arrayContaining(['committee']));
+    expect(asca.some(id => id.startsWith('eventNumber') || id.endsWith('Address'))).toBe(false);
   });
 
   it('never lists a fact the registry does not require, even when it is empty', () => {

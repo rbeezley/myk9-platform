@@ -39,11 +39,11 @@ const authored: Array<[string, unknown, string]> = [
   [
     'PremiumPublishError',
     new PremiumPublishError(
-      "Set this show's organization to AKC or UKC in Show settings, then try again.",
+      "Set this show's organization to AKC, UKC or ASCA in Show settings, then try again.",
       'generation',
       'missing-organization'
     ),
-    "Set this show's organization to AKC or UKC",
+    "Set this show's organization to AKC, UKC or ASCA",
   ],
   [
     'translateDogDbError microchip',

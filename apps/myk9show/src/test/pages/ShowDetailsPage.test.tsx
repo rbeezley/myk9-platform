@@ -1373,7 +1373,7 @@ describe('ShowDetailsPage', () => {
     await waitFor(() => {
       expect(notificationsErrorMock).toHaveBeenCalledWith("Couldn't save your changes", {
         description:
-          "Set this show's organization to AKC or UKC in Show settings, then try again. Your changes are still here.",
+          "Set this show's organization to AKC, UKC or ASCA in Show settings, then try again. Your changes are still here.",
       });
     });
     expect(screen.getByRole('button', { name: /save mocked edit panel/i })).toBeInTheDocument();

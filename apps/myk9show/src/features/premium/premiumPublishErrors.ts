@@ -69,7 +69,7 @@ function isChunkLoadFailure(error: unknown, message: string): boolean {
 
 function classifyMessage(message: string): PremiumPublishFailureCode {
   const normalized = message.toLowerCase();
-  return /only supported for akc and ukc|organization.*(required|missing|invalid)|organization.*null/.test(
+  return /only supported for akc(, ukc and asca| and ukc)|organization.*(required|missing|invalid)|organization.*null/.test(
     normalized
   )
     ? 'missing-organization'
@@ -164,7 +164,7 @@ export const OFFICIALS_PHONE_MESSAGE =
 export function premiumPublishFailureMessage(error: PremiumPublishError): string {
   switch (error.code) {
     case 'missing-organization':
-      return "Set this show's organization to AKC or UKC in Show settings, then try again.";
+      return "Set this show's organization to AKC, UKC or ASCA in Show settings, then try again.";
     case 'missing-secretary':
       return 'Add a secretary to this show before publishing the premium list.';
     case 'configuration':

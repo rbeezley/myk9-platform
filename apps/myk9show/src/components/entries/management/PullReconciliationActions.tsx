@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { denyPullRefundDecision } from '@/features/payments/denyPullRefundDecision';
 import { getSuggestedPullRefundDecision } from '@/features/payments/pullReconciliation';
@@ -19,6 +20,8 @@ export function PullReconciliationActions({
   onResolved,
 }: PullReconciliationActionsProps) {
   const [isDenying, setIsDenying] = useState(false);
+  const [isAskingReason, setIsAskingReason] = useState(false);
+  const [reason, setReason] = useState('');
 
   if ((entry.refundAmount ?? 0) > 0 || entry.refundedAt) {
     return <Badge variant="secondary">Refund issued</Badge>;
@@ -56,7 +59,7 @@ export function PullReconciliationActions({
   const denyRefund = async () => {
     setIsDenying(true);
     try {
-      await denyPullRefundDecision(entry.id);
+      await denyPullRefundDecision(entry.id, reason);
       toast.success('Refund denied');
       onResolved();
     } catch {
@@ -84,11 +87,53 @@ export function PullReconciliationActions({
         variant={selected === 'denied' ? 'secondary' : 'outline'}
         className="min-h-11"
         aria-pressed={selected === 'denied'}
+        aria-expanded={isAskingReason}
         disabled={isDenying}
-        onClick={() => void denyRefund()}
+        onClick={() => setIsAskingReason(open => !open)}
       >
         {isDenying ? 'Saving…' : 'Deny refund'}
       </Button>
+      {isAskingReason && (
+        // MYK9-2249: the reason is required; the owner and handler are emailed it.
+        <div className="flex w-full flex-col gap-2">
+          <label htmlFor={`deny-reason-${entry.id}`} className="text-sm font-medium">
+            Why is there no refund?
+          </label>
+          <Textarea
+            id={`deny-reason-${entry.id}`}
+            value={reason}
+            onChange={event => setReason(event.target.value)}
+            maxLength={500}
+            rows={3}
+            disabled={isDenying}
+            aria-describedby={`deny-reason-help-${entry.id}`}
+          />
+          <p id={`deny-reason-help-${entry.id}`} className="text-xs text-muted-foreground">
+            The owner and handler get an email with this reason. Do not include card details.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              className="min-h-11"
+              disabled={isDenying || reason.trim() === ''}
+              onClick={() => void denyRefund()}
+            >
+              Save denial
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="min-h-11"
+              disabled={isDenying}
+              onClick={() => setIsAskingReason(false)}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

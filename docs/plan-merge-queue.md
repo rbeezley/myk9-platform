@@ -49,7 +49,6 @@ Mirroring rather than re-evaluating is deliberate: the evidence is pinned to the
 
 - `gh pr merge <n> --squash` on a branch that requires a merge queue **joins the queue** when the required checks have passed. It does not merge at once. (`gh` ignores the method flag; the queue's own merge method applies, and the settings below make it squash.)
 - If the required checks have **not** passed, the same command **arms auto-merge** instead. Standing approvals never cover auto-merge, so Step 5 still runs the check watcher first and merges only on exit 0 or a read exit 5.
-- Step 5 passes `--match-head-commit <sha>` (the SHA the watcher pinned), so a push between the watcher and the merge cannot queue an unchecked head.
 - A new script, `scripts/qa/wait-pr-merged.sh <pr>`, waits for the outcome: exit 0 merged (prints the merge commit), 1 removed from the queue without merging, 3 timeout (not a verdict). `gh pr view --json state` alone cannot tell "still queued" from "dropped".
 - The standing-approval merge entry is unchanged in substance: the tripwire runs right before `gh pr merge`, and the queue only adds a re-test against current `main`. Whether that delay is acceptable under standing approvals is the owner's call; until the owner says otherwise, an unattended run waits on `wait-pr-merged.sh` and reports its exit.
 - `watch-pr-checks.sh` needs no change: it reads the required contexts from the ruleset and watches the PR head, which is still what gates entry to the queue.
@@ -95,7 +94,7 @@ API form, for reference:
 2. **Owner: eligibility and settings.** Phase 0, then the ruleset change above, after Phase 1 is merged.
 3. **Testing on a throwaway PR** (a docs-only change, for example a one-line edit to this plan):
    - PR CI and the review gate go green on the PR head as today.
-   - `gh pr merge <n> --squash --match-head-commit <sha>` reports that the PR joined the queue.
+   - `gh pr merge <n> --squash` reports that the PR joined the queue.
    - A `merge_group` CI run starts; the `Mirror review gate to the merge queue` job posts `Review gate` on the queue SHA with the PR head's state.
    - The PR merges; `wait-pr-merged.sh` exits 0 and prints the merge commit.
    - Record whether the `main` commit SHA equals the queue run's `head_sha`.

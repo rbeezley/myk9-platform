@@ -197,7 +197,7 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
     pkgDir: '.',
     script: 'qa:deploy-picker:test',
     command:
-      'vitest run scripts/qa/pick-deploy-commit.test.ts scripts/qa/deploy-live-guard.test.ts',
+      'vitest run scripts/qa/pick-deploy-commit.test.ts scripts/qa/deploy-live-guard.test.ts scripts/qa/verify-production.test.ts',
   },
   {
     pkgDir: '.',

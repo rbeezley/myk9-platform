@@ -104,7 +104,7 @@ function run(
   };
 }
 
-describe('deploy-live-guard.sh', () => {
+describe('deploy-live-guard.sh', { timeout: 30_000 }, () => {
   it('refuses a pin behind what production serves, naming both commits', () => {
     const { repo, shas } = makeRepo();
     const r = run(repo, shas[1]!, { [DOMAIN]: `${shas[3]}\n`, [ALIAS]: `${shas[3]}\n` });

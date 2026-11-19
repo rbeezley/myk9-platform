@@ -36,6 +36,9 @@ const STEP_LABELS: Record<LifecycleEmailStepSummary['stepType'], string> = {
   show_changed: 'Date or venue changed',
   judge_changed: 'Judge changed',
   entry_changed: 'Entry changed',
+  // MYK9-2001: told when she pulls or withdraws, and when the refund is decided.
+  pulled_out: 'Pulled out',
+  refund_outcome: 'Refund decided',
 };
 
 // The reminder batches remain deferred until a producer exists (MYK9-318; follow-up tracked
@@ -50,6 +53,8 @@ const PRODUCER_BACKED_STEP_TYPES = new Set<LifecycleEmailStepSummary['stepType']
   'show_changed',
   'judge_changed',
   'entry_changed',
+  'pulled_out',
+  'refund_outcome',
 ]);
 
 // Sent one at a time from the Registration number needed list, never as a batch: the toggle
@@ -64,11 +69,18 @@ const AUTOMATIC_STEP_TYPES = new Set<LifecycleEmailStepSummary['stepType']>([
   'show_changed',
   'judge_changed',
   'entry_changed',
+  'pulled_out',
+  'refund_outcome',
 ]);
 
-// Always sent (MYK9-2126): the secretary cannot hold an entry change email back, so its row
+// Always sent (MYK9-2126, MYK9-2001): the secretary cannot hold an entry change or a money email
+// back, so its row
 // shows what went out and has no switch.
-const ALWAYS_ON_STEP_TYPES = new Set<LifecycleEmailStepSummary['stepType']>(['entry_changed']);
+const ALWAYS_ON_STEP_TYPES = new Set<LifecycleEmailStepSummary['stepType']>([
+  'entry_changed',
+  'pulled_out',
+  'refund_outcome',
+]);
 
 const queryKey = (showId: string) => ['show-lifecycle-emails', showId] as const;
 
@@ -153,7 +165,7 @@ function ScheduledEmailStepRow({
 }) {
   // An entry-change email waits out a quiet window before it can send, so its count is
   // "waiting", not "ready" (MYK9-2126).
-  const pendingWord = step.stepType === 'entry_changed' ? 'waiting' : 'ready';
+  const pendingWord = ALWAYS_ON_STEP_TYPES.has(step.stepType) ? 'waiting' : 'ready';
   const readyLabel =
     step.readyCount > 0 ? `${step.readyCount} ${pendingWord}` : `None ${pendingWord}`;
   const sentLabel = step.sentCount > 0 ? `${step.sentCount} sent` : null;

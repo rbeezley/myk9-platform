@@ -494,7 +494,7 @@ begin
   perform set_config('request.jwt.claims', jsonb_build_object(
     'sub', '00000000-0000-0000-0000-000000632106', 'role', 'authenticated')::text, true);
   perform set_config('role', 'authenticated', true);
-  perform public.set_entry_refund_decision('00000000-0000-0000-0000-000000632033', 'denied');
+  perform public.set_entry_refund_decision('00000000-0000-0000-0000-000000632033', 'denied', 'Outside the refund policy');
   reset role;
 
   select e.refund_decision, e.refund_decided_at into v_decision, v_decided_at
@@ -555,7 +555,7 @@ begin
   perform set_config('request.jwt.claims', jsonb_build_object(
     'sub', '00000000-0000-0000-0000-000000632106', 'role', 'authenticated')::text, true);
   perform set_config('role', 'authenticated', true);
-  perform public.set_entry_refund_decision('00000000-0000-0000-0000-000000632034', 'denied');
+  perform public.set_entry_refund_decision('00000000-0000-0000-0000-000000632034', 'denied', 'Outside the refund policy');
   reset role;
 
   select e.refund_decision into v_decision

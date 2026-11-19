@@ -214,6 +214,9 @@ describe('MYK9-631 AC3 — leaving a class is a ROW verb', () => {
       // MYK9-658: the card's own id, unique per rendered card.
       dogCardId: 'e-juni',
       showId: 'show-flint',
+      // MYK9-2001: what she paid for this row, for the chooser's "what you paid" lines.
+      entryFee: 25,
+      paidAs: null,
     });
   });
 

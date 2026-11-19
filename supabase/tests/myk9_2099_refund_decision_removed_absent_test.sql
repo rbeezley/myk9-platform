@@ -104,8 +104,8 @@ FROM public.roles WHERE name = 'club_admin';
 -- The show's secretary denies the removal and the no-show.
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000002099001', true);
-SELECT public.set_entry_refund_decision('00000000-0000-0000-0000-000002099041', 'denied');
-SELECT public.set_entry_refund_decision('00000000-0000-0000-0000-000002099042', 'denied');
+SELECT public.set_entry_refund_decision('00000000-0000-0000-0000-000002099041', 'denied', 'Outside the refund policy');
+SELECT public.set_entry_refund_decision('00000000-0000-0000-0000-000002099042', 'denied', 'Outside the refund policy');
 RESET ROLE;
 
 DO $$
@@ -146,7 +146,7 @@ BEGIN
       ('00000000-0000-0000-0000-000002099046'::uuid, 'an entry still running')
   LOOP
     BEGIN
-      PERFORM public.set_entry_refund_decision(v_id, 'denied');
+      PERFORM public.set_entry_refund_decision(v_id, 'denied', 'Outside the refund policy');
       RAISE EXCEPTION 'FAIL % was accepted for a refund decision', v_label;
     EXCEPTION WHEN invalid_parameter_value THEN
       IF SQLERRM NOT LIKE 'entry % is not an unresolved paid-online pull, withdrawal, removal or no-show' THEN
@@ -183,7 +183,7 @@ SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000002099002
 DO $$
 BEGIN
   BEGIN
-    PERFORM public.set_entry_refund_decision('00000000-0000-0000-0000-000002099047', 'denied');
+    PERFORM public.set_entry_refund_decision('00000000-0000-0000-0000-000002099047', 'denied', 'Outside the refund policy');
     RAISE EXCEPTION 'FAIL unrelated club admin denied a no-show refund';
   EXCEPTION WHEN insufficient_privilege THEN
     RAISE NOTICE 'PASS unrelated club admin is refused on a no-show';

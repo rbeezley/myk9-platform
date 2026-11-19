@@ -10,6 +10,7 @@
  * @module MyEntriesPage/modules/MyShowGroup
  */
 
+import { paidAsFromStatus } from '@/features/payments/pullOutMoney';
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Check, CreditCard } from 'lucide-react';
@@ -431,6 +432,8 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
                   dogId: leavingDog.dogId,
                   dogCardId: leavingDog.id,
                   showId: group.showId,
+                  entryFee: cls.fee,
+                  paidAs: paidAsFromStatus(cls.rawPaymentStatus),
                 })
               }
               onClassChanged={onClassChanged}

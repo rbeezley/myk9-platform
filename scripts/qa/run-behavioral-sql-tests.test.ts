@@ -254,6 +254,7 @@ const launchCriticalSqlTests = [
   'myk9_2170_payout_brake_test.sql',
   'myk9_2131_show_dates_from_trials_test.sql',
   'myk9_2099_refund_decision_removed_absent_test.sql',
+  'myk9_2001_pull_out_money_emails_test.sql',
   'myk9_2120_class_time_limit_set_at_test.sql',
   'myk9_1310_approval_authorizes_club_test.sql',
   'myk9_1315_club_awaiting_authorization_notice_test.sql',

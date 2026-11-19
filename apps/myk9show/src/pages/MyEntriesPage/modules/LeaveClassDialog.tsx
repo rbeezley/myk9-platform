@@ -25,6 +25,8 @@ import { RemoveFromClassDialog } from '@/components/entries/RemoveFromClassDialo
 import { useShowRegistryId } from '@/components/entries/useShowRegistryId';
 import { useWithdrawEligibility } from '@/components/entries/useWithdrawEligibility';
 import { withdrawEntry } from '@/services/database/entries';
+import { useEntryReceiptOrders } from '@/features/payments/entryReceiptOrder';
+import { pullOutMoneyLines } from '@/features/payments/pullOutMoney';
 import { withdrawErrorMessage } from '@/services/database/entries/withdrawEligibility';
 import { logger } from '@/services/LoggingService';
 import { GENERIC_FAILURE_MESSAGE } from '@/utils/errorMessages';
@@ -41,12 +43,15 @@ export interface LeaveClassDialogProps {
    * REFRESHED list (MYK9-658).
    */
   onUpdate: () => void | Promise<void>;
+  /** The signed-in viewer, scoping the cached order read (MYK9-2001). */
+  viewerId?: string | null;
 }
 
 export const LeaveClassDialog: React.FC<LeaveClassDialogProps> = ({
   dialog,
   onClose,
   onUpdate,
+  viewerId = null,
 }) => {
   const [isSaving, setIsSaving] = React.useState(false);
   /**
@@ -69,6 +74,24 @@ export const LeaveClassDialog: React.FC<LeaveClassDialogProps> = ({
   const registry = useShowRegistryId(target?.showId, open);
   const eligibility = useWithdrawEligibility(open, false, target ? [target.classId] : []);
   const rowEligibility = target ? eligibility[target.classId] : undefined;
+
+  // MYK9-2001: what she paid for this class. The entry's own recorded fee, plus the service fee
+  // of the order that paid for it (online only; a check or cash entry has no service fee line).
+  // The order read is best-effort: until it lands, or if it fails, the entry fee alone is shown.
+  const paidOnline = open && target?.paidAs === 'online';
+  const receiptOrders = useEntryReceiptOrders({
+    requestedOrderId: null,
+    viewerId,
+    entryIds: target ? [target.classId] : [],
+    enabled: paidOnline,
+  });
+  const paidSummary = target
+    ? pullOutMoneyLines({
+        paidAs: target.paidAs,
+        entryFee: target.entryFee,
+        order: receiptOrders.data?.find(order => order.entryIds.includes(target.classId)) ?? null,
+      })
+    : [];
 
   // MYK9-658: where focus goes once a leave LANDS. On success the row's
   // "Pull or withdraw…" button unmounts with the row state it belonged to, so the
@@ -163,6 +186,7 @@ export const LeaveClassDialog: React.FC<LeaveClassDialogProps> = ({
       isSaving={isSaving}
       withdrawDisabledReason={rowEligibility?.withdraw.reason ?? null}
       pullDisabledReason={rowEligibility?.pull.reason ?? null}
+      paidSummary={paidSummary}
       // A close while a write is in flight is the primitive's own, fired by
       // AlertDialogAction; it is refused so a refusal can keep the chooser (and
       // the exhibitor's half-made choice) on screen. Every other close — Escape,

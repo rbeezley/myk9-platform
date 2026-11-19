@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
  * the audit index — and nothing has superseded those. It no longer owns the
  * BEHAVIOUR: MYK9-632 replaced `set_entry_refund_decision` and the reinstate
  * trigger in `20260917214300`, and MYK9-2099 replaced both again in
- * `20261117152900` (the latest definition), and a source test that keeps reading the older
+ * `20261117152900`, and MYK9-2001 again in `20261120053700` (the latest definition, which adds the required reason), and a source test that keeps reading the older
  * file certifies a guard that is not what ships. It also stays green while it
  * does so, which is the worst version of that mistake (LESSONS
  * replace-function-latest).
@@ -20,7 +20,7 @@ const shape = readFileSync(
   'utf8'
 );
 const behaviour = readFileSync(
-  resolve(migrationsDir, '20261117152900_myk9_2099_refund_decision_removed_absent.sql'),
+  resolve(migrationsDir, '20261120053700_myk9_2001_pull_out_money_emails.sql'),
   'utf8'
 );
 
@@ -59,10 +59,10 @@ describe('pull refund decision persistence', () => {
 
   it('exposes only the guarded RPC to authenticated users', () => {
     expect(behaviour).toContain(
-      'REVOKE EXECUTE ON FUNCTION public.set_entry_refund_decision(uuid, text) FROM PUBLIC, anon'
+      'REVOKE EXECUTE ON FUNCTION public.set_entry_refund_decision(uuid, text, text) FROM PUBLIC, anon'
     );
     expect(behaviour).toContain(
-      'GRANT EXECUTE ON FUNCTION public.set_entry_refund_decision(uuid, text)'
+      'GRANT EXECUTE ON FUNCTION public.set_entry_refund_decision(uuid, text, text)'
     );
     // The INSERT arm of the column guard is unchanged and still lives with the
     // trigger's original CREATE.
@@ -88,5 +88,26 @@ describe('pull refund decision persistence', () => {
     expect(shape).toContain("WHERE conname = 'entries_refund_decision_check'");
     expect(shape).toContain('entries_refund_decided_by_idx');
     expect(shape).toContain('WHERE refund_decided_by IS NOT NULL');
+  });
+
+  // MYK9-2001: Deny refund records WHY, because the exhibitor is emailed the reason. The reason is
+  // required by the server (a UI-only requirement would let any other caller record a bare denial),
+  // trimmed, bounded, and written only through the RPC. Behaviour pinned in
+  // supabase/tests/myk9_2001_pull_out_money_emails_test.sql.
+  it('requires a reason and keeps it out of direct writes', () => {
+    expect(behaviour).toContain('p_reason text');
+    expect(behaviour).toContain("v_reason text := btrim(coalesce(p_reason, ''))");
+    expect(behaviour).toContain("IF v_reason = '' OR char_length(v_reason) > 300 THEN");
+    expect(behaviour).toContain('refund_decision_reason = v_reason');
+    expect(behaviour).toContain(
+      'DROP FUNCTION IF EXISTS public.set_entry_refund_decision(uuid, text);'
+    );
+    expect(behaviour).toContain(
+      'OR new.refund_decision_reason IS DISTINCT FROM old.refund_decision_reason'
+    );
+    expect(behaviour).toContain('new.refund_decision_reason := NULL');
+    expect(behaviour).toContain(
+      'REVOKE ALL (refund_decision_reason) ON public.entries FROM PUBLIC, anon'
+    );
   });
 });

@@ -6,6 +6,7 @@ import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { denyPullRefundDecision } from '@/features/payments/denyPullRefundDecision';
 import { getSuggestedPullRefundDecision } from '@/features/payments/pullReconciliation';
 import { isStripeRefundable } from './refundEligibility';
+import { DenyRefundDialog } from './DenyRefundDialog';
 
 interface PullReconciliationActionsProps {
   entry: EntryManagementEntry;
@@ -19,6 +20,7 @@ export function PullReconciliationActions({
   onResolved,
 }: PullReconciliationActionsProps) {
   const [isDenying, setIsDenying] = useState(false);
+  const [isAskingReason, setIsAskingReason] = useState(false);
 
   if ((entry.refundAmount ?? 0) > 0 || entry.refundedAt) {
     return <Badge variant="secondary">Refund issued</Badge>;
@@ -53,11 +55,12 @@ export function PullReconciliationActions({
       ? null
       : getSuggestedPullRefundDecision(entry.pullTiming ?? null));
 
-  const denyRefund = async () => {
+  const denyRefund = async (reason: string) => {
     setIsDenying(true);
     try {
-      await denyPullRefundDecision(entry.id);
+      await denyPullRefundDecision(entry.id, reason);
       toast.success('Refund denied');
+      setIsAskingReason(false);
       onResolved();
     } catch {
       toast.error("We couldn't save that refund decision. Try again.");
@@ -85,10 +88,17 @@ export function PullReconciliationActions({
         className="min-h-11"
         aria-pressed={selected === 'denied'}
         disabled={isDenying}
-        onClick={() => void denyRefund()}
+        onClick={() => setIsAskingReason(true)}
       >
-        {isDenying ? 'Saving…' : 'Deny refund'}
+        Deny refund
       </Button>
+      <DenyRefundDialog
+        open={isAskingReason}
+        dogName={entry.dogName ?? 'this entry'}
+        isSaving={isDenying}
+        onOpenChange={setIsAskingReason}
+        onConfirm={reason => void denyRefund(reason)}
+      />
     </div>
   );
 }

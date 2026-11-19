@@ -474,6 +474,7 @@ export const MyEntriesDialogGroup: React.FC<MyEntriesDialogGroupProps> = ({
       dialog={leaveClassDialog}
       onClose={onCloseLeaveClass}
       onUpdate={onEntryUpdated}
+      viewerId={(user as { id?: string } | null)?.id ?? null}
     />
 
     <ResultRevealDialog

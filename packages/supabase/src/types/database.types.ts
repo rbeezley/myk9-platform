@@ -13580,6 +13580,13 @@ export type Database = {
         Args: { p_person_id: string; p_show_id: string }
         Returns: undefined
       }
+      add_club_admin_by_email: {
+        Args: { p_club_id: string; p_email: string }
+        Returns: {
+          outcome: string
+          person_id: string
+        }[]
+      }
       add_to_waitlist: {
         Args: {
           p_class_id: string
@@ -14499,6 +14506,14 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_club_admins: {
+        Args: { p_club_id: string }
+        Returns: {
+          person_email: string
+          person_id: string
+          person_name: string
+        }[]
+      }
       get_club_show_managers: {
         Args: { p_club_id: string }
         Returns: {
@@ -15130,6 +15145,10 @@ export type Database = {
           person_id: string
           role_name: string
         }[]
+      }
+      grant_club_admin: {
+        Args: { p_club_id: string; p_person_id: string }
+        Returns: string
       }
       grant_club_secretary: {
         Args: { p_club_id: string; p_person_id: string }
@@ -16010,6 +16029,10 @@ export type Database = {
       revoke_calendar_feed_token: {
         Args: { p_show_id: string }
         Returns: boolean
+      }
+      revoke_club_admin: {
+        Args: { p_club_id: string; p_person_id: string }
+        Returns: undefined
       }
       revoke_club_secretary: {
         Args: { p_club_id: string; p_person_id: string }

@@ -6,6 +6,7 @@
  */
 import {
   fetchShowOfficials,
+  ShowOfficialsPhoneMissingError,
   type ShowOfficial,
   type ShowOfficials,
 } from '@/hooks/queries/useShowOfficials';
@@ -13,6 +14,13 @@ import type { GeneratedPremium } from '@/types/premium-types';
 import { PremiumPublishError } from './premiumPublishErrors';
 
 const fullName = (o: ShowOfficial) => `${o.firstName} ${o.lastName}`.trim() || null;
+
+/**
+ * The first official in the role with a printable name, the rule generate-premium's
+ * `pickPremiumOfficial` uses (earliest assignment). get_show_officials orders by assignment time,
+ * so the first named row is that official, and every field of the contact comes from them.
+ */
+const firstNamed = (list: ShowOfficial[]) => list.find(o => fullName(o) !== null);
 
 /**
  * The premium with its secretary and chairman taken from the officials, which were read
@@ -24,9 +32,9 @@ export function applyOfficialsToPremium(
   premium: GeneratedPremium,
   officials: ShowOfficials
 ): GeneratedPremium {
-  const secretary = officials.secretaries[0];
+  const secretary = firstNamed(officials.secretaries);
   const secretaryName = secretary ? fullName(secretary) : null;
-  const chair = officials.chairmen[0];
+  const chair = firstNamed(officials.chairmen);
   const chairName = chair ? fullName(chair) : null;
   return {
     ...premium,
@@ -60,8 +68,16 @@ export function applyOfficialsToPremium(
 /** Reads the officials, or fails the publish: a premium is never published with them blank. */
 export async function fetchOfficialsForPublish(showId: string): Promise<ShowOfficials> {
   try {
-    return await fetchShowOfficials(showId);
+    return await fetchShowOfficials(showId, { requirePhone: true });
   } catch (error) {
+    if (error instanceof ShowOfficialsPhoneMissingError) {
+      throw new PremiumPublishError(
+        "Could not read the officials' phone numbers. Try again in a moment.",
+        'generation',
+        'unknown',
+        error
+      );
+    }
     throw new PremiumPublishError(
       "We couldn't read this show's officials, so the premium list wasn't published. Try again.",
       'generation',

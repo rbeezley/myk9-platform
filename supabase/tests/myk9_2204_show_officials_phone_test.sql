@@ -146,4 +146,29 @@ END;
 $$;
 
 RESET ROLE;
+
+-- 5. Officials come back in assignment order, so the first row of a role is the first-named
+--    official the premium prints, whatever order the rows were inserted in.
+INSERT INTO public.show_officials (show_id, person_id, role, created_at)
+VALUES
+  ('00000000-0000-0000-0000-000000220403', '00000000-0000-0000-0000-000000220414', 'secretary', now() + interval '1 day');
+UPDATE public.show_officials SET created_at = now() - interval '1 day'
+WHERE show_id = '00000000-0000-0000-0000-000000220403'
+  AND person_id = '00000000-0000-0000-0000-000000220411';
+
+DO $$
+DECLARE
+  first_secretary uuid;
+BEGIN
+  SELECT o.user_id INTO first_secretary
+  FROM public.get_show_officials('00000000-0000-0000-0000-000000220403') o
+  WHERE o.role = 'secretary' LIMIT 1;
+  IF first_secretary IS DISTINCT FROM '00000000-0000-0000-0000-000000220411'::uuid THEN
+    RAISE EXCEPTION 'FAIL the first row of a role is not the earliest-assigned official';
+  END IF;
+
+  RAISE NOTICE 'PASS officials come back earliest-assigned first';
+END;
+$$;
+
 ROLLBACK;

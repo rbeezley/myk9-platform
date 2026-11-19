@@ -33,7 +33,15 @@ interface ShowOfficialRow {
   phone?: string | null;
 }
 
-export async function fetchShowOfficials(showId: string): Promise<ShowOfficials> {
+/** Thrown by `fetchShowOfficials(..., { requirePhone: true })` when the RPC predates the phone column. */
+export class ShowOfficialsPhoneMissingError extends Error {
+  override readonly name = 'ShowOfficialsPhoneMissingError';
+}
+
+export async function fetchShowOfficials(
+  showId: string,
+  options: { requirePhone?: boolean } = {}
+): Promise<ShowOfficials> {
   const { data, error } = await supabase.rpc('get_show_officials', { p_show_id: showId });
 
   if (error) throw error;
@@ -42,6 +50,11 @@ export async function fetchShowOfficials(showId: string): Promise<ShowOfficials>
 
   for (const row of (data as ShowOfficialRow[] | null) || []) {
     if (!row.user_id) continue;
+    // MYK9-2204: a row with no `phone` key came from an RPC that predates the column (the app
+    // deployed before the migration); an explicit null is a cleared or hidden phone.
+    if (options.requirePhone && !('phone' in row)) {
+      throw new ShowOfficialsPhoneMissingError('get_show_officials returned no phone column');
+    }
     const role = row.role;
     const official: ShowOfficial = {
       personId: row.user_id,

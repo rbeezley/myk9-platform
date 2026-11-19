@@ -3,7 +3,8 @@
 -- manage the show (the same can_manage_show gate as the steward email); anon and everyone else get
 -- NULL. Changing RETURNS TABLE needs a DROP, which also drops the grants, so they are restated
 -- exactly as 20261119214300_myk9_2065_official_premium_mailing_address.sql left them. Body and
--- gates are copied from that file (the latest definition); the only change is the new column.
+-- gates are copied from that file (the latest definition); the changes are the new column and an
+-- ORDER BY so.created_at, so.person_id, so a client takes the first-named official of a role.
 
 DROP FUNCTION IF EXISTS public.get_show_officials(uuid);
 
@@ -57,7 +58,10 @@ AS $$
       OR (SELECT public.is_show_secretary(s.id))
       OR (SELECT public.is_site_admin())
     )
-    AND pe.deleted_at IS NULL;
+    AND pe.deleted_at IS NULL
+  -- The premium prints the first-named official of a role (generate-premium orders by
+  -- created_at), so the order is part of the contract, not an accident of the plan.
+  ORDER BY so.created_at, so.person_id;
 $$;
 
 COMMENT ON FUNCTION public.get_show_officials(uuid) IS

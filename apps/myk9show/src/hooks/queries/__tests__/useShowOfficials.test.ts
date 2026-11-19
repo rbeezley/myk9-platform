@@ -1,6 +1,10 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useShowOfficials } from '../useShowOfficials';
+import {
+  fetchShowOfficials,
+  ShowOfficialsPhoneMissingError,
+  useShowOfficials,
+} from '../useShowOfficials';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createElement } from 'react';
 
@@ -169,5 +173,23 @@ describe('useShowOfficials', () => {
     expect(result.current.data?.stewards).toHaveLength(1);
     expect(result.current.data?.stewards[0].personId).toBe('p3');
     expect(result.current.data?.stewards[0].email).toBeNull();
+  });
+
+  it('requirePhone fails on a row with no phone key but accepts an explicit null (MYK9-2204)', async () => {
+    const row = {
+      user_id: 'p1',
+      first_name: 'Jane',
+      last_name: 'Doe',
+      email: null,
+      role: 'secretary',
+    };
+    mockRpc.mockResolvedValueOnce({ data: [row], error: null });
+    await expect(fetchShowOfficials('show-1', { requirePhone: true })).rejects.toBeInstanceOf(
+      ShowOfficialsPhoneMissingError
+    );
+
+    mockRpc.mockResolvedValueOnce({ data: [{ ...row, phone: null }], error: null });
+    const result = await fetchShowOfficials('show-1', { requirePhone: true });
+    expect(result.secretaries[0].phone).toBeNull();
   });
 });

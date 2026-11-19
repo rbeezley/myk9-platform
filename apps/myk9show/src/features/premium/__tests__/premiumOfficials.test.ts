@@ -1,14 +1,18 @@
 import { describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({ fetchShowOfficials: vi.fn() }));
-vi.mock('@/hooks/queries/useShowOfficials', () => ({
+vi.mock('@/hooks/queries/useShowOfficials', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/hooks/queries/useShowOfficials')>()),
   fetchShowOfficials: mocks.fetchShowOfficials,
 }));
 
 import { generatedPremium } from './fixtures/generatedPremium';
 import { applyOfficialsToPremium, fetchOfficialsForPublish } from '../premiumOfficials';
 import { PremiumPublishError } from '../premiumPublishErrors';
-import type { ShowOfficial } from '@/hooks/queries/useShowOfficials';
+import {
+  ShowOfficialsPhoneMissingError,
+  type ShowOfficial,
+} from '@/hooks/queries/useShowOfficials';
 
 const official = (
   role: ShowOfficial['role'],
@@ -128,6 +132,33 @@ describe('applyOfficialsToPremium mailing addresses (MYK9-2065)', () => {
     expect(premium.secretary.name).toBe('Sam Person');
     expect(premium.secretary.phone).toBeNull();
     expect(premium.officials.chairman?.phone).toBeNull();
+  });
+
+  it('takes every field of a role from its first official with a printable name (MYK9-2204)', () => {
+    const nameless = { ...official('secretary', '', null), lastName: '', phone: '9180000000' };
+    const first = { ...official('secretary', 'Sam', 'PO Box 1'), phone: '9181111111' };
+    const second = { ...official('secretary', 'Zed', 'PO Box 2'), phone: '9182222222' };
+    const premium = applyOfficialsToPremium(generatedPremium(), {
+      secretaries: [nameless, first, second],
+      chairmen: [],
+      stewards: [],
+    });
+
+    expect(premium.secretary).toEqual({
+      name: 'Sam Person',
+      email: 'sam@example.com',
+      phone: '9181111111',
+      mailingAddress: 'PO Box 1',
+    });
+  });
+
+  it('fails the publish, retryable, when the RPC predates the phone column (MYK9-2204)', async () => {
+    mocks.fetchShowOfficials.mockRejectedValueOnce(new ShowOfficialsPhoneMissingError('old rpc'));
+    await expect(fetchOfficialsForPublish('show-1')).rejects.toMatchObject({
+      name: 'PremiumPublishError',
+      message: "Could not read the officials' phone numbers. Try again in a moment.",
+    });
+    expect(mocks.fetchShowOfficials).toHaveBeenLastCalledWith('show-1', { requirePhone: true });
   });
 
   it('keeps the draft only when the officials could not be read: the publish fails instead', async () => {

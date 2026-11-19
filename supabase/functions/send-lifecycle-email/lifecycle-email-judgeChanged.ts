@@ -14,7 +14,11 @@ import {
   judgeNamesByClass,
   type JudgeAssignmentNameRow,
 } from '../_shared/exhibitorEmailDetails.ts';
-import type { LifecycleEmailSupabaseClient, QueryResult } from './lifecycle-email-shared.ts';
+import {
+  myShowsEntriesUrl,
+  type LifecycleEmailSupabaseClient,
+  type QueryResult,
+} from './lifecycle-email-shared.ts';
 import { formatTrialDate } from './lifecycle-email-showChanged.ts';
 
 export interface JudgeChange {
@@ -272,7 +276,7 @@ export function renderJudgeChangedEmail(args: {
       lines.join('\n'),
       ...unnamed,
       judgeChangeRefundLine(args.registryId, args.changes),
-      `Your entries: https://myk9show.com/exhibitor/entries?showId=${args.showId}`,
+      `Your entries: ${myShowsEntriesUrl(args.showId)}`,
     ].join('\n\n'),
   };
 }

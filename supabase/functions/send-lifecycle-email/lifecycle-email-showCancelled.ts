@@ -1,3 +1,5 @@
+import { myShowsEntriesUrl } from './lifecycle-email-shared.ts';
+
 /**
  * The "show cancelled" email (MYK9-2127): rendered when it is SENT. The money line is fixed by
  * the owner (2026-11-19): it promises no refund, starts none and names no amount or date.
@@ -28,7 +30,7 @@ export function renderShowCancelledEmail(args: {
     `Hi ${firstName},`,
     `${showName} has been cancelled.`,
     SHOW_CANCELLED_MONEY_LINE,
-    `Your entries: https://myk9show.com/exhibitor/entries?show=${args.showId}`,
+    `Your entries: ${myShowsEntriesUrl(args.showId)}`,
     'Please contact the show secretary with questions.',
   ].join('\n\n');
   return { subject: `${showName} has been cancelled`, body };

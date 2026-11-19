@@ -200,7 +200,13 @@ export const showSchemas = {
         { message: 'Invalid judge assignments' }
       ),
       startingArmbandNumber: z.number().int().min(1).optional(),
-      maxEntriesPerDog: z.number().optional(),
+      // MYK9-2221: shows.max_entries_per_dog is an integer column; an empty box clears the cap.
+      maxEntriesPerDog: z
+        .number()
+        .int({ message: 'Max entries per dog must be a whole number' })
+        .min(1, { message: 'Max entries per dog must be at least 1' })
+        .max(2147483647, { message: 'Max entries per dog is too large' })
+        .optional(),
       // MYK9-2220: shows.max_total_entries is an integer column; an empty box clears the cap.
       maxTotalEntries: z
         .number()

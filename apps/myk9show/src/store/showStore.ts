@@ -55,6 +55,10 @@ export function replicatedToShow(replicated: ReplicatedShow): Show {
     preEntryFee: replicated.preEntryFee?.toString() || '',
     dayOfShowFee: replicated.dayOfShowFee?.toString() || '',
     juniorHandlerFee: replicated.juniorHandlerFee?.toString() || undefined,
+    // MYK9-2221: a reload or replica notification must keep the saved per-dog cap.
+    ...(replicated.maxEntriesPerDog != null
+      ? { maxEntriesPerDog: replicated.maxEntriesPerDog }
+      : {}),
     // MYK9-2220: a reload or replica notification must keep the saved cap (offline Edit show).
     ...(replicated.maxTotalEntries != null ? { maxTotalEntries: replicated.maxTotalEntries } : {}),
     clubId: replicated.clubId || '',
@@ -192,6 +196,7 @@ export interface ShowInput {
   entryCloseDate: string;
   preEntryFee: string;
   dayOfShowFee?: string | undefined;
+  maxEntriesPerDog?: number | undefined;
   maxTotalEntries?: number | undefined;
   juniorHandlerFee?: string | undefined;
   clubId: string;
@@ -426,6 +431,9 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
         replicatedUpdates.preEntryFee = parseFloat(updates.preEntryFee);
       if (updates.dayOfShowFee !== undefined)
         replicatedUpdates.dayOfShowFee = parseFloat(updates.dayOfShowFee);
+      // MYK9-2221: present means the form decides; a cleared box clears the cap.
+      if ('maxEntriesPerDog' in updates)
+        replicatedUpdates.maxEntriesPerDog = updates.maxEntriesPerDog;
       // MYK9-2220: present means the form decides; a cleared box clears the limit.
       if ('maxTotalEntries' in updates) replicatedUpdates.maxTotalEntries = updates.maxTotalEntries;
       if (updates.juniorHandlerFee !== undefined)
@@ -489,6 +497,7 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
         definedUpdates.entryCloseDate = updates.entryCloseDate;
       if (updates.preEntryFee !== undefined) definedUpdates.preEntryFee = updates.preEntryFee;
       if (updates.dayOfShowFee !== undefined) definedUpdates.dayOfShowFee = updates.dayOfShowFee;
+      if ('maxEntriesPerDog' in updates) definedUpdates.maxEntriesPerDog = updates.maxEntriesPerDog;
       if ('maxTotalEntries' in updates) definedUpdates.maxTotalEntries = updates.maxTotalEntries;
       if (updates.juniorHandlerFee !== undefined)
         definedUpdates.juniorHandlerFee = updates.juniorHandlerFee;

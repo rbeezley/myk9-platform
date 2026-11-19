@@ -22,35 +22,13 @@ import {
 import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
 import { idScanEpoch, idScanKey, markIdScanCompleted, shouldRunIdScan } from './idScanCadence';
+import type { ClubRow } from './ReplicatedClubsTable.types';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
-import { clubsPullsBlocked, joinClubsFence } from './clubsSyncFence';
-
-/**
- * Database row type for clubs table
- * Note: Using manual type because Supabase types file has incorrect table name ('club' vs 'clubs')
- */
-interface ClubRow {
-  id: string;
-  name: string;
-  address: string | null;
-  city: string | null;
-  state: string | null;
-  zip_code: string | null;
-  email: string | null;
-  phone: string | null;
-  website: string | null;
-  logo_url: string | null;
-  description: string | null;
-  license_key?: string | null;
-  created_at: string | null;
-  updated_at: string | null;
-  deleted_at: string | null;
-  deleted_by: string | null;
-  // MYK9-572
-  authorized_at: string | null;
-  // Add other common fields returned by Supabase to avoid type mismatch
-  [key: string]: string | null | undefined;
-}
+import {
+  clubsPullsBlocked,
+  joinClubsFence,
+  refusedClubsSync as clubsSyncRefused,
+} from './clubsSyncFence';
 
 /**
  * App-level Club type with camelCase fields and sync metadata
@@ -106,17 +84,6 @@ export function rowToClub(row: ClubRow): ReplicatedClub {
     createdAt: row.created_at ?? undefined,
     updatedAt: row.updated_at ?? undefined,
     authorizedAt: row.authorized_at,
-  };
-}
-
-function clubsSyncRefused(error: string): SyncResult {
-  return {
-    tableName: 'clubs',
-    success: false,
-    operation: 'full-sync',
-    rowsAffected: 0,
-    duration: 0,
-    error,
   };
 }
 
@@ -206,10 +173,6 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
   async sync(_syncScopeId?: string, options?: Partial<SyncOptions>): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
 
-    // MYK9-572 round 2: read the session ONCE up front — both the
-    // anon-skip-prune decision below and the sign-in-transition force-full
-    // decision need to know it, and it must be known BEFORE the sync call so
-    // a fresh sign-in's forceFullSync actually reaches syncReplicatedTable.
     if (clubsPullsBlocked()) {
       return clubsSyncRefused('Another account has club changes on this device that are not sent.');
     }
@@ -225,6 +188,10 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
     fence: ReturnType<typeof joinClubsFence>,
     options?: Partial<SyncOptions>
   ): Promise<SyncResult> {
+    // MYK9-572 round 2: read the session ONCE up front — both the
+    // anon-skip-prune decision below and the sign-in-transition force-full
+    // decision need to know it, and it must be known BEFORE the sync call so
+    // a fresh sign-in's forceFullSync actually reaches syncReplicatedTable.
     const {
       data: { session },
       error: sessionError,
@@ -287,12 +254,12 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
     if (!fence.isCurrent()) {
       return clubsSyncRefused('The signed-in account changed during the update.');
     }
-    const {
-      data: { session: sessionAfter },
-    } = await supabase.auth.getSession();
-    const principalAfter =
-      sessionAfter?.user && sessionAfter.user.is_anonymous !== true ? sessionAfter.user.id : null;
-    if (principalAfter !== principalId) {
+    const { data: after } = await supabase.auth.getSession();
+    if (
+      (after.session?.user && after.session.user.is_anonymous !== true
+        ? after.session.user.id
+        : null) !== principalId
+    ) {
       return clubsSyncRefused('The signed-in account changed during the update.');
     }
 

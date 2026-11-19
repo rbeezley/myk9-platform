@@ -9,6 +9,20 @@
  * the account changed while it ran; if so its result is discarded.
  */
 
+import type { SyncResult } from '@myk9/replication';
+
+/** The result of a pull that was not run, or whose result was discarded. */
+export function refusedClubsSync(error: string): SyncResult {
+  return {
+    tableName: 'clubs',
+    success: false,
+    operation: 'full-sync',
+    rowsAffected: 0,
+    duration: 0,
+    error,
+  };
+}
+
 interface ActivePull {
   controller: AbortController;
   settled: Promise<void>;

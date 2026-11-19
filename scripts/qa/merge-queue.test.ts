@@ -333,8 +333,12 @@ describe('CI wiring for the merge queue', () => {
     expect(mirrorWorkflow).toMatch(/^ {2}merge_group:\n {4}types: \[checks_requested\]$/m);
   });
 
-  it('runs Queue verdict only on main pushes', () => {
-    expect(jobs().get('queue-verdict')).toMatch(/^ {4}if: github\.event_name == 'push'$/m);
+  it('runs Queue verdict only on main pushes, and only once the queue is switched on', () => {
+    // Without the variable the job is skipped, so no main push waits for a
+    // runner to run it while no queue exists (Codex round 8, #4219).
+    expect(jobs().get('queue-verdict')).toMatch(
+      /^ {4}if: github\.event_name == 'push' && vars\.MERGE_QUEUE_ENABLED == 'true'$/m
+    );
   });
 
   it('lets every other job run in the merge queue', () => {

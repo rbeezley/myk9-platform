@@ -52,12 +52,15 @@ jobs:
   # scripts/qa/ci-queue-verdict.sh. On PR and merge-queue runs it is skipped,
   # and the other jobs' `!failure() && !cancelled()` lets them run anyway; a
   # bare `needs:` on a skipped job would skip them too.
+  # Also skipped until the repository variable MERGE_QUEUE_ENABLED is 'true'
+  # (set with the ruleset change, docs/plan-merge-queue.md), so without a
+  # queue no `main` push waits for a runner to run this job first.
   queue-verdict:
     name: Queue verdict
     runs-on: ubuntu-latest
     # The script waits up to 30 minutes for an in-progress queue run.
     timeout-minutes: 35
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && vars.MERGE_QUEUE_ENABLED == 'true'
     outputs:
       tested: ${{ steps.verdict.outputs.tested }}
 

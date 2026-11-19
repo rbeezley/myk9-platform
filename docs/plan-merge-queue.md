@@ -31,7 +31,7 @@ GitHub has offered merge queues for public repositories owned by an **organizati
 2. **Job conditions.** Every job condition that today reads `github.event_name == 'push' || github.event.pull_request.draft == false` also admits `merge_group`. The two conditions that keep fork PRs away from secrets (`head.repo.full_name == github.repository`) also admit `merge_group`: only someone with write access can queue a PR.
 3. **Diff bases.** A merge-group payload has no `before` and no `pull_request`. Steps that diff against a base fall back to `github.event.merge_group.base_sha` (smoke scope, backup scope, bulk-PII guard, migration version guard). PR labels do not exist on a merge group, so `run-smoke`/`skip-smoke` do not apply there; the queue decides smoke from the changed files.
 4. **Concurrency.** Merge-group runs join `main` runs in the per-SHA, never-cancelled group (#2110's rule): a queue run cancelled mid-flight would leave the PR without a verdict. The group key carries the event name, so the queue run and the later `main` push run for the same SHA never share a group.
-5. **The `main` push run.** It stays, because direct-to-`main` docs commits and admin bypasses still need a verdict, and because the deploy picker reads `main` push runs. Its first job, **Queue verdict**, asks whether a merge-group CI run for exactly this SHA concluded `success`, waiting up to 30 minutes for one still in progress (non-required jobs can still be running when the queue merges). If yes, every other job is skipped and the run concludes green in about a minute. If there is no such run, it failed, or the query itself fails, the full suite runs. Failing toward "run the tests" means a wrong answer costs runner time, never a false green.
+5. **The `main` push run.** It stays, because direct-to-`main` docs commits and admin bypasses still need a verdict, and because the deploy picker reads `main` push runs. Its first job, **Queue verdict**, runs only once the repository variable `MERGE_QUEUE_ENABLED` is `true` (set with the ruleset change); until then it is skipped and every job starts at once, as today. When it runs, it asks whether a merge-group CI run for exactly this SHA concluded `success`, waiting up to 30 minutes for one still in progress (non-required jobs can still be running when the queue merges). If yes, every other job is skipped and the run concludes green in about a minute. If there is no such run, it failed, or the query itself fails, the full suite runs. Failing toward "run the tests" means a wrong answer costs runner time, never a false green.
 
    This plan does not rely on `main` landing on exactly the SHA the queue tested (GitHub's docs do not say so outright): if the SHAs differ, the lookup finds nothing and the full suite runs. The throwaway-PR test (Phase 3) records which happens.
 
@@ -72,6 +72,8 @@ In the `main-required-checks` ruleset (id `17085332`), add the rule **Require me
 | Require all queue entries to pass required checks | On (`ALLGREEN`) | A failed entry is dropped, never merged behind a green one.                             |
 | Status check timeout                              | 60 minutes      | Contended runs took up to 56 minutes on 2026-11-19.                                     |
 
+Then set the repository variable **`MERGE_QUEUE_ENABLED` = `true`** (Settings → Secrets and variables → Actions → Variables), which switches on the Queue verdict job.
+
 Required status checks stay as they are (`Quality Checks`, `Test`, `A11y smoke`, `E2E PR Smoke`, `Review gate`). Leave **Require branches to be up to date** off: the queue does that job. Bypass actors stay as they are.
 
 API form, for reference:
@@ -91,7 +93,7 @@ API form, for reference:
 }
 ```
 
-**Order: (0) the owner's read-only eligibility check (Phase 0), before the ship-pr Step 5 PR is written; (1) merge this PR; (2) merge the ship-pr Step 5 PR; (3) refresh open worktrees; (4) turn the queue on.** With the files merged and no queue, nothing changes: `merge_group` never fires, and the Queue verdict job finds no queue run and runs the full suite as today. Turning the queue on before (1) would block every merge, because no workflow would report the required checks on a queue commit; turning it on before (2) would leave sessions merging with a one-shot `gh pr view` that cannot tell "queued" from "dropped". Step (3): a session shipping a branch that predates the Step 5 PR still reads the old `ship-pr` from its own worktree and would treat a queued PR as merged, so before (4) every open session merges `origin/main` into its branch (or finishes first) and reloads Step 5. This PR may merge before (0): it is inert without a queue, so if the answer is no the cost is unused CI wiring, which the owner can keep for a later move to an organization or revert.
+**Order: (0) the owner's read-only eligibility check (Phase 0), before the ship-pr Step 5 PR is written; (1) merge this PR; (2) merge the ship-pr Step 5 PR; (3) refresh open worktrees; (4) turn the queue on.** With the files merged and no queue, nothing changes: `merge_group` never fires, and Queue verdict is skipped (the variable is unset), so every `main` push runs exactly as today, with no extra job in front. Turning the queue on before (1) would block every merge, because no workflow would report the required checks on a queue commit; turning it on before (2) would leave sessions merging with a one-shot `gh pr view` that cannot tell "queued" from "dropped". Step (3): a session shipping a branch that predates the Step 5 PR still reads the old `ship-pr` from its own worktree and would treat a queued PR as merged, so before (4) every open session runs `git fetch origin`, merges `origin/main` into its branch, confirms the Step 5 merge commit is an ancestor of its `HEAD` (`git merge-base --is-ancestor <step5-sha> HEAD`), and reloads Step 5; a session that cannot do this finishes before the switch. A stale local `origin/main` would otherwise report "Already up to date". This PR may merge before (0): it is inert without a queue (no extra job runs until the variable is set), so if the answer is no the cost is unused CI wiring, which the owner can keep for a later move to an organization or revert.
 
 ## Phases
 
@@ -110,7 +112,7 @@ API form, for reference:
 
 Unit tests in Phase 1 cover what can run locally: the concurrency expression (`scripts/qa/ci-concurrency.test.ts`), and in `scripts/qa/merge-queue.test.ts` (wired as `pnpm qa:merge-queue:test` in Quality Checks) the event conditions on every job, the merge-group diff bases, `ci-queue-verdict.sh`, `merge-queue-review-gate.sh` and `wait-pr-merged.sh`, each run for real against a stubbed `gh`.
 
-Cost note: the Queue verdict job runs only on `main` pushes, so PR and queue runs get no extra serial job (on a contended day a serial job would add a second runner wait to every PR).
+Cost note: the Queue verdict job runs only on `main` pushes, and only once `MERGE_QUEUE_ENABLED` is set, so PR and queue runs get no extra serial job (on a contended day a serial job would add a second runner wait to every PR).
 
 ## Known costs
 
@@ -119,7 +121,7 @@ Cost note: the Queue verdict job runs only on `main` pushes, so PR and queue run
 
 ## Rollback
 
-Delete the merge-queue rule from `main-required-checks` (one click, or the API). Merges go back to immediate squash merges, and the `main` push run goes back to the full suite on its own, because Queue verdict finds no queue run. The repository files need no revert.
+Delete the merge-queue rule from `main-required-checks` (one click, or the API) and set `MERGE_QUEUE_ENABLED` to `false` (or delete it). Merges go back to immediate squash merges and the `main` push run goes back to the full suite with no job in front. (Left set, it is still safe: Queue verdict finds no queue run and runs the full suite, one runner wait later.) The repository files need no revert.
 
 ## Follow-ups (not in this plan)
 

@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Mail } from 'lucide-react';
 import { PremiumDownloadCard } from '@/features/premium/PremiumDownloadCard';
 import { LandingPageCard } from '@/features/premium/LandingPageCard';
+import { ShowPublishBlockers } from '@/features/publishing/ShowPublishBlockers';
 import { PremiumRequirementsNotice } from '@/features/premium/PremiumRequirementsNotice';
 import { usePremiumRequirements } from '@/features/premium/usePremiumRequirements';
 import {
@@ -72,6 +73,11 @@ export default function ShowAboutPage() {
         // `scroll-mt-20` only: `target:` styles never fire on a router `<Link>` (MYK9-630 round 5).
         className="grid scroll-mt-20 grid-cols-1 gap-3 rounded-md sm:grid-cols-2"
       >
+        {canManageShow && (
+          <div className="sm:col-span-2 empty:hidden">
+            <ShowPublishBlockers showId={show.id} clubId={show.clubId} />
+          </div>
+        )}
         <div className="sm:col-span-2 empty:hidden">
           <PremiumRequirementsNotice items={requirements.items} registry={requirements.registry} />
         </div>

@@ -8,7 +8,6 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { ShowStatusPill } from '../ShowStatusPill';
-import { useClubAuthorization } from '@/features/payments/useClubStripeAccount';
 import { useUpdateShowMutation } from '@/hooks/queries/useShowsDatabase';
 import {
   CLUB_REQUIRED_MESSAGE,
@@ -30,8 +29,9 @@ vi.mock('react-router-dom', async importOriginal => ({
   ...(await importOriginal<typeof import('react-router-dom')>()),
   useNavigate: () => navigate,
 }));
-vi.mock('@/features/payments/useClubStripeAccount', () => ({
-  useClubAuthorization: vi.fn(),
+vi.mock('@/features/publishing/usePublishBlockers', () => ({
+  showPublishBlockersQueryKey: (id: string) => ['shows', id, 'publish-blockers'],
+  usePublishBlockers: () => ({ status: 'ready', blockers: [] }),
 }));
 vi.mock('@/hooks/queries/useShowsDatabase', () => ({
   useUpdateShowMutation: vi.fn(),
@@ -40,22 +40,8 @@ vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
-const WINDOW = {
-  entryOpenDate: '2026-10-01T12:00:00.000Z',
-  entryCloseDate: '2026-10-20T04:59:00.000Z',
-};
-
-function mockAuthorized(authorizedAt: string | null) {
-  vi.mocked(useClubAuthorization).mockReturnValue({
-    data: { authorized_at: authorizedAt },
-    isLoading: false,
-    isError: false,
-    refetch: vi.fn(),
-  } as unknown as ReturnType<typeof useClubAuthorization>);
-}
-
 async function publish() {
-  render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
+  render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
   const user = userEvent.setup();
   await user.click(screen.getByRole('button', { name: /draft/i }));
   await user.click(await screen.findByText(/publish show/i));
@@ -76,7 +62,6 @@ describe('ShowStatusPill: the server decides on payouts (MYK9-2164)', () => {
       mutateAsync,
       isPending: false,
     } as unknown as ReturnType<typeof useUpdateShowMutation>);
-    mockAuthorized('2026-01-01T00:00:00Z');
     canOpen.value = true;
   });
 
@@ -142,16 +127,5 @@ describe('ShowStatusPill: the server decides on payouts (MYK9-2164)', () => {
     await publish();
 
     expect(toast.error).toHaveBeenCalledWith(CLUB_UNAUTHORIZED_MESSAGE);
-  });
-
-  it('still needs club authorization first', async () => {
-    mockAuthorized(null);
-    render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
-
-    await userEvent.setup().click(screen.getByRole('button', { name: /draft/i }));
-    const item = await screen.findByRole('menuitem', { name: /publish show/i });
-    expect(item).toHaveAttribute('aria-disabled', 'true');
-    expect(screen.getByText(CLUB_UNAUTHORIZED_MESSAGE)).toBeInTheDocument();
-    expect(mutateAsync).not.toHaveBeenCalled();
   });
 });

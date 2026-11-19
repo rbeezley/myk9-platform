@@ -1,7 +1,7 @@
-import { Fragment, useId } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,7 +9,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useUpdateShowMutation } from '@/hooks/queries/useShowsDatabase';
-import { useClubAuthorization } from '@/features/payments/useClubStripeAccount';
+import {
+  showPublishBlockersQueryKey,
+  usePublishBlockers,
+} from '@/features/publishing/usePublishBlockers';
 import {
   CLUB_PAYMENTS_LINK_LABEL,
   clubPaymentsHref,
@@ -20,11 +23,9 @@ import {
   isPublishGateDbError,
   isPayoutsRefusalMessage,
   publishGateDbErrorMessage,
-  CLUB_UNAUTHORIZED_MESSAGE,
   CLUB_REQUIRED_MESSAGE,
   PUBLISH_GATE_ERRCODE_UNAUTHORIZED,
   PUBLISH_GATE_ERRCODE_ENTRY_WINDOW,
-  entryWindowPublishError,
 } from '@/features/payments/onlineEntryGate';
 import { getShowEditHref } from '@/components/shows/showEditRoutes';
 import { SHOW_ADMIN_COPY } from '@/components/shows/showAdminErrorCopy';
@@ -40,11 +41,8 @@ interface ShowStatusPillProps {
   /** Publishing requires the club's Stripe payouts. Omitting this does NOT
    * skip the gate — publish fails closed without a club. */
   clubId?: string;
-  /** MYK9-716: publishing requires an entry window (a draft may have none).
-   * Required keys, so a caller cannot forget them and publish past the gate;
-   * a null or empty value fails closed. */
-  entryOpenDate: string | null | undefined;
-  entryCloseDate: string | null | undefined;
+  /** MYK9-2198: opens the "Before you can publish" list (the About tab) when something blocks. */
+  onSeeBlockers?: () => void;
   /** Render the status as plain text in a sentence (the header's status line, MYK9-1282) instead
    * of a coloured pill. The status-change menu is the same either way. */
   plain?: boolean;
@@ -80,19 +78,18 @@ export function ShowStatusPill({
   showId,
   status,
   clubId,
-  entryOpenDate,
-  entryCloseDate,
+  onSeeBlockers,
   plain = false,
 }: ShowStatusPillProps) {
   const { mutateAsync, isPending } = useUpdateShowMutation();
   const navigate = useNavigate();
-  const clubAuthQuery = useClubAuthorization(clubId);
-  // MYK9-1387: only a loaded, explicitly unauthorized club greys the item. While the lookup
-  // loads or errors it stays enabled so handleTransition's own branches give their truthful toasts.
-  const reasonId = useId();
-  const clubUnauthorized = clubAuthQuery.data != null && clubAuthQuery.data.authorized_at === null;
-  const config = pillConfig(status);
+  const queryClient = useQueryClient();
   const transitions = TRANSITIONS[status] ?? [];
+  // MYK9-2198: the server's list of what blocks publishing is the one answer. It is read only
+  // while this pill offers a publish, and is empty for a show that is already public.
+  const canPublish = transitions.some(({ next }) => becomesPublic(status, next));
+  const blockers = usePublishBlockers(showId, canPublish);
+  const config = pillConfig(status);
   // The entry dates live on the Edit panel's Basic Info tab.
   const setEntryWindowAction = {
     label: 'Set entry window',
@@ -112,10 +109,10 @@ export function ShowStatusPill({
 
   async function handleTransition(next: string) {
     // Already-published shows are unaffected (the gate only fires on a transition INTO
-    // 'published' from a different status — this pill can publish only from draft, upcoming, or
-    // in_progress, per MYK9-579 round 6). The club-authorization and entry-window checks below
-    // are a UX convenience. The club's Stripe payouts are NOT predicted here (MYK9-2164):
-    // enforce_show_publish_gate() decides, and its refusal text is shown in the catch block.
+    // 'published' from a different status; this pill can publish only from draft, upcoming, or
+    // in_progress, per MYK9-579 round 6). Nothing here predicts the gate: the show's "Before you
+    // can publish" list (MYK9-2198, from the server) shows what blocks, and
+    // enforce_show_publish_gate() decides, with its refusal text shown in the catch block.
     // MYK9-979: the gate runs on any move that makes the show publicly
     // visible (becomesPublic), the same transition the DB triggers check.
     if (becomesPublic(status, next)) {
@@ -127,37 +124,11 @@ export function ShowStatusPill({
         toast.error(CLUB_REQUIRED_MESSAGE);
         return;
       }
-      if (clubAuthQuery.isLoading) {
-        // Don't misreport an onboarded club as unconnected on a cold cache.
-        toast.info('Still checking the club’s status. Try again in a moment.');
-        return;
-      }
-      if (clubAuthQuery.isError) {
-        // A failed lookup is not "not connected" — fail closed with the
-        // truthful message instead of blaming the club's setup. Kick off a
-        // refetch so "try again" can actually succeed (an errored query
-        // inside staleTime would otherwise serve the same error forever).
-        void clubAuthQuery.refetch();
-        toast.error(SHOW_ADMIN_COPY.clubCheckFailed);
-        return;
-      }
-      // MYK9-572: authorization is checked before Stripe readiness, same
-      // order as the DB trigger (enforce_show_publish_gate). Fail CLOSED —
-      // treat an unreadable/undefined club row the same as an explicitly
-      // unauthorized one, don't rely solely on the isError branch above to
-      // have already caught it.
-      if (clubAuthQuery.data == null || clubAuthQuery.data.authorized_at === null) {
-        // Kick off a refetch so a retry right after a site admin authorizes
-        // the club can actually succeed within the query's staleTime window,
-        // mirroring the isError branch above.
-        void clubAuthQuery.refetch();
-        toast.error(CLUB_UNAUTHORIZED_MESSAGE);
-        return;
-      }
-      // MYK9-716: checked last, the same order as enforce_show_publish_gate.
-      const windowError = entryWindowPublishError(entryOpenDate, entryCloseDate);
-      if (windowError) {
-        toast.error(windowError, { action: setEntryWindowAction });
+      // Something blocks: show the list instead of attempting a publish that will be refused.
+      // An unreadable list (offline, a failed call) falls through to the attempt, whose refusal
+      // text is the backstop.
+      if (blockers.status === 'ready' && blockers.blockers.length > 0 && onSeeBlockers) {
+        onSeeBlockers();
         return;
       }
     }
@@ -215,10 +186,12 @@ export function ShowStatusPill({
 
   return (
     <DropdownMenu
-      // An unauthorized club can only be retried by re-checking: the disabled item can't be
-      // clicked, so opening the menu refreshes the authorization a site admin may have granted.
+      // The list may have changed since it was last read (a premium published, dates edited);
+      // opening the menu asks the server again.
       onOpenChange={open => {
-        if (open && clubUnauthorized) void clubAuthQuery.refetch();
+        if (open && canPublish) {
+          void queryClient.invalidateQueries({ queryKey: showPublishBlockersQueryKey(showId) });
+        }
       }}
     >
       <DropdownMenuTrigger asChild disabled={isPending}>
@@ -236,24 +209,15 @@ export function ShowStatusPill({
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        {transitions.map(({ label, next }) =>
-          clubUnauthorized && becomesPublic(status, next) ? (
-            // The reason sits OUTSIDE the disabled item, which renders at half opacity: inside it
-            // the only explanation on screen would fall below readable contrast.
-            <Fragment key={next}>
-              <DropdownMenuItem disabled aria-describedby={reasonId}>
-                {label}
-              </DropdownMenuItem>
-              <p id={reasonId} className="max-w-64 px-2 pb-2 text-sm text-muted-foreground">
-                {CLUB_UNAUTHORIZED_MESSAGE}
-              </p>
-            </Fragment>
-          ) : (
-            <DropdownMenuItem key={next} onClick={() => handleTransition(next)}>
-              {label}
-            </DropdownMenuItem>
-          )
-        )}
+        {transitions.map(({ label, next }) => (
+          <DropdownMenuItem key={next} onClick={() => handleTransition(next)}>
+            {becomesPublic(status, next) &&
+            blockers.status === 'ready' &&
+            blockers.blockers.length > 0
+              ? 'See what blocks publishing'
+              : label}
+          </DropdownMenuItem>
+        ))}
       </DropdownMenuContent>
     </DropdownMenu>
   );

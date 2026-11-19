@@ -1,8 +1,8 @@
 /**
- * MYK9-716: a draft may have no entry window, but publishing requires one.
- * Review is where the wizard asks for it: a missing window is a readiness
- * item that links back to the entry dates, and it never blocks saving the
- * draft.
+ * MYK9-716, MYK9-2198: a draft may be saved without being ready to publish. Review shows the one
+ * "Before you can publish" list: the club's lines from the server plus the lines the draft
+ * itself decides (premium, entry dates). It links back to the entry dates and never blocks
+ * saving the draft.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen } from '@testing-library/react';
@@ -21,6 +21,9 @@ const { entryWindow, setCurrentStep } = vi.hoisted(() => ({
   setCurrentStep: vi.fn(),
 }));
 
+vi.mock('@/features/publishing/usePublishBlockers', () => ({
+  useClubPublishBlockers: () => ({ status: 'ready', blockers: [] }),
+}));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 vi.mock('@/hooks/useResolvePersonName', () => ({
   useResolvePersonName: () => (id: string) => `Person ${id}`,
@@ -61,54 +64,57 @@ vi.mock('@/store/wizardStore', () => ({
   }),
 }));
 
-describe('ReviewStep entry window readiness (MYK9-716)', () => {
+describe('ReviewStep publish blockers (MYK9-2198)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     entryWindow.open = '';
     entryWindow.close = '';
   });
 
-  it('names a missing window as needed to publish, links back to it, and still saves the draft', async () => {
+  it('lists a missing window, links back to it, and still saves the draft', async () => {
     const onCreateShow = vi.fn();
     const user = userEvent.setup();
     render(<ReviewStep trialView={trialView} onCreateShow={onCreateShow} />);
 
-    const item = screen.getByTestId('review-entry-window-warning');
-    expect(item).toHaveTextContent(/no entry window yet/i);
-    expect(item).toHaveTextContent(/can.t be published until/i);
-    // A readiness item, not a blocking error.
+    const list = screen.getByTestId('publish-blockers');
+    expect(list).toHaveTextContent('Before you can publish');
+    expect(list).toHaveTextContent('Set when entries open and close.');
+    // A readiness list, not a blocking error.
     expect(screen.queryByText(/please address the following issues/i)).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /set the entry window/i }));
+    await user.click(screen.getByRole('button', { name: /fix it: set when entries open/i }));
     expect(setCurrentStep).toHaveBeenCalledWith(0);
 
     await user.click(screen.getByRole('button', { name: /^add show$/i }));
     expect(onCreateShow).toHaveBeenCalledTimes(1);
   });
 
-  it('names a window that closes before it opens', () => {
+  it('lists a window that closes before it opens', () => {
     entryWindow.open = '2026-06-25T12:00:00.000Z';
     entryWindow.close = '2026-06-01T12:00:00.000Z';
     render(<ReviewStep trialView={trialView} onCreateShow={vi.fn()} />);
 
-    expect(screen.getByTestId('review-entry-window-warning')).toHaveTextContent(
-      /entry window needs fixing/i
+    expect(screen.getByTestId('publish-blockers')).toHaveTextContent(
+      'Entries have to open before they close.'
     );
   });
 
-  it('shows nothing for a same-day window whose close time is earlier than its open time', () => {
+  it('has no dates line for a same-day window whose close time is earlier than its open time', () => {
     entryWindow.open = new Date(2026, 5, 20, 20, 0).toISOString();
     entryWindow.close = new Date(2026, 5, 20, 8, 0).toISOString();
     render(<ReviewStep trialView={trialView} onCreateShow={vi.fn()} />);
 
-    expect(screen.queryByTestId('review-entry-window-warning')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Set when entries open/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/open before they close/)).not.toBeInTheDocument();
   });
 
-  it('shows nothing once the window is set', () => {
+  it('still lists the premium for a new show once the window is set, and no dates line', () => {
     entryWindow.open = '2026-06-01T12:00:00.000Z';
     entryWindow.close = '2026-06-25T12:00:00.000Z';
     render(<ReviewStep trialView={trialView} onCreateShow={vi.fn()} />);
 
-    expect(screen.queryByTestId('review-entry-window-warning')).not.toBeInTheDocument();
+    const list = screen.getByTestId('publish-blockers');
+    expect(list).toHaveTextContent('Publish the premium list');
+    expect(list).not.toHaveTextContent('Set when entries open');
   });
 });

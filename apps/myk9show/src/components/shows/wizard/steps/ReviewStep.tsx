@@ -142,6 +142,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
 
           <ReviewReadinessNotices
             unassignedPoolJudgeNames={unassignedPoolJudgeNames}
+            clubId={show.clubId || undefined}
             entryOpenDate={show.entryOpenDate}
             entryCloseDate={show.entryCloseDate}
             missingVenuePin={missingVenuePin}

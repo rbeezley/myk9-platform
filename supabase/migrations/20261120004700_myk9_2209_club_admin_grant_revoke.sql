@@ -17,7 +17,7 @@
 -- scope only): an active, unexpired, club-wide club_admin row. A show-pinned row does not make
 -- someone a club admin here (the server's is_club_admin is show-blind, but only a club-wide row
 -- opens Payments in the app). Removing a person deactivates EVERY club_admin row they hold.
--- Authorization: a site admin or an admin of THAT club (42501 otherwise). Both writers also need
+-- Authorization: private.can_administer_club (a live site admin, or a live club-wide admin of THAT club; 42501 otherwise). Both writers also need
 -- the step-up re-authentication every role change needs (MYK9-1208).
 
 BEGIN;
@@ -47,6 +47,45 @@ COMMENT ON FUNCTION public.person_can_sign_in(uuid) IS
 
 REVOKE ALL ON FUNCTION public.person_can_sign_in(uuid) FROM PUBLIC, anon, authenticated;
 
+-- Who may administer a club's admins: a caller whose own account is live (signed in, not banned,
+-- suspended or deleted) AND who is a site admin or holds an active, unexpired CLUB-WIDE club_admin
+-- row for the club. The server's is_club_admin is show-blind, so a show-pinned-only admin must not
+-- be able to make themselves a club-wide one through these functions.
+CREATE OR REPLACE FUNCTION private.can_administer_club(p_club_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT COALESCE((
+    SELECT public.person_can_sign_in(p.id)
+           AND (
+             public.is_site_admin()
+             OR EXISTS (
+               SELECT 1
+               FROM public.user_roles ur
+               JOIN public.roles r ON r.id = ur.role_id
+               WHERE ur.auth_user_id = auth.uid()
+                 AND r.name = 'club_admin'
+                 AND ur.club_id = p_club_id
+                 AND ur.show_id IS NULL
+                 AND ur.is_active = true
+                 AND (ur.expires_at IS NULL OR ur.expires_at > now())
+             )
+           )
+    FROM public.people p
+    WHERE p.auth_user_id = auth.uid()
+      AND auth.uid() IS NOT NULL
+    LIMIT 1
+  ), false);
+$$;
+
+COMMENT ON FUNCTION private.can_administer_club(uuid) IS
+  'True when the caller has a live account and is a site admin or holds an active, unexpired club-wide club_admin row for the club. The only authorization for the club-admin functions.';
+
+REVOKE ALL ON FUNCTION private.can_administer_club(uuid) FROM PUBLIC, anon, authenticated;
+
 CREATE OR REPLACE FUNCTION public.get_club_admins(p_club_id uuid)
 RETURNS TABLE (
   person_id uuid,
@@ -59,7 +98,7 @@ STABLE
 SET search_path = ''
 AS $$
 BEGIN
-  IF NOT (public.is_site_admin() OR public.is_club_admin(p_club_id)) THEN
+  IF NOT private.can_administer_club(p_club_id) THEN
     RAISE EXCEPTION 'Only site admins or this club''s admins can list its admins'
       USING ERRCODE = '42501';
   END IF;
@@ -102,7 +141,7 @@ DECLARE
   v_role_id uuid;
   v_assignment_id uuid;
 BEGIN
-  IF NOT (public.is_site_admin() OR public.is_club_admin(p_club_id)) THEN
+  IF NOT private.can_administer_club(p_club_id) THEN
     RAISE EXCEPTION 'Only site admins or this club''s admins can add an admin'
       USING ERRCODE = '42501';
   END IF;
@@ -112,6 +151,12 @@ BEGIN
 
   -- Same per-club lock revoke_club_admin takes, so a grant and a removal cannot interleave.
   PERFORM pg_advisory_xact_lock(hashtextextended('club_admin_revoke:' || p_club_id::text, 0));
+
+  -- Re-check under the lock: an admin removed a moment ago must not slip a change through.
+  IF NOT private.can_administer_club(p_club_id) THEN
+    RAISE EXCEPTION 'Only site admins or this club''s admins can change its admins'
+      USING ERRCODE = '42501';
+  END IF;
 
   IF NOT EXISTS (SELECT 1 FROM public.clubs WHERE id = p_club_id) THEN
     RAISE EXCEPTION 'Club % not found', p_club_id USING ERRCODE = 'P0002';
@@ -203,7 +248,7 @@ DECLARE
   v_email text := lower(btrim(COALESCE(p_email, '')));
   v_person_id uuid;
 BEGIN
-  IF NOT (public.is_site_admin() OR public.is_club_admin(p_club_id)) THEN
+  IF NOT private.can_administer_club(p_club_id) THEN
     RAISE EXCEPTION 'Only site admins or this club''s admins can add an admin'
       USING ERRCODE = '42501';
   END IF;
@@ -255,7 +300,7 @@ DECLARE
   v_is_effective boolean;
   v_others integer;
 BEGIN
-  IF NOT (public.is_site_admin() OR public.is_club_admin(p_club_id)) THEN
+  IF NOT private.can_administer_club(p_club_id) THEN
     RAISE EXCEPTION 'Only site admins or this club''s admins can remove an admin'
       USING ERRCODE = '42501';
   END IF;
@@ -270,6 +315,12 @@ BEGIN
   -- Serialize removals for one club so two admins removing each other cannot both pass the
   -- last-admin check below.
   PERFORM pg_advisory_xact_lock(hashtextextended('club_admin_revoke:' || p_club_id::text, 0));
+
+  -- Re-check under the lock: an admin removed a moment ago must not slip a change through.
+  IF NOT private.can_administer_club(p_club_id) THEN
+    RAISE EXCEPTION 'Only site admins or this club''s admins can change its admins'
+      USING ERRCODE = '42501';
+  END IF;
 
   -- Every active assignment the person holds at this club, club-wide or show-pinned: removing
   -- only one would leave the server's is_club_admin true.

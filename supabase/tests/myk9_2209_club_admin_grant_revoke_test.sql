@@ -164,6 +164,51 @@ BEGIN
 END;
 $$;
 
+-- A caller who is suspended, banned, or a show-pinned-only admin is refused by all four, even with a
+-- valid JWT: 918 is suspended, 920 is banned, 919 has only a show-pinned grant.
+DO $$
+DECLARE
+  who uuid;
+BEGIN
+  FOREACH who IN ARRAY ARRAY[
+    '00000000-0000-0000-0000-000000220818'::uuid,
+    '00000000-0000-0000-0000-000000220820'::uuid,
+    '00000000-0000-0000-0000-000000220819'::uuid
+  ] LOOP
+    PERFORM set_config('request.jwt.claim.sub', who::text, true);
+
+    BEGIN
+      PERFORM public.grant_club_admin(
+        '00000000-0000-0000-0000-000000220901', '00000000-0000-0000-0000-000000220919');
+      RAISE EXCEPTION 'FAIL % (suspended, banned or show-pinned) granted an admin', who;
+    EXCEPTION WHEN insufficient_privilege THEN
+      NULL;
+    END;
+    BEGIN
+      PERFORM * FROM public.add_club_admin_by_email(
+        '00000000-0000-0000-0000-000000220901', 'existing.account@example.test');
+      RAISE EXCEPTION 'FAIL % (suspended, banned or show-pinned) added an admin by email', who;
+    EXCEPTION WHEN insufficient_privilege THEN
+      NULL;
+    END;
+    BEGIN
+      PERFORM public.revoke_club_admin(
+        '00000000-0000-0000-0000-000000220901', '00000000-0000-0000-0000-000000220911');
+      RAISE EXCEPTION 'FAIL % (suspended, banned or show-pinned) removed an admin', who;
+    EXCEPTION WHEN insufficient_privilege THEN
+      NULL;
+    END;
+    BEGIN
+      PERFORM * FROM public.get_club_admins('00000000-0000-0000-0000-000000220901');
+      RAISE EXCEPTION 'FAIL % (suspended, banned or show-pinned) listed the admins', who;
+    EXCEPTION WHEN insufficient_privilege THEN
+      NULL;
+    END;
+  END LOOP;
+  RAISE NOTICE 'PASS a suspended, banned or show-pinned-only caller is refused by all four';
+END;
+$$;
+
 -- get_club_admins: name and email, exactly the club-wide effective admins of THIS club (not another
 -- club's, a show-pinned-only person, an inactive or expired row, or a deleted person), and a site
 -- admin who administers nothing can list.
@@ -536,6 +581,46 @@ BEGIN
     RAISE EXCEPTION 'FAIL the last admin lost access despite the refusal';
   END IF;
   RAISE NOTICE 'PASS the last admin cannot be removed; suspended, banned and expired co-admins do not count';
+END;
+$$;
+
+-- Re-check under the lock, run sequentially: admin 911 removes admin 913, and 913's next change is
+-- refused.
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000220811', true);
+SELECT public.grant_club_admin(
+  '00000000-0000-0000-0000-000000220901', '00000000-0000-0000-0000-000000220913');
+SELECT public.revoke_club_admin(
+  '00000000-0000-0000-0000-000000220901', '00000000-0000-0000-0000-000000220913');
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000220813', true);
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.grant_club_admin(
+      '00000000-0000-0000-0000-000000220901', '00000000-0000-0000-0000-000000220912');
+    RAISE EXCEPTION 'FAIL a just-removed admin could still grant';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
+  RAISE NOTICE 'PASS a removed admin is refused straight away';
+END;
+$$;
+
+-- A site admin whose account is banned is refused too.
+RESET ROLE;
+UPDATE auth.users SET banned_until = now() + interval '1 day'
+WHERE id = '00000000-0000-0000-0000-000000220815';
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000220815', true);
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.grant_club_admin(
+      '00000000-0000-0000-0000-000000220902', '00000000-0000-0000-0000-000000220912');
+    RAISE EXCEPTION 'FAIL a banned site admin could grant';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
+  RAISE NOTICE 'PASS a banned site admin is refused';
 END;
 $$;
 

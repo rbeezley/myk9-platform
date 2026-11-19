@@ -33,17 +33,17 @@ describe('ShowUsesSwitches (MYK9-1685)', () => {
     seedShow();
   });
 
-  it('renders the heading and all six switches with their defaults', () => {
+  it('renders the heading and all five switches with their defaults', () => {
     render(<ShowUsesSwitches showId="show-1" />);
 
     expect(screen.getByRole('heading', { name: 'This show uses…' })).toBeInTheDocument();
-    expect(screen.getAllByRole('switch')).toHaveLength(6);
+    expect(screen.getAllByRole('switch')).toHaveLength(5);
     expect(screen.getByRole('switch', { name: 'Exhibitor self check-in' })).toBeChecked();
     expect(screen.getByRole('switch', { name: 'Judges score on devices' })).toBeChecked();
     // Unknown reads as on, like the Actions rows that stay visible until the value arrives.
     expect(screen.getByRole('switch', { name: 'Paper fallback packet' })).toBeChecked();
     expect(screen.getByRole('switch', { name: 'Volunteer tracking' })).toBeChecked();
-    expect(screen.getByRole('switch', { name: 'Public landing page' })).not.toBeChecked();
+    expect(screen.queryByRole('switch', { name: 'Public landing page' })).toBeNull();
     expect(
       screen.getByRole('switch', { name: 'We publish our own premium list' })
     ).not.toBeChecked();
@@ -53,7 +53,6 @@ describe('ShowUsesSwitches (MYK9-1685)', () => {
     ['Judges score on devices', 'usesDeviceScoring', false, { usesDeviceScoring: true }],
     ['Paper fallback packet', 'usesPaperPacket', true, { usesPaperPacket: false }],
     ['Volunteer tracking', 'usesVolunteers', true, { usesVolunteers: false }],
-    ['Public landing page', 'usesLandingPage', true, {}],
     ['We publish our own premium list', 'publishesOwnPremium', true, {}],
   ])('toggling "%s" saves %s=%s through updateShow', async (label, field, next, seed) => {
     seedShow(seed);

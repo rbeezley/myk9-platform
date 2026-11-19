@@ -144,8 +144,7 @@ describe('ReadyForShowDaySection', () => {
   });
 
   describe('own premium list (MYK9-1622)', () => {
-    const ownPremiumShow = (usesLandingPage: boolean) =>
-      fromAny<Show, unknown>({ ...show, publishesOwnPremium: true, usesLandingPage });
+    const ownPremiumShow = () => fromAny<Show, unknown>({ ...show, publishesOwnPremium: true });
 
     beforeEach(() => {
       publishInfo.current = {
@@ -161,16 +160,8 @@ describe('ReadyForShowDaySection', () => {
       };
     });
 
-    it('renders no premium line, only the landing page check, when the show uses one', () => {
-      renderSection('2026-10-15T16:00:00Z', { show: ownPremiumShow(true) });
-      expect(screen.getByText('Ready for show day')).toBeInTheDocument();
-      expect(screen.queryByText('Premium published and current')).not.toBeInTheDocument();
-      expect(screen.getByText('Landing page published')).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: /Landing page not published/ })).toBeInTheDocument();
-    });
-
-    it('renders neither line, and is all clear, without a landing page', () => {
-      renderSection('2026-10-19T16:00:00Z', { show: ownPremiumShow(false) });
+    it('renders neither line, and is all clear (MYK9-2054)', () => {
+      renderSection('2026-10-19T16:00:00Z', { show: ownPremiumShow() });
       expect(screen.getByText('Everything is handled.')).toBeInTheDocument();
       expect(screen.queryByText('Premium published and current')).not.toBeInTheDocument();
       expect(screen.queryByText('Landing page published')).not.toBeInTheDocument();
@@ -190,7 +181,6 @@ describe('ReadyForShowDaySection', () => {
       usesDeviceScoring: true,
       usesPaperPacket: true,
       usesVolunteers: true,
-      usesLandingPage: true,
     };
     const suggestionShow = (over: Partial<Show>) => fromAny<Show, unknown>({ ...show, ...over });
 
@@ -204,7 +194,6 @@ describe('ReadyForShowDaySection', () => {
       ['deviceScoring', { ...allOn, usesDeviceScoring: false }, true, /score on their phones/],
       ['paperPacket', { ...allOn, usesPaperPacket: false }, true, /printed backup packet/],
       ['volunteers', { ...allOn, usesVolunteers: false }, true, /volunteer helpers/],
-      ['landingPage', { ...allOn, usesLandingPage: false }, true, /public landing page/],
     ])('suggests %s when only that switch is off', (_key, uses, checkin, text) => {
       settings.selfCheckinEnabled = checkin;
       renderSection(NIGHT_BEFORE, { show: suggestionShow(uses) });

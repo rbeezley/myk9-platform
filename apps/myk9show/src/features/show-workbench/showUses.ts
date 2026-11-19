@@ -1,12 +1,11 @@
 import type { Show } from '@/types/show-types';
 import { SHOW_USES_DEFAULTS } from '@/services/replication/showUsesColumns';
 
-/** The five `shows` columns of the "This show uses..." switches, resolved to booleans. */
+/** The four `shows` columns of the "This show uses..." switches, resolved to booleans. */
 export interface ShowUses {
   usesDeviceScoring: boolean;
   usesPaperPacket: boolean;
   usesVolunteers: boolean;
-  usesLandingPage: boolean;
   publishesOwnPremium: boolean;
 }
 

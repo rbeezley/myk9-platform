@@ -273,7 +273,6 @@ async function showWithUses(
   client: Client,
   uses: {
     publishes_own_premium: boolean;
-    uses_landing_page: boolean;
     uses_device_scoring?: boolean;
     uses_paper_packet?: boolean;
     uses_volunteers?: boolean;
@@ -301,21 +300,8 @@ async function showWithUses(
 }
 
 for (const [label, uses, expected] of [
-  [
-    'own premium, landing page',
-    { publishes_own_premium: true, uses_landing_page: true },
-    { premium: false, landing: true },
-  ],
-  [
-    'own premium, no landing page',
-    { publishes_own_premium: true, uses_landing_page: false },
-    { premium: false, landing: false },
-  ],
-  [
-    'myK9 premium, landing page',
-    { publishes_own_premium: false, uses_landing_page: true },
-    { premium: true, landing: false },
-  ],
+  ['own premium', { publishes_own_premium: true }, { premium: false, landing: false }],
+  ['myK9 premium', { publishes_own_premium: false }, { premium: true, landing: false }],
 ] as const) {
   test(`Ready for show day lines: ${label} (MYK9-1622)`, async ({ browser }, info) => {
     const client = isolatedClient();
@@ -364,9 +350,7 @@ async function openUsesSwitches(page: Page, showId: string) {
 async function showUsesRow(client: Client, showId: string) {
   const show = await client
     .from('shows')
-    .select(
-      'uses_device_scoring,uses_paper_packet,uses_volunteers,uses_landing_page,publishes_own_premium'
-    )
+    .select('uses_device_scoring,uses_paper_packet,uses_volunteers,publishes_own_premium')
     .eq('id', showId)
     .single();
   if (show.error) throw show.error;
@@ -426,7 +410,6 @@ test('tool switches save per show, hide and restore Actions rows, and lose no da
   const client = isolatedClient();
   const showId = await showWithUses(client, {
     publishes_own_premium: false,
-    uses_landing_page: false,
     uses_device_scoring: true,
     uses_paper_packet: true,
     uses_volunteers: true,
@@ -484,10 +467,7 @@ test('own premium switch removes the publish nudge; Premium card stays (MYK9-162
   browser,
 }, info) => {
   const client = isolatedClient();
-  const showId = await showWithUses(client, {
-    publishes_own_premium: false,
-    uses_landing_page: true,
-  });
+  const showId = await showWithUses(client, { publishes_own_premium: false });
   const secretary = await rolePage(browser, 'SECRETARY', `/shows/${showId}`);
   const page = secretary.page;
   const premiumNudge = page.getByRole('button', { name: 'premium list not yet published' });
@@ -499,22 +479,11 @@ test('own premium switch removes the publish nudge; Premium card stays (MYK9-162
   await expect
     .poll(() => showUsesRow(client, showId), { timeout: 60_000 })
     .toMatchObject({ publishes_own_premium: true });
-  await page.goto(`/shows/${showId}`);
-  // The landing nudge appearing proves the publish read settled before the absence check.
-  await expect(landingNudge).toBeVisible({ timeout: 60_000 });
-  await expect(premiumNudge).toHaveCount(0);
-  await screenshot(page, info, 'own-premium-nudge');
-
-  await openUsesSwitches(page, showId);
-  await setSwitch(page, 'Public landing page', false);
-  await expect
-    .poll(() => showUsesRow(client, showId), { timeout: 60_000 })
-    .toMatchObject({ uses_landing_page: false, publishes_own_premium: true });
   await page.goto(`/shows/${showId}/about`);
-  await expect(page.getByRole('heading', { name: 'Premium List' })).toBeVisible({
+  // MYK9-2054: the club's own premium card replaces "Generate & publish", and no nudge remains.
+  await expect(page.getByRole('heading', { name: "Premium List (your club's own)" })).toBeVisible({
     timeout: 60_000,
   });
-  await expect(page.getByRole('heading', { name: 'Public Landing Page' })).toHaveCount(0);
   await page.goto(`/shows/${showId}`);
   await expect(page.getByRole('heading', { name: 'Ready for show day' })).toBeVisible({
     timeout: 60_000,

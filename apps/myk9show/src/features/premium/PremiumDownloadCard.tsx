@@ -8,6 +8,7 @@ import { usePremiumPublishControl } from './usePremiumPublishControl';
 import { PREMIUM_CARD_ANCHOR } from '@/features/show-workbench/publishReadiness';
 import { PREMIUM_UP_TO_DATE_REASON } from './premiumPublishAction';
 import { openPublishedPremium } from './usePublishInfo';
+import { UnpublishPremiumButton } from './UnpublishPremiumButton';
 
 // `scroll-mt-20` only. The `target:ring-*` classes that used to live here could
 // never fire: the one link that carried `#setup-publish-premium` was a router
@@ -26,6 +27,8 @@ interface PremiumDownloadCardProps {
    * exhibitors the staleness signal is internal noise.
    */
   showStaleBadge?: boolean;
+  /** Entries made so far; the unpublish confirmation says they are not affected. */
+  entryCount?: number | null | undefined;
 }
 
 function PublishFailureNotice({
@@ -61,6 +64,7 @@ export function PremiumDownloadCard({
   showId,
   canManageShow,
   showStaleBadge = false,
+  entryCount,
 }: PremiumDownloadCardProps) {
   // Read, derivation and flow all come from one hook, because the header
   // Actions menu offers the SAME publish from every section and the two must
@@ -148,6 +152,11 @@ export function PremiumDownloadCard({
               <span className="text-sm text-muted-foreground">{action.disabledReason}</span>
             )}
           </div>
+          {/* The announcement can outlive the document (a club link replaced the PDF), and it
+              must be possible to take it down without publishing another document first. */}
+          {canManageShow && info?.experienceIsPublished === true && (
+            <UnpublishPremiumButton showId={showId} entryCount={entryCount} disabled={isBusy} />
+          )}
         </>
       ) : (
         <>
@@ -202,6 +211,9 @@ export function PremiumDownloadCard({
           >
             {isDownloading ? 'Preparing PDF…' : 'Download PDF'}
           </Button>
+          {canManageShow && (
+            <UnpublishPremiumButton showId={showId} entryCount={entryCount} disabled={isBusy} />
+          )}
           {downloadFailed && (
             <p role="alert" className="basis-full text-sm text-destructive">
               Couldn't prepare the premium PDF. Try again.

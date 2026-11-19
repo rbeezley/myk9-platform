@@ -2,14 +2,11 @@ import { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Mail } from 'lucide-react';
 import { PremiumDownloadCard } from '@/features/premium/PremiumDownloadCard';
+import { OwnPremiumCard } from '@/features/premium/OwnPremiumCard';
 import { LandingPageCard } from '@/features/premium/LandingPageCard';
 import { ShowPublishBlockers } from '@/features/publishing/ShowPublishBlockers';
 import { PremiumRequirementsNotice } from '@/features/premium/PremiumRequirementsNotice';
 import { usePremiumRequirements } from '@/features/premium/usePremiumRequirements';
-import {
-  LANDING_CARD_ANCHOR,
-  PREMIUM_CARD_ANCHOR,
-} from '@/features/show-workbench/publishReadiness';
 import {
   publishAnchorFromHash,
   SETUP_PUBLISH_ANCHOR,
@@ -44,10 +41,8 @@ export default function ShowAboutPage() {
     useShowManagementOutlet();
   const { hash, key } = useLocation();
   const anchor = publishAnchorFromHash(hash);
-  // MYK9-1686: no public landing page, no Landing page card. Premium stays; a link to the hidden
-  // card's anchor falls back to it.
   const liveShow = useShowWithLiveUses(show);
-  const { usesLandingPage, publishesOwnPremium } = resolveShowUses(liveShow);
+  const { publishesOwnPremium } = resolveShowUses(liveShow);
   // MYK9-2053: a club that publishes its own premium has no generated one to check.
   const requirements = usePremiumRequirements(
     show,
@@ -56,15 +51,13 @@ export default function ShowAboutPage() {
     judges,
     canManageShow && !publishesOwnPremium
   );
-  const scrollTarget =
-    anchor === LANDING_CARD_ANCHOR && !usesLandingPage ? PREMIUM_CARD_ANCHOR : anchor;
 
   // A router link to `#anchor` is a pushState, not fragment navigation, so the browser never
   // scrolls on its own. Keyed on the navigation (`key`) so a repeat click scrolls again.
   useEffect(() => {
-    if (!scrollTarget) return;
-    document.getElementById(scrollTarget)?.scrollIntoView({ block: 'start' });
-  }, [scrollTarget, key]);
+    if (!anchor) return;
+    document.getElementById(anchor)?.scrollIntoView({ block: 'start' });
+  }, [anchor, key]);
 
   return (
     <div className="space-y-3">
@@ -81,8 +74,21 @@ export default function ShowAboutPage() {
         <div className="sm:col-span-2 empty:hidden">
           <PremiumRequirementsNotice items={requirements.items} registry={requirements.registry} />
         </div>
-        <PremiumDownloadCard showId={show.id} showStaleBadge={true} canManageShow={canManageShow} />
-        {usesLandingPage && <LandingPageCard showId={show.id} showStyle={getShowStyle(show)} />}
+        {publishesOwnPremium ? (
+          <OwnPremiumCard
+            showId={show.id}
+            canManageShow={canManageShow}
+            entryCount={managerEntryCount}
+          />
+        ) : (
+          <PremiumDownloadCard
+            showId={show.id}
+            showStaleBadge={true}
+            canManageShow={canManageShow}
+            entryCount={managerEntryCount}
+          />
+        )}
+        <LandingPageCard showId={show.id} showStyle={getShowStyle(show)} />
       </div>
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <ShowAboutWhere show={show} />

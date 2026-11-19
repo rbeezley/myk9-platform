@@ -17,7 +17,6 @@ const FIELDS = [
   ['usesDeviceScoring', 'uses_device_scoring'],
   ['usesPaperPacket', 'uses_paper_packet'],
   ['usesVolunteers', 'uses_volunteers'],
-  ['usesLandingPage', 'uses_landing_page'],
   ['publishesOwnPremium', 'publishes_own_premium'],
 ] as const;
 
@@ -80,7 +79,6 @@ describe('ReplicatedShowsTable "This show uses…" fields (MYK9-1685)', () => {
       usesDeviceScoring: true,
       usesPaperPacket: true,
       usesVolunteers: false,
-      usesLandingPage: false,
       publishesOwnPremium: false,
     });
     expect(write.mock.calls[0]![2].payload).toMatchObject({

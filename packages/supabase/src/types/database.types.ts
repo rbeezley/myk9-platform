@@ -9226,6 +9226,7 @@ export type Database = {
           name: string
           online_entries_enabled: boolean
           organization: string
+          own_premium_link: string | null
           pre_entry_fee: number | null
           premium_publish_version: number
           published_premium_at: string | null
@@ -9306,6 +9307,7 @@ export type Database = {
           name: string
           online_entries_enabled?: boolean
           organization: string
+          own_premium_link?: string | null
           pre_entry_fee?: number | null
           premium_publish_version?: number
           published_premium_at?: string | null
@@ -9386,6 +9388,7 @@ export type Database = {
           name?: string
           online_entries_enabled?: boolean
           organization?: string
+          own_premium_link?: string | null
           pre_entry_fee?: number | null
           premium_publish_version?: number
           published_premium_at?: string | null
@@ -14715,6 +14718,7 @@ export type Database = {
           name: string
           online_entries_enabled: boolean
           organization: string
+          own_premium_link: string | null
           pre_entry_fee: number | null
           premium_publish_version: number
           published_premium_at: string | null
@@ -15969,6 +15973,7 @@ export type Database = {
           name: string
           online_entries_enabled: boolean
           organization: string
+          own_premium_link: string | null
           pre_entry_fee: number | null
           premium_publish_version: number
           published_premium_at: string | null
@@ -16163,6 +16168,15 @@ export type Database = {
           p_upcoming_runs?: boolean
         }
         Returns: boolean
+      }
+      set_own_premium: {
+        Args: {
+          p_link?: string
+          p_public_url?: string
+          p_show_id: string
+          p_storage_path?: string
+        }
+        Returns: undefined
       }
       set_show_online_entries: {
         Args: { p_enabled: boolean; p_show_id: string }
@@ -16379,6 +16393,7 @@ export type Database = {
           scored_count: number
         }[]
       }
+      unpublish_premium: { Args: { p_show_id: string }; Returns: undefined }
       update_entry_handler: {
         Args: { p_entry_id: string; p_handler: string }
         Returns: undefined

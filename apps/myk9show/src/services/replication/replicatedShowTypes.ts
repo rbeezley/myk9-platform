@@ -37,7 +37,6 @@ export interface ReplicatedShow extends ShowCloseRecord {
   usesDeviceScoring?: boolean | undefined;
   usesPaperPacket?: boolean | undefined;
   usesVolunteers?: boolean | undefined;
-  usesLandingPage?: boolean | undefined;
   publishesOwnPremium?: boolean | undefined;
   /**
    * shows.allow_waitlist (MYK9-1019), read-only here: the Waitlist tab's settings card writes it

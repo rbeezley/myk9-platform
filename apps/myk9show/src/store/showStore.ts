@@ -80,7 +80,6 @@ export function replicatedToShow(replicated: ReplicatedShow): Show {
     usesDeviceScoring: replicated.usesDeviceScoring,
     usesPaperPacket: replicated.usesPaperPacket,
     usesVolunteers: replicated.usesVolunteers,
-    usesLandingPage: replicated.usesLandingPage,
     publishesOwnPremium: replicated.publishesOwnPremium,
     serverVersion: replicated.serverVersion,
     // Preserve the Nationals placement flag across sync/reload. Dropping it here
@@ -213,7 +212,6 @@ export interface ShowInput {
   usesDeviceScoring?: boolean | undefined;
   usesPaperPacket?: boolean | undefined;
   usesVolunteers?: boolean | undefined;
-  usesLandingPage?: boolean | undefined;
   publishesOwnPremium?: boolean | undefined;
   isNationals?: boolean | undefined;
   style?: string | null;

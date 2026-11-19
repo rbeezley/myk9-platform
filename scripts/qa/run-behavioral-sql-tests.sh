@@ -79,6 +79,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_2163_publish_needs_payouts_test.sql"
   "$TEST_DIR/myk9_2197_show_publish_blockers_test.sql"
   "$TEST_DIR/myk9_2199_club_first_show_published_test.sql"
+  "$TEST_DIR/myk9_2054_own_premium_unpublish_test.sql"
   "$TEST_DIR/myk9_909_club_creator_select_test.sql"
   "$TEST_DIR/myk9_952_demo_clubs_listing_test.sql"
   "$TEST_DIR/club_routed_role_requests_test.sql"

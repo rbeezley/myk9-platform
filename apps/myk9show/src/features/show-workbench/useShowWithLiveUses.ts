@@ -12,7 +12,6 @@ export function useShowWithLiveUses(show: Show): Show {
   const usesDeviceScoring = live?.usesDeviceScoring ?? show.usesDeviceScoring;
   const usesPaperPacket = live?.usesPaperPacket ?? show.usesPaperPacket;
   const usesVolunteers = live?.usesVolunteers ?? show.usesVolunteers;
-  const usesLandingPage = live?.usesLandingPage ?? show.usesLandingPage;
   const publishesOwnPremium = live?.publishesOwnPremium ?? show.publishesOwnPremium;
   return useMemo(
     () => ({
@@ -20,9 +19,8 @@ export function useShowWithLiveUses(show: Show): Show {
       usesDeviceScoring,
       usesPaperPacket,
       usesVolunteers,
-      usesLandingPage,
       publishesOwnPremium,
     }),
-    [show, usesDeviceScoring, usesPaperPacket, usesVolunteers, usesLandingPage, publishesOwnPremium]
+    [show, usesDeviceScoring, usesPaperPacket, usesVolunteers, publishesOwnPremium]
   );
 }

@@ -685,6 +685,63 @@ describe('executeMutation', () => {
     });
   });
 
+  describe('columns a migration dropped (MYK9-2054)', () => {
+    it('strips shows.uses_landing_page from a queued INSERT and keeps the rest', async () => {
+      const insert = vi.fn(() => ({
+        select: () => Promise.resolve({ data: [{ id: 'show-1' }], error: null, status: 201 }),
+      }));
+      const supabase = {
+        from: vi.fn(() => ({ insert })),
+        rpc: vi.fn(),
+      } as unknown as SupabaseClient;
+      const mutation = makeMutation({
+        tableName: 'shows',
+        rowId: 'show-1',
+        data: { id: 'show-1', name: 'Old tab', uses_landing_page: false, uses_volunteers: true },
+      });
+
+      await executeMutation(supabase, makeLogger(), mutation);
+
+      expect(insert).toHaveBeenCalledWith({ id: 'show-1', name: 'Old tab', uses_volunteers: true });
+    });
+
+    it('strips it from a queued UPDATE too', async () => {
+      const update = vi.fn(() => chainable({ data: [{ id: 'show-1', version: 2 }], error: null }));
+      const supabase = {
+        from: vi.fn(() => ({ update })),
+        rpc: vi.fn(),
+      } as unknown as SupabaseClient;
+      const mutation = makeMutation({
+        tableName: 'shows',
+        operation: 'UPDATE',
+        rowId: 'show-1',
+        data: { name: 'Renamed', uses_landing_page: true },
+      });
+
+      await executeMutation(supabase, makeLogger(), mutation);
+
+      expect(update).toHaveBeenCalledWith({ name: 'Renamed' });
+    });
+
+    it('leaves other tables alone', async () => {
+      const insert = vi.fn(() => ({
+        select: () => Promise.resolve({ data: [{ id: 'e1' }], error: null, status: 201 }),
+      }));
+      const supabase = {
+        from: vi.fn(() => ({ insert })),
+        rpc: vi.fn(),
+      } as unknown as SupabaseClient;
+
+      await executeMutation(
+        supabase,
+        makeLogger(),
+        makeMutation({ data: { id: 'e1', uses_landing_page: false } })
+      );
+
+      expect(insert).toHaveBeenCalledWith({ id: 'e1', uses_landing_page: false });
+    });
+  });
+
   it('throws for an unknown operation', async () => {
     const supabase = { from: vi.fn(), rpc: vi.fn() } as unknown as SupabaseClient;
     const mutation = makeMutation({ operation: 'UPSERT' as never });

@@ -96,6 +96,8 @@ export interface Show {
   publishedPremiumUrl?: string | null;
   publishedPremiumAt?: string | null;
   publishedPremiumVersion?: number | null;
+  /** MYK9-2054: the club's own premium as a link (publishes_own_premium); RPC-owned. */
+  ownPremiumLink?: string | null;
   updatedAt?: string | null;
   // Entry information
   entryOpenDate: string;
@@ -148,7 +150,6 @@ export interface Show {
   usesDeviceScoring?: boolean | undefined;
   usesPaperPacket?: boolean | undefined;
   usesVolunteers?: boolean | undefined;
-  usesLandingPage?: boolean | undefined;
   publishesOwnPremium?: boolean | undefined;
   /**
    * `shows.allow_waitlist`: "Allow wait lists" for the whole show. A class with no setting of
@@ -219,7 +220,6 @@ export interface ShowInput {
   usesDeviceScoring?: boolean | undefined;
   usesPaperPacket?: boolean | undefined;
   usesVolunteers?: boolean | undefined;
-  usesLandingPage?: boolean | undefined;
   publishesOwnPremium?: boolean | undefined;
   isNationals?: boolean | undefined;
   // Experience style — drives all 4 touchpoints (migration 195)

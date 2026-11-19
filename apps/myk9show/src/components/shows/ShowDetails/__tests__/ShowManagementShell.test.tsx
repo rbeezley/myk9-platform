@@ -218,7 +218,7 @@ vi.mock('@/store/showStore', () => ({
     // MYK9-1686: the landing nudge only exists for a show that uses the landing page.
     const state = {
       updateShow: saveHarness.updateShow,
-      shows: [{ id: 'show-1', usesLandingPage: true }],
+      shows: [{ id: 'show-1' }],
     };
     return selector ? selector(state) : state;
   },

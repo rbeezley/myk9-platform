@@ -16,6 +16,7 @@ const server = vi.hoisted(() => ({
   error: null as { message: string } | null,
   sinceArgs: [] as string[],
   session: null as { user: { id: string; is_anonymous?: boolean } } | null,
+  sessionError: null as { message: string } | null,
 }));
 
 vi.mock('@/services/database/supabaseClient', () => {
@@ -40,7 +41,12 @@ vi.mock('@/services/database/supabaseClient', () => {
   return {
     supabase: {
       from: vi.fn(() => makeChain()),
-      auth: { getSession: vi.fn(async () => ({ data: { session: server.session } })) },
+      auth: {
+        getSession: vi.fn(async () => ({
+          data: { session: server.session },
+          error: server.sessionError,
+        })),
+      },
     },
   };
 });
@@ -93,6 +99,7 @@ describe('ReplicatedClubsTable principal marker (MYK9-2168)', () => {
     server.error = null;
     server.sinceArgs = [];
     server.session = null;
+    server.sessionError = null;
     table = new ReplicatedClubsTable();
   });
 
@@ -247,5 +254,72 @@ describe('ReplicatedClubsTable principal marker (MYK9-2168)', () => {
 
     expect(marker).toBeNull();
     expect(await ids()).toEqual(['pending-1', 'public-1']);
+  });
+
+  it('treats a session lookup error as unknown identity, not signed-out: nothing purged or pulled', async () => {
+    await seedReplicaFor('member-user');
+    server.session = null;
+    server.sessionError = { message: 'refresh failed offline' };
+
+    expect(await table.reconcilePrincipal()).toBeNull();
+    const result = await table.sync();
+
+    expect(result.success).toBe(false);
+    expect(server.sinceArgs).toEqual([]);
+    expect(await ids()).toEqual(['pending-1', 'public-1']);
+    expect(await readReplicaPrincipalMarker(table)).toBe('member-user');
+  });
+
+  it('fails the sync, without pulling, when the purge cannot complete', async () => {
+    await seedReplicaFor('staff-user');
+    signInAs('member-user');
+    vi.spyOn(table, 'getSyncMetadataOrThrow').mockRejectedValue(new Error('idb unavailable'));
+
+    const result = await table.sync();
+
+    expect(result.success).toBe(false);
+    expect(server.sinceArgs).toEqual([]);
+  });
+
+  it('fails the sync, and stores no marker, when the account changes during the pull', async () => {
+    signInAs('user-a');
+    server.rows = [serverRow('public-1', 'Public Club', '2024-05-01T00:00:00Z')];
+    const { supabase } = await import('@/services/database/supabaseClient');
+    const real = vi.mocked(supabase.from).getMockImplementation()!;
+    vi.mocked(supabase.from).mockImplementationOnce((...args) => {
+      signInAs('user-b'); // the browser switches account while the pull is in flight
+      return real(...args);
+    });
+
+    const result = await table.sync();
+
+    expect(result.success).toBe(false);
+    expect(await readReplicaPrincipalMarker(table)).toBeUndefined();
+  });
+
+  it('fails the sync when the marker cannot be stored', async () => {
+    signInAs('member-user');
+    server.rows = [serverRow('public-1', 'Public Club', '2024-05-01T00:00:00Z')];
+    const original = table.updateSyncMetadata.bind(table);
+    vi.spyOn(table, 'updateSyncMetadata').mockImplementation((updates, options) =>
+      options?.scopeSyncedBy === 'member-user'
+        ? Promise.reject(new Error('quota'))
+        : original(updates, options)
+    );
+
+    const result = await table.sync();
+
+    expect(result.success).toBe(false);
+  });
+
+  it('runs overlapping syncs one at a time', async () => {
+    signInAs('member-user');
+    server.rows = [serverRow('public-1', 'Public Club', '2024-05-01T00:00:00Z')];
+
+    const [first, second] = await Promise.all([table.sync(), table.sync()]);
+
+    expect(first.success).toBe(true);
+    expect(second.success).toBe(true);
+    expect(await readReplicaPrincipalMarker(table)).toBe('member-user');
   });
 });

@@ -18,8 +18,11 @@ export interface ClubReadinessResult {
   clubs: Club[];
 }
 
-let clubSessionIsFresh = false;
-let clubSyncInFlight: Promise<{ success: boolean }> | null = null;
+// MYK9-2168: freshness and in-flight work belong to ONE principal; another
+// account never inherits them.
+let clubSessionFreshFor: string | null = null;
+let clubSyncInFlight: { marker: string | null; promise: Promise<{ success: boolean }> } | null =
+  null;
 
 function isOnline(): boolean {
   return typeof navigator === 'undefined' || navigator.onLine;
@@ -164,7 +167,9 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
     try {
       // MYK9-2168: rows left by another account are dropped BEFORE this read.
       const principalMarker = await replicatedClubsTable.reconcilePrincipal();
-      const replicatedClubs = await replicatedClubsTable.getAllClubs();
+      // Unverified (identity unknown): publish nothing rather than another account's rows.
+      const replicatedClubs =
+        principalMarker === null ? [] : await replicatedClubsTable.getAllClubs();
       const clubs = replicatedClubs.map(replicatedToClub);
 
       set({
@@ -226,7 +231,7 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
     // way through the payment-setup checklist unmounted the card and reset
     // showChecklist to false, which presents as "the button did nothing"
     // (QA-CLUB-PAYMENTS-041). The `await` below guarantees React renders the dip,
-    // and the fast path at `clubSessionIsFresh` returns 'fresh' immediately after
+    // and the fast path at `clubSessionFreshFor` returns 'fresh' immediately after
     // — so the flap happened even when no work was needed.
     //
     // Mirrors what loadClubs already does with `isLoading`: a background refresh
@@ -250,6 +255,12 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
     }
 
     const cachedClubs = get().clubs;
+    const principal = get().clubsPrincipalMarker;
+    if (principal === null) {
+      // Identity could not be settled: no rows were published, none are trusted.
+      set({ clubReadiness: 'unavailable' });
+      return { status: 'unavailable', clubs: cachedClubs };
+    }
     if (!isOnline()) {
       const status = cachedClubs.length > 0 ? 'offline' : 'unavailable';
       set({ clubReadiness: status });
@@ -258,38 +269,43 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
 
     const requestedClubIsMissing =
       requestedClubId !== undefined && !cachedClubs.some(club => club.id === requestedClubId);
-    if (!force && clubSessionIsFresh && !requestedClubIsMissing) {
+    if (!force && clubSessionFreshFor === principal && !requestedClubIsMissing) {
       set({ clubReadiness: 'fresh' });
       return { status: 'fresh', clubs: cachedClubs };
     }
 
-    if (!clubSyncInFlight) {
+    if (clubSyncInFlight?.marker !== principal) {
       // Promise.resolve().then wraps a synchronous throw from sync() as a
       // rejection, so the .catch below always settles the session.
-      clubSyncInFlight = Promise.resolve()
+      const promise = Promise.resolve()
         .then(() => replicatedClubsTable.sync())
         .then(async result => {
           if (result.success) {
             await get().loadClubs();
-            clubSessionIsFresh = true;
+            clubSessionFreshFor = get().clubsPrincipalMarker === principal ? principal : null;
           } else {
-            clubSessionIsFresh = false;
+            clubSessionFreshFor = null;
             logger.warn('Club data refresh failed', 'clubs');
           }
-          return { success: result.success };
+          return { success: result.success && clubSessionFreshFor === principal };
         })
         .catch(() => {
-          clubSessionIsFresh = false;
+          clubSessionFreshFor = null;
           logger.warn('Club data refresh failed', 'clubs');
           return { success: false };
         })
         .finally(() => {
-          clubSyncInFlight = null;
+          if (clubSyncInFlight?.promise === promise) clubSyncInFlight = null;
         });
+      clubSyncInFlight = { marker: principal, promise };
     }
 
     try {
-      const result = await withTimeout(clubSyncInFlight, DEFAULT_TIMEOUT_MS, 'Club data refresh');
+      const result = await withTimeout(
+        clubSyncInFlight.promise,
+        DEFAULT_TIMEOUT_MS,
+        'Club data refresh'
+      );
       const clubs = get().clubs;
       if (result.success) {
         set({ clubReadiness: 'fresh' });
@@ -357,19 +373,13 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
    * Returns unsubscribe function
    */
   subscribeToChanges: () => {
-    return replicatedClubsTable.subscribe(replicatedClubs => {
-      const clubs = replicatedClubs.map(replicatedToClub);
-      set({ clubs });
-    });
+    return replicatedClubsTable.subscribe(publishVerifiedClubs);
   },
 
   initializeSubscription: () => {
     if (get()._unsubscribe) return;
 
-    const unsubscribe = replicatedClubsTable.subscribe(replicatedClubs => {
-      const clubs = replicatedClubs.map(replicatedToClub);
-      set({ clubs });
-    });
+    const unsubscribe = replicatedClubsTable.subscribe(publishVerifiedClubs);
 
     set({ _unsubscribe: unsubscribe });
     get().loadClubs();
@@ -384,9 +394,19 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
   },
 }));
 
+/**
+ * MYK9-2168: replica snapshots (including the first one a subscription emits on
+ * subscribe, before loadClubs has reconciled) reach the store only once a
+ * principal's rows are verified; loadClubs is the one writer that verifies.
+ */
+function publishVerifiedClubs(replicatedClubs: ReplicatedClub[]): void {
+  if (useClubStore.getState().clubsPrincipalMarker === null) return;
+  useClubStore.setState({ clubs: replicatedClubs.map(replicatedToClub) });
+}
+
 /** Reset the session marker between isolated tests and browser sessions. */
 export function resetClubReadinessForTests(): void {
-  clubSessionIsFresh = false;
+  clubSessionFreshFor = null;
   clubSyncInFlight = null;
   useClubStore.setState({ clubReadiness: 'loading' });
 }

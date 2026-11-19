@@ -853,9 +853,14 @@ describe('ReplicatedClubsTable', () => {
 
       it('does not prune when there is no authenticated session', async () => {
         const { supabase } = await import('@/services/database/supabaseClient');
-        vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
-          data: { session: null },
-        } as never);
+        vi.mocked(supabase.auth.getSession)
+          .mockResolvedValueOnce({
+            data: { session: null },
+          } as never)
+          // the post-pull marker fence reads the session again (MYK9-2168)
+          .mockResolvedValueOnce({
+            data: { session: null },
+          } as never);
         mockRemoteRows();
 
         const reconcileSpy = vi.spyOn(table, 'reconcileVisibility');
@@ -868,9 +873,14 @@ describe('ReplicatedClubsTable', () => {
 
       it('does prune when there IS an authenticated session', async () => {
         const { supabase } = await import('@/services/database/supabaseClient');
-        vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
-          data: { session: { user: { id: 'u1' } } },
-        } as never);
+        vi.mocked(supabase.auth.getSession)
+          .mockResolvedValueOnce({
+            data: { session: { user: { id: 'u1' } } },
+          } as never)
+          // the post-pull marker fence reads the session again (MYK9-2168)
+          .mockResolvedValueOnce({
+            data: { session: { user: { id: 'u1' } } },
+          } as never);
         mockRemoteRows();
 
         const reconcileSpy = vi.spyOn(table, 'reconcileVisibility').mockResolvedValue(0);
@@ -886,9 +896,14 @@ describe('ReplicatedClubsTable', () => {
       // null session, not just a missing user.
       it('does not prune when the session is anonymous (is_anonymous: true)', async () => {
         const { supabase } = await import('@/services/database/supabaseClient');
-        vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
-          data: { session: { user: { id: 'anon-device-1', is_anonymous: true } } },
-        } as never);
+        vi.mocked(supabase.auth.getSession)
+          .mockResolvedValueOnce({
+            data: { session: { user: { id: 'anon-device-1', is_anonymous: true } } },
+          } as never)
+          // the post-pull marker fence reads the session again (MYK9-2168)
+          .mockResolvedValueOnce({
+            data: { session: { user: { id: 'anon-device-1', is_anonymous: true } } },
+          } as never);
         mockRemoteRows();
 
         const reconcileSpy = vi.spyOn(table, 'reconcileVisibility');

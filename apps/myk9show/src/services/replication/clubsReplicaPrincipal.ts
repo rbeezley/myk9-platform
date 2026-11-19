@@ -15,12 +15,26 @@
  * from the current principal the clean rows and the watermark are dropped
  * BEFORE any read, so a restricted row is never left for the next account.
  */
-import { SyncCacheWriter, type ReplicatedTable } from '@myk9/replication';
+import { SyncCacheWriter, type ReplicatedTable, type SyncResult } from '@myk9/replication';
 import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
 
 /** Marker for a signed-out or anonymous (ringside passcode) session. */
 export const ANONYMOUS_PRINCIPAL_MARKER = 'anonymous';
+
+/**
+ * The current principal's marker. THROWS when the lookup errors (an expired
+ * session that cannot refresh offline resolves `{ session: null, error }`),
+ * so that is never mistaken for a signed-out visitor.
+ */
+export async function currentPrincipalMarker(): Promise<string> {
+  const {
+    data: { session },
+    error,
+  } = await supabase.auth.getSession();
+  if (error) throw error;
+  return principalMarkerFor(session?.user);
+}
 
 /** The marker a Supabase session maps to (anonymous sessions are not principals). */
 export function principalMarkerFor(
@@ -87,10 +101,7 @@ export async function reconcileReplicaPrincipal<T extends { id: string }>(
 ): Promise<string | null> {
   let marker: string;
   try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    marker = principalMarkerFor(session?.user);
+    marker = await currentPrincipalMarker();
   } catch (err) {
     logger.warn(`[${table.getTableName()}] principal unreadable, replica not reconciled`, err);
     return null;
@@ -111,18 +122,29 @@ export async function purgeReplicaForMarker<T extends { id: string }>(
 }
 
 /**
- * After a successful sync: persist whose view produced the rows (the principal
- * the sync STARTED as). If the session changed mid-pull the marker then simply
- * mismatches the new principal, whose next reconcile purges the rows. Never
- * throws: a failed stamp only costs one extra full sync.
+ * After a successful pull: persist whose view produced the rows. Fenced: only
+ * when the session is STILL the principal the pull started as, else this throws
+ * and the sync fails (the rows stay unmarked, so the next reconcile purges them).
+ * A failed write throws too, so readiness stays retryable.
  */
-export async function stampReplicaPrincipalSafely<T extends { id: string }>(
+export async function stampReplicaPrincipalFenced<T extends { id: string }>(
   table: ReplicatedTable<T>,
   syncedMarker: string
 ): Promise<void> {
-  try {
-    await stampReplicaPrincipal(table, syncedMarker);
-  } catch (err) {
-    logger.warn(`[${table.getTableName()}] principal marker not stored`, err);
+  if ((await currentPrincipalMarker()) !== syncedMarker) {
+    throw new Error('The signed-in account changed while clubs were loading; nothing was saved.');
   }
+  await stampReplicaPrincipal(table, syncedMarker);
+}
+
+/** A sync that stopped before pulling, or whose marker could not be settled. */
+export function failedPrincipalSyncResult(tableName: string, error: string): SyncResult {
+  return {
+    tableName,
+    success: false,
+    operation: 'full-sync',
+    rowsAffected: 0,
+    duration: 0,
+    error,
+  };
 }

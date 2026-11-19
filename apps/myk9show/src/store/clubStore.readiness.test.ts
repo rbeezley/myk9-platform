@@ -344,4 +344,46 @@ describe('clubStore.loadClubs principal reconcile', () => {
 
     expect(useClubStore.getState().clubsPrincipalMarker).toBeNull();
   });
+
+  it('publishes nothing when identity could not be settled', async () => {
+    replication.reconcilePrincipal.mockResolvedValue(null);
+
+    await useClubStore.getState().loadClubs();
+
+    expect(replication.getAllClubs).not.toHaveBeenCalled();
+    expect(useClubStore.getState().clubs).toEqual([]);
+  });
+
+  it('withholds a subscription snapshot (incl. the initial emission) until a principal is verified', () => {
+    let emit: (rows: (typeof clubRow)[]) => void = () => {};
+    replication.subscribe.mockImplementation(cb => {
+      emit = cb;
+      return () => {};
+    });
+    replication.getAllClubs.mockResolvedValue([]);
+    const unsubscribe = useClubStore.getState().subscribeToChanges();
+
+    emit([clubRow]);
+    expect(useClubStore.getState().clubs).toEqual([]);
+
+    useClubStore.setState({ clubsPrincipalMarker: 'user-a' });
+    emit([clubRow]);
+    expect(useClubStore.getState().clubs.map(club => club.id)).toEqual(['club-a']);
+    unsubscribe();
+  });
+
+  it('does not reuse one account freshness for the next account', async () => {
+    setOnline(true);
+    resetClubReadinessForTests();
+    replication.reconcilePrincipal.mockResolvedValue('user-a');
+    replication.sync.mockResolvedValue({ success: true });
+    await useClubStore.getState().ensureClubsReady();
+    expect(replication.sync).toHaveBeenCalledTimes(1);
+
+    replication.reconcilePrincipal.mockResolvedValue('user-b');
+    const result = await useClubStore.getState().ensureClubsReady();
+
+    expect(replication.sync).toHaveBeenCalledTimes(2);
+    expect(result.status).toBe('fresh');
+  });
 });

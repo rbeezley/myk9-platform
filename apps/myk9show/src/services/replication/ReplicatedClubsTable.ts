@@ -24,10 +24,11 @@ import { supabase } from '@/services/database/supabaseClient';
 import { idScanEpoch, idScanKey, markIdScanCompleted, shouldRunIdScan } from './idScanCadence';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import {
+  failedPrincipalSyncResult,
   principalMarkerFor,
   purgeReplicaForMarker,
   reconcileReplicaPrincipal,
-  stampReplicaPrincipalSafely,
+  stampReplicaPrincipalFenced,
 } from './clubsReplicaPrincipal';
 
 /**
@@ -173,10 +174,6 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
   }
 
   /**
-   * Sync clubs from Supabase.
-   * Note: clubs have no license_key scope — all clubs are visible.
-   */
-  /**
    * Reads rows by id the way `sync` does, so a full-row UPDATE rejected for a
    * stale OCC token can re-fetch its row and rebase or surface (MYK9-771).
    */
@@ -202,16 +199,28 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
     return reconcileReplicaPrincipal(this, signal);
   }
 
-  async sync(_syncScopeId?: string, options?: Partial<SyncOptions>): Promise<SyncResult> {
+  private _syncTail: Promise<unknown> = Promise.resolve();
+
+  sync(syncScopeId?: string, options?: Partial<SyncOptions>): Promise<SyncResult> {
+    // MYK9-2168: one pull at a time, so overlapping syncs cannot interleave writes.
+    const run = this._syncTail.then(() => this.syncSerialized(syncScopeId, options));
+    this._syncTail = run.catch(() => undefined);
+    return run;
+  }
+
+  private async syncSerialized(
+    _syncScopeId?: string,
+    options?: Partial<SyncOptions>
+  ): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
 
-    // MYK9-572 round 2: read the session ONCE up front — both the
-    // anon-skip-prune decision below and the sign-in-transition force-full
-    // decision need to know it, and it must be known BEFORE the sync call so
-    // a fresh sign-in's forceFullSync actually reaches syncReplicatedTable.
+    // MYK9-572 round 2: read the session ONCE, BEFORE the sync call (the
+    // anon-skip-prune and sign-in force-full decisions both need it).
     const {
       data: { session },
+      error: sessionError,
     } = await supabase.auth.getSession();
+    if (sessionError) return failedPrincipalSyncResult(this.getTableName(), sessionError.message);
     // MYK9-572 round 4 (P1-2): a Supabase ANONYMOUS session (the at-show
     // passcode flow — see features/at-show/useOfflineReadiness.ts,
     // dogFavoritesSync.ts) is not a signed-in principal. Treating it as one
@@ -222,13 +231,16 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
     const principalId =
       session?.user && session.user.is_anonymous !== true ? session.user.id : null;
     const isAuthenticated = principalId !== null;
-    // MYK9-2168: before the pull, so a different principal never pulls
-    // incrementally on top of another principal's rows and watermark.
+    // MYK9-2168: purge another principal's rows and watermark before the pull.
     const principalMarker = principalMarkerFor(session?.user);
     try {
       await purgeReplicaForMarker(this, principalMarker, options?.signal);
     } catch (err) {
       logger.warn(`[${this.getTableName()}] principal reconcile failed`, err);
+      return failedPrincipalSyncResult(
+        this.getTableName(),
+        'Saved clubs could not be checked for this account.'
+      );
     }
     // Any principal change forces a full resync — see the field comment
     // above for why, and why `_principalKnown` gates the first-ever call.
@@ -281,8 +293,12 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
       this._forceFullSyncNext = false;
       this._lastPrincipalId = principalId;
       this._principalKnown = true;
-      // MYK9-2168: persist whose view produced these rows.
-      await stampReplicaPrincipalSafely(this, principalMarker);
+      try {
+        await stampReplicaPrincipalFenced(this, principalMarker);
+      } catch (err) {
+        logger.warn(`[${this.getTableName()}] principal marker not stored`, err);
+        return failedPrincipalSyncResult(this.getTableName(), getSyncErrorMessage(err));
+      }
     }
 
     // MYK9-572: reconcile against RLS visibility. The incremental pull above

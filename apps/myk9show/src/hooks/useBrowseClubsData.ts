@@ -114,7 +114,8 @@ export function useBrowseClubsData(): BrowseClubsData {
   // replica. Guests never reach it (see the INTENT above).
   useEffect(() => {
     if (isSignedIn) void ensureClubsReady();
-  }, [ensureClubsReady, isSignedIn]);
+    // Keyed by account too: a direct account change must settle against its own pull.
+  }, [ensureClubsReady, isSignedIn, user?.id]);
 
   // Compute upcoming show counts per club
   const clubShowCounts = useMemo(() => {

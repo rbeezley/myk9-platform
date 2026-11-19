@@ -85,4 +85,19 @@ describe('findFirstShowClub', () => {
   it('ignores clubs she only belongs to', () => {
     expect(findFirstShowClub([{ ...scopes[0]!, roleId: UserRole.EXHIBITOR }], [])).toBeNull();
   });
+
+  it('prefers the club she just added, only if she runs it', () => {
+    const two = [
+      { scopeType: ScopeType.CLUB, scopeId: 'club-1', roleId: UserRole.CLUB_ADMIN },
+      { scopeType: ScopeType.CLUB, scopeId: 'club-2', roleId: UserRole.CLUB_ADMIN },
+    ];
+    expect(findFirstShowClub(two, [], { preferClubId: 'club-2' })?.clubId).toBe('club-2');
+    expect(findFirstShowClub(two, [], { preferClubId: 'club-9' })?.clubId).toBe('club-1');
+  });
+
+  it('stays gone for a club that has published before, even with no public show now', () => {
+    expect(
+      findFirstShowClub(scopes, [show('draft')], { isDismissed: id => id === 'club-1' })
+    ).toBeNull();
+  });
 });

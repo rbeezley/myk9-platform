@@ -151,9 +151,11 @@ export function ClubOnboarding() {
       // profile step. Load those roles before the saved draft (the other exemption) goes.
       // If the refresh fails she still has her club: keep the draft so the exemption
       // holds, and the next load picks the roles up.
+      let rolesLoaded = false;
       try {
         await refreshPermissions();
         clearClubOnboardingDraft();
+        rolesLoaded = true;
       } catch (refreshError) {
         logger.warn(
           'Roles refresh after club request failed',
@@ -163,6 +165,11 @@ export function ClubOnboarding() {
         );
       }
       setCreatedClubId(result.clubId);
+      // MYK9-2199: land on the first-show card for THIS club. Only once her roles are loaded
+      // (the dashboard needs them) and not when the wizard sent her here (returnTo leads back).
+      if (rolesLoaded && !returnTo) {
+        navigate(`/secretary/dashboard?clubId=${encodeURIComponent(result.clubId)}`);
+      }
     } catch (err) {
       if (err instanceof ClubNameTakenError) {
         setNameTaken(true);

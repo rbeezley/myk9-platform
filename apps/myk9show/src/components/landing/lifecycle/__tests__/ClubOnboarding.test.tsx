@@ -104,6 +104,28 @@ describe('ClubOnboarding', () => {
     );
   });
 
+  it('lands on the dashboard for the new club once her roles are loaded', async () => {
+    mockSubmit.mockResolvedValue(created);
+    render(<ClubOnboarding />, { initialRoute: '/' });
+    fillRequiredFields();
+    fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: '123' } });
+    submitForm();
+
+    await screen.findByText(/waiting for myK9Show approval/i);
+    expect(mockNavigate).toHaveBeenCalledWith('/secretary/dashboard?clubId=club-9');
+  });
+
+  it('does not navigate away when she came from the wizard', async () => {
+    mockSubmit.mockResolvedValue(created);
+    render(<ClubOnboarding />, { initialRoute: '/?returnTo=%2Fwizard' });
+    fillRequiredFields();
+    fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: '123' } });
+    submitForm();
+
+    await screen.findByRole('link', { name: /back to your show/i });
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
   it('leads back to the show she started, with the new club chosen', async () => {
     mockSubmit.mockResolvedValue(created);
     render(<ClubOnboarding />, {

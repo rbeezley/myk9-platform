@@ -131,6 +131,24 @@ describe('SecretaryDashboardPage', () => {
     expect(screen.queryByTestId('first-show-card')).not.toBeInTheDocument();
   });
 
+  it('keeps the card gone after the first public show goes back to draft', () => {
+    mockScopes.value = [{ scopeType: ScopeType.CLUB, scopeId: 'club-1', roleId: 'club_admin' }];
+    mockUseMissionControlData.mockReturnValue({
+      shows: [showFactory.build({ clubId: 'club-1', status: 'published' })],
+      isLoading: false,
+      classesByStage: new Map(),
+    });
+    renderPage().unmount();
+
+    mockUseMissionControlData.mockReturnValue({
+      shows: [showFactory.build({ clubId: 'club-1', status: 'draft' })],
+      isLoading: false,
+      classesByStage: new Map(),
+    });
+    renderPage();
+    expect(screen.queryByTestId('first-show-card')).not.toBeInTheDocument();
+  });
+
   it("renders TasksTab which queries useSecretaryTasks scoped to personal tasks ('general' filter)", () => {
     renderPage();
     expect(mockUseSecretaryTasks).toHaveBeenCalledWith('general');

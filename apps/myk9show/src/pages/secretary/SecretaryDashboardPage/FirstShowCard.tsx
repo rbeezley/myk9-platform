@@ -39,7 +39,8 @@ export function FirstShowCard({ clubId, draftShowId }: FirstShowCardProps) {
     >
       <h2 className="text-base font-semibold">Get your first show published</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Exhibitors can enter once your show is public. Here is what is left for your club.
+        Publishing makes your show visible, and exhibitors can enter once entries open. Here is what
+        is left for your club.
       </p>
       <div className="mt-3">
         <PublishBlockersList state={state} fixFor={fixFor} viewerIsClubAdmin={canOpenPayments} />

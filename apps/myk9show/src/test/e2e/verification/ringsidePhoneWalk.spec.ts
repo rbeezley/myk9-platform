@@ -152,19 +152,29 @@ test('Ringside at 375 px: open, leave unscored, score, reset (MYK9-1762, MYK9-17
   await card.getByTestId('reset-menu-button').click();
   await page.getByRole('menuitem', { name: 'Reset score' }).click();
   await page.getByTestId('reset-dialog-confirm').click();
+  // MYK9-2206: both reset assertions sit inside the capture, so either failure leaves the server
+  // row and the device's queue behind. Each read is collected on its own, and the original
+  // failure is always the one rethrown.
+  let afterReset: Awaited<ReturnType<typeof ringState>>;
   try {
     await expect
       .poll(() => ringState(client, f.willowId), { timeout: 30_000 })
       .toMatchObject({ is_scored: false, result_status: 'pending', ring_entry_time: null });
+    afterReset = await ringState(client, f.willowId);
+    expect(afterReset.check_in_status).not.toBe('in-ring');
   } catch (error) {
-    await evidence(info, 'reset-timeout-queue', {
-      server: await ringState(client, f.willowId),
-      device: await queueSnapshot(page),
-    });
+    const [server, device] = await Promise.allSettled([
+      ringState(client, f.willowId),
+      queueSnapshot(page),
+    ]);
+    const settled = (r: PromiseSettledResult<unknown>) =>
+      r.status === 'fulfilled' ? r.value : { unavailable: String(r.reason) };
+    await evidence(info, 'reset-failure-state', {
+      server: settled(server),
+      device: settled(device),
+    }).catch(() => undefined);
     throw error;
   }
-  const afterReset = await ringState(client, f.willowId);
-  expect(afterReset.check_in_status).not.toBe('in-ring');
   expect(judge.nonLocalSocketUrls).toEqual([]);
   await screenshot(page, info, 'phone-after-reset');
   await evidence(info, 'phone-ringside-walk', {

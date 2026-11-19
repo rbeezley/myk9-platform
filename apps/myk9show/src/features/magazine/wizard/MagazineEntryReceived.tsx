@@ -223,6 +223,8 @@ export function MagazineEntryReceived({
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'baseline',
+            flexWrap: 'wrap',
+            columnGap: 16,
             borderTop: `1px dotted ${magazineColors.gold2}`,
             paddingTop: '12px',
           }}
@@ -236,7 +238,12 @@ export function MagazineEntryReceived({
               color: MUTE,
             }}
           >
-            {registrationNumber ? formatConfirmationNumberLabel(registrationNumber) : totalLabel}
+            {registrationNumber && (
+              <span style={{ display: 'block' }}>
+                {formatConfirmationNumberLabel(registrationNumber)}
+              </span>
+            )}
+            {totalLabel}
           </span>
           <span
             style={{

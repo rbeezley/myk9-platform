@@ -153,14 +153,19 @@ export function GazetteEntryReceived({
           {classSummary}
         </p>
         <div
-          className="flex items-baseline justify-between pt-3"
+          className="flex flex-wrap items-baseline justify-between gap-x-4 pt-3"
           style={{ borderTop: `1px dotted ${HAIR}` }}
         >
           <span
             className="text-[10px] font-medium"
             style={{ color: QUILL, letterSpacing: '0.18em', fontFamily: META }}
           >
-            {registrationNumber ? formatConfirmationNumberLabel(registrationNumber) : totalLabel}
+            {registrationNumber && (
+              <span style={{ display: 'block' }}>
+                {formatConfirmationNumberLabel(registrationNumber)}
+              </span>
+            )}
+            {totalLabel}
           </span>
           <span style={{ fontFamily: DISPLAY, fontWeight: 900, fontSize: 28, color: BROWN }}>
             {totalFeesFormatted}

@@ -191,6 +191,8 @@ export function PosterEntryReceived({
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'baseline',
+            flexWrap: 'wrap',
+            columnGap: 16,
             borderTop: `1px solid ${posterColors.hair}`,
             paddingTop: 12,
           }}

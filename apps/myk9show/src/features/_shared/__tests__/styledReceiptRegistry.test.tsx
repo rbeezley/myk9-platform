@@ -72,6 +72,21 @@ describe('STYLED_RECEIPT_BY_STYLE', () => {
     }
   });
 
+  // MYK9-2235: every style says whether the total is paid or due, including the styles that
+  // show the confirmation number in the same spot (a submitted receipt always has one).
+  it('shows the paid or due label beside the total in every style', () => {
+    for (const style of ALL_STYLES) {
+      const element = STYLED_RECEIPT_BY_STYLE[style](BASE_PROPS, { brandColor: '#7a1f1f' });
+      const { container, unmount } = render(element);
+      const text = container.textContent?.toLowerCase() ?? '';
+
+      expect(text, style).toContain('total · paid by check');
+      expect(text, style).toContain('mk9-000137');
+      expect(text, style).not.toContain('fees due');
+      unmount();
+    }
+  });
+
   it('labels the enrollment confirmation number consistently across styled receipts', () => {
     for (const style of ALL_STYLES) {
       const element = STYLED_RECEIPT_BY_STYLE[style](BASE_PROPS, { brandColor: '#7a1f1f' });

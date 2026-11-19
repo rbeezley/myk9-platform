@@ -203,6 +203,7 @@ export function HeadlineEntryReceived({
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'baseline',
+            flexWrap: 'wrap',
             gap: '16px',
             borderTop: `1px solid ${HAIR}`,
             paddingTop: '12px',

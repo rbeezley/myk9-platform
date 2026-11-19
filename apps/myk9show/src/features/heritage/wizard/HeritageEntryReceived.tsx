@@ -204,6 +204,8 @@ export function HeritageEntryReceived({
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'baseline',
+            flexWrap: 'wrap',
+            columnGap: 16,
             borderTop: `1px dotted ${QUILL}`,
             paddingTop: '10px',
           }}
@@ -216,7 +218,12 @@ export function HeritageEntryReceived({
               color: QUILL,
             }}
           >
-            {registrationNumber ? formatConfirmationNumberLabel(registrationNumber) : totalLabel}
+            {registrationNumber && (
+              <span style={{ display: 'block' }}>
+                {formatConfirmationNumberLabel(registrationNumber)}
+              </span>
+            )}
+            {totalLabel}
           </span>
           <span
             style={{

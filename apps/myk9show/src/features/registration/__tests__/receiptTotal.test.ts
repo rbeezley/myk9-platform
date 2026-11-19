@@ -6,6 +6,7 @@ describe('receiptTotal', () => {
   it('quotes the fees with the paid label for a check received', () => {
     expect(
       receiptTotal({
+        formHeldMoney: false,
         paymentMethod: 'secretary_paid',
         receivedMethod: 'check',
         paymentStatus: PaymentStatus.PENDING,
@@ -17,6 +18,7 @@ describe('receiptTotal', () => {
   it('says Free entry for a waived entry (MYK9-1908)', () => {
     expect(
       receiptTotal({
+        formHeldMoney: false,
         paymentMethod: 'waived',
         receivedMethod: undefined,
         paymentStatus: PaymentStatus.PENDING,
@@ -40,6 +42,20 @@ describe('receiptTotalLabel (MYK9-2235)', () => {
   it('says the money is due at the show for check or cash at the show', () => {
     expect(receiptTotalLabel('check', undefined)).toBe('Total · Due at the show');
     expect(receiptTotalLabel('cash', undefined)).toBe('Total · Due at the show');
+  });
+
+  it('says only Total for check or cash at the show when the form already held money', () => {
+    expect(receiptTotalLabel('check', undefined, true)).toBe('Total');
+    expect(receiptTotalLabel('cash', undefined, true)).toBe('Total');
+    expect(
+      receiptTotal({
+        formHeldMoney: true,
+        paymentMethod: 'check',
+        receivedMethod: undefined,
+        paymentStatus: PaymentStatus.PENDING,
+        totalFees: 35,
+      }).totalLabel
+    ).toBe('Total');
   });
 
   it('says only Total for a free entry, money already on the form, or no method', () => {

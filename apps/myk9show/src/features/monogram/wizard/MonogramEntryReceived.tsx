@@ -185,6 +185,8 @@ export function MonogramEntryReceived({
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'baseline',
+            flexWrap: 'wrap',
+            columnGap: 16,
             borderTop: '1px dotted rgba(28, 24, 21, 0.3)',
             paddingTop: 12,
           }}
@@ -197,7 +199,12 @@ export function MonogramEntryReceived({
               color: QUILL,
             }}
           >
-            {registrationNumber ? formatConfirmationNumberLabel(registrationNumber) : totalLabel}
+            {registrationNumber && (
+              <span style={{ display: 'block' }}>
+                {formatConfirmationNumberLabel(registrationNumber)}
+              </span>
+            )}
+            {totalLabel}
           </span>
           <span
             style={{

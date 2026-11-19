@@ -168,6 +168,8 @@ export function BannerEntryReceived({
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'baseline',
+            flexWrap: 'wrap',
+            columnGap: 16,
             borderTop: `1px solid ${bannerColors.hair}`,
             paddingTop: 12,
           }}

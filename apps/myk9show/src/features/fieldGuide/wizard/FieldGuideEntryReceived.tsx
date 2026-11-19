@@ -191,6 +191,8 @@ export function FieldGuideEntryReceived({
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'baseline',
+            flexWrap: 'wrap',
+            columnGap: 16,
             borderTop: `1px solid ${fieldGuideColors.hair}`,
             paddingTop: 12,
           }}

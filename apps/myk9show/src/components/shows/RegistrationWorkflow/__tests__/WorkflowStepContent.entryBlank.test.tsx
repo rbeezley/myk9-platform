@@ -198,7 +198,7 @@ function renderConfirmation(
   outcomes: EntrySubmissionOutcome[] | undefined,
   createdEntryOutcomes?: EntrySubmissionOutcome[],
   paymentMethod: PaymentMethod = 'credit_card',
-  options: { registrationNumber?: string; receivedMethod?: 'check' | 'cash' } = {}
+  options: { receivedMethod?: 'check' | 'cash' } = {}
 ) {
   const selections = [
     { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
@@ -237,7 +237,7 @@ function renderConfirmation(
       }}
       showId="show-1"
       registrationId="registration-1"
-      registrationNumber={'registrationNumber' in options ? options.registrationNumber : 'CONF-100'}
+      registrationNumber="CONF-100"
       getPaymentDetails={() => ({ receivedMethod: options.receivedMethod })}
       currentRegistrationTotalFees={50}
       entryOutcomes={outcomes}
@@ -359,17 +359,14 @@ describe('WorkflowStepContent receipt payment label', () => {
   ];
 
   it('says Paid by check when the secretary recorded a check received', () => {
-    renderConfirmation(outcomes(), undefined, 'secretary_paid', {
-      registrationNumber: undefined,
-      receivedMethod: 'check',
-    });
+    renderConfirmation(outcomes(), undefined, 'secretary_paid', { receivedMethod: 'check' });
 
     expect(screen.getByText('Total · Paid by check')).toBeInTheDocument();
     expect(screen.queryByText(/fees due/i)).not.toBeInTheDocument();
   });
 
   it('says Due at the show when the exhibitor pays by check at the show', () => {
-    renderConfirmation(outcomes(), undefined, 'check', { registrationNumber: undefined });
+    renderConfirmation(outcomes(), undefined, 'check');
 
     expect(screen.getByText('Total · Due at the show')).toBeInTheDocument();
   });

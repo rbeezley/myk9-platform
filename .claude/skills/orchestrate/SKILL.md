@@ -84,6 +84,7 @@ all three of these are done and recorded in the ledger row (`premise:`, `approac
    computed earlier from a copy. Choose the copy only when the earlier warning is worth a
    freshness design, and record which in the `approach:` line. MYK9-2166 spent four review
    rounds on a cached payouts check before the owner removed it (MYK9-2237).
+
 3. **Size it: one concern per PR.** Review findings scale with PR size, and every fix round adds
    code the next round reads, so a broad PR rarely converges inside the 3-round cap (Wave 3,
    2026-10-31: 7 of 9 reviewed PRs needed an override; MYK9-1506 bundled about ten class-card

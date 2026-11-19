@@ -10,10 +10,12 @@ import { PAYMENT_LINK_SERVER_MESSAGES } from '@/components/entries/management/pa
  * every key must still appear verbatim in the function's source.
  */
 // The function's source plus the shared module it sends the refund-policy refusal from
-// (MYK9-1976), which is the only other place its answers are written.
+// (MYK9-1976), and the club account gate (below): the other places its answers are written.
 const source = [
   '../../../supabase/functions/stripe-payment-link/index.ts',
   '../../../supabase/functions/_shared/withdrawalPolicyDisclosureText.ts',
+  // MYK9-2193: the club account refusals live in the gate both card functions share.
+  '../../../supabase/functions/_shared/clubPayoutsGate.ts',
 ]
   .map(path => readFileSync(resolve(__dirname, path), 'utf8'))
   .join('\n');

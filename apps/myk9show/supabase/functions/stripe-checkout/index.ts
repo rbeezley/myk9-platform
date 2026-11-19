@@ -21,6 +21,7 @@ import {
   type CheckoutSessionResolution,
 } from '../_shared/priorCheckoutSession.ts';
 import { showOnlineEntryRefusal } from '../_shared/showOnlineEntryGate.ts';
+import { clubPayoutsRefusal, type ClubAccountLookup } from '../_shared/clubPayoutsGate.ts';
 import {
   calendarDateInTimeZone,
   showTimeZoneFromTrials,
@@ -655,20 +656,27 @@ async function checkoutUnderLease(
     return corsResponse(corsHeaders, { error: 'Online entry has closed for this show.' }, 403);
   }
   {
-    const connectPayoutsEnabled = showFees.club_id
+    // MYK9-2193: a failed read answers "try again", never the payouts-off 403.
+    const clubAccountLookup: ClubAccountLookup = showFees.club_id
       ? await supabase
           .from('club_stripe_accounts')
           .select('payouts_enabled')
           .eq('club_id', showFees.club_id)
           .eq('livemode', stripeLivemode)
           .maybeSingle()
-          .then(({ data }) => data?.payouts_enabled === true)
-      : false;
-    if (!connectPayoutsEnabled) {
+      : { data: null, error: null };
+    const clubAccountRefusal = clubPayoutsRefusal(clubAccountLookup);
+    if (clubAccountRefusal) {
+      if (clubAccountLookup.error) {
+        console.error(
+          `Club payment account read failed for cart ${cart_id}:`,
+          clubAccountLookup.error
+        );
+      }
       return corsResponse(
         corsHeaders,
-        { error: "This club's payment account is not set up to receive online entry fees." },
-        403
+        { error: clubAccountRefusal.error },
+        clubAccountRefusal.status
       );
     }
   }

@@ -302,7 +302,7 @@ async function handleEvent(event: Stripe.Event) {
       break;
 
     case 'account.updated':
-      await handleAccountUpdated(event.data.object as Stripe.Account);
+      await handleAccountUpdated(event.data.object as Stripe.Account, event.id);
       break;
 
     case 'account.application.deauthorized':
@@ -888,15 +888,16 @@ async function alertIfShowRefundEntriesUnstamped(charge: Stripe.Charge, showId: 
 /**
  * Mirror a connected account's onboarding/payout flags onto club_stripe_accounts.
  */
-async function handleAccountUpdated(account: Stripe.Account) {
+async function handleAccountUpdated(account: Stripe.Account, eventId: string) {
   const patch = accountToRowPatch(account);
-  // MYK9-1986: claims the true -> false transition before the patch below, so the club is emailed once.
+  // MYK9-1986/2191: claims the true -> false transition before the patch below: one club email, one operator alert.
   await notifyPayoutsTurnedOff(
     createPayoutsDisabledDeps(
       supabase,
       account.id,
       createResendSender(resendApiKey, FROM_EMAIL),
-      Deno.env.get('SITE_URL')
+      Deno.env.get('SITE_URL'),
+      { alert: alertAdmin, eventId, livemode: stripeLivemode }
     ),
     patch
   );

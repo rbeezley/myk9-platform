@@ -33,7 +33,6 @@ export default function ClubInviteAcceptPage() {
     const key = `${token}:${attempt}`;
     if (startedFor.current === key) return;
     startedFor.current = key;
-    setState({ status: 'working' });
 
     acceptClubAdminInvite(token)
       .then(async result => {
@@ -101,7 +100,13 @@ export default function ClubInviteAcceptPage() {
             </Button>
           )}
           {state.status === 'failed' && (
-            <Button className="min-h-11" onClick={() => setAttempt(n => n + 1)}>
+            <Button
+              className="min-h-11"
+              onClick={() => {
+                setState({ status: 'working' });
+                setAttempt(n => n + 1);
+              }}
+            >
               Try again
             </Button>
           )}

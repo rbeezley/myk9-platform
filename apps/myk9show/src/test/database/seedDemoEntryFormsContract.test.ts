@@ -13,6 +13,7 @@ const seed = readFileSync(join(repoRoot, 'supabase/seed-demo.sql'), 'utf8');
 
 const EXHIBITOR_FORM = 'dededede-0000-0000-0000-000000000070';
 const SECRETARY_FORM = 'dededede-0000-0000-0000-000000000071';
+const ORDER = 'dededede-0000-0000-0000-000000000072';
 
 const block = seed.slice(
   seed.indexOf('-- 9b. ENTRY FORMS FOR EVERY OTHER SEEDED ENTRY'),
@@ -44,11 +45,33 @@ describe('seed-demo entry forms (MYK9-2190)', () => {
     expect(last(idsLinkedTo(SECRETARY_FORM))).toEqual(['58', '69']);
   });
 
-  it('records the paid entries money on the exhibitor form so it owes only the pending ones', () => {
-    expect(block).toMatch(
-      new RegExp(
-        `UPDATE public\\.enrollments\\s+SET paid_amount = 180\\s+WHERE id = '${EXHIBITOR_FORM}'`
-      )
+  it('covers the six paid exhibitor entries with one succeeded order, never desk money', () => {
+    // $90 due (three pending entries) and nothing desk-refundable: the $180 is card coverage
+    // (entry_ids of a succeeded order), so paid_amount must stay unwritten.
+    const insert = block.slice(block.indexOf('INSERT INTO public.stripe_orders'));
+    expect(insert).toContain(`'${ORDER}'`);
+    expect(insert).toContain("'succeeded', 18000");
+    expect(insert).toContain(`'${EXHIBITOR_FORM}'`);
+    const listed = [
+      ...insert
+        .slice(insert.indexOf('ARRAY['), insert.indexOf(']::uuid[]'))
+        .matchAll(/000000000(\d{3})'/g),
+    ]
+      .map(m => m[1])
+      .sort();
+    expect(listed).toEqual(['051', '052', '055', '056', '067', '068']);
+    expect(block.replace(/--[^\n]*/g, '')).not.toMatch(/paid_amount/);
+    // customer_id stays out so the checkout sync leaves the form and entries alone.
+    expect(insert).not.toContain('customer_id');
+  });
+
+  it('detaches the order before the paid-stray guard and never deletes it', () => {
+    const detach = seed.indexOf(`WHERE id = '${ORDER}';`);
+    const guard = seed.indexOf('SELECT public.seed_demo_assert_no_paid_strays();');
+    expect(detach).toBeGreaterThan(-1);
+    expect(detach).toBeLessThan(guard);
+    expect(seed.slice(seed.lastIndexOf('UPDATE public.stripe_orders', detach), detach)).toContain(
+      'SET show_id = NULL, enrollment_id = NULL'
     );
   });
 

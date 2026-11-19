@@ -518,6 +518,14 @@ WHERE id >= 'dededede-0000-0000-0731-000000000000'::uuid
 -- the source-text test can still see stays there: this call's PLACEMENT ahead
 -- of every parent delete, and the drift check that the function names every
 -- show and dog id-space this section deletes.
+-- MYK9-2190: the seed's own succeeded Stripe order (id ...072, section 9b) is the card money
+-- of the six paid Heartland entries on form ...070. Its show_id / enrollment_id are RESTRICT
+-- FKs and order_stray below refuses any order scoped to a deleted show or to ...070, so the
+-- order is DETACHED here (scope nulled, never deleted: the seed must never DELETE from
+-- stripe_orders) and section 9b upserts it back onto the new show and form. Only this one id.
+UPDATE public.stripe_orders
+SET show_id = NULL, enrollment_id = NULL
+WHERE id = 'dededede-0000-0000-0000-000000000072';
 SELECT public.seed_demo_assert_no_paid_strays();
 
 -- MYK9-1281: retire the show-day fixture SHOWS the reseed has outgrown. Section
@@ -672,6 +680,10 @@ BEGIN
   SELECT count(*) INTO v_orphans
   FROM public.stripe_orders
   WHERE show_id IS NULL AND enrollment_id IS NULL;
+  -- MYK9-2190: not the seed's own order, which section 0 detaches for the guard and 9b re-scopes.
+  v_orphans := v_orphans - (SELECT count(*) FROM public.stripe_orders
+                            WHERE id = 'dededede-0000-0000-0000-000000000072'
+                              AND show_id IS NULL AND enrollment_id IS NULL);
   IF v_orphans > 0 THEN
     RAISE WARNING 'seed-demo: % stripe_orders row(s) already have BOTH show_id and enrollment_id nulled by an earlier reseed and can no longer be joined to what they paid for (MYK9-527). They are left in place deliberately — they hold the payment intent, checkout session and fee split a refund or reconciliation still needs. Prune only as a reviewed operator step.', v_orphans;
   END IF;
@@ -1981,15 +1993,41 @@ WHERE id IN (
   'dededede-0000-0000-0000-000000000058',
   'dededede-0000-0000-0000-000000000069'
 );
--- The six paid entries on ...070 are paid by the demo order (6b), but the form derives its
--- total from its entries and counts only desk money (paid_amount) and succeeded Stripe orders
--- as received; the seed has neither, so the form would owe their $180 on top of the $90 the
--- three pending entries owe. Record that money on the form the way submit_show_entries records
--- a secretary_paid payment: on paid_amount, no ledger row (this is not box money), so the form
--- owes exactly the $90 of the pending entries.
-UPDATE public.enrollments
-SET paid_amount = 180
-WHERE id = 'dededede-0000-0000-0000-000000000070';
+-- The six paid entries on ...070 (051, 052, 055, 056, 067, 068) are card-paid in the demo
+-- story, so their $180 is CARD COVERAGE, not desk money: one succeeded Stripe order lists
+-- them, exactly as a real succeeded order does (private.enrollment_card_covered_cents counts
+-- entry_ids of succeeded orders). paid_amount stays 0, so the desk-refund limit is $0 and the
+-- form owes only the $90 of the three pending entries. customer_id stays NULL so the checkout
+-- sync trigger leaves the form and entries alone (the same shape supabase/tests/
+-- myk9_1634_enrollment_total_derived_test.sql uses). The upsert re-scopes the order section 0
+-- detached; on a first run it inserts. Never deleted by the seed.
+INSERT INTO public.stripe_orders (
+  id, show_id, enrollment_id, status, amount_cents, entry_ids, stripe_payment_intent_id, paid_at
+)
+VALUES (
+  'dededede-0000-0000-0000-000000000072',
+  'dededede-0000-0000-0000-000000000010',
+  'dededede-0000-0000-0000-000000000070',
+  'succeeded', 18000,
+  ARRAY[
+    'dededede-0000-0000-0000-000000000051', 'dededede-0000-0000-0000-000000000052',
+    'dededede-0000-0000-0000-000000000055', 'dededede-0000-0000-0000-000000000056',
+    'dededede-0000-0000-0000-000000000067', 'dededede-0000-0000-0000-000000000068'
+  ]::uuid[],
+  'pi_seeddemo_multidog_order',
+  ((CURRENT_DATE - 14)::timestamp AT TIME ZONE 'UTC')
+)
+ON CONFLICT (id) DO UPDATE
+SET show_id = EXCLUDED.show_id,
+    enrollment_id = EXCLUDED.enrollment_id,
+    status = EXCLUDED.status,
+    amount_cents = EXCLUDED.amount_cents,
+    entry_ids = EXCLUDED.entry_ids,
+    stripe_payment_intent_id = EXCLUDED.stripe_payment_intent_id,
+    paid_at = EXCLUDED.paid_at;
+-- On a reseed the order already lists these ids (section 0 only detached it), so the entries
+-- are card-paid from their INSERT and the links above count it; on a first run its INSERT
+-- refreshes the entries and the form (trg_stripe_orders_refresh_*).
 RESET ROLE;
 
 -- ---------------------------------------------------------------------------

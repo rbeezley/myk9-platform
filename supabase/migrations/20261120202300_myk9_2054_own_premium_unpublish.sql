@@ -8,7 +8,10 @@
 --      new column `shows.own_premium_link`, read straight off the show row.
 --   2. "Unpublish": takes down the PDF (generated or uploaded), the club's link and the
 --      public announcement (the experience snapshot). Touches no entry.
---   3. The "Public landing page" switch goes: `shows.uses_landing_page` is dropped.
+--   3. The "Public landing page" switch goes: nothing reads or writes `shows.uses_landing_page`
+--      any more. The column itself STAYS for one release cycle, so a queued write from a tab or
+--      device still running the previous build (which sends it) does not fail; dropping it is a
+--      follow-up.
 --
 -- READERS OF uses_landing_page, grepped before dropping: supabase/ holds only its own ADD
 -- COLUMN in 20261104014300_myk9_1685_show_uses_switches.sql. The only objects typed on the
@@ -310,7 +313,8 @@ COMMENT ON FUNCTION public.unpublish_premium(uuid) IS
 -- The "Public landing page" switch is gone (owner decision 6): a show's public face is
 -- published or not.
 -- ---------------------------------------------------------------------------
-ALTER TABLE public.shows DROP COLUMN IF EXISTS uses_landing_page;
+COMMENT ON COLUMN public.shows.uses_landing_page IS
+  'Unused since MYK9-2054. Kept so queued writes from older builds still apply; drop in a later release.';
 
 COMMIT;
 

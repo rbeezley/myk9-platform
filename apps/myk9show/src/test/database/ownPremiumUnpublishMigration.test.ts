@@ -17,8 +17,9 @@ const sql = readFileSync(
 const flat = sql.replace(/\s+/g, ' ');
 
 describe('20261120202300_myk9_2054_own_premium_unpublish.sql', () => {
-  it('drops uses_landing_page', () => {
-    expect(flat).toContain('ALTER TABLE public.shows DROP COLUMN IF EXISTS uses_landing_page;');
+  it('retires uses_landing_page without dropping it (older builds may still send it)', () => {
+    expect(flat).not.toContain('DROP COLUMN IF EXISTS uses_landing_page');
+    expect(flat).toContain('COMMENT ON COLUMN public.shows.uses_landing_page');
   });
 
   it('adds the own premium link with a web-address check and no column-level grant (table-level SELECT covers it)', () => {

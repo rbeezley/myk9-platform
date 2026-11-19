@@ -1,4 +1,4 @@
--- MYK9-2054: a club's own premium (uploaded PDF or link), unpublish, and the dropped
+-- MYK9-2054: a club's own premium (uploaded PDF or link), unpublish, and the retired
 -- shows.uses_landing_page column. Run with psql -X -v ON_ERROR_STOP=1 after migrations;
 -- every fixture rolls back.
 
@@ -60,11 +60,12 @@ INSERT INTO storage.objects (bucket_id, name, owner_id, metadata) VALUES
 -- and neither RPC touches entries ("changes no entry").
 DO $$
 BEGIN
-  IF EXISTS (
+  -- Kept for queued writes from older builds (unused since MYK9-2054; dropped in a later release).
+  IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
      WHERE table_schema = 'public' AND table_name = 'shows' AND column_name = 'uses_landing_page'
   ) THEN
-    RAISE EXCEPTION 'FAIL shows.uses_landing_page still exists';
+    RAISE EXCEPTION 'FAIL shows.uses_landing_page must stay until older builds are gone';
   END IF;
   IF NOT has_column_privilege('anon', 'public.shows', 'own_premium_link', 'SELECT') THEN
     RAISE EXCEPTION 'FAIL anon cannot read shows.own_premium_link';

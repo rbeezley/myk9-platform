@@ -49,7 +49,7 @@ export const REGISTRY_WITHDRAWAL_REASON_LABELS: Readonly<Record<string, readonly
  * documentationNote; the app test fails if they drift.
  */
 export const REGISTRY_WITHDRAWAL_DOCUMENTATION_NOTES: Readonly<Record<string, string>> = {
-  AKC: 'An in-season withdrawal must be made at least 30 minutes before the first class of the day. The club may ask for documentation that the female is in season.',
+  AKC: 'At AKC shows, an in-season withdrawal must be made at least 30 minutes before the first class of the day. The club may ask for documentation that the female is in season.',
   UKC: 'For an in-season withdrawal, UKC requires a veterinary certificate showing the female came into season after the entry deadline.',
 };
 

@@ -234,6 +234,36 @@ describe('ScheduledLifecycleEmailsPanel', () => {
     expect(screen.getByText('1 waiting · 2 sent')).toBeInTheDocument();
   });
 
+  it('shows the two pulling-out emails with their counts and no switch to hold them back (MYK9-2001)', async () => {
+    const current = await mockFetchSummary({ supabase: {} as never, showId: 'show-1' });
+    const automatic = {
+      isEnabled: true,
+      readyCount: 1,
+      sentCount: 3,
+      failedCount: 0,
+      skippedCount: 0,
+      dismissedCount: 0,
+      warningCount: 0,
+    };
+    mockFetchSummary.mockResolvedValue({
+      ...current,
+      steps: [
+        ...current.steps,
+        { stepType: 'pulled_out', ...automatic },
+        { stepType: 'refund_outcome', ...automatic },
+      ],
+    });
+    render(<ScheduledLifecycleEmailsPanel showId="show-1" />);
+
+    expect(await screen.findByText('Pulled out')).toBeInTheDocument();
+    expect(screen.getByText('Refund decided')).toBeInTheDocument();
+    expect(screen.queryByRole('switch', { name: /pulled out enabled/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('switch', { name: /refund decided enabled/i })
+    ).not.toBeInTheDocument();
+    expect(screen.getAllByText('1 waiting · 3 sent')).toHaveLength(2);
+  });
+
   it('keeps producer-backed review available for accepted entries', async () => {
     const { user } = render(<ScheduledLifecycleEmailsPanel showId="show-1" />);
 

@@ -13,8 +13,10 @@
 --   revoke_club_admin(club, person)  remove every admin assignment the person has at the club,
 --                                    never the last admin who can sign in
 --
--- "Admin" means what is_club_admin / is_show_club_admin count (20261113222900): any active,
--- unexpired club_admin row for the club, show-pinned or not. Every function here uses that rule.
+-- "Admin" on this page means what the client treats as a club admin (hasClubAdminScope: a CLUB
+-- scope only): an active, unexpired, club-wide club_admin row. A show-pinned row does not make
+-- someone a club admin here (the server's is_club_admin is show-blind, but only a club-wide row
+-- opens Payments in the app). Removing a person deactivates EVERY club_admin row they hold.
 -- Authorization: a site admin or an admin of THAT club (42501 otherwise). Both writers also need
 -- the step-up re-authentication every role change needs (MYK9-1208).
 
@@ -35,11 +37,13 @@ AS $$
       AND p.deleted_at IS NULL
       AND p.status IS DISTINCT FROM 'suspended'
       AND u.last_sign_in_at IS NOT NULL
+      AND (u.banned_until IS NULL OR u.banned_until < now())
+      AND u.deleted_at IS NULL
   );
 $$;
 
 COMMENT ON FUNCTION public.person_can_sign_in(uuid) IS
-  'True when the person has an auth user that has signed in before, is not deleted and is not suspended. Internal helper for the club-admin functions.';
+  'True when the person has an auth user that has signed in before, is not banned or deleted, and is not suspended. Internal helper for the club-admin functions.';
 
 REVOKE ALL ON FUNCTION public.person_can_sign_in(uuid) FROM PUBLIC, anon, authenticated;
 
@@ -70,6 +74,7 @@ BEGIN
   JOIN public.people p ON p.id = ur.user_id
   WHERE ur.club_id = p_club_id
     AND r.name = 'club_admin'
+    AND ur.show_id IS NULL
     AND ur.is_active = true
     AND (ur.expires_at IS NULL OR ur.expires_at > now())
     AND p.deleted_at IS NULL
@@ -78,7 +83,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.get_club_admins(uuid) IS
-  'The club''s admins, one row per person (show-pinned assignments count, as in is_club_admin). Caller must be a site admin or an admin of this club.';
+  'The club''s admins, one row per person with an active, unexpired club-wide admin row (a show-pinned row alone does not count). Caller must be a site admin or an admin of this club.';
 
 REVOKE ALL ON FUNCTION public.get_club_admins(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_club_admins(uuid) TO authenticated;
@@ -105,6 +110,9 @@ BEGIN
   -- MYK9-1208: a role change needs a password confirmed in the last five minutes.
   PERFORM public.require_recent_reauth();
 
+  -- Same per-club lock revoke_club_admin takes, so a grant and a removal cannot interleave.
+  PERFORM pg_advisory_xact_lock(hashtextextended('club_admin_revoke:' || p_club_id::text, 0));
+
   IF NOT EXISTS (SELECT 1 FROM public.clubs WHERE id = p_club_id) THEN
     RAISE EXCEPTION 'Club % not found', p_club_id USING ERRCODE = 'P0002';
   END IF;
@@ -118,15 +126,16 @@ BEGIN
     RAISE EXCEPTION 'club_admin role is missing' USING ERRCODE = 'P0002';
   END IF;
 
-  -- Already an admin by the rule is_club_admin uses (a show-pinned row counts): nothing to add.
+  -- Already a club admin (an active, unexpired club-wide row): nothing to add. A show-pinned row
+  -- alone does not count, so one is left in place and a club-wide row is added beside it.
   SELECT ur.id INTO v_assignment_id
   FROM public.user_roles ur
   WHERE ur.user_id = p_person_id
     AND ur.role_id = v_role_id
     AND ur.club_id = p_club_id
+    AND ur.show_id IS NULL
     AND ur.is_active = true
     AND (ur.expires_at IS NULL OR ur.expires_at > now())
-  ORDER BY (ur.show_id IS NULL) DESC
   LIMIT 1;
 
   IF v_assignment_id IS NOT NULL THEN
@@ -173,7 +182,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.grant_club_admin(uuid, uuid) IS
-  'Makes a person who can sign in an admin of a club. A person who already counts as an admin (including a show-pinned grant) is left as is. Caller must be a site admin or an admin of this club; needs a recent password confirmation.';
+  'Makes a person who can sign in an admin of a club by giving them an active club-wide row. A person who already has one is left as is; a show-pinned row alone does not count. Caller must be a site admin or an admin of this club; needs a recent password confirmation.';
 
 REVOKE ALL ON FUNCTION public.grant_club_admin(uuid, uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.grant_club_admin(uuid, uuid) TO authenticated;
@@ -210,6 +219,7 @@ BEGIN
   FROM public.people p
   WHERE lower(p.email) = v_email
     AND p.deleted_at IS NULL
+  ORDER BY (p.auth_user_id IS NOT NULL) DESC, p.created_at
   LIMIT 1;
 
   IF v_person_id IS NULL OR NOT public.person_can_sign_in(v_person_id) THEN
@@ -262,8 +272,8 @@ BEGIN
   PERFORM pg_advisory_xact_lock(hashtextextended('club_admin_revoke:' || p_club_id::text, 0));
 
   -- Every active assignment the person holds at this club, club-wide or show-pinned: removing
-  -- only one would leave is_club_admin true.
-  SELECT array_agg(ur.id), COALESCE(bool_or(ur.expires_at IS NULL OR ur.expires_at > now()), false)
+  -- only one would leave the server's is_club_admin true.
+  SELECT array_agg(ur.id), COALESCE(bool_or(ur.show_id IS NULL AND (ur.expires_at IS NULL OR ur.expires_at > now())), false)
     INTO v_assignment_ids, v_is_effective
   FROM public.user_roles ur
   WHERE ur.user_id = p_person_id
@@ -282,6 +292,7 @@ BEGIN
     FROM public.user_roles ur
     WHERE ur.club_id = p_club_id
       AND ur.role_id = v_role_id
+      AND ur.show_id IS NULL
       AND ur.is_active = true
       AND (ur.expires_at IS NULL OR ur.expires_at > now())
       AND ur.user_id <> p_person_id

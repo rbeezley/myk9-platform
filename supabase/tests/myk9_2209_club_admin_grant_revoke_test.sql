@@ -32,16 +32,22 @@ VALUES
   ('00000000-0000-0000-0000-000000220916', 'Never', 'SignedIn', 'never.signed.in@example.test'),
   ('00000000-0000-0000-0000-000000220917', 'Un', 'Claimed', 'unclaimed@example.test'),
   ('00000000-0000-0000-0000-000000220918', 'Suspended', 'CoAdmin', 'suspended@example.test'),
-  ('00000000-0000-0000-0000-000000220919', 'Show', 'Pinned', 'show.pinned@example.test');
+  ('00000000-0000-0000-0000-000000220919', 'Show', 'Pinned', 'show.pinned@example.test'),
+  ('00000000-0000-0000-0000-000000220920', 'Banned', 'CoAdmin', 'banned@example.test'),
+  ('00000000-0000-0000-0000-000000220921', 'Expired', 'CoAdmin', 'expired@example.test'),
+  ('00000000-0000-0000-0000-000000220922', 'Inactive', 'Admin', 'inactive@example.test'),
+  ('00000000-0000-0000-0000-000000220923', 'Deleted', 'Admin', 'deleted@example.test');
+
+UPDATE public.people SET deleted_at = now() WHERE id = '00000000-0000-0000-0000-000000220923';
 
 INSERT INTO auth.users (
   id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, last_sign_in_at,
   created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
-  is_super_admin, is_sso_user, is_anonymous
+  is_super_admin, is_sso_user, is_anonymous, banned_until
 )
 SELECT v.id::uuid, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
        v.email, '', now(), CASE WHEN v.signed_in THEN now() END, now(), now(), '{}', '{}',
-       false, false, false
+       false, false, false, CASE WHEN v.email = 'banned@example.test' THEN now() + interval '1 day' END
 FROM (VALUES
   ('00000000-0000-0000-0000-000000220811', 'grant.admin@example.test', true),
   ('00000000-0000-0000-0000-000000220812', 'existing.account@example.test', true),
@@ -50,25 +56,34 @@ FROM (VALUES
   ('00000000-0000-0000-0000-000000220815', 'site.admin@example.test', true),
   ('00000000-0000-0000-0000-000000220816', 'never.signed.in@example.test', false),
   ('00000000-0000-0000-0000-000000220818', 'suspended@example.test', true),
-  ('00000000-0000-0000-0000-000000220819', 'show.pinned@example.test', true)
+  ('00000000-0000-0000-0000-000000220819', 'show.pinned@example.test', true),
+  ('00000000-0000-0000-0000-000000220820', 'banned@example.test', true),
+  ('00000000-0000-0000-0000-000000220821', 'expired@example.test', true)
 ) AS v(id, email, signed_in);
 
 UPDATE public.people SET status = 'suspended' WHERE id = '00000000-0000-0000-0000-000000220918';
 
--- Club A: 911 (club-wide), 918 (club-wide, suspended), 919 (pinned to a show). Club B: 914.
-INSERT INTO public.user_roles (user_id, role_id, club_id, show_id, is_active, auth_user_id)
-SELECT v.person::uuid, r.id, v.club::uuid, v.show::uuid, true, v.auth::uuid
+-- Club A: 911 (club-wide), 918 (club-wide, suspended), 920 (club-wide, banned), 919 (pinned to a
+-- show only), 921 (club-wide but expired), 922 (inactive), 923 (deleted person). Club B: 914.
+INSERT INTO public.user_roles (user_id, role_id, club_id, show_id, is_active, expires_at, auth_user_id)
+SELECT v.person::uuid, r.id, v.club::uuid, v.show::uuid, v.active, v.expires::timestamptz, v.auth::uuid
 FROM public.roles r,
   (VALUES
-    ('00000000-0000-0000-0000-000000220911', '00000000-0000-0000-0000-000000220901', NULL,
+    ('00000000-0000-0000-0000-000000220911', '00000000-0000-0000-0000-000000220901', NULL, true, NULL,
      '00000000-0000-0000-0000-000000220811'),
-    ('00000000-0000-0000-0000-000000220918', '00000000-0000-0000-0000-000000220901', NULL,
+    ('00000000-0000-0000-0000-000000220918', '00000000-0000-0000-0000-000000220901', NULL, true, NULL,
      '00000000-0000-0000-0000-000000220818'),
+    ('00000000-0000-0000-0000-000000220920', '00000000-0000-0000-0000-000000220901', NULL, true, NULL,
+     '00000000-0000-0000-0000-000000220820'),
     ('00000000-0000-0000-0000-000000220919', '00000000-0000-0000-0000-000000220901',
-     '00000000-0000-0000-0000-000000220951', '00000000-0000-0000-0000-000000220819'),
-    ('00000000-0000-0000-0000-000000220914', '00000000-0000-0000-0000-000000220902', NULL,
+     '00000000-0000-0000-0000-000000220951', true, NULL, '00000000-0000-0000-0000-000000220819'),
+    ('00000000-0000-0000-0000-000000220921', '00000000-0000-0000-0000-000000220901', NULL, true,
+     (now() - interval '1 hour')::text, '00000000-0000-0000-0000-000000220821'),
+    ('00000000-0000-0000-0000-000000220922', '00000000-0000-0000-0000-000000220901', NULL, false, NULL, NULL),
+    ('00000000-0000-0000-0000-000000220923', '00000000-0000-0000-0000-000000220901', NULL, true, NULL, NULL),
+    ('00000000-0000-0000-0000-000000220914', '00000000-0000-0000-0000-000000220902', NULL, true, NULL,
      '00000000-0000-0000-0000-000000220814')
-  ) AS v(person, club, show, auth)
+  ) AS v(person, club, show, active, expires, auth)
 WHERE r.name = 'club_admin';
 
 INSERT INTO public.user_roles (user_id, role_id, is_active, auth_user_id)
@@ -146,6 +161,42 @@ BEGIN
     END;
   END LOOP;
   RAISE NOTICE 'PASS a non-admin and another club''s admin are refused';
+END;
+$$;
+
+-- get_club_admins: name and email, exactly the club-wide effective admins of THIS club (not another
+-- club's, a show-pinned-only person, an inactive or expired row, or a deleted person), and a site
+-- admin who administers nothing can list.
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000220811', true);
+DO $$
+DECLARE
+  ids uuid[];
+  me record;
+BEGIN
+  SELECT array_agg(a.person_id ORDER BY a.person_id) INTO ids
+  FROM public.get_club_admins('00000000-0000-0000-0000-000000220901') a;
+  IF ids IS DISTINCT FROM ARRAY[
+    '00000000-0000-0000-0000-000000220911',
+    '00000000-0000-0000-0000-000000220918',
+    '00000000-0000-0000-0000-000000220920'
+  ]::uuid[] THEN
+    RAISE EXCEPTION 'FAIL get_club_admins listed the wrong people: %', ids;
+  END IF;
+  SELECT * INTO me FROM public.get_club_admins('00000000-0000-0000-0000-000000220901') a
+  WHERE a.person_id = '00000000-0000-0000-0000-000000220911';
+  IF me.person_name IS DISTINCT FROM 'Grant Admin'
+     OR me.person_email IS DISTINCT FROM 'grant.admin@example.test' THEN
+    RAISE EXCEPTION 'FAIL get_club_admins returned the wrong name or email: %', me;
+  END IF;
+END;
+$$;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000220815', true);
+DO $$
+BEGIN
+  IF (SELECT count(*) FROM public.get_club_admins('00000000-0000-0000-0000-000000220901')) <> 3 THEN
+    RAISE EXCEPTION 'FAIL a site admin could not list the club admins';
+  END IF;
+  RAISE NOTICE 'PASS get_club_admins lists the right people with name and email; a site admin can list';
 END;
 $$;
 
@@ -248,9 +299,18 @@ END;
 $$;
 SET LOCAL ROLE authenticated;
 
--- A show-pinned admin already counts: granting adds nothing, the list shows them once even with a
--- club-wide row too, and removal deactivates every row so is_club_admin turns false.
+-- A show-pinned-only person is not a club admin on this page: not listed, and granting adds a
+-- club-wide row beside the pinned one. Removal then deactivates every row, so the server's
+-- is_club_admin turns false.
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000220811', true);
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.get_club_admins('00000000-0000-0000-0000-000000220901') a
+             WHERE a.person_id = '00000000-0000-0000-0000-000000220919') THEN
+    RAISE EXCEPTION 'FAIL a show-pinned-only person was listed as a club admin';
+  END IF;
+END;
+$$;
 SELECT public.grant_club_admin(
   '00000000-0000-0000-0000-000000220901', '00000000-0000-0000-0000-000000220919');
 
@@ -259,36 +319,24 @@ DO $$
 BEGIN
   IF (SELECT count(*) FROM public.user_roles ur JOIN public.roles r ON r.id = ur.role_id
       WHERE r.name = 'club_admin' AND ur.is_active
+        AND ur.user_id = '00000000-0000-0000-0000-000000220919') <> 2
+     OR (SELECT count(*) FROM public.user_roles ur JOIN public.roles r ON r.id = ur.role_id
+      WHERE r.name = 'club_admin' AND ur.is_active AND ur.show_id IS NULL
         AND ur.user_id = '00000000-0000-0000-0000-000000220919') <> 1 THEN
-    RAISE EXCEPTION 'FAIL granting an existing show-pinned admin added a row';
+    RAISE EXCEPTION 'FAIL granting a show-pinned-only person did not add exactly one club-wide row';
   END IF;
 END;
 $$;
-INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
-SELECT '00000000-0000-0000-0000-000000220919', r.id, '00000000-0000-0000-0000-000000220901', true,
-       '00000000-0000-0000-0000-000000220819'
-FROM public.roles r WHERE r.name = 'club_admin';
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000220811', true);
-
 DO $$
 BEGIN
   IF (SELECT count(*) FROM public.get_club_admins('00000000-0000-0000-0000-000000220901') a
       WHERE a.person_id = '00000000-0000-0000-0000-000000220919') <> 1 THEN
-    RAISE EXCEPTION 'FAIL the show-pinned and club-wide admin was not listed exactly once';
+    RAISE EXCEPTION 'FAIL the person was not listed exactly once after the grant';
   END IF;
 END;
 $$;
-
-SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000220819', true);
-DO $$
-BEGIN
-  IF NOT public.is_club_admin('00000000-0000-0000-0000-000000220901') THEN
-    RAISE EXCEPTION 'FAIL the show-pinned admin was not a club admin before removal';
-  END IF;
-END;
-$$;
-SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000220811', true);
 SELECT public.revoke_club_admin(
   '00000000-0000-0000-0000-000000220901', '00000000-0000-0000-0000-000000220919');
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000220819', true);
@@ -297,9 +345,31 @@ BEGIN
   IF public.is_club_admin('00000000-0000-0000-0000-000000220901') THEN
     RAISE EXCEPTION 'FAIL is_club_admin stayed true after removing every assignment';
   END IF;
-  RAISE NOTICE 'PASS a show-pinned admin is listed once and removal deactivates every row';
+  RAISE NOTICE 'PASS a show-pinned-only person is not listed; grant adds a club-wide row; removal clears every row';
 END;
 $$;
+
+-- Re-granting an expired co-admin resets the expiry (they were not counted while expired).
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000220811', true);
+SELECT public.grant_club_admin(
+  '00000000-0000-0000-0000-000000220901', '00000000-0000-0000-0000-000000220921');
+RESET ROLE;
+DO $$
+BEGIN
+  IF (SELECT ur.expires_at FROM public.user_roles ur JOIN public.roles r ON r.id = ur.role_id
+      WHERE r.name = 'club_admin' AND ur.user_id = '00000000-0000-0000-0000-000000220921'
+        AND ur.club_id = '00000000-0000-0000-0000-000000220901') IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL re-granting an expired admin did not reset expires_at';
+  END IF;
+  -- Lapse it again so it stays out of the last-admin count below.
+  UPDATE public.user_roles ur SET expires_at = now() - interval '1 hour'
+  FROM public.roles r
+  WHERE r.id = ur.role_id AND r.name = 'club_admin'
+    AND ur.user_id = '00000000-0000-0000-0000-000000220921';
+  RAISE NOTICE 'PASS re-granting an expired admin resets expires_at';
+END;
+$$;
+SET LOCAL ROLE authenticated;
 
 -- Revoke deactivates and stamps; is_club_admin turns false; re-granting reactivates the same row.
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000220811', true);
@@ -370,6 +440,7 @@ BEGIN
       ('fresh amr', true, 5)
     ) AS t(label, should_pass, age_seconds)
   LOOP
+    PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000220811', true);
     PERFORM set_config('request.jwt.claims', jsonb_build_object(
       'sub', '00000000-0000-0000-0000-000000220811', 'role', 'authenticated',
       'amr', CASE WHEN v_case.age_seconds IS NULL THEN NULL ELSE jsonb_build_array(jsonb_build_object(
@@ -412,17 +483,49 @@ BEGIN
 END;
 $$;
 
--- Last admin. Club A now has 911 and 913 who can sign in, plus 918 who is suspended.
+-- Audit rows: one per real grant and per real revoke, none for a no-op.
+RESET ROLE;
+SELECT set_config('t.audit', (SELECT count(*) FROM public.permission_audit_log
+  WHERE action IN ('club_admin_granted', 'club_admin_revoked'))::text, true);
+SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000220811', true);
+SELECT public.grant_club_admin(
+  '00000000-0000-0000-0000-000000220901', '00000000-0000-0000-0000-000000220911'); -- no-op
 SELECT public.revoke_club_admin(
-  '00000000-0000-0000-0000-000000220901', '00000000-0000-0000-0000-000000220913');
+  '00000000-0000-0000-0000-000000220901', '00000000-0000-0000-0000-000000220913'); -- real (+1)
+SELECT public.revoke_club_admin(
+  '00000000-0000-0000-0000-000000220901', '00000000-0000-0000-0000-000000220913'); -- no-op
+SELECT public.grant_club_admin(
+  '00000000-0000-0000-0000-000000220901', '00000000-0000-0000-0000-000000220913'); -- real (+1)
+SELECT public.grant_club_admin(
+  '00000000-0000-0000-0000-000000220901', '00000000-0000-0000-0000-000000220913'); -- no-op
+SELECT public.revoke_club_admin(
+  '00000000-0000-0000-0000-000000220901', '00000000-0000-0000-0000-000000220913'); -- real (+1)
+RESET ROLE;
+DO $$
+DECLARE
+  v_now bigint;
+BEGIN
+  SELECT count(*) INTO v_now FROM public.permission_audit_log
+  WHERE action IN ('club_admin_granted', 'club_admin_revoked');
+  IF v_now - current_setting('t.audit')::bigint <> 3 THEN
+    RAISE EXCEPTION 'FAIL expected 3 audit rows (2 revokes, 1 grant), got %',
+      v_now - current_setting('t.audit')::bigint;
+  END IF;
+  RAISE NOTICE 'PASS audit rows exist for real grants and revokes and none for no-ops';
+END;
+$$;
+SET LOCAL ROLE authenticated;
 
+-- Last admin. Club A's other club-wide admins are 918 (suspended), 920 (banned) and 921 (expired):
+-- none can act, so 911 is the only admin who counts.
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000220811', true);
 DO $$
 BEGIN
   BEGIN
     PERFORM public.revoke_club_admin(
       '00000000-0000-0000-0000-000000220901', '00000000-0000-0000-0000-000000220911');
-    RAISE EXCEPTION 'FAIL the last admin who can sign in was removed (a suspended co-admin counted)';
+    RAISE EXCEPTION 'FAIL the last admin who can sign in was removed (a suspended, banned or expired co-admin counted)';
   EXCEPTION WHEN OTHERS THEN
     IF SQLERRM IS DISTINCT FROM 'A club needs at least one admin. Add another admin first.' THEN
       RAISE;
@@ -432,7 +535,7 @@ BEGIN
   IF NOT public.is_club_admin('00000000-0000-0000-0000-000000220901') THEN
     RAISE EXCEPTION 'FAIL the last admin lost access despite the refusal';
   END IF;
-  RAISE NOTICE 'PASS the last admin cannot be removed; a suspended co-admin does not count';
+  RAISE NOTICE 'PASS the last admin cannot be removed; suspended, banned and expired co-admins do not count';
 END;
 $$;
 

@@ -6,6 +6,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { onlineManager } from '@tanstack/react-query';
 import { render } from '@/test/utils/testUtils';
 import { ClubAdminsTab } from './ClubAdminsTab';
 
@@ -63,6 +64,20 @@ async function confirmAdd(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe('ClubAdminsTab', () => {
+  it('says it is offline instead of showing an empty list', async () => {
+    onlineManager.setOnline(false);
+    try {
+      render(<ClubAdminsTab clubId={CLUB} clubName="Heartland Club" />);
+
+      expect(
+        await screen.findByText('You are offline. Reconnect to see who has access.')
+      ).toBeInTheDocument();
+      expect(mocks.getClubAdmins).not.toHaveBeenCalled();
+    } finally {
+      onlineManager.setOnline(true);
+    }
+  });
+
   it('lists the club admins', async () => {
     render(<ClubAdminsTab clubId={CLUB} clubName="Heartland Club" />);
 
@@ -93,7 +108,7 @@ describe('ClubAdminsTab', () => {
     expect(screen.getByLabelText('Add an admin')).toHaveValue('');
   });
 
-  it('says plainly when nobody has a myK9 account with that email', async () => {
+  it('tells the admin to check the address when no account matches', async () => {
     mocks.addClubAdminByEmail.mockResolvedValue('no_account');
     const user = userEvent.setup();
     render(<ClubAdminsTab clubId={CLUB} clubName="Heartland Club" />);
@@ -105,7 +120,7 @@ describe('ClubAdminsTab', () => {
 
     await waitFor(() =>
       expect(mocks.error).toHaveBeenCalledWith(
-        "new@example.test doesn't have a myK9 account yet. Ask them to create one, then add them here."
+        "We couldn't add new@example.test. Check the address, and make sure they have a myK9 account they have signed in to, then try again."
       )
     );
     expect(mocks.success).not.toHaveBeenCalled();

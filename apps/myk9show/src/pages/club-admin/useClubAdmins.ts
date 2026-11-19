@@ -64,7 +64,7 @@ export function useClubAdmins(clubId: string) {
         notifications.success(`${email} is now an admin of this club.`);
       } else {
         notifications.error(
-          `${email} doesn't have a myK9 account yet. Ask them to create one, then add them here.`
+          `We couldn't add ${email}. Check the address, and make sure they have a myK9 account they have signed in to, then try again.`
         );
         return;
       }
@@ -110,7 +110,9 @@ export function useClubAdmins(clubId: string) {
 
   return {
     admins: adminsQuery.data ?? [],
-    isLoading: adminsQuery.isLoading,
+    // Paused with nothing cached: offline. Say so instead of showing an empty list.
+    isOffline: adminsQuery.fetchStatus === 'paused' && adminsQuery.data === undefined,
+    isLoading: adminsQuery.isLoading && adminsQuery.fetchStatus !== 'paused',
     isError: adminsQuery.isError,
     retry: () => void adminsQuery.refetch(),
     addAdmin: (email: string) => addMutation.mutateAsync(email),

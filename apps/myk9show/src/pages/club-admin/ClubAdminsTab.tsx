@@ -28,6 +28,7 @@ export const ClubAdminsTab: React.FC<ClubAdminsTabProps> = ({ clubId, clubName }
   const {
     admins,
     isLoading,
+    isOffline,
     isError,
     retry,
     addAdmin,
@@ -93,7 +94,11 @@ export const ClubAdminsTab: React.FC<ClubAdminsTabProps> = ({ clubId, clubName }
         </Button>
       </form>
 
-      {isLoading ? (
+      {isOffline ? (
+        <p role="status" className="text-sm text-muted-foreground">
+          You are offline. Reconnect to see who has access.
+        </p>
+      ) : isLoading ? (
         <p role="status" className="text-sm text-muted-foreground">
           Loading admins...
         </p>

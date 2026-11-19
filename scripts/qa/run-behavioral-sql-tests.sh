@@ -324,4 +324,15 @@ else
     bash "$REPO_ROOT/scripts/qa/hard-delete-show-concurrency.sh"
 fi
 
+# MYK9-2212: two-session proof of the authorization re-check after the per-club lock in
+# grant_club_admin / revoke_club_admin. Same gating as the harness above.
+if [ "$FILTERED" = "1" ]; then
+  echo "SKIP: club-admin re-check concurrency harness (named test files only)"
+elif [ "${MYK9_SKIP_HARD_DELETE_CONCURRENCY:-0}" = "1" ]; then
+  echo "SKIP: local club-admin re-check concurrency harness (source-contract test mode)"
+else
+  MYK9_BEHAVIORAL_SQL_DATABASE_URL="$DATABASE_URL" \
+    bash "$REPO_ROOT/scripts/qa/club-admin-recheck-concurrency.sh"
+fi
+
 echo "BEHAVIORAL SQL TESTS PASSED (${#TEST_FILES[@]} files)"

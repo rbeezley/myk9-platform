@@ -47,10 +47,16 @@ const NO_CLUBS: Club[] = [];
 export const PUBLIC_CLUB_DIRECTORY_QUERY_KEY = ['clubs', 'public-directory'] as const;
 
 export function useBrowseClubsData(): BrowseClubsData {
-  const { userWithRoles } = useAuthContext();
+  const { user, userWithRoles } = useAuthContext();
   const { isGuest, isSignedIn, authLoading, principalKey } = useDirectoryViewer();
   // Only a signed-in viewer reads the replica (see the INTENT below).
-  const replicaClubs = useClubStore(state => (isSignedIn ? state.clubs : NO_CLUBS));
+  // MYK9-2168: and only rows verified for THIS account. The store survives
+  // sign-out, so until the purge-and-sync for a changed principal has loaded,
+  // its rows may be another account's: show loading, never those rows.
+  const replicaMatchesViewer = useClubStore(
+    state => isSignedIn && user?.id !== undefined && state.clubsPrincipalMarker === user.id
+  );
+  const replicaClubs = useClubStore(state => (replicaMatchesViewer ? state.clubs : NO_CLUBS));
   const readiness = useClubStore(state => state.clubReadiness);
   const ensureClubsReady = useClubStore(state => state.ensureClubsReady);
   const shows = useShowStore(state => state.shows);
@@ -86,7 +92,8 @@ export function useBrowseClubsData(): BrowseClubsData {
     ? true
     : isGuest
       ? guestRead.kind === 'loading'
-      : readiness === 'loading' && replicaClubs.length === 0;
+      : (readiness === 'loading' || (!replicaMatchesViewer && readiness !== 'unavailable')) &&
+        replicaClubs.length === 0;
   const hasError = isGuest
     ? guestRead.kind === 'error'
     : isSignedIn && readiness === 'unavailable' && replicaClubs.length === 0;

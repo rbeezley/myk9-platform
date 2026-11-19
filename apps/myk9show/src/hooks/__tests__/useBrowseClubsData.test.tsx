@@ -21,6 +21,8 @@ function makeWrapper() {
 
 const state = vi.hoisted(() => ({
   clubs: [] as Club[],
+  // Whose view the store's rows were verified against (MYK9-2168).
+  clubsPrincipalMarker: 'user-1' as string | null,
   clubReadiness: 'loading' as 'loading' | 'fresh' | 'offline' | 'unavailable',
   ensureClubsReady: vi.fn(),
   shows: [],
@@ -47,6 +49,7 @@ vi.mock('@/store/clubStore', () => ({
   useClubStore: (selector: (value: Record<string, unknown>) => unknown) =>
     selector({
       clubReadiness: state.clubReadiness,
+      clubsPrincipalMarker: state.clubsPrincipalMarker,
       ensureClubsReady: state.ensureClubsReady,
       get clubs() {
         state.replicaReads += 1;
@@ -96,6 +99,7 @@ function signOut() {
 
 beforeEach(() => {
   state.clubs = [];
+  state.clubsPrincipalMarker = 'user-1';
   state.clubReadiness = 'loading';
   state.ensureClubsReady.mockReset();
   state.shows = [];
@@ -162,6 +166,58 @@ describe('useBrowseClubsData signed-in readiness states', () => {
     act(() => result.current.handleRetry());
 
     await waitFor(() => expect(state.ensureClubsReady).toHaveBeenCalledWith({ force: true }));
+  });
+
+  // MYK9-2168: the store outlives sign-out, so its rows can be a previous
+  // account's until the purge-and-sync for this account has loaded.
+  it('renders no foreign-principal rows before the marker matches the viewer', () => {
+    state.clubs = [club];
+    state.clubsPrincipalMarker = 'staff-account';
+    state.clubReadiness = 'fresh';
+
+    const { result } = renderHook(() => useBrowseClubsData(), { wrapper: makeWrapper() });
+
+    expect(result.current.clubs).toEqual([]);
+    expect(result.current.filteredClubs).toEqual([]);
+    expect(result.current.isLoading).toBe(true);
+  });
+
+  it('renders no rows before any principal has been verified (marker null)', () => {
+    state.clubs = [club];
+    state.clubsPrincipalMarker = null;
+
+    const { result } = renderHook(() => useBrowseClubsData(), { wrapper: makeWrapper() });
+
+    expect(result.current.clubs).toEqual([]);
+    expect(result.current.isLoading).toBe(true);
+  });
+
+  it('shows the rows once the marker matches the viewer', () => {
+    state.clubs = [club];
+    state.clubsPrincipalMarker = 'staff-account';
+    state.clubReadiness = 'fresh';
+    const { result, rerender } = renderHook(() => useBrowseClubsData(), {
+      wrapper: makeWrapper(),
+    });
+    expect(result.current.clubs).toEqual([]);
+
+    state.clubsPrincipalMarker = 'user-1';
+    rerender();
+
+    expect(result.current.clubs).toEqual([club]);
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it('reports an error, not an endless spinner, when the check is unavailable', () => {
+    state.clubs = [club];
+    state.clubsPrincipalMarker = null;
+    state.clubReadiness = 'unavailable';
+
+    const { result } = renderHook(() => useBrowseClubsData(), { wrapper: makeWrapper() });
+
+    expect(result.current.clubs).toEqual([]);
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.hasError).toBe(true);
   });
 
   it('shows nothing from either source while auth is still resolving', () => {

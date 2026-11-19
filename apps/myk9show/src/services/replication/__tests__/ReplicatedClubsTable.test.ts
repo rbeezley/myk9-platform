@@ -14,6 +14,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ReplicatedClubsTable, type ReplicatedClub } from '../ReplicatedClubsTable';
 import { fromAny } from '@total-typescript/shoehorn';
+import { stampReplicaPrincipal } from '../clubsReplicaPrincipal';
 
 // Mock dependencies
 vi.mock('@/services/database/supabaseClient', () => ({
@@ -664,6 +665,12 @@ describe('ReplicatedClubsTable', () => {
         city: 'Seattle',
       };
       await table.set('club-1', localClub);
+      // Rows left by this same account's earlier sync (MYK9-2168).
+      await stampReplicaPrincipal(table, 'test-user');
+      const { supabase: sessionClient } = await import('@/services/database/supabaseClient');
+      vi.mocked(sessionClient.auth.getSession).mockResolvedValue({
+        data: { session: { user: { id: 'test-user' } } },
+      } as never);
 
       const remoteClubs = [
         {
@@ -1657,6 +1664,12 @@ describe('ReplicatedClubsTable', () => {
         phone: '555-1234',
       };
       await table.set('club-1', existingClub);
+      // Rows left by this same account's earlier sync (MYK9-2168).
+      await stampReplicaPrincipal(table, 'test-user');
+      const { supabase: sessionClient } = await import('@/services/database/supabaseClient');
+      vi.mocked(sessionClient.auth.getSession).mockResolvedValue({
+        data: { session: { user: { id: 'test-user' } } },
+      } as never);
 
       const remoteClubs = [
         {

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const replication = vi.hoisted(() => ({
+  reconcilePrincipal: vi.fn(),
   getAllClubs: vi.fn(),
   sync: vi.fn(),
   subscribe: vi.fn(),
@@ -45,10 +46,12 @@ describe('clubStore.ensureClubsReady', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localRows = [];
+    replication.reconcilePrincipal.mockResolvedValue('user-a');
     replication.getAllClubs.mockImplementation(async () => localRows);
     replication.sync.mockResolvedValue({ success: true });
     useClubStore.setState({
       clubs: [],
+      clubsPrincipalMarker: null,
       isLoading: false,
       isSyncing: false,
       error: null,
@@ -304,5 +307,41 @@ describe('clubStore.ensureClubsReady', () => {
         vi.useRealTimers();
       }
     });
+  });
+});
+
+// MYK9-2168: rows another account left in the shared replica are dropped
+// BEFORE the store reads, and the store records whose view it now holds.
+describe('clubStore.loadClubs principal reconcile', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    replication.getAllClubs.mockResolvedValue([clubRow]);
+    useClubStore.setState({ clubs: [], clubsPrincipalMarker: null, error: null });
+  });
+
+  it('reconciles the principal before reading and stores the verified marker', async () => {
+    const order: string[] = [];
+    replication.reconcilePrincipal.mockImplementation(async () => {
+      order.push('reconcile');
+      return 'user-b';
+    });
+    replication.getAllClubs.mockImplementation(async () => {
+      order.push('read');
+      return [clubRow];
+    });
+
+    await useClubStore.getState().loadClubs();
+
+    expect(order).toEqual(['reconcile', 'read']);
+    expect(useClubStore.getState().clubsPrincipalMarker).toBe('user-b');
+    expect(useClubStore.getState().clubs.map(club => club.id)).toEqual(['club-a']);
+  });
+
+  it('leaves the marker unverified when the session could not be read', async () => {
+    replication.reconcilePrincipal.mockResolvedValue(null);
+
+    await useClubStore.getState().loadClubs();
+
+    expect(useClubStore.getState().clubsPrincipalMarker).toBeNull();
   });
 });

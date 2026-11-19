@@ -102,6 +102,13 @@ function clubToReplicated(club: Club): ReplicatedClub {
 
 export interface ClubStoreState {
   clubs: Club[];
+  /**
+   * MYK9-2168: the principal (auth user id, or the anonymous marker) whose view
+   * the replica rows in `clubs` were last verified against. null until the first
+   * load for a session. A reader that must not show another account's rows
+   * compares it with the current principal and waits until they match.
+   */
+  clubsPrincipalMarker: string | null;
   selectedClubId: string;
   /**
    * The auth user who chose selectedClubId. This store is a singleton and is
@@ -134,6 +141,7 @@ export interface ClubStoreState {
 
 export const useClubStore = create<ClubStoreState>()((set, get) => ({
   clubs: [],
+  clubsPrincipalMarker: null,
   selectedClubId: '',
   selectedClubUserId: null,
   isLoading: false,
@@ -154,11 +162,14 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
     }
 
     try {
+      // MYK9-2168: rows left by another account are dropped BEFORE this read.
+      const principalMarker = await replicatedClubsTable.reconcilePrincipal();
       const replicatedClubs = await replicatedClubsTable.getAllClubs();
       const clubs = replicatedClubs.map(replicatedToClub);
 
       set({
         clubs,
+        clubsPrincipalMarker: principalMarker,
         isLoading: false,
         error: null,
       });

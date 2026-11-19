@@ -23,6 +23,12 @@ import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
 import { idScanEpoch, idScanKey, markIdScanCompleted, shouldRunIdScan } from './idScanCadence';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
+import {
+  principalMarkerFor,
+  purgeReplicaForMarker,
+  reconcileReplicaPrincipal,
+  stampReplicaPrincipalSafely,
+} from './clubsReplicaPrincipal';
 
 /**
  * Database row type for clubs table
@@ -191,6 +197,11 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
     };
   }
 
+  /** MYK9-2168: see {@link reconcileReplicaPrincipal}. */
+  reconcilePrincipal(signal?: AbortSignal): Promise<string | null> {
+    return reconcileReplicaPrincipal(this, signal);
+  }
+
   async sync(_syncScopeId?: string, options?: Partial<SyncOptions>): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
 
@@ -211,6 +222,14 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
     const principalId =
       session?.user && session.user.is_anonymous !== true ? session.user.id : null;
     const isAuthenticated = principalId !== null;
+    // MYK9-2168: before the pull, so a different principal never pulls
+    // incrementally on top of another principal's rows and watermark.
+    const principalMarker = principalMarkerFor(session?.user);
+    try {
+      await purgeReplicaForMarker(this, principalMarker, options?.signal);
+    } catch (err) {
+      logger.warn(`[${this.getTableName()}] principal reconcile failed`, err);
+    }
     // Any principal change forces a full resync — see the field comment
     // above for why, and why `_principalKnown` gates the first-ever call.
     const principalChanged = this._principalKnown && this._lastPrincipalId !== principalId;
@@ -262,6 +281,8 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
       this._forceFullSyncNext = false;
       this._lastPrincipalId = principalId;
       this._principalKnown = true;
+      // MYK9-2168: persist whose view produced these rows.
+      await stampReplicaPrincipalSafely(this, principalMarker);
     }
 
     // MYK9-572: reconcile against RLS visibility. The incremental pull above

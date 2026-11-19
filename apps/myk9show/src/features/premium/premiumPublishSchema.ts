@@ -21,7 +21,7 @@ const premiumStyle = z.enum([
 ]);
 
 const generatedPremiumSchema = z.object({
-  org: z.enum(['AKC', 'UKC']),
+  org: z.enum(['AKC', 'UKC', 'ASCA']),
   style: premiumStyle,
   templateId: nullableText,
   show: z.object({

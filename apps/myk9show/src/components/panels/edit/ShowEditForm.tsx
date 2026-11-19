@@ -476,7 +476,11 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
           data={data}
           clubId={data.clubId}
           showOrg={
-            data.organization === 'AKC' || data.organization === 'UKC' ? data.organization : null
+            data.organization === 'AKC' ||
+            data.organization === 'UKC' ||
+            data.organization === 'ASCA'
+              ? data.organization
+              : null
           }
           savedOrganization={savedOrganization}
           isActive={activeTab === 'premium'}

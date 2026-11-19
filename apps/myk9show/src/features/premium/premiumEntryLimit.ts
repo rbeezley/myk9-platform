@@ -7,7 +7,7 @@ export function normalizeEntryLimit(value: unknown): number | null {
 }
 
 /**
- * MYK9-2220: the one plain line a UKC premium prints about the show's total entry limit, or null
+ * MYK9-2220: the one plain line a UKC or ASCA (§1.5.12, 1.5.14) premium prints about the show's total entry limit, or null
  * (no line in any style) when the show has no limit or the premium is not UKC. Every UKC style
  * renders this string through the premium facts, so the styles cannot disagree.
  */
@@ -16,7 +16,7 @@ export function premiumEntryLimitText(
     show: Pick<GeneratedPremium['show'], 'maxTotalEntries'>;
   }
 ): string | null {
-  if (premium.org !== 'UKC') return null;
+  if (premium.org !== 'UKC' && premium.org !== 'ASCA') return null;
   const limit = normalizeEntryLimit(premium.show.maxTotalEntries);
   if (limit === null) return null;
   // An entry is one dog in one class, so the limit counts entries, not dogs.

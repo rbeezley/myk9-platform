@@ -17,7 +17,11 @@ import {
   OFFICER_POSITION_ORDER,
   type OfficerPosition,
 } from '@/types/club-membership-types';
-import { getPremiumScoutingStatement, type RegistryId } from '@/features/registries';
+import {
+  getPremiumRequiredStatement,
+  getPremiumScoutingStatement,
+  type RegistryId,
+} from '@/features/registries';
 import { resolveEffectiveWithdrawalTerms } from '@/features/payments/effectiveWithdrawalTerms';
 import { buildWithdrawalDisclosure } from '@/features/payments/withdrawalPolicyText';
 import { formatLongDate } from '@/lib/format/dates';
@@ -266,14 +270,18 @@ export interface PremiumRegistryStatementFact {
 }
 
 /**
- * MYK9-2043: the registry's statement about not scouting the trial location, for the PDF and
- * the public page alike. Null for a registry that requires none, so no style prints it there.
+ * MYK9-2043: the registry's fixed statement, for the PDF and the public page alike: AKC's about
+ * not scouting the trial location, ASCA's required statements (MYK9-2225). Null for a registry
+ * that requires none (UKC), so no style prints it there.
  */
 export function buildScoutingStatementFact(
   registry: RegistryId
 ): PremiumRegistryStatementFact | null {
   const text = getPremiumScoutingStatement(registry);
-  return text ? { label: SCOUTING_STATEMENT_LABEL, text } : null;
+  if (text) return { label: SCOUTING_STATEMENT_LABEL, text };
+  // MYK9-2225: a registry with no scouting rule may still have fixed statements (ASCA §1.5), which
+  // ride the same slot so every PDF body and landing page prints them with no change of its own.
+  return getPremiumRequiredStatement(registry);
 }
 
 /** One line of the club's officers: "Club secretary: Sam Typed". */
@@ -345,11 +353,11 @@ export interface PremiumFacts {
    * AKC or a printed date has no rate in force.
    */
   recordingFee: string | null;
-  /** MYK9-2220: "Total entry limit: N entries." on a UKC premium whose show has a limit; else null. */
+  /** "Total entry limit: N entries." on a UKC (MYK9-2220) or ASCA (§1.5.12) premium whose show has a limit; else null. */
   entryLimit: string | null;
   /** Null only on a premium generated before MYK9-1976 part 2. */
   withdrawalPolicy: PremiumWithdrawalPolicyFact | null;
-  /** The registry's fixed statement about scouting; null for UKC and ASCA. */
+  /** The registry's fixed statement (AKC scouting, ASCA §1.5 statements); null for UKC. */
   scoutingStatement: PremiumRegistryStatementFact | null;
   entry: {
     /** Long display dates, null when unset. */

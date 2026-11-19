@@ -6,7 +6,7 @@ interface Props {
   onClose: () => void;
   showId: string;
   clubId: string;
-  showOrg: 'AKC' | 'UKC' | null;
+  showOrg: 'AKC' | 'UKC' | 'ASCA' | null;
 }
 
 export function GeneratePremiumPanel({ open, onClose, showId, clubId, showOrg }: Props) {

@@ -53,7 +53,7 @@ Mirroring rather than re-evaluating is deliberate: the evidence is pinned to the
 - The standing-approval merge entry is unchanged in substance: the tripwire runs right before `gh pr merge`, and the queue only adds a re-test against current `main`. Whether that delay is acceptable under standing approvals is the owner's call; until the owner says otherwise, an unattended run waits on `wait-pr-merged.sh` and reports its exit.
 - `watch-pr-checks.sh` needs no change: it reads the required contexts from the ruleset and watches the PR head, which is still what gates entry to the queue.
 
-**ship-pr Step 5 changes in the same change that turns the queue on (Phase 2), not in Phase 1.** Until the queue is on, today's Step 5 is correct. Codex review of #4219 settled what the Phase 2 Step 5 must do:
+**ship-pr Step 5 changes in its own PR, merged after this one and BEFORE the queue is turned on (Phase 2).** Both changes it makes also work with the queue off (the waiter returns on its first read after an immediate merge), so landing it first means no PR, that one included, is ever merged under instructions that cannot see the queue. Codex review of #4219 settled what it must do:
 
 - **Pin the checked head.** Read one full 40-hex head SHA, stop if it is not one, and pass it to the watcher (`watch-pr-checks.sh <pr> <sha>`), with the watcher as the last command of that tool call so its exit code is what the caller sees. Write that same SHA literally into `gh pr merge <n> --squash --match-head-commit <sha>`; a shell variable does not survive into a separate tool call. Without the pin, a push after the watcher exits leaves an unchecked head, and on a queue branch `gh pr merge` on a pending head arms auto-merge instead of failing.
 - **Call the waiter by the feature worktree's path.** Step 5 runs `gh pr merge` from the primary checkout, which may predate `wait-pr-merged.sh` until Step 7.
@@ -91,12 +91,12 @@ API form, for reference:
 }
 ```
 
-**Order: merge the repository files first, then turn the queue on.** With the files merged and no queue, nothing changes: `merge_group` never fires, and the Queue verdict job finds no queue run and runs the full suite as today. Turning the queue on first would block every merge, because no workflow would report the required checks on a queue commit.
+**Order: (1) merge this PR, (2) merge the ship-pr Step 5 PR, (3) turn the queue on.** With the files merged and no queue, nothing changes: `merge_group` never fires, and the Queue verdict job finds no queue run and runs the full suite as today. Turning the queue on before (1) would block every merge, because no workflow would report the required checks on a queue commit; turning it on before (2) would leave sessions merging with a one-shot `gh pr view` that cannot tell "queued" from "dropped".
 
 ## Phases
 
 1. **Repository files (this PR).** CI trigger, job conditions and Queue verdict job; review-gate mirror job and its script; `wait-pr-merged.sh`; tests. Draft PR, `independent` review.
-2. **Owner: eligibility and settings.** Phase 0, then the ruleset change above, after Phase 1 is merged. In the same step, a session lands the ship-pr Step 5 change described under "How every session merges".
+2. **ship-pr Step 5 PR (a session), then the owner.** A session lands the Step 5 change described under "How every session merges" and merges it. Only then does the owner run Phase 0 and the ruleset change above.
 3. **Testing on a throwaway PR** (a docs-only change, for example a one-line edit to this plan):
    - PR CI and the review gate go green on the PR head as today.
    - `gh pr merge <n> --squash --match-head-commit <sha>` reports that the PR joined the queue.

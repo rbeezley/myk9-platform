@@ -623,3 +623,87 @@ describe('ShowEditPremiumTab entry limit (MYK9-2220)', () => {
     expect(draftShow().maxTotalEntries).toBeNull();
   });
 });
+
+describe('ShowEditPremiumTab ASCA show details (MYK9-2290)', () => {
+  const render_ = (showOrg: 'AKC' | 'UKC' | 'ASCA', data: ShowEditFormData = baseData) => {
+    const setters = new Map<string, ReturnType<typeof vi.fn>>();
+    const handleValueChange = vi.fn((field: string) => {
+      const setter = vi.fn();
+      setters.set(field, setter);
+      return setter;
+    });
+    render(
+      <ShowEditPremiumTab
+        data={data}
+        clubId="c1"
+        showOrg={showOrg}
+        isActive
+        handleCheckboxChange={vi.fn(() => vi.fn())}
+        handleValueChange={handleValueChange as never}
+      />
+    );
+    return setters;
+  };
+
+  it.each(['AKC', 'UKC'] as const)('is not shown for a %s show', org => {
+    render_(org);
+    expect(screen.queryByText('ASCA Show Details')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/scents used for each level/i)).not.toBeInTheDocument();
+  });
+
+  it('shows the four facts for an ASCA show, filled from the show', () => {
+    render_('ASCA', {
+      ...baseData,
+      organization: 'ASCA',
+      scentsByLevel: 'Novice birch',
+      photographerContact: 'Pat',
+      ascaSanctionStatus: 'approved',
+      spectatorsPolicy: 'not_allowed',
+    });
+    expect(screen.getByText('ASCA Show Details')).toBeInTheDocument();
+    expect(screen.getByLabelText(/scents used for each level/i)).toHaveValue('Novice birch');
+    expect(screen.getByLabelText(/show photographer contact/i)).toHaveValue('Pat');
+    expect(screen.getByText('Approved')).toBeInTheDocument();
+    expect(screen.getByText('Not allowed')).toBeInTheDocument();
+  });
+
+  it('reports typing into the form', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const setters = render_('ASCA', { ...baseData, organization: 'ASCA' });
+    await userEvent.type(screen.getByLabelText(/scents used for each level/i), 'B');
+    await userEvent.type(screen.getByLabelText(/show photographer contact/i), 'P');
+    expect(setters.get('scentsByLevel')).toHaveBeenCalledWith('B');
+    expect(setters.get('photographerContact')).toHaveBeenCalledWith('P');
+  });
+
+  it('the offline draft prints the unsaved facts', () => {
+    const snapshot = buildExperienceSnapshot({
+      premium: {
+        org: 'ASCA',
+        style: 'monogram',
+        show: { startDate: '2026-05-01' },
+        trials: [],
+        narratives: { showHours: 'Doors at 7.', trialInformation: 'Bring water.' },
+        supplemental: {
+          vetClinic: null,
+          accommodations: [],
+          coverImageUrl: null,
+          hospitalityNotes: null,
+          awardsDescription: null,
+          additionalNotes: null,
+        },
+      },
+      premiumPath: 'show-1/artifact-1.pdf',
+      premiumUrl: 'https://trusted.example/premium-published/show-1/artifact-1.pdf',
+    });
+    render_('ASCA', {
+      ...baseData,
+      organization: 'ASCA',
+      scentsByLevel: 'Birch',
+      experiencePublishedContent: snapshot,
+    });
+    const show = (premiumEditorProps.at(-1)?.initialPremium as GeneratedPremium).show;
+    expect(show.scentsByLevel).toBe('Birch');
+    expect(show.ascaSanctionStatus).toBeNull();
+  });
+});

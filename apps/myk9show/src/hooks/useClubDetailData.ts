@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useClubStore } from '@/store/clubStore';
+import { clubsWithheldMessage } from '@/store/clubsIdentity';
 import { useDirectoryViewer } from '@/hooks/useDirectoryViewer';
 import { CLUB_LOOKUP_QUERY_OPTIONS, withClubLookupDeadline } from '@/hooks/clubLookupDeadline';
 import {
@@ -18,6 +19,8 @@ export interface ClubDetailData {
   club: Club | null;
   status: ClubDetailStatus;
   isGuest: boolean;
+  /** Why the replica withholds this account's clubs, in plain words; null when it does not. */
+  withheldMessage: string | null;
   retry: () => void;
 }
 
@@ -56,6 +59,7 @@ export function useClubDetailData(id: string | undefined): ClubDetailData {
   );
   const readiness = useClubStore(state => state.clubReadiness);
   const ensureClubsReady = useClubStore(state => state.ensureClubsReady);
+  const withheldReason = useClubStore(state => state.clubsIdentity.reason);
 
   // INTENT: same owner decision as the guest directory (MYK9-747; see the
   // INTENT in useBrowseClubsData). The clubs replica is shared across sign-in
@@ -122,5 +126,12 @@ export function useClubDetailData(id: string | undefined): ClubDetailData {
     status = 'ready';
   }
 
-  return { club, status, isGuest, retry };
+  return {
+    club,
+    status,
+    isGuest,
+    withheldMessage:
+      isGuest || withheldReason === null ? null : clubsWithheldMessage(withheldReason),
+    retry,
+  };
 }

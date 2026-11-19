@@ -50,6 +50,7 @@ import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable'
 import { replicatedDogRegistrationsTable } from '@/services/replication/ReplicatedDogRegistrationsTable';
 import { replicatedShowDeskPeopleTable } from '@/services/replication/ReplicatedShowDeskPeopleTable';
 import { replicatedClubsTable } from '@/services/replication/ReplicatedClubsTable';
+import { ensureClubsIdentity, handleClubsAuthEvent } from '@/store/clubsIdentityBoundary';
 import { replicatedJudgeAssignmentsTable } from '@/services/replication/ReplicatedJudgeAssignmentsTable';
 import { replicatedArmbandsTable } from '@/services/replication/ReplicatedArmbandsTable';
 import { replicatedWaitlistEntriesTable } from '@/services/replication/ReplicatedWaitlistEntriesTable';
@@ -261,6 +262,8 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
+      // MYK9-2168: the one identity boundary for the clubs replica.
+      handleClubsAuthEvent(event, session);
       // A null session that is not SIGNED_OUT is a refresh that failed offline, not a sign-out:
       // queued changes keep their owner and send on reconnect (MYK9-1992).
       setIsAuthenticated(!!resolveSessionUser(event, session));
@@ -274,7 +277,13 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         void triggerSyncRef.current?.();
       }
     });
-    return () => subscription.unsubscribe();
+    // Back online: settle a clubs check that stopped for want of a connection.
+    const onOnline = () => void ensureClubsIdentity();
+    window.addEventListener('online', onOnline);
+    return () => {
+      window.removeEventListener('online', onOnline);
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Subscribe all Zustand stores to replicated table changes

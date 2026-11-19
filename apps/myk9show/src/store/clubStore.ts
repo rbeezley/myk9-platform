@@ -10,6 +10,8 @@ import { replicatedClubsTable, type ReplicatedClub } from '@/services/replicatio
 import type { Club } from '@/types/club-types';
 import { logger } from '@/services/LoggingService';
 import { DEFAULT_TIMEOUT_MS, withTimeout } from '@myk9/core';
+import { ensureClubsIdentity, registerClubsIdentitySink } from './clubsIdentityBoundary';
+import { clubsWithheldMessage, type ClubsIdentity } from './clubsIdentity';
 
 export type ClubReadinessStatus = 'loading' | 'fresh' | 'offline' | 'unavailable';
 
@@ -113,6 +115,12 @@ export interface ClubStoreState {
   isSyncing: boolean;
   error: string | null;
   clubReadiness: ClubReadinessStatus;
+  /**
+   * Whose rows `clubs` may hold (MYK9-2168). Until the identity boundary has
+   * verified the replica belongs to the signed-in account, EVERY writer of
+   * `clubs` publishes nothing, including the subscription's first emission.
+   */
+  clubsIdentity: ClubsIdentity;
 
   // Actions
   loadClubs: () => Promise<void>;
@@ -132,6 +140,13 @@ export interface ClubStoreState {
   cleanup: () => void;
 }
 
+const UNVERIFIED_CLUBS: ClubsIdentity = { status: 'unverified', reason: null, principalKey: null };
+
+/** True when `identity` is still the store's current, verified identity. */
+function isPublishable(identity: ClubsIdentity, current: ClubsIdentity): boolean {
+  return identity.status === 'verified' && identity === current;
+}
+
 export const useClubStore = create<ClubStoreState>()((set, get) => ({
   clubs: [],
   selectedClubId: '',
@@ -140,6 +155,7 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
   isSyncing: false,
   error: null,
   clubReadiness: 'loading',
+  clubsIdentity: UNVERIFIED_CLUBS,
   _unsubscribe: null,
 
   /**
@@ -147,6 +163,11 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
    * This is instant and works offline
    */
   loadClubs: async () => {
+    const identity = get().clubsIdentity;
+    // MYK9-2168: nothing is read into the store for an account the replica has
+    // not been verified against.
+    if (identity.status !== 'verified') return;
+
     // Only show loading spinner on initial load, not on background refreshes
     const hasExistingData = get().clubs.length > 0;
     if (!hasExistingData) {
@@ -155,6 +176,11 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
 
     try {
       const replicatedClubs = await replicatedClubsTable.getAllClubs();
+      // The account changed while the read ran: these rows are not its to show.
+      if (!isPublishable(identity, get().clubsIdentity)) {
+        set({ isLoading: false });
+        return;
+      }
       const clubs = replicatedClubs.map(replicatedToClub);
 
       set({
@@ -174,6 +200,13 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
    * Call this when online to fetch latest data
    */
   syncClubs: async () => {
+    // MYK9-2168: settle whose replica this is before pulling into it.
+    await ensureClubsIdentity();
+    const identity = get().clubsIdentity;
+    if (identity.status !== 'verified') {
+      set({ error: clubsWithheldMessage(identity.reason) });
+      return;
+    }
     set({ isSyncing: true });
 
     try {
@@ -220,6 +253,14 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
     //
     // Mirrors what loadClubs already does with `isLoading`: a background refresh
     // does not get a spinner when cached data is on screen.
+    // MYK9-2168: no club is read or shown for an account the replica has not
+    // been verified against; the reason is the store's, not a guess.
+    await ensureClubsIdentity();
+    if (get().clubsIdentity.status !== 'verified') {
+      set({ clubReadiness: 'unavailable' });
+      return { status: 'unavailable', clubs: [] };
+    }
+    const sessionIdentity = get().clubsIdentity;
     const currentReadiness = get().clubReadiness;
     const hasUsableData =
       (currentReadiness === 'fresh' || currentReadiness === 'offline') && get().clubs.length > 0;
@@ -258,14 +299,17 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
       clubSyncInFlight = Promise.resolve()
         .then(() => replicatedClubsTable.sync())
         .then(async result => {
-          if (result.success) {
+          if (result.success && isPublishable(sessionIdentity, get().clubsIdentity)) {
             await get().loadClubs();
             clubSessionIsFresh = true;
+          } else if (result.success) {
+            // The account changed under this pull: its freshness is not ours.
+            clubSessionIsFresh = false;
           } else {
             clubSessionIsFresh = false;
             logger.warn('Club data refresh failed', 'clubs');
           }
-          return { success: result.success };
+          return { success: result.success && isPublishable(sessionIdentity, get().clubsIdentity) };
         })
         .catch(() => {
           clubSessionIsFresh = false;
@@ -273,12 +317,17 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
           return { success: false };
         })
         .finally(() => {
-          clubSyncInFlight = null;
+          if (clubSyncInFlight === thisSync) clubSyncInFlight = null;
         });
+      const thisSync = clubSyncInFlight;
     }
 
     try {
       const result = await withTimeout(clubSyncInFlight, DEFAULT_TIMEOUT_MS, 'Club data refresh');
+      if (!isPublishable(sessionIdentity, get().clubsIdentity)) {
+        // The account changed while the refresh ran; the boundary owns what follows.
+        return { status: 'unavailable', clubs: [] };
+      }
       const clubs = get().clubs;
       if (result.success) {
         set({ clubReadiness: 'fresh' });
@@ -305,6 +354,10 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
    * Add a new club (saves to local cache, queued for sync)
    */
   addClub: async (club: Club): Promise<string | undefined> => {
+    if (get().clubsIdentity.status !== 'verified') {
+      set({ error: clubsWithheldMessage(get().clubsIdentity.reason) });
+      return undefined;
+    }
     try {
       const replicated = clubToReplicated(club);
       const created = await replicatedClubsTable.createClub(replicated);
@@ -324,6 +377,11 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
    * Update an existing club (saves to local cache, queued for sync)
    */
   updateClub: async (club: Club) => {
+    if (get().clubsIdentity.status !== 'verified') {
+      const message = clubsWithheldMessage(get().clubsIdentity.reason);
+      set({ error: message });
+      throw new Error(message);
+    }
     try {
       const replicated = clubToReplicated(club);
       await replicatedClubsTable.updateClub(club.id, replicated);
@@ -346,19 +404,24 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
    * Returns unsubscribe function
    */
   subscribeToChanges: () => {
-    return replicatedClubsTable.subscribe(replicatedClubs => {
-      const clubs = replicatedClubs.map(replicatedToClub);
-      set({ clubs });
-    });
+    const publishReplicaRows = (replicatedClubs: ReplicatedClub[]) => {
+      // MYK9-2168: the first emission arrives before the boundary has verified
+      // whose rows these are, and every later one must be for the verified
+      // account too: unverified, nothing is published.
+      if (get().clubsIdentity.status !== 'verified') return;
+      set({ clubs: replicatedClubs.map(replicatedToClub) });
+    };
+    return replicatedClubsTable.subscribe(publishReplicaRows);
   },
 
   initializeSubscription: () => {
     if (get()._unsubscribe) return;
+    const publishReplicaRows = (replicatedClubs: ReplicatedClub[]) => {
+      if (get().clubsIdentity.status !== 'verified') return;
+      set({ clubs: replicatedClubs.map(replicatedToClub) });
+    };
 
-    const unsubscribe = replicatedClubsTable.subscribe(replicatedClubs => {
-      const clubs = replicatedClubs.map(replicatedToClub);
-      set({ clubs });
-    });
+    const unsubscribe = replicatedClubsTable.subscribe(publishReplicaRows);
 
     set({ _unsubscribe: unsubscribe });
     get().loadClubs();
@@ -373,9 +436,43 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
   },
 }));
 
+/**
+ * The identity boundary's one door into the store (MYK9-2168). An unverified
+ * identity empties `clubs` in the same step, and forgets the previous
+ * account's freshness and in-flight refresh, so nothing of it is reused.
+ */
+export function applyClubsIdentity(identity: ClubsIdentity): void {
+  if (identity.status === 'verified') {
+    useClubStore.setState({ clubsIdentity: identity });
+    return;
+  }
+  clubSessionIsFresh = false;
+  clubSyncInFlight = null;
+  useClubStore.setState({
+    clubsIdentity: identity,
+    clubs: [],
+    // Pages mount on 'loading' while the account settles; any settled
+    // reason is a fail-closed 'unavailable'.
+    clubReadiness: identity.reason === null ? 'loading' : 'unavailable',
+    error: identity.reason === null ? null : clubsWithheldMessage(identity.reason),
+  });
+}
+
+/** The pull the boundary just ran is this account's full, current pull. */
+export function markClubsFresh(): void {
+  clubSessionIsFresh = true;
+}
+
 /** Reset the session marker between isolated tests and browser sessions. */
 export function resetClubReadinessForTests(): void {
   clubSessionIsFresh = false;
   clubSyncInFlight = null;
-  useClubStore.setState({ clubReadiness: 'loading' });
+  useClubStore.setState({ clubReadiness: 'loading', clubsIdentity: UNVERIFIED_CLUBS });
 }
+
+registerClubsIdentitySink({
+  apply: applyClubsIdentity,
+  getIdentity: () => useClubStore.getState().clubsIdentity,
+  reload: () => useClubStore.getState().loadClubs(),
+  markFresh: markClubsFresh,
+});

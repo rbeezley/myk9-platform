@@ -23,6 +23,7 @@ import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
 import { idScanEpoch, idScanKey, markIdScanCompleted, shouldRunIdScan } from './idScanCadence';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
+import { clubsPullsBlocked, joinClubsFence } from './clubsSyncFence';
 
 /**
  * Database row type for clubs table
@@ -105,6 +106,17 @@ export function rowToClub(row: ClubRow): ReplicatedClub {
     createdAt: row.created_at ?? undefined,
     updatedAt: row.updated_at ?? undefined,
     authorizedAt: row.authorized_at,
+  };
+}
+
+function clubsSyncRefused(error: string): SyncResult {
+  return {
+    tableName: 'clubs',
+    success: false,
+    operation: 'full-sync',
+    rowsAffected: 0,
+    duration: 0,
+    error,
   };
 }
 
@@ -198,9 +210,31 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
     // anon-skip-prune decision below and the sign-in-transition force-full
     // decision need to know it, and it must be known BEFORE the sync call so
     // a fresh sign-in's forceFullSync actually reaches syncReplicatedTable.
+    if (clubsPullsBlocked()) {
+      return clubsSyncRefused('Another account has club changes on this device that are not sent.');
+    }
+    const fence = joinClubsFence(options?.signal);
+    try {
+      return await this.syncUnderFence(fence, options);
+    } finally {
+      fence.release();
+    }
+  }
+
+  private async syncUnderFence(
+    fence: ReturnType<typeof joinClubsFence>,
+    options?: Partial<SyncOptions>
+  ): Promise<SyncResult> {
     const {
       data: { session },
+      error: sessionError,
     } = await supabase.auth.getSession();
+    // MYK9-2168: a session read that failed (an expired token that cannot
+    // refresh offline resolves with a null session AND an error) is not a
+    // signed-out visitor. Pulling as one would cache the wrong view.
+    if (!session && sessionError) {
+      return clubsSyncRefused('We could not confirm which account is signed in.');
+    }
     // MYK9-572 round 4 (P1-2): a Supabase ANONYMOUS session (the at-show
     // passcode flow — see features/at-show/useOfflineReadiness.ts,
     // dogFavoritesSync.ts) is not a signed-in principal. Treating it as one
@@ -244,9 +278,23 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
       {
         incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS,
         forceFullSync,
-        ...(options?.signal ? { signal: options.signal } : {}),
+        signal: fence.signal,
       }
     );
+
+    // MYK9-2168: the account changed while this pull ran. Its rows belong to
+    // nobody the replica can name; the identity boundary clears them.
+    if (!fence.isCurrent()) {
+      return clubsSyncRefused('The signed-in account changed during the update.');
+    }
+    const {
+      data: { session: sessionAfter },
+    } = await supabase.auth.getSession();
+    const principalAfter =
+      sessionAfter?.user && sessionAfter.user.is_anonymous !== true ? sessionAfter.user.id : null;
+    if (principalAfter !== principalId) {
+      return clubsSyncRefused('The signed-in account changed during the update.');
+    }
 
     if (!result.success && result.error && !isAbortSyncError(result.error)) {
       logger.error(`[${this.getTableName()}] Sync failed:`, result.error);

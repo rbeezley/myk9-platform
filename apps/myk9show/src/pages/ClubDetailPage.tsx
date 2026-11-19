@@ -16,7 +16,7 @@ import { useClubDetailData } from '@/hooks/useClubDetailData';
  */
 const ClubDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { club, status, isGuest, retry } = useClubDetailData(id);
+  const { club, status, isGuest, withheldMessage, retry } = useClubDetailData(id);
 
   if (status === 'loading') {
     return (
@@ -46,8 +46,12 @@ const ClubDetailPage: React.FC = () => {
         <div className="flex flex-col items-center gap-4 py-10 text-center">
           <h1 className="text-2xl font-semibold">Club details are unavailable</h1>
           <p className="text-muted-foreground">
-            We couldn&apos;t check this club right now.
-            {!isGuest && ' Your saved club information is still safe.'}
+            {withheldMessage ?? (
+              <>
+                We couldn&apos;t check this club right now.
+                {!isGuest && ' Your saved club information is still safe.'}
+              </>
+            )}
           </p>
           <div className="flex flex-wrap justify-center gap-3">
             <Button onClick={retry} className="min-h-11">

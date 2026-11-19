@@ -91,6 +91,7 @@ const BrowseClubsPage: React.FC<BrowseClubsPageProps> = ({ detail = null }) => {
     filteredClubs,
     isLoading,
     hasError,
+    errorMessage,
     isOffline,
     handleRetry,
     filters,
@@ -251,7 +252,7 @@ const BrowseClubsPage: React.FC<BrowseClubsPageProps> = ({ detail = null }) => {
     isLoading && clubs.length === 0 ? (
       <BrowseClubsSkeleton viewMode="list" />
     ) : hasError && !isLoading ? (
-      <ErrorState message="We couldn't load your clubs." onRetry={handleRetry} />
+      <ErrorState message={errorMessage} onRetry={handleRetry} />
     ) : isOffline && !isLoading ? (
       <ClubsOfflineState
         description="Connect to the internet to browse clubs."
@@ -280,9 +281,7 @@ const BrowseClubsPage: React.FC<BrowseClubsPageProps> = ({ detail = null }) => {
           )}
 
           {/* Error state */}
-          {hasError && !isLoading && (
-            <ErrorState message="We couldn't load your clubs." onRetry={handleRetry} />
-          )}
+          {hasError && !isLoading && <ErrorState message={errorMessage} onRetry={handleRetry} />}
 
           {/* Offline guest: the signed-out directory is online-only (MYK9-747) */}
           {isOffline && !isLoading && !hasError && (

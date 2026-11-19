@@ -9,6 +9,7 @@ import {
   useQueryOnlineStatus,
 } from '@/hooks/guestServerRead';
 import { useClubStore } from '@/store/clubStore';
+import { clubsWithheldMessage } from '@/store/clubsIdentity';
 import { getPublicDirectoryClubs } from '@/services/database/clubs';
 import { useShowStore } from '@/store/showStore';
 import type { Club } from '@/types/club-types';
@@ -27,6 +28,8 @@ export interface BrowseClubsData {
   filteredClubs: Club[];
   isLoading: boolean;
   hasError: boolean;
+  /** Why the list failed: the plain reason rows are withheld, else the generic one. */
+  errorMessage: string;
   /**
    * A signed-out visitor with no connection. The guest directory is
    * online-only (MYK9-747), so this is its own state, never an empty list.
@@ -53,6 +56,7 @@ export function useBrowseClubsData(): BrowseClubsData {
   const replicaClubs = useClubStore(state => (isSignedIn ? state.clubs : NO_CLUBS));
   const readiness = useClubStore(state => state.clubReadiness);
   const ensureClubsReady = useClubStore(state => state.ensureClubsReady);
+  const withheldReason = useClubStore(state => state.clubsIdentity.reason);
   const shows = useShowStore(state => state.shows);
 
   // INTENT: the guest club directory is ONLINE-ONLY by owner decision
@@ -90,6 +94,7 @@ export function useBrowseClubsData(): BrowseClubsData {
   const hasError = isGuest
     ? guestRead.kind === 'error'
     : isSignedIn && readiness === 'unavailable' && replicaClubs.length === 0;
+  const errorMessage = clubsWithheldMessage(isGuest ? null : withheldReason);
   const refetchGuest = guestQuery.refetch;
   const handleRetry = useCallback(() => {
     if (isGuest) {
@@ -151,6 +156,7 @@ export function useBrowseClubsData(): BrowseClubsData {
     filteredClubs,
     isLoading,
     hasError,
+    errorMessage,
     isOffline,
     handleRetry,
     filters,

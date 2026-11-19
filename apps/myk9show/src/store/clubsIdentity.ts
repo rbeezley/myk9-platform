@@ -7,7 +7,7 @@
 export type ClubsWithheldReason =
   /** No usable session could be read, so which account this is is unknown. */
   | 'identity-unknown'
-  /** The replica holds another account's rows and this device cannot download this account's. */
+  /** This device cannot download this account's clubs, so it cannot tell whose the saved ones are. */
   | 'offline'
   /** Another account has a club change on this device that has not been sent. */
   | 'pending-edits'
@@ -22,7 +22,7 @@ const MESSAGES: Record<ClubsWithheldReason, string> = {
   'identity-unknown':
     "We can't tell which account is signed in on this device. Connect to the internet and sign in again to see your clubs.",
   offline:
-    'Connect to the internet to load clubs for this account. The clubs saved on this device belong to a different account.',
+    'Connect to the internet to load clubs for this account. The clubs saved on this device cannot be shown until then.',
   'pending-edits':
     'Another account has club changes on this device that are not sent yet. Sign back in to that account to send them, then try again.',
   failed: "We couldn't confirm your clubs. Try again.",

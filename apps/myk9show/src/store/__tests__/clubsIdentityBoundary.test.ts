@@ -27,6 +27,7 @@ const h = vi.hoisted(() => ({
     subscribe: vi.fn(),
     createClub: vi.fn(),
     updateClub: vi.fn(),
+    republish: vi.fn(async () => undefined),
   },
 }));
 
@@ -247,12 +248,27 @@ describe('clubs identity boundary', () => {
       expect(clubsPullsBlocked()).toBe(true);
     });
 
-    it('counts an edit the server refused as unsent too', async () => {
+    it('does not strand the next account behind a dead-lettered club edit', async () => {
+      // The server refused A's edit for good: it never sends on its own, so it must not
+      // hold the guest directory (or B) hostage until A comes back to discard it.
       h.queue = [];
       h.failed = [{ tableName: 'clubs', authUserId: 'user-a' }];
+      signInAs(null);
+      await settle();
+      expect(useClubStore.getState().clubsIdentity.status).toBe('verified');
+      expect(h.table.clearCache).toHaveBeenCalled();
       signInAs(userB);
       await settle();
+      expect(useClubStore.getState().clubs.map(c => c.id)).toEqual(['club-b']);
+    });
+
+    it('lets the guest directory in once the edit was discarded or dead-lettered', async () => {
+      signInAs(null);
+      await settle();
       expect(useClubStore.getState().clubsIdentity.reason).toBe('pending-edits');
+      h.queue = []; // discarded
+      await useClubStore.getState().syncClubs();
+      expect(useClubStore.getState().clubsIdentity.status).toBe('verified');
     });
 
     it('ignores another table queue rows', async () => {
@@ -372,6 +388,81 @@ describe('clubs identity boundary', () => {
       setOnline(true);
       await useClubStore.getState().ensureClubsReady();
       expect(useClubStore.getState().clubs.map(c => c.id)).toEqual(['club-b']);
+    });
+  });
+
+  describe('pulls and readers are held from the instant the account changes', () => {
+    it('blocks pulls synchronously, before the boundary has decided, and releases them for its own pull only', async () => {
+      signInAs(userA);
+      await settle();
+      h.queue = [{ tableName: 'clubs', authUserId: 'user-a' }];
+      expect(clubsPullsBlocked()).toBe(false);
+
+      signInAs(userB);
+      // No await: a provider-started sync at the new epoch would join right here.
+      expect(clubsPullsBlocked()).toBe(true);
+      await settle();
+      expect(clubsPullsBlocked()).toBe(true); // the edit holds the switch
+    });
+
+    it('lets only the boundary pull through, and unblocks once verified', async () => {
+      signInAs(userA);
+      await settle();
+      let blockedDuringBoundaryPull: boolean | null = null;
+      h.table.sync.mockImplementationOnce(async () => {
+        blockedDuringBoundaryPull = clubsPullsBlocked();
+        h.replica = [rowB];
+        return { success: true };
+      });
+      signInAs(userB);
+      expect(clubsPullsBlocked()).toBe(true);
+      await settle();
+      expect(blockedDuringBoundaryPull).toBe(false);
+      expect(clubsPullsBlocked()).toBe(false);
+      expect(useClubStore.getState().clubsIdentity.status).toBe('verified');
+    });
+
+    it('tells subscribers to read again when readers are held and when they are released', async () => {
+      signInAs(userA);
+      await settle();
+      h.table.republish.mockClear();
+      signInAs(userB);
+      await settle();
+      expect(h.table.republish).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('offline, the replica is never cleared', () => {
+    it('a missing marker offline withholds without clearing, then clears on the next online settle', async () => {
+      h.replica = [rowA];
+      setOnline(false);
+      signInAs(userA);
+      await settle();
+      expect(h.table.clearCache).not.toHaveBeenCalled();
+      expect(h.replica).toEqual([rowA]);
+      expect(useClubStore.getState().clubs).toEqual([]);
+      expect(useClubStore.getState().clubsIdentity.reason).toBe('offline');
+
+      setOnline(true);
+      await useClubStore.getState().ensureClubsReady();
+      expect(h.table.clearCache).toHaveBeenCalledTimes(1);
+      expect(useClubStore.getState().clubs.map(c => c.id)).toEqual(['club-a', 'club-b']);
+    });
+
+    it('an expired session read as a guest offline withholds without clearing', async () => {
+      signInAs(userA);
+      await settle();
+      h.table.clearCache.mockClear();
+      setOnline(false);
+      signInAs(null); // the expired persisted session reads as no user
+      await settle();
+      expect(h.table.clearCache).not.toHaveBeenCalled();
+      expect(h.replica.length).toBe(2);
+      expect(useClubStore.getState().clubsIdentity.reason).toBe('offline');
+
+      setOnline(true);
+      await useClubStore.getState().ensureClubsReady();
+      expect(h.table.clearCache).toHaveBeenCalledTimes(1);
     });
   });
 

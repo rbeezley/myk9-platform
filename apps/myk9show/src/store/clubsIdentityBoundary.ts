@@ -27,6 +27,8 @@ import { replicatedClubsTable } from '@/services/replication/ReplicatedClubsTabl
 import {
   advanceClubsFence,
   drainClubsFence,
+  clubsPullsBlocked,
+  runBoundaryClubsPull,
   setClubsPullsBlocked,
 } from '@/services/replication/clubsSyncFence';
 import {
@@ -110,37 +112,44 @@ function isOnline(): boolean {
 }
 
 /**
- * Club changes on this device (waiting or refused) whose author is not this
- * account. Reads the whole device queue, like the sign-out guard: another
- * account's work is exactly what this must see. Rejects when it cannot read.
+ * Club changes waiting on this device whose author is not this account. Reads the
+ * whole device queue, like the sign-out guard: another account's work is exactly
+ * what this must see. Rejects when it cannot read.
+ *
+ * A REFUSED change (dead-lettered) does not count: it never sends on its own, so
+ * blocking on it would strand every other account on this device, the guest
+ * directory included, until its author came back to discard it. It stays in the
+ * dead letters for its author, who can still retry or discard it.
  */
 export async function countOtherAccountClubEdits(authUserId: string | null): Promise<number> {
   const db = await databaseManager.getDatabase('MutationManager');
-  const tx = db.transaction(
-    [REPLICATION_STORES.PENDING_MUTATIONS, REPLICATION_STORES.FAILED_MUTATIONS],
-    'readonly'
-  );
-  const [pending, failed] = (await Promise.all([
-    tx.objectStore(REPLICATION_STORES.PENDING_MUTATIONS).getAll(),
-    tx.objectStore(REPLICATION_STORES.FAILED_MUTATIONS).getAll(),
-  ])) as [PendingMutation[], PendingMutation[]];
-  await tx.done;
-  return [...pending, ...failed].filter(
+  const pending = (await db
+    .transaction(REPLICATION_STORES.PENDING_MUTATIONS, 'readonly')
+    .objectStore(REPLICATION_STORES.PENDING_MUTATIONS)
+    .getAll()) as PendingMutation[];
+  return pending.filter(
     mutation => mutation.tableName === 'clubs' && mutation.authUserId !== authUserId
   ).length;
 }
 
+/** Hold back (or release) every pull and reader, and tell subscribers to read again. */
+function setBlocked(blocked: boolean): void {
+  const changed = clubsPullsBlocked() !== blocked;
+  setClubsPullsBlocked(blocked);
+  if (changed) void replicatedClubsTable.republish().catch(() => undefined);
+}
+
 function withhold(run: number, reason: ClubsWithheldReason): void {
   if (run !== runId || !sink) return;
-  // Retryable: the next caller of ensureClubsIdentity settles it again.
+  // Retryable: the next caller of ensureClubsIdentity settles it again. The block
+  // stays on: only a verified replica lets pulls and readers through.
   handledKey = null;
-  setClubsPullsBlocked(reason === 'pending-edits');
   sink.apply({ status: 'unverified', reason, principalKey: null });
 }
 
 async function verify(run: number, key: string, fresh: boolean): Promise<void> {
   if (run !== runId || !sink) return;
-  setClubsPullsBlocked(false);
+  setBlocked(false);
   sink.apply({ status: 'verified', reason: null, principalKey: key });
   if (fresh) sink.markFresh();
   await sink.reload();
@@ -159,6 +168,11 @@ async function settle(principal: ClubsPrincipal, run: number): Promise<void> {
       return await verify(run, key, false);
     }
 
+    // Offline, never clear: an expired session reads as a guest and a missing marker
+    // reads as an unknown owner, and neither can be re-downloaded. Withhold, and the
+    // next online settle clears and pulls.
+    if (!isOnline()) return withhold(run, 'offline');
+
     const foreignEdits = await countOtherAccountClubEdits(principal.authUserId);
     if (stale()) return;
     if (foreignEdits > 0) {
@@ -169,10 +183,9 @@ async function settle(principal: ClubsPrincipal, run: number): Promise<void> {
     if (!clearReplicaPrincipal()) return withhold(run, 'failed');
     await replicatedClubsTable.clearCache();
     if (stale()) return;
-    setClubsPullsBlocked(false);
 
-    if (!isOnline()) return withhold(run, 'offline');
-    const result = await replicatedClubsTable.sync();
+    // Only this pull passes the block: nothing else may write into the replica.
+    const result = await runBoundaryClubsPull(() => replicatedClubsTable.sync());
     if (stale()) return;
     if (!result.success) return withhold(run, isOnline() ? 'failed' : 'offline');
 
@@ -202,6 +215,7 @@ export function reconcileClubsIdentity(principal: ClubsPrincipal): Promise<void>
     // Cannot tell. Keep what is known; with nothing known, show no clubs.
     if (handledKey === null && sink.getIdentity().status !== 'verified') {
       advanceClubsFence();
+      setBlocked(true);
       sink.apply({ status: 'unverified', reason: 'identity-unknown', principalKey: null });
     }
     return inflight ?? Promise.resolve();
@@ -215,6 +229,7 @@ export function reconcileClubsIdentity(principal: ClubsPrincipal): Promise<void>
   const run = ++runId;
   // Synchronous, before anything async: abort what is running, show nothing.
   advanceClubsFence();
+  setBlocked(true);
   if (!alreadyWithheld) sink.apply(UNVERIFIED);
 
   const mine = (chain = chain.then(() => settle(principal, run)));

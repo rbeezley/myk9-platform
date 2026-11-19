@@ -402,7 +402,23 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
    * Get club by ID
    */
   async getClubById(clubId: string): Promise<ReplicatedClub | null> {
+    // MYK9-2168: no row while the replica's account is unverified.
+    if (clubsPullsBlocked()) return null;
     return this.get(clubId);
+  }
+
+  /**
+   * MYK9-2168: every collection reader (getAll, getAllWithStatus, getAllClubs, the
+   * show-day and show readers) returns nothing while the identity boundary has not
+   * verified whose rows the replica holds.
+   */
+  /** Tell subscribers to read again: the identity boundary changed what readers may see. */
+  async republish(): Promise<void> {
+    await this.notifyListeners();
+  }
+
+  protected override presentRows(rows: ReplicatedClub[]): ReplicatedClub[] {
+    return clubsPullsBlocked() ? [] : rows;
   }
 
   /**

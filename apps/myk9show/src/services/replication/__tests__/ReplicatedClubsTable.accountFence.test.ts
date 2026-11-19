@@ -5,6 +5,7 @@ import {
   drainClubsFence,
   joinClubsFence,
   resetClubsFenceForTests,
+  runBoundaryClubsPull,
   setClubsPullsBlocked,
 } from '../clubsSyncFence';
 
@@ -138,6 +139,34 @@ describe('ReplicatedClubsTable account fence', () => {
       own.abort();
       expect(pull.signal.aborted).toBe(true);
       pull.release();
+    });
+  });
+
+  describe('readers while the replica account is unverified (the block is on)', () => {
+    beforeEach(async () => {
+      await table.set('club-a', { id: 'club-a', name: 'Alpha', email: '', phone: '' });
+    });
+
+    it('every reader returns nothing, the show and show-day readers included', async () => {
+      setClubsPullsBlocked(true);
+      expect(await table.getAllClubs()).toEqual([]);
+      expect(await table.getClubById('club-a')).toBeNull();
+      expect(await table.getAllWithStatus()).toEqual({ ok: true, rows: [], error: null });
+    });
+
+    it('returns the rows again once the block is released', async () => {
+      setClubsPullsBlocked(true);
+      setClubsPullsBlocked(false);
+      expect((await table.getAllClubs()).map(c => c.id)).toEqual(['club-a']);
+      expect((await table.getClubById('club-a'))?.id).toBe('club-a');
+    });
+
+    it('the boundary pull still reads its own rows', async () => {
+      setClubsPullsBlocked(true);
+      await runBoundaryClubsPull(async () => {
+        expect((await table.getAllClubs()).map(c => c.id)).toEqual(['club-a']);
+      });
+      expect(await table.getAllClubs()).toEqual([]);
     });
   });
 });

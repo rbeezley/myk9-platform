@@ -31,19 +31,32 @@ interface ActivePull {
 
 let epoch = 0;
 let pullsBlocked = false;
+let boundaryPulling = false;
 const active = new Set<ActivePull>();
 
 /**
- * While another account's unsent club change is on this device, no pull may
- * write into the replica: it would mix this account's rows into the rows that
- * account's edit belongs to.
+ * From the moment the signed-in account changes until the identity boundary has
+ * verified whose rows the replica holds, no pull may write into the replica and no
+ * reader may return its rows: they would mix this account's rows into another
+ * account's replica, or show that account's rows to this one.
  */
 export function setClubsPullsBlocked(blocked: boolean): void {
   pullsBlocked = blocked;
 }
 
+/** True while pulls and readers are held back. Only the boundary's own pull passes (and reads). */
 export function clubsPullsBlocked(): boolean {
-  return pullsBlocked;
+  return pullsBlocked && !boundaryPulling;
+}
+
+/** Run the identity boundary's own pull: the one pull the block lets through. */
+export async function runBoundaryClubsPull<T>(pull: () => Promise<T>): Promise<T> {
+  boundaryPulling = true;
+  try {
+    return await pull();
+  } finally {
+    boundaryPulling = false;
+  }
 }
 
 /** How long the boundary waits for aborted pulls to settle before it gives up. */
@@ -115,4 +128,5 @@ export function resetClubsFenceForTests(): void {
   active.clear();
   epoch = 0;
   pullsBlocked = false;
+  boundaryPulling = false;
 }

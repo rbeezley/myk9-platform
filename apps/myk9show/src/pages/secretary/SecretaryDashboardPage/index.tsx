@@ -137,7 +137,7 @@ export function SecretaryDashboardPage() {
       </div>
 
       {firstShowClub ? (
-        <FirstShowCard clubId={firstShowClub.clubId} firstShow={firstShowClub.firstShow} />
+        <FirstShowCard clubId={firstShowClub.clubId} draftShowId={firstShowClub.draftShowId} />
       ) : null}
 
       {/* Attention strip */}

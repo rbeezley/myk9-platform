@@ -117,7 +117,7 @@ describe('SecretaryDashboardPage', () => {
   it('shows the first-show card for the club the server says is still waiting', () => {
     mockFirstShowClub.value = {
       clubId: 'club-1',
-      firstShow: { state: 'ready', publishedEver: false, draftShowId: null },
+      draftShowId: null,
     };
     renderPage();
     expect(screen.getByTestId('first-show-card')).toHaveTextContent('club-1');

@@ -6,12 +6,10 @@ import { useFirstShowClub } from '../firstShowClub';
 import { ScopeType, UserRole } from '@/types/auth-types';
 
 const harness = vi.hoisted(() => ({
-  online: true,
   rpc: vi.fn(),
 }));
 
 vi.mock('@/lib/supabase', () => ({ supabase: { rpc: harness.rpc } }));
-vi.mock('@/hooks/useNetworkStatus', () => ({ useIsOnline: () => harness.online }));
 
 const scope = (scopeId: string) => ({
   scopeType: ScopeType.CLUB,
@@ -36,7 +34,6 @@ function answers(byClub: Record<string, unknown>) {
 }
 
 beforeEach(() => {
-  harness.online = true;
   harness.rpc.mockReset();
 });
 
@@ -46,10 +43,7 @@ describe('useFirstShowClub (MYK9-2199)', () => {
     const { result } = renderHook(() => useFirstShowClub([scope('club-1')]), { wrapper });
     await waitFor(() => expect(result.current).not.toBeNull());
     expect(harness.rpc).toHaveBeenCalledWith('club_first_show_state', { p_club_id: 'club-1' });
-    expect(result.current).toEqual({
-      clubId: 'club-1',
-      firstShow: { state: 'ready', publishedEver: false, draftShowId: 'show-7' },
-    });
+    expect(result.current).toEqual({ clubId: 'club-1', draftShowId: 'show-7' });
   });
 
   it('is null for a club that has published, and moves on to the next club', async () => {
@@ -76,16 +70,22 @@ describe('useFirstShowClub (MYK9-2199)', () => {
     expect(result.current).toBeNull();
   });
 
-  it('is its own failed state when the call fails, never "not published"', async () => {
-    answers({ 'club-1': new Error('boom') });
-    const { result } = renderHook(() => useFirstShowClub([scope('club-1')]), { wrapper });
-    await waitFor(() => expect(result.current?.firstShow.state).toBe('failed'));
+  it('shows no card when the call fails, and carries on to the next club', async () => {
+    answers({
+      'club-1': new Error('boom'),
+      'club-2': { published_ever: false, draft_show_id: null },
+    });
+    const { result } = renderHook(() => useFirstShowClub([scope('club-1'), scope('club-2')]), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current?.clubId).toBe('club-2'));
   });
 
-  it('is its own offline state when the device is offline', () => {
-    harness.online = false;
-    harness.rpc.mockReturnValue(new Promise(() => undefined));
+  it('shows no card for a failed club on its own', async () => {
+    answers({ 'club-1': new Error('boom') });
     const { result } = renderHook(() => useFirstShowClub([scope('club-1')]), { wrapper });
-    expect(result.current).toEqual({ clubId: 'club-1', firstShow: { state: 'offline' } });
+    await waitFor(() => expect(harness.rpc).toHaveBeenCalled());
+    await new Promise(resolve => setTimeout(resolve, 20));
+    expect(result.current).toBeNull();
   });
 });

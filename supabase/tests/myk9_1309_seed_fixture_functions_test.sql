@@ -314,19 +314,19 @@ INSERT INTO public.entry_carts (show_id, exhibitor_id)
 VALUES (pg_temp.d_show(11), '00000000-0000-0000-1309-400000000001');
 -- MYK9-2202: stale, seeded entries plus the fixture's own untouched entry form: retired
 SELECT pg_temp.d_mk(12, pg_temp.d_today() - 30, true);
-INSERT INTO public.enrollments (id, show_id, handler_id, payment_status)
+INSERT INTO public.enrollments (id, show_id, handler_id, payment_status, confirmation_number)
 VALUES ('dededede-0000-0000-0731-1309b0000012', pg_temp.d_show(12),
-        '00000000-0000-0000-0000-000001309001', 'pending');
+        '00000000-0000-0000-0000-000001309001', 'pending', 'MYK9-2202-12');
 -- ... plus a range form with money recorded: kept
 SELECT pg_temp.d_mk(13, pg_temp.d_today() - 30, true);
-INSERT INTO public.enrollments (id, show_id, handler_id, payment_status, paid_amount)
+INSERT INTO public.enrollments (id, show_id, handler_id, payment_status, paid_amount, confirmation_number)
 VALUES ('dededede-0000-0000-0731-1309b0000013', pg_temp.d_show(13),
-        '00000000-0000-0000-0000-000001309001', 'pending', 30);
+        '00000000-0000-0000-0000-000001309001', 'pending', 30, 'MYK9-2202-13');
 -- ... plus an untouched range form and a real entry (outside the range) on it: kept
 SELECT pg_temp.d_mk(14, pg_temp.d_today() - 30, true);
-INSERT INTO public.enrollments (id, show_id, handler_id, payment_status)
+INSERT INTO public.enrollments (id, show_id, handler_id, payment_status, confirmation_number)
 VALUES ('dededede-0000-0000-0731-1309b0000014', pg_temp.d_show(14),
-        '00000000-0000-0000-0000-000001309001', 'pending');
+        '00000000-0000-0000-0000-000001309001', 'pending', 'MYK9-2202-14');
 INSERT INTO public.entries (id, show_id, trial_id, class_id, entry_status, payment_status,
                             registration_id)
 VALUES ('00000000-0000-0000-1309-d00000000014', pg_temp.d_show(14), pg_temp.d_trial(14),

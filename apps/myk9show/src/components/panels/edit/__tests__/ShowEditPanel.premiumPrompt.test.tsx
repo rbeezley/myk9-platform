@@ -134,6 +134,29 @@ describe('Publish these premium changes? (MYK9-2201)', () => {
     expect(screen.getByRole('button', { name: 'Save Changes' })).toBeInTheDocument();
   });
 
+  it('Keep editing saves nothing and keeps the panel open', async () => {
+    const { onSave, onClose, user } = setup();
+    await user.click(await screen.findByRole('tab', { name: /premium/i }));
+    await user.click(await screen.findByRole('button', { name: 'Edit premium' }));
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+    await user.click(await screen.findByRole('button', { name: 'Keep editing' }));
+
+    await waitFor(() => expect(screen.queryByText(TITLE)).not.toBeInTheDocument());
+    expect(onSave).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('Discard with no other edit runs no save, so it cannot touch the judges', async () => {
+    const { onSave, user } = setup();
+    await user.click(await screen.findByRole('tab', { name: /premium/i }));
+    await user.click(await screen.findByRole('button', { name: 'Edit premium' }));
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+    await user.click(await screen.findByRole('button', { name: 'Discard premium changes' }));
+
+    await waitFor(() => expect(screen.queryByText(TITLE)).not.toBeInTheDocument());
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
   it('does not ask when the publish box is ticked', async () => {
     const { onSave, user } = setup();
     await user.click(await screen.findByRole('tab', { name: /premium/i }));

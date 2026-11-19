@@ -52,6 +52,9 @@ export function usePremiumPublishPrompt() {
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
+          {/* A visible way back that saves nothing: Base UI's AlertDialog ignores outside taps,
+              so without it only a keyboard's Escape could keep editing. */}
+          <AlertDialogCancel onClick={() => answer('cancel')}>Keep editing</AlertDialogCancel>
           <AlertDialogCancel onClick={() => answer('discard')}>
             Discard premium changes
           </AlertDialogCancel>

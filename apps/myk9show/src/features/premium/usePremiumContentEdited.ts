@@ -9,9 +9,17 @@ import type { GeneratedPremium } from '@/types/premium-types';
 export function usePremiumContentEdited(
   supplemental: GeneratedPremium['supplemental'] | null,
   narratives: GeneratedPremium['narratives'] | null,
-  onEditedChange: ((edited: boolean) => void) | undefined
+  onEditedChange: ((edited: boolean) => void) | undefined,
+  /**
+   * What "unedited" means when the editor remounts holding edits already made in this panel
+   * session (a tab round trip): the content as first loaded. Without it the first value seen
+   * is taken as the baseline, which is right only on the first mount.
+   */
+  baseline?: Pick<GeneratedPremium, 'supplemental' | 'narratives'> | null
 ) {
-  const loadedKeyRef = useRef<string | null>(null);
+  const loadedKeyRef = useRef<string | null>(
+    baseline ? JSON.stringify([baseline.supplemental, baseline.narratives]) : null
+  );
   const onEditedChangeRef = useRef(onEditedChange);
   useEffect(() => {
     onEditedChangeRef.current = onEditedChange;

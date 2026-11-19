@@ -112,7 +112,13 @@ const ShowEditPanelSession: React.FC<ShowEditPanelProps> = ({
       const restOfShow: ShowEditSaveData = { ...changes };
       delete restOfShow.generatedPremium;
       delete restOfShow.inkSaver;
-      if (Object.keys(restOfShow).length > 0) await onSave(restOfShow);
+      // `changes` always carries the judge list (the caller diffs it), so a discard of the only
+      // edit must not run a save just for that: it would reconcile judges another staff member
+      // changed while this panel was open.
+      const judgesChanged =
+        JSON.stringify(formData.assignedJudges) !== JSON.stringify(openedFormData.assignedJudges);
+      const otherChanges = Object.keys(restOfShow).some(key => key !== 'assignedJudges');
+      if (otherChanges || judgesChanged) await onSave(restOfShow);
     },
     [onSave, openedFormData, askPremiumChoice]
   );

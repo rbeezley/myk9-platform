@@ -32,6 +32,8 @@ interface PremiumContentEditorProps {
   onPremiumChange?: (premium: GeneratedPremium | undefined) => void;
   /** True once the narratives or supplemental details differ from what first loaded (MYK9-2201). */
   onEditedChange?: (edited: boolean) => void;
+  /** MYK9-2201: the content as first loaded, when `initialPremium` already holds this session's edits. */
+  editBaseline?: GeneratedPremium;
   onInkSaverChange?: (inkSaver: boolean) => void;
   /** True while a Regenerate is pending, so the parent can hold Save-with-publish. */
   onPendingChange?: (pending: boolean) => void;
@@ -72,6 +74,7 @@ export function PremiumContentEditor({
   regenerateBlockedReason,
   onPremiumChange,
   onEditedChange,
+  editBaseline,
   onInkSaverChange,
   onPendingChange,
 }: PremiumContentEditorProps) {
@@ -356,7 +359,17 @@ export function PremiumContentEditor({
   useEffect(() => {
     onPremiumChangeRef.current?.(finalPremium ?? undefined);
   }, [finalPremium]);
-  usePremiumContentEdited(supplemental, narratives, onEditedChange);
+  usePremiumContentEdited(
+    supplemental,
+    narratives,
+    onEditedChange,
+    editBaseline
+      ? {
+          supplemental: editBaseline.supplemental,
+          narratives: stripPlaceholderNarratives(editBaseline.narratives),
+        }
+      : null
+  );
 
   useEffect(() => {
     onInkSaverChangeRef.current?.(inkSaver);

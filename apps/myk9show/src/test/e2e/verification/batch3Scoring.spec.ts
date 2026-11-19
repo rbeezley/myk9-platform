@@ -110,7 +110,9 @@ test('paper scoring persists one-entry and multi-entry results after reload (MYK
     // A write the server refused also leaves the pending queue (MutationUploadRunner moves it to
     // failed_mutations), so an empty queue alone is not proof the replay succeeded.
     const settled = await queueSnapshot(page);
-    expect(settled.failed_mutations ?? []).toEqual([]);
+    // The read itself must succeed: a missing store or an IndexedDB error is not "no failures".
+    expect(Array.isArray(settled.failed_mutations)).toBe(true);
+    expect(settled.failed_mutations).toEqual([]);
     expect(secretary.nonLocalSocketUrls).toEqual([]);
     await evidence(info, `paper-${cardinality}-entry`, {
       ...f,

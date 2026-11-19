@@ -1,8 +1,4 @@
-import {
-  livePremiumClasses,
-  livePremiumTrials,
-  type PremiumScheduleTrialRow,
-} from './liveTrials.ts';
+import { livePremiumTrials, type PremiumScheduleTrialRow } from './liveTrials.ts';
 
 /**
  * MYK9-2186: what Regenerate reads from the show's trials to choose the club template: the live

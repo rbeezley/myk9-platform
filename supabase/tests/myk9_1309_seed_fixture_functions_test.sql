@@ -331,6 +331,13 @@ INSERT INTO public.entries (id, show_id, trial_id, class_id, entry_status, payme
                             registration_id)
 VALUES ('00000000-0000-0000-1309-d00000000014', pg_temp.d_show(14), pg_temp.d_trial(14),
         pg_temp.d_class(14), 'confirmed', 'pending', 'dededede-0000-0000-0731-1309b0000014');
+-- ... plus an otherwise untouched range form with a secretary's note on it: kept
+SELECT pg_temp.d_mk(15, pg_temp.d_today() - 30, true);
+INSERT INTO public.enrollments (id, show_id, handler_id, payment_status, confirmation_number)
+VALUES ('dededede-0000-0000-0731-1309b0000015', pg_temp.d_show(15),
+        '00000000-0000-0000-0000-000001309001', 'pending', 'MYK9-2202-15');
+INSERT INTO public.entry_form_notes (enrollment_id, show_id, body)
+VALUES ('dededede-0000-0000-0731-1309b0000015', pg_temp.d_show(15), 'Called the exhibitor');
 SET LOCAL session_replication_role = origin;
 
 CREATE TEMP TABLE d_before ON COMMIT DROP AS
@@ -418,6 +425,21 @@ BEGIN
     RAISE EXCEPTION 'FAIL D4d a stale fixture with a real entry on its form was retired';
   END IF;
   RAISE NOTICE 'PASS D4d an untouched fixture form is retired with its show; a form with money, or with a real entry, keeps it';
+
+  -- D4e (MYK9-2202). A note on an otherwise untouched form keeps the show and its note; the
+  -- shared "untouched" rule that the reseed's entry delete also uses tells the four forms apart.
+  IF NOT EXISTS (SELECT 1 FROM public.shows WHERE id = pg_temp.d_show(15))
+     OR NOT EXISTS (SELECT 1 FROM public.entry_form_notes
+                    WHERE enrollment_id = 'dededede-0000-0000-0731-1309b0000015') THEN
+    RAISE EXCEPTION 'FAIL D4e a stale fixture whose form carries a secretary note was retired';
+  END IF;
+  IF public.seed_demo_fixture_form_untouched('dededede-0000-0000-0731-1309b0000015')
+     OR public.seed_demo_fixture_form_untouched('dededede-0000-0000-0731-1309b0000013')
+     OR NOT public.seed_demo_fixture_form_untouched('dededede-0000-0000-0731-1309b0000014')
+     OR public.seed_demo_fixture_form_untouched('00000000-0000-0000-0000-000000000000') THEN
+    RAISE EXCEPTION 'FAIL D4e seed_demo_fixture_form_untouched gave the wrong answer for a noted, paid, plain or missing form';
+  END IF;
+  RAISE NOTICE 'PASS D4e a form with a note keeps its show; the untouched rule tells noted, paid, plain and missing forms apart';
 
   IF v_retired IS DISTINCT FROM 6 THEN
     RAISE EXCEPTION 'FAIL D5 expected 6 shows retired (1, 2, 3, 8, 9, 12), the function reported %', v_retired;

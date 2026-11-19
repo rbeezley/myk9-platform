@@ -471,9 +471,13 @@ DELETE FROM public.entries WHERE id IN (
 -- Every entry the show-day fixture function minted (section 19, MYK9-731): its
 -- own id range, so a walk's scratch on one (a status-history row) cannot trip
 -- the guard below. A walk's own entries there have random ids and stay under it.
+-- MYK9-2202: an entry on a form somebody worked on (a desk payment, a note, an email job) is
+-- kept: deleting it would recalculate that form's total to $0 and orphan the payment's
+-- meaning. Its show is then kept too (the retire below keeps a show with a touched form).
 DELETE FROM public.entries
 WHERE id >= 'dededede-0000-0000-0731-000000000000'::uuid
-  AND id <  'dededede-0000-0000-0732-000000000000'::uuid;
+  AND id <  'dededede-0000-0000-0732-000000000000'::uuid
+  AND (registration_id IS NULL OR public.seed_demo_fixture_form_untouched(registration_id));
 -- PAID-STRAY GUARD. Both entry deletes above are done, so every entry the seed
 -- itself created is gone and anything still standing was created by something
 -- else. entries cascades from FOUR parents — classes, dogs, shows and trials

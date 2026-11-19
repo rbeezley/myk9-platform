@@ -18,11 +18,58 @@
 --      every reseed and make every fixture show unretirable (retire keeps a show with a
 --      Stripe order, and the seed never deletes from stripe_orders).
 --   2. Retire (body from 20261101221700, the latest definition): an enrollment in the fixture's
---      own id range that is untouched (pending, nothing received or refunded) no longer keeps a
+--      own id range that is untouched (public.seed_demo_fixture_form_untouched: pending, no money, notes, email jobs or payments) no longer keeps a
 --      show, exactly as its entries do not; the show delete cascades it. Any other enrollment, or
 --      a range form with money recorded, still keeps the show.
 -- Money: nothing here writes the ledger, a refund, a payout or Stripe. The seed deletes no form:
 -- a retired fixture show cascades its forms, and a kept show keeps its own.
+
+-- ---------------------------------------------------------------------------
+-- 0. "Untouched": the one rule for a fixture form nobody has worked on, shared by the retire
+-- (below) and by supabase/seed-demo.sql section 0, which keeps the entries of a touched form.
+-- Untouched = pending, no money or payment detail on the form, no form-level notes, and none of
+-- the dependents that hang off an enrollment (enumerated from pg_constraint, MYK9-2202):
+--   ON DELETE CASCADE (deleting the form would silently lose them): entry_form_notes,
+--     show_lifecycle_email_jobs;
+--   RESTRICT / NO ACTION (money or another person's entry): show_payments, stripe_orders,
+--     entries (checked by the callers for non-range entries; entries of the fixture's own
+--     range are the fixture's).
+-- SECURITY INVOKER, service_role and the owner only, like the other seed_demo_* functions.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.seed_demo_fixture_form_untouched(p_enrollment_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = ''
+AS $fn$
+  SELECT EXISTS (
+    SELECT 1 FROM public.enrollments en
+    WHERE en.id = p_enrollment_id
+      AND en.payment_status = 'pending'
+      AND COALESCE(en.paid_amount, 0) = 0
+      AND COALESCE(en.refund_amount, 0) = 0
+      AND COALESCE(en.card_covered_cents, 0) = 0
+      AND en.refunded_at IS NULL
+      AND en.payment_method IS NULL
+      AND en.check_number IS NULL
+      AND en.payment_reference IS NULL
+      AND en.payment_date IS NULL
+      AND en.group_reference IS NULL
+      AND en.notes IS NULL
+      AND en.payment_notes IS NULL
+      AND en.refund_notes IS NULL
+  )
+  AND NOT EXISTS (SELECT 1 FROM public.entry_form_notes n WHERE n.enrollment_id = p_enrollment_id)
+  AND NOT EXISTS (SELECT 1 FROM public.show_lifecycle_email_jobs j WHERE j.enrollment_id = p_enrollment_id)
+  AND NOT EXISTS (SELECT 1 FROM public.show_payments sp WHERE sp.enrollment_id = p_enrollment_id)
+  AND NOT EXISTS (SELECT 1 FROM public.stripe_orders so WHERE so.enrollment_id = p_enrollment_id);
+$fn$;
+
+COMMENT ON FUNCTION public.seed_demo_fixture_form_untouched(uuid) IS
+  'Seed maintenance (MYK9-2202). True when the entry form exists and nobody has worked on it: pending, no money or payment detail, no notes, no note / email-job / payment / Stripe-order rows. Used by seed_demo_retire_stale_fixture_shows() and supabase/seed-demo.sql section 0; never by a client.';
+REVOKE ALL ON FUNCTION public.seed_demo_fixture_form_untouched(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.seed_demo_fixture_form_untouched(uuid) TO service_role;
 
 CREATE OR REPLACE FUNCTION public.seed_demo_retire_stale_fixture_shows()
 RETURNS integer
@@ -74,9 +121,7 @@ BEGIN
                  WHERE en.show_id = v_show.id
                    AND NOT (en.id >= 'dededede-0000-0000-0731-000000000000'::uuid
                             AND en.id <  'dededede-0000-0000-0732-000000000000'::uuid
-                            AND en.payment_status = 'pending'
-                            AND COALESCE(en.paid_amount, 0) = 0
-                            AND COALESCE(en.refund_amount, 0) = 0))
+                            AND public.seed_demo_fixture_form_untouched(en.id)))
       OR EXISTS (SELECT 1 FROM public.waitlist_entries we
                  WHERE we.class_id IN (SELECT c.id FROM public.classes c
                                        JOIN public.trials t ON t.id = c.trial_id

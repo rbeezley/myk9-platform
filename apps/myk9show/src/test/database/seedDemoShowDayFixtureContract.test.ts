@@ -79,7 +79,7 @@ describe('seed-demo show-day fixture (MYK9-731)', () => {
   it('clears what the fixture minted before the paid-stray guard and the dog delete', () => {
     const guard = seed.indexOf('SELECT public.seed_demo_assert_no_paid_strays();');
     const entryDelete = seed.indexOf(
-      `DELETE FROM public.entries\nWHERE id >= ${RANGE_LOW}\n  AND id <  ${RANGE_HIGH};`
+      `DELETE FROM public.entries\nWHERE id >= ${RANGE_LOW}\n  AND id <  ${RANGE_HIGH}\n  AND (registration_id IS NULL OR public.seed_demo_fixture_form_untouched(registration_id));`
     );
     expect(entryDelete, 'marker-range entry delete not found').toBeGreaterThan(-1);
     expect(entryDelete).toBeLessThan(guard);

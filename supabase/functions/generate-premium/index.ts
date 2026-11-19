@@ -22,7 +22,11 @@ import {
   PREMIUM_CLUB_WITHDRAWAL_COLUMNS,
   PREMIUM_SHOW_WITHDRAWAL_COLUMNS,
 } from './withdrawalPolicyRow.ts';
-import { livePremiumTrials, type PremiumScheduleTrialRow } from './liveTrials.ts';
+import {
+  livePremiumClasses,
+  livePremiumTrials,
+  type PremiumScheduleTrialRow,
+} from './liveTrials.ts';
 import { buildShowSummary, premiumTemplateTrialType } from './showSummary.ts';
 import { resolvePremiumStyle, SHOW_STYLE_COLUMN } from './premiumStyle.ts';
 
@@ -105,7 +109,7 @@ handle<GeneratePremiumPayload>(
         trials(
           id, name, date, planned_start_time, event_number, trial_type, registry_id, status,
           deleted_at, max_total_entries,
-          classes(id, name, level, element, section, deleted_at, entry_fee, allow_waitlist)
+          classes(id, name, level, element, section, status, deleted_at, entry_fee, allow_waitlist)
         )
       `
       )
@@ -228,6 +232,7 @@ handle<GeneratePremiumPayload>(
           level: string | null;
           element: string | null;
           section: string | null;
+          status: string | null;
           deleted_at: string | null;
           entry_fee: number | null;
           allow_waitlist: boolean | null;
@@ -243,7 +248,7 @@ handle<GeneratePremiumPayload>(
       // MYK9-2229: this trial's own entry limit.
       maxTotalEntries: trial.max_total_entries ?? null,
       judges: premiumTrialJudges(judgeAssignments, trial),
-      classes: (trial.classes ?? []).map(cls => ({
+      classes: livePremiumClasses(trial.classes).map(cls => ({
         element: cls.element ?? '',
         level: cls.level ?? '',
         section: cls.section,

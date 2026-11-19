@@ -1,6 +1,19 @@
 import { describe, expect, it } from 'vitest';
 
-import { livePremiumTrials, storedStartMinutes } from './liveTrials.ts';
+import { livePremiumClasses, livePremiumTrials, storedStartMinutes } from './liveTrials.ts';
+
+describe('livePremiumClasses (MYK9-2231)', () => {
+  it('drops cancelled and soft-deleted classes and keeps the order', () => {
+    const classes = [
+      { id: 'a', status: 'scheduled', deleted_at: null },
+      { id: 'cancelled', status: 'cancelled', deleted_at: null },
+      { id: 'deleted', status: 'scheduled', deleted_at: '2026-11-01T00:00:00Z' },
+      { id: 'b' },
+    ];
+    expect(livePremiumClasses(classes).map(c => c.id)).toEqual(['a', 'b']);
+    expect(livePremiumClasses(null)).toEqual([]);
+  });
+});
 
 describe('livePremiumTrials (MYK9-2044)', () => {
   it('keeps live trials and drops cancelled and soft-deleted ones, in order', () => {

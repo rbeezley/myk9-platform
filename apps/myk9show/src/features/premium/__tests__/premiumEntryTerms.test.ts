@@ -49,7 +49,7 @@ describe('premiumTrialWaitlistText (MYK9-2231)', () => {
 describe('premiumTrialClassFeeText (MYK9-2231)', () => {
   it('prints the pre-entry fee of a class unlike the show fee', () => {
     const trial = { classes: [cls('Containers', { entryFee: 17.5 }), cls('Buried')] };
-    expect(premiumTrialClassFeeText(trial, { preEntryFee: 25 }, comparator)).toBe(
+    expect(premiumTrialClassFeeText(trial, { preEntryFee: 25, dayOfFee: null }, comparator)).toBe(
       'Class fees (pre-entry): Containers Novice $17.50.'
     );
   });
@@ -62,14 +62,32 @@ describe('premiumTrialClassFeeText (MYK9-2231)', () => {
         cls('Interior', { entryFee: null }),
       ],
     };
-    expect(premiumTrialClassFeeText(trial, { preEntryFee: 25 }, comparator)).toBeNull();
+    expect(
+      premiumTrialClassFeeText(trial, { preEntryFee: 25, dayOfFee: null }, comparator)
+    ).toBeNull();
   });
 
-  it('never prints a day-of price', () => {
-    const trial = { classes: [cls('Containers', { entryFee: 20 })] };
-    expect(premiumTrialClassFeeText(trial, { preEntryFee: 25 }, comparator)).not.toMatch(
-      /day|surcharge/i
+  it('says a class with its own fee adds the show day-of difference on the day', () => {
+    const trial = { classes: [cls('Containers', { entryFee: 17.5 })] };
+    expect(premiumTrialClassFeeText(trial, { preEntryFee: 25, dayOfFee: 30 }, comparator)).toBe(
+      'Class fees (pre-entry): Containers Novice $17.50. Day-of entries in these classes add $5.'
     );
+  });
+
+  it('prints a repeated class and fee once', () => {
+    const trial = {
+      classes: [cls('Containers', { entryFee: 20 }), cls('Containers', { entryFee: 20 })],
+    };
+    expect(premiumTrialClassFeeText(trial, { preEntryFee: 25, dayOfFee: null }, comparator)).toBe(
+      'Class fees (pre-entry): Containers Novice $20.'
+    );
+  });
+
+  it('says nothing about the day when the show has no day-of tier', () => {
+    const trial = { classes: [cls('Containers', { entryFee: 20 })] };
+    expect(
+      premiumTrialClassFeeText(trial, { preEntryFee: 25, dayOfFee: null }, comparator)
+    ).not.toMatch(/day|surcharge/i);
   });
 });
 

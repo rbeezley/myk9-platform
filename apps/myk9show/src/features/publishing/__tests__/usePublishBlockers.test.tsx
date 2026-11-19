@@ -7,8 +7,9 @@ import { useShowStore } from '@/store/showStore';
 import type { Show } from '@/types/show-types';
 import { useClubPublishBlockers, usePublishBlockers } from '../usePublishBlockers';
 
-const { rpc } = vi.hoisted(() => ({ rpc: vi.fn() }));
+const { rpc, online } = vi.hoisted(() => ({ rpc: vi.fn(), online: { value: true } }));
 vi.mock('@/lib/supabase', () => ({ supabase: { rpc } }));
+vi.mock('@/hooks/useNetworkStatus', () => ({ useIsOnline: () => online.value }));
 
 function wrapper({ children }: { children: ReactNode }) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -18,6 +19,7 @@ function wrapper({ children }: { children: ReactNode }) {
 describe('usePublishBlockers (MYK9-2198)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    online.value = true;
   });
 
   it('returns the server lines for the show', async () => {
@@ -27,10 +29,10 @@ describe('usePublishBlockers (MYK9-2198)', () => {
     });
     const { result } = renderHook(() => usePublishBlockers('show-1'), { wrapper });
 
-    await waitFor(() => expect(result.current.status).toBe('ready'));
+    await waitFor(() => expect(result.current.state).toBe('ready'));
     expect(rpc).toHaveBeenCalledWith('show_publish_blockers', { p_show_id: 'show-1' });
     expect(result.current).toEqual({
-      status: 'ready',
+      state: 'ready',
       blockers: [{ key: 'premium_not_published', waitingOn: 'secretary', eta: null }],
     });
   });
@@ -39,25 +41,25 @@ describe('usePublishBlockers (MYK9-2198)', () => {
     rpc.mockResolvedValue({ data: [], error: null });
     const { result } = renderHook(() => usePublishBlockers('show-1'), { wrapper });
 
-    await waitFor(() => expect(result.current).toEqual({ status: 'ready', blockers: [] }));
+    await waitFor(() => expect(result.current).toEqual({ state: 'ready', blockers: [] }));
   });
 
   it('is an error state, never an empty list, when the call fails or offline', async () => {
     rpc.mockResolvedValue({ data: null, error: new Error('Failed to fetch') });
     const { result } = renderHook(() => usePublishBlockers('show-1'), { wrapper });
 
-    await waitFor(() => expect(result.current.status).toBe('error'));
-    expect(result.current).not.toHaveProperty('blockers');
+    await waitFor(() => expect(result.current.state).toBe('failed'));
+    expect(result.current.blockers).toEqual([]);
   });
 
   it('retry asks the server again', async () => {
     rpc.mockResolvedValueOnce({ data: null, error: new Error('offline') });
     const { result } = renderHook(() => usePublishBlockers('show-1'), { wrapper });
-    await waitFor(() => expect(result.current.status).toBe('error'));
+    await waitFor(() => expect(result.current.state).toBe('failed'));
 
     rpc.mockResolvedValueOnce({ data: [], error: null });
-    if (result.current.status === 'error') result.current.retry();
-    await waitFor(() => expect(result.current.status).toBe('ready'));
+    if (result.current.state === 'failed') result.current.retry();
+    await waitFor(() => expect(result.current.state).toBe('ready'));
     expect(rpc).toHaveBeenCalledTimes(2);
   });
 
@@ -72,7 +74,7 @@ describe('usePublishBlockers (MYK9-2198)', () => {
     } as unknown as Show;
     act(() => useShowStore.setState({ shows: [base] }));
     const { result } = renderHook(() => usePublishBlockers('show-1'), { wrapper });
-    await waitFor(() => expect(result.current.status).toBe('ready'));
+    await waitFor(() => expect(result.current.state).toBe('ready'));
     expect(rpc).toHaveBeenCalledTimes(1);
 
     act(() =>
@@ -82,6 +84,35 @@ describe('usePublishBlockers (MYK9-2198)', () => {
     );
     await waitFor(() => expect(rpc).toHaveBeenCalledTimes(2));
     act(() => useShowStore.setState({ shows: [] }));
+  });
+
+  it('reads failed, not ready, when a refresh fails after an earlier success', async () => {
+    rpc.mockResolvedValueOnce({ data: [], error: null });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const sharedWrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    const { result } = renderHook(() => usePublishBlockers('show-1'), { wrapper: sharedWrapper });
+    await waitFor(() => expect(result.current.state).toBe('ready'));
+
+    rpc.mockResolvedValueOnce({ data: null, error: new Error('boom') });
+    await act(async () => {
+      await client.refetchQueries({ queryKey: ['shows', 'show-1', 'publish-blockers'] });
+    });
+    await waitFor(() => expect(result.current.state).toBe('failed'));
+    expect(result.current.blockers).toEqual([]);
+  });
+
+  it('reads offline, not ready, when the device is offline', () => {
+    online.value = false;
+    const { result } = renderHook(() => usePublishBlockers('show-1'), { wrapper });
+    expect(result.current).toEqual({ state: 'offline', blockers: [] });
+  });
+
+  it('is checking while the first answer is pending', () => {
+    rpc.mockReturnValue(new Promise(() => {}));
+    const { result } = renderHook(() => usePublishBlockers('show-1'), { wrapper });
+    expect(result.current).toEqual({ state: 'checking', blockers: [] });
   });
 
   it('does not ask when disabled', () => {
@@ -96,7 +127,7 @@ describe('usePublishBlockers (MYK9-2198)', () => {
     });
     const { result } = renderHook(() => useClubPublishBlockers('club-1'), { wrapper });
 
-    await waitFor(() => expect(result.current.status).toBe('ready'));
+    await waitFor(() => expect(result.current.state).toBe('ready'));
     expect(rpc).toHaveBeenCalledWith('club_publish_blockers', { p_club_id: 'club-1' });
   });
 });

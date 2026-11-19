@@ -2,6 +2,7 @@ import type React from 'react';
 import { AlertTriangle, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { ShowPublishBlockers } from '@/features/publishing/ShowPublishBlockers';
 import { WizardPublishBlockers } from '@/features/publishing/WizardPublishBlockers';
 
 interface ReviewWarningCardProps {
@@ -76,8 +77,8 @@ interface ReviewReadinessNoticesProps {
   missingVenuePin: boolean;
   /** False when the edit mode cannot reach Show Details (add-classes): the notices that only link there are omitted. */
   canEditDetails: boolean;
-  /** False for an existing show: its list lives on the show page, and is empty once public. */
-  showPublishBlockers: boolean;
+  /** The saved show's id when editing one: its list comes from the server, and only while it is a draft. */
+  existingShowId: string | undefined;
   onGoToStep: (step: number) => void;
 }
 
@@ -89,7 +90,7 @@ export function ReviewReadinessNotices({
   entryCloseDate,
   missingVenuePin,
   canEditDetails,
-  showPublishBlockers,
+  existingShowId,
   onGoToStep,
 }: ReviewReadinessNoticesProps) {
   return (
@@ -112,13 +113,17 @@ export function ReviewReadinessNotices({
       )}
 
       {/* MYK9-2198: the one "Before you can publish" list (it replaced the entry-window notice). */}
-      {canEditDetails && showPublishBlockers && (
-        <WizardPublishBlockers
-          clubId={clubId}
-          entryOpenDate={entryOpenDate}
-          entryCloseDate={entryCloseDate}
-          onEditDetails={() => onGoToStep(0)}
-        />
+      {existingShowId ? (
+        <ShowPublishBlockers showId={existingShowId} />
+      ) : (
+        canEditDetails && (
+          <WizardPublishBlockers
+            clubId={clubId}
+            entryOpenDate={entryOpenDate}
+            entryCloseDate={entryCloseDate}
+            onEditDetails={() => onGoToStep(0)}
+          />
+        )
       )}
 
       {/* MYK9-686: location text with no pin is allowed, but never silent. */}

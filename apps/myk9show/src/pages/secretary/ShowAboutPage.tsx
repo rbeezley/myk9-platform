@@ -75,7 +75,7 @@ export default function ShowAboutPage() {
       >
         {canManageShow && (
           <div className="sm:col-span-2 empty:hidden">
-            <ShowPublishBlockers showId={show.id} clubId={show.clubId} />
+            <ShowPublishBlockers showId={show.id} clubId={show.clubId} status={show.status} />
           </div>
         )}
         <div className="sm:col-span-2 empty:hidden">

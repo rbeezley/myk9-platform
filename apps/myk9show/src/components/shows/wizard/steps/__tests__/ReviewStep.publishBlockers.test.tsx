@@ -10,6 +10,8 @@ import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { ReviewStep } from '../ReviewStep';
 import { createWizardTrialView } from '@/utils/wizardTrialNames';
+import { useShowStore } from '@/store/showStore';
+import type { Show } from '@/types/show-types';
 
 const trialView = createWizardTrialView(
   [{ id: 'trial-1', nameOverride: 'Trial 1', trialDate: '2026-07-01T09:00:00Z' }],
@@ -22,7 +24,11 @@ const { entryWindow, setCurrentStep } = vi.hoisted(() => ({
 }));
 
 vi.mock('@/features/publishing/usePublishBlockers', () => ({
-  useClubPublishBlockers: () => ({ status: 'ready', blockers: [] }),
+  usePublishBlockers: () => ({
+    state: 'ready',
+    blockers: [{ key: 'entry_dates_missing', waitingOn: 'secretary', eta: null }],
+  }),
+  useClubPublishBlockers: () => ({ state: 'ready', blockers: [] }),
 }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 vi.mock('@/hooks/useResolvePersonName', () => ({
@@ -118,10 +124,18 @@ describe('ReviewStep publish blockers (MYK9-2198)', () => {
     expect(list).not.toHaveTextContent('Set when entries open');
   });
 
-  it('does not list publish blockers when the wizard is editing a show that already exists', () => {
-    render(<ReviewStep trialView={trialView} onCreateShow={vi.fn()} isExistingShow />);
+  it('editing a saved draft reads the server list for that show, not the local mirror', () => {
+    entryWindow.open = '2026-06-01T12:00:00.000Z';
+    entryWindow.close = '2026-06-25T12:00:00.000Z';
+    useShowStore.setState({
+      shows: [{ id: 'show-9', status: 'draft', clubId: 'club-1' } as unknown as Show],
+    });
+    render(<ReviewStep trialView={trialView} onCreateShow={vi.fn()} existingShowId="show-9" />);
+    useShowStore.setState({ shows: [] });
 
-    expect(screen.queryByTestId('publish-blockers')).not.toBeInTheDocument();
-    expect(screen.queryByText('Before you can publish')).not.toBeInTheDocument();
+    // The mirror would list only the premium here; the (mocked) server answers with the dates.
+    const list = screen.getByTestId('publish-blockers');
+    expect(list).toHaveTextContent('Set when entries open and close.');
+    expect(list).not.toHaveTextContent('Publish the premium list');
   });
 });

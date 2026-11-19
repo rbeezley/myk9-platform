@@ -13,13 +13,18 @@ interface ShowPublishBlockersProps {
   showId: string;
   /** Falls back to the show in the store, which the wizard fills in on create. */
   clubId?: string | undefined;
+  /** The show's status; falls back to the store's. The list is only for a draft. */
+  status?: string | undefined;
 }
 
 /** A saved show's list, read from the server, with each line linked to where it is fixed. */
-export function ShowPublishBlockers({ showId, clubId }: ShowPublishBlockersProps) {
-  const storedClubId = useShowStore(state => state.shows.find(s => s.id === showId)?.clubId);
-  const resolvedClubId = clubId ?? storedClubId;
-  const state = usePublishBlockers(showId);
+export function ShowPublishBlockers({ showId, clubId, status }: ShowPublishBlockersProps) {
+  const stored = useShowStore(state => state.shows.find(s => s.id === showId));
+  const resolvedClubId = clubId ?? stored?.clubId;
+  // Only a draft has anything to publish: a public show has no list, a cancelled one is not
+  // publishable, and neither asks the server.
+  const isDraft = (status ?? stored?.status) === 'draft';
+  const state = usePublishBlockers(showId, isDraft);
   const canOpenPayments = useCanOpenClubPayments(resolvedClubId);
 
   const fixFor = (blocker: PublishBlocker): PublishBlockerFix | undefined => {
@@ -41,5 +46,6 @@ export function ShowPublishBlockers({ showId, clubId }: ShowPublishBlockersProps
     }
   };
 
+  if (!isDraft) return null;
   return <PublishBlockersList state={state} fixFor={fixFor} viewerIsClubAdmin={canOpenPayments} />;
 }

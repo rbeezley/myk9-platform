@@ -31,7 +31,7 @@ vi.mock('react-router-dom', async importOriginal => ({
 }));
 vi.mock('@/features/publishing/usePublishBlockers', () => ({
   showPublishBlockersQueryKey: (id: string) => ['shows', id, 'publish-blockers'],
-  usePublishBlockers: () => ({ status: 'ready', blockers: [] }),
+  usePublishBlockers: () => ({ state: 'ready', blockers: [] }),
 }));
 vi.mock('@/hooks/queries/useShowsDatabase', () => ({
   useUpdateShowMutation: vi.fn(),

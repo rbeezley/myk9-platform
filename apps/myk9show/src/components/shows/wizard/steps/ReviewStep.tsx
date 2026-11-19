@@ -42,11 +42,8 @@ interface ReviewStepProps {
   trialView: WizardTrialView;
   /** What Review must satisfy; `class-selection` (add-classes) evaluates only the class rules. */
   scope?: ValidationScope;
-  /**
-   * True when the wizard is editing a show that already exists. Its publish blockers belong to
-   * the show page (the server returns none for a public show), so Review does not list them.
-   */
-  isExistingShow?: boolean;
+  /** The id of the show being edited, when it already exists: its list comes from the server. */
+  existingShowId?: string | undefined;
 }
 
 export const ReviewStep: React.FC<ReviewStepProps> = ({
@@ -58,7 +55,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
   officialsUnknown = false,
   trialView,
   scope = 'full',
-  isExistingShow = false,
+  existingShowId,
 }) => {
   const { show, trials, judgeDetails, markStepCompleted, setCurrentStep, allowedSteps } =
     useWizardStore();
@@ -153,7 +150,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
             entryCloseDate={show.entryCloseDate}
             missingVenuePin={missingVenuePin}
             canEditDetails={canEditDetails}
-            showPublishBlockers={!isExistingShow}
+            existingShowId={existingShowId}
             onGoToStep={setCurrentStep}
           />
 

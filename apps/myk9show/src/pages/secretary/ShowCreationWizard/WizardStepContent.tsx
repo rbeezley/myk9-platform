@@ -119,7 +119,7 @@ export const WizardStepContent: React.FC<WizardStepContentProps> = ({
           submitLabel={getSubmitLabel(editMode?.mode)}
           trialView={trialView}
           scope={getValidationScope(editMode)}
-          isExistingShow={Boolean(editMode?.showId)}
+          existingShowId={editMode?.showId}
         />
       );
     default:

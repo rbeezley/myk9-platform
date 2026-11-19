@@ -16,7 +16,7 @@ describe('PublishBlockersList (MYK9-2198)', () => {
           key.key === 'premium_not_published' ? { href: '/shows/s1/about' } : undefined
         }
         state={{
-          status: 'ready',
+          state: 'ready',
           blockers: [
             { key: 'club_not_approved', waitingOn: 'myk9', eta: 'about a day' },
             { key: 'payouts_not_enabled', waitingOn: 'club_admin', eta: null },
@@ -45,7 +45,7 @@ describe('PublishBlockersList (MYK9-2198)', () => {
         viewerIsClubAdmin
         fixFor={none}
         state={{
-          status: 'ready',
+          state: 'ready',
           blockers: PUBLISH_BLOCKER_KEYS.map(key => ({ key, waitingOn: null, eta: null })),
         }}
       />
@@ -60,7 +60,7 @@ describe('PublishBlockersList (MYK9-2198)', () => {
         viewerIsClubAdmin={false}
         fixFor={() => ({ onFix })}
         state={{
-          status: 'ready',
+          state: 'ready',
           blockers: [{ key: 'entry_dates_missing', waitingOn: 'secretary', eta: null }],
         }}
       />
@@ -69,19 +69,40 @@ describe('PublishBlockersList (MYK9-2198)', () => {
     expect(onFix).toHaveBeenCalledTimes(1);
   });
 
-  it('renders nothing for an empty list or while loading', () => {
-    const { container, rerender } = render(
+  it('renders nothing only for a ready, empty list', () => {
+    const { container } = render(
       <PublishBlockersList
         viewerIsClubAdmin={false}
         fixFor={none}
-        state={{ status: 'ready', blockers: [] }}
+        state={{ state: 'ready', blockers: [] }}
       />
     );
     expect(container).toBeEmptyDOMElement();
-    rerender(
-      <PublishBlockersList viewerIsClubAdmin={false} fixFor={none} state={{ status: 'loading' }} />
+  });
+
+  it('says it is checking while the first answer is pending', () => {
+    render(
+      <PublishBlockersList
+        viewerIsClubAdmin={false}
+        fixFor={none}
+        state={{ state: 'checking', blockers: [] }}
+      />
     );
-    expect(container).toBeEmptyDOMElement();
+    expect(screen.getByText('Checking what blocks publishing…')).toBeInTheDocument();
+  });
+
+  it('says it is offline, with no retry', () => {
+    render(
+      <PublishBlockersList
+        viewerIsClubAdmin={false}
+        fixFor={none}
+        state={{ state: 'offline', blockers: [] }}
+      />
+    );
+    expect(
+      screen.getByText('You are offline. Reconnect to see what blocks publishing.')
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
   it('says it could not check, with a retry, when the answer is unreadable', async () => {
@@ -90,7 +111,7 @@ describe('PublishBlockersList (MYK9-2198)', () => {
       <PublishBlockersList
         viewerIsClubAdmin={false}
         fixFor={none}
-        state={{ status: 'error', retry }}
+        state={{ state: 'failed', blockers: [], retry }}
       />
     );
     expect(

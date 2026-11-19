@@ -13,9 +13,10 @@ import { ENTRY_WINDOW_REQUIRED_MESSAGE } from '@/features/payments/onlineEntryGa
 import type { PublishBlockersState } from '@/features/publishing/usePublishBlockers';
 import { toast } from 'sonner';
 
-const { navigate, blockersState } = vi.hoisted(() => ({
+const { navigate, blockersState, online } = vi.hoisted(() => ({
   navigate: vi.fn(),
-  blockersState: { value: { status: 'ready', blockers: [] } as PublishBlockersState },
+  online: { value: true },
+  blockersState: { value: { state: 'ready', blockers: [] } as PublishBlockersState },
 }));
 
 vi.mock('react-router-dom', async importOriginal => ({
@@ -26,6 +27,7 @@ vi.mock('@/features/publishing/usePublishBlockers', () => ({
   showPublishBlockersQueryKey: (id: string) => ['shows', id, 'publish-blockers'],
   usePublishBlockers: () => blockersState.value,
 }));
+vi.mock('@/hooks/useNetworkStatus', () => ({ useIsOnline: () => online.value }));
 vi.mock('@/hooks/queries/useShowsDatabase', () => ({
   useUpdateShowMutation: vi.fn(),
 }));
@@ -39,12 +41,13 @@ describe('ShowStatusPill and the publish blockers list (MYK9-2198)', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    online.value = true;
     mutateAsync = vi.fn().mockResolvedValue({});
     vi.mocked(useUpdateShowMutation).mockReturnValue({
       mutateAsync,
       isPending: false,
     } as unknown as ReturnType<typeof useUpdateShowMutation>);
-    blockersState.value = { status: 'ready', blockers: [] };
+    blockersState.value = { state: 'ready', blockers: [] };
   });
 
   async function clickFirstItem() {
@@ -63,7 +66,7 @@ describe('ShowStatusPill and the publish blockers list (MYK9-2198)', () => {
 
   it('opens the list instead of publishing when the server lists a blocker, with no toast', async () => {
     blockersState.value = {
-      status: 'ready',
+      state: 'ready',
       blockers: [{ key: 'entry_dates_missing', waitingOn: 'secretary', eta: null }],
     };
     render(
@@ -90,8 +93,20 @@ describe('ShowStatusPill and the publish blockers list (MYK9-2198)', () => {
     expect(toast.error).not.toHaveBeenCalled();
   });
 
+  it('offline: the publish item is disabled with "Reconnect to publish." and nothing is queued', async () => {
+    online.value = false;
+    blockersState.value = { state: 'offline', blockers: [] };
+    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+    await userEvent.setup().click(screen.getByRole('button', { name: /draft/i }));
+
+    const item = await screen.findByRole('menuitem', { name: 'Reconnect to publish.' });
+    expect(item).toHaveAttribute('aria-disabled', 'true');
+    await userEvent.setup().click(item);
+    expect(mutateAsync).not.toHaveBeenCalled();
+  });
+
   it('disables the publish item while the list is still loading', async () => {
-    blockersState.value = { status: 'loading' };
+    blockersState.value = { state: 'checking', blockers: [] };
     render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
     await userEvent.setup().click(screen.getByRole('button', { name: /draft/i }));
 
@@ -101,7 +116,7 @@ describe('ShowStatusPill and the publish blockers list (MYK9-2198)', () => {
   });
 
   it('notes that the check failed, and still offers the attempt, when the list could not be read', async () => {
-    blockersState.value = { status: 'error', retry: vi.fn() };
+    blockersState.value = { state: 'failed', blockers: [], retry: vi.fn() };
     render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
     await userEvent.setup().click(screen.getByRole('button', { name: /draft/i }));
 
@@ -110,7 +125,7 @@ describe('ShowStatusPill and the publish blockers list (MYK9-2198)', () => {
   });
 
   it('still tries when the list could not be read, and the server refusal is the answer', async () => {
-    blockersState.value = { status: 'error', retry: vi.fn() };
+    blockersState.value = { state: 'failed', blockers: [], retry: vi.fn() };
     mutateAsync.mockRejectedValueOnce({ code: 'MK005', message: ENTRY_WINDOW_REQUIRED_MESSAGE });
     await clickFirstItem();
 

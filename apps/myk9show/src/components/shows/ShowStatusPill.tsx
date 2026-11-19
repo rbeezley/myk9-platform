@@ -1,4 +1,5 @@
 import { Fragment } from 'react';
+import { useIsOnline } from '@/hooks/useNetworkStatus';
 import { ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -89,7 +90,9 @@ export function ShowStatusPill({
   // MYK9-2198: the server's list of what blocks publishing is the one answer. It is read only
   // while this pill offers a publish, and is empty for a show that is already public.
   const canPublish = transitions.some(({ next }) => becomesPublic(status, next));
-  const blockers = usePublishBlockers(showId, canPublish);
+  const online = useIsOnline();
+  // Asked only for a draft: a show that is already public has no list.
+  const blockers = usePublishBlockers(showId, canPublish && status === 'draft');
   const config = pillConfig(status);
   // The entry dates live on the Edit panel's Basic Info tab.
   const setEntryWindowAction = {
@@ -117,6 +120,10 @@ export function ShowStatusPill({
     // MYK9-979: the gate runs on any move that makes the show publicly
     // visible (becomesPublic), the same transition the DB triggers check.
     if (becomesPublic(status, next)) {
+      if (!online) {
+        toast.error('Reconnect to publish.');
+        return;
+      }
       if (!clubId) {
         // Fail CLOSED, not open: a missing clubId is either a wiring bug
         // (lost in the #615 merge once already) or a genuinely clubless show
@@ -126,9 +133,9 @@ export function ShowStatusPill({
         return;
       }
       // Something blocks: show the list instead of attempting a publish that will be refused.
-      // An unreadable list (offline, a failed call) falls through to the attempt, whose refusal
+      // A list that failed while online falls through to the attempt, whose refusal
       // text is the backstop.
-      if (blockers.status === 'ready' && blockers.blockers.length > 0 && onSeeBlockers) {
+      if (blockers.state === 'ready' && blockers.blockers.length > 0 && onSeeBlockers) {
         onSeeBlockers();
         return;
       }
@@ -212,7 +219,16 @@ export function ShowStatusPill({
       <DropdownMenuContent align="end">
         {transitions.map(({ label, next }) => {
           const publishes = becomesPublic(status, next);
-          if (publishes && blockers.status === 'loading') {
+          if (publishes && !online) {
+            // A publish started offline would wait in the mutation queue and go out on reconnect,
+            // after the secretary stopped looking. Not offered.
+            return (
+              <DropdownMenuItem key={next} disabled>
+                Reconnect to publish.
+              </DropdownMenuItem>
+            );
+          }
+          if (publishes && blockers.state === 'checking') {
             // The list is still being read: do not offer a publish that may be refused.
             return (
               <DropdownMenuItem key={next} disabled>
@@ -220,13 +236,13 @@ export function ShowStatusPill({
               </DropdownMenuItem>
             );
           }
-          const blocked = publishes && blockers.status === 'ready' && blockers.blockers.length > 0;
+          const blocked = publishes && blockers.state === 'ready' && blockers.blockers.length > 0;
           return (
             <Fragment key={next}>
               <DropdownMenuItem onClick={() => handleTransition(next)}>
                 {blocked ? 'See what blocks publishing' : label}
               </DropdownMenuItem>
-              {publishes && blockers.status === 'error' && (
+              {publishes && blockers.state === 'failed' && (
                 <p className="max-w-64 px-2 pb-2 text-sm text-muted-foreground">
                   Could not check what blocks publishing. myK9Show will tell you if it refuses.
                 </p>

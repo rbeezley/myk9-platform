@@ -26,7 +26,7 @@ vi.mock('@/components/secretary/ShowAccessCodesCard', () => ({
 }));
 
 const ALL_FIVE: PublishBlockersState = {
-  status: 'ready',
+  state: 'ready',
   blockers: [
     { key: 'club_not_approved', waitingOn: 'myk9', eta: 'about a day' },
     { key: 'payouts_not_enabled', waitingOn: 'club_admin', eta: null },
@@ -38,14 +38,14 @@ const ALL_FIVE: PublishBlockersState = {
 
 beforeEach(() => {
   harness.show = ALL_FIVE;
-  harness.club = { status: 'ready', blockers: [] };
+  harness.club = { state: 'ready', blockers: [] };
   harness.canOpenPayments = false;
 });
 
 describe('ShowPublishBlockers links (MYK9-2198)', () => {
   it('opens the place to fix each line', () => {
     harness.canOpenPayments = true;
-    render(<ShowPublishBlockers showId="show-1" clubId="club-1" />);
+    render(<ShowPublishBlockers showId="show-1" clubId="club-1" status="draft" />);
 
     const hrefs = screen.getAllByRole('link').map(link => link.getAttribute('href'));
     expect(hrefs).toEqual([
@@ -57,11 +57,20 @@ describe('ShowPublishBlockers links (MYK9-2198)', () => {
   });
 
   it('offers no payments link to someone who cannot open the Payments tab, and says who it waits on', () => {
-    render(<ShowPublishBlockers showId="show-1" clubId="club-1" />);
+    render(<ShowPublishBlockers showId="show-1" clubId="club-1" status="draft" />);
 
     // Club approval waits on myK9Show, so it has no link; payouts has none for this viewer.
     expect(screen.getAllByRole('link')).toHaveLength(3);
     expect(screen.getByText('Waiting on your club admin')).toBeInTheDocument();
+  });
+});
+
+describe('ShowPublishBlockers draft gate (MYK9-2198)', () => {
+  it('renders nothing for a show that is not a draft', () => {
+    const { container } = render(
+      <ShowPublishBlockers showId="show-1" clubId="club-1" status="published" />
+    );
+    expect(container).toBeEmptyDOMElement();
   });
 });
 
@@ -75,7 +84,7 @@ describe('WizardPublishBlockers (MYK9-2198)', () => {
 
   it('combines the club lines from the server with the draft’s own lines', () => {
     harness.club = {
-      status: 'ready',
+      state: 'ready',
       blockers: [{ key: 'club_not_approved', waitingOn: 'myk9', eta: 'about a day' }],
     };
     render(<WizardPublishBlockers {...props} entryOpenDate="" />);
@@ -94,7 +103,7 @@ describe('WizardPublishBlockers (MYK9-2198)', () => {
 
   it('offline: still lists the draft’s own lines, plus one row saying the club check failed', async () => {
     const retry = vi.fn();
-    harness.club = { status: 'error', retry };
+    harness.club = { state: 'failed', blockers: [], retry };
     render(<WizardPublishBlockers {...props} entryOpenDate="" />);
 
     expect(screen.getByText('Set when entries open and close.')).toBeInTheDocument();
@@ -106,12 +115,44 @@ describe('WizardPublishBlockers (MYK9-2198)', () => {
     expect(retry).toHaveBeenCalledTimes(1);
   });
 
+  it('shows the club part as its own checking row, not as a complete list', () => {
+    harness.club = { state: 'checking', blockers: [] };
+    render(<WizardPublishBlockers {...props} />);
+
+    expect(screen.getByText('Checking the club’s approval and payouts…')).toBeInTheDocument();
+    expect(screen.getByText(/Publish the premium list/)).toBeInTheDocument();
+  });
+
+  it('links the payouts row to the club Payments tab for someone who can open it', () => {
+    harness.canOpenPayments = true;
+    harness.club = {
+      state: 'ready',
+      blockers: [{ key: 'payouts_not_enabled', waitingOn: 'club_admin', eta: null }],
+    };
+    render(<WizardPublishBlockers {...props} />);
+
+    expect(
+      screen.getByRole('link', { name: /fix it: your club has not finished/i })
+    ).toHaveAttribute('href', '/clubs/club-1?tab=payments');
+  });
+
+  it('shows the waiting text instead of a link when the viewer cannot open Payments', () => {
+    harness.club = {
+      state: 'ready',
+      blockers: [{ key: 'payouts_not_enabled', waitingOn: 'club_admin', eta: null }],
+    };
+    render(<WizardPublishBlockers {...props} />);
+
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.getByText('Waiting on your club admin')).toBeInTheDocument();
+  });
+
   it('with no club chosen yet, lists the draft’s own lines and no club row', () => {
-    harness.club = { status: 'loading' };
+    harness.club = { state: 'ready', blockers: [] };
     render(<WizardPublishBlockers {...props} clubId={undefined} entryOpenDate="" />);
 
     expect(screen.getByText('Set when entries open and close.')).toBeInTheDocument();
-    expect(screen.queryByTestId('publish-blockers-part-error')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('publish-blockers-club-part')).not.toBeInTheDocument();
   });
 });
 

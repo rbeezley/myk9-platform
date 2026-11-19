@@ -247,6 +247,11 @@ export async function ensureClubsIdentity(): Promise<void> {
   await reconcileClubsIdentity(principal);
 }
 
+/** Resolves when every account check started so far has finished. */
+export function whenClubsIdentitySettled(): Promise<void> {
+  return chain;
+}
+
 /** Test seam: forget every decision. */
 export function resetClubsIdentityBoundaryForTests(): void {
   handledKey = null;

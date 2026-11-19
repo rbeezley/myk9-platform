@@ -36,6 +36,7 @@ vi.mock('@/store/clubStore', () => ({
   useClubStore: (selector: (value: Record<string, unknown>) => unknown) =>
     selector({
       clubReadiness: state.clubReadiness,
+      clubsIdentity: { status: 'verified', reason: null, principalKey: 'user-1' },
       ensureClubsReady: state.ensureClubsReady,
       get clubs() {
         state.replicaReads += 1;

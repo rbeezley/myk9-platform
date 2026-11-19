@@ -24,6 +24,11 @@ vi.mock('@/services/LoggingService', () => ({ logger: { warn: vi.fn(), error: vi
 vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: () => auth.value }));
 vi.mock('@/services/database/clubs', () => ({ getPublicClubById }));
 
+vi.mock('@/store/clubsIdentityBoundary', () => ({
+  ensureClubsIdentity: vi.fn(async () => undefined),
+  registerClubsIdentitySink: vi.fn(),
+}));
+
 import { resetClubReadinessForTests, useClubStore } from '@/store/clubStore';
 import { CLUB_LOOKUP_DEADLINE_MS } from '../clubLookupDeadline';
 import { useClubDetailData } from '../useClubDetailData';
@@ -50,6 +55,9 @@ describe('useClubDetailData with a stalled lookup', () => {
     getPublicClubById.mockReturnValue(new Promise(() => undefined));
     useClubStore.setState({ clubs: [], clubReadiness: 'loading', error: null });
     resetClubReadinessForTests();
+    useClubStore.setState({
+      clubsIdentity: { status: 'verified', reason: null, principalKey: 'user-1' },
+    });
     Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: true });
   });
 

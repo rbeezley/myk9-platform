@@ -22,6 +22,7 @@ function makeWrapper() {
 const state = vi.hoisted(() => ({
   clubs: [] as Club[],
   clubReadiness: 'loading' as 'loading' | 'fresh' | 'offline' | 'unavailable',
+  withheldReason: null as null | 'identity-unknown' | 'offline' | 'pending-edits' | 'failed',
   ensureClubsReady: vi.fn(),
   shows: [],
   // Counts every read of the replica's club list, so a test can prove a
@@ -47,6 +48,7 @@ vi.mock('@/store/clubStore', () => ({
   useClubStore: (selector: (value: Record<string, unknown>) => unknown) =>
     selector({
       clubReadiness: state.clubReadiness,
+      clubsIdentity: { status: 'unverified', reason: state.withheldReason, principalKey: null },
       ensureClubsReady: state.ensureClubsReady,
       get clubs() {
         state.replicaReads += 1;
@@ -97,6 +99,7 @@ function signOut() {
 beforeEach(() => {
   state.clubs = [];
   state.clubReadiness = 'loading';
+  state.withheldReason = null;
   state.ensureClubsReady.mockReset();
   state.shows = [];
   state.replicaReads = 0;
@@ -140,6 +143,15 @@ describe('useBrowseClubsData signed-in readiness states', () => {
     }).result;
     expect(unavailableResult.current.isLoading).toBe(false);
     expect(unavailableResult.current.hasError).toBe(true);
+  });
+
+  it('says plainly why no club is shown when another account has unsent club changes', () => {
+    state.clubReadiness = 'unavailable';
+    state.withheldReason = 'pending-edits';
+    const { result } = renderHook(() => useBrowseClubsData(), { wrapper: makeWrapper() });
+    expect(result.current.clubs).toEqual([]);
+    expect(result.current.hasError).toBe(true);
+    expect(result.current.errorMessage).toMatch(/another account has club changes/i);
   });
 
   it('keeps cached clubs visible when refresh becomes unavailable or offline', () => {

@@ -32,7 +32,13 @@ const clubs = [
   makeClub('c1', 'Golden State Dog Club', 'Sacramento'),
   makeClub('c2', 'Bay Scent Club', 'Oakland'),
 ];
-const data = { clubs, filteredClubs: clubs, isLoading: false, hasError: false };
+const data = {
+  clubs,
+  filteredClubs: clubs,
+  isLoading: false,
+  hasError: false,
+  errorMessage: "We couldn't load your clubs.",
+};
 const detailMounts = { count: 0 };
 
 // Filters live in the URL, as in the real hook (useUrlFilters).

@@ -36,6 +36,7 @@ vi.mock('@/store/clubStore', () => ({
     selector({
       clubs: replica.clubs,
       clubReadiness: 'fresh',
+      clubsIdentity: { status: 'verified', reason: null, principalKey: 'user-1' },
       ensureClubsReady: replica.ensureClubsReady,
       addClub: vi.fn(),
       selectClub: vi.fn(),

@@ -16,6 +16,11 @@ const logging = vi.hoisted(() => ({
 vi.mock('@/services/replication', () => ({ replicatedClubsTable: replication }));
 vi.mock('@/services/LoggingService', () => ({ logger: logging }));
 
+vi.mock('@/store/clubsIdentityBoundary', () => ({
+  ensureClubsIdentity: vi.fn(async () => undefined),
+  registerClubsIdentitySink: vi.fn(),
+}));
+
 import { resetClubReadinessForTests, useClubStore, type ClubReadinessResult } from './clubStore';
 
 const clubRow = {
@@ -55,6 +60,9 @@ describe('clubStore.ensureClubsReady', () => {
       clubReadiness: 'loading',
     });
     resetClubReadinessForTests();
+    useClubStore.setState({
+      clubsIdentity: { status: 'verified', reason: null, principalKey: 'user-1' },
+    });
     setOnline(true);
   });
 

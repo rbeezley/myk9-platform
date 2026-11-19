@@ -54,6 +54,7 @@ vi.mock('@/store/clubStore', () => {
       return clubReplica.clubs;
     },
     clubReadiness: 'fresh',
+    clubsIdentity: { status: 'verified', reason: null, principalKey: 'user-1' },
     ensureClubsReady: () => Promise.resolve({ status: 'fresh', clubs: [] }),
     updateClub: vi.fn(),
   };

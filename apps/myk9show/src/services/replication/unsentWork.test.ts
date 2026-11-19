@@ -81,6 +81,17 @@ describe('summarizeUnsentWork', () => {
     expect(work.total).toBe(1);
   });
 
+  // MYK9-2168: the sign-out warning reads this count, so a queued club edit is the
+  // "unsent changes" that warns before an account switch.
+  it('counts a queued club edit as an unsent change', () => {
+    const work = summarizeUnsentWork(
+      [mutation({ id: 'c1', tableName: 'clubs', rowId: 'club-a', authUserId: 'user-a' })],
+      []
+    );
+    expect(work.otherChangeCount).toBe(1);
+    expect(work.total).toBe(1);
+  });
+
   it('lists all four refused scores', () => {
     const failed = ['e1', 'e2', 'e3', 'e4'].map((rowId, i) => refused(`f${i}`, rowId));
     const work = summarizeUnsentWork([], failed);

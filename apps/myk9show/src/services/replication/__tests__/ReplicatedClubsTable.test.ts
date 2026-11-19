@@ -846,9 +846,14 @@ describe('ReplicatedClubsTable', () => {
 
       it('does not prune when there is no authenticated session', async () => {
         const { supabase } = await import('@/services/database/supabaseClient');
-        vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
-          data: { session: null },
-        } as never);
+        vi.mocked(supabase.auth.getSession)
+          // sync() reads the session before the pull and again before it commits
+          .mockResolvedValueOnce({
+            data: { session: null },
+          } as never)
+          .mockResolvedValueOnce({
+            data: { session: null },
+          } as never);
         mockRemoteRows();
 
         const reconcileSpy = vi.spyOn(table, 'reconcileVisibility');
@@ -861,9 +866,14 @@ describe('ReplicatedClubsTable', () => {
 
       it('does prune when there IS an authenticated session', async () => {
         const { supabase } = await import('@/services/database/supabaseClient');
-        vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
-          data: { session: { user: { id: 'u1' } } },
-        } as never);
+        vi.mocked(supabase.auth.getSession)
+          // sync() reads the session before the pull and again before it commits
+          .mockResolvedValueOnce({
+            data: { session: { user: { id: 'u1' } } },
+          } as never)
+          .mockResolvedValueOnce({
+            data: { session: { user: { id: 'u1' } } },
+          } as never);
         mockRemoteRows();
 
         const reconcileSpy = vi.spyOn(table, 'reconcileVisibility').mockResolvedValue(0);
@@ -879,9 +889,14 @@ describe('ReplicatedClubsTable', () => {
       // null session, not just a missing user.
       it('does not prune when the session is anonymous (is_anonymous: true)', async () => {
         const { supabase } = await import('@/services/database/supabaseClient');
-        vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
-          data: { session: { user: { id: 'anon-device-1', is_anonymous: true } } },
-        } as never);
+        vi.mocked(supabase.auth.getSession)
+          // sync() reads the session before the pull and again before it commits
+          .mockResolvedValueOnce({
+            data: { session: { user: { id: 'anon-device-1', is_anonymous: true } } },
+          } as never)
+          .mockResolvedValueOnce({
+            data: { session: { user: { id: 'anon-device-1', is_anonymous: true } } },
+          } as never);
         mockRemoteRows();
 
         const reconcileSpy = vi.spyOn(table, 'reconcileVisibility');
@@ -966,16 +981,26 @@ describe('ReplicatedClubsTable', () => {
         await table.updateSyncMetadata({ lastIncrementalSyncAt: Date.now() - 60000 });
 
         // Call 1: anon.
-        vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
-          data: { session: null },
-        } as never);
+        vi.mocked(supabase.auth.getSession)
+          // sync() reads the session before the pull and again before it commits
+          .mockResolvedValueOnce({
+            data: { session: null },
+          } as never)
+          .mockResolvedValueOnce({
+            data: { session: null },
+          } as never);
         mockSyncAndReconcile([], []);
         await table.sync();
 
         // Call 2: now signed in — this is the transition.
-        vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
-          data: { session: { user: { id: 'u1' } } },
-        } as never);
+        vi.mocked(supabase.auth.getSession)
+          // sync() reads the session before the pull and again before it commits
+          .mockResolvedValueOnce({
+            data: { session: { user: { id: 'u1' } } },
+          } as never)
+          .mockResolvedValueOnce({
+            data: { session: { user: { id: 'u1' } } },
+          } as never);
         const { mockGt } = mockSyncAndReconcile([], [{ id: 'club-kept' }]);
         await table.sync();
 
@@ -997,16 +1022,26 @@ describe('ReplicatedClubsTable', () => {
         await table.updateSyncMetadata({ lastIncrementalSyncAt: Date.now() - 60000 });
 
         // Call 1: anonymous session (at-show passcode flow).
-        vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
-          data: { session: { user: { id: 'anon-device-1', is_anonymous: true } } },
-        } as never);
+        vi.mocked(supabase.auth.getSession)
+          // sync() reads the session before the pull and again before it commits
+          .mockResolvedValueOnce({
+            data: { session: { user: { id: 'anon-device-1', is_anonymous: true } } },
+          } as never)
+          .mockResolvedValueOnce({
+            data: { session: { user: { id: 'anon-device-1', is_anonymous: true } } },
+          } as never);
         mockSyncAndReconcile([], []);
         await table.sync();
 
         // Call 2: now signed in for real — this is the transition.
-        vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
-          data: { session: { user: { id: 'u1' } } },
-        } as never);
+        vi.mocked(supabase.auth.getSession)
+          // sync() reads the session before the pull and again before it commits
+          .mockResolvedValueOnce({
+            data: { session: { user: { id: 'u1' } } },
+          } as never)
+          .mockResolvedValueOnce({
+            data: { session: { user: { id: 'u1' } } },
+          } as never);
         const { mockGt } = mockSyncAndReconcile([], [{ id: 'club-kept' }]);
         await table.sync();
 
@@ -1028,16 +1063,26 @@ describe('ReplicatedClubsTable', () => {
         await table.updateSyncMetadata({ lastIncrementalSyncAt: Date.now() - 60000 });
 
         // Call 1: userA.
-        vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
-          data: { session: { user: { id: 'userA' } } },
-        } as never);
+        vi.mocked(supabase.auth.getSession)
+          // sync() reads the session before the pull and again before it commits
+          .mockResolvedValueOnce({
+            data: { session: { user: { id: 'userA' } } },
+          } as never)
+          .mockResolvedValueOnce({
+            data: { session: { user: { id: 'userA' } } },
+          } as never);
         mockSyncAndReconcile([], [{ id: 'club-kept' }]);
         await table.sync();
 
         // Call 2: userB signs in on the same device — this is the transition.
-        vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
-          data: { session: { user: { id: 'userB' } } },
-        } as never);
+        vi.mocked(supabase.auth.getSession)
+          // sync() reads the session before the pull and again before it commits
+          .mockResolvedValueOnce({
+            data: { session: { user: { id: 'userB' } } },
+          } as never)
+          .mockResolvedValueOnce({
+            data: { session: { user: { id: 'userB' } } },
+          } as never);
         const { mockGt } = mockSyncAndReconcile([], [{ id: 'club-kept' }]);
         await table.sync();
 

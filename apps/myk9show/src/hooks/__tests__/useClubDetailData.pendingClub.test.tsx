@@ -24,6 +24,11 @@ vi.mock('@/services/LoggingService', () => ({ logger: { warn: vi.fn(), error: vi
 vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: () => auth.value }));
 vi.mock('@/services/database/clubs', () => ({ getPublicClubById }));
 
+vi.mock('@/store/clubsIdentityBoundary', () => ({
+  ensureClubsIdentity: vi.fn(async () => undefined),
+  registerClubsIdentitySink: vi.fn(),
+}));
+
 import { resetClubReadinessForTests, useClubStore } from '@/store/clubStore';
 import { useClubDetailData } from '../useClubDetailData';
 
@@ -56,6 +61,9 @@ describe('useClubDetailData for a club the device list lacks (MYK9-2153)', () =>
     getPublicClubById.mockResolvedValue(pendingClub);
     useClubStore.setState({ clubs: [], clubReadiness: 'loading', error: null });
     resetClubReadinessForTests();
+    useClubStore.setState({
+      clubsIdentity: { status: 'verified', reason: null, principalKey: 'user-1' },
+    });
     Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: true });
     auth.value = { user: { id: 'admin-1', is_anonymous: false }, loading: false };
   });

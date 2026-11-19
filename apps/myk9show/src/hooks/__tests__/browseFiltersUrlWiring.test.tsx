@@ -79,7 +79,12 @@ const ensureClubsReady = vi.fn();
 
 vi.mock('@/store/clubStore', () => ({
   useClubStore: (selector: (s: Record<string, unknown>) => unknown) =>
-    selector({ clubs: [], clubReadiness: 'ready', ensureClubsReady }),
+    selector({
+      clubs: [],
+      clubReadiness: 'ready',
+      clubsIdentity: { status: 'verified', reason: null, principalKey: 'user-1' },
+      ensureClubsReady,
+    }),
 }));
 
 vi.mock('@/store/showStore', () => ({

@@ -15,6 +15,8 @@ export interface HeritageEntryReceivedProps {
   dogCallName: string | null;
   classSummary: string;
   totalFeesFormatted: string;
+  /** MYK9-2235: says whether the total is paid or still due (`receiptTotalLabel`). */
+  totalLabel: string;
   registrationNumber: string | null;
   /** Formatted confirmation date, e.g. "6 June 2026". Null if none set. */
   /** What happens next by email (MYK9-1999): the full confirmation once the entry is accepted. */
@@ -42,6 +44,7 @@ export function HeritageEntryReceived({
   dogCallName,
   classSummary,
   totalFeesFormatted,
+  totalLabel,
   registrationNumber,
   fullConfirmationNote,
   entryBlankActions,
@@ -196,11 +199,26 @@ export function HeritageEntryReceived({
           {classSummary}
         </p>
 
+        {registrationNumber && (
+          <p
+            style={{
+              fontFamily: "'Cormorant Garamond', Georgia, serif",
+              fontStyle: 'italic',
+              fontSize: '0.85rem',
+              color: QUILL,
+              margin: '0 0 6px',
+            }}
+          >
+            {formatConfirmationNumberLabel(registrationNumber)}
+          </p>
+        )}
         <div
           style={{
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'baseline',
+            flexWrap: 'wrap',
+            columnGap: 16,
             borderTop: `1px dotted ${QUILL}`,
             paddingTop: '10px',
           }}
@@ -213,7 +231,7 @@ export function HeritageEntryReceived({
               color: QUILL,
             }}
           >
-            {registrationNumber ? formatConfirmationNumberLabel(registrationNumber) : 'Fees due'}
+            {totalLabel}
           </span>
           <span
             style={{

@@ -27,6 +27,7 @@ const BASE_PROPS: HeritageEntryReceivedProps = {
   dogCallName: 'Cooper',
   classSummary: '3 runs · Excellent Containers · Judge C. Beagles',
   totalFeesFormatted: '$69.00',
+  totalLabel: 'Total · Paid by check',
   registrationNumber: 'MK9-000137',
   fullConfirmationNote:
     'Once the show secretary accepts your entry, we will email you a full confirmation with your armband number, judge and directions.',
@@ -68,6 +69,21 @@ describe('STYLED_RECEIPT_BY_STYLE', () => {
       expect(text).toContain('submitted');
       expect(text).not.toContain('confirmed');
       expect(text).not.toContain('fees received');
+    }
+  });
+
+  // MYK9-2235: every style says whether the total is paid or due, including the styles that
+  // show the confirmation number in the same spot (a submitted receipt always has one).
+  it('shows the paid or due label beside the total in every style', () => {
+    for (const style of ALL_STYLES) {
+      const element = STYLED_RECEIPT_BY_STYLE[style](BASE_PROPS, { brandColor: '#7a1f1f' });
+      const { container, unmount } = render(element);
+      const text = container.textContent?.toLowerCase() ?? '';
+
+      expect(text, style).toContain('total · paid by check');
+      expect(text, style).toContain('mk9-000137');
+      expect(text, style).not.toContain('fees due');
+      unmount();
     }
   });
 

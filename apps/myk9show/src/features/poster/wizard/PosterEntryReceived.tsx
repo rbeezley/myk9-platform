@@ -47,6 +47,7 @@ export function PosterEntryReceived({
   dogCallName,
   classSummary,
   totalFeesFormatted,
+  totalLabel,
   registrationNumber,
   fullConfirmationNote,
   entryBlankActions,
@@ -190,6 +191,8 @@ export function PosterEntryReceived({
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'baseline',
+            flexWrap: 'wrap',
+            columnGap: 16,
             borderTop: `1px solid ${posterColors.hair}`,
             paddingTop: 12,
           }}
@@ -203,7 +206,7 @@ export function PosterEntryReceived({
               color: posterColors.mute,
             }}
           >
-            TOTAL · FEES DUE
+            {totalLabel.toUpperCase()}
           </span>
           <span
             style={{

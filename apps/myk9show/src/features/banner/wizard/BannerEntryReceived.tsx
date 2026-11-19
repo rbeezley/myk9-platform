@@ -36,6 +36,7 @@ export function BannerEntryReceived({
   dogCallName,
   classSummary,
   totalFeesFormatted,
+  totalLabel,
   registrationNumber,
   fullConfirmationNote,
   entryBlankActions,
@@ -167,6 +168,8 @@ export function BannerEntryReceived({
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'baseline',
+            flexWrap: 'wrap',
+            columnGap: 16,
             borderTop: `1px solid ${bannerColors.hair}`,
             paddingTop: 12,
           }}
@@ -181,7 +184,7 @@ export function BannerEntryReceived({
               color: bannerColors.mute,
             }}
           >
-            Total · Fees due
+            {totalLabel}
           </span>
           <span
             style={{

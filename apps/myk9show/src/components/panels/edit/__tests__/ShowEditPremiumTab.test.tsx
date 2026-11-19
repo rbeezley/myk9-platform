@@ -75,14 +75,16 @@ const baseData: ShowEditFormData = {
   style: 'monogram',
 };
 
-describe('ShowEditPremiumTab', () => {
-  beforeEach(() => {
-    premiumEditorProps.length = 0;
-    publishedExperienceContentMock = null;
-    officialsMock = undefined;
-    premiumFactsMock = { isLoading: false };
-  });
+// Every describe below reads these module-level mocks, so each test starts from the same state
+// whatever order CI shuffles them into (a facts call left loading hands over no premium).
+beforeEach(() => {
+  premiumEditorProps.length = 0;
+  publishedExperienceContentMock = null;
+  officialsMock = undefined;
+  premiumFactsMock = { isLoading: false };
+});
 
+describe('ShowEditPremiumTab', () => {
   it('links the settings surface to the canonical show Preview editor', () => {
     render(
       <ShowEditPremiumTab

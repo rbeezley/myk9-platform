@@ -51,10 +51,8 @@ export function GazetteBody({ data, tokens }: Props) {
   const hasJudges = trials.some(t => t.judges.length > 0);
   const hasClasses = trials.some(t => t.classLabels.length > 0);
   const hasFees = f.fees.hasAny;
-  // MYK9-2065: a mailing address is not an entry method; mail is offered only to a show that
-  // takes checks.
-  const mailEntries = Boolean(secretary.mailingAddress) && f.fees.paymentMethods.includes('Checks');
-  const hasEntry = Boolean(f.entry.opens || f.entry.closes || secretary.email || mailEntries);
+  // MYK9-2065: the officials' mailing addresses are not entry methods; no style says mail-in.
+  const hasEntry = Boolean(f.entry.opens || f.entry.closes || secretary.email);
   const hasLodging = f.accommodations.length > 0;
   const hasAwards = Boolean(f.awardsDescription);
   const hasNotices = Boolean(f.additionalNotes || f.hospitalityNotes);
@@ -157,13 +155,12 @@ export function GazetteBody({ data, tokens }: Props) {
             <Text style={bodyTextStyle}>myk9show.com</Text>
             {f.entry.opens && <Text style={bodyTextStyle}>Opens: {f.entry.opens}</Text>}
             {f.entry.closes && <Text style={bodyTextStyle}>Closes: {f.entry.closes}</Text>}
-            {(secretary.email || mailEntries || secretary.phone) && (
+            {(secretary.email || secretary.phone) && (
               <Text style={{ ...bodyTextStyle, marginTop: 6, color: tokens.secondaryColor }}>
                 Alternate methods:
               </Text>
             )}
             {secretary.email && <Text style={bodyTextStyle}>Email: {secretary.email}</Text>}
-            {mailEntries && <Text style={bodyTextStyle}>Mail: {secretary.mailingAddress}</Text>}
             {secretary.phone && <Text style={bodyTextStyle}>Phone: {secretary.phone}</Text>}
           </View>
         )}

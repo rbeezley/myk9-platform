@@ -436,30 +436,20 @@ describe('premium PDF prints the official mailing addresses (MYK9-2065)', () => 
   });
 });
 
-describe('a mailing address is not a mail-in entry method (MYK9-2065)', () => {
+describe('no style says mail-in entries are accepted (MYK9-2065)', () => {
   const ADDRESS = 'PO Box 9, Broken Arrow, OK 74012';
 
-  function premiumWith(style: PremiumStyle, acceptChecks: boolean): GeneratedPremium {
-    const premium = fullPremium('AKC', style);
-    return {
-      ...premium,
-      show: { ...premium.show, acceptChecks },
-      secretary: { ...premium.secretary, mailingAddress: ADDRESS },
-    };
-  }
-
-  it.each(ALL_STYLES)('%s prints the address but no mail-in claim when checks are off', style => {
-    const text = pdfText('AKC', premiumWith(style, false));
-    expect(text).toContain(ADDRESS);
-    expect(text).not.toMatch(/Mail-in entries/);
-    expect(text).not.toMatch(/^Mail: /m);
-  });
-
-  it.each<PremiumStyle>(['monogram', 'gazette'])(
-    '%s offers mail entries when the show takes checks',
-    style => {
-      const text = pdfText('AKC', premiumWith(style, true));
-      expect(text).toMatch(/Mail-in entries also accepted|^Mail: /m);
+  it.each(ALL_STYLES)('%s prints the address under the official, never as an entry method', style => {
+    for (const acceptChecks of [false, true]) {
+      const premium = fullPremium('AKC', style);
+      const text = pdfText('AKC', {
+        ...premium,
+        show: { ...premium.show, acceptChecks },
+        secretary: { ...premium.secretary, mailingAddress: ADDRESS },
+      });
+      expect(text).toContain(ADDRESS);
+      expect(text).not.toMatch(/Mail-in entries|Alternate methods:\s*\n?Mail/i);
+      expect(text).not.toMatch(/^Mail: /m);
     }
-  );
+  });
 });

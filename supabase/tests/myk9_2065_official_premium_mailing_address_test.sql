@@ -48,7 +48,7 @@ DO $$
 BEGIN
   BEGIN
     PERFORM public.set_show_official_mailing_address(
-      '00000000-0000-0000-0000-000000206503', 'secretary', 'PO Box 1');
+      '00000000-0000-0000-0000-000000206503', 'secretary', '00000000-0000-0000-0000-000000206511', 'PO Box 1');
     RAISE EXCEPTION 'FAIL anon executed set_show_official_mailing_address';
   EXCEPTION WHEN insufficient_privilege THEN
     NULL;
@@ -73,7 +73,7 @@ DO $$
 BEGIN
   BEGIN
     PERFORM public.set_show_official_mailing_address(
-      '00000000-0000-0000-0000-000000206503', 'secretary', 'PO Box 1');
+      '00000000-0000-0000-0000-000000206503', 'secretary', '00000000-0000-0000-0000-000000206511', 'PO Box 1');
     RAISE EXCEPTION 'FAIL a non-manager set an official mailing address';
   EXCEPTION WHEN insufficient_privilege THEN
     NULL;
@@ -96,8 +96,8 @@ DECLARE
   show constant uuid := '00000000-0000-0000-0000-000000206503';
   stored text;
 BEGIN
-  PERFORM public.set_show_official_mailing_address(show, 'secretary', '  PO Box 9' || E'\n' || 'Tulsa, OK  ');
-  PERFORM public.set_show_official_mailing_address(show, 'chairman', 'PO Box 77');
+  PERFORM public.set_show_official_mailing_address(show, 'secretary', '00000000-0000-0000-0000-000000206511', '  PO Box 9' || E'\n' || 'Tulsa, OK  ');
+  PERFORM public.set_show_official_mailing_address(show, 'chairman', '00000000-0000-0000-0000-000000206512', 'PO Box 77');
 
   SELECT o.premium_mailing_address INTO stored
   FROM public.get_show_officials(show) o WHERE o.role = 'secretary';
@@ -105,17 +105,17 @@ BEGIN
     RAISE EXCEPTION 'FAIL the secretary address was not stored trimmed: %', coalesce(stored, '<null>');
   END IF;
 
-  PERFORM public.set_show_official_mailing_address(show, 'chairman', '   ');
+  PERFORM public.set_show_official_mailing_address(show, 'chairman', '00000000-0000-0000-0000-000000206512', '   ');
   SELECT o.premium_mailing_address INTO stored
   FROM public.get_show_officials(show) o WHERE o.role = 'chairman';
   IF stored IS NOT NULL THEN
     RAISE EXCEPTION 'FAIL an empty address did not clear to NULL: %', stored;
   END IF;
-  PERFORM public.set_show_official_mailing_address(show, 'chairman', 'PO Box 77');
+  PERFORM public.set_show_official_mailing_address(show, 'chairman', '00000000-0000-0000-0000-000000206512', 'PO Box 77');
 
   -- A steward never carries a premium address.
   BEGIN
-    PERFORM public.set_show_official_mailing_address(show, 'steward', 'PO Box 5');
+    PERFORM public.set_show_official_mailing_address(show, 'steward', '00000000-0000-0000-0000-000000206513', 'PO Box 5');
     RAISE EXCEPTION 'FAIL the steward role accepted a premium mailing address';
   EXCEPTION WHEN invalid_parameter_value THEN
     NULL;
@@ -123,12 +123,12 @@ BEGIN
 
   -- The 500-character limit.
   BEGIN
-    PERFORM public.set_show_official_mailing_address(show, 'secretary', repeat('x', 501));
+    PERFORM public.set_show_official_mailing_address(show, 'secretary', '00000000-0000-0000-0000-000000206511', repeat('x', 501));
     RAISE EXCEPTION 'FAIL a 501-character address was accepted';
   EXCEPTION WHEN string_data_right_truncation THEN
     NULL;
   END;
-  PERFORM public.set_show_official_mailing_address(show, 'secretary', repeat('x', 500));
+  PERFORM public.set_show_official_mailing_address(show, 'secretary', '00000000-0000-0000-0000-000000206511', repeat('x', 500));
 
   RAISE NOTICE 'PASS the secretary can set and clear; steward and length are refused';
 END;
@@ -207,10 +207,13 @@ $$;
 
 RESET ROLE;
 
--- 5. A role nobody holds raises P0002 (the chairman is un-named by the owner role, as the table
+-- 5. A person who no longer holds the role raises P0002 (the chairman is un-named by the owner role, as the table
 --    allows no direct write to anyone else).
 DELETE FROM public.show_officials
 WHERE show_id = '00000000-0000-0000-0000-000000206503' AND role = 'chairman';
+-- Another manager replaced the chairman while this tab still showed the old one.
+INSERT INTO public.show_officials (show_id, person_id, role)
+VALUES ('00000000-0000-0000-0000-000000206503', '00000000-0000-0000-0000-000000206514', 'chairman');
 
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000206101', true);
@@ -224,13 +227,20 @@ DO $$
 BEGIN
   BEGIN
     PERFORM public.set_show_official_mailing_address(
-      '00000000-0000-0000-0000-000000206503', 'chairman', 'PO Box 77');
-    RAISE EXCEPTION 'FAIL setting an address for an unnamed chairman did not raise';
+      '00000000-0000-0000-0000-000000206503', 'chairman', '00000000-0000-0000-0000-000000206512', 'PO Box 77');
+    RAISE EXCEPTION 'FAIL an address for a replaced chairman did not raise';
   EXCEPTION WHEN no_data_found THEN
     NULL;
   END;
 
-  RAISE NOTICE 'PASS an unnamed role raises P0002';
+  IF EXISTS (
+    SELECT 1 FROM public.get_show_officials('00000000-0000-0000-0000-000000206503') o
+    WHERE o.role = 'chairman' AND o.premium_mailing_address IS NOT NULL
+  ) THEN
+    RAISE EXCEPTION 'FAIL the old chairman address was written onto the replacement';
+  END IF;
+
+  RAISE NOTICE 'PASS a stale official raises P0002 and writes nothing onto the replacement';
 END;
 $$;
 

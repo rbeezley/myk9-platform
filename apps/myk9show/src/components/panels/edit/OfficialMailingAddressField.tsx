@@ -8,6 +8,8 @@ import { logger } from '@/services/LoggingService';
 
 interface OfficialMailingAddressFieldProps {
   showId: string;
+  /** The official on screen: the save names them, so a replaced official is never overwritten. */
+  personId: string;
   role: 'secretary' | 'chairman';
   /** "Secretary" or "Chair": the name the editor already uses for the role. */
   roleLabel: string;
@@ -25,39 +27,55 @@ const MAX_LENGTH = 500;
  */
 export function OfficialMailingAddressField({
   showId,
+  personId,
   role,
   roleLabel,
   savedAddress,
 }: OfficialMailingAddressFieldProps) {
   const queryClient = useQueryClient();
-  const [value, setValue] = useState(savedAddress ?? '');
-  const [saved, setSaved] = useState((savedAddress ?? '').trim());
+  // Only an unsaved draft is local state; a clean field shows whatever the server holds now.
+  const [draft, setDraft] = useState<string | null>(null);
+  const saved = (savedAddress ?? '').trim();
+  const value = draft ?? savedAddress ?? '';
   const [saving, setSaving] = useState(false);
   const inputId = `premium-mailing-address-${role}`;
 
   const save = async () => {
-    const next = value.trim();
-    if (next === saved || saving) return;
+    if (draft === null || saving) return;
+    const next = draft.trim();
+    if (next === saved) {
+      setDraft(null);
+      return;
+    }
     setSaving(true);
     try {
       const { error } = await supabase.rpc('set_show_official_mailing_address', {
         p_show_id: showId,
         p_role_name: role,
+        p_person_id: personId,
         p_address: next,
       });
       if (error) throw error;
-      setSaved(next);
       await queryClient.invalidateQueries({ queryKey: ['shows', showId, 'officials'] });
+      setDraft(null);
       notifications.success(
         next ? `${roleLabel} mailing address saved` : `${roleLabel} mailing address cleared`
       );
     } catch (err) {
+      const code =
+        err && typeof err === 'object' && 'code' in err ? String((err as { code: unknown }).code) : '';
       const message =
         err && typeof err === 'object' && 'message' in err
           ? String((err as { message: unknown }).message)
           : String(err);
       logger.warn('Failed to save premium mailing address', 'officials-editor', { error: message });
-      notifications.error(`Could not save the ${roleLabel} mailing address: ${message}`);
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        notifications.error('You are offline. Reconnect to save this address.');
+      } else if (code === 'P0002') {
+        notifications.error('This official was changed by someone else. Reload to see who it is now.');
+      } else {
+        notifications.error(`Could not save the ${roleLabel} mailing address: ${message}`);
+      }
     } finally {
       setSaving(false);
     }
@@ -72,7 +90,7 @@ export function OfficialMailingAddressField({
         maxLength={MAX_LENGTH}
         value={value}
         disabled={saving}
-        onChange={event => setValue(event.target.value)}
+        onChange={event => setDraft(event.target.value)}
         onBlur={() => void save()}
       />
       <p className="text-xs text-muted-foreground">

@@ -162,6 +162,7 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
             <OfficialMailingAddressField
               key={`chairman-${chairman.personId}`}
               showId={showId}
+              personId={chairman.personId}
               role="chairman"
               roleLabel="Chair"
               savedAddress={chairman.mailingAddress ?? null}
@@ -171,6 +172,7 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
             <OfficialMailingAddressField
               key={`secretary-${secretary.personId}`}
               showId={showId}
+              personId={secretary.personId}
               role="secretary"
               roleLabel="Secretary"
               savedAddress={secretary.mailingAddress ?? null}

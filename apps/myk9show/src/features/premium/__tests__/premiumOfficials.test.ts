@@ -40,4 +40,16 @@ describe('applyOfficialsToPremium mailing addresses (MYK9-2065)', () => {
     expect(premium.secretary.mailingAddress).toBeNull();
     expect(premium.officials.chairman?.mailingAddress).toBeNull();
   });
+
+  it('clears a draft address when its secretary or chair is no longer listed', () => {
+    const draft = generatedPremium();
+    draft.secretary = { ...draft.secretary, name: 'Old Sec', mailingAddress: '1 Home St' };
+    draft.officials = {
+      chairman: { name: 'Old Chair', email: null, phone: null, mailingAddress: '2 Home St' },
+    };
+    const premium = applyOfficialsToPremium(draft, { secretaries: [], chairmen: [], stewards: [] });
+
+    expect(premium.secretary.mailingAddress).toBeNull();
+    expect(premium.officials.chairman?.mailingAddress).toBeNull();
+  });
 });

@@ -84,6 +84,7 @@ GRANT EXECUTE ON FUNCTION public.get_show_officials(uuid) TO authenticated, serv
 CREATE OR REPLACE FUNCTION public.set_show_official_mailing_address(
   p_show_id uuid,
   p_role_name text,
+  p_person_id uuid,
   p_address text
 )
 RETURNS void
@@ -120,16 +121,19 @@ BEGIN
   UPDATE public.show_officials
   SET premium_mailing_address = v_address
   WHERE show_id = p_show_id
-    AND role = p_role_name;
+    AND role = p_role_name
+    AND person_id = p_person_id;
 
+  -- The tab that sent this may be showing someone who has since been replaced: write nothing.
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'no % is named on this show', p_role_name USING ERRCODE = 'P0002';
+    RAISE EXCEPTION 'This official was changed by someone else. Reload to see who it is now.'
+      USING ERRCODE = 'P0002';
   END IF;
 END;
 $$;
 
-COMMENT ON FUNCTION public.set_show_official_mailing_address(uuid, text, text) IS
-  'MYK9-2065: sets the mailing address the premium prints for the show''s secretary or chairman. Empty clears it. Same authorization as revoke_show_official.';
+COMMENT ON FUNCTION public.set_show_official_mailing_address(uuid, text, uuid, text) IS
+  'MYK9-2065: sets the mailing address the premium prints for one named secretary or chairman of the show (the person the caller is looking at; a replaced official writes nothing). Empty clears it. Same authorization as revoke_show_official.';
 
-REVOKE ALL ON FUNCTION public.set_show_official_mailing_address(uuid, text, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.set_show_official_mailing_address(uuid, text, text) TO authenticated;
+REVOKE ALL ON FUNCTION public.set_show_official_mailing_address(uuid, text, uuid, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.set_show_official_mailing_address(uuid, text, uuid, text) TO authenticated;

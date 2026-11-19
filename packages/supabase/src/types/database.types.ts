@@ -16074,7 +16074,12 @@ export type Database = {
         Returns: string
       }
       set_show_official_mailing_address: {
-        Args: { p_address: string; p_role_name: string; p_show_id: string }
+        Args: {
+          p_address: string
+          p_person_id: string
+          p_role_name: string
+          p_show_id: string
+        }
         Returns: undefined
       }
       set_class_judge: {

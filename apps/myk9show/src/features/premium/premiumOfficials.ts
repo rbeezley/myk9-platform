@@ -38,7 +38,8 @@ export function applyOfficialsToPremium(
             email: secretary.email,
             mailingAddress: secretary.mailingAddress ?? null,
           }
-        : premium.secretary,
+        : // A secretary no longer listed prints no address: a draft may carry a former volunteer's.
+          { ...premium.secretary, mailingAddress: null },
     officials: {
       ...premium.officials,
       chairman:
@@ -49,7 +50,9 @@ export function applyOfficialsToPremium(
               phone: premium.officials.chairman?.phone ?? null,
               mailingAddress: chair.mailingAddress ?? null,
             }
-          : premium.officials.chairman,
+          : premium.officials.chairman
+            ? { ...premium.officials.chairman, mailingAddress: null }
+            : premium.officials.chairman,
     },
   };
 }

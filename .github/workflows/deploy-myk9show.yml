@@ -153,7 +153,11 @@ jobs:
           COMMIT_SHA: ${{ needs.preflight.outputs.commit_sha }}
         run: |
           set -euo pipefail
-          git fetch --no-tags --unshallow origin "+refs/heads/main:refs/remotes/origin/main"
+          if [[ "$(git rev-parse --is-shallow-repository)" == true ]]; then
+            git fetch --no-tags --unshallow origin "+refs/heads/main:refs/remotes/origin/main"
+          else
+            git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+          fi
           git show "$GITHUB_SHA:scripts/qa/deploy-live-guard.sh" >"$RUNNER_TEMP/deploy-live-guard.sh"
           bash "$RUNNER_TEMP/deploy-live-guard.sh"
 

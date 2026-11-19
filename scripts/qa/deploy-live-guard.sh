@@ -67,7 +67,7 @@ all_equal=1
 for url in $urls; do
   live="$(read_live "$url" || true)"
   [[ -n "$live" ]] || {
-    echo "Could not read the live commit from $url; refusing to deploy $commit_sha without knowing what production serves. Fix the site first (Vercel's Instant Rollback restores the previous deployment), then rerun." >&2
+    echo "Could not read the live commit from $url; refusing to deploy $commit_sha without knowing what production serves. Fix the site first (Vercel's Instant Rollback to a deployment this workflow published, which carries build-sha.txt), then rerun." >&2
     exit 1
   }
   git cat-file -e "$live^{commit}" 2>/dev/null || {

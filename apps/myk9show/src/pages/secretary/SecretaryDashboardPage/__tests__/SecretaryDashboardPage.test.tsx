@@ -36,6 +36,8 @@ vi.mock('@/hooks/useAuthContext', () => ({
     userWithRoles: { scopes: mockScopes.value },
   }),
 }));
+const mockFirstShowClub = vi.hoisted(() => ({ value: null as unknown }));
+vi.mock('../firstShowClub', () => ({ useFirstShowClub: () => mockFirstShowClub.value }));
 vi.mock('../FirstShowCard', () => ({
   FirstShowCard: ({ clubId }: { clubId: string }) => (
     <div data-testid="first-show-card">{clubId}</div>
@@ -101,6 +103,7 @@ describe('SecretaryDashboardPage', () => {
     mockCurrentShow.managingShows = [];
     mockPendingEntries = [];
     mockScopes.value = [{ scopeType: ScopeType.CLUB, scopeId: 'club-1' }];
+    mockFirstShowClub.value = null;
     mockEntryCounts = new Map();
     mockUseShowEntryCounts.mockImplementation(() => mockEntryCounts);
     mockUseSecretaryTasks.mockReturnValue({ data: [] });
@@ -111,40 +114,17 @@ describe('SecretaryDashboardPage', () => {
     });
   });
 
-  it('shows the first-show card above Needs attention until a club show is public', () => {
-    mockScopes.value = [{ scopeType: ScopeType.CLUB, scopeId: 'club-1', roleId: 'club_admin' }];
-    mockUseMissionControlData.mockReturnValue({
-      shows: [showFactory.build({ clubId: 'club-1', status: 'draft' })],
-      isLoading: false,
-      classesByStage: new Map(),
-    });
-    const { unmount } = renderPage();
-    expect(screen.getByTestId('first-show-card')).toHaveTextContent('club-1');
-    unmount();
-
-    mockUseMissionControlData.mockReturnValue({
-      shows: [showFactory.build({ clubId: 'club-1', status: 'published' })],
-      isLoading: false,
-      classesByStage: new Map(),
-    });
+  it('shows the first-show card for the club the server says is still waiting', () => {
+    mockFirstShowClub.value = {
+      clubId: 'club-1',
+      firstShow: { state: 'ready', publishedEver: false, draftShowId: null },
+    };
     renderPage();
-    expect(screen.queryByTestId('first-show-card')).not.toBeInTheDocument();
+    expect(screen.getByTestId('first-show-card')).toHaveTextContent('club-1');
   });
 
-  it('keeps the card gone after the first public show goes back to draft', () => {
-    mockScopes.value = [{ scopeType: ScopeType.CLUB, scopeId: 'club-1', roleId: 'club_admin' }];
-    mockUseMissionControlData.mockReturnValue({
-      shows: [showFactory.build({ clubId: 'club-1', status: 'published' })],
-      isLoading: false,
-      classesByStage: new Map(),
-    });
-    renderPage().unmount();
-
-    mockUseMissionControlData.mockReturnValue({
-      shows: [showFactory.build({ clubId: 'club-1', status: 'draft' })],
-      isLoading: false,
-      classesByStage: new Map(),
-    });
+  it('shows no card when the server has nothing waiting (published before, or still checking)', () => {
+    mockFirstShowClub.value = null;
     renderPage();
     expect(screen.queryByTestId('first-show-card')).not.toBeInTheDocument();
   });

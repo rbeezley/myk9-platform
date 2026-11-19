@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { FirstShowCard } from '../FirstShowCard';
-import { findFirstShowClub } from '../firstShowClub';
+import { firstShowCandidateClubIds, type FirstShowState } from '../firstShowClub';
 import { ScopeType, UserRole } from '@/types/auth-types';
 import type { PublishBlockersState } from '@/features/publishing/usePublishBlockers';
 
@@ -15,6 +15,12 @@ vi.mock('@/features/payments/useCanOpenClubPayments', async importOriginal => ({
   ...(await importOriginal<typeof import('@/features/payments/useCanOpenClubPayments')>()),
   useCanOpenClubPayments: () => harness.canOpenPayments,
 }));
+
+const ready = (draftShowId: string | null = null): FirstShowState => ({
+  state: 'ready',
+  publishedEver: false,
+  draftShowId,
+});
 
 beforeEach(() => {
   harness.club = { state: 'ready', blockers: [] } satisfies PublishBlockersState;
@@ -31,7 +37,7 @@ describe('FirstShowCard (MYK9-2199)', () => {
         { key: 'payouts_not_enabled', waitingOn: 'club_admin', eta: null },
       ],
     };
-    render(<FirstShowCard clubId="club-1" />);
+    render(<FirstShowCard clubId="club-1" firstShow={ready()} />);
 
     expect(screen.getByText('Get your first show published')).toBeInTheDocument();
     expect(screen.getByText(/waiting for myK9Show approval/i)).toBeInTheDocument();
@@ -45,7 +51,7 @@ describe('FirstShowCard (MYK9-2199)', () => {
   });
 
   it('continues the draft when the club already has one', () => {
-    render(<FirstShowCard clubId="club-1" draftShowId="show-7" />);
+    render(<FirstShowCard clubId="club-1" firstShow={ready('show-7')} />);
     expect(screen.getByRole('link', { name: 'Continue your draft show' })).toHaveAttribute(
       'href',
       '/shows/show-7'
@@ -53,51 +59,65 @@ describe('FirstShowCard (MYK9-2199)', () => {
     expect(screen.queryByText('Create your first show')).not.toBeInTheDocument();
   });
 
+  it('renders nothing once the club has published before', () => {
+    render(
+      <FirstShowCard
+        clubId="club-1"
+        firstShow={{ state: 'ready', publishedEver: true, draftShowId: 'show-7' }}
+      />
+    );
+    expect(screen.queryByTestId('first-show-card')).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['checking', { state: 'checking' }, /checking/i],
+    ['offline', { state: 'offline' }, /you are offline/i],
+    ['failed', { state: 'failed', retry: vi.fn() }, /could not check/i],
+  ] as const)(
+    'shows that state, with no all-clear and no create or continue link, when the first-show check is %s',
+    (_name, firstShow, text) => {
+      // The blockers read is ready and empty: only the first-show state can speak here.
+      render(<FirstShowCard clubId="club-1" firstShow={firstShow} />);
+      expect(screen.getByText(text)).toBeInTheDocument();
+      expect(screen.queryByText(/nothing is holding your club back/i)).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('link', { name: /create your first show/i })
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('link', { name: /continue your draft show/i })
+      ).not.toBeInTheDocument();
+    }
+  );
+
   it.each([
     ['offline', { state: 'offline', blockers: [] }, /you are offline/i],
     ['failed', { state: 'failed', blockers: [], retry: vi.fn() }, /could not check/i],
-  ])('reads the shared list when the check is %s', (_name, state, text) => {
+  ])('reads the shared list when the blockers check is %s', (_name, state, text) => {
     harness.club = state;
-    render(<FirstShowCard clubId="club-1" />);
+    render(<FirstShowCard clubId="club-1" firstShow={ready()} />);
     expect(screen.getByText(text)).toBeInTheDocument();
     expect(screen.queryByText(/nothing is holding your club back/i)).not.toBeInTheDocument();
   });
 });
 
-describe('findFirstShowClub', () => {
+describe('firstShowCandidateClubIds', () => {
   const scopes = [{ scopeType: ScopeType.CLUB, scopeId: 'club-1', roleId: UserRole.CLUB_ADMIN }];
-  const show = (status: string, id = 's1') => ({ id, clubId: 'club-1', status });
 
-  it('finds a club with no shows, and carries its draft', () => {
-    expect(findFirstShowClub(scopes, [])).toEqual({ clubId: 'club-1', draftShowId: undefined });
-    expect(findFirstShowClub(scopes, [show('draft', 's9')])).toEqual({
-      clubId: 'club-1',
-      draftShowId: 's9',
-    });
-  });
-
-  it('is gone once any club show is public', () => {
-    for (const status of ['published', 'upcoming', 'in_progress', 'completed']) {
-      expect(findFirstShowClub(scopes, [show('draft', 's2'), show(status)])).toBeNull();
-    }
+  it('lists the clubs she runs', () => {
+    expect(firstShowCandidateClubIds(scopes)).toEqual(['club-1']);
+    expect(firstShowCandidateClubIds(undefined)).toEqual([]);
   });
 
   it('ignores clubs she only belongs to', () => {
-    expect(findFirstShowClub([{ ...scopes[0]!, roleId: UserRole.EXHIBITOR }], [])).toBeNull();
+    expect(firstShowCandidateClubIds([{ ...scopes[0]!, roleId: UserRole.EXHIBITOR }])).toEqual([]);
   });
 
-  it('prefers the club she just added, only if she runs it', () => {
+  it('puts the club she just added first, only if she runs it', () => {
     const two = [
       { scopeType: ScopeType.CLUB, scopeId: 'club-1', roleId: UserRole.CLUB_ADMIN },
       { scopeType: ScopeType.CLUB, scopeId: 'club-2', roleId: UserRole.CLUB_ADMIN },
     ];
-    expect(findFirstShowClub(two, [], { preferClubId: 'club-2' })?.clubId).toBe('club-2');
-    expect(findFirstShowClub(two, [], { preferClubId: 'club-9' })?.clubId).toBe('club-1');
-  });
-
-  it('stays gone for a club that has published before, even with no public show now', () => {
-    expect(
-      findFirstShowClub(scopes, [show('draft')], { isDismissed: id => id === 'club-1' })
-    ).toBeNull();
+    expect(firstShowCandidateClubIds(two, 'club-2')).toEqual(['club-2', 'club-1']);
+    expect(firstShowCandidateClubIds(two, 'club-9')).toEqual(['club-1', 'club-2']);
   });
 });

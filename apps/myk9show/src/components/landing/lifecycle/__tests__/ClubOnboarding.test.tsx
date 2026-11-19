@@ -7,6 +7,7 @@ import { readClubOnboardingDraft, saveClubOnboardingDraft } from '../clubOnboard
 const mockSubmit = vi.fn();
 const mockRefreshPermissions = vi.hoisted(() => vi.fn());
 const mockNavigate = vi.hoisted(() => vi.fn());
+const mockHoldsClubRole = vi.hoisted(() => vi.fn());
 const auth = vi.hoisted(() => ({
   refreshPermissions: (...args: unknown[]) => mockRefreshPermissions(...args),
   user: null as null | {
@@ -23,6 +24,10 @@ const signedInUser = {
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => auth,
+}));
+
+vi.mock('../clubRoleLoaded', () => ({
+  userHoldsClubRole: (...args: unknown[]) => mockHoldsClubRole(...args),
 }));
 
 vi.mock('react-router-dom', async importOriginal => ({
@@ -79,6 +84,7 @@ describe('ClubOnboarding', () => {
     vi.clearAllMocks();
     sessionStorage.clear();
     mockRefreshPermissions.mockResolvedValue(undefined);
+    mockHoldsClubRole.mockResolvedValue(true);
     auth.user = signedInUser;
   });
 
@@ -93,7 +99,7 @@ describe('ClubOnboarding', () => {
     expect(screen.queryByText(/unauthorized/i)).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /get your first show published/i })).toHaveAttribute(
       'href',
-      '/secretary/dashboard'
+      '/secretary/dashboard?clubId=club-9'
     );
     expect(mockSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -112,7 +118,39 @@ describe('ClubOnboarding', () => {
     submitForm();
 
     await screen.findByText(/waiting for myK9Show approval/i);
+    expect(mockHoldsClubRole).toHaveBeenCalledWith('user-1', 'club-9');
     expect(mockNavigate).toHaveBeenCalledWith('/secretary/dashboard?clubId=club-9');
+    expect(screen.queryByTestId('club-roles-pending')).not.toBeInTheDocument();
+    expect(readClubOnboardingDraft()).toBeNull();
+  });
+
+  it.each([
+    [
+      'the refresh resolves but her roles still lack the club',
+      () => {
+        mockHoldsClubRole.mockResolvedValue(false);
+      },
+    ],
+    [
+      'the refresh throws',
+      () => {
+        mockRefreshPermissions.mockRejectedValue(new Error('offline'));
+      },
+    ],
+  ])('keeps her here, with her draft, when %s', async (_name, arrange) => {
+    arrange();
+    mockSubmit.mockResolvedValue(created);
+    saveClubOnboardingDraft(fullDraft);
+    render(<ClubOnboarding />, { initialRoute: '/' });
+    fillRequiredFields();
+    fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: '123' } });
+    submitForm();
+
+    expect(await screen.findByTestId('club-roles-pending')).toHaveTextContent(
+      "Your club was created. We couldn't load it yet; open your dashboard in a moment."
+    );
+    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(readClubOnboardingDraft()).not.toBeNull();
   });
 
   it('does not navigate away when she came from the wizard', async () => {

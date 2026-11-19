@@ -129,8 +129,7 @@ export function PremiumContentEditor({
   );
 
   // INTENT: Toast at most once per distinct PDF render error message. The
-  // PDFDownloadLink render-prop re-fires on every internal state tick, so the
-  // toast must live outside that body.
+  // PDF build reports each failure to this callback, so the dedupe must live here.
   const lastPdfErrorMessageRef = useRef<string | null>(null);
 
   const handlePdfError = useCallback((err: Error) => {
@@ -471,6 +470,7 @@ export function PremiumContentEditor({
                   }
                 >
                   <PremiumPdfDownloadLink
+                    showId={showId}
                     premium={finalPremium}
                     inkSaver={inkSaver}
                     fileName={`${original.show.name.replace(/\s+/g, '-')}-premium.pdf`}

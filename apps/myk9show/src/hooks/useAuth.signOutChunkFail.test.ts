@@ -53,7 +53,12 @@ describe('sign-out when the strip chunk fails to load (MYK9-2310)', () => {
     expect(isRedactionPending()).toBe(true);
     expect(currentSignOutGeneration()).toBe(before + 1);
     expect(mustStripContacts()).toBe(true);
-    await waitFor(() => expect(console.error).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(console.error).toHaveBeenCalledWith(
+        'Could not remove saved contact details:',
+        expect.any(Error)
+      )
+    );
     expect(isRedactionPending()).toBe(true);
   });
 });

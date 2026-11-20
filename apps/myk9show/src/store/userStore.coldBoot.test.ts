@@ -3,7 +3,7 @@
  * strips the saved directory on rehydrate. Its own file: it needs a pristine
  * module registry, and sharing one with the sign-out tests made their order matter.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { User } from '@/types/user-types';
 
 vi.mock('@/services/database/users', () => ({
@@ -31,6 +31,10 @@ describe('cold boot with a pending removal marker (MYK9-2255)', () => {
   beforeEach(() => {
     localStorage.clear();
     vi.resetModules();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('strips the saved copy on rehydrate', async () => {
@@ -70,5 +74,20 @@ describe('cold boot with a pending removal marker (MYK9-2255)', () => {
     expect(saved[0].email).toBeUndefined();
     expect(saved[0].phone).toBeUndefined();
     expect(useUserStore.getState().users[0].firstName).toBe('Ann');
+  });
+
+  it('writes nothing before hydration when the saved copy cannot be read', async () => {
+    const { useUserStore } = await import('@/store/userStore');
+    vi.spyOn(useUserStore.persist, 'hasHydrated').mockReturnValue(false);
+    useUserStore.setState({ users: [], people: [] });
+    // The storage adapter turns a failed read into null; the saved copy is still there.
+    vi.spyOn(useUserStore.persist.getOptions().storage!, 'getItem').mockResolvedValue(null);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ state: { users: [person] }, version: 1 }));
+
+    expect(await useUserStore.getState().redactContacts()).toBe(false);
+
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}').state.users;
+    expect(saved).toHaveLength(1);
+    expect(saved[0].firstName).toBe('Ann');
   });
 });

@@ -10,7 +10,6 @@ import { reportStoreError } from '@/utils/standardizedErrorHandler';
 import { logger } from '@/services/LoggingService';
 import { persistJudgeInfo } from './userStoreJudgeInfo';
 import {
-  bumpSignOutGeneration,
   currentSignOutGeneration,
   clearRedactionPending,
   isRedactionPending,
@@ -279,17 +278,19 @@ export const useUserStore = create<UserStore>()(
         setUsers: users => set({ users, people: users }),
 
         redactContacts: async (): Promise<boolean> => {
-          bumpSignOutGeneration();
           const persistApi = useUserStore.persist;
           const storageName = persistApi.getOptions().name ?? '';
           let source = get().users;
           // A sign-out before hydration (an expired session at app start) sees an empty
-          // directory: strip the stored copy instead, so names are never wiped.
+          // directory: strip the stored copy instead, so names are never wiped. The storage
+          // adapter turns a failed read into null, so no stored copy means "unknown": write
+          // nothing and keep the marker, and the next start strips the hydrated directory.
           if (!persistApi.hasHydrated()) {
             try {
               const stored = await persistApi.getOptions().storage?.getItem(storageName);
               const storedUsers = (stored?.state as { users?: User[] } | undefined)?.users;
-              if (storedUsers) source = storedUsers;
+              if (!storedUsers) return false;
+              source = storedUsers;
             } catch (error) {
               logger.error(
                 'Could not read the saved people directory',

@@ -1,6 +1,7 @@
 import type { SceneId } from '../lifecycleStories';
 import type { TimelineSceneData } from '../sceneFrames';
 import { ENTRIES_SCENE } from './entriesScene';
+import { RESULTS_SCENE } from './resultsScene';
 import { RING_SCENE } from './ringScene';
 
 // The scenes that have captures. A scene joins this list when its screens are captured from
@@ -8,4 +9,5 @@ import { RING_SCENE } from './ringScene';
 export const SCENES: Partial<Record<SceneId, TimelineSceneData>> = {
   entries: ENTRIES_SCENE,
   'showday-ring': RING_SCENE,
+  results: RESULTS_SCENE,
 };

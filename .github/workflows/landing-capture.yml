@@ -164,7 +164,12 @@ jobs:
           done
           test "$(find "$out/public/landing/scenes/entries" -type f | wc -l)" -eq 9
           test -s "$out/src/components/landing/lifecycle/scenes/entriesRegions.json"
-          test "$(find "$RUNNER_TEMP/landing-capture/out" -type f | wc -l)" -eq 19
+          for shot in phone-before phone-new phone-card desk-list desk-class desk-release desk-released; do
+            test -s "$out/public/landing/scenes/results/$shot.png"
+          done
+          test "$(find "$out/public/landing/scenes/results" -type f | wc -l)" -eq 7
+          test -s "$out/src/components/landing/lifecycle/scenes/resultsRegions.json"
+          test "$(find "$RUNNER_TEMP/landing-capture/out" -type f | wc -l)" -eq 27
 
       # This repository's artifacts are public (MYK9-1057): fail before the upload if one of
       # the job's passwords (in the environment since the first step) is in the regions file.

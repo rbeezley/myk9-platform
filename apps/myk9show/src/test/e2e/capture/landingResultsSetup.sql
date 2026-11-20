@@ -107,19 +107,19 @@ UPDATE public.entries SET
   is_scored = true, result_status = 'qualified', check_in_status = 'completed',
   entry_status = 'completed', search_time_seconds = 41.30, total_faults = 0,
   total_score = 100, final_placement = 1,
-  scoring_completed_at = (((CURRENT_DATE + 45)::timestamp + INTERVAL '09:15:00') AT TIME ZONE 'UTC')
+  scoring_completed_at = (((CURRENT_DATE + 45)::timestamp + INTERVAL '15:15:00') AT TIME ZONE 'UTC')
 WHERE id = 'dededede-0000-0000-0000-0000000c0052';  -- Piper
 UPDATE public.entries SET
   is_scored = true, result_status = 'qualified', check_in_status = 'completed',
   entry_status = 'completed', search_time_seconds = 44.90, total_faults = 0,
   total_score = 100, final_placement = 2,
-  scoring_completed_at = (((CURRENT_DATE + 45)::timestamp + INTERVAL '09:22:00') AT TIME ZONE 'UTC')
+  scoring_completed_at = (((CURRENT_DATE + 45)::timestamp + INTERVAL '15:22:00') AT TIME ZONE 'UTC')
 WHERE id = 'dededede-0000-0000-0000-0000000c0051';  -- Willow
 UPDATE public.entries SET
   is_scored = true, result_status = 'qualified', check_in_status = 'completed',
   entry_status = 'completed', search_time_seconds = 47.25, total_faults = 0,
   total_score = 100, final_placement = 3,
-  scoring_completed_at = (((CURRENT_DATE + 45)::timestamp + INTERVAL '09:30:00') AT TIME ZONE 'UTC')
+  scoring_completed_at = (((CURRENT_DATE + 45)::timestamp + INTERVAL '15:30:00') AT TIME ZONE 'UTC')
 WHERE id = 'dededede-0000-0000-0000-0000000c0053';  -- Cooper
 
 -- A failed staging says so here, in the job's log, not in a screenshot.

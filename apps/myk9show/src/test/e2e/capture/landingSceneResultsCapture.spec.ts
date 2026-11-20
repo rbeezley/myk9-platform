@@ -125,6 +125,32 @@ const scrollToMiddle = (target: Locator) =>
   target.first().evaluate(el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
 
 /**
+ * Scrolls the page so the Results panes start just under the sticky header, the way a secretary
+ * leaves them, so every desktop frame shows the class list and the open class from one position.
+ */
+async function alignResultsPanes(page: Page) {
+  await page.getByTestId('master-detail-layout').evaluate(el => {
+    let scroller: Element | null = el.parentElement;
+    while (
+      scroller &&
+      !(
+        scroller.scrollHeight > scroller.clientHeight &&
+        /(auto|scroll)/.test(getComputedStyle(scroller).overflowY)
+      )
+    ) {
+      scroller = scroller.parentElement;
+    }
+    const target = scroller ?? document.scrollingElement;
+    if (!target) throw new Error('nothing scrolls the Results page');
+    target.scrollTo({
+      top: target.scrollTop + el.getBoundingClientRect().top - 196,
+      behavior: 'instant',
+    });
+  });
+  await page.waitForTimeout(1200);
+}
+
+/**
  * Data arrives after the page renders, so a state that is not there yet is waited for by
  * reloading, a few times, rather than by a longer wait.
  */
@@ -226,8 +252,11 @@ test('captures the Results scene on the secretaryâ€™s desktop and the exhibitorâ
     const checkScores = classRow.getByRole('link', { name: `Check scores: ${CLASS_NAME}` });
     await expect(checkScores).toBeVisible();
     console.log('the class row reads ::', (await classRow.innerText()).replace(/\s+/g, ' '));
-    await scrollToMiddle(classRow);
-    await desk.waitForTimeout(1200);
+    // The shows list beside the class list is the secretary's to fold away (Hide), which gives the
+    // class list its full width; it is offered only where the list is open.
+    const hideShows = desk.getByRole('button', { name: 'Hide shows list' });
+    if ((await hideShows.count()) > 0) await hideShows.click();
+    await alignResultsPanes(desk);
     await shoot('desk', desk, deskShots, 'list', { row: classRow, action: checkScores });
 
     // Line 2: open the class; the placements are in its table.
@@ -243,8 +272,7 @@ test('captures the Results scene on the secretaryâ€™s desktop and the exhibitorâ
       const places = await detail.locator('tbody tr td:first-child').allInnerTexts();
       expect(places.map(text => text.trim())).toEqual(['1', '2', '3']);
       const table = detail.locator('div.overflow-x-auto').first();
-      await scrollToMiddle(table);
-      await desk.waitForTimeout(1200);
+      await alignResultsPanes(desk);
       await shoot('desk', desk, deskShots, 'class', { table });
     });
 
@@ -274,8 +302,7 @@ test('captures the Results scene on the secretaryâ€™s desktop and the exhibitorâ
     const release = detail.getByRole('button', { name: 'Release results' });
     await stage('the Release button', desk, async () => {
       await expect(release).toBeEnabled({ timeout: 30_000 });
-      await scrollToMiddle(release);
-      await desk.waitForTimeout(1200);
+      await alignResultsPanes(desk);
       // The button's own card, the smallest block around it that is wider than the button.
       await shoot('desk', desk, deskShots, 'release', {
         button: release,
@@ -290,8 +317,7 @@ test('captures the Results scene on the secretaryâ€™s desktop and the exhibitorâ
       });
       await expect(chips.getByText('Not released')).toHaveCount(0);
       await waitForToastsToLeave(desk);
-      await scrollToMiddle(detail.locator('header'));
-      await desk.waitForTimeout(1200);
+      await alignResultsPanes(desk);
       console.log('the class reads after ::', (await chips.innerText()).replace(/\s+/g, ' '));
       await shoot('desk', desk, deskShots, 'released', {
         chips,

@@ -901,6 +901,23 @@ recorded.
       account-scoped (`checkout.session.completed`, `customer.subscription.*`, `invoice.*`,
       `charge.refunded`) and connected-accounts-scoped (`account.updated`,
       `account.application.deauthorized`). Each has its own `whsec_…` secret.
+- [ ] **3.2a** **No `show_payouts` row is `processing`, `failed` or otherwise unresolved when the
+      job's key is switched** (MYK9-2187). Stripe lists transfers only in the key's own mode, so
+      after the switch the payout run cannot see what a test-mode attempt did. Each show's newest
+      row must be `completed` (or the show must have no row) before 3.3; this must return no rows:
+      ```sql
+      select id, show_id, status, failure_reason, updated_at
+      from public.show_payouts
+      where status in ('processing', 'failed', 'pending', 'awaiting_approval', 'approved', 'held')
+        and not exists (
+          select 1 from public.show_payouts newer
+           where newer.show_id = show_payouts.show_id
+             and newer.created_at > show_payouts.created_at
+        );
+      ```
+      Settle each row first (let the nightly run finish it, or record it by hand). A row left over
+      is not paid twice: the run holds it and alerts "Payout held: Stripe mode not confirmed"; the
+      recovery is in `stripe-platform-setup.md` § Payout cron operations.
 - [ ] **3.3** Rotate edge-fn secrets: `supabase secrets set STRIPE_SECRET_KEY=sk_live_…` and
       `STRIPE_WEBHOOK_SECRET=whsec_<live account-scoped>`.
       _Rollback:_ rotate both back to the `sk_test_`/test `whsec_` values.

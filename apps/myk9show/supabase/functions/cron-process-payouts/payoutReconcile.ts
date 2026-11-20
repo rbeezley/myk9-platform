@@ -14,10 +14,13 @@ import { formatDollars } from '../_shared/clubMoneyEmails.ts';
 import { payoutRetryNote } from './payoutCopy.ts';
 import {
   alertReconciled,
+  MODE_CHECKED_REASON,
+  reportAttemptModeHold,
   reportLedgerWriteError,
   reportLookupError,
   reportReconcileError,
   transferFacts,
+  type AttemptMode,
   type DestinationCheck,
   type FoundTransfer,
   type ShowRef,
@@ -31,6 +34,40 @@ import type {
 
 export type { FoundTransfer } from './payoutAlerts.ts';
 
+/** The one test for "this account row is in the Stripe mode the run's key is in". */
+export function inStripeMode(account: { livemode: boolean }, stripeLivemode: boolean): boolean {
+  return account.livemode === stripeLivemode;
+}
+
+/**
+ * Whether an earlier attempt's account is in the run's Stripe mode (MYK9-2187).
+ * Stripe lists transfers only in the key's own mode, so an attempt made in the
+ * other mode (or one whose mode cannot be read) can never be checked with this
+ * key: an empty list would wrongly read as "no money moved". The account row's
+ * livemode is trustworthy evidence: onboarding writes it from a key whose mode
+ * is known (requireStripeLivemode) and the webhook from event.livemode. A row
+ * an operator marked failed with MODE_CHECKED_REASON was checked by hand in
+ * its own mode, so it no longer needs this.
+ */
+async function checkAttemptMode(
+  deps: ProcessShowDeps,
+  attempt: { club_stripe_account_id: string | null; failure_reason: string | null }
+): Promise<AttemptMode> {
+  if (attempt.failure_reason === MODE_CHECKED_REASON) return 'match';
+  const accountId = attempt.club_stripe_account_id;
+  if (!accountId) return 'no_account';
+  const { data, error } = await deps.supabase
+    .from('club_stripe_accounts')
+    .select('livemode')
+    .eq('id', accountId)
+    .maybeSingle();
+  if (error) return 'read_error';
+  if (!data) return 'no_account';
+  const { livemode } = data as { livemode: unknown };
+  if (typeof livemode !== 'boolean') return 'read_error';
+  return inStripeMode({ livemode }, deps.stripeLivemode) ? 'match' : 'mismatch';
+}
+
 /** Enough to see every transfer a show should ever have; more is itself suspect. */
 const TRANSFER_PAGE = 10;
 
@@ -41,9 +78,9 @@ export type TransferLookup =
   | { kind: 'error'; message: string };
 
 /**
- * What Stripe has for this show's transfer_group. Never throws. The lookup
- * trusts the job's current Stripe mode: an attempt made under the other mode's
- * key is invisible here. The mode check is MYK9-2187.
+ * What Stripe has for this show's transfer_group. Never throws. Stripe lists
+ * only the key's own mode: an attempt made under the other mode's key is
+ * invisible here, so callers confirm the attempt's mode first (checkAttemptMode).
  */
 export async function lookUpShowTransfer(
   stripe: StripeTransfers,
@@ -217,7 +254,7 @@ export async function checkFailedAttempt(
   const { supabase } = deps;
   const { data: latest, error } = await supabase
     .from('show_payouts')
-    .select('id, status, amount_cents')
+    .select('id, status, amount_cents, club_stripe_account_id, failure_reason')
     .eq('show_id', show.id)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -248,6 +285,15 @@ export async function checkFailedAttempt(
     // While Stripe cannot say whether the failed attempt moved money, the row
     // goes back to 'processing' so refunds are refused (MYK9-2183).
     const rowId = latest.id as string;
+    const mode = await checkAttemptMode(deps, {
+      club_stripe_account_id: (latest.club_stripe_account_id as string | null) ?? null,
+      failure_reason: (latest.failure_reason as string | null) ?? null,
+    });
+    if (mode !== 'match') {
+      const held = await holdAsProcessing(supabase, rowId);
+      await reportAttemptModeHold(deps, summary, show, rowId, mode, held ? 'blocked' : 'open');
+      return { kind: 'stop' };
+    }
     const lookup = await lookUpShowTransfer(deps.stripe, show.id);
     if (lookup.kind === 'error') {
       const held = await holdAsProcessing(supabase, rowId);
@@ -275,6 +321,8 @@ interface StaleRow {
   id: string;
   show_id: string;
   amount_cents: number;
+  club_stripe_account_id: string | null;
+  failure_reason: string | null;
   shows: { name: string; club_id: string | null } | null;
 }
 
@@ -292,7 +340,9 @@ export async function recoverStaleProcessing(
   const { supabase } = deps;
   const { data: stale, error } = await supabase
     .from('show_payouts')
-    .select('id, show_id, amount_cents, shows(name, club_id)')
+    .select(
+      'id, show_id, amount_cents, club_stripe_account_id, failure_reason, shows(name, club_id)'
+    )
     .eq('status', 'processing')
     .lt('updated_at', staleBeforeIso);
   if (error) {
@@ -311,6 +361,12 @@ export async function recoverStaleProcessing(
       continue;
     }
     try {
+      // Another mode's transfers are invisible to this key: never read "none" as proof.
+      const mode = await checkAttemptMode(deps, row);
+      if (mode !== 'match') {
+        await reportAttemptModeHold(deps, summary, show, row.id, mode, 'blocked');
+        continue;
+      }
       const lookup = await lookUpShowTransfer(deps.stripe, row.show_id);
       if (lookup.kind === 'error') {
         await reportLookupError(deps, summary, show, lookup.message, 'blocked');
@@ -328,7 +384,12 @@ export async function recoverStaleProcessing(
       }
       const { error: failError } = await supabase
         .from('show_payouts')
-        .update({ status: 'failed', failure_reason: 'stale_processing' })
+        .update({
+          status: 'failed',
+          // An operator's mode check stays on the row, or the next run would hold it again.
+          failure_reason:
+            row.failure_reason === MODE_CHECKED_REASON ? MODE_CHECKED_REASON : 'stale_processing',
+        })
         .eq('id', row.id)
         .eq('status', 'processing');
       if (failError) {

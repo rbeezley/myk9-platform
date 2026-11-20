@@ -21,7 +21,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
-import { isStripeLiveMode } from '../_shared/stripeMode.ts';
+import { stripeKeyMode } from '../_shared/stripeMode.ts';
 import { acquireShowMoneyLock } from '../_shared/showMoneyLock.ts';
 import { alertAdmin as sharedAlertAdmin } from '../_shared/alertAdmin.ts';
 import { loadClubMoneyRecipients } from '../_shared/clubMoneyRecipients.ts';
@@ -29,6 +29,7 @@ import { createResendSender } from '../_shared/clubMoneyEmails.ts';
 import { processShow, type ProcessShowDeps } from './processShow.ts';
 import { recoverStaleProcessing } from './payoutReconcile.ts';
 import { loadEligibleShows } from './eligibleShows.ts';
+import { refuseUnknownKeyMode } from './payoutAlerts.ts';
 import type { PayoutAlertOptions } from './payoutTypes.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -45,7 +46,8 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 const stripe = new Stripe(stripeSecret, {
   appInfo: { name: 'myK9Show', version: '1.0.0' },
 });
-const stripeLivemode = isStripeLiveMode(stripeSecret);
+// MYK9-2187: an unknown key stops the run with an alert, never reads as test.
+const stripeMode = stripeKeyMode(stripeSecret);
 
 const PAYOUT_DELAY_DAYS = 3;
 const STALE_PROCESSING_HOURS = 24;
@@ -122,7 +124,13 @@ Deno.serve(async req => {
     ledger_write_errors: 0,
     // Stripe gave no clear answer to a transfer request; the row stays processing.
     uncertain_transfers: 0,
+    // An earlier attempt in the other Stripe mode (or of unknown mode): held, not checked.
+    attempt_mode_holds: 0,
   };
+
+  if (await refuseUnknownKeyMode({ alertAdmin }, stripeMode)) {
+    return Response.json({ error: 'Stripe key mode unknown', ...summary }, { status: 500 });
+  }
 
   try {
     // Read once per run for the alert copy only; the claim RPC re-reads the
@@ -136,7 +144,7 @@ Deno.serve(async req => {
     const deps: ProcessShowDeps = {
       supabase,
       stripe,
-      stripeLivemode,
+      stripeLivemode: stripeMode === 'live',
       brakeOn,
       alertAdmin,
       clubNoticeDeps,

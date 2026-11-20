@@ -37,7 +37,7 @@ import {
   decideCartOverflowRefund,
   type CartOverflowRefundDecision,
 } from '../_shared/cartOverflowRefund.ts';
-import { isStripeLiveMode } from '../_shared/stripeMode.ts';
+import { requireStripeLivemode } from '../_shared/stripeMode.ts';
 import {
   allRefundsAppOriginated,
   buildUnmatchedRefundAlert,
@@ -130,7 +130,8 @@ const stripe = new Stripe(stripeSecret, {
     version: '1.0.0',
   },
 });
-const stripeLivemode = isStripeLiveMode(stripeSecret);
+// Fails closed at boot on a key whose mode is unknown (MYK9-2187).
+const stripeLivemode = requireStripeLivemode(stripeSecret);
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -302,7 +303,7 @@ async function handleEvent(event: Stripe.Event) {
       break;
 
     case 'account.updated':
-      await handleAccountUpdated(event.data.object as Stripe.Account, event.id);
+      await handleAccountUpdated(event.data.object as Stripe.Account, event.id, event.livemode);
       break;
 
     case 'account.application.deauthorized':
@@ -888,8 +889,9 @@ async function alertIfShowRefundEntriesUnstamped(charge: Stripe.Charge, showId: 
 /**
  * Mirror a connected account's onboarding/payout flags onto club_stripe_accounts.
  */
-async function handleAccountUpdated(account: Stripe.Account, eventId: string) {
-  const patch = accountToRowPatch(account);
+async function handleAccountUpdated(account: Stripe.Account, eventId: string, livemode: boolean) {
+  // The event's own livemode, never a default (MYK9-2187).
+  const patch = accountToRowPatch(account, livemode);
   // MYK9-1986/2191: claims the true -> false transition before the patch below: one club email, one operator alert.
   await notifyPayoutsTurnedOff(
     createPayoutsDisabledDeps(
@@ -897,7 +899,7 @@ async function handleAccountUpdated(account: Stripe.Account, eventId: string) {
       account.id,
       createResendSender(resendApiKey, FROM_EMAIL),
       Deno.env.get('SITE_URL'),
-      { alert: alertAdmin, eventId, livemode: stripeLivemode }
+      { alert: alertAdmin, eventId, livemode }
     ),
     patch
   );

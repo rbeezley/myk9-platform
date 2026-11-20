@@ -203,7 +203,11 @@ Toggle: **Live mode ON**. Five things exist per-mode and must be redone:
    night before a show opens entries).
 2. **Live webhook endpoint** — same URL, same event list, new `whsec_...`:
    `supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_<live>`
-3. **Live API key**: `supabase secrets set STRIPE_SECRET_KEY=sk_live_...`
+3. **Live API key**: `supabase secrets set STRIPE_SECRET_KEY=sk_live_...` (a restricted
+   `rk_live_...` key also reads as live; any other prefix stops every Stripe function, by design).
+   **Before switching the key, no `show_payouts` row may be `processing`, `failed` or otherwise
+   unresolved** (go-live runbook step 3.2a has the query). A row left over is held, not paid
+   twice; see "Payout held: Stripe mode not confirmed" below.
 4. **Purge sandbox-created Stripe IDs from the database.** Stripe IDs are mode-scoped: a
    `cus_`/`acct_` ID created in the sandbox does not exist in live mode, and the checkout
    function reuses cached customer IDs from `stripe_customers` — a stale sandbox ID makes
@@ -348,6 +352,31 @@ pooler** connection string from the Supabase Dashboard → **Project Settings �
 copy the exact pooler host from there (the `db.<ref>.supabase.co` CNAME can resolve to the
 wrong region and reject the tenant). Password: `supabase/.env` → `SUPABASE_DB_PASSWORD`. The
 exact working host/user is in the **private operator notes** (kept out of this public repo).
+
+**Payout held: Stripe mode not confirmed** (MYK9-2187). Stripe lists transfers only in the
+mode of the key that asks, so before the run checks Stripe about an earlier attempt it confirms
+that the attempt's account (`show_payouts.club_stripe_account_id` to
+`club_stripe_accounts.livemode`) is in the run's own mode. When it cannot (the other mode, no
+linked account, or the account cannot be read), it never reads an empty Stripe list as "no
+money moved": the row is held as `processing` (refunds stay blocked) and the alert names the
+row. To clear the hold, open the show's transfers in the Stripe dashboard **in the mode the
+attempt used** (search transfer group = the show id), then:
+
+- Stripe has a transfer: set the row `completed` with that transfer's id and amount.
+- Stripe has none:
+
+  ```sql
+  update public.show_payouts
+     set status = 'failed', failure_reason = 'mode_checked_by_operator'
+   where id = '<payout row id from the alert>';
+  ```
+
+  The next run trusts that check, asks Stripe only in its own mode, and queues the payout
+  again (it waits for approval while the payout brake is on).
+
+**Payout run stopped: Stripe key mode unknown.** The run's `STRIPE_SECRET_KEY` does not start
+with `sk_live_`, `rk_live_`, `sk_test_` or `rk_test_`. Nothing is checked or sent until the
+secret is set to the intended key.
 
 **Where to see results.** The completed payout appears in your **Payout Ledger at
 `/admin/payouts`** (Paid badge + transfer id) and in the club's own **My Club → Payments**.

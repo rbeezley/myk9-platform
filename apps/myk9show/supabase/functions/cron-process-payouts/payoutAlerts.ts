@@ -2,6 +2,7 @@
 // writes (MYK9-2183). Every club- or Stripe-supplied value is HTML-escaped.
 
 import { escapeHtml, formatDollars } from '../_shared/clubMoneyEmails.ts';
+import type { StripeKeyMode } from '../_shared/stripeMode.ts';
 import type { EligibleShow, PayoutSummary, ProcessShowDeps } from './payoutTypes.ts';
 
 export type ShowRef = Pick<EligibleShow, 'id' | 'name' | 'club_id'>;
@@ -111,6 +112,78 @@ export async function reportLookupError(
      <p>The next run asks again. If this repeats, check the Stripe status page and key.</p>`,
     { dedupeKey: `payout-transfer-lookup-error-${show.id}`, severity: 'error' }
   );
+}
+
+export type AttemptMode = 'match' | 'mismatch' | 'no_account' | 'read_error';
+
+/**
+ * The failure_reason an operator sets after checking, in the attempt's own
+ * Stripe mode, that no transfer went out. The run then trusts that check and
+ * asks Stripe only in its own mode (MYK9-2187).
+ */
+export const MODE_CHECKED_REASON = 'mode_checked_by_operator';
+
+const ATTEMPT_MODE_WHY: Record<Exclude<AttemptMode, 'match'>, string> = {
+  mismatch:
+    'The earlier attempt was made to a Stripe account in the other mode (test or live) than the key the run uses now, so Stripe cannot show this run whether that transfer went out.',
+  no_account:
+    'The earlier attempt has no linked Stripe account, so the run cannot tell which Stripe mode it was made in.',
+  read_error:
+    'The run could not read the Stripe account the earlier attempt was made to, so it cannot tell which Stripe mode it was made in.',
+};
+
+/**
+ * An earlier attempt the run cannot check with this Stripe key: never failed,
+ * never retried, and the alert names the one step that clears the hold.
+ */
+export async function reportAttemptModeHold(
+  deps: AlertDeps,
+  summary: PayoutSummary,
+  show: ShowRef,
+  rowId: string,
+  mode: Exclude<AttemptMode, 'match'>,
+  refunds: 'blocked' | 'open'
+) {
+  summary.attempt_mode_holds++;
+  console.error(`Payout for show ${show.id} held: attempt Stripe mode ${mode}`);
+  await deps.alertAdmin(
+    `Payout held: Stripe mode not confirmed: ${show.name}`,
+    `<p>${ATTEMPT_MODE_WHY[mode]} Nothing was checked, queued or sent for
+     <strong>${escapeHtml(show.name)}</strong> (show <code>${show.id}</code>).</p>
+     ${refundsLine(refunds)}
+     <p>To clear the hold, look up this show's transfers in the Stripe dashboard in the mode the
+     earlier attempt used (transfer group <code>${show.id}</code>), then update payout row
+     <code>${escapeHtml(rowId)}</code>:</p>
+     <ul>
+     <li>If Stripe has a transfer: set the row completed with that transfer's id and amount.</li>
+     <li>If Stripe has none: <code>update public.show_payouts set status = 'failed',
+     failure_reason = '${MODE_CHECKED_REASON}' where id = '${escapeHtml(rowId)}';</code> The next
+     run trusts that check, asks Stripe only in its own mode, and queues the payout again.</li>
+     </ul>
+     <p>Until then every run holds it. Runbook: docs/operations/stripe-platform-setup.md.</p>`,
+    { dedupeKey: `payout-attempt-mode-${show.id}`, severity: 'error' }
+  );
+}
+
+/**
+ * The run's own key is neither live nor test (MYK9-2187): true when the run
+ * must stop, after alerting. Nothing is checked, queued or sent, so no
+ * attempt's mode can be compared with an unknown one.
+ */
+export async function refuseUnknownKeyMode(deps: AlertDeps, mode: StripeKeyMode): Promise<boolean> {
+  if (mode !== 'unknown') return false;
+  console.error('Payout run stopped: STRIPE_SECRET_KEY is neither a live nor a test key');
+  await deps.alertAdmin(
+    'Payout run stopped: Stripe key mode unknown',
+    `<p>The payout run's STRIPE_SECRET_KEY does not start with sk_live_, rk_live_, sk_test_ or
+     rk_test_, so the run cannot tell whether it is in live or test mode. Nothing was checked,
+     queued or sent, and payouts already processing stay processing, so refunds stay blocked
+     for those shows.</p>
+     <p>Set the secret to the intended live or test key
+     (<code>supabase secrets set STRIPE_SECRET_KEY=...</code>); the next run goes ahead.</p>`,
+    { dedupeKey: 'payout-key-mode-unknown', severity: 'error' }
+  );
+  return true;
 }
 
 /**

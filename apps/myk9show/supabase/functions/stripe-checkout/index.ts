@@ -15,7 +15,7 @@ import {
   priceCartItems,
 } from '../_shared/cartItemPricing.ts';
 import { parsePremiumPriceIds } from '../_shared/premiumPrices.ts';
-import { isStripeLiveMode } from '../_shared/stripeMode.ts';
+import { requireStripeLivemode } from '../_shared/stripeMode.ts';
 import {
   resolveCheckoutSession,
   type CheckoutSessionResolution,
@@ -74,7 +74,8 @@ const stripe = new Stripe(stripeSecret, {
     version: '1.0.0',
   },
 });
-const stripeLivemode = isStripeLiveMode(stripeSecret);
+// Fails closed at boot on a key whose mode is unknown (MYK9-2187).
+const stripeLivemode = requireStripeLivemode(stripeSecret);
 
 const RECOVERED_CART_EXPIRATION_MINUTES = 30;
 

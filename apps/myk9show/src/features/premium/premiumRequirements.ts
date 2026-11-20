@@ -56,7 +56,13 @@ export interface PremiumRequirementFacts {
   /** MYK9-2290: the show's ASCA terms as printed. Absent means not known here, and nothing is said. */
   showTerms?: ReadonlyArray<{ label: string }>;
   /** MYK9-2292: each judge on the show with the affiliation typed on them. Absent means not known here. */
-  judgeAffiliations?: ReadonlyArray<{ id: string; name: string; affiliation: string | null }>;
+  judgeAffiliations?: ReadonlyArray<{
+    id: string;
+    name: string;
+    affiliation: string | null;
+    /** Whether the viewer may edit that person; only then does the item link to their profile. */
+    canEdit?: boolean;
+  }>;
   trials: Array<
     Pick<PremiumFacts['trials'][number], 'name' | 'eventNumber' | 'classLabels'> & {
       /** The trial's id when known; it scopes the link to that trial. */
@@ -221,8 +227,8 @@ const CHECKS: Partial<Record<PremiumFactId, Check>> = {
         .filter(j => blank(j.affiliation))
         .map(j => ({
           key: `judgeAffiliation:${j.id}`,
-          message: `${r} requires each judge's affiliation. Add it for ${j.name} on their person record.`,
-          href: `/people/${j.id}`,
+          message: `${r} requires each judge's affiliation. Ask ${j.name} to add their affiliation on their myK9 profile.`,
+          ...(j.canEdit && { href: `/people/${j.id}` }),
         })),
     href: () => null,
   },

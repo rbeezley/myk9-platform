@@ -91,10 +91,10 @@ describe('ASCA checklist, judge affiliation', () => {
   const affiliationItems = (f: PremiumRequirementFacts, registry: 'AKC' | 'UKC' | 'ASCA') =>
     missingPremiumFacts(f, registry, targets).filter(i => i.id === 'judgeAffiliation');
 
-  it('names each judge with no affiliation, linking that judge', () => {
+  it('names each judge with no affiliation, linking only a profile the viewer may edit', () => {
     const items = affiliationItems(
       facts([
-        { id: 'j1', name: 'Jane Smith', affiliation: null },
+        { id: 'j1', name: 'Jane Smith', affiliation: null, canEdit: true },
         { id: 'j2', name: 'Bob Lee', affiliation: 'ASCA-approved judge' },
         { id: 'j3', name: 'Cy Young', affiliation: '  ' },
       ]),
@@ -103,6 +103,11 @@ describe('ASCA checklist, judge affiliation', () => {
     expect(items.map(i => i.key)).toEqual(['judgeAffiliation:j1', 'judgeAffiliation:j3']);
     expect(items[0]?.href).toBe('/people/j1');
     expect(items[0]?.message).toContain('Jane Smith');
+    // No link for a judge the viewer cannot edit, and the wording asks the judge to fix it.
+    expect(items[1]?.href).toBeNull();
+    expect(items[1]?.message).toBe(
+      "ASCA requires each judge's affiliation. Ask Cy Young to add their affiliation on their myK9 profile."
+    );
   });
 
   it('is satisfied when every judge has one, and silent when the roster is not known', () => {

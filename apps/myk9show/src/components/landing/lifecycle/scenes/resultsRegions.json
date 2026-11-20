@@ -77,7 +77,7 @@
         }
       },
       "release": {
-        "file": "desk-release.png",
+        "file": "desk-class.png",
         "regions": {
           "button": {
             "x": 638,

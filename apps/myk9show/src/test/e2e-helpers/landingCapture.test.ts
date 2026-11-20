@@ -177,14 +177,17 @@ describe('the capture spec and its job', () => {
       expect(text.indexOf('await holdWebSockets(deskContext)')).toBeGreaterThan(0);
       expect(text.indexOf('await holdWebSockets(deskContext)')).toBeLessThan(firstSignIn);
       // Both contexts are served the downloaded fonts, and no page is opened before that.
-      expect(text.indexOf('await serveFontsFrom(deskContext, fontsDir)')).toBeLessThan(
-        text.indexOf('deskContext.newPage()')
-      );
+      // Each guard must be present before its order means anything: indexOf is -1 when absent.
+      const deskFonts = text.indexOf('await serveFontsFrom(deskContext, fontsDir)');
+      expect(deskFonts).toBeGreaterThan(0);
+      expect(deskFonts).toBeLessThan(text.indexOf('deskContext.newPage()'));
       // The job's database is set up only after the target is shown to be on this machine, and
       // before any page opens.
       const setup = text.indexOf("execFileSync('psql'");
       expect(setup).toBeGreaterThan(0);
-      expect(text.indexOf("['127.0.0.1', 'localhost']")).toBeLessThan(setup);
+      const loopbackCheck = text.indexOf("['127.0.0.1', 'localhost']");
+      expect(loopbackCheck).toBeGreaterThan(0);
+      expect(loopbackCheck).toBeLessThan(setup);
       expect(setup).toBeLessThan(text.indexOf('await serveFontsFrom(context, fontsDir)'));
       // The card checkout is Stripe's page, which this job cannot reach and must never press.
       expect(text).not.toMatch(/\.click\(\)[^;]*\bpay\b|clickClearOfStickyChrome\(page, pay\)/);
@@ -241,10 +244,10 @@ describe('the capture spec and its job', () => {
     );
     expect(workflow).toMatch(/scenes\/entries" -type f \| wc -l\)" -eq 9/);
     expect(workflow).toMatch(
-      /for shot in phone-before phone-new phone-card desk-list desk-class desk-release desk-released; do\s+test -s /
+      /for shot in phone-before phone-new phone-card desk-list desk-class desk-released; do\s+test -s /
     );
-    expect(workflow).toMatch(/scenes\/results" -type f \| wc -l\)" -eq 7/);
-    expect(workflow).toMatch(/landing-capture\/out" -type f \| wc -l\)" -eq 27/);
+    expect(workflow).toMatch(/scenes\/results" -type f \| wc -l\)" -eq 6/);
+    expect(workflow).toMatch(/landing-capture\/out" -type f \| wc -l\)" -eq 26/);
     expect(workflow.indexOf('Check the capture is whole')).toBeLessThan(
       workflow.indexOf('Upload the capture')
     );

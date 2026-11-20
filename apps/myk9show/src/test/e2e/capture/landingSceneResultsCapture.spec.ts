@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test, type Locator, type Page } from '@playwright/test';
@@ -234,11 +234,23 @@ test('captures the Results scene on the secretaryâ€™s desktop and the exhibitorâ
     target: Page,
     shots: Shots,
     name: string,
-    regions: Regions
+    regions: Regions,
+    /** A shot whose screen must be pixel-identical: its image is reused, not stored twice. */
+    sameScreenAs?: string
   ) => {
     const measured: Record<string, Box> = {};
     for (const [key, region] of Object.entries(regions)) {
       measured[key] = Array.isArray(region) ? await box(...region) : await box(region);
+    }
+    if (sameScreenAs) {
+      const file = `${device}-${sameScreenAs}.png`;
+      const now = await target.screenshot();
+      expect(
+        now.equals(readFileSync(join(IMG_DIR, file))),
+        `${device}-${name} must show the same screen as ${file} to reuse its image`
+      ).toBe(true);
+      shots[name] = { file, regions: measured };
+      return;
     }
     // One folder holds both devices' captures, so each file names its device.
     const file = `${device}-${name}.png`;
@@ -310,10 +322,16 @@ test('captures the Results scene on the secretaryâ€™s desktop and the exhibitorâ
       await expect(release).toBeEnabled({ timeout: 30_000 });
       await alignResultsPanes(desk);
       // The button's own card, the smallest block around it that is wider than the button.
-      await shoot('desk', desk, deskShots, 'release', {
-        button: release,
-        card: [release, 300, 60],
-      });
+      // Nothing on screen changes between the placements and the Release button, so the frame
+      // rings the button on the same image instead of shipping a second copy of it.
+      await shoot(
+        'desk',
+        desk,
+        deskShots,
+        'release',
+        { button: release, card: [release, 300, 60] },
+        'class'
+      );
     });
     const chips = detail.locator('header div.flex.flex-wrap').first();
     await stage('releasing', desk, async () => {

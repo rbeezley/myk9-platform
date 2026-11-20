@@ -15,12 +15,6 @@ function getDetailItems(show: Show): DetailItem[] {
   if (show.maxTotalEntries) {
     items.push({ label: 'Max Total Entries', value: String(show.maxTotalEntries) });
   }
-  if (show.allowNonOwnerHandlers != null) {
-    items.push({
-      label: 'Non-Owner Handlers',
-      value: show.allowNonOwnerHandlers ? 'Allowed' : 'Not Allowed',
-    });
-  }
 
   return items;
 }

@@ -149,12 +149,12 @@ A secretary can run a show using only these. Every one must stay fast (the 10-ta
 
 ### Edit show and setup
 
-| Feature                                                                                               | Proposed                                    | Owner |
-| ----------------------------------------------------------------------------------------------------- | ------------------------------------------- | ----- |
-| Basic, Officials, Judges, Fees (incl. payment methods)                                                | Core (required to run)                      |       |
-| Junior handler fee, max entries per dog / total, non-owner handlers, Nationals flag, starting armband | Power                                       |       |
-| Premium tab: show style, generate on save, shared content                                             | Optional                                    |       |
-| Clone from a previous show (wizard)                                                                   | Optional, but likely the fastest setup path |       |
+| Feature                                                                           | Proposed                                    | Owner |
+| --------------------------------------------------------------------------------- | ------------------------------------------- | ----- |
+| Basic, Officials, Judges, Fees (incl. payment methods)                            | Core (required to run)                      |       |
+| Junior handler fee, max entries per dog / total, Nationals flag, starting armband | Power                                       |       |
+| Premium tab: show style, generate on save, shared content                         | Optional                                    |       |
+| Clone from a previous show (wizard)                                               | Optional, but likely the fastest setup path |       |
 
 ### Outside the show
 

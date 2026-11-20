@@ -188,6 +188,53 @@ describe('verify-production.sh', { timeout: 30_000 }, () => {
     expect(r.summary).toContain('index-ABC.js');
   });
 
+  it('retries a well-formed old stamp until the host switches to the expected build', () => {
+    // A counter-backed curl: the domain's stamp is the old build once, then the new one.
+    const bin = mkdtempSync(join(tmpdir(), 'verify-prod-'));
+    dirs.push(bin);
+    const stampUrl = `${DOMAIN}/build-entry.txt`;
+    const body: Record<string, string> = {
+      [`${DOMAIN}/`]: page('ABC'),
+      [`${ALIAS}/`]: page('ABC'),
+      [`${DOMAIN}/build-sha.txt`]: SHA,
+      [`${ALIAS}/build-sha.txt`]: SHA,
+      [stampUrl]: entry('ABC'),
+      [`${ALIAS}/build-entry.txt`]: entry('ABC'),
+    };
+    for (const [url, text] of Object.entries(body))
+      writeFileSync(join(bin, encodeURIComponent(url)), text);
+    writeFileSync(join(bin, `${encodeURIComponent(stampUrl)}.first`), entry('OLD'));
+    const counter = join(bin, 'count');
+    writeFileSync(
+      join(bin, 'curl'),
+      [
+        '#!/usr/bin/env bash',
+        'url="${@: -1}"',
+        'base="${url%%\\?*}"',
+        `f="${bin}/$(node -e 'process.stdout.write(encodeURIComponent(process.argv[1]))' "$base")"`,
+        '[ -f "$f" ] || exit 22',
+        `if [ -f "$f.first" ] && [ ! -f "${counter}" ]; then touch "${counter}"; cat "$f.first"; exit 0; fi`,
+        'cat "$f"',
+        '',
+      ].join('\n')
+    );
+    chmodSync(join(bin, 'curl'), 0o755);
+    const expectedFile = join(bin, 'expected.txt');
+    writeFileSync(expectedFile, entry('ABC'));
+    const r = spawnSync('bash', [SCRIPT], {
+      encoding: 'utf8',
+      env: {
+        PATH: `${bin}:${process.env.PATH}`,
+        HOME: process.env.HOME,
+        COMMIT_SHA: SHA,
+        EXPECTED_ENTRY_FILE: expectedFile,
+        VERIFY_TRIES: '3',
+        VERIFY_SLEEP: '0',
+      },
+    });
+    expect(r.status).toBe(0);
+  });
+
   it('does not take SPA fallback HTML for a stamp', () => {
     const r = run({ ...healthy(), [`${DOMAIN}/build-entry.txt`]: page('ABC') });
     expect(r.status).toBe(1);

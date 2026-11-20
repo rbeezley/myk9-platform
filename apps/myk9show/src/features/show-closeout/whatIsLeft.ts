@@ -97,7 +97,9 @@ export interface WhatIsLeftInput {
    * Unconfirmed check-in pull flags, from `useCloseoutFlaggedPulls` (MYK9-2180): the one read the
    * Finish list and the close step share. `undefined` = this caller does not look: no line.
    */
-  flaggedPulls?: (Pick<FlaggedPullsRead, 'status'> & { dogCount?: number }) | undefined;
+  flaggedPulls?:
+    | (Pick<FlaggedPullsRead, 'status'> & { dogCount?: number; deskResolvable?: boolean })
+    | undefined;
 }
 
 /**
@@ -147,6 +149,11 @@ export interface WhatIsLeftLine {
   closeConcern?: string;
   /** An app-sent results file only; absent when nothing was sent or the caller does not look. */
   sentFileCheck?: SentFileCheck;
+  /**
+   * A flagged-pulls line only: the Check-in desk can resolve at least one of its flags, so the line
+   * links there (MYK9-2180). False when every flag is listed on the close-out screen itself.
+   */
+  deskLink?: boolean;
 }
 
 export interface WhatIsLeft {

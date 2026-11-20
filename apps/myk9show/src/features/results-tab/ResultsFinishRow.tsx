@@ -6,8 +6,8 @@ import { calculateResultsRowsLeft } from '@/features/show-closeout/fromResultsRo
 import { useResultsSentCheck } from '@/features/show-closeout/useResultsSentCheck';
 import { readHandlerClashes } from '@/features/show-closeout/handlerClash';
 import { buildFinishList } from '@/features/show-closeout/finishList';
-import { useCloseoutFlaggedPulls } from '@/features/show-closeout/useCloseoutFlaggedPulls';
-import { FlaggedPullsClassRemoved } from '@/features/show-closeout/FlaggedPullsClassRemoved';
+import type { CloseoutFlaggedPulls } from '@/features/show-closeout/useCloseoutFlaggedPulls';
+import { FlaggedPullsOffDesk } from '@/features/show-closeout/FlaggedPullsOffDesk';
 import { FINISH_LIST_ANCHOR } from '@/features/show-map/cockpit/cockpitRoutes';
 import type { SecretaryEntry } from '@/services/database/entries';
 import { Button } from '@/components/ui/button';
@@ -25,6 +25,12 @@ interface ResultsFinishRowProps {
   entries: readonly SecretaryEntry[];
   /** False while the entries read is stale (a refresh failed): the line then says nothing. */
   entriesTrusted: boolean;
+  /**
+   * Unconfirmed pull flags, from `useCloseoutFlaggedPulls` over the tab's own entries read: the
+   * same hook the close step derives its flags from, so the two cannot count them differently
+   * (MYK9-2180).
+   */
+  flaggedPulls: CloseoutFlaggedPulls;
   /** Opens the after-show packet for a trial (MYK9-1924 phase 2a); absent = no packet button. */
   onOpenAfterShow?: (trialId: string) => void;
 }
@@ -41,6 +47,7 @@ export function ResultsFinishRow({
   rows,
   entries,
   entriesTrusted,
+  flaggedPulls,
   onOpenAfterShow,
 }: ResultsFinishRowProps) {
   // Until the schedule is confirmed the rows may be partial: not loaded reads as "checking".
@@ -48,8 +55,6 @@ export function ResultsFinishRow({
     state => state.trialsHasConfirmedSnapshot && state.trialClassesHasConfirmedSnapshot
   );
   const sent = useResultsSentCheck(showId, scheduleReady ? rows : null);
-  // MYK9-2180: the close step reads the same hook, so the two cannot count flags differently.
-  const flaggedPulls = useCloseoutFlaggedPulls(showId);
   const items = useMemo(
     () =>
       buildFinishList(
@@ -113,7 +118,7 @@ export function ResultsFinishRow({
                   <ArrowRight className="h-4 w-4 flex-none" aria-hidden="true" />
                 </Link>
               )}
-              {item.key === 'flagged-pulls' && <FlaggedPullsClassRemoved flags={flaggedPulls} />}
+              {item.key === 'flagged-pulls' && <FlaggedPullsOffDesk flags={flaggedPulls} />}
             </li>
           );
         })}

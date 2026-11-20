@@ -68,7 +68,8 @@ function itemFor(
         key: line.key,
         state: 'open',
         opensClassList: false,
-        href: getCheckInDeskHref({ showId }),
+        // MYK9-2180: the desk only when it can resolve one; else the list under the line does.
+        href: line.deskLink === false ? null : getCheckInDeskHref({ showId }),
         label: line.label,
       };
     case 'unreleased':

@@ -13,10 +13,8 @@ import type { ResultsClassRow } from './buildResultsClassRows';
 import type { ResultsClassPhase } from './resultsNextAction';
 import { ResultsFinishRow } from './ResultsFinishRow';
 
-const flags = vi.hoisted(() => ({ current: null as CloseoutFlaggedPulls | null }));
-vi.mock('@/features/show-closeout/useCloseoutFlaggedPulls', () => ({
-  useCloseoutFlaggedPulls: () => flags.current,
-}));
+/** The flags `useCloseoutFlaggedPulls` hands the list, set per test. */
+const flags: { current: CloseoutFlaggedPulls } = { current: NO_FLAGS };
 
 const RELEASED = '2026-11-01T20:00:00Z';
 
@@ -67,6 +65,7 @@ function renderList(
       rows={rows}
       entries={entries}
       entriesTrusted
+      flaggedPulls={flags.current}
     />
   );
   return within(screen.getByRole('region', { name: 'Finish the show' }));
@@ -185,6 +184,7 @@ describe('ResultsFinishRow', () => {
         rows={SHOW_ROWS}
         entries={[]}
         entriesTrusted
+        flaggedPulls={flags.current}
         onOpenAfterShow={onOpen}
       />
     );
@@ -203,6 +203,7 @@ describe('ResultsFinishRow', () => {
         rows={SHOW_ROWS}
         entries={[]}
         entriesTrusted
+        flaggedPulls={flags.current}
         onOpenAfterShow={vi.fn()}
       />
     );
@@ -231,6 +232,7 @@ describe('ResultsFinishRow', () => {
         rows={SHOW_ROWS}
         entries={entries}
         entriesTrusted={entriesTrusted}
+        flaggedPulls={flags.current}
       />
     );
     return within(screen.getByRole('region', { name: 'Finish the show' }));
@@ -335,22 +337,59 @@ describe('ResultsFinishRow', () => {
     expect(list.queryByRole('link', { name: /flagged as pulled/ })).not.toBeInTheDocument();
   });
 
-  it('lists a flag whose class row is missing under "Class removed", with Confirm and Clear', () => {
-    flags.current = readFlags([
-      flagged('e1', 'dog-1'),
-      fromAny<SecretaryEntry, unknown>({ ...flagged('e2', 'dog-2'), class: null }),
-    ]);
+  // MYK9-2180: a flag with no joined class is listed here with Confirm and Clear, under "Class
+  // removed" only when the confirmed schedule no longer holds the class.
+  const orphan = (id: string, classId: string) =>
+    fromAny<SecretaryEntry, unknown>({
+      ...flagged(id, 'dog-2'),
+      class_id: classId,
+      trial_id: 'trial-1',
+      class: null,
+    });
+
+  it('lists a flag whose class is gone from the schedule under "Class removed"', () => {
+    flags.current = readFlags([flagged('e1', 'dog-1'), orphan('e2', 'gone')], {
+      'trial-1': [],
+    });
     const list = renderList(SHOW_ROWS, [trialFor('AKC')]);
 
     expect(list.getByRole('link', { name: FLAG_LABEL })).toBeInTheDocument();
-    const group = list.getByRole('group', { name: 'Class removed' });
-    expect(within(group).getByText('Dog dog-2')).toBeInTheDocument();
-    expect(within(group).queryByText('Dog dog-1')).not.toBeInTheDocument();
+    const group = within(list.getByRole('group', { name: 'Class removed' }));
+    expect(group.getByText('Dog dog-2')).toBeInTheDocument();
+    expect(group.queryByText('Dog dog-1')).not.toBeInTheDocument();
+    expect(group.getByRole('button', { name: /^Confirm the pull for Dog dog-2, / })).toBeEnabled();
     expect(
-      within(group).getByRole('button', { name: 'Confirm the pull for Dog dog-2' })
-    ).toBeInTheDocument();
+      group.getByRole('button', { name: /^Clear the pull flag for Dog dog-2, / })
+    ).toBeEnabled();
+  });
+
+  it('says "Class unavailable" when removal is not verified, and tells two flags of one dog apart', () => {
+    flags.current = readFlags([orphan('entry-aaaaaa', 'c1'), orphan('entry-bbbbbb', 'c2')], {
+      'trial-1': [{ id: 'c1', element: 'Container', level: 'Novice', section: 'A' }],
+    });
+    const list = renderList(SHOW_ROWS, [trialFor('AKC')]);
+
+    const group = within(list.getByRole('group', { name: 'Class unavailable' }));
+    // c1 is still scheduled: its label. c2 is not, but its trial's classes are confirmed: removed.
     expect(
-      within(group).getByRole('button', { name: 'Clear the pull flag for Dog dog-2' })
+      group.getByRole('button', { name: 'Confirm the pull for Dog dog-2, Container Novice A' })
     ).toBeInTheDocument();
+    const removed = within(list.getByRole('group', { name: 'Class removed' }));
+    expect(
+      removed.getByRole('button', { name: 'Confirm the pull for Dog dog-2, entry BBBBBB' })
+    ).toBeInTheDocument();
+  });
+
+  it('points to the list, not the Check-in desk, when the desk can resolve none of the flags', () => {
+    flags.current = readFlags([orphan('e2', 'gone')], { 'trial-1': [] });
+    const list = renderList(SHOW_ROWS, [trialFor('AKC')]);
+
+    expect(list.queryByRole('link', { name: /flagged as pulled/ })).not.toBeInTheDocument();
+    expect(
+      list.getByText(
+        /1 dog flagged as pulled at the show, not confirmed\. Confirm or clear each one/
+      )
+    ).toBeInTheDocument();
+    expect(list.getByRole('group', { name: 'Class removed' })).toBeInTheDocument();
   });
 });

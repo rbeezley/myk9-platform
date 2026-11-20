@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
-import { useSecretaryShowEntriesQuery } from '@/hooks/queries/useEntriesDatabase';
+import type { UseQueryResult } from '@tanstack/react-query';
+import { useShowDeskScheduleRead } from '@/pages/secretary/useShowDeskScheduleRead';
+import type { SecretaryEntry } from '@/services/database/entries';
 import { collectFlaggedPulls, type FlaggedPullsRead } from './flaggedPulls';
 
 export type CloseoutFlaggedPulls = FlaggedPullsRead & {
@@ -7,31 +9,39 @@ export type CloseoutFlaggedPulls = FlaggedPullsRead & {
   refresh: () => Promise<void>;
 };
 
+/** The parts of a screen's show entries query (`useSecretaryShowEntriesQuery`) the flags read. */
+export type FlaggedPullsEntriesQuery = Pick<
+  UseQueryResult<SecretaryEntry[]>,
+  'data' | 'isError' | 'isLoading' | 'failureCount' | 'refetch'
+>;
+
 /**
  * MYK9-2180: the single source of unconfirmed check-in pull flags for the Results tab's Finish
- * list and the close step (its summary card, the close action and its confirmation). Both render
- * this result, so they cannot show two counts for one show.
+ * list and the close step (its summary card, the close action and its confirmation). Both derive
+ * it here from the entries query they already hold (`useResultsTabData`, `useShowCloseoutInputs`,
+ * each the replication-backed `useSecretaryShowEntriesQuery` with one re-read on mount), so the
+ * two cannot disagree and no screen reads the entries twice.
  *
- * It reads the canonical show entries query (`useSecretaryShowEntriesQuery`, replication-backed),
- * the same cache both screens already read, re-read on mount so a flag confirmed at the Check-in
- * desk shows on return. The screens' own replica subscriptions invalidate that query on a write.
- *
- * States: `loading` until the first read, `failed` whenever the latest read did not succeed (an
- * error, or settled with no data), even with older rows still cached: a count from stale rows is
- * never shown as current. Otherwise `read`, with the flags and the "Class removed" ones.
+ * States: `loading` until the first read; `failed` whenever the latest read did not succeed (an
+ * error, a failed attempt awaiting or paused before its retry, or settled with no data), even with
+ * older rows still cached: a count from stale rows is never shown as current. Otherwise `read`.
+ * The confirmed schedule tells a removed class from one this device only could not load.
  */
-export function useCloseoutFlaggedPulls(showId: string | undefined): CloseoutFlaggedPulls {
-  const query = useSecretaryShowEntriesQuery(showId ?? '', Boolean(showId), {
-    rereadOnMount: true,
-  });
-  const { data, isError, isLoading, refetch } = query;
-  const list = useMemo(() => (data ? collectFlaggedPulls(data) : null), [data]);
+export function useCloseoutFlaggedPulls(query: FlaggedPullsEntriesQuery): CloseoutFlaggedPulls {
+  const { data, isError, isLoading, failureCount, refetch } = query;
+  const schedule = useShowDeskScheduleRead();
+  const trialClasses = schedule.hasConfirmedSnapshot ? schedule.trialClasses : null;
+  const list = useMemo(
+    () => (data ? collectFlaggedPulls(data, trialClasses) : null),
+    [data, trialClasses]
+  );
   return useMemo<CloseoutFlaggedPulls>(() => {
     const refresh = async () => {
       await refetch();
     };
-    if (isError) return { status: 'failed', refresh };
+    // A failure resets to 0 only on a successful read.
+    if (isError || failureCount > 0) return { status: 'failed', refresh };
     if (!list) return { status: isLoading ? 'loading' : 'failed', refresh };
     return { status: 'read', ...list, refresh };
-  }, [isError, isLoading, list, refetch]);
+  }, [failureCount, isError, isLoading, list, refetch]);
 }

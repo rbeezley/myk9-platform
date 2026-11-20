@@ -48,19 +48,21 @@ interface CloseOutShowActionProps {
 }
 
 /**
- * One close concern; a flag the Check-in desk has not confirmed links there (MYK9-2145). A flag
- * read that did not succeed is said as such, with nothing to open (MYK9-2180).
+ * One close concern; a flag the Check-in desk has not confirmed links there (MYK9-2145), when the
+ * desk can list at least one of them. A failed read, or flags only this step lists, link nowhere
+ * (MYK9-2180).
  */
 function ConcernItem({
   concern,
   showId,
-  flagsRead,
+  deskLink,
 }: {
   concern: CloseConcern;
   showId: string;
-  flagsRead: boolean;
+  /** The Check-in desk can resolve at least one flag (MYK9-2180); else the text names the list. */
+  deskLink: boolean;
 }) {
-  if (concern.kind !== 'flagged-pulls' || !flagsRead) return <li>{concern.text}</li>;
+  if (concern.kind !== 'flagged-pulls' || !deskLink) return <li>{concern.text}</li>;
   return (
     <li>
       {concern.text}{' '}
@@ -106,6 +108,7 @@ export function CloseOutShowAction({
     [classes, show, trials]
   );
   const showClosed = isShowClosedOut(show.status);
+  const deskLink = flaggedPulls.status === 'read' && flaggedPulls.deskResolvable;
 
   async function closeOutShow() {
     setIsClosing(true);
@@ -203,7 +206,7 @@ export function CloseOutShowAction({
                       key={concern.text}
                       concern={concern}
                       showId={show.id}
-                      flagsRead={flaggedPulls.status === 'read'}
+                      deskLink={deskLink}
                     />
                   ))}
                 </ul>
@@ -232,7 +235,7 @@ export function CloseOutShowAction({
                 key={concern.text}
                 concern={concern}
                 showId={show.id}
-                flagsRead={flaggedPulls.status === 'read'}
+                deskLink={deskLink}
               />
             ))}
           </ul>

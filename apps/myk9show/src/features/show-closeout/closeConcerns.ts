@@ -3,7 +3,11 @@
  * the kind it came from, so the close step can link the one it has a place for.
  */
 import { SENT_FILE_TEXT } from './submissionTimes';
-import { FLAGGED_PULLS_FAILED_TEXT, FLAGGED_PULLS_LOADING_TEXT } from './flaggedPulls';
+import {
+  FLAGGED_PULLS_FAILED_TEXT,
+  FLAGGED_PULLS_LOADING_TEXT,
+  OFF_DESK_HINT,
+} from './flaggedPulls';
 import type { WhatIsLeftInput, WhatIsLeftLine, WhatIsLeftLineKey } from './whatIsLeft';
 
 export type CloseConcernKind = WhatIsLeftLineKey | 'no-submission' | 'sent-file';
@@ -31,12 +35,15 @@ export function flaggedPullText(count: number): string {
 export function flaggedPullsLine(flags: WhatIsLeftInput['flaggedPulls']): WhatIsLeftLine | null {
   if (!flags) return null;
   const count = flags.status === 'read' ? (flags.dogCount ?? 0) : null;
+  const deskLink = count !== null && flags.deskResolvable !== false;
   const text =
-    count !== null
-      ? flaggedPullText(count)
-      : flags.status === 'loading'
+    count === null
+      ? flags.status === 'loading'
         ? FLAGGED_PULLS_LOADING_TEXT
-        : FLAGGED_PULLS_FAILED_TEXT;
+        : FLAGGED_PULLS_FAILED_TEXT
+      : deskLink
+        ? flaggedPullText(count)
+        : `${flaggedPullText(count)} ${OFF_DESK_HINT}`;
   return {
     key: 'flagged-pulls',
     kind: 'flagged-pulls',
@@ -45,6 +52,7 @@ export function flaggedPullsLine(flags: WhatIsLeftInput['flaggedPulls']): WhatIs
     classIds: [],
     open: count === null ? null : count > 0,
     closeConcern: text,
+    deskLink,
   };
 }
 

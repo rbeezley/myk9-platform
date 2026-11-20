@@ -156,26 +156,53 @@ describe('MYK9-2145: an unconfirmed pull flag at close', () => {
     expect(within(dialog).getByRole('button', { name: 'Close anyway' })).toBeInTheDocument();
   });
 
-  it('lists a flag whose class row is missing under "Class removed", with Confirm and Clear', () => {
-    const orphan = { ...FLAGGED, dog: { name: 'Biscuit', call_name: null }, class: null };
-    render(
-      <ShowCloseoutSummary
-        showId="show-1"
-        entries={[FLAGGED]}
-        deskWindow={null}
-        flaggedPulls={readFlags([orphan])}
-      />
+  // MYK9-2180: a flag with no joined class. Unverified removal is "Class unavailable"; with no flag
+  // the desk can list, every surface points to the list on this page, not the Check-in desk.
+  it('lists a flag with no joined class with Confirm and Clear, and no desk link', async () => {
+    const orphan = {
+      ...FLAGGED,
+      id: 'entry-abc123',
+      dog: { name: 'Biscuit', call_name: null },
+      class: null,
+    };
+    const flags = readFlags([orphan]);
+    const { user } = render(
+      <>
+        <ShowCloseoutSummary
+          showId="show-1"
+          entries={[FLAGGED]}
+          deskWindow={null}
+          flaggedPulls={flags}
+        />
+        <CloseOutShowAction {...CLEAN_SHOW} entries={[FLAGGED]} flaggedPulls={flags} />
+      </>
     );
 
     const card = screen.getByRole('region', { name: 'Before you close the show' });
     expect(within(card).getByText(FLAG_TEXT)).toBeInTheDocument();
-    const group = within(card).getByRole('group', { name: 'Class removed' });
+    expect(within(card).queryByRole('group', { name: 'Class removed' })).not.toBeInTheDocument();
+    const group = within(card).getByRole('group', { name: 'Class unavailable' });
     expect(within(group).getByText('Biscuit')).toBeInTheDocument();
+    expect(within(group).getByText('entry ABC123')).toBeInTheDocument();
     expect(
-      within(group).getByRole('button', { name: 'Confirm the pull for Biscuit' })
+      within(group).getByRole('button', { name: 'Confirm the pull for Biscuit, entry ABC123' })
     ).toBeInTheDocument();
     expect(
-      within(group).getByRole('button', { name: 'Clear the pull flag for Biscuit' })
+      within(group).getByRole('button', { name: 'Clear the pull flag for Biscuit, entry ABC123' })
     ).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Open the Check-in desk' })).not.toBeInTheDocument();
+
+    const action = screen.getByRole('region', { name: 'Close the show' });
+    expect(
+      within(action).getByText(/Confirm or clear each one under Class removed/)
+    ).toBeInTheDocument();
+    await user.click(within(action).getByRole('button', { name: 'Close the show' }));
+    const dialog = await screen.findByRole('alertdialog');
+    expect(
+      within(dialog).getByText(/Confirm or clear each one under Class removed/)
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).queryByRole('link', { name: 'Open the Check-in desk' })
+    ).not.toBeInTheDocument();
   });
 });

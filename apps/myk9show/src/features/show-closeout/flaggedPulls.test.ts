@@ -9,6 +9,8 @@ const flag = (overrides: Partial<FlaggedPullEntry> = {}): FlaggedPullEntry => ({
   check_in_status: 'pulled',
   is_scored: false,
   dog: { name: 'Biscuit', call_name: null },
+  class_id: 'class-1',
+  trial_id: 'trial-1',
   class: { name: 'Novice Container' },
   ...overrides,
 });
@@ -19,7 +21,8 @@ describe('collectFlaggedPulls (MYK9-2145, MYK9-2180)', () => {
 
     expect(list.dogCount).toBe(1);
     expect(list.items.map(item => item.entryId)).toEqual(['flag-1', 'flag-2']);
-    expect(list.classRemoved).toEqual([]);
+    expect(list.offDesk).toEqual([]);
+    expect(list.deskResolvable).toBe(true);
   });
 
   it('does not list a flag the desk already confirmed into a Pull', () => {
@@ -38,19 +41,53 @@ describe('collectFlaggedPulls (MYK9-2145, MYK9-2180)', () => {
     expect(collectFlaggedPulls([flag(fields)])).toEqual({
       dogCount: 0,
       items: [],
-      classRemoved: [],
+      offDesk: [],
+      deskResolvable: false,
     });
   });
 
-  it('keeps a flag whose class row is missing, in the "Class removed" group', () => {
-    const list = collectFlaggedPulls([
-      flag({ id: 'kept', class: null, dog: { name: 'Biscuit', call_name: 'Bis' } }),
+  // MYK9-2180: no joined class is never dropped. Removed only when the confirmed schedule says so.
+  it('keeps a flag with no joined class off the desk, "removed" only when the schedule says so', () => {
+    const entries = [
+      flag({ id: 'entry-gone11', class_id: 'gone', class: null }),
+      flag({
+        id: 'entry-kept22',
+        class_id: 'kept',
+        class: null,
+        dog: { name: 'B', call_name: 'Bis' },
+      }),
       flag({ id: 'other', dog_id: 'dog-2' }),
+    ];
+    const schedule = {
+      'trial-1': [{ id: 'kept', element: 'Container', level: 'Novice', section: 'A' }],
+    };
+
+    const list = collectFlaggedPulls(entries, schedule);
+    expect(list.dogCount).toBe(2);
+    expect(list.deskResolvable).toBe(true);
+    expect(list.offDesk).toEqual([
+      {
+        entryId: 'entry-gone11',
+        dogName: 'Biscuit',
+        armband: '101',
+        classState: 'removed',
+        classLabel: null,
+        place: 'entry GONE11',
+      },
+      {
+        entryId: 'entry-kept22',
+        dogName: 'Bis',
+        armband: '101',
+        classState: 'unavailable',
+        classLabel: 'Container Novice A',
+        place: 'Container Novice A',
+      },
     ]);
 
-    expect(list.dogCount).toBe(2);
-    expect(list.classRemoved).toEqual([
-      { entryId: 'kept', dogName: 'Bis', armband: '101', classRemoved: true },
+    // An unconfirmed schedule verifies nothing: every one is "unavailable", none "removed".
+    expect(collectFlaggedPulls(entries, null).offDesk.map(item => item.classState)).toEqual([
+      'unavailable',
+      'unavailable',
     ]);
   });
 });

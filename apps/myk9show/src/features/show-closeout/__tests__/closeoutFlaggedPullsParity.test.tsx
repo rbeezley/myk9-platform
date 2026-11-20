@@ -2,17 +2,20 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Route, Routes } from 'react-router-dom';
 import { act, within } from '@testing-library/react';
 import { fromAny } from '@total-typescript/shoehorn';
+import { QueryClient } from '@tanstack/react-query';
 import { createTestQueryClient, render, screen } from '@/test/utils/testUtils';
 import { queryKeys } from '@/lib/queryClient';
 import ShowCloseStep from '@/pages/secretary/ShowCloseStep';
 import { ResultsFinishRow } from '@/features/results-tab/ResultsFinishRow';
+import { useResultsTabData } from '@/features/results-tab/useResultsTabData';
 import type { SyncableTrial } from '@/store/trial-store-types';
 
 /**
- * MYK9-2180: the Results tab's Finish list and the close step read unconfirmed pull flags from one
- * hook (`useCloseoutFlaggedPulls`, not mocked here) over the same entries read, so for one data
- * set they show the same count and the same "Class removed" dogs, and a failed refresh is
- * "couldn't check" in both, never a count from the rows still cached.
+ * MYK9-2180: the Results tab's Finish list and the close step derive unconfirmed pull flags with one
+ * hook (`useCloseoutFlaggedPulls`, not mocked here) from their own entries reads
+ * (`useResultsTabData`, `useShowCloseoutInputs`), so for one data set they show the same count and
+ * the same "Class removed" dogs, and a failed refresh, or one awaiting its retry, is "couldn't
+ * check" in both, never a count from the rows still cached.
  */
 
 const replica = vi.hoisted(() => ({ rows: [] as Record<string, unknown>[], fail: false }));
@@ -36,9 +39,25 @@ vi.mock('@/hooks/queries/useRefreshShowEntriesOnOpen', () => ({
 }));
 vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: { subscribe: () => () => {} },
-  replicatedShowsTable: { updateShow: vi.fn() },
+  replicatedShowsTable: {
+    updateShow: vi.fn(),
+    getShowById: vi.fn(async () => ({ id: 'show-1', isNationals: false })),
+    subscribe: () => () => {},
+  },
   replicatedTrialsTable: { updateTrial: vi.fn() },
   replicatedClassesTable: { updateClass: vi.fn() },
+}));
+// The Results tab's print and release reads are not what this test is about.
+vi.mock('@/features/show-map/cockpit/useShowClassPaperwork', () => ({
+  useShowClassPaperwork: () => ({
+    byClassId: new Map(),
+    printedSheetEntries: [],
+    available: true,
+    hasPrintRecords: false,
+    classRows: [],
+    reads: [],
+    refetch: () => undefined,
+  }),
 }));
 vi.mock('@/features/show-closeout/useResultsSentCheck', () => ({
   useResultsSentCheck: () => ({ submissions: [{ status: 'sent' }], scoreChanges: undefined }),
@@ -89,25 +108,33 @@ const flagged = (id: string, dogId: string, dogName: string, className: string |
   class: className === null ? null : { id: 'class-1', name: className },
 });
 
+/** The Finish list as the Results tab mounts it, fed by the tab's own entries read. */
+function ResultsFinish() {
+  const data = useResultsTabData('show-1');
+  return (
+    <ResultsFinishRow
+      showId="show-1"
+      trials={TRIALS}
+      rows={[]}
+      entries={data.entries}
+      entriesTrusted
+      flaggedPulls={data.flaggedPulls}
+    />
+  );
+}
+
 const TRIALS = [fromAny<SyncableTrial, unknown>({ id: 'trial-1', showId: 'show-1' })];
 const FLAG_TEXT = '2 dogs flagged as pulled at the show, not confirmed.';
 const FAILED_TEXT = "Couldn't check for dogs flagged as pulled at the show.";
 
-function renderBoth() {
-  const queryClient = createTestQueryClient();
+function renderBoth(queryClient: QueryClient = createTestQueryClient()) {
   const view = render(
     <Routes>
       <Route
         path="/shows/:id/results"
         element={
           <>
-            <ResultsFinishRow
-              showId="show-1"
-              trials={TRIALS}
-              rows={[]}
-              entries={[]}
-              entriesTrusted
-            />
+            <ResultsFinish />
             <ShowCloseStep />
           </>
         }
@@ -130,7 +157,8 @@ describe('MYK9-2180: one flagged-pull read for the Finish list and the close ste
     replica.fail = false;
     replica.rows = [
       flagged('entry-1', 'dog-1', 'Poppy', 'Container Novice A'),
-      flagged('entry-2', 'dog-2', 'Biscuit', null),
+      // Its class is gone from the confirmed schedule: "Class removed".
+      { ...flagged('entry-2', 'dog-2', 'Biscuit', null), class_id: 'gone-class' },
     ];
   });
 
@@ -168,16 +196,43 @@ describe('MYK9-2180: one flagged-pull read for the Finish list and the close ste
     expect(screen.queryByRole('group', { name: 'Class removed' })).not.toBeInTheDocument();
   });
 
+  it('says "couldn\'t check" in both while a failed read awaits its retry', async () => {
+    // Production retries a failed read; while it waits (or pauses offline) isError stays false.
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: 1, retryDelay: 60_000, gcTime: Infinity } },
+    });
+    renderBoth(queryClient);
+    await closeStepReady();
+    expect(await closeCard().findByText(FLAG_TEXT)).toBeInTheDocument();
+
+    replica.fail = true;
+    await act(async () => {
+      void queryClient.refetchQueries({ queryKey: queryKeys.showEntries('show-1') });
+    });
+
+    expect(await finishList().findByText(FAILED_TEXT)).toBeInTheDocument();
+    expect(queryClient.getQueryState(queryKeys.showEntries('show-1'))?.status).toBe('success');
+    expect(closeCard().getByText(FAILED_TEXT)).toBeInTheDocument();
+    expect(closeAction().getByText(FAILED_TEXT)).toBeInTheDocument();
+    expect(screen.queryByText(FLAG_TEXT, { exact: false })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Confirm the pull/ })).not.toBeInTheDocument();
+    queryClient.clear();
+  });
+
   it('acts on a "Class removed" flag with the desk\'s own Confirm and Clear', async () => {
     clearFlaggedPull.mockResolvedValue('checked-in');
     const { user } = renderBoth();
     await closeStepReady();
     const group = within(await closeCard().findByRole('group', { name: 'Class removed' }));
 
-    await user.click(group.getByRole('button', { name: 'Clear the pull flag for Biscuit' }));
+    await user.click(
+      group.getByRole('button', { name: 'Clear the pull flag for Biscuit, entry NTRY-2' })
+    );
     expect(clearFlaggedPull).toHaveBeenCalledWith('entry-2');
 
-    await user.click(group.getByRole('button', { name: 'Confirm the pull for Biscuit' }));
+    await user.click(
+      group.getByRole('button', { name: 'Confirm the pull for Biscuit, entry NTRY-2' })
+    );
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText(/Biscuit/)).toBeInTheDocument();
   });

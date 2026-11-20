@@ -5,6 +5,7 @@ import { buildJudgeReviews } from '@/features/show-map/cockpit/trialPacket/judge
 import { TrialPacketPanel } from '@/features/show-map/cockpit/trialPacket/TrialPacketPanel';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import type { SecretaryEntry } from '@/services/database/entries';
+import type { CloseoutFlaggedPulls } from '@/features/show-closeout/useCloseoutFlaggedPulls';
 import type { SyncableTrial } from '@/store/trial-store-types';
 
 import type { ResultsClassRow } from './buildResultsClassRows';
@@ -30,6 +31,7 @@ export function ResultsPackets({
   rows,
   entries,
   entriesTrusted,
+  flaggedPulls,
   timeZone,
 }: {
   showId: string;
@@ -37,6 +39,7 @@ export function ResultsPackets({
   rows: readonly ResultsClassRow[];
   entries: readonly SecretaryEntry[];
   entriesTrusted: boolean;
+  flaggedPulls: CloseoutFlaggedPulls;
   timeZone: string;
 }) {
   const { show } = useFastShowDetails(showId);
@@ -66,6 +69,7 @@ export function ResultsPackets({
         rows={rows}
         entries={entries}
         entriesTrusted={entriesTrusted}
+        flaggedPulls={flaggedPulls}
         onOpenAfterShow={trialId => setPacket({ kind: 'after-show', trialId })}
       />
       {packet?.kind === 'judge-review' && (

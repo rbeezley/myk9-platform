@@ -11,7 +11,7 @@ import {
   FLAGGED_PULLS_LOADING_TEXT,
 } from '@/features/show-closeout/flaggedPulls';
 import type { CloseoutFlaggedPulls } from '@/features/show-closeout/useCloseoutFlaggedPulls';
-import { FlaggedPullsClassRemoved } from '@/features/show-closeout/FlaggedPullsClassRemoved';
+import { FlaggedPullsOffDesk } from '@/features/show-closeout/FlaggedPullsOffDesk';
 import {
   listShowIncidentCloseout,
   showIncidentCloseoutQueryKey,
@@ -208,15 +208,17 @@ export function ShowCloseoutSummary({
           <div className="mt-3">
             <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
               <span>{flaggedPullText(flaggedPulls.dogCount)}</span>
-              <Link
-                to={getCheckInDeskHref({ showId })}
-                className="inline-flex min-h-11 items-center gap-1 font-medium underline-offset-4 hover:underline"
-              >
-                Open the Check-in desk
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </Link>
+              {flaggedPulls.deskResolvable && (
+                <Link
+                  to={getCheckInDeskHref({ showId })}
+                  className="inline-flex min-h-11 items-center gap-1 font-medium underline-offset-4 hover:underline"
+                >
+                  Open the Check-in desk
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
+              )}
             </p>
-            <FlaggedPullsClassRemoved flags={flaggedPulls} />
+            <FlaggedPullsOffDesk flags={flaggedPulls} />
           </div>
         )}
         {flaggedPulls.status === 'failed' && (

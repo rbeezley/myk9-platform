@@ -359,19 +359,21 @@ test('captures the Entries open scene on the exhibitor’s phone and the secreta
     });
 
     // Line 4: the form is in the secretary's list, marked Needs review, with its payment.
-    const form = rows
-      .filter({ hasText: confirmation })
-      .filter({ hasText: new RegExp(`(?<!\\d)${entriesBefore + 1} Entries`) })
-      .filter({ hasText: 'Needs review' });
+    const form = rows.filter({ hasText: confirmation });
     await stage('the secretary’s list after', desk, async () => {
-      await desk.reload();
-      await reloadUntilVisible(desk, form.first(), 3).catch(async error => {
-        console.log(
-          'the rows read ::',
-          (await rows.allInnerTexts()).map(text => text.replace(/\s+/g, ' ')).join(' | ')
-        );
-        throw error;
-      });
+      // The form is the exhibitor's, as before, with one more entry and still Needs review.
+      // Read from the row's own text, which the browser lays out with its spaces.
+      const arrived = async () => {
+        if ((await form.count()) === 0) return false;
+        const text = await form.first().innerText();
+        return (await entryCount(form.first())) === entriesBefore + 1 && /Needs review/.test(text);
+      };
+      for (let attempt = 1; !(await arrived()); attempt += 1) {
+        if (attempt > 8) throw new Error('the new entry never reached the secretary’s list');
+        await desk.waitForTimeout(8000);
+        await desk.reload();
+        await expect(rows.first()).toBeVisible({ timeout: 30_000 });
+      }
       await form
         .first()
         .getByRole('button', { name: /^Review for / })

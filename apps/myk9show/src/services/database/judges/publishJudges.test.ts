@@ -276,6 +276,74 @@ describe('fetchShowJudgesForPublish', () => {
       ]);
     });
 
+    // MYK9-2248
+    describe('cancelled and name-only classes', () => {
+      const trial = { name: 'Trial 1', date: '2026-05-01', status: 'scheduled', deleted_at: null };
+      const cls = (over: object) => ({
+        name: null,
+        element: 'Interior',
+        level: 'Advanced',
+        section: null,
+        status: 'scheduled',
+        deleted_at: null,
+        trial,
+        ...over,
+      });
+      const none = { city: null, state: null };
+      const pick = (personId: string, over: object, classId = 'c1') => ({
+        ...withPlace(personId, none, cls(over) as never),
+        class_id: classId,
+      });
+      const read = async () => {
+        device.read.mockRejectedValue(new Error('IDB timeout'));
+        return fetchShowJudgesForPublish('show-1');
+      };
+
+      it('gives no class for a cancelled class and drops a judge with only cancelled classes', async () => {
+        server.range.mockResolvedValue({
+          data: [
+            pick('j1', { status: 'cancelled' }),
+            pick('j2', {}, 'c2'),
+            pick('j2', { status: 'cancelled', element: 'Buried' }, 'c3'),
+            { ...withPlace('j1', none, null), class_id: null },
+          ],
+          error: null,
+        });
+
+        const judges = await read();
+
+        expect(judges).toEqual([
+          expect.objectContaining({ judgeId: 'j2', classLabels: ['Interior Advanced'] }),
+        ]);
+      });
+
+      it('keeps a name-only class label', async () => {
+        server.range.mockResolvedValue({
+          data: [pick('j1', { name: 'Detective', element: null, level: null })],
+          error: null,
+        });
+
+        expect(await read()).toEqual([
+          expect.objectContaining({
+            classLabels: ['Detective'],
+            classLabelsByTrial: [
+              { trialName: 'Trial 1', trialDate: '2026-05-01', labels: ['Detective'] },
+            ],
+          }),
+        ]);
+      });
+
+      it('still compares the cancelled pick with the device, so a mismatch blocks the publish', async () => {
+        server.range.mockResolvedValue({
+          data: [pick('j1', { status: 'cancelled' })],
+          error: null,
+        });
+        device.read.mockResolvedValue([]);
+
+        expect((await publishError()).code).toBe('judges-syncing');
+      });
+    });
+
     // MYK9-2292: the publish read and the generator (trialJudges.ts) agree on the affiliation.
     it("asks for the judge's affiliation and carries it trimmed, null when blank", async () => {
       const place = { city: 'Springfield', state: 'IL' };

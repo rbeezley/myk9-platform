@@ -40,6 +40,8 @@ export interface ShowDayReconciliationEntry {
   payment_method?: string | null;
   /** Read by `refundToDecideRemoval`: a refunded or denied removal is decided (MYK9-2099). */
   refund_amount?: number | string | null;
+  /** MYK9-2303: dollars the club paid back directly after the payout. */
+  club_refunded_amount?: number | string | null;
   refunded_at?: string | null;
   refund_decision?: string | null;
   /** The saved refund decisions could not be read (MYK9-2099). */
@@ -110,6 +112,11 @@ export interface ShowDayReconciliationSummary {
   refundDecisionUnknownCount: number;
   refundedCount: number;
   refundedAmount: number;
+  /**
+   * MYK9-2303: dollars the club paid back directly after the payout, summed over every entry.
+   * Outside the cash-box reconciliation and apart from `refundedAmount` (a Stripe refund).
+   */
+  clubRefundedAmount: number;
 }
 
 function amount(value: ShowDayReconciliationEntry['entry_fee']): number {
@@ -232,6 +239,7 @@ export function summarizeShowDayReconciliation(
     refundDecisionUnknownCount: 0,
     refundedCount: 0,
     refundedAmount: 0,
+    clubRefundedAmount: 0,
   };
   const days = windowDays(deskWindow);
 
@@ -242,6 +250,7 @@ export function summarizeShowDayReconciliation(
     const fee = amount(entry.entry_fee);
     const paymentStatus = entry.payment_status?.toLowerCase();
     summary.totalEntryCount += 1;
+    summary.clubRefundedAmount += Math.max(0, amount(entry.club_refunded_amount));
 
     // MYK9-2145: the removal is read from `entry_status` alone, as refunds to decide read it, so
     // the removal total and the refund count agree. A check-in flag is counted on its own below.

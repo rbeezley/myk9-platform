@@ -56,6 +56,8 @@ export interface PullRefundDecisionEntry {
   payment_method: string | null;
   payment_status: string | null;
   refund_amount: number | null;
+  /** MYK9-2303: dollars the club paid back directly; above zero the removal is decided. */
+  club_refunded_amount?: number | string | null | undefined;
   refund_decision: string | null;
   /** MYK9-632: set only on a WITHDRAWAL, and only to one of the two codes. */
   withdrawal_reason_code?: string | null;
@@ -69,6 +71,8 @@ export interface RefundToDecideInput {
   payment_method?: string | null | undefined;
   /** DECIMAL dollars; a string when read straight from PostgREST. */
   refund_amount?: number | string | null | undefined;
+  /** MYK9-2303: dollars the club paid back directly after the payout; above zero the removal is decided. */
+  club_refunded_amount?: number | string | null | undefined;
   refunded_at?: string | null | undefined;
   /** 'denied' once a person has decided; a refund is recorded on `refund_amount` instead. */
   refund_decision?: string | null | undefined;
@@ -82,6 +86,8 @@ function paidOnlineUnrefundedRemoval(entry: RefundToDecideInput): EntryRemovalKi
   if (entry.payment_method?.toLowerCase() !== 'online') return null;
   const refunded = Number(entry.refund_amount ?? 0);
   if ((Number.isFinite(refunded) && refunded > 0) || entry.refunded_at) return null;
+  const clubRefunded = Number(entry.club_refunded_amount ?? 0);
+  if (Number.isFinite(clubRefunded) && clubRefunded > 0) return null;
   return classifyEntryRemoval({
     entryStatus: entry.entry_status,
     withdrawalReasonCode: entry.withdrawal_reason_code,

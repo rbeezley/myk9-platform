@@ -144,7 +144,11 @@ export const ENTRY_MAPPER_COLUMNS_ON_NEITHER_VIEW = [
  * "Flagged as pulled.") until the next sync overwrites it. Add it to the mapper columns above
  * once the migration is applied everywhere.
  */
-export const ENTRY_MAPPER_COLUMNS_NOT_COLD_READ = ['check_in_pulled_by'] as const;
+// MYK9-2303: `club_refunded_amount` follows the same deploy-order rule.
+export const ENTRY_MAPPER_COLUMNS_NOT_COLD_READ = [
+  'check_in_pulled_by',
+  'club_refunded_amount',
+] as const;
 
 /**
  * Whole-entry cold reads (write hydration, withdraw read, post-withdrawal

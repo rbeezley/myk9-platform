@@ -22,6 +22,8 @@ export interface FinancialReportLine {
   netFee: number;
   collected: number;
   refunded: number;
+  /** MYK9-2303: money the club paid back directly after the payout (never a Stripe refund). */
+  clubRefunded: number;
   outstanding: number;
   waived: number;
   netRetained: number;
@@ -46,6 +48,8 @@ export interface FinancialReportBucket {
   waived: number;
   collected: number;
   refunded: number;
+  /** MYK9-2303: money the club paid back directly after the payout (never a Stripe refund). */
+  clubRefunded: number;
   outstanding: number;
   netRetained: number;
 }
@@ -229,7 +233,11 @@ export function buildFinancialReportLine(
     isPending: isPending(moneyRoot),
   });
   const collected = !waived && isPaid(moneyRoot) ? netFee : 0;
-  const netRetained = collected - refunded;
+  const clubRefunded = Math.min(
+    readMoney(moneyRoot.clubRefundedAmount),
+    Math.max(0, netFee - refunded)
+  );
+  const netRetained = collected - refunded - clubRefunded;
 
   return {
     entry,
@@ -238,6 +246,7 @@ export function buildFinancialReportLine(
     netFee,
     collected,
     refunded,
+    clubRefunded,
     outstanding,
     waived,
     netRetained,
@@ -255,6 +264,7 @@ function emptyBucket(label: string): FinancialReportBucket {
     waived: 0,
     collected: 0,
     refunded: 0,
+    clubRefunded: 0,
     outstanding: 0,
     netRetained: 0,
   };
@@ -267,6 +277,7 @@ function addLine(bucket: FinancialReportBucket, line: FinancialReportLine): void
   bucket.waived += line.waived;
   bucket.collected += line.collected;
   bucket.refunded += line.refunded;
+  bucket.clubRefunded += line.clubRefunded;
   bucket.outstanding += line.outstanding;
   bucket.netRetained += line.netRetained;
 }

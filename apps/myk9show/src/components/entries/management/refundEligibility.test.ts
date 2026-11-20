@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isStripeRefundable } from './refundEligibility';
+import { isStripeRefundable, offersRefundDialog } from './refundEligibility';
 import { PaymentStatus } from '@/types/show-registration-types';
 
 type Case = {
@@ -112,5 +112,30 @@ describe('isStripeRefundable', () => {
       refundedAt: refundedAt as never,
     };
     expect(isStripeRefundable(entry)).toBe(expected);
+  });
+});
+
+describe('offersRefundDialog', () => {
+  it('keeps an entry the club paid back reachable even after a card refund stamped it', () => {
+    const entry = {
+      paymentMethod: 'online',
+      paymentStatus: PaymentStatus.PAID_ONLINE,
+      refundedAt: '2026-11-01T00:00:00Z',
+      clubRefundedAmount: 10,
+    } as const;
+    expect(offersRefundDialog(entry)).toBe(true);
+    // The card-refund predicate is unchanged: no card refund is owed on this entry.
+    expect(isStripeRefundable(entry)).toBe(false);
+  });
+
+  it('does not offer the dialog for a card-refunded entry with no club record', () => {
+    expect(
+      offersRefundDialog({
+        paymentMethod: 'online',
+        paymentStatus: PaymentStatus.PAID_ONLINE,
+        refundedAt: '2026-11-01T00:00:00Z',
+        clubRefundedAmount: 0,
+      })
+    ).toBe(false);
   });
 });

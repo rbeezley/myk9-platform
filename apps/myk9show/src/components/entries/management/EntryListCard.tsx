@@ -37,7 +37,8 @@ import { CHECKIN_STATUSES } from '@myk9/core';
 import { WithdrawalReasonDialog } from './WithdrawalReasonDialog';
 import { removalSummaryLine } from './removalSummaryLine';
 import { RefundEntryDialog } from './RefundEntryDialog';
-import { isStripeRefundable } from './refundEligibility';
+import { ClubRefundBadge } from './ClubRefundBadge';
+import { isStripeRefundable, offersRefundDialog } from './refundEligibility';
 import { RequestPaymentDialog } from './RequestPaymentDialog';
 import { isPaymentRequestable } from './paymentRequestEligibility';
 import { EntryDecisionEmailStatusBadge } from '@/features/lifecycle-emails';
@@ -260,6 +261,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
             )}
 
             {!hidePaymentBadge && getPaymentStatusBadge(getEffectivePaymentStatus(entry))}
+            <ClubRefundBadge entry={entry} />
 
             {emailStatusMap && (
               <EmailStatusIcon
@@ -322,7 +324,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                               Other entry actions
                             </p>
                             <WithdrawMenuItem onSelect={() => openWithdrawalDialog(entry.id)} />
-                            {(isPaymentRequestable(entry) || isStripeRefundable(entry)) && (
+                            {(isPaymentRequestable(entry) || offersRefundDialog(entry)) && (
                               <>
                                 <p className="mt-2 px-2 pb-1 text-xs font-medium text-muted-foreground">
                                   Payment
@@ -339,7 +341,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                                     Request payment…
                                   </button>
                                 )}
-                                {isStripeRefundable(entry) && (
+                                {offersRefundDialog(entry) && (
                                   <button
                                     type="button"
                                     role="menuitem"

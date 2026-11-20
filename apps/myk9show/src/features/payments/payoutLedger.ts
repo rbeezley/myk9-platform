@@ -27,6 +27,8 @@ export interface LedgerEntryRow {
   payment_status: string | null;
   /** entries.refund_amount — DECIMAL dollars, service-role-only. */
   refund_amount: number | null;
+  /** MYK9-2303: dollars the club paid back directly; counted only as a decided removal, never in payout math. */
+  club_refunded_amount?: number | null;
   /** Explicit secretary decision; refunded rows are also resolved by refund_amount. */
   refund_decision: string | null;
   /**

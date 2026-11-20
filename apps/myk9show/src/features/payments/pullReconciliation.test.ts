@@ -174,3 +174,27 @@ describe('refundToDecideRemoval (MYK9-2099: the one definition)', () => {
     expect(refundToDecideRemoval({ ...paidOnline, entry_status: null })).toBeNull();
   });
 });
+
+describe('refundToDecideRemoval and a refund the club paid directly (MYK9-2303)', () => {
+  const removal = {
+    entry_status: 'absent',
+    payment_method: 'online',
+    payment_status: 'paid',
+    refund_amount: null,
+    refunded_at: null,
+    refund_decision: null,
+  };
+
+  it('is decided once the club has paid something back, and reopens at zero', () => {
+    expect(refundToDecideRemoval({ ...removal, club_refunded_amount: 10 })).toBeNull();
+    expect(refundToDecideRemoval({ ...removal, club_refunded_amount: '10.00' })).toBeNull();
+    expect(refundToDecideRemoval({ ...removal, club_refunded_amount: 0 })).toBe('absent');
+    expect(refundToDecideRemoval({ ...removal, club_refunded_amount: null })).toBe('absent');
+    expect(refundToDecideRemoval(removal)).toBe('absent');
+  });
+
+  it('is decided for the payout ledger count too', () => {
+    expect(isUnresolvedRemovalRefundDecision({ ...removal, club_refunded_amount: 10 })).toBe(false);
+    expect(isUnresolvedRemovalRefundDecision({ ...removal, club_refunded_amount: 0 })).toBe(true);
+  });
+});

@@ -293,6 +293,9 @@ export function toSecretaryEntry(
     withdrawn_at: pullMetadata?.withdrawn_at ?? null,
     payment_method: entry.paymentMethod ?? null,
     refund_amount: numberFrom(replicatedField(entry, 'refundAmount', 'refund_amount')),
+    club_refunded_amount: numberFrom(
+      replicatedField(entry, 'clubRefundedAmount', 'club_refunded_amount')
+    ),
     card_paid: replicatedField(entry, 'cardPaid', 'card_paid') === true,
     refunded_at: stringFrom(replicatedField(entry, 'refundedAt', 'refunded_at')),
     stripe_payment_intent_id: stringFrom(

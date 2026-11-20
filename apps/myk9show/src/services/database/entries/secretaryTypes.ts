@@ -57,6 +57,8 @@ export interface SecretaryEntry {
   withdrawn_at?: string | null;
   payment_method: string | null;
   refund_amount: number | null;
+  /** MYK9-2303: net the club paid back directly after the payout; absent before the migration. */
+  club_refunded_amount?: number | null;
   /** MYK9-1637: server-derived; a succeeded, unrefunded Stripe order paid for this entry. */
   card_paid?: boolean | null;
   refunded_at: string | null;

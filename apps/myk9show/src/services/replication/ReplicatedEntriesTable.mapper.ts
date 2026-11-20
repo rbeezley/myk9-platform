@@ -172,6 +172,8 @@ export interface ReplicatedEntry {
   comped_reason?: string | null | undefined;
   refundAmount?: number | undefined;
   refund_amount?: number | undefined;
+  clubRefundedAmount?: number | undefined;
+  club_refunded_amount?: number | undefined;
   cardPaid?: boolean | undefined;
   card_paid?: boolean | undefined;
   refundedAt?: string | undefined;
@@ -497,6 +499,9 @@ export function rowToEntry(row: EntryRow): ReplicatedEntry {
     trial_id: row.trial_id ?? undefined,
     refundAmount: row.refund_amount ?? undefined,
     refund_amount: row.refund_amount ?? undefined,
+    // MYK9-2303: optional until the migration is pushed; absent reads as 0 downstream.
+    clubRefundedAmount: optionalNumberColumn(row, 'club_refunded_amount'),
+    club_refunded_amount: optionalNumberColumn(row, 'club_refunded_amount'),
     // MYK9-1637: server-derived, read-only. Never emitted by the upload path.
     cardPaid: row.card_paid ?? undefined,
     card_paid: row.card_paid ?? undefined,

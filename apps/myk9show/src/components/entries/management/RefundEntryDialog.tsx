@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { useQuery } from '@tanstack/react-query';
 import {
   Dialog,
   DialogContent,
@@ -23,13 +24,16 @@ import { formatCutoff } from '@/features/payments/formatWithdrawalPolicy';
 import { notesDescribeRefundTerms } from '@/features/payments/withdrawalPolicyTerms';
 import { WithdrawalPolicyDisclosure } from '@/features/payments/WithdrawalPolicyDisclosure';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
+import {
+  getShowPayoutStatus,
+  showPayoutStatusQueryKey,
+} from '@/services/database/club-settled-refunds';
+import { ClubSettledRefundForm } from './ClubSettledRefundForm';
 
 // Server validation is authoritative; these map its error codes to language a
 // secretary can act on.
 const ERROR_MESSAGES: Record<string, string> = {
   [STEP_UP_REQUIRED_CODE]: 'No refund was issued. Confirm your password to continue.',
-  payout_already_sent:
-    'The club has already been paid for this show, so this refund can’t be issued here. The refund is the club’s to pay the exhibitor directly.',
   payout_in_progress: 'A payout to the club is in flight. Try again after it completes.',
   not_refundable: 'This entry has no refundable payment (it may already be refunded).',
   not_online_payment: 'This entry wasn’t paid online. Refund it the way it was paid.',
@@ -69,7 +73,7 @@ export type RefundableEntry = Pick<
   'id' | 'totalFee' | 'dogName' | 'moneyRootEntryId'
 > &
   // MYK9-1976: the show, so the dialog can print the club's policy text beside the amount.
-  Partial<Pick<EntryManagementEntry, 'showId'>>;
+  Partial<Pick<EntryManagementEntry, 'showId' | 'refundAmount' | 'clubRefundedAmount'>>;
 
 function describeManualPolicy(policy: WithdrawalPolicy | null): string {
   if (!policy) return '';
@@ -146,6 +150,16 @@ export function RefundEntryDialog({
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const inFlightRef = useRef(false);
+  // MYK9-2303: a payout that completed while the dialog was open switches it to the club form.
+  const [payoutSentRefusal, setPayoutSentRefusal] = useState(false);
+
+  // After the payout the club settles the refund itself, so the dialog shows the club form.
+  const { data: payoutStatus } = useQuery({
+    queryKey: showPayoutStatusQueryKey(entry?.showId ?? ''),
+    queryFn: () => getShowPayoutStatus(entry?.showId ?? ''),
+    enabled: open && Boolean(entry?.showId),
+  });
+  const clubMode = payoutStatus === 'completed' || payoutSentRefusal;
 
   const fee = entry?.totalFee ?? 0;
   const feeCents = Math.round(fee * 100);
@@ -214,6 +228,7 @@ export function RefundEntryDialog({
       setPartialAmount('');
       setNotes('');
       setError(null);
+      setPayoutSentRefusal(false);
     }
     onOpenChange(nextOpen);
   };
@@ -271,6 +286,10 @@ export function RefundEntryDialog({
             // fall through to generic message
           }
         }
+        if (code === 'payout_already_sent') {
+          setPayoutSentRefusal(true);
+          return;
+        }
         const known = ERROR_MESSAGES[code ?? ''];
         if (!known) {
           logger.error('Entry refund failed', 'secretary', { code }, invokeError);
@@ -291,6 +310,20 @@ export function RefundEntryDialog({
       setSubmitting(false);
     }
   };
+
+  if (clubMode && entry) {
+    return (
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent>
+          <ClubSettledRefundForm
+            entry={entry}
+            onClose={() => handleOpenChange(false)}
+            onChanged={onRefunded}
+          />
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>

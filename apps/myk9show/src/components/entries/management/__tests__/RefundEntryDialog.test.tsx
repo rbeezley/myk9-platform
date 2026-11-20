@@ -28,10 +28,18 @@ vi.mock('@/features/payments/useWithdrawalRefundSuggestion', () => ({
   useWithdrawalRefundSuggestion: () => suggestionMock(),
 }));
 
+const payoutMock = vi.hoisted(() => ({ status: vi.fn() }));
+vi.mock('@/services/database/club-settled-refunds', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/database/club-settled-refunds')>()),
+  getShowPayoutStatus: (...args: unknown[]) => payoutMock.status(...args),
+  listClubSettledRefunds: vi.fn().mockResolvedValue([]),
+}));
+
 const mockedInvoke = vi.mocked(supabase.functions.invoke);
 
 const entry = {
   id: 'entry-1',
+  showId: 'show-1',
   dogName: 'Rex',
   totalFee: 50,
   paymentStatus: PaymentStatus.PAID_ONLINE,
@@ -48,6 +56,7 @@ function renderDialog(onRefunded = vi.fn()) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  payoutMock.status.mockResolvedValue(null);
   // Default: the policy lookup has completed and the entry is eligible for a
   // normal full refund. Missing/error states are covered explicitly below.
   suggestionMock.mockReturnValue({
@@ -116,7 +125,10 @@ describe('RefundEntryDialog', () => {
     expect(mockedInvoke).not.toHaveBeenCalled();
   });
 
-  it('maps server validation codes to actionable language', async () => {
+  // MYK9-2303: this pinned the refusal wording from MYK9-2302 (#4266), "the club's to
+  // pay the exhibitor directly", which was a dead end. The club form in the same dialog is
+  // now the answer, and its first line says it.
+  it('switches to the club form when the server refuses because the payout was sent', async () => {
     mockedInvoke.mockResolvedValue({
       data: null,
       error: Object.assign(new Error('Edge Function returned a non-2xx status code'), {
@@ -128,15 +140,24 @@ describe('RefundEntryDialog', () => {
 
     await user.click(screen.getByRole('button', { name: /issue refund/i }));
 
-    // After the payout the club settles the refund with the exhibitor directly
-    // (owner decision 2026-11-13, MYK9-2302). This reverses the August 2026
-    // wording (MYK9-195, #1678; pinned in #1835) that sent the secretary to
-    // myK9Show support for a manual clawback; the clawback is now an operator's
-    // exception, not the route the secretary is given.
-    const message = await screen.findByText(/club has already been paid for this show/i);
-    expect(message).toHaveTextContent(/the club.s to pay the exhibitor directly/i);
-    expect(message).not.toHaveTextContent(/support/i);
+    expect(await screen.findByText('The club paid this back')).toBeInTheDocument();
+    expect(screen.getByText(/so no card refund is issued/i)).toBeInTheDocument();
     expect(onRefunded).not.toHaveBeenCalled();
+  });
+
+  it('maps other server validation codes to actionable language', async () => {
+    mockedInvoke.mockResolvedValue({
+      data: null,
+      error: Object.assign(new Error('Edge Function returned a non-2xx status code'), {
+        context: new Response(JSON.stringify({ error: 'payout_in_progress' }), { status: 422 }),
+      }),
+    });
+    renderDialog();
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: /issue refund/i }));
+
+    expect(await screen.findByText(/payout to the club is in flight/i)).toBeInTheDocument();
   });
 
   // MYK9-1824: the server can fail after Stripe accepted the refund, so an unknown

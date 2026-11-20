@@ -55,6 +55,7 @@ const SECRETARY_ENTRIES_BASE_SELECT = `
         withdrawal_reason,
         payment_method,
         refund_amount,
+        club_refunded_amount,
         card_paid,
         refunded_at,
         stripe_payment_intent_id,

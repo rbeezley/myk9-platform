@@ -39,6 +39,7 @@ export function entryRefundInput(entry: EntryManagementEntry): RefundToDecideInp
           : entry.paymentStatus,
     payment_method: entry.paymentMethod,
     refund_amount: entry.refundAmount,
+    club_refunded_amount: entry.clubRefundedAmount,
     refunded_at: entry.refundedAt,
     refund_decision: entry.refundDecision,
     refund_decision_unknown: entry.refundDecisionUnknown,

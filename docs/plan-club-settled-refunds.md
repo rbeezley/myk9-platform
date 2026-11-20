@@ -2,55 +2,99 @@
 
 > **Status:** Active
 
-Design-first plan: this is money work with a likely migration, so the owner decides before any code. Split from MYK9-1953. Owner decision 2026-11-13: after the payout the club settles a refund with the exhibitor directly; the operator clawback is the exception. MYK9-2302 (merged) already says so in the refusal.
+Money work with a migration. Split from MYK9-1953. Owner decision 2026-11-13: after the payout the club settles a refund with the exhibitor directly; the operator clawback is the exception. MYK9-2302 (merged) already says so in the refusal.
+
+Owner answers (2026-11-20, on MYK9-2303): build it; label "Refunded by the club"; partial amounts and several records per entry, capped; the platform never recovers a club-settled amount; a mistake is fixed by a reversing record, never an edit; offered only after the payout.
 
 ## What exists today, and why
 
-- **Entry payment menu.** `EnrollmentCard.tsx` shows "Refunded…" and "Partial Refund…" only for entry forms (an enrollment) and those write the desk ledger `show_payments` (kind `refund`, cash or check, via `record_enrollment_payment`). A card-paid group has no form, so it gets only a badge. The comment ("would read like a real card refund; their status follows Stripe via the per-entry Withdrawn → refund flow") was written with that code and only moved in the MYK9-328 dead-code sweep (`git log -S`). It is a deliberate guard against a secretary thinking a desk button returned card money.
-- **Card refunds.** `stripe-refund-entry` is the only writer of `entries.refund_amount`, `refund_notes`, `refunded_at`; a trigger (`restrict_entry_refund_columns`) rejects every other writer. Each Stripe refund is mirrored in `stripe_order_refunds`, with `club_funded` marking refunds that come out of the club's payout (MYK9-997).
-- **Readers.** Payout math (`payoutLedger.ts`) subtracts `entries.refund_amount` from the club's share. The Financial Report (`financialReportTotals.ts`) counts `refundAmount` as "refunded". The close-out money card reconciles the cash box from `show_payments` and, by design, leaves card money out. The refund-to-decide list (`refundsToDecide.ts`) treats `refund_amount > 0` or `refunded_at` as decided.
+- **Per-entry card refund.** `RefundEntryDialog` (opened per entry from `EntryListCard` and `PullManagementTab`) calls `stripe-refund-entry` against the entry's money root (`moneyRootEntryId`). Once the show's payout is `completed` the server refuses with `payout_already_sent`, and the dialog says the club pays the exhibitor directly. This dialog already knows exactly which entry is meant, which a group's payment menu does not.
+- **Group payment menu.** `EnrollmentCard`'s "Change" menu is the desk ledger (`show_payments`, cash/check, via `record_enrollment_payment`). A card checkout gets a form when its payment lands, so the menu can show on card groups, but it is one menu for several class entries and it reconciles the cash box. Not the place for this.
+- **Card refund columns.** `entries.refund_amount`, `refund_notes`, `refunded_at` are written only as service role: `stripe-refund-entry` and `stripe-refund-show` (through `stamp_show_refund_entries`). The trigger `restrict_entry_refund_columns` rejects every other writer. Payout math (`payoutLedger.ts`) subtracts `refund_amount` from the club's share.
+- **Payout state.** `show_payouts` holds at most one non-failed row per show; `pending`, `processing`, `completed`, `failed`. Only `completed` means the club received the money. Show secretaries and club admins can read it (`show_payouts_select`).
+- **Readers.** The Financial Report (`financialReportTotals.ts`) shows `netRetained = collected - refunded`. The refund-to-decide rule (`paidOnlineUnrefundedRemoval` in `pullReconciliation.ts`) treats `refund_amount > 0`, `refunded_at` or a `denied` decision as decided. All of them read entry rows, most through the replicated entries cache.
 
-Consequence: reusing `refund_amount` is wrong. It is service-role-only, it would shrink a payout that has already gone, and every reader would call it a Stripe refund.
+Reusing `refund_amount` is wrong: it is service-role-only, it would shrink a payout that already went, and every reader would call it a Stripe refund.
 
-## Proposed shape
+## Shape
 
-**Control.** No new page. On a card-paid entry whose payout has gone, the existing payment menu gains one item, "Refunded by the club…". It opens a small dialog headed "The club paid this back" with the line: "No card refund is issued. Record only money you already paid the exhibitor yourselves." Fields: amount (capped at what was paid, minus earlier club-settled amounts), date paid (defaults to today, show timezone), how (check, cash, other) and a reference (check number), plus the secretary's name taken from the session. The item is hidden before the payout (then the normal Stripe refund applies).
+### Control: the per-entry refund dialog
 
-**Data.** A new table `club_settled_refunds`: id, show_id, entry_id (RESTRICT FK, like the other ledgers), amount > 0, paid_on date, method (check, cash, other), reference, note, recorded_by, client_refund_id (retry key), created_at. Rows are never edited; a correction is a reversing row. Explicit `GRANT SELECT` to authenticated, `REVOKE ALL` from anon, RLS read for the show's office managers and the club admin; no write grant. The one writer is a SECURITY DEFINER RPC that checks the show's office manager, that the entry is card-paid, that its payout row is not pending, and the cap. No change to `entries` columns or to the refund trigger.
+No new page and no new menu item. `RefundEntryDialog` reads the show's non-failed payout row when it opens.
 
-**Offline.** Online-only. It happens after the show and after the payout, never at the ringside, and the CLAUDE.md rule allows direct RPCs for explicitly online-only money paths. The dialog says "Needs a connection" when offline instead of queuing. Reads follow the same path as `show_payments`.
+- **`completed`:** the dialog shows the club form instead of the card form (`ClubSettledRefundForm`, a sibling component). Title "The club paid this back". First line: "The club has already been paid for this show, so no card refund is issued. Record only money the club already paid the exhibitor." Fields: amount (prefilled with the remaining balance, never above it), date paid (defaults to today), how (check, cash, other), reference (check number), note. Below the form, the entry's earlier club records, each with "This was a mistake…" which records the reversal after a confirm.
+- **Not completed (none, `pending`, `processing`, `failed`):** the card form as today. A server `payout_already_sent` refusal (a payout that completed while the dialog was open) switches the dialog to the club form.
+- **Offline:** the club form is online-only; it says "Needs a connection" and disables Save instead of queuing. Recording happens after the show and the payout, never ringside, and CLAUDE.md allows direct RPCs on explicitly online-only money paths.
 
-**Counting.**
+Because the dialog is per entry and posts the money root, refunding one class never touches a sibling class in the same checkout.
 
-- Entry form and entry list: a "Refunded by the club" badge with amount and date; the entry is still paid by card and never shows "Refunded by Stripe".
-- Financial Report: a separate "Refunded by the club" column and total, not folded into "refunded", so collected, platform fees and net-to-club do not move.
-- Close-out: a line "Club paid back directly: $X", outside the cash-box reconciliation and outside platform figures.
-- Club reconciliation card: shown as money the club returned, beside (not inside) the Stripe refund figure.
-- Payout math, `stripe_orders` and `stripe_order_refunds` are untouched; platform figures are unchanged by construction.
-- Refund-to-decide: a club-settled amount resolves the pending decision for that entry.
+### Data
 
-**Refusal wording.** Until this ships, the MYK9-2302 single-entry refusal also says "check what the club already paid the exhibitor". Once it ships, it adds "you can record it here once it is done" (deep-link to the entry).
+**Ledger `public.club_settled_refunds`** (the record of truth):
 
-## Do nothing, link, or delete?
+| column           | notes                                                                                                                                             |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| id               | uuid pk                                                                                                                                           |
+| show_id          | FK shows, RESTRICT                                                                                                                                |
+| entry_id         | FK entries, RESTRICT (the money root)                                                                                                             |
+| amount           | numeric(10,2), `<> 0`. Positive: money the club paid back. Negative: a reversal                                                                   |
+| reverses_id      | FK to this table, UNIQUE, NULL on a payment. A reversal carries the original's id and `amount = -original.amount`; UNIQUE stops a second reversal |
+| paid_on          | date, NOT NULL on a payment, NULL on a reversal                                                                                                   |
+| method           | `check` / `cash` / `other`, NOT NULL on a payment, NULL on a reversal                                                                             |
+| reference, note  | text, optional                                                                                                                                    |
+| recorded_by      | person id of the caller                                                                                                                           |
+| client_refund_id | uuid UNIQUE, retry key                                                                                                                            |
+| created_at       | timestamptz                                                                                                                                       |
 
-- **Free-text note on the entry.** Cheapest, and it can ship now, but it feeds no report, so the Financial Report would overstate what the club kept. Fails the "reports count it" criterion.
-- **Reuse the non-card refund path.** That path writes `show_payments`, which reconciles the cash box; a club check would make the box look short. Rejected.
+CHECKs tie the shape together: a payment has `amount > 0`, `reverses_id IS NULL`, `paid_on` and `method`; a reversal has `amount < 0` and `reverses_id`. Rows are never updated or deleted.
+
+**Cached total `entries.club_refunded_amount`** numeric(10,2) NOT NULL DEFAULT 0: the net of the entry's ledger rows, written in the same transaction as each ledger row. It exists so every reader that already loads entries (the replicated cache, reports, the refund-to-decide rule) gets the figure with no second read. A trigger rejects any change to it unless the transaction set `myk9.club_settled_refund_write = 'on'` (only the RPC does) or the role is `service_role`. The card refund columns and `restrict_entry_refund_columns` are unchanged.
+
+**Grants** (MYK9-93 recipe, as in `20261031163700_myk9_1601_entry_form_notes.sql`): `REVOKE ALL ON public.club_settled_refunds FROM PUBLIC, anon, authenticated;` then `GRANT SELECT TO authenticated` and full rights to `service_role`. RLS on, one SELECT policy: site admin, the show's secretary, or the show's club admin (the predicate `show_payouts_select` uses). No INSERT/UPDATE/DELETE grant or policy. The RPCs are `REVOKE ALL ... FROM PUBLIC, anon` and `GRANT EXECUTE ... TO authenticated`.
+
+**Writer: `record_club_settled_refund(p_entry_id, p_amount, p_paid_on, p_method, p_reference, p_note, p_client_refund_id)`**, SECURITY DEFINER, `search_path = ''`:
+
+1. Same `client_refund_id` already recorded for this entry: return that row (retry). For another entry: refuse.
+2. Lock the entry row `FOR UPDATE`.
+3. Authorize as the caller: `is_show_secretary(show)`, `is_club_admin(club)` for a show with a club, or `is_site_admin()`, the same three `stripe-refund-entry` uses.
+4. The entry was paid by card: `payment_method = 'online'` and a `stripe_payment_intent_id`.
+5. The show's payout is `completed`. Absent, `pending`, `processing` and `failed` are refused (`payout_not_completed`).
+6. Cap: `p_amount <= (entry_fee - coalesce(discount_amount, 0)) - coalesce(refund_amount, 0) - club_refunded_amount`. Stripe refunds from either path (`stripe-refund-entry` or `stamp_show_refund_entries`) are already in `refund_amount`. Over the cap: `amount_exceeds_balance`.
+7. Insert the row, set the transaction flag, update `club_refunded_amount`, clear the flag.
+
+**Reverser: `reverse_club_settled_refund(p_refund_id, p_note, p_client_refund_id)`**: same retry, lock, authorization and payout steps; the original must be a payment (not a reversal) and not already reversed. Inserts the negative row and lowers the cached total. A reversal restores the available balance.
+
+Error codes are stable strings in `RAISE EXCEPTION ... USING ERRCODE = 'P0001'` with the code as the message, mapped to secretary language in the form.
+
+### Counting
+
+The **platform payout** is a historical fact and never moves: `payoutLedger.ts`, `stripe_orders`, `stripe_order_refunds` and the payout transfer are untouched. What changes is what the **club retained**.
+
+- **Financial Report:** each line gets `clubRefunded = min(club_refunded_amount, netFee - refunded)`; `netRetained = collected - refunded - clubRefunded`, so "Net Retained" is what the club kept. Buckets (summary, by payment, by trial) add a `clubRefunded` total. The "Refunded by the club" column and summary figure show only when the scope has any.
+- **Entry list:** a "Refunded by the club $X" badge on the entry. The entry stays paid by card and never reads "Refunded" (the card word).
+- **Close-out:** a "Club paid back directly: $X" line, outside the cash-box reconciliation and beside, not inside, the Stripe refund figure. The club reconciliation card (`clubShowReconciliation.ts`) is built from `stripe_orders` and `show_payouts` only, with no entry rows; it stays as it is (a payout-side view), since adding the figure would need a second fetch.
+- **Views:** `view_authenticated_entry_results` (masked by `can_view_admin`, like `refund_amount`) and its `_replication` wrapper append `club_refunded_amount`, so the bulk sync carries it. Cold reads do not select it until the migration is applied everywhere (the MYK9-1757 deploy-order rule in `ReplicatedEntriesTable.coldReadColumns.ts`).
+- **Refund to decide:** `club_refunded_amount > 0` resolves the removal's decision. A full reversal sets it back to 0 and the decision reopens on its own.
+
+**Refusal wording.** With the club form in the same dialog, `payout_already_sent` no longer dead-ends; the message becomes the club form's first line.
+
+## Alternatives weighed
+
+- **Free-text note on the entry.** Feeds no report; fails the criterion that the books count it.
+- **Reuse the desk refund (`show_payments`).** It reconciles the cash box; a club check would make the box look short.
 - **Reuse `refund_amount`.** Rejected above.
-- **Do nothing.** Honest option for launch if clubs rarely refund after payout; the refusal wording already tells them the right thing. Cost: no record, so the club's own books and the report disagree.
+- **Ledger only, no cached column.** Every reader would need a second online read, including the offline-first refund-to-decide count. The cached column is written only beside its ledger row, so they cannot drift.
+- **Do nothing.** Was the launch fallback; the owner chose to build.
 
-Recommendation: build the narrow table and dialog; fall back to the note only if the owner wants no migration before fall.
+## Not included
 
-## Open questions for the owner
-
-1. Is "Refunded by the club" the right label? Recommend yes (the parent's wording).
-2. Allow partial amounts and several rows per entry? Recommend yes, capped in total at what was paid.
-3. Should the platform ever recover a club-settled amount? Recommend no; it is the club's own money.
-4. Can a secretary reverse a mistaken row? Recommend yes, by a reversing row with the same dialog, never an edit.
-5. Is the entry hidden before the payout, or allowed anytime? Recommend after the payout only, so the Stripe refund stays the default.
+- Recording a club refund for the whole show at once (the refund-all path). Per entry only.
+- The exhibitor's My Entries view of a club refund.
+- Changing the payout, the card refund columns or the clawback runbook.
 
 ## Testing
 
-- Behavioral SQL (`supabase/tests/`): RPC authorizes only the show's office manager; rejects a non-card or unpaid entry, a payout still pending, an over-cap amount; the retry key writes once; anon and plain exhibitors cannot read or write; payout math, `entries.refund_amount` and `stripe_order_refunds` are unchanged after a write. Verify grants from `pg_class.relacl` on the applied database.
-- Unit: Financial Report totals keep collected and net-to-club fixed and add the club column; close-out line; refund-to-decide resolves.
-- Component: the menu item shows only for payout-gone card entries, the dialog states no card refund is issued, offline disables confirm, the badge reads "Refunded by the club".
-- Shuffled suite run and a staging walk with writes confirmed.
+- **Behavioral SQL** (`supabase/tests/`): only the show's secretary, its club admin or a site admin may record; a non-card entry, and absent, pending, processing and failed payouts are refused; the cap counts a prior partial Stripe refund ($40 entry, $15 Stripe refund, $25 club max), earlier club rows, and a reversal restoring the balance; a second reversal of the same row is refused; the retry key writes once; a direct UPDATE of `club_refunded_amount` by an authenticated user is refused; recording on one entry leaves its sibling in the same checkout untouched; `refund_amount` and `show_payouts` are unchanged after a write. ACL: `pg_class.relacl` shows anon with nothing and authenticated with SELECT only (no TRUNCATE).
+- **Unit:** report line and buckets ($40 collected, $10 club refund: club refunded $10, net retained $30, collected unchanged); refund-to-decide resolves at > 0 and reopens at 0.
+- **Component:** the dialog shows the club form only when the payout is `completed`; it states no card refund is issued; the cap and the remaining balance; reversal confirm; offline disables Save; the entry badge.
+- Shuffled suite run; grants verified on the applied database after `db push`.

@@ -16,3 +16,15 @@ export function isStripeRefundable(
     !entry.refundedAt
   );
 }
+
+/** MYK9-2303: whether the entry menu offers the refund dialog. A card-paid entry the club
+ * already paid back stays reachable after a card refund stamped it, so its club record can
+ * be reversed or added to. Deliberately NOT folded into `isStripeRefundable`, which the
+ * withdraw outcome, bulk menu and pull reconciliation read as "a card refund is owed". */
+export function offersRefundDialog(
+  entry: Pick<EntryManagementEntry, 'paymentMethod' | 'refundedAt' | 'paymentStatus'> &
+    Partial<Pick<EntryManagementEntry, 'clubRefundedAmount'>>
+): boolean {
+  if (isStripeRefundable(entry)) return true;
+  return entry.paymentMethod === 'online' && (entry.clubRefundedAmount ?? 0) > 0;
+}

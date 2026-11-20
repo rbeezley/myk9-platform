@@ -16,7 +16,7 @@ import { chunk } from '@/utils/chunkIds';
 // a paid WITHDRAWAL with a recognised reason code owes the secretary a decision
 // too, so the count has to be able to see the code.
 const LEDGER_ENTRY_SELECT =
-  'id, show_id, entry_status, entry_fee, payment_method, payment_status, refund_amount, refund_decision, withdrawal_reason_code';
+  'id, show_id, entry_status, entry_fee, payment_method, payment_status, refund_amount, club_refunded_amount, refund_decision, withdrawal_reason_code';
 
 export async function loadPlatformPayoutLedgerEntryPage(
   from: number,

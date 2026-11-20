@@ -51,7 +51,7 @@ These permissions apply only to your club. They do not give you access to anothe
 
 Your club profile holds the information that flows into every show your club hosts and every AKC results submission: club name, AKC/UKC/ASCA club numbers, mailing address, and contact information. Keeping this current saves corrections later.
 
-**Your club is already in the system** when you first sign in: it was created when you asked for it on the home page. You are here to review and update it, not create it from scratch. If your club is not in myK9Show yet, choose **Add your club** on the home page. A club that is waiting for approval shows "Waiting for myK9Show approval" on its page.
+**Your club is already in the system** when you first sign in: it was created when you asked for it on the home page. You are here to review and update it, not create it from scratch. If your club is not in myK9Show yet, open the account menu, choose **Account**, then **Request additional access**, and under **Set up a new club** click **Add your club**. A club that is waiting for approval shows "Waiting for myK9Show approval" on its page.
 
 1. Sign in with your Club Admin account.
 2. In the sidebar, open **My Club**. Your club's page opens.

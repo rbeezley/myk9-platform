@@ -277,7 +277,7 @@ Fields you can update include call name, breed, sex, date of birth, color, heigh
 
 ## Section 12 — Add a Club, Join One, or Ask for Secretary Access
 
-**Your club is not on myK9Show yet?** On the myK9Show home page, choose **Add your club** and fill in the form. You keep this same account. The rest, from the form to your club's first show, is in the Secretary Guide: [Your first show, if your club is new to myK9Show](https://help.myk9show.com/guides/secretary-guide#your-first-show-if-your-club-is-new-to-myk9show).
+**Your club is not on myK9Show yet?** Open the account menu, choose **Account**, then click **Request additional access**. Under **Set up a new club**, click **Add your club** and fill in the form. (Or go straight to the form: [myk9show.com/?onboarding=true#get-started](https://myk9show.com/?onboarding=true#get-started).) You keep this same account. The rest, from the form to your club's first show, is in the Secretary Guide: [Your first show, if your club is new to myK9Show](https://help.myk9show.com/guides/secretary-guide#your-first-show-if-your-club-is-new-to-myk9show).
 
 **Your club already uses myK9Show?** You can ask it for either of two things. They are separate requests, and the club's admins decide each one.
 

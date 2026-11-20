@@ -39,6 +39,20 @@ const row = (personId: string, first: string, classId: string | null = null) => 
   person_id: personId,
   show_id: 'show-1',
   class_id: classId,
+  trial_id: null,
+  status: 'confirmed',
+  // A class row reads its class: a live class on a live trial unless a test says otherwise.
+  assigned_class: classId
+    ? {
+        name: null,
+        element: null,
+        level: null,
+        section: null,
+        status: 'scheduled',
+        deleted_at: null,
+        trial: null,
+      }
+    : null,
   invited_at: null,
   confirmed_at: '2026-09-01',
   judge: { id: personId, first_name: first, last_name: 'Judge' },

@@ -14,11 +14,14 @@ import {
   premiumTrialKey,
 } from '@/features/premium/premiumClassLabel';
 import { readJudgeAssignmentsOrThrow } from './assignmentReads';
+import { listedJudgeIds } from './publishJudgeRoster';
 
 interface ServerJudgeRow {
   person_id: string;
   show_id: string;
   class_id: string | null;
+  trial_id: string | null;
+  status: string | null;
   invited_at: string | null;
   confirmed_at: string | null;
   judge: {
@@ -103,26 +106,6 @@ function collectClassLabels(
   );
 }
 
-/**
- * People whose every class assignment is to a cancelled class (MYK9-2248). With no class left on
- * the premium they would print as a whole-trial judge, which they are not, so they are left out of
- * the judge list. A show-level row (no class) is roster membership and does not save them, as in
- * `premiumTrialJudges`. Deleted classes and trials keep today's behaviour.
- */
-function judgesOnlyOnCancelledClasses(rows: ServerJudgeRow[]): Set<string> {
-  const onlyCancelled = new Map<string, boolean>();
-  for (const row of rows) {
-    if (row.class_id === null) continue;
-    const cancelled =
-      row.assigned_class?.status === 'cancelled' &&
-      !row.assigned_class.deleted_at &&
-      !row.assigned_class.trial?.deleted_at &&
-      row.assigned_class.trial?.status !== 'cancelled';
-    onlyCancelled.set(row.person_id, (onlyCancelled.get(row.person_id) ?? true) && cancelled);
-  }
-  return new Set([...onlyCancelled].filter(([, only]) => only).map(([id]) => id));
-}
-
 async function readServerJudges(
   showId: string
 ): Promise<{ judges: ShowJudgeAssignment[]; keys: Set<string> }> {
@@ -133,7 +116,7 @@ async function readServerJudges(
     const { data, error } = await supabase
       .from('judge_assignments')
       .select(
-        `id, person_id, show_id, class_id, invited_at, confirmed_at,
+        `id, person_id, show_id, class_id, trial_id, status, invited_at, confirmed_at,
          judge:people!judge_assignments_person_id_fkey(id, first_name, last_name, city, state, judge_affiliation),
          assigned_class:classes!judge_assignments_class_id_fkey(
            name, element, level, section, status, deleted_at,
@@ -148,9 +131,11 @@ async function readServerJudges(
     rows.push(...page);
     if (page.length < SERVER_PAGE_SIZE) break;
   }
-  const cancelledOnly = judgesOnlyOnCancelledClasses(rows);
+  // Which people the premium lists follows the generator; `keys` below keeps every row, so the
+  // device comparison still sees a cancelled pick.
+  const listed = listedJudgeIds(rows);
   const assignments = rows
-    .filter(row => !cancelledOnly.has(row.person_id))
+    .filter(row => listed.has(row.person_id))
     .map(
       row =>
         ({

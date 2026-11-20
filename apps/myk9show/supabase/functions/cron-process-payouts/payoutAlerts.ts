@@ -3,10 +3,7 @@
 
 import { escapeHtml, formatDollars } from '../_shared/clubMoneyEmails.ts';
 import type { StripeKeyMode } from '../_shared/stripeMode.ts';
-import { attemptModeRecoveryHtml } from './payoutModeRecovery.ts';
 import type { EligibleShow, PayoutSummary, ProcessShowDeps } from './payoutTypes.ts';
-
-export { MODE_CHECKED_REASON } from './payoutModeRecovery.ts';
 
 export type ShowRef = Pick<EligibleShow, 'id' | 'name' | 'club_id'>;
 type AlertDeps = Pick<ProcessShowDeps, 'alertAdmin'>;
@@ -117,45 +114,9 @@ export async function reportLookupError(
   );
 }
 
-export type AttemptMode = 'match' | 'mismatch' | 'no_account' | 'read_error';
-
-const ATTEMPT_MODE_WHY: Record<Exclude<AttemptMode, 'match'>, string> = {
-  mismatch:
-    'The earlier attempt was made to a Stripe account in the other mode (test or live) than the key the run uses now, so Stripe cannot show this run whether that transfer went out.',
-  no_account:
-    'The earlier attempt has no linked Stripe account, so the run cannot tell which Stripe mode it was made in.',
-  read_error:
-    'The run could not read the Stripe account the earlier attempt was made to, so it cannot tell which Stripe mode it was made in.',
-};
-
-/**
- * An earlier attempt the run cannot check with this Stripe key: never failed,
- * never retried, and the alert names the one step that clears the hold.
- */
-export async function reportAttemptModeHold(
-  deps: Pick<ProcessShowDeps, 'alertAdmin' | 'stripeLivemode'>,
-  summary: PayoutSummary,
-  show: ShowRef,
-  rowId: string,
-  mode: Exclude<AttemptMode, 'match'>,
-  refunds: 'blocked' | 'open'
-) {
-  summary.attempt_mode_holds++;
-  console.error(`Payout for show ${show.id} held: attempt Stripe mode ${mode}`);
-  await deps.alertAdmin(
-    `Payout held: Stripe mode not confirmed: ${show.name}`,
-    `<p>${ATTEMPT_MODE_WHY[mode]} Nothing was checked, queued or sent for
-     <strong>${escapeHtml(show.name)}</strong> (show <code>${show.id}</code>).</p>
-     ${refundsLine(refunds)}
-     ${attemptModeRecoveryHtml(mode, deps.stripeLivemode, show.id, rowId)}`,
-    { dedupeKey: `payout-attempt-mode-${show.id}`, severity: 'error' }
-  );
-}
-
 /**
  * The run's own key is neither live nor test (MYK9-2187): true when the run
- * must stop, after alerting. Nothing is checked, queued or sent, so no
- * attempt's mode can be compared with an unknown one.
+ * must stop, after alerting. Nothing is checked, queued or sent.
  */
 export async function refuseUnknownKeyMode(deps: AlertDeps, mode: StripeKeyMode): Promise<boolean> {
   if (mode !== 'unknown') return false;

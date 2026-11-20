@@ -916,14 +916,11 @@ recorded.
         );
       ```
       Settle each row first (let the nightly run finish it). **Queued rows
-      (`pending`, `awaiting_approval`, `approved`, `held`) block the switch too:** the run
-      reuses them without the attempt-mode check, so none may be left. A `held` or
+      (`pending`, `awaiting_approval`, `approved`, `held`) block the switch too.** A `held` or
       `awaiting_approval` payout is not cleared by waiting: approve it, or resolve its hold, in the
       payout approval section of the Payout Ledger (`/admin/payouts`), wait for the nightly run to
-      send and settle it, then rerun the query above. The run's hold covers only
-      a `failed` attempt and a `processing` attempt gone stale: such a row left over is not paid
-      twice, the run holds it and alerts "Payout held: Stripe mode not confirmed", and the
-      recovery is in `stripe-platform-setup.md` § Payout cron operations.
+      send and settle it, then rerun the query above. A row left over after the switch could be
+      paid twice: the run asks Stripe only in the new key's mode (MYK9-2305).
 - [ ] **3.3** Rotate edge-fn secrets: `supabase secrets set STRIPE_SECRET_KEY=sk_live_…` and
       `STRIPE_WEBHOOK_SECRET=whsec_<live account-scoped>`.
       _Rollback:_ rotate both back to the `sk_test_`/test `whsec_` values.

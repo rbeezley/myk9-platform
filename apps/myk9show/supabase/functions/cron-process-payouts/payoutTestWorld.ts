@@ -36,12 +36,7 @@ export interface StripeTransferRow {
 export interface Scenario {
   liveRow?: { id: string; status: string } | null;
   /** The show's newest payout row of any status (the failed-attempt check). */
-  latestRow?: {
-    id: string;
-    status: string;
-    club_stripe_account_id?: string | null;
-    failure_reason?: string | null;
-  } | null;
+  latestRow?: { id: string; status: string } | null;
   /** Rows the stale-processing check finds. */
   staleRows?: Array<Record<string, unknown>>;
   /** Payable cents per entries read, in order (the last one repeats). */
@@ -63,17 +58,11 @@ export interface Scenario {
   showName?: string;
   /** The club's Stripe account can receive money (default true). */
   payoutsEnabled?: boolean;
-  /** The account an earlier attempt was made to, read by id (default: test mode, like the run). */
-  attemptAccount?: { livemode: unknown } | null;
-  attemptAccountError?: boolean;
   /** The destination check (club_stripe_accounts by stripe_account_id) errors. */
   destinationLookupError?: boolean;
   /** The destination Stripe's transfers.create response reports (default: the club's account). */
   createdDestination?: string | null;
 }
-
-/** Attempt rows carry the club's account unless a test says otherwise. */
-const withAccount = <T extends object>(row: T) => ({ club_stripe_account_id: ACCOUNT.id, ...row });
 
 const hasFilter = (q: Query, name: string, column: string) =>
   q.filters.some(f => f[0] === name && f[1] === column);
@@ -88,10 +77,10 @@ export function run(scenario: Scenario) {
     }
     if (q.table === 'show_payouts') {
       if (hasFilter(q, 'lt', 'updated_at')) {
-        return { data: (scenario.staleRows ?? []).map(withAccount), error: null };
+        return { data: scenario.staleRows ?? [], error: null };
       }
       if (hasFilter(q, 'order', 'created_at')) {
-        return { data: scenario.latestRow ? withAccount(scenario.latestRow) : null, error: null };
+        return { data: scenario.latestRow ?? null, error: null };
       }
       return { data: scenario.liveRow ?? null, error: null };
     }
@@ -111,12 +100,6 @@ export function run(scenario: Scenario) {
       return { data: rows, error: null };
     }
     if (q.table === 'club_stripe_accounts') {
-      if (hasFilter(q, 'eq', 'id')) {
-        if (scenario.attemptAccountError) return { data: null, error: { message: 'read failed' } };
-        const account =
-          scenario.attemptAccount === undefined ? { livemode: false } : scenario.attemptAccount;
-        return { data: account, error: null };
-      }
       const byStripeId = q.filters.find(f => f[0] === 'eq' && f[1] === 'stripe_account_id');
       if (byStripeId && scenario.destinationLookupError) {
         return { data: null, error: { message: 'read failed' } };
@@ -234,7 +217,6 @@ export function run(scenario: Scenario) {
     awaiting_approval: 0,
     claim_errors: 0,
     uncertain_transfers: 0,
-    attempt_mode_holds: 0,
     reconciled: 0,
     transfer_lookup_errors: 0,
     reconciliation_errors: 0,

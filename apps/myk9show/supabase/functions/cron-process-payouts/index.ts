@@ -129,8 +129,6 @@ Deno.serve(async req => {
     ledger_write_errors: 0,
     // Stripe gave no clear answer to a transfer request; the row stays processing.
     uncertain_transfers: 0,
-    // An earlier attempt in the other Stripe mode (or of unknown mode): held, not checked.
-    attempt_mode_holds: 0,
   };
 
   if ((await refuseUnknownKeyMode({ alertAdmin }, stripeMode)) || !stripeSecret) {

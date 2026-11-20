@@ -3,6 +3,7 @@
 // operator alert instead of failing at module load where nobody hears it.
 // Imports index.ts itself, with Deno and the Deno-only imports stubbed.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { refuseUnknownKeyMode } from './payoutAlerts';
 
 const stripeCtor = vi.fn();
 const alertAdmin = vi.fn(async () => undefined);
@@ -95,5 +96,13 @@ describe('cron-process-payouts boot without a usable Stripe key', () => {
     const res = await handler(new Request('https://example.test/x', { method: 'POST' }));
     expect(res.status).toBe(403);
     expect(alertAdmin).not.toHaveBeenCalled();
+  });
+});
+
+describe('refuseUnknownKeyMode', () => {
+  it.each(['live', 'test'] as const)('lets a %s key run with no alert', async mode => {
+    const alert = vi.fn(async () => undefined);
+    await expect(refuseUnknownKeyMode({ alertAdmin: alert }, mode)).resolves.toBe(false);
+    expect(alert).not.toHaveBeenCalled();
   });
 });

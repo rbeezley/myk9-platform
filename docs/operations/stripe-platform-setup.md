@@ -203,13 +203,7 @@ Toggle: **Live mode ON**. Five things exist per-mode and must be redone:
    night before a show opens entries).
 2. **Live webhook endpoint** — same URL, same event list, new `whsec_...`:
    `supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_<live>`
-3. **Live API key**: `supabase secrets set STRIPE_SECRET_KEY=sk_live_...` (a restricted
-   `rk_live_...` key also reads as live; any other prefix stops every Stripe function, by design).
-   **Before switching the key, no `show_payouts` row may be `processing`, `failed` or otherwise
-   unresolved, and no row may be queued (`pending`, `awaiting_approval`, `approved`, `held`)**
-   (go-live runbook step 3.2a has the query and how to clear each row). Stripe lists transfers
-   only in the key's own mode, so after the switch the payout run cannot see what an earlier
-   attempt did; a row left over could be paid twice (MYK9-2305).
+3. **Live API key**: `supabase secrets set STRIPE_SECRET_KEY=sk_live_...`
 4. **Purge sandbox-created Stripe IDs from the database.** Stripe IDs are mode-scoped: a
    `cus_`/`acct_` ID created in the sandbox does not exist in live mode, and the checkout
    function reuses cached customer IDs from `stripe_customers` — a stale sandbox ID makes

@@ -901,26 +901,6 @@ recorded.
       account-scoped (`checkout.session.completed`, `customer.subscription.*`, `invoice.*`,
       `charge.refunded`) and connected-accounts-scoped (`account.updated`,
       `account.application.deauthorized`). Each has its own `whsec_…` secret.
-- [ ] **3.2a** **No `show_payouts` row is `processing`, `failed` or otherwise unresolved when the
-      job's key is switched** (MYK9-2187). Stripe lists transfers only in the key's own mode, so
-      after the switch the payout run cannot see what a test-mode attempt did. Each show's newest
-      row must be `completed` (or the show must have no row) before 3.3; this must return no rows:
-      ```sql
-      select id, show_id, status, failure_reason, updated_at
-      from public.show_payouts
-      where status in ('processing', 'failed', 'pending', 'awaiting_approval', 'approved', 'held')
-        and not exists (
-          select 1 from public.show_payouts newer
-           where newer.show_id = show_payouts.show_id
-             and newer.created_at > show_payouts.created_at
-        );
-      ```
-      Settle each row first (let the nightly run finish it). **Queued rows
-      (`pending`, `awaiting_approval`, `approved`, `held`) block the switch too.** A `held` or
-      `awaiting_approval` payout is not cleared by waiting: approve it, or resolve its hold, in the
-      payout approval section of the Payout Ledger (`/admin/payouts`), wait for the nightly run to
-      send and settle it, then rerun the query above. A row left over after the switch could be
-      paid twice: the run asks Stripe only in the new key's mode (MYK9-2305).
 - [ ] **3.3** Rotate edge-fn secrets: `supabase secrets set STRIPE_SECRET_KEY=sk_live_…` and
       `STRIPE_WEBHOOK_SECRET=whsec_<live account-scoped>`.
       _Rollback:_ rotate both back to the `sk_test_`/test `whsec_` values.

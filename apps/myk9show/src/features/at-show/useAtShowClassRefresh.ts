@@ -9,15 +9,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { isAbortSyncError } from '@/services/replication/syncErrorUtils';
 import { syncAtShowData } from './atShowDataAdapter';
 
-export type ClassRefreshPhase =
-  'idle' | 'refreshing' | 'done' | 'incomplete' | 'failed' | 'offline';
+export type ClassRefreshPhase = 'idle' | 'refreshing' | 'done' | 'failed' | 'offline';
 
 const RESULT_VISIBLE_MS = 4000;
 
 export const CLASS_REFRESH_MESSAGES: Record<Exclude<ClassRefreshPhase, 'idle'>, string> = {
   refreshing: 'Refreshing',
   done: 'Up to date',
-  incomplete: 'Still catching up. Showing what is on this device.',
   failed: "Couldn't refresh. Showing what is on this device.",
   offline: "You're offline. Showing what is on this device.",
 };
@@ -54,7 +52,11 @@ export function useAtShowClassRefresh(
     try {
       const outcome = await syncAtShowData(showId, { forceFullSync: true });
       await reload();
-      settle(outcome.success ? 'done' : outcome.shortOnly ? 'incomplete' : 'failed');
+      // A download that only stayed short is not a volunteer-facing answer (MYK9-2254): the offline
+      // line and the readiness checklist already say so. Reload and go quiet, like a success.
+      if (outcome.success) settle('done');
+      else if (outcome.shortOnly) setPhase('idle');
+      else settle('failed');
     } catch (error) {
       // Going offline mid-refresh aborts the sync (MYK9-1629): that is the
       // offline answer, not a failure.

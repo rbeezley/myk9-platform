@@ -192,6 +192,17 @@ describe('a download short of the server count (MYK9-2254)', () => {
     );
   });
 
+  it('re-arms on a counted incremental pass that confirms coverage, so a later short reports again', async () => {
+    const seen: ShortReplicaObservation[] = [];
+    setShortReplicaReporter(o => seen.push(o));
+
+    await syncReplicatedTable(table, adapterFor([row('1')], [2]), scope);
+    await syncReplicatedTable(table, adapterFor([], [1]), scope);
+    await syncReplicatedTable(table, adapterFor([row('1')], [3]), scope, { forceFullSync: true });
+
+    expect(seen.map(o => o.short?.serverCount ?? null)).toEqual([2, null, 3]);
+  });
+
   it('survives a reporter that throws', async () => {
     setShortReplicaReporter(() => {
       throw new Error('boom');

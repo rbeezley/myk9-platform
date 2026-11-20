@@ -357,11 +357,12 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       cache,
     });
 
-    // MYK9-2254: a full download that leaves the device short of the count is a failure.
+    // MYK9-2254: a full download short of the count fails; a counted whole pass re-arms.
     const afterRows = await getLocalRowsForScope();
     const shortCheck =
-      forceFullSync && expectedRemoteRows !== undefined
+      expectedRemoteRows !== undefined
         ? await checkShortReplica({
+            full: forceFullSync,
             tableName: table.getTableName(),
             scopeValue: scope.value,
             expectedRemoteRows,
@@ -375,9 +376,8 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
         : undefined;
     const serverCount = shortCheck?.serverCount ?? expectedRemoteRows;
     const shortReplica = shortCheck?.short ?? null;
-    // Whole for THIS account: the fetch covered the server's count, nothing was held back for
-    // another account's unsent work, taken-over rows are its own, an empty answer was proven, and
-    // the same account was signed in at both ends. The cache settles the stamp from this.
+    // Whole for THIS account: the fetch covered the server's count, nothing was held back for another
+    // account's unsent work, taken-over rows are its own, an empty answer was proven, same sign-in at both ends.
     let wholeDownload = false;
     if (accountOwned) {
       // A count skipped by the cadence proves nothing about completeness.

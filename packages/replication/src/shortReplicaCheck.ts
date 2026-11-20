@@ -7,6 +7,8 @@ import type { ShortReplicaReport } from './types';
 export interface ShortReplicaCheckInput {
   tableName: string;
   scopeValue: string | undefined;
+  /** A full download; an incremental pass only ever confirms coverage, never reports short. */
+  full: boolean;
   /** The count this pass took before its download. */
   expectedRemoteRows: number;
   /** The scope's rows on this device after the download was written. */
@@ -57,7 +59,8 @@ export function countAccountedRows(
 }
 
 /**
- * A full download that leaves the device short of the server's count is a
+ * A COUNTED incremental pass that finds the device whole re-arms the reporter too (short: null);
+ * an uncounted pass never gets here. A full download that leaves the device short of the server's count is a
  * failure. The first count can be stale-high (a row deleted on the server
  * between the count and the fetch), so a short device is confirmed with a
  * second count before it is called short. A second count that cannot be taken
@@ -78,6 +81,7 @@ export async function checkShortReplica(input: ShortReplicaCheckInput): Promise<
     observe(null);
     return { serverCount: input.expectedRemoteRows, short: null };
   }
+  if (!input.full) return { serverCount: input.expectedRemoteRows, short: null };
   let second: number | undefined;
   try {
     second = await input.recount();

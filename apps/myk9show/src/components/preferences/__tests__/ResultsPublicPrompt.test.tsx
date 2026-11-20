@@ -8,7 +8,7 @@ interface ProfileState {
     id: string;
     results_public: boolean;
     results_public_prompt_answered_at: string | null;
-    person?: { first_name: string; last_name: string };
+    person?: { id: string; first_name: string; last_name: string };
   } | null;
   profileSettled: boolean;
   answerResultsPublicPrompt: ReturnType<typeof vi.fn>;
@@ -51,7 +51,7 @@ describe('ResultsPublicPrompt (MYK9-1944)', () => {
       id: 'profile-1',
       results_public: false,
       results_public_prompt_answered_at: null,
-      person: { first_name: 'Sam', last_name: 'Owner' },
+      person: { id: 'person-sam', first_name: 'Sam', last_name: 'Owner' },
     };
     profileState.profileSettled = true;
     profileState.answerResultsPublicPrompt.mockReset().mockResolvedValue('2026-11-18T00:00:00Z');
@@ -170,21 +170,79 @@ describe('ResultsPublicPrompt (MYK9-1944)', () => {
     onLine.mockRestore();
   });
 
-  it('after a yes with a different handler on the row, names them without claiming their setting', async () => {
+  async function sayYes(props: Partial<ResultsPublicPromptProps>) {
     const user = userEvent.setup();
-    render(<ResultsPublicPrompt {...baseProps} handlerName="Pat Handler" />);
+    render(<ResultsPublicPrompt {...baseProps} {...props} />);
     await user.click(screen.getByRole('button', { name: 'Show publicly' }));
-    expect(screen.getByTestId('results-public-note')).toHaveTextContent(
+    return screen.getByTestId('results-public-note');
+  }
+
+  it('a typed-in handler (no handler_id) is never named: the result is now public', async () => {
+    const note = await sayYes({
+      handlerName: 'Casey Morgan',
+      handlerId: null,
+      ownerId: 'person-sam',
+      coOwnerId: null,
+    });
+    expect(note).toHaveTextContent('Your results are now public, including this one.');
+    expect(note).not.toHaveTextContent('Casey Morgan');
+    expect(note).not.toHaveTextContent(/co-owner|everyone on the entry/);
+  });
+
+  it('a linked handler who is not the viewer is named', async () => {
+    const note = await sayYes({
+      handlerName: 'Pat Handler',
+      handlerId: 'person-pat',
+      ownerId: 'person-sam',
+      coOwnerId: null,
+    });
+    expect(note).toHaveTextContent(
       'This result shows publicly only once everyone on the entry has turned this on, including Pat Handler.'
     );
   });
 
-  it('after a yes with nothing known about others, hedges and never asserts', async () => {
-    const user = userEvent.setup();
-    render(<ResultsPublicPrompt {...baseProps} handlerName="Sam Owner" />);
-    await user.click(screen.getByRole('button', { name: 'Show publicly' }));
-    expect(screen.getByTestId('results-public-note')).toHaveTextContent(
+  it('the viewer as the linked handler is not someone else', async () => {
+    const note = await sayYes({
+      handlerName: 'Sam Owner',
+      handlerId: 'person-sam',
+      ownerId: 'person-sam',
+      coOwnerId: null,
+    });
+    expect(note).toHaveTextContent('including this one.');
+  });
+
+  it('a linked co-owner is waited for but not named', async () => {
+    const note = await sayYes({
+      handlerId: null,
+      ownerId: 'person-sam',
+      coOwnerId: 'person-lee',
+    });
+    expect(note).toHaveTextContent(
+      'This result shows publicly only once everyone on the entry has turned this on.'
+    );
+    expect(note).not.toHaveTextContent('including');
+  });
+
+  it('a row that carries no ids hedges and never asserts', async () => {
+    const note = await sayYes({ handlerName: 'Sam Owner' });
+    expect(note).toHaveTextContent(
       "If a co-owner or handler on this entry hasn't turned this on, this result stays private until they do."
     );
+  });
+
+  it('a row that carries the dog people but not the handler id hedges', async () => {
+    const note = await sayYes({
+      ownerId: 'person-sam',
+      coOwnerId: null,
+      handlerName: 'Pat Handler',
+    });
+    expect(note).toHaveTextContent(/If a co-owner or handler on this entry/);
+    expect(note).not.toHaveTextContent('including');
+  });
+
+  it('a row that carries a handler but not the dog owner or co-owner hedges', async () => {
+    const note = await sayYes({ handlerId: null, handlerName: 'Casey Morgan' });
+    expect(note).toHaveTextContent(/If a co-owner or handler on this entry/);
+    expect(note).not.toHaveTextContent('Casey Morgan');
   });
 });

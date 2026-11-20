@@ -21,6 +21,7 @@ import { useIsOnline } from '@/hooks/useNetworkStatus';
 import { useShowSettings } from '@/hooks/queries/useShowSettingsDatabase';
 import { formatOrdinal } from '@/features/result-card';
 import { getUserFriendlyError } from '@/utils/errorMessages';
+import { otherPeopleOnEntry } from './resultsPublicBlockers';
 
 export interface ResultsPublicPromptProps {
   showId: string;
@@ -30,12 +31,13 @@ export interface ResultsPublicPromptProps {
   placement: number | null | undefined;
   /** True once the class's results are released. */
   isReleased: boolean;
-  /**
-   * The entry's handler as the row names them, when it does. A handler who is not the viewer is
-   * the only "someone else on the entry" the client can see (owner and co-owner are not on the
-   * row); without it the note is hedged rather than asserted.
-   */
+  /** The handler's display name on the row; names a linked handler, never a typed-in one. */
   handlerName?: string | null | undefined;
+  /** `entries.handler_id`: null for a typed-in handler, who the server never waits for. */
+  handlerId?: string | null | undefined;
+  /** `dogs.owner_id` and `dogs.co_owner_id`; left undefined when the row does not carry them. */
+  ownerId?: string | null | undefined;
+  coOwnerId?: string | null | undefined;
 }
 
 type Outcome = 'idle' | 'shown-publicly';
@@ -47,6 +49,9 @@ export function ResultsPublicPrompt({
   placement,
   isReleased,
   handlerName,
+  handlerId,
+  ownerId,
+  coOwnerId,
 }: ResultsPublicPromptProps) {
   const { profile, profileSettled, answerResultsPublicPrompt, isAnsweringResultsPublicPrompt } =
     useExhibitorProfile();
@@ -55,20 +60,17 @@ export function ResultsPublicPrompt({
   const [outcome, setOutcome] = useState<Outcome>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  // A handler who is not the viewer is the one other person the row can name. The viewer's own
-  // name matching means a sole handler, which proves nothing about a co-owner: hedge then.
-  const viewerName = [profile?.person?.first_name, profile?.person?.last_name]
-    .filter(Boolean)
-    .join(' ')
-    .trim()
-    .toLowerCase();
-  const otherPersonKnown =
-    Boolean(handlerName?.trim()) &&
-    viewerName !== '' &&
-    handlerName?.trim().toLowerCase() !== viewerName;
+  // Decided from the ids the server counts (owner, co-owner, linked handler), never a name.
+  const others = otherPeopleOnEntry({
+    viewerPersonId: profile?.person?.id,
+    ownerId,
+    coOwnerId,
+    handlerId,
+    handlerName,
+  });
 
   // After a yes the profile already reads as answered; this row stays so the
-  // exhibitor still hears what a co-owner or handler could change.
+  // exhibitor still hears what anyone else on the entry could change.
   if (outcome === 'shown-publicly') {
     return (
       <p
@@ -76,10 +78,14 @@ export function ResultsPublicPrompt({
         role="status"
         data-testid="results-public-note"
       >
-        Your results are now public.{' '}
-        {otherPersonKnown
-          ? `This result shows publicly only once everyone on the entry has turned this on, including ${handlerName?.trim()}.`
-          : "If a co-owner or handler on this entry hasn't turned this on, this result stays private until they do."}
+        Your results are now public
+        {others.kind === 'none'
+          ? ', including this one.'
+          : others.kind === 'named'
+            ? `. This result shows publicly only once everyone on the entry has turned this on, including ${others.name}.`
+            : others.kind === 'unnamed'
+              ? '. This result shows publicly only once everyone on the entry has turned this on.'
+              : ". If a co-owner or handler on this entry hasn't turned this on, this result stays private until they do."}
       </p>
     );
   }

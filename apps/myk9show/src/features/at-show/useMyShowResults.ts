@@ -15,6 +15,8 @@ type OwnRow = {
   final_placement?: number | null;
   class_results_released_at?: string | null;
   class?: { scored_count?: number | null } | null;
+  handler_id?: string | null;
+  dog?: { owner_id?: string | null; co_owner_id?: string | null } | null;
 };
 
 /**
@@ -61,6 +63,9 @@ export function useMyShowResults(showId: string | undefined): ReadonlyMap<string
           resultsReleasedAt: row.class_results_released_at ?? null,
           classScoredCount: row.class?.scored_count ?? null,
           serverConfirmed,
+          handlerId: row.handler_id,
+          dogOwnerId: row.dog?.owner_id,
+          dogCoOwnerId: row.dog?.co_owner_id,
         });
       }
       return results;

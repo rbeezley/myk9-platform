@@ -232,7 +232,13 @@ export function useMyEntriesData({
    */
   const transformEntry = useCallback((entry: OwnEntryResultRow): MyEntry => {
     // Type assertions for nested objects
-    const dog = entry.dog as { id: string; name: string; call_name?: string } | null;
+    const dog = entry.dog as {
+      id: string;
+      name: string;
+      call_name?: string;
+      owner_id?: string | null;
+      co_owner_id?: string | null;
+    } | null;
     const show = entry.show as {
       id: string;
       name: string;
@@ -329,6 +335,9 @@ export function useMyEntriesData({
         // MYK9-632: WHICH withdrawal, for the Edit Entry sheet's badge.
         withdrawalReasonCode: (entry.withdrawal_reason_code as string | null) ?? undefined,
         handler: (entry.handler as string) || undefined,
+        handlerId: entry.handler_id as string | null | undefined,
+        dogOwnerId: dog?.owner_id,
+        dogCoOwnerId: dog?.co_owner_id,
         paymentStatus: rowPaymentStatus,
         rawPaymentStatus: rawEntryPaymentStatus,
         paymentMethod: rowPaymentMethod,

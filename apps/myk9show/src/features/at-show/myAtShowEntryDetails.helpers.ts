@@ -110,6 +110,10 @@ export interface OwnShowResult {
    * same result columns, so a null status from it says nothing about release (MYK9-1519).
    */
   serverConfirmed?: boolean | undefined;
+  /** Who the server counts toward "everyone on the entry" (MYK9-2311); undefined when not read. */
+  handlerId?: string | null | undefined;
+  dogOwnerId?: string | null | undefined;
+  dogCoOwnerId?: string | null | undefined;
 }
 
 export const NO_OWN_RESULTS: ReadonlyMap<string, OwnShowResult> = new Map();
@@ -140,6 +144,10 @@ export interface AtShowEntryDetail {
   releasedPlacement?: number | null | undefined;
   /** Scored, but the release preset withholds the result: the row says it is not released (MYK9-1519). */
   isResultWithheld?: boolean | undefined;
+  /** The entry's people by id, for the results-public note (MYK9-2311). */
+  handlerId?: string | null | undefined;
+  dogOwnerId?: string | null | undefined;
+  dogCoOwnerId?: string | null | undefined;
   /** The class's resolved self-check-in cascade (MYK9-800 follow-up). */
   selfCheckinState: SelfCheckinState;
   /** "<trial label> · <date>" (`formatAtShowTrialHeading`), or null before the trial replica resolves. */
@@ -266,6 +274,9 @@ export function buildMyAtShowEntryDetails(
           ? (own?.finalPlacement ?? null)
           : null,
       isResultWithheld,
+      handlerId: own?.handlerId,
+      dogOwnerId: own?.dogOwnerId,
+      dogCoOwnerId: own?.dogCoOwnerId,
       selfCheckinState: classSummary?.selfCheckinState ?? 'unknown',
       trialLabel: trial?.label ?? null,
       dogKey: entry.dogId ?? entry.dogCallName ?? entry.id,

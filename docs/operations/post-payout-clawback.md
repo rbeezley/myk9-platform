@@ -3,14 +3,22 @@
 > **Audience: the operator (site admin).** Internal runbook with service-role SQL and Stripe
 > dashboard steps — never publish to the public help site. Tracked by MYK9-195.
 
+**The default after a payout: the club settles.** Once a show's payout has been sent, a refund
+is the club's to pay the exhibitor directly; the app's refusal tells the secretary exactly
+that. The operator clawback in Case A is **an exception the operator may choose** (for
+example, the club cannot pay the exhibitor itself), not the route every post-payout refund
+takes. Case B (a lost dispute) is not a choice and is unchanged. See
+[Why this changed back](#why-this-changed-back) before rewording any of this.
+
 ## When you are here
 
 One of three signals routes to this page:
 
-1. The refund UI refused with **"already paid out"** (`payout_already_sent` from
+1. The refund UI refused because the club has already been paid (`payout_already_sent` from
    [`stripe-refund-entry`](../../apps/myk9show/supabase/functions/stripe-refund-entry/index.ts) or
    [`stripe-refund-show`](../../apps/myk9show/supabase/functions/stripe-refund-show/index.ts)),
-   and the refund is legitimate anyway — the exhibitor is owed money after the club was paid.
+   the refund is legitimate, and you have chosen to complete it yourself instead of the
+   default (the club pays the exhibitor directly).
 2. The **"Reconciled payout amount mismatch"** alert from `cron-process-payouts` — a refund
    landed during a crash window and the club was overpaid.
 3. The **"Chargeback opened"** alert from `stripe-webhook`, and the dispute was lost.
@@ -19,9 +27,10 @@ Why this is manual: the platform uses **separate charges and transfers**. The ch
 the platform balance and the payout cron transfers the club's share at show end + 3 days.
 Neither refund function passes `reverse_transfer` or `refund_application_fee`, so once the
 transfer is out, any refund comes entirely from the **platform's own balance** while the club
-keeps its share — which is exactly why the in-app paths refuse. The refusal is correct;
-completing the money movement is your job, by hand, in two halves: refund the exhibitor, then
-recover the club's share.
+keeps its share — which is exactly why the in-app paths refuse. The refusal is correct, and by
+default the refund then happens between the club and the exhibitor, outside the platform.
+When you choose the exception, completing the money movement is your job, by hand, in two
+halves: refund the exhibitor, then recover the club's share.
 
 `payout_in_progress` is **not** this page — that's the cron mid-run. Wait a few minutes and
 retry in-app.
@@ -42,7 +51,8 @@ order by created_at desc limit 1;
 Route by what you found:
 
 - **Refund request, no completed payout** → not this page. The in-app refund path works; use it.
-- **Refund request, payout `completed`** → Case A.
+- **Refund request, payout `completed`** → by default, nothing to do here: the club pays the
+  exhibitor directly. Case A only if you choose the operator clawback as an exception.
 - **"Reconciled payout amount mismatch" alert (signal 2)** → the refund **already exists** in
   Stripe. Skip Case A steps 1–3 entirely — issuing another refund would double-pay the
   exhibitor. Verify the existing refund in the dashboard (Payments → the intent → its refund)
@@ -54,7 +64,11 @@ Route by what you found:
 - **Lost dispute, any payout state** → Case B, which starts with the payout-state fork. Never
   issue a Stripe refund for a dispute — the bank already pulled the money.
 
-## Case A — legitimate refund after payout
+## Case A — operator clawback after payout (an exception you may choose)
+
+The default is that the club settles the refund with the exhibitor directly. Use these steps
+only when you decide the platform should complete the refund instead, and tell the club before
+you start (step 2).
 
 **1. Fix the amount.** Cap it at the entry fee, mirroring in-app policy (`validateRefund`
 rejects `amount_exceeds_fee`; the platform fee is never refunded). Everything below assumes
@@ -94,6 +108,15 @@ where id = '<entry_id>'
 
 A partial refund still stamps `payment_status = 'refunded'` — that is what the in-app path
 does, and the payout math reads `refund_amount`, not the status.
+
+## Why this changed back
+
+In August 2026 (MYK9-195, #1678) the refusal told the secretary to contact myK9Show support,
+who would refund the exhibitor manually and recover the club's share through this runbook, so
+every post-payout refund became an operator clawback. On 2026-11-13 the owner reversed that
+(MYK9-1953, built in MYK9-2302): after the payout the club settles a refund with the exhibitor
+directly, and the operator clawback stays as an exception the operator may choose. Do not change
+the refusal or this runbook back to "contact support" without a new owner decision.
 
 ## Case B — dispute lost
 

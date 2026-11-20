@@ -74,7 +74,9 @@ export type PremiumFactId =
   | 'ascaSanctionStatus'
   | 'scentsByLevel'
   | 'spectatorsPolicy'
-  | 'photographerContact';
+  | 'photographerContact'
+  | 'limitedMobility'
+  | 'rvHookups';
 
 export type PremiumFactSource =
   'club' | 'show' | 'trial' | 'class' | 'person' | 'template' | 'registry';

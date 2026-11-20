@@ -77,8 +77,9 @@ export interface RunAlertAdminDeps extends AlertDeliveryOptions {
    * a non-null `error` (the supabase-js convention) — both are handled. */
   insert: () => Promise<InsertResultLike>;
   /** Attempts email delivery. May reject; resolving means "attempted" (which
-   * includes the caller's own "no RESEND_API_KEY configured" no-op skip). */
-  sendEmail: () => Promise<void>;
+   * includes the caller's own "no RESEND_API_KEY configured" no-op skip).
+   * Resolving `{ sent: false }` says the send was skipped, so nothing went out. */
+  sendEmail: () => Promise<void | { sent: boolean }>;
   log?: (message: string) => void;
   logError?: (message: string, err?: unknown) => void;
 }
@@ -87,6 +88,15 @@ export interface RunAlertAdminResult {
   insertOutcome: InsertOutcome;
   emailAttempted: boolean;
   emailError: unknown;
+  /** False when the send was skipped (no key). Never true after an error. */
+  emailSent: boolean;
+}
+
+/** True only when an email really went out for a row that was really saved.
+ * A skipped send, a failed send and a failed insert (the row is not there for
+ * the "emailed" stamp to land on) all count as not emailed. */
+export function alertWasEmailed(result: RunAlertAdminResult): boolean {
+  return result.emailSent && result.emailError == null && result.insertOutcome !== 'insert_failed';
 }
 
 /** Run the persist-then-email contract. Never throws. */
@@ -112,16 +122,18 @@ export async function runAlertAdmin(
   }
 
   if (insertOutcome === 'deduped' && deps.skipEmailOnDuplicate) {
-    return { insertOutcome, emailAttempted: false, emailError: null };
+    return { insertOutcome, emailAttempted: false, emailError: null, emailSent: false };
   }
 
   let emailError: unknown = null;
+  let emailSent = false;
   try {
-    await deps.sendEmail();
+    const sent = await deps.sendEmail();
+    emailSent = sent?.sent !== false;
   } catch (err) {
     emailError = err;
     logError(`Alert email error: ${subject}`, err);
   }
 
-  return { insertOutcome, emailAttempted: true, emailError };
+  return { insertOutcome, emailAttempted: true, emailError, emailSent };
 }

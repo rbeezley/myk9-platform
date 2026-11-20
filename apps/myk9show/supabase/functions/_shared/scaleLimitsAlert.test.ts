@@ -66,6 +66,7 @@ describe('runScaleLimitsCheck', () => {
         source: SCALE_ALERT_SOURCE,
         dedupeKey: scaleDedupeKey([key]),
         detail: expect.objectContaining({ counts: { ...base, ...over } }),
+        subjectPrefix: '[myK9Show platform]',
       })
     );
   });

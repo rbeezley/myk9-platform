@@ -1,6 +1,11 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
-import { buildAlertRow, classifyInsertResult, runAlertAdmin } from './alertAdminCore';
+import {
+  alertWasEmailed,
+  buildAlertRow,
+  classifyInsertResult,
+  runAlertAdmin,
+} from './alertAdminCore';
 
 describe('buildAlertRow', () => {
   it('falls back to { html } as detail when opts.detail is absent (legacy no-opts callers)', () => {
@@ -72,7 +77,12 @@ describe('runAlertAdmin', () => {
       skipEmailOnDuplicate: true,
     });
     expect(sendEmail).not.toHaveBeenCalled();
-    expect(result).toEqual({ insertOutcome: 'deduped', emailAttempted: false, emailError: null });
+    expect(result).toEqual({
+      insertOutcome: 'deduped',
+      emailAttempted: false,
+      emailError: null,
+      emailSent: false,
+    });
   });
 
   it('still attempts email on insert failure when duplicate skipping is enabled', async () => {
@@ -124,6 +134,40 @@ describe('runAlertAdmin', () => {
 
     expect(insert).toHaveBeenCalledTimes(1);
     expect(result.insertOutcome).toBe('inserted');
+  });
+
+  it('reports a skipped send (no key) as not sent, and never as emailed', async () => {
+    const insert = vi.fn().mockResolvedValue({ error: null });
+    const sendEmail = vi.fn().mockResolvedValue({ sent: false });
+
+    const result = await runAlertAdmin('subject', { insert, sendEmail });
+
+    expect(result.emailSent).toBe(false);
+    expect(alertWasEmailed(result)).toBe(false);
+  });
+
+  it('counts a real send on a saved row as emailed', async () => {
+    const insert = vi.fn().mockResolvedValue({ error: null });
+    const sendEmail = vi.fn().mockResolvedValue({ sent: true });
+
+    expect(alertWasEmailed(await runAlertAdmin('subject', { insert, sendEmail }))).toBe(true);
+  });
+
+  it('does not count an email sent while the insert failed (no row to stamp)', async () => {
+    const insert = vi.fn().mockResolvedValue({ error: { code: '42501', message: 'nope' } });
+    const sendEmail = vi.fn().mockResolvedValue({ sent: true });
+
+    const result = await runAlertAdmin('subject', { insert, sendEmail });
+
+    expect(result.emailSent).toBe(true);
+    expect(alertWasEmailed(result)).toBe(false);
+  });
+
+  it('does not count a send that threw', async () => {
+    const insert = vi.fn().mockResolvedValue({ error: null });
+    const sendEmail = vi.fn().mockRejectedValue(new Error('resend down'));
+
+    expect(alertWasEmailed(await runAlertAdmin('subject', { insert, sendEmail }))).toBe(false);
   });
 
   it('treats a dedupe unique-violation as benign and still attempts email', async () => {

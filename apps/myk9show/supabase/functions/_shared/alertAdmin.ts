@@ -42,7 +42,11 @@ export interface AlertAdminOptions extends AlertDeliveryOptions {
   dedupeKey?: string;
   /** Structured context (payment identifiers, amounts, etc.). */
   detail?: Record<string, unknown>;
+  /** Subject prefix; defaults to the payments one every older caller relied on. */
+  subjectPrefix?: string;
 }
+
+const DEFAULT_SUBJECT_PREFIX = '[myK9Show payments]';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL');
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -75,10 +79,14 @@ async function insertOperatorAlert(
   };
 }
 
-async function sendAlertEmail(subject: string, html: string): Promise<void> {
+async function sendAlertEmail(
+  subject: string,
+  html: string,
+  prefix: string
+): Promise<{ sent: boolean }> {
   if (!resendApiKey) {
     console.log(`Alert email skipped (no RESEND_API_KEY): ${subject}`);
-    return;
+    return { sent: false };
   }
   const res = await sendResendEmailWithRetry({
     method: 'POST',
@@ -89,13 +97,14 @@ async function sendAlertEmail(subject: string, html: string): Promise<void> {
     body: JSON.stringify({
       from: 'myK9Show <notifications@myk9show.com>',
       to: alertEmail,
-      subject: `[myK9Show payments] ${subject}`,
+      subject: `${prefix} ${subject}`,
       html,
     }),
   });
   if (!res.ok) {
     throw new Error(`Alert email failed (${res.status}): ${subject}`);
   }
+  return { sent: true };
 }
 
 export async function alertAdmin(
@@ -105,7 +114,7 @@ export async function alertAdmin(
 ): Promise<RunAlertAdminResult> {
   return await runAlertAdmin(subject, {
     insert: () => insertOperatorAlert(subject, html, opts),
-    sendEmail: () => sendAlertEmail(subject, html),
+    sendEmail: () => sendAlertEmail(subject, html, opts.subjectPrefix ?? DEFAULT_SUBJECT_PREFIX),
     skipEmailOnDuplicate: opts.skipEmailOnDuplicate,
     log: console.log,
     logError: console.error,

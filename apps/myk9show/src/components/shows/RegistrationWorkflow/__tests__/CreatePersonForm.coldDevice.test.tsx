@@ -157,23 +157,27 @@ describe('CreatePersonForm on a device with no saved people (MYK9-2257)', () => 
     expect(searchUsersMock).toHaveBeenCalledTimes(callsBeforeSave);
   });
 
-  it('still asks at save when the identity changed after the settled answer', async () => {
+  it('does not reuse an answer settled for an earlier identity', async () => {
     setOnline(true);
-    searchUsersMock.mockResolvedValue(fromAny({ data: [], error: null }));
+    // The first identity's answer is empty; by the time the identity changes the server
+    // has the person. Reusing the earlier answer would add a duplicate.
+    let serverHasPerson = false;
+    searchUsersMock.mockImplementation(async () =>
+      fromAny({ data: serverHasPerson ? [SERVER_ROW] : [], error: null })
+    );
     const user = userEvent.setup();
     render(<CreatePersonForm open onOpenChange={vi.fn()} onExhibitorCreated={vi.fn()} />);
 
     await typePerson(user);
     await waitFor(() => expect(searchUsersMock).toHaveBeenCalledWith('Mailbox'));
+    serverHasPerson = true;
     await user.type(screen.getByLabelText(/Last Name/i), 'x');
-    const callsBeforeSave = searchUsersMock.mock.calls.length;
 
     await user.click(await screen.findByRole('button', { name: /Next: Contact/ }));
     await user.click(await screen.findByRole('button', { name: 'Add Person' }));
 
-    await waitFor(() => expect(createUserMock).toHaveBeenCalled());
-    expect(searchUsersMock.mock.calls.length).toBeGreaterThan(callsBeforeSave);
-    expect(searchUsersMock).toHaveBeenCalledWith('Mailboxx');
+    expect(await screen.findByTestId('person-duplicate-notice')).toBeInTheDocument();
+    expect(createUserMock).not.toHaveBeenCalled();
   });
 
   it('a lookup that never answers does not hold the save past the deadline', async () => {

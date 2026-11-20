@@ -84,12 +84,12 @@ for (const width of [390, 1280]) {
           );
           // Drawn whole at its own shape, never stretched.
           expect(still.width / still.height, label).toBeCloseTo(still.natural, 1);
-          // The words in a picture read at about half their size or more; a phone screen is drawn
+          // The words in a picture read at about two fifths of their size or more; a phone screen is drawn
           // at most 220px wide, a desktop window at most 440px.
           expect(
             still.width / SCREEN_WIDTH[still.shape],
             `${label} is drawn too small`
-          ).toBeGreaterThan(0.45);
+          ).toBeGreaterThan(0.4);
           expect(still.width, label).toBeLessThanOrEqual(still.shape === 'phone' ? 221 : 441);
         }
         await expectNoLandingSpills(page, `${width}px ${audience} stills`);

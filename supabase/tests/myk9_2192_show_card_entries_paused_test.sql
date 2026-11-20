@@ -154,7 +154,7 @@ $$;
 -- ---------------------------------------------------------------------------
 SET LOCAL ROLE anon;
 
-DO $
+DO $$
 DECLARE
   v_got uuid[];
 BEGIN
@@ -183,12 +183,12 @@ BEGIN
   END IF;
   RAISE NOTICE 'PASS 8 one call over a mix';
 END;
-$;
+$$;
 
 -- ---------------------------------------------------------------------------
 -- 9. The cap: the 500th id is read, the 501st is not
 -- ---------------------------------------------------------------------------
-DO $
+DO $$
 DECLARE
   v_filler uuid[];
 BEGIN
@@ -209,7 +209,7 @@ BEGIN
   END IF;
   RAISE NOTICE 'PASS 9 cap of 500 ids';
 END;
-$;
+$$;
 
 RESET ROLE;
 

@@ -82,8 +82,11 @@ function buildDataColumns(pausedShowIds: ReadonlySet<string>): ColumnDef<Enhance
     {
       id: 'entries',
       header: 'Entries',
-      // The paused set rides on table meta, so the sort key and the badge agree (MYK9-2192).
-      accessorFn: show => getEntryStatus(show, show.userHasEntries).label,
+      // The sort key and the badge read the same paused set, so they agree (MYK9-2192).
+      accessorFn: show =>
+        getEntryStatus(show, show.userHasEntries, {
+          cardEntriesPaused: pausedShowIds.has(show.id),
+        }).label,
       meta: {},
       cell: ({ row }) => (
         <EntryStatusBadge

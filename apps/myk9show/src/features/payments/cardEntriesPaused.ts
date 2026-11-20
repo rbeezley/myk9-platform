@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { isPublicShowStatus } from './onlineEntryGate';
 
@@ -53,6 +53,9 @@ function usePausedAmong(ids: string[]): ReadonlySet<string> {
     enabled: ids.length > 0,
     staleTime: CARD_PAUSED_STALE_MS,
     retry: false,
+    // A changed list (a show added, a sign-in) keeps the last answer until the new one lands,
+    // so a paused show never flashes back to open in between.
+    placeholderData: keepPreviousData,
   });
   const data = query.data;
   const asked = ids.length > 0;

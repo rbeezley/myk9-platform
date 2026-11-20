@@ -185,6 +185,17 @@ describe('the ring scene on the page', () => {
     expect(showday).not.toHaveProperty('meanwhileShot');
   });
 
+  it('renders no screenshot on the meanwhile side of any step, in either story (MYK9-2295)', () => {
+    for (const audience of ['club', 'exhibitor'] as const) {
+      const { container, unmount } = render(
+        <LifecycleTimeline audience={audience} onAudienceChange={vi.fn()} />
+      );
+      expect(container.querySelectorAll('.lc-meanwhile')).toHaveLength(6);
+      expect(container.querySelectorAll('.lc-meanwhile img:not(.tl-scene img)')).toHaveLength(0);
+      unmount();
+    }
+  });
+
   it('jumps to a line’s capture when the line is pressed', () => {
     const { container } = render(<LifecycleTimeline audience="club" onAudienceChange={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: /The score is read back/ }));

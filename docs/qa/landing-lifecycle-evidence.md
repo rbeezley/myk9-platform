@@ -158,6 +158,8 @@ Captured 2026-10-13 from the dev server on this branch (`main` @ `864a03e76`) wi
 | Exhibitor 5 main, club 5 meanwhile             | E-17            | phone   | Container Novice A: Willow **Qualified, 0:38.50, 0 faults, 1st**                                                                                                                                    |                                                                                                                                                                                            |
 | Exhibitor 6 main, club 6 meanwhile             | Dog record      | phone   | Willow → Career → **Past Results**: Q, Q #1, Q across two shows                                                                                                                                     | Replaces E-16. It shows "every Q on your dog's record" literally                                                                                                                           |
 
+Since MYK9-2295 (2026-11-19) no step shows a meanwhile screenshot: the meanwhile side is a sentence, or the ring scene on the exhibitor's show day. The "meanwhile" slots in the table above record where each capture was first used; every capture is still a step's own screenshot.
+
 The club show day plays the ring scene above the working practice scoresheet (D9).
 
 ### Found while capturing (filed, outside this work)

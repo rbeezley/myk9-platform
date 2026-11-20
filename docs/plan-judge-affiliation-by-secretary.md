@@ -54,9 +54,10 @@ from PUBLIC and anon.
 
 - Where the secretary manages a show's judges (the existing judges list in Edit show), each
   judge on an ASCA show gets an "Affiliation" field that saves through the RPC.
-- A judge added in the current editing session has no `judge_assignments` row until Save
-  Changes. Their Affiliation field stays disabled, with "Save the show first", until the roster
-  save succeeds. This avoids a 42501 during ordinary setup.
+- The Affiliation field stays disabled, with "Saving the judge first", while that judge's
+  assignment is not yet on the server. The replicated `judge_assignments` row is local-only or
+  has a pending mutation. This holds after Save Changes and after reopening Edit show, until the
+  upload is acknowledged (offline-first rule). This avoids a 42501 during ordinary setup.
 - The checklist line from #4239 then links there ("Add <name>'s affiliation") instead of saying
   "ask the judge".
 - No new page.
@@ -88,8 +89,14 @@ from PUBLIC and anon.
   - a declined or cancelled assignment;
   - a soft-deleted show, and a soft-deleted person;
   - anon;
-- no other profile field changes. The replication triggers still run: the row's version
-  advances and `updated_at` moves. Neither trigger is suppressed for the test;
+- no other profile field changes. The replication triggers still run:
+  - the row's version advances;
+  - `updated_at` is set to the transaction timestamp. The fixture seeds an older `updated_at`,
+    because `now()` is constant inside one test transaction. The test does not require a second
+    advance on clear.
+
+  Neither trigger is suppressed for the test;
+
 - the 200-character limit holds;
 - `person_edit_allowed` is unchanged, checked by comparing its function definition before and
   after.
@@ -98,8 +105,9 @@ from PUBLIC and anon.
 
 - The affiliation field on an ASCA show's judge saves through the RPC, and the checklist links
   to it.
-- A judge added in the same editing session has a disabled field until Save Changes, then
-  saves.
+- A judge whose assignment is local-only or pending has a disabled field, both before and
+  after Save Changes and after reopening Edit show.
+- The field enables once the server acknowledges the upload, and the affiliation then saves.
 
 **Checks.** `pnpm qa:sql-local` passes, and the migration auditor reviews the migration.
 

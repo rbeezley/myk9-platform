@@ -137,3 +137,44 @@ export async function runAlertAdmin(
 
   return { insertOutcome, emailAttempted: true, emailError, emailSent };
 }
+
+/** Every older caller's subject prefix: the payment alerts. */
+export const DEFAULT_ALERT_SUBJECT_PREFIX = '[myK9Show payments]';
+
+export interface AlertEmailDeps {
+  /** RESEND_API_KEY; unset means the send is skipped and reported as not sent. */
+  apiKey: string | undefined;
+  to: string;
+  post: (init: {
+    method: 'POST';
+    headers: Record<string, string>;
+    body: string;
+  }) => Promise<{ ok: boolean; status: number }>;
+  log: (message: string) => void;
+}
+
+/** One alert email. Resolves { sent: false } when no key is configured (MYK9-2301), so the
+ * caller never records an email that did not go out; throws when the provider refuses it. */
+export async function sendAlertEmailWith(
+  deps: AlertEmailDeps,
+  subject: string,
+  html: string,
+  prefix: string = DEFAULT_ALERT_SUBJECT_PREFIX
+): Promise<{ sent: boolean }> {
+  if (!deps.apiKey) {
+    deps.log(`Alert email skipped (no RESEND_API_KEY): ${subject}`);
+    return { sent: false };
+  }
+  const res = await deps.post({
+    method: 'POST',
+    headers: { Authorization: `Bearer ${deps.apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: 'myK9Show <notifications@myk9show.com>',
+      to: deps.to,
+      subject: `${prefix} ${subject}`,
+      html,
+    }),
+  });
+  if (!res.ok) throw new Error(`Alert email failed (${res.status}): ${subject}`);
+  return { sent: true };
+}

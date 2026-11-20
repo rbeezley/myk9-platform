@@ -1,6 +1,8 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import {
+  sendAlertEmailWith,
+  DEFAULT_ALERT_SUBJECT_PREFIX,
   alertWasEmailed,
   buildAlertRow,
   classifyInsertResult,
@@ -191,5 +193,52 @@ describe('runAlertAdmin', () => {
 
     expect(result.insertOutcome).toBe('insert_failed');
     expect(logError).toHaveBeenCalled();
+  });
+});
+
+describe('sendAlertEmailWith (MYK9-2301)', () => {
+  const okPost = () => vi.fn(async () => ({ ok: true, status: 200 }));
+
+  it('skips and reports not sent when no key is configured', async () => {
+    const post = okPost();
+    const log = vi.fn();
+    await expect(
+      sendAlertEmailWith(
+        { apiKey: undefined, to: 'ops@example.com', post, log },
+        'Subj',
+        '<p>x</p>'
+      )
+    ).resolves.toEqual({ sent: false });
+    expect(post).not.toHaveBeenCalled();
+    expect(log).toHaveBeenCalledWith('Alert email skipped (no RESEND_API_KEY): Subj');
+  });
+
+  it('sends with the payments prefix by default and reports sent', async () => {
+    const post = okPost();
+    await expect(
+      sendAlertEmailWith({ apiKey: 'k', to: 'ops@example.com', post, log: vi.fn() }, 'Subj', 'h')
+    ).resolves.toEqual({ sent: true });
+    const body = JSON.parse(post.mock.calls[0][0].body);
+    expect(body.subject).toBe(`${DEFAULT_ALERT_SUBJECT_PREFIX} Subj`);
+    expect(DEFAULT_ALERT_SUBJECT_PREFIX).toBe('[myK9Show payments]');
+    expect(body.to).toBe('ops@example.com');
+  });
+
+  it('uses the prefix it is given', async () => {
+    const post = okPost();
+    await sendAlertEmailWith(
+      { apiKey: 'k', to: 'ops@example.com', post, log: vi.fn() },
+      'Subj',
+      'h',
+      '[myK9Show platform]'
+    );
+    expect(JSON.parse(post.mock.calls[0][0].body).subject).toBe('[myK9Show platform] Subj');
+  });
+
+  it('throws when the provider refuses the email', async () => {
+    const post = vi.fn(async () => ({ ok: false, status: 500 }));
+    await expect(
+      sendAlertEmailWith({ apiKey: 'k', to: 'ops@example.com', post, log: vi.fn() }, 'Subj', 'h')
+    ).rejects.toThrow('Alert email failed (500): Subj');
   });
 });

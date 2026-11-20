@@ -4,7 +4,9 @@
 // read as "no money moved". The payout stays held (processing, refunds
 // blocked), the operator is alerted, and the recovery the alert names clears it.
 import { describe, expect, it, vi } from 'vitest';
+import { escapeHtml } from '../_shared/clubMoneyEmails';
 import { MODE_CHECKED_REASON, refuseUnknownKeyMode } from './payoutAlerts';
+import { modeCheckedSql } from './payoutModeRecovery';
 import { run, type Query } from './payoutTestWorld';
 
 const isUpdate = (status: string) => (q: Query) =>
@@ -75,7 +77,9 @@ describe('the earlier attempt cannot be confirmed in the run’s Stripe mode', (
     await world.go();
     const body = alertBody(world, 'Payout held: Stripe mode') ?? '';
     expect(body).toContain('row-0');
-    expect(body).toContain(`failure_reason = '${MODE_CHECKED_REASON}' where id = 'row-0'`);
+    expect(body).toContain(escapeHtml(modeCheckedSql('row-0')));
+    // The run is in test mode; the mismatched attempt was live.
+    expect(body).toContain('in <strong>live mode</strong>, the mode the earlier attempt used');
     expect(body).toContain('other mode');
   });
 

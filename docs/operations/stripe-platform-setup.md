@@ -206,8 +206,10 @@ Toggle: **Live mode ON**. Five things exist per-mode and must be redone:
 3. **Live API key**: `supabase secrets set STRIPE_SECRET_KEY=sk_live_...` (a restricted
    `rk_live_...` key also reads as live; any other prefix stops every Stripe function, by design).
    **Before switching the key, no `show_payouts` row may be `processing`, `failed` or otherwise
-   unresolved** (go-live runbook step 3.2a has the query). A row left over is held, not paid
-   twice; see "Payout held: Stripe mode not confirmed" below.
+   unresolved, and no row may be queued (`pending`, `awaiting_approval`, `approved`, `held`)**
+   (go-live runbook step 3.2a has the query). Queued rows skip the attempt-mode check, so they
+   must be settled before the switch. Only a `failed` attempt or a stale `processing` one left
+   over is held, not paid twice; see "Payout held: Stripe mode not confirmed" below.
 4. **Purge sandbox-created Stripe IDs from the database.** Stripe IDs are mode-scoped: a
    `cus_`/`acct_` ID created in the sandbox does not exist in live mode, and the checkout
    function reuses cached customer IDs from `stripe_customers` — a stale sandbox ID makes
@@ -354,29 +356,58 @@ wrong region and reject the tenant). Password: `supabase/.env` → `SUPABASE_DB_
 exact working host/user is in the **private operator notes** (kept out of this public repo).
 
 **Payout held: Stripe mode not confirmed** (MYK9-2187). Stripe lists transfers only in the
-mode of the key that asks, so before the run checks Stripe about an earlier attempt it confirms
-that the attempt's account (`show_payouts.club_stripe_account_id` to
-`club_stripe_accounts.livemode`) is in the run's own mode. When it cannot (the other mode, no
-linked account, or the account cannot be read), it never reads an empty Stripe list as "no
-money moved": the row is held as `processing` (refunds stay blocked) and the alert names the
-row. To clear the hold, open the show's transfers in the Stripe dashboard **in the mode the
-attempt used** (search transfer group = the show id), then:
+mode of the key that asks, so before the run checks Stripe about a `failed` attempt, or a
+`processing` one gone stale, it confirms that the attempt's account
+(`show_payouts.club_stripe_account_id` to `club_stripe_accounts.livemode`) is in the run's own
+mode. When it cannot, it never reads an empty Stripe list as "no money moved": the row is held as
+`processing` (refunds stay blocked) and the alert names the row. The alert's steps are the same
+as these:
 
-- Stripe has a transfer: set the row `completed` with that transfer's id and amount.
-- Stripe has none:
+1. **Look up the show's transfers** (transfer group = the show id) in the Stripe dashboard:
+   - the alert says the attempt was in the **other mode**: check that mode;
+   - the alert says the attempt has **no linked account** or its account **could not be read**:
+     the run could not tell the mode, so check **both test and live mode** before changing
+     anything.
 
-  ```sql
-  update public.show_payouts
-     set status = 'failed', failure_reason = 'mode_checked_by_operator'
-   where id = '<payout row id from the alert>';
-  ```
+   A transfer Stripe shows as reversed, or whose reversed amount equals its amount, returned the
+   money: it is **not a payment**. Leave it out of what follows.
 
-  The next run trusts that check, asks Stripe only in its own mode, and queues the payout
-  again (it waits for approval while the payout brake is on).
+2. **The mode the run cannot see has no transfer that is not fully reversed** (the smallest
+   step, and the usual one): record only the check. The next run asks Stripe in its own mode,
+   records any transfer it finds there itself, and otherwise queues the payout again (it waits
+   for approval while the payout brake is on).
 
-**Payout run stopped: Stripe key mode unknown.** The run's `STRIPE_SECRET_KEY` does not start
-with `sk_live_`, `rk_live_`, `sk_test_` or `rk_test_`. Nothing is checked or sent until the
-secret is set to the intended key.
+   ```sql
+   update public.show_payouts
+      set status = 'failed', failure_reason = 'mode_checked_by_operator'
+    where id = '<payout row id from the alert>'
+      and status in ('processing', 'failed') and stripe_transfer_id is null;
+   ```
+
+3. **The mode the run cannot see has a transfer that is not fully reversed:** record it by hand
+   the way the run would, with Stripe's own figures: its id, its amount (the full amount, even if
+   partly reversed) and the account it went to. More than one such transfer, in either mode, is a
+   possible double payment: record the newest and reverse the others in the Stripe dashboard.
+
+   ```sql
+   update public.show_payouts
+      set status = 'completed',
+          stripe_transfer_id = '<tr_ id>',
+          amount_cents = <the transfer's amount in cents>,
+          completed_at = now(),
+          paid_stripe_account_id = '<acct_ id it went to>',
+          paid_destination_checked = true
+    where id = '<payout row id from the alert>'
+      and status in ('processing', 'failed') and stripe_transfer_id is null;
+   ```
+
+4. **Each statement must report exactly one row changed** (`UPDATE 1`). `UPDATE 0` means the
+   row is no longer unresolved or already has a transfer recorded: change nothing, and read the
+   row again.
+
+**Payout run stopped: Stripe key mode unknown.** The run's `STRIPE_SECRET_KEY` is missing,
+empty, or does not start with `sk_live_`, `rk_live_`, `sk_test_` or `rk_test_`. Nothing is
+checked or sent until the secret is set to the intended key.
 
 **Where to see results.** The completed payout appears in your **Payout Ledger at
 `/admin/payouts`** (Paid badge + transfer id) and in the club's own **My Club → Payments**.

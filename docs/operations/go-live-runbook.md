@@ -915,8 +915,11 @@ recorded.
              and newer.created_at > show_payouts.created_at
         );
       ```
-      Settle each row first (let the nightly run finish it, or record it by hand). A row left over
-      is not paid twice: the run holds it and alerts "Payout held: Stripe mode not confirmed"; the
+      Settle each row first (let the nightly run finish it, or record it by hand). **Queued rows
+      (`pending`, `awaiting_approval`, `approved`, `held`) block the switch too:** the run
+      reuses them without the attempt-mode check, so none may be left. The run's hold covers only
+      a `failed` attempt and a `processing` attempt gone stale: such a row left over is not paid
+      twice, the run holds it and alerts "Payout held: Stripe mode not confirmed", and the
       recovery is in `stripe-platform-setup.md` § Payout cron operations.
 - [ ] **3.3** Rotate edge-fn secrets: `supabase secrets set STRIPE_SECRET_KEY=sk_live_…` and
       `STRIPE_WEBHOOK_SECRET=whsec_<live account-scoped>`.

@@ -3,7 +3,10 @@
 
 import { escapeHtml, formatDollars } from '../_shared/clubMoneyEmails.ts';
 import type { StripeKeyMode } from '../_shared/stripeMode.ts';
+import { attemptModeRecoveryHtml } from './payoutModeRecovery.ts';
 import type { EligibleShow, PayoutSummary, ProcessShowDeps } from './payoutTypes.ts';
+
+export { MODE_CHECKED_REASON } from './payoutModeRecovery.ts';
 
 export type ShowRef = Pick<EligibleShow, 'id' | 'name' | 'club_id'>;
 type AlertDeps = Pick<ProcessShowDeps, 'alertAdmin'>;
@@ -116,13 +119,6 @@ export async function reportLookupError(
 
 export type AttemptMode = 'match' | 'mismatch' | 'no_account' | 'read_error';
 
-/**
- * The failure_reason an operator sets after checking, in the attempt's own
- * Stripe mode, that no transfer went out. The run then trusts that check and
- * asks Stripe only in its own mode (MYK9-2187).
- */
-export const MODE_CHECKED_REASON = 'mode_checked_by_operator';
-
 const ATTEMPT_MODE_WHY: Record<Exclude<AttemptMode, 'match'>, string> = {
   mismatch:
     'The earlier attempt was made to a Stripe account in the other mode (test or live) than the key the run uses now, so Stripe cannot show this run whether that transfer went out.',
@@ -137,7 +133,7 @@ const ATTEMPT_MODE_WHY: Record<Exclude<AttemptMode, 'match'>, string> = {
  * never retried, and the alert names the one step that clears the hold.
  */
 export async function reportAttemptModeHold(
-  deps: AlertDeps,
+  deps: Pick<ProcessShowDeps, 'alertAdmin' | 'stripeLivemode'>,
   summary: PayoutSummary,
   show: ShowRef,
   rowId: string,
@@ -151,16 +147,7 @@ export async function reportAttemptModeHold(
     `<p>${ATTEMPT_MODE_WHY[mode]} Nothing was checked, queued or sent for
      <strong>${escapeHtml(show.name)}</strong> (show <code>${show.id}</code>).</p>
      ${refundsLine(refunds)}
-     <p>To clear the hold, look up this show's transfers in the Stripe dashboard in the mode the
-     earlier attempt used (transfer group <code>${show.id}</code>), then update payout row
-     <code>${escapeHtml(rowId)}</code>:</p>
-     <ul>
-     <li>If Stripe has a transfer: set the row completed with that transfer's id and amount.</li>
-     <li>If Stripe has none: <code>update public.show_payouts set status = 'failed',
-     failure_reason = '${MODE_CHECKED_REASON}' where id = '${escapeHtml(rowId)}';</code> The next
-     run trusts that check, asks Stripe only in its own mode, and queues the payout again.</li>
-     </ul>
-     <p>Until then every run holds it. Runbook: docs/operations/stripe-platform-setup.md.</p>`,
+     ${attemptModeRecoveryHtml(mode, deps.stripeLivemode, show.id, rowId)}`,
     { dedupeKey: `payout-attempt-mode-${show.id}`, severity: 'error' }
   );
 }
@@ -175,8 +162,8 @@ export async function refuseUnknownKeyMode(deps: AlertDeps, mode: StripeKeyMode)
   console.error('Payout run stopped: STRIPE_SECRET_KEY is neither a live nor a test key');
   await deps.alertAdmin(
     'Payout run stopped: Stripe key mode unknown',
-    `<p>The payout run's STRIPE_SECRET_KEY does not start with sk_live_, rk_live_, sk_test_ or
-     rk_test_, so the run cannot tell whether it is in live or test mode. Nothing was checked,
+    `<p>The payout run's STRIPE_SECRET_KEY is missing, empty, or does not start with sk_live_,
+     rk_live_, sk_test_ or rk_test_, so the run cannot tell whether it is in live or test mode. Nothing was checked,
      queued or sent, and payouts already processing stay processing, so refunds stay blocked
      for those shows.</p>
      <p>Set the secret to the intended live or test key

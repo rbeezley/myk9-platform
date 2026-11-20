@@ -34,20 +34,25 @@ import type { PayoutAlertOptions } from './payoutTypes.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
+// Not required at boot (MYK9-2187): a missing or unrecognised key reaches the
+// operator alert in the handler instead of failing the function silently.
+const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY');
 const cronSecret = Deno.env.get('PAYOUT_CRON_SECRET')!;
 const resendApiKey = Deno.env.get('RESEND_API_KEY');
 
-if (!supabaseUrl || !supabaseServiceKey || !stripeSecret || !cronSecret) {
+if (!supabaseUrl || !supabaseServiceKey || !cronSecret) {
   throw new Error('Missing required environment variables');
 }
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
-const stripe = new Stripe(stripeSecret, {
-  appInfo: { name: 'myK9Show', version: '1.0.0' },
-});
 // MYK9-2187: an unknown key stops the run with an alert, never reads as test.
 const stripeMode = stripeKeyMode(stripeSecret);
+// Built on first use, after the key's mode is known.
+let stripeClient: Stripe | null = null;
+function stripeFor(secret: string): Stripe {
+  stripeClient ??= new Stripe(secret, { appInfo: { name: 'myK9Show', version: '1.0.0' } });
+  return stripeClient;
+}
 
 const PAYOUT_DELAY_DAYS = 3;
 const STALE_PROCESSING_HOURS = 24;
@@ -128,7 +133,7 @@ Deno.serve(async req => {
     attempt_mode_holds: 0,
   };
 
-  if (await refuseUnknownKeyMode({ alertAdmin }, stripeMode)) {
+  if ((await refuseUnknownKeyMode({ alertAdmin }, stripeMode)) || !stripeSecret) {
     return Response.json({ error: 'Stripe key mode unknown', ...summary }, { status: 500 });
   }
 
@@ -143,7 +148,7 @@ Deno.serve(async req => {
     const brakeOn = settings?.payouts_require_approval !== false;
     const deps: ProcessShowDeps = {
       supabase,
-      stripe,
+      stripe: stripeFor(stripeSecret),
       stripeLivemode: stripeMode === 'live',
       brakeOn,
       alertAdmin,

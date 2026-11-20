@@ -267,6 +267,7 @@ is still clean. Run the review gate, with a maximum of 3 rounds.
   ```bash
   gh pr list --state open --limit 50 --json number,isDraft,headRefName,headRefOid,body |
     jq -r --arg p "$PREFIX" --arg n "$N" '.[] | select(.isDraft | not)
+      | select(.headRefName | startswith($p + "plan-") | not)
       | select((.headRefName | startswith($p))
                or ((.headRefName | startswith("claude/")) and (.body | test("Fixes MYK9-\($n)\\b"))))
       | "\(.number) \(.headRefName) \(.headRefOid)"'
@@ -492,24 +493,24 @@ run, and mark each `refill` issue in the table (e.g. `MYK9-321 (refill)`).
 
 ## Common mistakes
 
-| Mistake                                                     | Instead                                                                                              |
-| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| Treating an automated status as acceptance proof            | Fresh-read all criteria and reconcile the actual post-merge state                                    |
-| Dispatching the issue's criteria without reproducing them   | Reproduce on `main` first; hold what you cannot see                                                  |
-| Building the issue's Recommendation as written              | Weigh an alternative; the criteria are the contract, not the fix                                     |
-| Picking raw Todo or Backlog without eligibility checks      | Ready or its qualified fallback; judge risk from the diff at ship time                               |
-| Handing a refund fix to sonnet "because it's small"         | Money is held, whatever its size                                                                     |
-| Letting the implementer push, open the PR or post the gate  | The orchestrator owns every shared-system write                                                      |
-| Retrying a red CI a third time                              | Hold after two attempts; unfinished code stays In Progress                                           |
-| Removing a merge-pending worktree                           | Keep it; named executor reconciles merge/evidence before cleanup                                     |
-| Ending an overnight run when the approved list is done      | Refill from Ready/qualified fallback until an approved stop condition                                |
-| Reusing run-start Ready results for refills                 | Re-query and requalify; the board changes overnight                                                  |
-| Messaging a cloud session, or pushing to its branch early   | Read its PR; give its self-fix 10 min, then fix locally in `$WT`                                     |
-| Treating cloud implementers as free of the Mac cap entirely | Their Codex reviews and verifier runs still count; queue those at 3                                  |
-| Sending an E2E-proven issue to the cloud lane               | No `.env.local` or staging there; it stays local                                                     |
-| Watching `gh pr list --head <name>` for a cloud PR          | The harness names the branch; match `$PREFIX` or `Fixes MYK9-<n>`, read `$BRANCH` from the PR        |
-| Dispatching a cloud session without starting its watcher    | Start `watch-cloud-session.sh` in the same turn; a stall exit is a local takeover, no owner question |
-| Holding or re-dispatching on a missed cloud deadline        | Take over locally on the existing branch; push on top, never force-push                              |
-| Letting a cloud session schedule its own check-in           | The preamble forbids triggers; `--permission-mode dontAsk` denies whatever would prompt              |
-| Starting a local fix round on the head you fetched earlier  | Compare the ledger's head with `ls-remote` before the round, after it and before the push            |
-| Accepting an implementer's scoped test run as coverage      | Its report must name the `vitest related` run, `src/test/ci`, lint and the test typecheck            |
+| Mistake                                                     | Instead                                                                                                                        |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Treating an automated status as acceptance proof            | Fresh-read all criteria and reconcile the actual post-merge state                                                              |
+| Dispatching the issue's criteria without reproducing them   | Reproduce on `main` first; hold what you cannot see                                                                            |
+| Building the issue's Recommendation as written              | Weigh an alternative; the criteria are the contract, not the fix                                                               |
+| Picking raw Todo or Backlog without eligibility checks      | Ready or its qualified fallback; judge risk from the diff at ship time                                                         |
+| Handing a refund fix to sonnet "because it's small"         | Money is held, whatever its size                                                                                               |
+| Letting the implementer push, open the PR or post the gate  | The orchestrator owns every shared-system write                                                                                |
+| Retrying a red CI a third time                              | Hold after two attempts; unfinished code stays In Progress                                                                     |
+| Removing a merge-pending worktree                           | Keep it; named executor reconciles merge/evidence before cleanup                                                               |
+| Ending an overnight run when the approved list is done      | Refill from Ready/qualified fallback until an approved stop condition                                                          |
+| Reusing run-start Ready results for refills                 | Re-query and requalify; the board changes overnight                                                                            |
+| Messaging a cloud session, or pushing to its branch early   | Read its PR; give its self-fix 10 min, then fix locally in `$WT`                                                               |
+| Treating cloud implementers as free of the Mac cap entirely | Their Codex reviews and verifier runs still count; queue those at 3                                                            |
+| Sending an E2E-proven issue to the cloud lane               | No `.env.local` or staging there; it stays local                                                                               |
+| Watching `gh pr list --head <name>` for a cloud PR          | The harness names the branch; match `$PREFIX` or `Fixes MYK9-<n>`, minus `$PREFIX` + `plan-` heads; read `$BRANCH` from the PR |
+| Dispatching a cloud session without starting its watcher    | Start `watch-cloud-session.sh` in the same turn; a stall exit is a local takeover, no owner question                           |
+| Holding or re-dispatching on a missed cloud deadline        | Take over locally on the existing branch; push on top, never force-push                                                        |
+| Letting a cloud session schedule its own check-in           | The preamble forbids triggers; `--permission-mode dontAsk` denies whatever would prompt                                        |
+| Starting a local fix round on the head you fetched earlier  | Compare the ledger's head with `ls-remote` before the round, after it and before the push                                      |
+| Accepting an implementer's scoped test run as coverage      | Its report must name the `vitest related` run, `src/test/ci`, lint and the test typecheck                                      |

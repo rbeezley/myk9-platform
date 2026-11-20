@@ -17,7 +17,6 @@ import type { LedgerPayout } from '@/features/payments/payoutLedger';
 import {
   describePayoutActionError,
   formatApprovalTally,
-  TALLY_ACCOUNT_CAVEAT,
   tallyApprovals,
 } from '@/features/payments/payoutApproval';
 import { usePayoutBrake, useSetPayoutBrake } from '@/features/payments/usePayoutBrake';
@@ -66,14 +65,11 @@ export function PayoutBrakeCard({ payouts }: { payouts: LedgerPayout[] | undefin
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="space-y-1">
-          <p className="font-medium" data-testid="payout-approval-tally">
-            {payouts
-              ? formatApprovalTally(tallyApprovals(payouts))
-              : 'The approval tally could not be read yet.'}
-          </p>
-          {payouts && <p className="text-sm text-muted-foreground">{TALLY_ACCOUNT_CAVEAT}</p>}
-        </div>
+        <p className="font-medium" data-testid="payout-approval-tally">
+          {payouts
+            ? formatApprovalTally(tallyApprovals(payouts))
+            : 'The approval tally could not be read yet.'}
+        </p>
         {!online && (
           <p className="text-sm text-warning" role="status">
             {OFFLINE_PAYOUT_NOTE}

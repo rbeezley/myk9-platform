@@ -19,7 +19,13 @@ import {
   reportReconcileError,
   type FoundTransfer,
 } from './payoutAlerts.ts';
-import { checkFailedAttempt, lookUpShowTransfer, settleFoundTransfer } from './payoutReconcile.ts';
+import {
+  checkFailedAttempt,
+  lookUpShowTransfer,
+  paidDestinationColumns,
+  settleFoundTransfer,
+  stripeAccountIdOf,
+} from './payoutReconcile.ts';
 import { handleTransferError } from './payoutTransferError.ts';
 import type { EligibleShow, HeldMoneyLock, PayoutSummary, ProcessShowDeps } from './payoutTypes.ts';
 
@@ -423,6 +429,8 @@ async function payShow(
         status: 'completed',
         stripe_transfer_id: transfer.id,
         completed_at: new Date().toISOString(),
+        // Where Stripe says the money went, not where it was asked to go (MYK9-2195).
+        ...paidDestinationColumns(stripeAccountIdOf(transfer.destination)),
       })
       .eq('id', rowId);
     const sent = unrecorded;

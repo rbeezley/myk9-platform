@@ -37,7 +37,7 @@ export interface StripeTransfers {
         metadata: Record<string, string>;
       },
       options: { idempotencyKey: string }
-    ): PromiseLike<{ id: string }>;
+    ): PromiseLike<{ id: string; destination?: string | { id: string } | null }>;
   };
 }
 

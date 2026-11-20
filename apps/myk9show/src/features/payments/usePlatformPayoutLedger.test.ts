@@ -44,6 +44,8 @@ describe('payout approval data', () => {
       'approved_stripe_account_id',
       'hold_reason',
       'approval_reset_reason',
+      'paid_stripe_account_id',
+      'paid_destination_checked',
       'club_stripe_accounts!show_payouts_club_stripe_account_id_fkey(stripe_account_id, payouts_enabled)',
     ]) {
       expect(selects[0]).toContain(column);
@@ -99,6 +101,34 @@ describe('payout approval data', () => {
         destination: null,
       }).approval?.destination
     ).toBeNull();
+  });
+});
+
+describe('toLedgerPayout: where Stripe paid (MYK9-2195)', () => {
+  it('carries the recorded destination and whether it was checked', () => {
+    const base = {
+      id: 'p',
+      show_id: 's',
+      amount_cents: 1,
+      status: 'completed',
+      stripe_transfer_id: 'tr_1',
+      completed_at: null,
+      created_at: null,
+    };
+    expect(
+      toLedgerPayout({
+        ...base,
+        paid_stripe_account_id: 'acct_1',
+        paid_destination_checked: true,
+      })
+    ).toMatchObject({ paid_stripe_account_id: 'acct_1', paid_destination_checked: true });
+    expect(
+      toLedgerPayout({ ...base, paid_stripe_account_id: null, paid_destination_checked: false })
+    ).toMatchObject({ paid_stripe_account_id: null, paid_destination_checked: false });
+    expect(toLedgerPayout(base)).toMatchObject({
+      paid_stripe_account_id: null,
+      paid_destination_checked: null,
+    });
   });
 });
 

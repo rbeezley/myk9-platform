@@ -46,27 +46,24 @@ export function payoutsInApprovalQueue(rows: LedgerRow[]): QueuedPayoutRow[] {
 
 export interface ApprovalTally {
   approved: number;
-  sentForApprovedAmount: number;
+  matchedStripe: number;
 }
 
 /**
- * "N payouts approved, M sent for the approved amount" (owner decisions,
- * 2026-11-18), counted over EVERY payout row, failed attempts included: a
- * failed approved send keeps its approval, so it stays counted as approved and
- * unsent after the next run creates a replacement.
+ * "N payouts approved, M matched Stripe" (owner decisions, 2026-11-18),
+ * counted over EVERY payout row, failed attempts included: a failed approved
+ * send keeps its approval, so it stays counted as approved and unmatched after
+ * the next run creates a replacement.
  *
- * Sent for the approved amount: completed, with a Stripe transfer id, and the
- * amount recorded for that transfer equals the amount approved.
- *
- * Deliberately NOT a claim about which account Stripe paid. When reconciliation
- * cannot check a transfer's destination it completes the row and keeps its
- * account link, so nothing on the row tells a checked account from an unchecked
- * one. The owner chose to ship the count as exactly this, labelled honestly,
- * until the nightly run records the account Stripe paid (MYK9-2195).
+ * Matched Stripe: completed, with a Stripe transfer id, the amount recorded for
+ * that transfer equals the amount approved, and the account Stripe reported
+ * paying (recorded by the nightly run, MYK9-2195) is the approved account. A
+ * destination the run could not check, or a transfer recorded before the run
+ * kept it, never counts as matched.
  */
 export function tallyApprovals(payouts: LedgerPayout[]): ApprovalTally {
   let approved = 0;
-  let sentForApprovedAmount = 0;
+  let matchedStripe = 0;
   for (const payout of payouts) {
     const approval = payout.approval;
     if (!approval || approval.approvedAt === null || approval.approvedAmountCents === null) {
@@ -76,21 +73,20 @@ export function tallyApprovals(payouts: LedgerPayout[]): ApprovalTally {
     if (
       payout.status === 'completed' &&
       payout.stripe_transfer_id !== null &&
-      payout.amount_cents === approval.approvedAmountCents
+      payout.amount_cents === approval.approvedAmountCents &&
+      payout.paid_destination_checked === true &&
+      approval.approvedStripeAccountId !== null &&
+      payout.paid_stripe_account_id === approval.approvedStripeAccountId
     ) {
-      sentForApprovedAmount += 1;
+      matchedStripe += 1;
     }
   }
-  return { approved, sentForApprovedAmount };
+  return { approved, matchedStripe };
 }
 
-export function formatApprovalTally({ approved, sentForApprovedAmount }: ApprovalTally): string {
-  return `${approved} ${approved === 1 ? 'payout' : 'payouts'} approved, ${sentForApprovedAmount} sent for the approved amount`;
+export function formatApprovalTally({ approved, matchedStripe }: ApprovalTally): string {
+  return `${approved} ${approved === 1 ? 'payout' : 'payouts'} approved, ${matchedStripe} matched Stripe`;
 }
-
-/** Said beside the tally until the account Stripe paid is recorded (MYK9-2195). */
-export const TALLY_ACCOUNT_CAVEAT =
-  'Which Stripe account received each payout is not checked here yet.';
 
 function errorParts(error: unknown): { code: string; message: string } {
   if (error && typeof error === 'object') {

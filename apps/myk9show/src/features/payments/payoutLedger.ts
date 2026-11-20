@@ -186,6 +186,13 @@ export interface LedgerPayout {
   created_at: string | null;
   /** MYK9-2170 approval state, mapped once by the ledger read; absent reads as none. */
   approval?: PayoutApprovalState;
+  /**
+   * MYK9-2195: the Stripe account the transfer paid, as Stripe reported it.
+   * Set exactly when paid_destination_checked is true.
+   */
+  paid_stripe_account_id?: string | null;
+  /** true: Stripe reported the account; false: not checked; null/absent: not recorded. */
+  paid_destination_checked?: boolean | null;
 }
 
 /** club_stripe_accounts as the payout row points at it, read in the same request. */

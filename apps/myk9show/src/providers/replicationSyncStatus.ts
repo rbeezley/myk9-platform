@@ -56,7 +56,10 @@ export function getPostSyncInvalidationKeys(tableNames: readonly string[]): stri
   const keys = [...tableNames.map(name => [name]), ['judges', 'assignments']];
   // MYK9-2292: the premium checklist reads each show judge's affiliation from the server, so it
   // refreshes once an uploaded roster or person edit has actually landed, not when it was queued.
-  if (tableNames.some(name => name === 'judge_assignments' || name === 'people')) {
+  // It also reads live classes and trials (the judges that print), so their uploads count too.
+  if (
+    tableNames.some(name => ['judge_assignments', 'people', 'classes', 'trials'].includes(name))
+  ) {
     keys.push([PREMIUM_JUDGE_AFFILIATIONS_KEY]);
   }
   return keys;

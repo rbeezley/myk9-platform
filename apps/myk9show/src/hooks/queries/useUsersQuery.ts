@@ -19,7 +19,7 @@ import { fetchAdminUserListRows } from './adminUserListPaging';
 import { PREMIUM_JUDGE_AFFILIATIONS_KEY } from '@/services/database/judges/judgeAffiliations';
 import { logger } from '@/services/LoggingService';
 import { ensureError } from '@myk9/core';
-import { extractRoles, mapDbJudgeQualifications } from '@/services/mappers/userMappers';
+import { extractRoles } from '@/services/mappers/userMappers';
 
 export interface AdminUser extends User {
   lastSignInAt: string | null;
@@ -55,11 +55,6 @@ export const mapDbUserToUser = (dbUser: MappableDbUser): User => ({
   // MYK9-664: no dateOfBirth / juniorHandlerNumbers — they live in
   // `people_private`, not on the row this maps (see personPrivate.ts).
   roles: extractRoles(dbUser as unknown as Record<string, unknown>),
-  // MYK9-2292: a judge made by the show wizard has a qualification and no judge role; the
-  // roster must carry it so the profile offers the affiliation field (isJudgePerson).
-  judgeQualifications: mapDbJudgeQualifications(
-    (dbUser as unknown as Record<string, unknown>).judge_qualifications
-  ),
   createdAt: dbUser.created_at ? new Date(dbUser.created_at) : undefined,
   updatedAt: dbUser.updated_at ? new Date(dbUser.updated_at) : undefined,
   status: (dbUser.status as 'active' | 'suspended') || 'active',

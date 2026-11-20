@@ -81,9 +81,13 @@ a bank account the club may have already spent from. Email the treasurer what ha
 amount, and why — reversing first and explaining later is how you lose a club. Before step 3,
 get the treasurer's written answer to two things: the amount the club has **not** already paid
 or scheduled to this exhibitor, and the club's agreement that it will not pay that amount
-itself. Refund only that confirmed amount. If the club has already paid in full, stop: there is
-nothing to refund or reverse. (On the signal-2 path the Stripe refund already exists, so ask
-the treasurer to confirm the club has not also paid the exhibitor directly.)
+itself. Also check the payment intent in Stripe for refunds already issued on this entry: the
+treasurer's answer covers the club's payments, not earlier Stripe refunds. Refund only the
+balance still owed for each entry after both. If the club has already paid in full and no Stripe
+refund exists yet, stop: there is nothing to refund or reverse. If Stripe has already debited the
+platform (the signal-2 path, where the Stripe refund exists, or a lost dispute) and the club has
+also paid the exhibitor directly, issue no further refund, and settle the duplicate payment with
+the club before you close the alert or reverse the transfer.
 
 **3. Refund the exhibitor.** Stripe dashboard → Payments → search the
 `stripe_payment_intent_id` → Refund → enter the partial amount. Note the refund id (`re_...`).

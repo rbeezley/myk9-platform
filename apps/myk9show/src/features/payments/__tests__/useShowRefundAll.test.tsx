@@ -49,8 +49,8 @@ describe('useShowRefundAll', () => {
     expect(message).toMatch(/club has already been paid for this show/i);
     expect(message).toMatch(/still owed are the club.s to pay each exhibitor directly/i);
     // stripe-refund-show refuses before reading entries, so the refusal cannot
-    // say every exhibitor is still owed: the club checks prior refunds first.
-    expect(message).toMatch(/check which exhibitors have already been refunded/i);
+    // say every exhibitor is still owed: the club pays each entry's remaining balance.
+    expect(message).toMatch(/for each entry, pay only what is still owed/i);
     expect(message).not.toMatch(/support/i);
   });
 });

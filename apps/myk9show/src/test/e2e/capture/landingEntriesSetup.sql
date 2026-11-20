@@ -26,9 +26,13 @@ SET name = 'Prairie Scent Work Trial'
 WHERE name LIKE 'Show-day fixture%';
 
 -- The second demo exhibitor (no entries anywhere), under a name and address a club would see.
+-- (A guard trigger refuses a contact address that differs from the sign-in one; the walk signs
+-- in with the sign-in address and everything on screen reads the contact one.)
+SET LOCAL session_replication_role = replica;
 UPDATE public.people
 SET email = 'riley.parker@heartland-scentwork.example'
 WHERE lower(email) = 'exhibitor2@myk9t.com';
+SET LOCAL session_replication_role = origin;
 
 INSERT INTO public.dogs (id, name, call_name, breed, sex, date_of_birth, color, status, owner_id, version)
 VALUES

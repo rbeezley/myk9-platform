@@ -351,6 +351,10 @@ copy the exact pooler host from there (the `db.<ref>.supabase.co` CNAME can reso
 wrong region and reject the tenant). Password: `supabase/.env` → `SUPABASE_DB_PASSWORD`. The
 exact working host/user is in the **private operator notes** (kept out of this public repo).
 
+**Payout run stopped: Stripe key mode unknown.** The run's `STRIPE_SECRET_KEY` is missing,
+empty, or does not start with `sk_live_`, `rk_live_`, `sk_test_` or `rk_test_`. Nothing is
+checked or sent until the secret is set to the intended key.
+
 **Where to see results.** The completed payout appears in your **Payout Ledger at
 `/admin/payouts`** (Paid badge + transfer id) and in the club's own **My Club → Payments**.
 

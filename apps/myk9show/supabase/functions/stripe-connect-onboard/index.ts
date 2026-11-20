@@ -1,7 +1,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
-import { isStripeLiveMode } from '../_shared/stripeMode.ts';
+import { requireStripeLivemode } from '../_shared/stripeMode.ts';
 import { stepUpRefusal } from '../_shared/stepUpReauth.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -17,7 +17,8 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 const stripe = new Stripe(stripeSecret, {
   appInfo: { name: 'myK9Show', version: '1.0.0' },
 });
-const stripeLivemode = isStripeLiveMode(stripeSecret);
+// Fails closed at boot on a key whose mode is unknown (MYK9-2187).
+const stripeLivemode = requireStripeLivemode(stripeSecret);
 
 // CORS configuration — same origins as stripe-checkout / stripe-customer-portal
 const ALLOWED_ORIGINS = [

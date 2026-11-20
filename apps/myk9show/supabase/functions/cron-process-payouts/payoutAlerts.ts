@@ -2,6 +2,7 @@
 // writes (MYK9-2183). Every club- or Stripe-supplied value is HTML-escaped.
 
 import { escapeHtml, formatDollars } from '../_shared/clubMoneyEmails.ts';
+import type { StripeKeyMode } from '../_shared/stripeMode.ts';
 import type { EligibleShow, PayoutSummary, ProcessShowDeps } from './payoutTypes.ts';
 
 export type ShowRef = Pick<EligibleShow, 'id' | 'name' | 'club_id'>;
@@ -111,6 +112,26 @@ export async function reportLookupError(
      <p>The next run asks again. If this repeats, check the Stripe status page and key.</p>`,
     { dedupeKey: `payout-transfer-lookup-error-${show.id}`, severity: 'error' }
   );
+}
+
+/**
+ * The run's own key is neither live nor test (MYK9-2187): true when the run
+ * must stop, after alerting. Nothing is checked, queued or sent.
+ */
+export async function refuseUnknownKeyMode(deps: AlertDeps, mode: StripeKeyMode): Promise<boolean> {
+  if (mode !== 'unknown') return false;
+  console.error('Payout run stopped: STRIPE_SECRET_KEY is neither a live nor a test key');
+  await deps.alertAdmin(
+    'Payout run stopped: Stripe key mode unknown',
+    `<p>The payout run's STRIPE_SECRET_KEY is missing, empty, or does not start with sk_live_,
+     rk_live_, sk_test_ or rk_test_, so the run cannot tell whether it is in live or test mode. Nothing was checked,
+     queued or sent, and payouts already processing stay processing, so refunds stay blocked
+     for those shows.</p>
+     <p>Set the secret to the intended live or test key
+     (<code>supabase secrets set STRIPE_SECRET_KEY=...</code>); the next run goes ahead.</p>`,
+    { dedupeKey: 'payout-key-mode-unknown', severity: 'error' }
+  );
+  return true;
 }
 
 /**

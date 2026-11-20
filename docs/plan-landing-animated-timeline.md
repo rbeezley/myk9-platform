@@ -75,14 +75,14 @@ One reusable component, `TimelineScene`, driven by data in `lifecycleStories.ts`
 
 Six full scenes would make a very long page. Three steps sell the product and get the full treatment; the other three are one still and one line each.
 
-| Step            | Treatment | Notes                                                                    |
-| --------------- | --------- | ------------------------------------------------------------------------ |
-| Set up          | Still     | Create Show wizard                                                       |
-| Entries open    | Scene     | Prototyped; flow below                                                   |
-| Before show day | Still     | Keeps `NightBeforeCard`                                                  |
-| Show day        | 2 scenes  | At the ring (judge, prototyped) and at the desk (secretary); flows below |
-| Results         | Scene     | Secretary releases; exhibitor's phone shows the placement                |
-| After           | Still     | Dog's record                                                             |
+| Step            | Treatment | Notes                                                                                |
+| --------------- | --------- | ------------------------------------------------------------------------------------ |
+| Set up          | Still     | Create Show wizard                                                                   |
+| Entries open    | Scene     | Prototyped; flow below                                                               |
+| Before show day | Still     | Keeps `NightBeforeCard`                                                              |
+| Show day        | Scene     | At the ring (judge). The desk scene moved to the training guides (owner, 2026-11-20) |
+| Results         | Scene     | Secretary releases; exhibitor's phone shows the placement                            |
+| After           | Still     | Dog's record                                                                         |
 
 ### The "Entries open" scene (re-verified in code 2026-11-15)
 
@@ -144,6 +144,8 @@ Facts the copy must respect:
 - Per-judge access codes now scope each code to that judge's classes (MYK9-1950). Sign-in is not a line in this scene.
 
 ### The "Show day, at the desk" scene (re-verified in code 2026-11-15, not captured)
+
+> **Not on the landing page (owner, 2026-11-20).** The ring scene already tells show day, and check-in at the desk is detail a club needs once it has signed up, so this flow goes to the training guides (see "After this plan") instead. Kept here as the verified flow for that work.
 
 The secretary's screen leads. The second device is the judge's tablet for lines 1 to 3. For line 4 there is no second device: the paper score sheet is the other half of the picture, so that frame needs a different treatment (a printed Score Sheet beside the screen). Words in `SCENE_LINES['showday-desk']`.
 
@@ -217,9 +219,11 @@ Reordered on 2026-11-17: the ring scene goes first, because its screens are sett
 - `ScreenshotExplainer` stays: the exhibitor's show-day step still plays an explainer on `e-13` (Phase 2 retires it with the Show day scene). Only the Entries explainer data and its still went.
 - **Tests:** unit tests for frame-to-style math (region and ring to percentages), line-to-frame mapping, pause, jump, Next and Back in step-through mode (nothing advances by itself), reduced motion and "plays only in view". Render the component on the real story data, not a hand-made prop. Run the landing E2E specs.
 
-### Phase 2: Show day and Results scenes, and the three stills
+### Phase 2: the Results scene and the three stills
 
-- Capture and wire the remaining two scenes and three stills. Remove the old two-column layout and its CSS. **Done in part (MYK9-2295, owner 2026-11-19):** `meanwhileShot` and its CSS are gone; the meanwhile column is a sentence, or a scene where one is wired. Still to do here: the three stills and the rest of the two-column layout.
+**Owner decision (2026-11-20): one more scene, not two.** After the Entries scene the phone page is 14.22 screens (club) and 14.45 (exhibitor) against a limit of 15, and each scene adds about 1.3. The options were raising the limit, shortening scenes, or dropping one. Chosen: drop the desk scene from the landing page (it moves to the guides), build the Results scene, and raise the phone page-length limit from 15 to 16 for it. Shortening scenes was rejected: fewer frames leave a line without its screen, and smaller frames bring back the unreadable phone text the ring scene was re-captured to fix. The three stills stay.
+
+- Capture and wire the Results scene and the three stills. Remove the old two-column layout and its CSS. **Done in part (MYK9-2295, owner 2026-11-19):** `meanwhileShot` and its CSS are gone; the meanwhile column is a sentence, or a scene where one is wired. Still to do here: the three stills and the rest of the two-column layout.
 - **Tests:** as Phase 1 for the new scenes. Assert rendered geometry at 390px and 1280px (no horizontal overflow, devices stack on the phone). Shuffled full-suite run.
 
 ### Phase 3: hero, trust bar, pricing, FAQ (trust bar, pricing and FAQ built 2026-11-16)
@@ -255,7 +259,7 @@ What must differ from the landing page:
 Rules for that work:
 
 - **Never reuse a landing scene as a guide.** Landing scenes leave steps out on purpose. Share the component and the capture pipeline, not the frame data.
-- **Not every guide page.** Each scene costs captures and measured regions and goes stale when its screen changes. Start with the core tasks per role: enter a show, accept entries, score a dog at the ring, enter paper scores, release results.
+- **Not every guide page.** Each scene costs captures and measured regions and goes stale when its screen changes. Start with the core tasks per role: enter a show, accept entries, check in at the desk (the verified flow under "Show day, at the desk", moved off the landing page on 2026-11-20), score a dog at the ring, enter paper scores, release results.
 - **Same hold.** Capture only after the screens settle.
 - **Guides are followed by first-timers.** Nothing autoplays, every frame has alt text, and a reader who never touches the scene loses nothing (`INTENT.md`: never makes you feel stupid).
 - **The deck's own needs stay open.** MYK9-836 also asks for presenter notes and a PDF leave-behind, which the component does not provide.

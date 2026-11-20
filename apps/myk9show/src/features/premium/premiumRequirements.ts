@@ -60,8 +60,6 @@ export interface PremiumRequirementFacts {
     id: string;
     name: string;
     affiliation: string | null;
-    /** Whether the viewer may edit that person; only then does the item link to their profile. */
-    canEdit?: boolean;
   }>;
   trials: Array<
     Pick<PremiumFacts['trials'][number], 'name' | 'eventNumber' | 'classLabels'> & {
@@ -222,13 +220,13 @@ const CHECKS: Partial<Record<PremiumFactId, Check>> = {
   },
   // MYK9-2292: ASCA §1.5.7. One item per judge on the show with no affiliation on their record.
   judgeAffiliation: {
-    missing: (f, r) =>
+    missing: (f, r, _min, t) =>
       (f.judgeAffiliations ?? [])
         .filter(j => blank(j.affiliation))
         .map(j => ({
           key: `judgeAffiliation:${j.id}`,
-          message: `${r} requires each judge's affiliation. Ask ${j.name} to add their affiliation on their myK9 profile.`,
-          ...(j.canEdit && { href: `/people/${j.id}` }),
+          message: `${r} requires each judge's affiliation. Add ${j.name}'s affiliation in Edit show, under Judges.`,
+          href: getShowEditHref(t.showId, 'judges'),
         })),
     href: () => null,
   },

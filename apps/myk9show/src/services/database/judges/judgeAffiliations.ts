@@ -10,8 +10,6 @@ export interface ShowJudgeAffiliation {
   id: string;
   name: string;
   affiliation: string | null;
-  /** Whether the viewer may edit this person's record (the server's `can_edit_person`). */
-  canEdit: boolean;
 }
 
 /** The premium checklist's affiliation read; prefix-invalidated by every write that can change it. */
@@ -39,17 +37,11 @@ async function fetchAssignments(showId: string): Promise<LiveJudgeAssignmentRow[
   return rows;
 }
 
-async function canEditPerson(personId: string): Promise<boolean> {
-  const { data, error } = await supabase.rpc('can_edit_person', { p_person_id: personId });
-  return !error && data === true;
-}
-
 /**
  * The judges the ASCA premium prints, once each, with their affiliation, for the premium
  * checklist (MYK9-2292). An online read of the person record, where the affiliation is typed;
  * the checklist only warns, so a failed read leaves the item out rather than reporting every
- * judge as empty. `canEdit` is asked only for a judge with none, to decide whether the item may
- * link to the profile; a failed check means no link.
+ * judge as empty.
  */
 export async function fetchShowJudgeAffiliations(showId: string): Promise<ShowJudgeAffiliation[]> {
   const [rows, trialsResult] = await Promise.all([
@@ -63,10 +55,5 @@ export async function fetchShowJudgeAffiliations(showId: string): Promise<ShowJu
     throw createDatabaseError(trialsResult.error, 'trials', 'select_judge_affiliation_trials');
   }
   const judges = liveShowJudges(rows, (trialsResult.data ?? []) as unknown as LiveJudgeTrialRow[]);
-  return Promise.all(
-    judges.map(async judge => ({
-      ...judge,
-      canEdit: judge.affiliation ? false : await canEditPerson(judge.id),
-    }))
-  );
+  return judges;
 }

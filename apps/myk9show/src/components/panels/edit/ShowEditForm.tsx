@@ -31,6 +31,7 @@ import { premiumOrgOf } from '@/features/premium/premiumOrg';
 import { ShowEditVenueTab } from './ShowEditVenueTab';
 import { ShowEditAddJudgeDialog } from './ShowEditAddJudge';
 import { useShowEditJudgeCreate } from './useShowEditJudgeCreate';
+import { AssignedJudgeNote } from './JudgeAffiliationField';
 import type { ShowEditTab } from '@/components/shows/showEditRoutes';
 
 interface ShowEditFormProps {
@@ -358,11 +359,7 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
                                   .join('; ')}
                               </div>
 
-                              {isAssigned && (
-                                <div className="text-sm text-success mt-2 font-medium">
-                                  Assigned to show
-                                </div>
-                              )}
+                              {isAssigned && <AssignedJudgeNote judgeId={judge.id} />}
                             </div>
                           </div>
                         </div>

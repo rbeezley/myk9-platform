@@ -299,6 +299,8 @@ test('captures the Results scene on the secretaryâ€™s desktop and the exhibitorâ
         (await classLine.first().innerText()).replace(/\s+/g, ' ')
       );
       await expect(page.getByText('Show your results publicly?')).toHaveCount(0);
+      // Held until the release: the line carries no result and no time yet.
+      expect(await classLine.first().innerText()).not.toMatch(/Qualified|\d:\d\d|preliminary/);
       await shoot('phone', page, phoneShots, 'before', { row: classLine });
     });
 
@@ -322,6 +324,8 @@ test('captures the Results scene on the secretaryâ€™s desktop and the exhibitorâ
       await expect(chips.getByText('Not released')).toHaveCount(0);
       await waitForToastsToLeave(desk);
       await alignResultsPanes(desk);
+      // The gated setting is in force, so the page never says results show as they are scored.
+      expect(await detail.innerText()).not.toMatch(/as they are scored/);
       console.log('the class reads after ::', (await chips.innerText()).replace(/\s+/g, ' '));
       await shoot('desk', desk, deskShots, 'released', {
         chips,

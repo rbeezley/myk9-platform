@@ -12,20 +12,30 @@ export const getAllClubs = async () => {
   const startTime = Date.now();
 
   try {
-    const { data, error } = await supabase
-      .from('clubs')
-      .select('*')
-      .is('deleted_at', null)
-      .order('name', { ascending: true });
+    // MYK9-2252: PostgREST caps one response at max_rows, so a single request
+    // truncated the list at 1,000 clubs. Page by keyset on `id` (never offset,
+    // so a club added mid-read cannot shift a page), then order by name here:
+    // a name cursor would need escaping inside the filter and clubs can share a name.
+    const rows = [];
+    let lastId: string | null = null;
+    for (;;) {
+      let query = supabase.from('clubs').select('*').is('deleted_at', null);
+      if (lastId) query = query.gt('id', lastId);
+      const { data, error } = await query
+        .order('id', { ascending: true })
+        .range(0, POSTGREST_MAX_ROWS - 1);
 
-    const duration = Date.now() - startTime;
-    logQuery('club', 'select_all_with_shows', duration, error?.message);
+      if (error) throw createDatabaseError(error, 'club', 'select_all');
 
-    if (error) {
-      throw createDatabaseError(error, 'club', 'select_all');
+      const page = data ?? [];
+      rows.push(...page);
+      if (page.length < POSTGREST_MAX_ROWS) break;
+      lastId = String(page[page.length - 1]?.id);
     }
+    rows.sort((a, b) => String(a.name).localeCompare(String(b.name)));
 
-    return { data: data || [], error: null };
+    logQuery('club', 'select_all_with_shows', Date.now() - startTime);
+    return { data: rows, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'club', 'select_all');

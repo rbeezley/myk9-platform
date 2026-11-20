@@ -22,6 +22,7 @@ import {
   type SyncOptions,
 } from '@myk9/replication';
 import { logger } from '@myk9/core';
+import { fetchKeysetPages } from './keysetPager';
 import { supabase } from '@/services/database/supabaseClient';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import { verifyWaitlistEntriesGone } from './waitlistScopeProof';
@@ -152,17 +153,10 @@ export class ReplicatedWaitlistEntriesTable extends ReplicatedTable<ReplicatedWa
         }
       },
       fetchRemoteRows: async ({ since }) => {
-        const { data, error } = await supabase
-          .from('waitlist_entries')
-          .select('*')
-          .gt('updated_at', new Date(since).toISOString())
-          .order('updated_at', { ascending: true });
-
-        if (error) {
-          throw new Error(`Supabase query failed: ${error.message}`);
-        }
-
-        return (data ?? []) as unknown as WaitlistEntryRow[];
+        return (await fetchKeysetPages({
+          base: () => supabase.from('waitlist_entries').select('*'),
+          since,
+        })) as unknown as WaitlistEntryRow[];
       },
       getRemoteId: remote => String(remote.id),
       getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),

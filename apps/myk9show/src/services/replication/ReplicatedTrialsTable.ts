@@ -18,6 +18,7 @@ import {
   type SyncResult,
 } from '@myk9/replication';
 import { logger } from '@myk9/core';
+import { fetchKeysetPages } from './keysetPager';
 import { supabase } from '@/services/database/supabaseClient';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import { PendingDeletes } from './pendingDeletes';
@@ -267,26 +268,15 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
         }
       },
       fetchRemoteRows: async ({ scope, since, cache }) => {
-        let query = supabase
-          .from('trials')
-          .select('*')
-          .gt('updated_at', new Date(since).toISOString())
-          .order('updated_at', { ascending: true });
-
-        if (scope.value) {
-          query = query.eq('show_id', scope.value);
-        }
-
-        const { data, error } = await query;
-
-        if (error) {
-          throw new Error(`Supabase query failed: ${error.message}`);
-        }
+        const rows = (await fetchKeysetPages({
+          base: () => supabase.from('trials').select('*'),
+          since,
+          scope: query => (scope.value ? query.eq('show_id', scope.value) : query),
+        })) as unknown as TrialRow[];
 
         // Tombstones are positive server evidence, including when the last active
         // trial was deleted. The atomic engine helper protects dirty rows AND
         // concurrent queued writes; never use an unconditional local delete.
-        const rows = data ?? [];
         const tombstones = rows.filter(row => row.deleted_at);
         await cache.deleteIfClean(
           tombstones.map(row => String(row.id)),

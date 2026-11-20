@@ -8,6 +8,7 @@
  * - Local edits queue as mutations for later sync
  */
 
+import { fetchKeysetPages } from './keysetPager';
 import { POSTGREST_MAX_ROWS } from './postgrestMaxRows';
 import {
   ReplicatedTable,
@@ -211,32 +212,23 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
         return verifyShowsGone(inScope.map(row => row.id));
       },
       fetchRemoteRows: async ({ scope, since }) => {
-        let query = supabase
-          .from('shows')
-          // Explicit, not inherited. Soft-deleted shows were kept out of the
-          // replica only because shows_select hid them from everyone; MYK9-233
-          // lifted the site-admin arm out of that gate, so an admin's device
-          // would otherwise start syncing deleted shows into IndexedDB and
-          // every offline surface reading the replica would show them. A
-          // deleted show has no show-day use, so the replica stays live-only
-          // for every role. Behaviour is unchanged — the invariant is just
-          // stated here now instead of being an accident of the policy.
-          .select('*')
-          .is('deleted_at', null)
-          .gt('updated_at', new Date(since).toISOString())
-          .order('updated_at', { ascending: true });
-
-        if (scope.value) {
-          query = query.eq('club_id', scope.value);
-        }
-
-        const { data, error } = await query;
-
-        if (error) {
-          throw new Error(`Supabase query failed: ${error.message}`);
-        }
-
-        return (data ?? []) as unknown as ShowRow[];
+        return (await fetchKeysetPages({
+          base: () =>
+            supabase
+              .from('shows')
+              // Explicit, not inherited. Soft-deleted shows were kept out of the
+              // replica only because shows_select hid them from everyone; MYK9-233
+              // lifted the site-admin arm out of that gate, so an admin's device
+              // would otherwise start syncing deleted shows into IndexedDB and
+              // every offline surface reading the replica would show them. A
+              // deleted show has no show-day use, so the replica stays live-only
+              // for every role. Behaviour is unchanged — the invariant is just
+              // stated here now instead of being an accident of the policy.
+              .select('*')
+              .is('deleted_at', null),
+          since,
+          scope: query => (scope.value ? query.eq('club_id', scope.value) : query),
+        })) as unknown as ShowRow[];
       },
       getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
       filterLocalRows: (rows, scope) =>

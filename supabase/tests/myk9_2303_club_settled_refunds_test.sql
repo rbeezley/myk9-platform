@@ -134,6 +134,9 @@ SELECT '00000000-0000-0000-0000-000000230054', id, '00000000-0000-0000-0000-0000
 -- E1 and E2 are two $40 class entries of ONE card checkout (same payment intent).
 -- E1 already carries a $15 Stripe partial refund, so the club may settle $25 at most.
 -- E3 was paid in cash; E4 claims 'online' but has no payment intent.
+-- Written as service_role: entries_protect_payment_fields_insert refuses a paid-online
+-- entry or a payment intent from any other writer.
+SET LOCAL ROLE service_role;
 INSERT INTO public.entries (id, show_id, trial_id, entry_status, payment_status,
                             payment_method, entry_fee, stripe_payment_intent_id, refund_amount)
 VALUES
@@ -145,6 +148,7 @@ VALUES
    '00000000-0000-0000-0000-000000230021', 'submitted', 'paid', 'cash', 40, NULL, NULL),
   ('00000000-0000-0000-0000-000000230094', '00000000-0000-0000-0000-000000230011',
    '00000000-0000-0000-0000-000000230021', 'submitted', 'paid', 'online', 40, NULL, NULL);
+RESET ROLE;
 
 -- --- no payout yet: refused for the secretary -------------------------------
 SET LOCAL ROLE authenticated;
@@ -561,9 +565,13 @@ BEGIN
     INSERT INTO public.entries (show_id, trial_id, entry_status, payment_status,
                                 payment_method, entry_fee, club_refunded_amount)
     VALUES ('00000000-0000-0000-0000-000000230011', '00000000-0000-0000-0000-000000230021',
-            'submitted', 'paid', 'online', 40, 5);
+            'submitted', 'paid', 'cash', 40, 5);
     RAISE EXCEPTION 'FAIL an INSERT planted club_refunded_amount';
   EXCEPTION WHEN insufficient_privilege THEN
+    -- A cash entry, so only this guard (not the paid-online insert guard) can refuse it.
+    IF SQLERRM NOT LIKE 'club_refunded_amount must equal%' THEN
+      RAISE EXCEPTION 'FAIL the planted INSERT was refused by another guard: %', SQLERRM;
+    END IF;
     RAISE NOTICE 'PASS the guard refuses an INSERT with a non-zero club_refunded_amount';
   END;
   IF (SELECT club_refunded_amount FROM public.entries

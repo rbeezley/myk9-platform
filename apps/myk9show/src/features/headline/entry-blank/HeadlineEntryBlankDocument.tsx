@@ -319,7 +319,7 @@ export function HeadlineEntryBlankDocument(props: EntryBlankProps) {
           }}
         >
           <Text style={{ fontFamily: DISPLAY, fontSize: 7, color: MUTE }}>
-            ENTRIES CLOSE {props.closeDate ?? TO_BE_ANNOUNCED_LABEL}
+            ENTRIES CLOSE {props.closeDate ?? TO_BE_ANNOUNCED_LABEL.toUpperCase()}
           </Text>
           <Text style={{ fontFamily: DISPLAY, fontSize: 7, color: ACCENT }}>
             {props.onlineEntryUrl ?? 'myK9Show'}

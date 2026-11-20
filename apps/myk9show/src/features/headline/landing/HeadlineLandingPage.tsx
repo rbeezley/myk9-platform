@@ -265,8 +265,9 @@ function Particulars({ data }: { data: HeritageLandingData }) {
             <tr>
               <th>Format</th>
               <td>
-                {data.trials.length || TO_BE_ANNOUNCED_LABEL} trial
-                {data.trials.length === 1 ? '' : 's'}
+                {data.trials.length > 0
+                  ? `${data.trials.length} trial${data.trials.length === 1 ? '' : 's'}`
+                  : TO_BE_ANNOUNCED_LABEL}
               </td>
             </tr>
             <tr>

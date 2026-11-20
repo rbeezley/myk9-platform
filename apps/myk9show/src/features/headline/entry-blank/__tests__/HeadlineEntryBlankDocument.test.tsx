@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
+import { render } from '@/test/utils/testUtils';
 import type { ReactNode } from 'react';
 import { buildEntryBlankProps } from '@/features/heritage/entry-blank/buildEntryBlankProps';
 import { HeadlineEntryBlankDocument } from '../HeadlineEntryBlankDocument';
@@ -67,5 +68,16 @@ describe('HeadlineEntryBlankDocument', () => {
     expect(screen.getByText('§ 01 · The dog')).toBeTruthy();
     expect(screen.getByText('C. Beagles')).toBeTruthy();
     expect(screen.getByText('James Nakamura')).toBeTruthy();
+  });
+
+  it('upper-cases the close-date fallback to match the ENTRIES CLOSE footer line', () => {
+    const props = buildEntryBlankProps({
+      ...BASE_OPTS,
+      show: { ...BASE_OPTS.show, entry_close_date: null },
+    });
+    render(<HeadlineEntryBlankDocument {...props} />);
+
+    expect(screen.getByText('ENTRIES CLOSE TO BE ANNOUNCED')).toBeTruthy();
+    expect(screen.queryByText(/To be announced/)).toBeNull();
   });
 });

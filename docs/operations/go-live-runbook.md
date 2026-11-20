@@ -915,7 +915,7 @@ recorded.
              and newer.created_at > show_payouts.created_at
         );
       ```
-      Settle each row first (let the nightly run finish it, or record it by hand). **Queued rows
+      Settle each row first (let the nightly run finish it). **Queued rows
       (`pending`, `awaiting_approval`, `approved`, `held`) block the switch too:** the run
       reuses them without the attempt-mode check, so none may be left. The run's hold covers only
       a `failed` attempt and a `processing` attempt gone stale: such a row left over is not paid

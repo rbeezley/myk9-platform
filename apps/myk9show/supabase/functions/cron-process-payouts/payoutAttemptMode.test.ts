@@ -120,7 +120,54 @@ describe('the earlier attempt cannot be confirmed in the run’s Stripe mode', (
 });
 
 describe('the recovery step clears the hold', () => {
-  it('a failed row the operator marked checked is asked about in the run’s mode and queued again', async () => {
+  // The operator's only statement, applied to a held row the way Postgres would.
+  const applyOperatorCheck = (row: Record<string, unknown>) => {
+    const sql = modeCheckedSql(String(row.id));
+    const guarded = row.status === 'processing' && row.stripe_transfer_id == null;
+    expect(sql).toContain(`where id = '${String(row.id)}'`);
+    return guarded ? { ...row, failure_reason: MODE_CHECKED_REASON } : row;
+  };
+  const heldRow = { ...staleRow, status: 'processing', failure_reason: 'transfer_failed' };
+
+  it('a held row the operator checked is reconciled by the run through its own path', async () => {
+    // Before the check: held, nothing written, nothing asked.
+    const before = run({ staleRows: [heldRow], amounts: [0], attemptAccount: { livemode: true } });
+    await before.recoverStale();
+    expect(before.list).not.toHaveBeenCalled();
+    expect(before.payoutWrites()).toHaveLength(0);
+
+    const checked = applyOperatorCheck(heldRow);
+    expect(checked.status).toBe('processing');
+
+    const world = run({
+      staleRows: [checked],
+      amounts: [0],
+      attemptAccount: { livemode: true },
+      transfers: [{ id: 'tr_run_mode', amount: 5000, destination: 'acct_club' }],
+    });
+    await world.recoverStale();
+    expect(world.summary.attempt_mode_holds).toBe(0);
+    expect(world.summary.reconciled).toBe(1);
+    const done = world.payoutWrites().find(isUpdate('completed'));
+    expect(done?.filters).toContainEqual(['eq', 'status', 'processing']);
+    expect(done?.values).toMatchObject({
+      stripe_transfer_id: 'tr_run_mode',
+      amount_cents: 5000,
+      club_stripe_account_id: 'csa-1',
+      paid_stripe_account_id: 'acct_club',
+      paid_destination_checked: true,
+    });
+    expect(world.create).not.toHaveBeenCalled();
+  });
+
+  it('the check changes nothing on a row that is no longer held', () => {
+    const failed = { ...heldRow, status: 'failed' };
+    expect(applyOperatorCheck(failed)).toBe(failed);
+    const recorded = { ...heldRow, stripe_transfer_id: 'tr_x' };
+    expect(applyOperatorCheck(recorded)).toBe(recorded);
+  });
+
+  it('after the stale path fails a checked row, the next pass asks in the run’s mode and queues again', async () => {
     const world = run({
       latestRow: { id: 'row-0', status: 'failed', failure_reason: MODE_CHECKED_REASON },
       amounts: [9000],

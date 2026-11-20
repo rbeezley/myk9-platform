@@ -2,32 +2,32 @@
 // the earlier attempt's Stripe mode (MYK9-2187). One copy, used by the alert;
 // docs/operations/stripe-platform-setup.md carries the same procedure.
 //
-// Smallest safe procedure: the operator checks Stripe in the mode(s) the run
-// cannot see and records only that check, and the run (in its own mode)
-// records any transfer it can see itself. Only a live transfer in the mode
-// the run cannot see is recorded by hand, with the cron's own rules
-// (payoutReconcile.ts lookUpShowTransfer and recordStripeTransfer).
+// The operator never records a transfer and never moves a row's status by
+// hand. They check Stripe in the mode(s) the run cannot see and, only when
+// nothing there moved money, mark the held row as checked. The row stays
+// 'processing' (refunds blocked) and the run then settles it through its own
+// path in its own mode: lookUpShowTransfer, and recordStripeTransfer for a
+// transfer it finds (Stripe's amount, destination and the account link), or
+// failed for retry when there is none. Anything found in the other mode is
+// escalated, not fixed by hand.
 
 import { escapeHtml } from '../_shared/clubMoneyEmails.ts';
 
 /**
- * The failure_reason an operator sets after checking, in the attempt's own
- * Stripe mode, that no transfer went out. The run then trusts that check and
- * asks Stripe only in its own mode.
+ * The failure_reason an operator sets on a held 'processing' row after
+ * checking, in the mode(s) the run cannot see, that no transfer moved money.
+ * checkAttemptMode then treats the row as checkable in the run's own mode.
  */
 export const MODE_CHECKED_REASON = 'mode_checked_by_operator';
 
 export type UnconfirmedMode = 'mismatch' | 'no_account' | 'read_error';
 
-/** Only a row still unresolved, with no transfer recorded, may be changed by hand. */
-const UNRESOLVED_GUARD = `status in ('processing', 'failed') and stripe_transfer_id is null`;
-
+/**
+ * The only hand statement: marks the check and nothing else. The guard changes
+ * only a row still held as processing with no transfer recorded.
+ */
 export function modeCheckedSql(rowId: string): string {
-  return `update public.show_payouts set status = 'failed', failure_reason = '${MODE_CHECKED_REASON}' where id = '${rowId}' and ${UNRESOLVED_GUARD};`;
-}
-
-export function recordTransferSql(rowId: string): string {
-  return `update public.show_payouts set status = 'completed', stripe_transfer_id = '<tr_ id>', amount_cents = <the transfer's amount in cents>, completed_at = now(), paid_stripe_account_id = '<acct_ id it went to>', paid_destination_checked = true where id = '${rowId}' and ${UNRESOLVED_GUARD};`;
+  return `update public.show_payouts set failure_reason = '${MODE_CHECKED_REASON}' where id = '${rowId}' and status = 'processing' and stripe_transfer_id is null;`;
 }
 
 function modeName(live: boolean): string {
@@ -48,19 +48,21 @@ export function attemptModeRecoveryHtml(
       ? `in <strong>${other} mode</strong>, the mode the earlier attempt used`
       : `in <strong>both ${other} mode and ${run} mode</strong>: the run could not tell which
          mode the earlier attempt used, so check both before changing anything`;
+  const checked = mode === 'mismatch' ? `${other} mode` : 'either mode';
   return `<p>To clear the hold, look up transfer group <code>${escapeHtml(showId)}</code> in the
      Stripe dashboard ${where}. A transfer Stripe shows as reversed, or whose reversed amount
      equals its amount, returned the money: it is not a payment.</p>
      <ul>
-     <li>If ${other} mode has no transfer for this show that is not fully reversed, record only
-     the check: <code>${escapeHtml(modeCheckedSql(rowId))}</code> The next run asks Stripe in ${run} mode,
-     records a transfer it finds there itself, and otherwise queues the payout again.</li>
-     <li>If ${other} mode has a transfer that is not fully reversed, record it by hand with
-     Stripe's own figures (its id, its amount even if partly reversed, and the account it went
-     to): <code>${escapeHtml(recordTransferSql(rowId))}</code> More than one such transfer, in either mode, is a
-     possible double payment: record the newest and reverse the others in the Stripe dashboard.</li>
+     <li>If ${checked} has no transfer for this show that is not fully reversed, mark the row
+     checked: <code>${escapeHtml(modeCheckedSql(rowId))}</code> It must report exactly one row
+     changed (UPDATE 1); UPDATE 0 means the row has moved on, so change nothing. The row stays
+     processing, so refunds stay blocked. Once it has been processing for a day after this
+     update, the run asks Stripe in ${run} mode: it records a transfer it finds there, with
+     Stripe's figures, or fails the payout for retry when there is none.</li>
+     <li>If ${checked} has a transfer that is not fully reversed, change nothing: the row stays
+     held and refunds stay blocked. Forward this alert to the myK9Show developer, with the
+     transfer id, to reconcile it.</li>
      </ul>
-     <p>Each statement must report exactly one row changed (UPDATE 1). UPDATE 0 means the row is
-     no longer unresolved or already has a transfer: change nothing and read the row again.
-     Until then every run holds it. Runbook: docs/operations/stripe-platform-setup.md.</p>`;
+     <p>Never mark the row completed or failed by hand. Until it is checked, every run holds it.
+     Runbook: docs/operations/stripe-platform-setup.md.</p>`;
 }

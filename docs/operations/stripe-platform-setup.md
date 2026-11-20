@@ -370,40 +370,31 @@ as these:
      anything.
 
    A transfer Stripe shows as reversed, or whose reversed amount equals its amount, returned the
-   money: it is **not a payment**. Leave it out of what follows.
+   money: it is **not a payment**.
 
-2. **The mode the run cannot see has no transfer that is not fully reversed** (the smallest
-   step, and the usual one): record only the check. The next run asks Stripe in its own mode,
-   records any transfer it finds there itself, and otherwise queues the payout again (it waits
-   for approval while the payout brake is on).
-
-   ```sql
-   update public.show_payouts
-      set status = 'failed', failure_reason = 'mode_checked_by_operator'
-    where id = '<payout row id from the alert>'
-      and status in ('processing', 'failed') and stripe_transfer_id is null;
-   ```
-
-3. **The mode the run cannot see has a transfer that is not fully reversed:** record it by hand
-   the way the run would, with Stripe's own figures: its id, its amount (the full amount, even if
-   partly reversed) and the account it went to. More than one such transfer, in either mode, is a
-   possible double payment: record the newest and reverse the others in the Stripe dashboard.
+2. **No transfer that is not fully reversed** in the mode(s) you checked: mark the row checked.
+   This is the only statement you ever run for a hold. It leaves the row `processing`, so
+   refunds stay blocked:
 
    ```sql
    update public.show_payouts
-      set status = 'completed',
-          stripe_transfer_id = '<tr_ id>',
-          amount_cents = <the transfer's amount in cents>,
-          completed_at = now(),
-          paid_stripe_account_id = '<acct_ id it went to>',
-          paid_destination_checked = true
+      set failure_reason = 'mode_checked_by_operator'
     where id = '<payout row id from the alert>'
-      and status in ('processing', 'failed') and stripe_transfer_id is null;
+      and status = 'processing' and stripe_transfer_id is null;
    ```
 
-4. **Each statement must report exactly one row changed** (`UPDATE 1`). `UPDATE 0` means the
-   row is no longer unresolved or already has a transfer recorded: change nothing, and read the
-   row again.
+   It must report exactly one row changed (`UPDATE 1`). `UPDATE 0` means the row has moved on:
+   change nothing, and read the row again. Once the row has been processing for a day after this
+   update, the run asks Stripe in its own mode through its normal path: a transfer it finds is
+   recorded with Stripe's amount, destination and the club's account link; none fails the payout
+   for retry, and the run asks for it again (it waits for approval while the payout brake is on).
+
+3. **A transfer that is not fully reversed** in a mode you checked: **change nothing.** The row
+   stays held and refunds stay blocked. Forward the alert, with the transfer id, to the myK9Show
+   developer to reconcile it.
+
+Never mark a held row `completed` or `failed` by hand, and never record a transfer on it by
+hand.
 
 **Payout run stopped: Stripe key mode unknown.** The run's `STRIPE_SECRET_KEY` is missing,
 empty, or does not start with `sk_live_`, `rk_live_`, `sk_test_` or `rk_test_`. Nothing is

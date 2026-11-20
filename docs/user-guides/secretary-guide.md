@@ -45,6 +45,14 @@ The **Actions** button in the top bar changes with the page you are on. On **Sho
 
 > **A tool you do not use can be switched off.** In **Edit show → Venue & policies**, the **This show uses…** switches hide **Self check-in**, **Access codes** and **Volunteers** from this menu. Nothing is deleted, and switching one back on brings the row back with its data. A new show starts with **Self check-in** and **Access codes** showing, and **Volunteers** hidden until you switch it on. See card 3.
 
+### Your first show, if your club is new to myK9Show
+
+**Your club is not on myK9Show yet?** On the myK9Show home page choose **Add your club**, sign in or create a free account (sign-up asks for no role), and fill in the form. Then choose **Add my club**. The club exists right away and you are its **Club Admin** and its **Secretary/show manager**, so you can build a show and open the club's Payments tab the same day. The screen reads "Your club is waiting for myK9Show approval." Nothing is public until myK9Show approves the club, usually within a day. You are emailed when you ask and again when the club is approved or not.
+
+**Your club is already on myK9Show?** Do not ask for it again. Ask its club admin to add you as a member or give you secretary access.
+
+Your home page then shows **Get (your club's name)'s first show published**, a card that lists what is left and goes away after the club publishes its first show. Its button reads **Create your first show**, then **Continue your draft show** once a draft exists.
+
 ### Reading the schedule
 
 Each class on **Show Desk** is one card: the start time, the class name with its status, the judge and entry count. **Click anywhere on a card** to open that class in the panel on the right. The "N pending" link on the card opens those entries for review.
@@ -72,7 +80,9 @@ The wizard creates all three in one pass. **Actions → Add Show** (the Actions 
 2. **⚠️ Also on Step 1: add every judge** in the _Show Judges_ field. It looks optional. It is not — see the warning below.
 3. **Step 2 — Trials.** One row per trial: date, time, and (for AKC) the event number.
 4. **Step 3 — Classes.** Pick a template, then tick the classes each trial offers. Assign a judge per class. If only one of your judges is qualified for this show's classes, that judge is filled in on any class that has no judge yet.
-5. **Step 4 — Review.** Check the summary, then **Add Show**. The show stays private until you publish it (card 2).
+5. **Step 4 — Review.** Check the summary, then **Add Show**. The summary shows a **Before you can publish** list when something would stop the show from publishing. The show stays private until you publish it (card 2). When it is saved, the **Show Created!** screen shows the same list above its **Review & Publish Show** button.
+
+> **Host club not listed?** Under **Host Club**, choose **Your club isn't listed? Add your club**. It opens the same form as the home page and brings you back to your draft with the new club chosen.
 
 > **Adding your judges on Step 1 is still the smoothest path**, but no longer a trap: if you reach Step 3 without any, it now offers a way back to add them.
 
@@ -82,7 +92,16 @@ The wizard creates all three in one pass. **Actions → Add Show** (the Actions 
 
 On the show page, open the **status pill** under the show's name and choose **Publish Show**. Exhibitors can find and enter the show once it is published.
 
-> Publishing needs the club's Stripe payouts set up. If it is refused, the message says what is missing.
+**Before you can publish.** Every draft show carries a list headed **Before you can publish**. It shows only what stands in the way, and each line opens the place to fix it. It is on the show's page, on the wizard's **Review** step and on **Show Created!**. Publish is refused until every line is gone, and the refusal names what is missing. The lines are:
+
+| Line                                                                                           | What to do                                                                                                               |
+| ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Your club is waiting for myK9Show approval.                                                    | Wait. The line says it is waiting on myK9Show, usually about a day.                                                      |
+| Your club has not finished setting up payouts. / Stripe is reviewing your club's bank account. | A club admin connects the bank account under **Payments** (**Connect bank account**). Stripe may then take a day or two. |
+| Publish the premium list, or turn on "We publish our own premium list".                        | See the next paragraph.                                                                                                  |
+| Set when entries open and close. / Entries have to open before they close.                     | Set the entry open and close dates in **Edit show**.                                                                     |
+
+**If you are not a club admin.** You cannot connect the bank yourself. On the payouts line, myK9Show names the club's admins ("Waiting on (names), the club admins") and shows **Email them the link**. It opens an email to them with the link to the club's Payments tab. If your treasurer is not an admin yet, a club admin adds them (see the [Club Admin Guide](club-admin-guide.md)).
 
 **The premium list.** Next to the status, a line in amber reads "premium list not yet published" until you publish one. Choose it and you land on **About**, on the **Premium List** card. **Generate & publish premium** builds the premium list from the show's details and publishes it. If your club shares its own premium list, switch on **We publish our own premium list** (card 3) and that reminder goes away. For a show that uses a public landing page, the same card then offers **Publish landing page**, and the line reads "landing page not yet published" until you do.
 

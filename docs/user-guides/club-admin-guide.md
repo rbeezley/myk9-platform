@@ -31,15 +31,19 @@ Your club receives entry fees through a payment processor called Stripe. Here is
 
 **Why Stripe contacts the treasurer directly:** Stripe is legally required to verify the identity of the account holder before releasing funds. This is a U.S. regulatory requirement, not a myK9Show request. When you receive an email from Stripe asking for information, respond directly to them.
 
-### If you requested a new club
+### If you asked for a new club
 
-When a site admin approves your new-club request, myK9Show emails you and automatically gives you three club-scoped records for that club:
+You ask for a club once, on the myK9Show home page. Choose **Add your club**, sign in or create a free account, and fill in the form: club name, organization (AKC, UKC or ASCA), at least one club number and your contact details. Then choose **Add my club**.
 
-- an active **Club Admin** role;
-- an active club membership, so you appear in the **Members** roster; and
-- **Secretary/show manager** access, so you can create and operate that club's shows.
+The club exists right away, and you are its **Club Admin** and its **Secretary/show manager**. You can build a show and connect the club's bank account the same day. The screen reads "Your club is waiting for myK9Show approval." Nothing is public until myK9Show approves the club, usually within a day. You get an email when you ask and another when the club is approved or not.
 
-These permissions apply only to the approved club. You do not need to request secretary access again for that club, and this does not give you access to another club's shows.
+If the form says "A club with this name is already on myK9Show", the club is already here. Ask its admin to add you, or email us.
+
+These permissions apply only to your club. They do not give you access to another club's shows.
+
+**What happens next:** your home page shows a card titled with your club's name, for example **Get Heartland Scent Work Club's first show published**, that lists what is left. It goes away after your club publishes its first show. [Section 2](#section-2--your-clubs-shows) explains the list on each draft show.
+
+**If your club is already on myK9Show,** do not ask for it again. Ask its club admin to add you (see [Section 3](#section-3--grant-show-access-to-a-secretary), and [Section 7](#section-7--club-members) for adding an admin).
 
 ---
 
@@ -47,7 +51,7 @@ These permissions apply only to the approved club. You do not need to request se
 
 Your club profile holds the information that flows into every show your club hosts and every AKC results submission: club name, AKC/UKC/ASCA club numbers, mailing address, and contact information. Keeping this current saves corrections later.
 
-**Your club is already in the system** when you first sign in — a myK9Show admin created it from your club's request. You are here to review and update it, not create it from scratch. If your club is not in myK9Show yet, contact us.
+**Your club is already in the system** when you first sign in: it was created when you asked for it on the home page. You are here to review and update it, not create it from scratch. If your club is not in myK9Show yet, choose **Add your club** on the home page. A club that is waiting for approval shows "Waiting for myK9Show approval" on its page.
 
 1. Sign in with your Club Admin account.
 2. In the sidebar, open **My Club**. Your club's page opens.
@@ -73,6 +77,16 @@ The **Shows** page lists every show your club is hosting or has hosted. To start
 3. Click a show to open it.
 
 ![Shows list filtered to your club — cards for past and upcoming shows](../screenshots/C-02.png)
+
+**Before you can publish.** Every draft show carries a list headed **Before you can publish**. It shows only what stands in the way, and each line opens the place to fix it. The same list appears on the show's page, on the wizard's **Review** step and on the **Show Created!** screen. The lines you may see are:
+
+- "Your club is waiting for myK9Show approval." Waiting on myK9Show, usually about a day.
+- "Your club has not finished setting up payouts." or "Stripe is reviewing your club's bank account." See [Section 4](#section-4--connect-your-bank-account-to-receive-payouts).
+- "Publish the premium list, or turn on "We publish our own premium list"."
+- "Set when entries open and close."
+- "Entries have to open before they close."
+
+Publish is refused until every line is gone, and the refusal names what is missing. The list goes away when the show is published.
 
 **You manage your club's shows.** Opening one of your club's shows gives you the same four tabs a secretary gets, and each tab is a real page with its own address, not a panel:
 
@@ -128,7 +142,7 @@ The member's row now shows a **Show Manager** badge (key icon) indicating active
 
 ## Section 4 — Connect Your Bank Account to Receive Payouts
 
-Before your club can receive entry fee revenue, a treasurer needs to complete Stripe's onboarding. This takes about 10 minutes and only needs to be done once per club.
+Before your club can receive entry fee revenue, a treasurer needs to complete Stripe's onboarding. This takes about 10 minutes and only needs to be done once per club. The bank step needs a club admin. If your treasurer is not one yet, add them first (see [Section 7](#section-7--club-members), **Admins tab**), then send them the [Club Treasurer Guide](../operations/stripe-treasurer-guide.md).
 
 **Have this ready before you start:**
 
@@ -142,12 +156,14 @@ Before your club can receive entry fee revenue, a treasurer needs to complete St
 **Steps:**
 
 1. In the sidebar, open **My Club**, then **Payments**. Your club's page opens on its **Payments** tab, in a card called **Bank account**.
-2. Click **Connect payment account**.
+2. Click **Connect bank account**.
 3. Review the checklist on screen — confirm you have everything listed above.
 4. Click **Continue to Stripe** → you leave myK9Show and enter Stripe's onboarding form.
 5. Fill in your club's details as prompted. When you finish, Stripe returns you to myK9Show.
 
-![C-04: Payments tab — Bank account card with the Connect payment account button](../screenshots/C-04.png)
+![C-04: Payments tab — Bank account card with the Connect bank account button](../screenshots/C-04.png)
+
+**A secretary who is not a club admin cannot connect the bank.** On the show's **Before you can publish** list, the payouts line names the club's admins and offers **Email them the link**, which opens an email to them with the link to your Payments tab. Watch for that email, and for the line to clear once payouts are enabled.
 
 Once onboarding is complete, the Payments tab shows a **Payouts enabled** badge. Your club will receive a deposit automatically after each show closes — you do not need to request it.
 
@@ -252,6 +268,16 @@ If the person does not appear in the search, they may not have a myK9Show accoun
 2. Choose **Change Type** or **Change Status** and pick the new value, or choose **Remove Member**.
 3. For **Remove Member**, confirm with **Remove member**. They are off the roster immediately.
 
+**Admins tab:**
+
+Use the **Admins** tab to give another person club admin access, for example your treasurer. Club admins can edit the club, manage members, appoint secretaries and open Payments.
+
+1. On the Members page, open the **Admins** tab.
+2. Under **Add an admin**, type the email on their myK9Show account and click **Add admin**.
+3. Confirm "Add (their email) as an admin of (your club)?" with **Add admin**. They become an admin at once.
+
+The person needs a myK9Show account first. To take access away, click **Remove admin** beside their name and confirm. A club always keeps at least one admin, so the last one cannot be removed. Changing admins may ask you to type your password again.
+
 **Officers tab:**
 
 The **Officers** tab tracks the club's formal officers. Click **Assign Officer**, choose the person and a **Position** (President, Vice President, Secretary, Treasurer or Board Member). This is for your club's internal reference. It does not change what anyone can do in the app.
@@ -270,12 +296,12 @@ The **Officers** tab tracks the club's formal officers. Click **Assign Officer**
 
 All shots to be captured and added to `docs/training/screenshot-shot-list.md`. Status as of 2026-10-28 (stale = the app no longer looks like the caption; recapture before `verified`):
 
-| Shot ID | Section | Description                                                    | Status                          |
-| ------- | ------- | -------------------------------------------------------------- | ------------------------------- |
-| C-01    | § 1     | Club Settings form — all fields visible                        | captured 2026-10-28 (MYK9-1462) |
-| C-02    | § 2     | Club Admin → Shows list                                        | ready                           |
-| C-03    | § 3     | Members page — member row with Show Manager badge              | captured 2026-10-28 (MYK9-1462) |
-| C-04    | § 4     | Payments page — pre-onboarding "Connect payment account" state | captured 2026-10-28 (MYK9-1462) |
-| C-05    | § 5     | Payments page — payout history table                           | captured 2026-10-28 (MYK9-1462) |
-| C-06    | § 7     | Club Members page — members list                               | captured 2026-10-28 (MYK9-1462) |
-| C-07    | § 7     | Add Member dialog                                              | ready                           |
+| Shot ID | Section | Description                                                 | Status                                               |
+| ------- | ------- | ----------------------------------------------------------- | ---------------------------------------------------- |
+| C-01    | § 1     | Club Settings form — all fields visible                     | captured 2026-10-28 (MYK9-1462)                      |
+| C-02    | § 2     | Club Admin → Shows list                                     | ready                                                |
+| C-03    | § 3     | Members page — member row with Show Manager badge           | captured 2026-10-28 (MYK9-1462)                      |
+| C-04    | § 4     | Payments page — pre-onboarding "Connect bank account" state | stale: shows the old "Connect payment account" label |
+| C-05    | § 5     | Payments page — payout history table                        | captured 2026-10-28 (MYK9-1462)                      |
+| C-06    | § 7     | Club Members page — members list                            | captured 2026-10-28 (MYK9-1462)                      |
+| C-07    | § 7     | Add Member dialog                                           | ready                                                |

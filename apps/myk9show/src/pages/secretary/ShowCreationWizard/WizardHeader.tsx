@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, HelpCircle } from 'lucide-react';
+import { SECRETARY_GUIDE_CREATE_SHOW_ANCHOR, helpUrl } from '@/lib/help';
 import { Button } from '@/components/ui/button';
 import type { EditMode } from './show-creation-wizard-types';
 import { getEditModeTitle } from './wizardLabels';
@@ -69,6 +70,16 @@ export const WizardHeader: React.FC<WizardHeaderProps> = ({ editMode, onClose })
               {getEditModeTitle(editMode) ?? 'Wizard'}
             </span>
           </div>
+          <a
+            href={helpUrl('secretary-guide', SECRETARY_GUIDE_CREATE_SHOW_ANCHOR)}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="show-wizard-help-link"
+            className="ml-auto flex min-h-11 items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <HelpCircle className="h-4 w-4" />
+            Help
+          </a>
         </div>
       </div>
     </div>

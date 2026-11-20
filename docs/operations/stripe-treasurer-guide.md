@@ -1,5 +1,17 @@
 # Club Treasurer Guide: Getting Your Club Paid
 
+## Ask your club's admin to add you
+
+**Ask your club's admin to add you.** Only a club admin can connect the club's bank account, and there is no separate treasurer role. A treasurer is a club admin who does this one step.
+
+1. Make sure you have a myK9Show account. Sign up free if you do not.
+2. Ask your club's admin to open **My Club**, then **Members**, then the **Admins** tab. They type the email on your account under **Add an admin** and confirm with **Add admin**.
+3. You become an admin at once. Your club's page now shows a **Payments** tab.
+
+Your secretary can also send you a link. When a show cannot publish because the club has no bank account yet, the show's **Before you can publish** list names the club's admins and offers **Email them the link**. The email opens the club's Payments tab. You still need to be added as an admin first.
+
+---
+
 This guide is for the person who looks after your club's money. It walks you through connecting
 your club's bank account to myK9Show, one time, so your club is paid automatically after each show.
 
@@ -40,8 +52,9 @@ You also need:
 - **A mobile phone** that can receive a text message. Stripe texts you a code to confirm it is you.
 - **An email address you will keep.** Stripe sends deposit notices there.
 - **To be signed in to myK9Show as an admin of your club.** If you do not see a **Payments** tab on
-  your club's page in step 1 below, you are not set up as a club admin yet. Email the address at
-  the end of this guide and we will fix that.
+  your club's page in step 1 below, you are not a club admin yet. Ask your club's admin to add you
+  (see the top of this guide). If your club has no admin who can do that, email the address at the
+  end of this guide.
 
 ### The one thing that causes most delays
 

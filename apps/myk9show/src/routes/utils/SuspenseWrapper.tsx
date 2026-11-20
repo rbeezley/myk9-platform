@@ -56,7 +56,18 @@ class LoadingErrorBoundary extends React.Component<
   }
 
   override componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    logger.error('LoadingErrorBoundary caught an error:', 'utils', { data: error, errorInfo });
+    // MYK9-2285: an Error serializes to `{}`, so name the error in the message and metadata and
+    // hand the error itself over for its stack; the component stack alone left no cause.
+    logger.error(
+      `LoadingErrorBoundary caught an error: ${error.name}: ${error.message}`,
+      'utils',
+      {
+        errorName: error.name,
+        errorMessage: error.message,
+        componentStack: errorInfo.componentStack,
+      },
+      error
+    );
 
     // Track error in metrics
     if (this.props.componentName) {

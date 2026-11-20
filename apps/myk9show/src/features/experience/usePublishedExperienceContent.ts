@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
-import type { ShowExperienceSnapshot } from './experienceSnapshot';
+import { readExperienceSnapshot, type ShowExperienceSnapshot } from './experienceSnapshot';
 
 async function fetchPublishedExperienceContent(
   showId: string
@@ -14,7 +14,7 @@ async function fetchPublishedExperienceContent(
   if (error) throw error;
   const row = data as Record<string, unknown> | null;
   if (!row?.experience_is_published) return null;
-  return (row.experience_published_content as ShowExperienceSnapshot | null) ?? null;
+  return readExperienceSnapshot(row.experience_published_content);
 }
 
 export function usePublishedExperienceContent(showId: string | undefined) {

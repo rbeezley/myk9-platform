@@ -2,7 +2,7 @@
  * The shows row -> ReplicatedShow mapping, split out of ReplicatedShowsTable.ts
  * to keep that file under the 500-line limit (MYK9-979). Re-exported there.
  */
-import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
+import { readExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import type { Database } from '@/types/supabase';
 import type { ReplicatedShow } from './ReplicatedShowsTable';
 import { showCloseRecordFromRow } from './showCloseRecordColumns';
@@ -60,8 +60,6 @@ export function rowToShow(row: ShowRow): ReplicatedShow {
       (publishedFields.experience_published_at as string | null | undefined) ?? null,
     experiencePublishedStyle:
       (publishedFields.experience_published_style as string | null | undefined) ?? null,
-    experiencePublishedContent:
-      (publishedFields.experience_published_content as ShowExperienceSnapshot | null | undefined) ??
-      null,
+    experiencePublishedContent: readExperienceSnapshot(publishedFields.experience_published_content),
   };
 }

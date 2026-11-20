@@ -54,13 +54,24 @@ const textOf = (premium: GeneratedPremium) => {
 
 const occurrences = (text: string, needle: string) => text.split(needle).length - 1;
 
-describe.each(['AKC', 'UKC', 'ASCA'] as const)('%s ASCA show facts (MYK9-2290)', org => {
+describe('ASCA show facts (MYK9-2290)', () => {
   it.each(STYLES)('%s: prints each fact once', style => {
-    const text = textOf(premiumFor(org, style, true));
+    const text = textOf(premiumFor('ASCA', style, true));
     for (const line of LINES) expect(occurrences(text, line)).toBe(1);
     expect(text).toContain('Pending');
   });
+});
 
+// The facts are ASCA's: a show switched to another registry keeps them hidden in the editor,
+// and they never print on that registry's premium.
+describe.each(['AKC', 'UKC'] as const)('%s premium with ASCA facts still held (MYK9-2290)', org => {
+  it.each(STYLES)('%s: prints none of them', style => {
+    const text = textOf(premiumFor(org, style, true));
+    for (const line of LINES) expect(text).not.toContain(line);
+  });
+});
+
+describe.each(['AKC', 'UKC', 'ASCA'] as const)('%s ASCA show facts unset (MYK9-2290)', org => {
   it.each(STYLES)('%s: prints none of them when unset', style => {
     const text = textOf(premiumFor(org, style, false));
     for (const line of LINES) expect(text).not.toContain(line);

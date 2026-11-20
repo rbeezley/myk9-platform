@@ -420,7 +420,9 @@ export function buildPremiumFacts(
     recordingFee: premiumRecordingFeeText(data),
     entryLimit: premiumEntryLimitText(data),
     classChanges: premiumClassChangeText(show),
-    showTerms: buildShowTermFacts(show),
+    // MYK9-2290: ASCA-only facts. A show switched to another registry keeps its hidden values
+    // (the editor never wipes them) but they never print on that registry's premium.
+    showTerms: data.org === 'ASCA' ? buildShowTermFacts(show) : [],
     withdrawalPolicy: buildWithdrawalPolicyFact(show.withdrawal),
     scoutingStatement: buildScoutingStatementFact(registry),
     entry: {

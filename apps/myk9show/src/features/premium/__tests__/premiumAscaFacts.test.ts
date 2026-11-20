@@ -73,12 +73,18 @@ describe('buildPremiumFacts showTerms', () => {
     expect(buildPremiumFacts(generatedPremium()).showTerms).toEqual([]);
   });
 
-  it('carries the facts the show holds, in every registry', () => {
-    const premium = generatedPremium();
-    premium.show.scentsByLevel = 'Birch';
+  it('carries the facts the show holds on an ASCA premium', () => {
+    const premium = { ...generatedPremium(), org: 'ASCA' as const };
+    premium.show = { ...premium.show, scentsByLevel: 'Birch' };
     expect(buildPremiumFacts(premium).showTerms).toEqual([
       { label: 'Scents used for each level', text: 'Birch' },
     ]);
+  });
+
+  it('prints none of them on another registry, even when the show still holds them', () => {
+    const premium = { ...generatedPremium(), org: 'AKC' as const };
+    premium.show = { ...premium.show, scentsByLevel: 'Birch', ascaSanctionStatus: 'approved' };
+    expect(buildPremiumFacts(premium).showTerms).toEqual([]);
   });
 });
 

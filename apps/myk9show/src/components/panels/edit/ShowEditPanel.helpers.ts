@@ -8,6 +8,7 @@
 import type { Show } from '@/types/show-types';
 import type { ShowAscaFacts } from '@/services/replication/showAscaFactColumns';
 import type { ShowStyle } from '@/features/registries';
+import { readExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import type { ShowEditFormData, ShowEditSaveData } from './ShowEditPanel.types';
 
 // MYK9-2290: a cleared choice or box saves null, which clears the column.
@@ -69,7 +70,8 @@ export const showToFormData = (show: Partial<Show>): ShowEditFormData => {
       dayOfShowFee: show.dayOfShowFee || '',
       juniorHandlerFee: show.juniorHandlerFee,
     },
-    experiencePublishedContent: show.experiencePublishedContent ?? null,
+    // MYK9-2285: never hand the Premium tab the empty column default as a snapshot.
+    experiencePublishedContent: readExperienceSnapshot(show.experiencePublishedContent),
     // Read show.style (migration 195) with fallback to landing_style (migration 192).
     // Map 'default' → 'monogram' so legacy rows never produce a value rejected by
     // the new shows_style_check constraint.

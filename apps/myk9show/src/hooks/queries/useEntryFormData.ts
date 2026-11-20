@@ -7,7 +7,10 @@ import {
   resolveDogIdentityForOrganization,
   type DogRegistrationLike,
 } from '@/features/dogs/identity';
-import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
+import {
+  readExperienceSnapshot,
+  type ShowExperienceSnapshot,
+} from '@/features/experience/experienceSnapshot';
 import {
   loadPersonPrivateDetails,
   type PersonPrivateDetails,
@@ -112,9 +115,9 @@ async function fetchEntryFormData(
         experienceIsPublished: Boolean(
           (showRaw as unknown as Record<string, unknown>).experience_is_published
         ),
-        experiencePublishedContent:
-          ((showRaw as unknown as Record<string, unknown>)
-            .experience_published_content as ShowExperienceSnapshot | null) ?? null,
+        experiencePublishedContent: readExperienceSnapshot(
+          (showRaw as unknown as Record<string, unknown>).experience_published_content
+        ),
       }
     : null;
 

@@ -1,6 +1,7 @@
 // Type mapping utilities for Show entity between Zustand and Supabase
 import { mapFields } from './mapperUtils';
-import type { Show, ShowExperienceSnapshot, ShowInput } from '@/types/show-types';
+import type { Show, ShowInput } from '@/types/show-types';
+import { readExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import type { DbShow, DbShowInsert, DbShowUpdate } from '@/types/database-mappings';
 import { logger } from '@/services/LoggingService';
 import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable';
@@ -343,9 +344,9 @@ export const mapDatabaseToShow = (
       ((dbShow as Record<string, unknown>).experience_published_at as string | null) ?? null,
     experiencePublishedStyle:
       ((dbShow as Record<string, unknown>).experience_published_style as string | null) ?? null,
-    experiencePublishedContent:
-      ((dbShow as Record<string, unknown>)
-        .experience_published_content as ShowExperienceSnapshot | null) ?? null,
+    experiencePublishedContent: readExperienceSnapshot(
+      (dbShow as Record<string, unknown>).experience_published_content
+    ),
 
     // Sync metadata for Local-First architecture
     _version: 1, // Default version

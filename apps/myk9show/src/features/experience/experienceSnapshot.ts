@@ -24,6 +24,18 @@ export interface ShowExperienceSnapshot {
   };
 }
 
+/**
+ * MYK9-2285: reads `shows.experience_published_content`. The column is NOT NULL with a `'{}'`
+ * default, so a show that never published (or was unpublished) holds an empty object, not null.
+ * That empty object is no snapshot; treating it as one handed the premium editor a draft with no
+ * narratives, and its first render threw.
+ */
+export function readExperienceSnapshot(raw: unknown): ShowExperienceSnapshot | null {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null;
+  if (Object.keys(raw).length === 0) return null;
+  return raw as ShowExperienceSnapshot;
+}
+
 export function buildExperienceSnapshot({
   premium,
   premiumPath,

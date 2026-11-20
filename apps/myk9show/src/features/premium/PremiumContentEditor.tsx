@@ -18,6 +18,7 @@ import { withGenerationTimeout } from './withGenerationTimeout';
 import { stripPlaceholderNarratives } from './premiumNarratives';
 import { PremiumPdfPreviewOverlay } from './PremiumPdfPreviewOverlay';
 import { cachedDraftFor, withFreshFacts, type PremiumDraftCache } from './premiumDraftCache';
+import { usePremiumDraftSync } from './usePremiumDraftSync';
 import type { GeneratedPremium, PremiumStyle } from '../../types/premium-types';
 
 interface PremiumContentEditorProps {
@@ -97,15 +98,9 @@ export function PremiumContentEditor({
 
   useEffect(() => {
     onPremiumChangeRef.current = onPremiumChange;
-  }, [onPremiumChange]);
-
-  useEffect(() => {
     onInkSaverChangeRef.current = onInkSaverChange;
-  }, [onInkSaverChange]);
-
-  useEffect(() => {
     onPendingChangeRef.current = onPendingChange;
-  }, [onPendingChange]);
+  }, [onPremiumChange, onInkSaverChange, onPendingChange]);
 
   useEffect(() => {
     // Only regenerating an existing draft holds Save: a first generation has no old premium.
@@ -203,13 +198,17 @@ export function PremiumContentEditor({
     showOrg,
   ]);
 
-  useEffect(() => {
-    if (!draftCache || !original || !supplemental || !narratives) return;
-    draftCache.draft = { showId, original, supplemental, narratives, generationError, inkSaver };
-  }, [draftCache, showId, original, supplemental, narratives, generationError, inkSaver]);
+  usePremiumDraftSync(
+    draftCache,
+    active,
+    { showId, original, supplemental, narratives, generationError, inkSaver },
+    () => {
+      onPremiumChangeRef.current?.(undefined);
+      onInkSaverChangeRef.current?.(false);
+    }
+  );
 
   useEffect(() => {
-    // With a cache, hidden means set aside, not abandoned: Save still asks about the edits.
     if (active || draftCache) return;
     latestRequestRef.current = 0;
     reset();

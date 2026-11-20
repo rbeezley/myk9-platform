@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { GeneratedPremium } from '@/types/premium-types';
+import { premiumEditKey } from './premiumDraftCache';
 
 /**
  * MYK9-2201: reports whether the narratives or supplemental details differ from what the editor
@@ -21,7 +22,7 @@ export function usePremiumContentEdited(
   }, [onEditedChange]);
   useEffect(() => {
     if (!supplemental || !narratives) return;
-    const key = JSON.stringify([supplemental, narratives]);
+    const key = premiumEditKey(supplemental, narratives);
     holder.loadedKey ??= key;
     onEditedChangeRef.current?.(key !== holder.loadedKey);
   }, [holder, supplemental, narratives]);

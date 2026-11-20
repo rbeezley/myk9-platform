@@ -44,4 +44,12 @@ describe('withFreshFacts (MYK9-2236)', () => {
     expect(merged.narratives).toBe(restored.narratives);
     expect(merged.supplemental).toBe(restored.supplemental);
   });
+
+  it('keeps the restored premium whole when the organization changed meanwhile', () => {
+    const restored = generatedPremium('Old Venue');
+    const fresh = { ...generatedPremium('New Venue'), org: 'UKC' as const };
+
+    // Text written for AKC must not be relabelled UKC: the publish guard compares the org.
+    expect(withFreshFacts(fresh, restored)).toBe(restored);
+  });
 });

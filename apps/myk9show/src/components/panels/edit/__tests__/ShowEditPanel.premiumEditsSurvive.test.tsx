@@ -134,6 +134,16 @@ describe('Edit show keeps premium edits when the editor unmounts (MYK9-2236)', (
     expect(await screen.findByText(TITLE)).toBeInTheDocument();
   });
 
+  it('leaving an unedited premium leaves nothing to save, as before', async () => {
+    const { user } = setup();
+    await screen.findByDisplayValue('Hours');
+    await user.click(screen.getByRole('tab', { name: /basic info/i }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Save Changes' })).toBeDisabled()
+    );
+  });
+
   it('opens on the Venue tab without mounting the editor', async () => {
     setup('venue');
     expect(await screen.findByRole('tab', { name: /venue/i, selected: true })).toBeInTheDocument();

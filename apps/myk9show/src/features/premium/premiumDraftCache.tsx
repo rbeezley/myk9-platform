@@ -32,15 +32,40 @@ export function cachedDraftFor(
   return cache?.draft?.showId === showId ? cache.draft : null;
 }
 
+export function storeDraft(cache: PremiumDraftCache, draft: PremiumEditorDraft): void {
+  cache.draft = draft;
+}
+
 /**
  * A restored draft keeps the secretary's text and its baseline, but takes the show facts from
  * the fresh premium the tab now offers, so a fact that changed meanwhile is not printed stale.
+ * Not across organizations: text written for one must keep its org, so the publish guard that
+ * compares it (MYK9-2213) still refuses.
  */
 export function withFreshFacts(
   fresh: GeneratedPremium,
   restored: GeneratedPremium
 ): GeneratedPremium {
+  if (fresh.org !== restored.org) return restored;
   return { ...fresh, supplemental: restored.supplemental, narratives: restored.narratives };
+}
+
+/** The edit baseline's key: the raw editor state, never the cover-resolved final premium. */
+export function premiumEditKey(
+  supplemental: GeneratedPremium['supplemental'],
+  narratives: GeneratedPremium['narratives']
+): string {
+  return JSON.stringify([supplemental, narratives]);
+}
+
+/** True while the editor holds what it first loaded: nothing in it for Save to keep. */
+export function isUneditedDraft(
+  cache: PremiumDraftCache,
+  supplemental: GeneratedPremium['supplemental'] | null,
+  narratives: GeneratedPremium['narratives'] | null
+): boolean {
+  if (!supplemental || !narratives || cache.loadedKey === null) return true;
+  return cache.loadedKey === premiumEditKey(supplemental, narratives);
 }
 
 const PremiumDraftCacheContext = createContext<PremiumDraftCache | undefined>(undefined);

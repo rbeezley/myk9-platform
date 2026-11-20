@@ -8,7 +8,7 @@
 2. Ask your club's admin to open **My Club**, then **Members**, then the **Admins** tab. They type the email on your account under **Add an admin** and confirm with **Add admin**.
 3. You become an admin at once. Your club's page now shows a **Payments** tab.
 
-Your secretary can also send you a link. When a show cannot publish because the club has no bank account yet, the show's **Before you can publish** list can name the club's admins and offer **Email them the link**, which opens the club's Payments tab. You still need to be added as an admin first.
+Your secretary can also send you a link. When a show cannot publish because the club has no bank account yet, the show's **Before you can publish** list can name the club's admins and offer **Email them the link**. That opens an email draft, addressed to the admins, for the secretary to send. It does not open the Payments tab itself: when the email reaches you, follow the Payments link in its body. You still need to be added as an admin first.
 
 ---
 

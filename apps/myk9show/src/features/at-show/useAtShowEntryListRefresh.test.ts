@@ -60,6 +60,21 @@ describe('useAtShowEntryListRefresh (MYK9-1746)', () => {
     );
   });
 
+  it('stays silent for a short-only download: reloads, no toast, back to idle (MYK9-2254)', async () => {
+    mocks.syncAtShowData.mockResolvedValue({ success: false, shortOnly: true });
+    const refresh = vi.fn(() => Promise.resolve());
+    const { result } = renderHook(() => useAtShowEntryListRefresh('show-1', refresh));
+
+    await act(async () => {
+      await result.current.refresh();
+    });
+
+    expect(result.current.phase).toBe('idle');
+    expect(refresh).toHaveBeenCalledWith(false);
+    expect(mocks.toast.warning).not.toHaveBeenCalled();
+    expect(mocks.toast).not.toHaveBeenCalled();
+  });
+
   it('answers done and re-reads the list after a successful sync', async () => {
     mocks.syncAtShowData.mockResolvedValue({ success: true });
     const refresh = vi.fn(() => Promise.resolve());

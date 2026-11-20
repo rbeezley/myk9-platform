@@ -52,7 +52,11 @@ export function useAtShowClassRefresh(
     try {
       const outcome = await syncAtShowData(showId, { forceFullSync: true });
       await reload();
-      settle(outcome.success ? 'done' : 'failed');
+      // A download that only stayed short is not a volunteer-facing answer (MYK9-2254): the offline
+      // line and the readiness checklist already say so. Reload and go quiet, like a success.
+      if (outcome.success) settle('done');
+      else if (outcome.shortOnly) setPhase('idle');
+      else settle('failed');
     } catch (error) {
       // Going offline mid-refresh aborts the sync (MYK9-1629): that is the
       // offline answer, not a failure.

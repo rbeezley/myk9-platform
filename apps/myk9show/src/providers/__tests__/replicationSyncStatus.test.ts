@@ -44,6 +44,24 @@ describe('replicationSyncStatus helpers', () => {
     expect(result.abortedTables).toEqual([{ name: 'entries', error: 'AbortError: superseded' }]);
   });
 
+  it('keeps a short replica not-ok but out of the download-failure toast list (MYK9-2254)', () => {
+    const result = classifyTableSyncResults(
+      [
+        {
+          name: 'trials',
+          ok: false,
+          error: 'short',
+          recoveredFromEmptyReplica: false,
+          shortReplica: true,
+        },
+        { name: 'dogs', ok: false, error: 'denied', recoveredFromEmptyReplica: false },
+      ],
+      () => false
+    );
+    expect(result.tableStatusUpdates.trials).toBe('error');
+    expect(result.downloadFailures).toEqual([{ name: 'dogs', error: 'denied' }]);
+  });
+
   it('returns replicated table query keys plus the judge assignment join key', () => {
     expect(getPostSyncInvalidationKeys(['shows', 'entries'])).toEqual([
       ['shows'],

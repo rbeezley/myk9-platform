@@ -25,6 +25,7 @@ export type {
   MutationOperation,
   MutationStatus,
   SyncResult,
+  ShortReplicaReport,
   SyncOperation,
   SyncOptions,
   PerformanceReport,
@@ -153,6 +154,12 @@ export { ABORTED_SYNC_MESSAGE, abortableWait } from './abortable';
 export { SyncCacheWriter } from './syncCacheWriter';
 export type { SyncDeleteAuthority } from './core/syncDeleteAuthority';
 export { countCoveredRows } from './replicaCoverage';
+export {
+  isShortOnlyFailure,
+  setShortReplicaReporter,
+  type ShortReplicaObservation,
+  type ShortReplicaReporter,
+} from './shortReplicaReporter';
 export {
   DEFAULT_REMOTE_COUNT_INTERVAL_MS,
   configureRemoteCountCadence,

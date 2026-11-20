@@ -7,6 +7,8 @@ export interface TableSyncResultSummary {
   ok: boolean;
   error?: string | undefined;
   recoveredFromEmptyReplica: boolean;
+  /** A download that stayed short of the server's count (MYK9-2254): failed, but never toasted. */
+  shortReplica?: boolean | undefined;
 }
 
 export interface ClassifiedTableSyncResults {
@@ -32,12 +34,16 @@ export function classifyTableSyncResults(
   const abortedTables: Array<{ name: string; error?: string }> = [];
   const tableStatusUpdates: Record<string, TableSyncStatus> = {};
 
-  for (const { name, ok, error, recoveredFromEmptyReplica } of results) {
+  for (const { name, ok, error, recoveredFromEmptyReplica, shortReplica } of results) {
     if (ok) {
       tableStatusUpdates[name] ??= 'success';
       if (recoveredFromEmptyReplica) {
         recoveredTables.push(name);
       }
+    } else if (shortReplica) {
+      // Not ok (status, readiness), but the offline line and checklist already say the copy is
+      // incomplete, so it never joins the download-failure toast (docs/INTENT.md).
+      tableStatusUpdates[name] = 'error';
     } else if (isAbortSyncError(error)) {
       if (tableStatusUpdates[name] !== 'error') tableStatusUpdates[name] = 'idle';
       abortedTables.push(error === undefined ? { name } : { name, error });

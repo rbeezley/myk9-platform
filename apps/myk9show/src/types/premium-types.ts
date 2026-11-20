@@ -116,6 +116,14 @@ export interface GeneratedPremium {
     allowWaitlist?: boolean | null;
     /** MYK9-2231: shows.allow_class_changes_after_close; absent on an older premium (prints no line). */
     allowClassChangesAfterClose?: boolean | null;
+    /** MYK9-2290 (ASCA §1.5.2): shows.asca_sanction_status; absent or null prints nothing. */
+    ascaSanctionStatus?: 'pending' | 'approved' | null;
+    /** MYK9-2290 (ASCA §1.5.9): shows.scents_by_level, free text. */
+    scentsByLevel?: string | null;
+    /** MYK9-2290 (ASCA §1.5.19): shows.spectators_policy. */
+    spectatorsPolicy?: 'allowed' | 'not_allowed' | null;
+    /** MYK9-2290 (ASCA §1.5.24): shows.photographer_contact, optional free text. */
+    photographerContact?: string | null;
   };
   club: { name: string | null; logoUrl: string | null };
   secretary: {

@@ -49,7 +49,9 @@ export async function getClubPremiumTemplates(clubId: string): Promise<ClubPremi
     .select('*')
     .eq('club_id', clubId)
     .order('is_default', { ascending: false })
-    .order('name');
+    .order('name')
+    // MYK9-2286: id breaks a name tie, the same order generate-premium reads them in.
+    .order('id');
   if (error) throw error;
   return (data as Record<string, unknown>[]).map(rowToTemplate);
 }

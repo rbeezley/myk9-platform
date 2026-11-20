@@ -5,6 +5,7 @@ export type { ShowExperienceSnapshot } from '@/features/experience/experienceSna
 // Re-export types from other modules that are commonly used with shows
 export type { User } from './user-types';
 export type { ShowClass } from './exhibitor-types';
+import type { ShowAscaFacts } from '@/services/replication/showAscaFactColumns';
 
 export interface ShowStat {
   title: string;
@@ -76,7 +77,7 @@ export interface Class {
   timeLimit3?: string | undefined;
 }
 
-export interface Show {
+export interface Show extends ShowAscaFacts {
   id: string;
   name: string;
   organization: string;
@@ -184,7 +185,7 @@ export interface Show {
 export type Trial = ShowTrial;
 
 // Input types for creating/updating shows
-export interface ShowInput {
+export interface ShowInput extends ShowAscaFacts {
   name: string;
   organization: string;
   startDate: string;

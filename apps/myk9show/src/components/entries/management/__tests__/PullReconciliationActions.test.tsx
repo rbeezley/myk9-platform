@@ -92,7 +92,20 @@ describe('PullReconciliationActions', () => {
     );
   });
 
-  it('persists a denial in one click and refreshes the row', async () => {
+  it('asks for a reason first and saves nothing until one is typed', async () => {
+    const { user } = render(
+      <PullReconciliationActions entry={makeEntry()} onOpenRefund={vi.fn()} onResolved={vi.fn()} />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Deny refund' }));
+
+    expect(denyPullRefundDecision).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Save denial' })).toBeDisabled();
+    await user.type(screen.getByLabelText('Why is there no refund?'), '   ');
+    expect(screen.getByRole('button', { name: 'Save denial' })).toBeDisabled();
+  });
+
+  it('sends the typed reason with the denial and refreshes the row', async () => {
     const onResolved = vi.fn();
     const { user } = render(
       <PullReconciliationActions
@@ -103,8 +116,44 @@ describe('PullReconciliationActions', () => {
     );
 
     await user.click(screen.getByRole('button', { name: 'Deny refund' }));
+    await user.type(
+      screen.getByLabelText('Why is there no refund?'),
+      'The show was past its refund deadline.'
+    );
+    await user.click(screen.getByRole('button', { name: 'Save denial' }));
 
-    await waitFor(() => expect(denyPullRefundDecision).toHaveBeenCalledWith('entry-1'));
+    await waitFor(() =>
+      expect(denyPullRefundDecision).toHaveBeenCalledWith(
+        'entry-1',
+        'The show was past its refund deadline.'
+      )
+    );
     expect(onResolved).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes the reason field on Cancel without saving', async () => {
+    const { user } = render(
+      <PullReconciliationActions entry={makeEntry()} onOpenRefund={vi.fn()} onResolved={vi.fn()} />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Deny refund' }));
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(screen.queryByLabelText('Why is there no refund?')).not.toBeInTheDocument();
+    expect(denyPullRefundDecision).not.toHaveBeenCalled();
+  });
+
+  it('shows a saved denial read-only instead of offering to save another reason', () => {
+    render(
+      <PullReconciliationActions
+        entry={makeEntry({ refundDecision: 'denied' })}
+        onOpenRefund={vi.fn()}
+        onResolved={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('Refund denied')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Deny refund' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Save denial' })).not.toBeInTheDocument();
   });
 });

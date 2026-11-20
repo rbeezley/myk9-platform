@@ -13,6 +13,11 @@ import { getTrialTimezone } from '@/features/registries';
 import { formatTrialTypeLabel } from '@/types/template.types';
 import { requireShowClubId } from '@/services/database/shows/requireShowClub';
 import { showUsesFromRow } from '@/services/replication/showUsesColumns';
+import {
+  pickShowAscaFactUpdates,
+  showAscaFactColumns,
+  showAscaFactsFromRow,
+} from '@/services/replication/showAscaFactColumns';
 
 /**
  * Maps ShowInput (from Zustand store) to DbShowInsert (for Supabase insertion)
@@ -82,6 +87,7 @@ export const mapShowInputToUpdate = (input: Partial<ShowInput>): DbShowUpdate =>
     update.confirmation_message = input.confirmationMessage || null;
   if (input.startingArmbandNumber !== undefined)
     update.starting_armband_number = input.startingArmbandNumber;
+  Object.assign(update, showAscaFactColumns(input)); // MYK9-2290
   // Style has an exclusive Preview RPC path. Omitting it here prevents a
   // stale settings-form snapshot from clobbering a newer draft style.
 
@@ -325,6 +331,7 @@ export const mapDatabaseToShow = (
     acceptCashPayments: dbShow.accept_cash_payments ?? undefined,
     onlineEntriesEnabled: dbShow.online_entries_enabled ?? undefined,
     ...showUsesFromRow(dbShow),
+    ...showAscaFactsFromRow(dbShow),
     // TODO: Remove cast after regenerating Supabase types (run `supabase gen types`)
     confirmationMessage:
       ((dbShow as Record<string, unknown>).confirmation_message as string) || undefined,
@@ -392,6 +399,7 @@ export const mapShowToShowInput = (show: Show): ShowInput => {
     trials: show.trials,
     confirmationMessage: show.confirmationMessage,
     startingArmbandNumber: show.startingArmbandNumber,
+    ...pickShowAscaFactUpdates(show),
     ...(show.style != null && { style: show.style }),
   };
 };
@@ -658,6 +666,10 @@ export const mapReplicatedShowToDbRow = (
       uses_paper_packet: 'usesPaperPacket',
       uses_volunteers: 'usesVolunteers',
       publishes_own_premium: 'publishesOwnPremium',
+      asca_sanction_status: 'ascaSanctionStatus',
+      scents_by_level: 'scentsByLevel',
+      spectators_policy: 'spectatorsPolicy',
+      photographer_contact: 'photographerContact',
       logo_url: 'logoUrl',
       cover_image_url: 'coverImageUrl',
       accent_color: 'accentColor',

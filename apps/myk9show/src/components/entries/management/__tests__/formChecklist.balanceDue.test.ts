@@ -39,6 +39,20 @@ describe('buildFormChecklist balance from the loaded payment record (MYK9-2155)'
     expect(done.some(line => line.includes('paid'))).toBe(false);
   });
 
+  it('has no unpaid count when one entry is paid and one unpaid', () => {
+    const registration = groupEntriesByShowRegistration([
+      entry('e1', PaymentStatus.PAID_BY_CHECK),
+      entry('e2', PaymentStatus.PENDING),
+    ])[0]!;
+    const { items } = buildFormChecklist(registration, { paidDollars: 25, remainingDollars: 30 });
+    const payment = items.find(item => item.kind === 'payment');
+    expect(payment).toMatchObject({
+      title: '$30.00 due',
+      detail: 'The payment record shows a balance.',
+    });
+    expect(payment?.detail).not.toMatch(/unpaid/);
+  });
+
   it('adds no payment item when the balance is zero', () => {
     const { items } = buildFormChecklist(form(PaymentStatus.PAID_BY_CHECK), {
       paidDollars: 50,

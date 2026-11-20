@@ -1,16 +1,20 @@
 import { useQuery } from '@tanstack/react-query';
-import { isLivePremiumTrial, premiumRecordingFeeDates } from '@myk9/core';
+import { isLivePremiumTrial, parseStoredClockTime, premiumRecordingFeeDates } from '@myk9/core';
 import { COMMITTEE_QUERY_KEY, committeeScopeKey } from '@/components/committee/useCommittee';
 import {
   getTrialRegistry,
   resolveConfiguredRegistryId,
   type RegistryId,
 } from '@/features/registries';
+import { useClubPremiumTemplates } from '@/hooks/queries/usePremiumTemplates';
+import type { ClubPremiumTemplate } from '@/types/premium-types';
 import { useShowOfficials } from '@/hooks/queries/useShowOfficials';
 import { fetchShowCommittee, getCommittee } from '@/services/database/club-memberships/committee';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type { Show } from '@/types/show-types';
 import type { PremiumFactId } from './premiumFacts';
+import { selectPremiumTemplate } from './selectPremiumTemplate';
+import { buildShowTermFacts } from './premiumAscaFacts';
 import {
   missingPremiumFacts,
   type PremiumRequirementFacts,
@@ -28,6 +32,10 @@ interface RequirementTrial {
   status?: string | undefined;
   /** MYK9-2186: a soft-deleted trial is not in the premium. */
   deletedAt?: string | null | undefined;
+  /** MYK9-2286: orders same-day trials the way generate-premium does (liveTrials.ts). */
+  plannedStartTime?: string | null | undefined;
+  /** MYK9-2286: picks the club template the premium reads (the first live trial's). */
+  trialType?: string | null | undefined;
 }
 
 /** The class fields the checks read; Show Desk class rows and the About tab's both fit. */
@@ -44,9 +52,40 @@ interface PremiumRequirementInputs {
   judges: ReadonlyArray<ShowJudgeAssignment>;
   secretaryName: string | null;
   secretaryAddress?: string | null;
+  secretaryEmail?: string | null | undefined;
+  secretaryPhone?: string | null | undefined;
   chairName: string | null;
   chairAddress?: string | null;
+  chairEmail?: string | null | undefined;
+  chairPhone?: string | null | undefined;
   committee: string[];
+  /** The club template the premium reads; omitted when not known, null for a club with none. */
+  template?: ClubPremiumTemplate | null | undefined;
+}
+
+/** The contact keys only when a source answered; none at all leaves the contact unknown. */
+const contactOf = (email: string | null | undefined, phone: string | null | undefined) =>
+  email === undefined && phone === undefined ? {} : { email: email ?? null, phone: phone ?? null };
+
+/**
+ * The trial type of the first live trial in the generator's order (date, then start time as a
+ * clock time, then id; generate-premium/liveTrials.ts), so the checklist reads the template
+ * generate-premium will. A missing or unreadable value sorts after every real one, as there.
+ */
+export function firstLiveTrialType(trials: ReadonlyArray<RequirementTrial>): string | null {
+  const live = trials.filter(t =>
+    isLivePremiumTrial({ status: t.status ?? null, deleted_at: t.deletedAt ?? null })
+  );
+  const text = (a: string | undefined, b: string | undefined) =>
+    a == null || b == null ? (a == null ? 1 : 0) - (b == null ? 1 : 0) : a.localeCompare(b);
+  const clock = (a: RequirementTrial, b: RequirementTrial) => {
+    const am = parseStoredClockTime(a.plannedStartTime);
+    const bm = parseStoredClockTime(b.plannedStartTime);
+    if (am === null || bm === null) return (am === null ? 1 : 0) - (bm === null ? 1 : 0);
+    return am - bm;
+  };
+  live.sort((a, b) => text(a.trialDate, b.trialDate) || clock(a, b) || a.id.localeCompare(b.id));
+  return live[0]?.trialType ?? null;
 }
 
 const positive = (raw: string | undefined) => (Number.parseFloat(raw ?? '') || 0) > 0;
@@ -70,11 +109,35 @@ export function requirementFactsFromShow(input: PremiumRequirementInputs): Premi
       opens: show.entryOpenDate?.trim() || null,
       closes: show.entryCloseDate?.trim() || null,
     },
-    secretary: { name: input.secretaryName, mailingAddress: input.secretaryAddress ?? null },
+    secretary: {
+      name: input.secretaryName,
+      mailingAddress: input.secretaryAddress ?? null,
+      ...contactOf(input.secretaryEmail, input.secretaryPhone),
+    },
     chair: input.chairName
-      ? { name: input.chairName, mailingAddress: input.chairAddress ?? null }
+      ? {
+          name: input.chairName,
+          mailingAddress: input.chairAddress ?? null,
+          ...contactOf(input.chairEmail, input.chairPhone),
+        }
       : null,
+    ...(input.template === undefined
+      ? {}
+      : {
+          template: {
+            vetClinic: input.template?.vetClinicName
+              ? {
+                  name: input.template.vetClinicName,
+                  phone: input.template.vetClinicPhone ?? '',
+                  address: input.template.vetClinicAddress ?? '',
+                }
+              : null,
+            accommodationCount: input.template?.accommodations.length ?? 0,
+            awardsDescription: input.template?.awardsDescription ?? null,
+          },
+        }),
     committee: input.committee,
+    showTerms: buildShowTermFacts(show),
     recordingFeeDates: premiumRecordingFeeDates(
       trials.map(trial => ({ date: trial.trialDate ?? null, status: trial.status ?? null })),
       show.startDate
@@ -118,6 +181,11 @@ export function usePremiumRequirements(
   judges: ReadonlyArray<ShowJudgeAssignment> | null,
   enabled: boolean
 ): PremiumRequirements {
+  // The trial's registry, else the show's own organization. A registry the app has no rules for
+  // (so no AKC default) has nothing to require.
+  const registry: RegistryId | null = trials[0]
+    ? getTrialRegistry(trials[0]).id
+    : resolveConfiguredRegistryId(show.organization);
   const officials = useShowOfficials(enabled ? show.id : undefined);
   // The same query the Personnel tab's committee editor runs, so an edit there refreshes this.
   const committee = useQuery({
@@ -129,6 +197,10 @@ export function usePremiumRequirements(
     },
     enabled,
   });
+  // MYK9-2286: only ASCA reads the club template's facts, so only an ASCA show loads them.
+  const templates = useClubPremiumTemplates(
+    enabled && registry === 'ASCA' ? (show.clubId ?? '') : ''
+  );
   // Whether the show has replaced the club's committee; decides which list "Fix it" opens.
   const ownCommittee = useQuery({
     queryKey: committeeScopeKey({ kind: 'show', showId: show.id }),
@@ -136,13 +208,8 @@ export function usePremiumRequirements(
     enabled,
   });
 
-  // The trial's registry, else the show's own organization. A registry the app has no rules for
-  // (so no AKC default) has nothing to require.
-  const registry: RegistryId | null = trials[0]
-    ? getTrialRegistry(trials[0]).id
-    : resolveConfiguredRegistryId(show.organization);
   // Hold the list until the officials and committee answer, so it does not grow under the reader.
-  if (!enabled || !registry || officials.isLoading || committee.isLoading) {
+  if (!enabled || !registry || officials.isLoading || committee.isLoading || templates.isLoading) {
     return { items: [], registry };
   }
 
@@ -153,6 +220,13 @@ export function usePremiumRequirements(
     unavailable.add('chair');
     unavailable.add('secretaryAddress');
     unavailable.add('chairAddress');
+    unavailable.add('secretaryContact');
+    unavailable.add('chairContact');
+  }
+  if (!templates.data) {
+    unavailable.add('vetClinic');
+    unavailable.add('accommodations');
+    unavailable.add('awards');
   }
   if (!committee.data) unavailable.add('committee');
   if (!judges) unavailable.add('judges');
@@ -166,7 +240,15 @@ export function usePremiumRequirements(
     secretaryAddress: officials.data?.secretaries[0]?.mailingAddress ?? null,
     chairName: personName(officials.data?.chairmen[0]),
     chairAddress: officials.data?.chairmen[0]?.mailingAddress ?? null,
+    secretaryEmail: officials.data?.secretaries[0]?.email,
+    secretaryPhone: officials.data?.secretaries[0]?.phone,
+    chairEmail: officials.data?.chairmen[0]?.email,
+    chairPhone: officials.data?.chairmen[0]?.phone,
     committee: committee.data ?? [],
+    // The template the premium would read: the first live trial's type, else the default.
+    template: templates.data
+      ? selectPremiumTemplate(templates.data, firstLiveTrialType(trials))
+      : undefined,
   });
   return {
     items: missingPremiumFacts(

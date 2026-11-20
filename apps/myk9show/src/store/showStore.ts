@@ -33,6 +33,10 @@ import {
 } from './showStoreReads';
 import { invalidateVenuePinIfLocationChanged } from '@/features/maps/invalidateVenuePin';
 import { pickShowUsesUpdates } from '@/services/replication/showUsesColumns';
+import {
+  pickShowAscaFactUpdates,
+  type ShowAscaFacts,
+} from '@/services/replication/showAscaFactColumns';
 
 /**
  * Convert ReplicatedShow (database schema) to Show (app schema)
@@ -82,6 +86,7 @@ export function replicatedToShow(replicated: ReplicatedShow): Show {
     usesPaperPacket: replicated.usesPaperPacket,
     usesVolunteers: replicated.usesVolunteers,
     publishesOwnPremium: replicated.publishesOwnPremium,
+    ...pickShowAscaFactUpdates(replicated),
     serverVersion: replicated.serverVersion,
     // Preserve the Nationals placement flag across sync/reload. Dropping it here
     // would surface as undefined → showToFormData defaults false → an unrelated
@@ -182,7 +187,7 @@ export function areAssignedJudgesEqual(
 }
 
 // Input types for creating/updating shows
-export interface ShowInput {
+export interface ShowInput extends ShowAscaFacts {
   name: string;
   organization: string;
   startDate: string;
@@ -454,6 +459,8 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
       // edits must not carry a stale style snapshot into a full-row mutation.
       if (updates.isNationals !== undefined) replicatedUpdates.isNationals = updates.isNationals;
       Object.assign(replicatedUpdates, pickShowUsesUpdates(updates));
+      // MYK9-2290: null clears an ASCA premium fact; undefined leaves it.
+      Object.assign(replicatedUpdates, pickShowAscaFactUpdates(updates));
 
       // MYK9-2081: an edit that changed only the judge list has no show column to write.
       const showMutationId =
@@ -523,6 +530,7 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
       // MYK9-1622: without the switch fields, this rebuild from the pre-save copy put the old
       // value back over the replica's new one, and the switch snapped back off.
       Object.assign(definedUpdates, pickShowUsesUpdates(updates));
+      Object.assign(definedUpdates, pickShowAscaFactUpdates(updates));
 
       // Optimistic update, applied to the show as it is NOW, not to `currentShow`: that copy was
       // read before the save's await, so another save (a second switch flipped quickly) or the

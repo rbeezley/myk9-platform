@@ -49,6 +49,11 @@ const generatedPremiumSchema = z.object({
     // MYK9-2231: optional and nullable, so an older premium parses and zod keeps them.
     allowWaitlist: z.boolean().nullable().optional(),
     allowClassChangesAfterClose: z.boolean().nullable().optional(),
+    // MYK9-2290: optional and nullable, so an older premium parses and zod keeps them.
+    ascaSanctionStatus: z.enum(['pending', 'approved']).nullable().optional(),
+    scentsByLevel: nullableText.optional(),
+    spectatorsPolicy: z.enum(['allowed', 'not_allowed']).nullable().optional(),
+    photographerContact: nullableText.optional(),
     // MYK9-1976: optional, so a premium generated before it still parses (and prints no
     // policy row). Without it here zod would strip the policy from every new premium.
     withdrawal: z

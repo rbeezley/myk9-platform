@@ -85,6 +85,19 @@ const defaultProps = {
   onEntryRemoved: vi.fn(),
 };
 
+describe('EntryListCard - fee line (MYK9-2283)', () => {
+  it('shows the fee with no per-entry Paid amount', () => {
+    render(
+      <EntryListCard
+        {...defaultProps}
+        entries={[makeEntry({ totalFee: 30, paidAmount: 0, paymentStatus: PaymentStatus.PENDING })]}
+      />
+    );
+    expect(screen.getByText('Fee: $30')).toBeInTheDocument();
+    expect(screen.queryByText(/Paid:/)).toBeNull();
+  });
+});
+
 describe('EntryListCard - Assign armband (MYK9-1672)', () => {
   it('renders Assign for an entry with no armband when the prop is absent', () => {
     render(<EntryListCard {...defaultProps} />);

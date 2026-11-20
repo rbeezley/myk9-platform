@@ -87,6 +87,7 @@ handle<GeneratePremiumPayload>(
         entry_open_date, entry_close_date, pre_entry_fee, day_of_show_fee,
         accept_check_payments, accept_cash_payments, max_total_entries, club_id, experience_published_content,
         allow_waitlist, allow_class_changes_after_close,
+        asca_sanction_status, scents_by_level, spectators_policy, photographer_contact,
         ${PREMIUM_SHOW_WITHDRAWAL_COLUMNS},
         clubs(name, logo_url, ${PREMIUM_CLUB_WITHDRAWAL_COLUMNS}),
         trials(
@@ -150,7 +151,12 @@ handle<GeneratePremiumPayload>(
     const { data: templates } = await userClient
       .from('club_premium_templates')
       .select('*')
-      .eq('club_id', show.club_id);
+      .eq('club_id', show.club_id)
+      // MYK9-2286: the same order the app's checklist reads them in (getClubPremiumTemplates),
+      // so both pick the same template when a club has several of one trial type.
+      .order('is_default', { ascending: false })
+      .order('name')
+      .order('id');
 
     const trialType = premiumTemplateTrialType(show.trials);
     const template =
@@ -262,6 +268,11 @@ handle<GeneratePremiumPayload>(
         // MYK9-2231: the show's waitlist default and its after-close class-change setting.
         allowWaitlist: show.allow_waitlist ?? null,
         allowClassChangesAfterClose: show.allow_class_changes_after_close ?? null,
+        // MYK9-2290: the ASCA show-level facts (§1.5.2, §1.5.9, §1.5.19, §1.5.24); null prints nothing.
+        ascaSanctionStatus: show.asca_sanction_status ?? null,
+        scentsByLevel: show.scents_by_level ?? null,
+        spectatorsPolicy: show.spectators_policy ?? null,
+        photographerContact: show.photographer_contact ?? null,
         // MYK9-1976: raw policy columns; the app resolves the text exhibitors read.
         withdrawal: buildPremiumWithdrawalRow(show as Record<string, unknown>),
       },

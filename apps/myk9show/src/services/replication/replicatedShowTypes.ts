@@ -1,10 +1,11 @@
 import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import type { ShowCloseRecord } from './showCloseRecordColumns';
+import type { ShowAscaFacts } from './showAscaFactColumns';
 
 /**
  * App-level Show type with camelCase fields and sync metadata
  */
-export interface ReplicatedShow extends ShowCloseRecord {
+export interface ReplicatedShow extends ShowCloseRecord, ShowAscaFacts {
   id: string;
   name: string;
   organization: string;

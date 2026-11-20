@@ -6,9 +6,30 @@
  */
 
 import type { Show } from '@/types/show-types';
+import type { ShowAscaFacts } from '@/services/replication/showAscaFactColumns';
 import type { ShowStyle } from '@/features/registries';
 import { readExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import type { ShowEditFormData, ShowEditSaveData } from './ShowEditPanel.types';
+
+// MYK9-2290: a cleared choice or box saves null, which clears the column.
+export const ascaFactsFromForm = (formData: ShowEditFormData): ShowAscaFacts => {
+  const status = formData.ascaSanctionStatus;
+  const policy = formData.spectatorsPolicy;
+  return {
+    ...(status !== undefined && {
+      ascaSanctionStatus: status === 'pending' || status === 'approved' ? status : null,
+    }),
+    ...(formData.scentsByLevel !== undefined && {
+      scentsByLevel: formData.scentsByLevel.trim() || null,
+    }),
+    ...(policy !== undefined && {
+      spectatorsPolicy: policy === 'allowed' || policy === 'not_allowed' ? policy : null,
+    }),
+    ...(formData.photographerContact !== undefined && {
+      photographerContact: formData.photographerContact.trim() || null,
+    }),
+  };
+};
 
 // Convert Show to form data
 export const showToFormData = (show: Partial<Show>): ShowEditFormData => {
@@ -39,6 +60,10 @@ export const showToFormData = (show: Partial<Show>): ShowEditFormData => {
     clubName: show.clubName || '',
     logoUrl: show.logoUrl || '',
     confirmationMessage: show.confirmationMessage ?? '',
+    ascaSanctionStatus: show.ascaSanctionStatus ?? '',
+    scentsByLevel: show.scentsByLevel ?? '',
+    spectatorsPolicy: show.spectatorsPolicy ?? '',
+    photographerContact: show.photographerContact ?? '',
     trials: show.trials || [],
     feesAsOpened: {
       preEntryFee: show.preEntryFee || '',
@@ -84,6 +109,7 @@ export const formDataToShow = (formData: ShowEditFormData): Partial<Show> => ({
   ...(formData.confirmationMessage !== undefined && {
     confirmationMessage: formData.confirmationMessage.trim(),
   }),
+  ...ascaFactsFromForm(formData),
   // Conditionally include optional string fields only when non-empty
   // (exactOptionalPropertyTypes forbids assigning undefined to string properties)
   ...(formData.location && { location: formData.location }),

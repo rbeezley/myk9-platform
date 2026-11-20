@@ -26,6 +26,7 @@
  *   pulled_out (MYK9-2001)                    same drain, same `held` rule: "you are out" after the
  *                                             exhibitor's own Pull or Withdraw. It issues and
  *                                             schedules nothing and promises no amount or date.
+ *   refund_denied (MYK9-2249)                 same drain and `held` rule; also sent after closeout
  *   show_cancelled (MYK9-2127)                same drain, same `held` release; sent only while the show
  *                                             is still cancelled and the person still has an entry
  */
@@ -44,6 +45,7 @@ import { planJudgeChangedEmail, renderJudgeChangedEmail } from './lifecycle-emai
 import { planEntryChangedEmail, renderEntryChangedEmail } from './lifecycle-email-entryChanged.ts';
 import { isCancelledShow, renderShowCancelledEmail } from './lifecycle-email-showCancelled.ts';
 import { planPulledOutEmail, renderPulledOutEmail } from './lifecycle-email-pullOut.ts';
+import { buildRefundDeniedEmail, showHearsDenial } from './lifecycle-email-refundDenied.ts';
 import {
   isPublishedShow,
   renderShowChangedEmail,
@@ -52,9 +54,9 @@ import {
 
 export const AUTO_SEND_BATCH_SIZE = 25;
 /** Jobs a producer makes `held`, for a sender deployed before this one never to mail them wrongly. */
-const HELD_UNTIL_SENDER_STEP_TYPES = ['entry_changed', 'show_cancelled', 'pulled_out'];
+const HELD_STEP_TYPES = ['entry_changed', 'show_cancelled', 'pulled_out', 'refund_denied'];
 /** Steps the secretary cannot switch off: a change or a pulling-out email is never held back. */
-const ALWAYS_ON_STEP_TYPES = HELD_UNTIL_SENDER_STEP_TYPES;
+const ALWAYS_ON_STEP_TYPES = HELD_STEP_TYPES;
 /** Longer than the function's wall-clock cap, so an attempt cannot still run once its lease ends. */
 export const AUTO_SEND_LEASE_MS = 10 * 60 * 1000;
 export const AUTO_SEND_MAX_FAILED_ATTEMPTS = 5;
@@ -129,7 +131,7 @@ export async function drainAutoEmailJobs(args: {
   const released = await args.supabase
     .from('show_lifecycle_email_jobs')
     .update({ status: 'ready' })
-    .in('step_type', HELD_UNTIL_SENDER_STEP_TYPES)
+    .in('step_type', HELD_STEP_TYPES)
     .eq('status', 'held');
   // A failed release leaves them held for the next drain; it must not stop the other emails.
   if (released.error) console.error('drain_auto: release failed', getErrorMessage(released.error));
@@ -221,7 +223,9 @@ async function processClaimedJob(args: {
   const showFits =
     job.step_type === 'show_cancelled'
       ? isCancelledShow(show ?? { status: null })
-      : show !== null && isPublishedShow(show);
+      : job.step_type === 'refund_denied'
+        ? show !== null && showHearsDenial(show)
+        : show !== null && isPublishedShow(show);
   if (!show || !showFits || !job.recipient_person_id) {
     await finishJob(args, { status: 'skipped' });
     return 'skipped';
@@ -315,6 +319,21 @@ async function processClaimedJob(args: {
       lines: plan.lines,
       moneyNote: plan.moneyNote,
     });
+  } else if (job.step_type === 'refund_denied') {
+    // MYK9-2249: told only while the denial and its reason still stand on the entry.
+    const built = await buildRefundDeniedEmail({
+      supabase,
+      jobId: job.job_id,
+      showId: job.show_id,
+      personId: job.recipient_person_id,
+      showName: show.name,
+      recipientName: job.recipient_name,
+    });
+    if (built.kind === 'skip') {
+      await finishJob(args, { status: 'skipped' });
+      return 'skipped';
+    }
+    text = built.text;
   } else {
     if (!(await personHasLiveEntry(supabase, job.show_id, job.recipient_person_id))) {
       await finishJob(args, { status: 'skipped' });

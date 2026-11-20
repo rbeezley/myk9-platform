@@ -220,6 +220,11 @@ export const showSchemas = {
       acceptCashPayments: z.boolean().optional(),
       style: z.string().default('monogram'),
       confirmationMessage: z.string().max(NOTE_TO_EXHIBITORS_MAX_LENGTH).optional(),
+      // MYK9-2290: ASCA premium facts; '' is "not set". The database CHECK allows only these values.
+      ascaSanctionStatus: z.enum(['', 'pending', 'approved']).optional(),
+      scentsByLevel: z.string().max(2000).optional(),
+      spectatorsPolicy: z.enum(['', 'allowed', 'not_allowed']).optional(),
+      photographerContact: z.string().max(500).optional(),
       publishExperience: z.boolean().optional(),
       generatedPremium: z.custom<import('@/types/premium-types').GeneratedPremium>().optional(),
       inkSaver: z.boolean().optional(),

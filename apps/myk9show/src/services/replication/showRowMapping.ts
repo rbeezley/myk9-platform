@@ -6,6 +6,7 @@ import { readExperienceSnapshot } from '@/features/experience/experienceSnapshot
 import type { Database } from '@/types/supabase';
 import type { ReplicatedShow } from './ReplicatedShowsTable';
 import { showCloseRecordFromRow } from './showCloseRecordColumns';
+import { showAscaFactsFromRow } from './showAscaFactColumns';
 import { showUsesFromRow } from './showUsesColumns';
 
 type ShowRow = Database['public']['Tables']['shows']['Row'];
@@ -48,6 +49,7 @@ export function rowToShow(row: ShowRow): ReplicatedShow {
     allowsWaitlist: row.allow_waitlist ?? undefined,
     ...showUsesFromRow(row),
     ...showCloseRecordFromRow(row),
+    ...showAscaFactsFromRow(row),
     serverVersion: row.version,
     logoUrl: row.logo_url ?? undefined,
     coverImageUrl: row.cover_image_url ?? undefined,

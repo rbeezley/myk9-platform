@@ -152,7 +152,7 @@ export function buildFormChecklist(
             kind: 'payment',
             id: 'payment',
             title: `${dollars(money.remainingDollars)} due`,
-            detail: unpaid.length > 0 ? unpaidLine : 'The payment record shows a balance.',
+            detail: 'The payment record shows a balance.',
             canRecord: Boolean(registration.enrollmentId),
           }
         : {

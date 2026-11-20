@@ -237,3 +237,72 @@ describe('note to exhibitors (MYK9-2114)', () => {
     ).toBe('');
   });
 });
+
+describe('ASCA premium facts (MYK9-2290)', () => {
+  it('opens the form with each fact, and with "not set" when the show has none', () => {
+    const form = showToFormData({
+      ascaSanctionStatus: 'approved',
+      scentsByLevel: 'Birch',
+      spectatorsPolicy: 'allowed',
+      photographerContact: 'Pat',
+    });
+    expect([
+      form.ascaSanctionStatus,
+      form.scentsByLevel,
+      form.spectatorsPolicy,
+      form.photographerContact,
+    ]).toEqual(['approved', 'Birch', 'allowed', 'Pat']);
+    const empty = showToFormData({});
+    expect([
+      empty.ascaSanctionStatus,
+      empty.scentsByLevel,
+      empty.spectatorsPolicy,
+      empty.photographerContact,
+    ]).toEqual(['', '', '', '']);
+  });
+
+  it('keeps the facts through validation and saves them trimmed', () => {
+    const parsed = showSchemas.edit.parse({
+      ...baseFormData,
+      ascaSanctionStatus: 'pending',
+      scentsByLevel: '  Birch  ',
+      spectatorsPolicy: 'not_allowed',
+      photographerContact: ' Pat ',
+    });
+    expect(formDataToShow(parsed as ShowEditFormData)).toMatchObject({
+      ascaSanctionStatus: 'pending',
+      scentsByLevel: 'Birch',
+      spectatorsPolicy: 'not_allowed',
+      photographerContact: 'Pat',
+    });
+  });
+
+  it('saves null for each fact left empty (that clears the column)', () => {
+    const saved = formDataToShow({
+      ...baseFormData,
+      ascaSanctionStatus: '',
+      scentsByLevel: '   ',
+      spectatorsPolicy: '',
+      photographerContact: '',
+    });
+    expect(saved.ascaSanctionStatus).toBeNull();
+    expect(saved.scentsByLevel).toBeNull();
+    expect(saved.spectatorsPolicy).toBeNull();
+    expect(saved.photographerContact).toBeNull();
+  });
+
+  it('sends nothing for a form that does not carry them', () => {
+    const saved = formDataToShow(baseFormData);
+    expect(saved).not.toHaveProperty('ascaSanctionStatus');
+    expect(saved).not.toHaveProperty('scentsByLevel');
+  });
+
+  it('refuses a choice the database check would refuse', () => {
+    expect(
+      showSchemas.edit.safeParse({ ...baseFormData, ascaSanctionStatus: 'maybe' }).success
+    ).toBe(false);
+    expect(showSchemas.edit.safeParse({ ...baseFormData, spectatorsPolicy: 'yes' }).success).toBe(
+      false
+    );
+  });
+});

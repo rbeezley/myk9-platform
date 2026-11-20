@@ -240,6 +240,15 @@ export function GazetteBody({ data, tokens }: Props) {
         </View>
       )}
 
+      {f.showTerms.map(term => (
+        <View key={term.label} style={{ marginTop: 16 }} wrap={false}>
+          <View style={headerWrapStyle}>
+            <Text style={headerTextStyle}>{term.label}</Text>
+          </View>
+          <Text style={bodyTextStyle}>{term.text}</Text>
+        </View>
+      ))}
+
       {f.scoutingStatement && (
         <View style={{ marginTop: 16 }} wrap={false}>
           <View style={headerWrapStyle}>

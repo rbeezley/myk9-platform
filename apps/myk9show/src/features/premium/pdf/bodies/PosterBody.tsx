@@ -123,6 +123,13 @@ export function PosterBody({ data, tokens }: Props) {
         </View>
       )}
 
+      {f.showTerms.map(term => (
+        <View key={term.label} style={sectionGap}>
+          <Text style={labelStyle}>{term.label}</Text>
+          <Text style={bodyStyle}>{term.text}</Text>
+        </View>
+      ))}
+
       {f.withdrawalPolicy && (
         <View style={sectionGap}>
           <Text style={labelStyle}>{f.withdrawalPolicy.label}</Text>

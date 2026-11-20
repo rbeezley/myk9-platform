@@ -8,6 +8,12 @@ import { getOptimalStorage } from '@/services/database/storage-adapter';
 // import { getLastModifiedBy, getCurrentUserUUID } from '@/utils/authHelpers';
 import { reportStoreError } from '@/utils/standardizedErrorHandler';
 import { logger } from '@/services/LoggingService';
+import {
+  bumpSignOutGeneration,
+  currentSignOutGeneration,
+  isRedactionPending,
+  stripPeopleContacts,
+} from './userStoreContactRedaction';
 
 // Input types for creating/updating users
 export interface UserInput {
@@ -50,6 +56,8 @@ interface UserStore {
   // Data Management
   setUsers: (users: User[]) => void;
   loadUsers: (options?: { includeRoleLabels?: boolean }) => Promise<void>;
+  /** MYK9-2255: drop contact details from the directory, in memory and saved. True once saved. */
+  redactContacts: () => Promise<boolean>;
 
   // Sync Status
   getSyncStatus: (id: string) => 'synced' | 'pending' | 'error' | 'conflict';
@@ -329,8 +337,32 @@ export const useUserStore = create<UserStore>()(
       // Data Management
       setUsers: users => set({ users, people: users }),
 
+      redactContacts: async (): Promise<boolean> => {
+        bumpSignOutGeneration();
+        const users = stripPeopleContacts(get().users);
+        set({ users, people: users });
+        try {
+          const persistApi = useUserStore.persist;
+          await persistApi.getOptions().storage?.setItem(persistApi.getOptions().name ?? '', {
+            state: { users },
+            version: persistApi.getOptions().version ?? 0,
+          });
+          return true;
+        } catch (error) {
+          logger.error('Could not save the stripped people directory', 'store', {}, error as Error);
+          return false;
+        }
+      },
+
       loadUsers: async (options = {}): Promise<void> => {
         try {
+          // A removal that failed at sign-out runs again before the directory is read.
+          if (isRedactionPending()) {
+            const { retryPendingPeopleRedaction } =
+              await import('@/services/database/users/signOutPeopleRedaction');
+            await retryPendingPeopleRedaction();
+          }
+          const generation = currentSignOutGeneration();
           set({ isLoading: true, error: null });
 
           // Import here to avoid circular dependencies
@@ -345,6 +377,12 @@ export const useUserStore = create<UserStore>()(
 
           // Map database results to User objects
           const users = data.map(mapDatabaseToUser);
+
+          // Signed out while this load ran: its contact details must not come back.
+          if (generation !== currentSignOutGeneration()) {
+            set({ isLoading: false });
+            return;
+          }
 
           set({
             users,
@@ -464,11 +502,27 @@ export const useUserStore = create<UserStore>()(
       // so without this merge it would stay as [] after rehydration while
       // `users` has the restored data — causing dropdowns that read from
       // `people` to appear empty.
-      merge: (persistedState, currentState) => ({
-        ...currentState,
-        ...(persistedState as Partial<UserStore>),
-        people: (persistedState as Partial<UserStore>).users ?? currentState.users,
-      }),
+      // MYK9-2255: a rehydration after a sign-out (this page, or one whose strip
+      // failed) must not bring contact details back.
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as Partial<UserStore>;
+        const redact = currentSignOutGeneration() > 0 || isRedactionPending();
+        const users =
+          redact && persisted.users ? stripPeopleContacts(persisted.users) : persisted.users;
+        return {
+          ...currentState,
+          ...persisted,
+          ...(users && { users }),
+          people: users ?? currentState.users,
+        };
+      },
+      onRehydrateStorage: () => () => {
+        if (isRedactionPending()) {
+          void import('@/services/database/users/signOutPeopleRedaction').then(m =>
+            m.retryPendingPeopleRedaction()
+          );
+        }
+      },
       version: 1,
       migrate: (persistedState: unknown, version: number) => {
         // Handle version migrations if needed

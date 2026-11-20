@@ -1,4 +1,9 @@
-import { ReplicatedTable, type SyncResult } from '@myk9/replication';
+import {
+  REPLICATION_STORES,
+  ReplicatedTable,
+  type ReplicatedRow,
+  type SyncResult,
+} from '@myk9/replication';
 import { logger } from '@myk9/core';
 
 export interface ShowDeskPersonInput {
@@ -96,6 +101,33 @@ export class ReplicatedShowDeskPeopleTable extends ReplicatedTable<ReplicatedSho
     return person;
   }
 
+  /**
+   * MYK9-2255, at sign-out: a row with unsent work keeps every field; a row that
+   * was sent keeps the name only. Covers every account's rows on this device.
+   * Throws when storage cannot be read or written (the caller retries later).
+   */
+  async redactSentContacts(): Promise<void> {
+    const db = await this.init();
+    const store = REPLICATION_STORES.REPLICATED_TABLES;
+    const table = this.getTableName();
+    const all = (await db.getAll(store)) as ReplicatedRow<ReplicatedShowDeskPerson>[];
+    let changed = false;
+    for (const candidate of all) {
+      if (candidate.tableName !== table || !hasContacts(candidate.data)) continue;
+      if (await this.hasUnsyncedLocalWork(candidate.id)) continue;
+      const tx = db.transaction(store, 'readwrite');
+      const row = (await tx.store.get([table, candidate.id])) as
+        ReplicatedRow<ReplicatedShowDeskPerson> | undefined;
+      const data = row?.data as (ReplicatedShowDeskPerson & { _localOnly?: boolean }) | undefined;
+      if (row && data && !row.isDirty && data._localOnly !== true) {
+        await tx.store.put({ ...row, data: { ...data, ...NO_CONTACTS } });
+        changed = true;
+      }
+      await tx.done;
+    }
+    if (changed) await this.notifyListeners();
+  }
+
   protected resolveConflict(
     local: ReplicatedShowDeskPerson,
     _remote: ReplicatedShowDeskPerson
@@ -119,6 +151,19 @@ export class ReplicatedShowDeskPeopleTable extends ReplicatedTable<ReplicatedSho
       updated_at: new Date().toISOString(),
     };
   }
+}
+
+const NO_CONTACTS = {
+  email: null,
+  phone: null,
+  address: null,
+  city: null,
+  state: null,
+  zipCode: null,
+} as const;
+
+function hasContacts(person: ReplicatedShowDeskPerson | undefined): boolean {
+  return !!person && Object.keys(NO_CONTACTS).some(k => person[k as keyof typeof NO_CONTACTS]);
 }
 
 export const replicatedShowDeskPeopleTable = new ReplicatedShowDeskPeopleTable();

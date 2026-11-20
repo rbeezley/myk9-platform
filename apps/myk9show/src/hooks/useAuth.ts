@@ -7,6 +7,7 @@ import { rbacService } from '@/services/rbac/RBACService';
 import { captureAuthEmailRequestFailure } from '@/services/observability/sentry';
 import { clearAppearanceCache } from '@/context/themeClasses';
 import { clearOwnerNameCache } from '@/services/database/dogs/ownerNameCache';
+import { redactPeopleContactsOnDevice } from '@/services/database/users/signOutPeopleRedaction';
 import { replicatedClassesTable } from '@/services/replication';
 import { ringsideClaimMatchesUser } from '@/features/at-show/ringsideClaimCache';
 import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
@@ -186,6 +187,8 @@ export function useAuth() {
       if (_event === 'SIGNED_OUT') {
         clearAppearanceCache();
         clearOwnerNameCache();
+        // MYK9-2255: phone, email and address leave the saved people; names stay.
+        void redactPeopleContactsOnDevice();
         // MYK9-2046: the unsent home page club form holds contact details.
         clearClubOnboardingDraft();
         clearAllRbacWarmTokens();

@@ -288,6 +288,22 @@ describe('searchAllDogs: a multi-word search matches word by word (MYK9-2026)', 
     expect(Object.keys(data[0] ?? {}).filter(key => key.startsWith('search_'))).toEqual([]);
   });
 
+  it.each([
+    ['Smith, Mary', 'Smith Mary'],
+    ['Smith,Mary', 'Smith Mary'],
+    ['Rex (Lab)', 'Rex Lab'],
+    ['(Smith)', 'Smith'],
+    ['Smith,', 'Smith'],
+  ])(
+    'finds the same dogs for "%s" as for "%s" (MYK9-2148: commas and parentheses separate words)',
+    async (punctuated, bare) => {
+      const { ids, error } = await foundIds(punctuated);
+      expect(error).toBeNull();
+      expect(ids).toEqual((await foundIds(bare)).ids);
+      expect(ids).not.toEqual([]);
+    }
+  );
+
   it('propagates a failed search instead of returning an empty list', async () => {
     useFakeDatabase({ failTable: 'dogs' });
     const { data, error, hitLimit } = await foundIds('rex lab');

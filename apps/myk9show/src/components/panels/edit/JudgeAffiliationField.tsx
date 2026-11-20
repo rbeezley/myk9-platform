@@ -7,34 +7,14 @@ import { Label } from '@/components/ui/label';
 import { queryKeys } from '@/lib/queryClient';
 import { PREMIUM_JUDGE_AFFILIATIONS_KEY } from '@/services/database/judges/judgeAffiliationKeys';
 import { setJudgeAffiliation } from '@/services/database/judges/setJudgeAffiliation';
-import { useJudgesWithQualifications } from '@/hooks/queries/useJudgesWithQualifications';
-import {
-  useJudgeAffiliationReadiness,
-  useJudgeAffiliationReadinessSync,
-} from '@/hooks/queries/useJudgeAssignmentUploaded';
-import type { User } from '@/types/user-types';
+import { useJudgeAffiliationEditor } from '@/hooks/queries/useJudgeAffiliationEditor';
 import { useEditPanel } from './useEditPanel';
 import type { ShowEditFormData } from './ShowEditPanel.types';
 import { friendlySaveError } from '@/utils/friendlySaveError';
 
 export const JUDGE_AFFILIATION_MAX_LENGTH = 200;
 export const JUDGE_AFFILIATION_WAIT = 'Saving the judge first';
-
-interface JudgeAffiliationFieldProps {
-  showId: string | undefined;
-  judgeId: string;
-  /** The affiliation stored on the judge's person record. */
-  initialValue: string | undefined;
-}
-
-const JUDGES_KEY = ['judges', 'withQualifications'] as const;
-
-/** Mounted once in the Judges tab: keeps every row's readiness current (MYK9-2294). */
-export const AffiliationSync: React.FC = () => {
-  const { data: show } = useEditPanel<ShowEditFormData>();
-  useJudgeAffiliationReadinessSync(show.organization === 'ASCA' ? show.id : undefined);
-  return null;
-};
+export const JUDGE_AFFILIATION_OFFLINE = 'Reconnect to add the affiliation';
 
 /**
  * On an ASCA show, the Affiliation field for one assigned judge (MYK9-2294), in either judges
@@ -42,15 +22,8 @@ export const AffiliationSync: React.FC = () => {
  */
 export const JudgeAffiliation: React.FC<{ judgeId: string }> = ({ judgeId }) => {
   const { data: show } = useEditPanel<ShowEditFormData>();
-  const { data: judges = [] } = useJudgesWithQualifications();
   if (show.organization !== 'ASCA') return null;
-  return (
-    <JudgeAffiliationField
-      showId={show.id}
-      judgeId={judgeId}
-      initialValue={judges.find(judge => judge.id === judgeId)?.judgeAffiliation}
-    />
-  );
+  return <JudgeAffiliationField showId={show.id} judgeId={judgeId} />;
 };
 
 /** A judge ticked on Edit show's Judges tab: "Assigned to show", then the affiliation. */
@@ -64,20 +37,19 @@ export const AssignedJudgeNote: React.FC<{ judgeId: string }> = ({ judgeId }) =>
 /**
  * MYK9-2294 (ASCA §1.5.7): the secretary types a judge's affiliation in Edit show's judges list.
  * Saves through the single-field `set_judge_affiliation` RPC, which the server refuses until the
- * judge's assignment is on the server, so the field stays disabled until the upload is
- * acknowledged (before and after Save Changes, and after reopening Edit show).
+ * judge's assignment is on the server, so the field stays disabled until the server shows that
+ * assignment (before and after Save Changes, and after reopening Edit show).
  */
-export const JudgeAffiliationField: React.FC<JudgeAffiliationFieldProps> = ({
+export const JudgeAffiliationField: React.FC<{ showId: string | undefined; judgeId: string }> = ({
   showId,
   judgeId,
-  initialValue,
 }) => {
   const queryClient = useQueryClient();
-  const readiness = useJudgeAffiliationReadiness(showId, judgeId);
+  const { readiness, affiliation, showSaved } = useJudgeAffiliationEditor(showId, judgeId);
   const ready = showId !== undefined && readiness === 'ready';
   const [draft, setDraft] = useState<string | null>(null);
-  const value = draft ?? initialValue ?? '';
-  const dirty = draft !== null && draft.trim() !== (initialValue ?? '').trim();
+  const value = draft ?? affiliation ?? '';
+  const dirty = draft !== null && draft.trim() !== (affiliation ?? '');
 
   const save = useMutation({
     // Offline, the save is refused with a reconnect message and the draft kept (MYK9-1090);
@@ -86,16 +58,11 @@ export const JudgeAffiliationField: React.FC<JudgeAffiliationFieldProps> = ({
     mutationFn: () => setJudgeAffiliation(judgeId, showId ?? '', value),
     onSuccess: () => {
       toast.success('Affiliation saved');
-      // Show the acknowledged value at once, so the field never falls back to the old one
-      // while (or if) the refetch below runs.
-      const saved = value.trim() || undefined;
-      queryClient.setQueryData<User[]>(JUDGES_KEY, judges =>
-        judges?.map(judge => (judge.id === judgeId ? { ...judge, judgeAffiliation: saved } : judge))
-      );
-      void queryClient.invalidateQueries({ queryKey: JUDGES_KEY });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
-      void queryClient.invalidateQueries({ queryKey: [PREMIUM_JUDGE_AFFILIATIONS_KEY] });
+      showSaved(value.trim() || null);
       setDraft(null);
+      void queryClient.invalidateQueries({ queryKey: [PREMIUM_JUDGE_AFFILIATIONS_KEY] });
+      void queryClient.invalidateQueries({ queryKey: ['judges', 'withQualifications'] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
     },
     onError: error => {
       const feedback = friendlySaveError(error);
@@ -130,7 +97,11 @@ export const JudgeAffiliationField: React.FC<JudgeAffiliationFieldProps> = ({
           Save affiliation
         </Button>
       </div>
-      {!ready && <p className="text-sm text-muted-foreground">{JUDGE_AFFILIATION_WAIT}</p>}
+      {!ready && (
+        <p className="text-sm text-muted-foreground">
+          {readiness === 'offline' ? JUDGE_AFFILIATION_OFFLINE : JUDGE_AFFILIATION_WAIT}
+        </p>
+      )}
     </div>
   );
 };

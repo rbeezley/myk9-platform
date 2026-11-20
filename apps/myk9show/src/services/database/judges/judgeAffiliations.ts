@@ -57,3 +57,33 @@ export async function fetchShowJudgeAffiliations(showId: string): Promise<ShowJu
   const judges = liveShowJudges(rows, (trialsResult.data ?? []) as unknown as LiveJudgeTrialRow[]);
   return judges;
 }
+
+/** Where a show's assigned judge stands for the Edit show affiliation field (MYK9-2294). */
+export interface JudgeAffiliationEditorEntry {
+  /** `ready`: a live assignment is on the server; `inactive`: only declined or cancelled ones. */
+  status: 'ready' | 'inactive';
+  affiliation: string | null;
+}
+
+/**
+ * The server's own view of each judge assigned to this show: whether a live (not declined or
+ * cancelled) assignment exists there, which is exactly what `set_judge_affiliation` requires,
+ * and the affiliation on the person. It reads the person through the assignment, so a judge
+ * who lost every qualification still has their value. A judge missing from the map has no
+ * assignment on the server yet.
+ */
+export async function fetchShowJudgeAffiliationEditor(
+  showId: string
+): Promise<Record<string, JudgeAffiliationEditorEntry>> {
+  const entries: Record<string, JudgeAffiliationEditorEntry> = {};
+  for (const row of await fetchAssignments(showId)) {
+    if (!row.person) continue;
+    const live = row.status !== 'declined' && row.status !== 'cancelled';
+    const previous = entries[row.person.id];
+    entries[row.person.id] = {
+      status: live || previous?.status === 'ready' ? 'ready' : 'inactive',
+      affiliation: row.person.judge_affiliation?.trim() || null,
+    };
+  }
+  return entries;
+}

@@ -1,73 +1,59 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useQuery } from '@tanstack/react-query';
+import type { QueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { render } from '@/test/utils/testUtils';
+import { createTestQueryClient, render } from '@/test/utils/testUtils';
+import { getPostSyncInvalidationKeys } from '@/providers/replicationSyncStatus';
 import { EditPanelContext, type EditPanelContextValue } from '../useEditPanel';
-import { AffiliationSync, AssignedJudgeNote, JudgeAffiliation } from '../JudgeAffiliationField';
+import { AssignedJudgeNote, JudgeAffiliation } from '../JudgeAffiliationField';
 
 const mocks = vi.hoisted(() => ({
-  getByShowId: vi.fn(),
-  hasUnsyncedLocalWork: vi.fn(),
-  subscribe: vi.fn(),
+  fetchEditor: vi.fn(),
   setJudgeAffiliation: vi.fn(),
-  fetchJudges: vi.fn(),
-  listener: undefined as undefined | (() => void),
+  online: true,
 }));
 
-vi.mock('@/services/replication', () => ({
-  replicatedJudgeAssignmentsTable: {
-    getByShowId: mocks.getByShowId,
-    hasUnsyncedLocalWork: mocks.hasUnsyncedLocalWork,
-    subscribe: mocks.subscribe,
-  },
+vi.mock('@/services/database/judges/judgeAffiliations', () => ({
+  fetchShowJudgeAffiliationEditor: mocks.fetchEditor,
 }));
 vi.mock('@/services/database/judges/setJudgeAffiliation', () => ({
   setJudgeAffiliation: mocks.setJudgeAffiliation,
 }));
-// The real judge-list query key, so the save's cache write is exercised.
-vi.mock('@/hooks/queries/useJudgesWithQualifications', () => ({
-  useJudgesWithQualifications: () =>
-    useQuery({ queryKey: ['judges', 'withQualifications'], queryFn: mocks.fetchJudges }),
-}));
+vi.mock('@/hooks/useNetworkStatus', () => ({ useIsOnline: () => mocks.online }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
-const row = (over: Record<string, unknown> = {}) => ({
-  id: 'ja-1',
-  personId: 'judge-1',
-  showId: 'show-1',
-  status: 'invited',
-  ...over,
-});
+const ready = (affiliation: string | null = 'Region 3') => ({ status: 'ready', affiliation });
 
-function renderWith(children: React.ReactNode, organization = 'ASCA') {
+function renderWith(children: React.ReactNode, organization = 'ASCA', queryClient?: QueryClient) {
   const context = {
     data: { id: 'show-1', organization },
   } as unknown as EditPanelContextValue;
-  return render(
-    <EditPanelContext.Provider value={context}>
-      <AffiliationSync />
-      {children}
-    </EditPanelContext.Provider>
-  );
+  return render(<EditPanelContext.Provider value={context}>{children}</EditPanelContext.Provider>, {
+    ...(queryClient !== undefined && { queryClient }),
+  });
 }
 
-const renderNote = (organization = 'ASCA') =>
-  renderWith(<AssignedJudgeNote judgeId="judge-1" />, organization);
+const renderNote = (organization = 'ASCA', queryClient?: QueryClient) =>
+  renderWith(<AssignedJudgeNote judgeId="judge-1" />, organization, queryClient);
+
+/** What a sync pass that landed a judge_assignments upload invalidates. */
+async function landUpload(queryClient: QueryClient) {
+  await act(async () => {
+    await Promise.all(
+      getPostSyncInvalidationKeys(['judge_assignments']).map(queryKey =>
+        queryClient.invalidateQueries({ queryKey })
+      )
+    );
+  });
+}
 
 describe('Edit show judge affiliation field (MYK9-2294)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.listener = undefined;
-    mocks.getByShowId.mockResolvedValue([row()]);
-    mocks.hasUnsyncedLocalWork.mockResolvedValue(false);
+    mocks.online = true;
+    mocks.fetchEditor.mockResolvedValue({ 'judge-1': ready() });
     mocks.setJudgeAffiliation.mockResolvedValue(undefined);
-    mocks.fetchJudges.mockResolvedValue([{ id: 'judge-1', judgeAffiliation: 'Region 3' }]);
-    mocks.subscribe.mockImplementation((callback: () => void) => {
-      mocks.listener = callback;
-      return () => {};
-    });
   });
 
   it('saves a typed affiliation through the RPC for the judge on this show', async () => {
@@ -75,7 +61,7 @@ describe('Edit show judge affiliation field (MYK9-2294)', () => {
     renderNote();
     const input = await screen.findByLabelText('Affiliation');
     await waitFor(() => expect(input).toBeEnabled());
-    await waitFor(() => expect(input).toHaveValue('Region 3'));
+    expect(input).toHaveValue('Region 3');
     await user.clear(input);
     await user.type(input, 'ASCA-approved judge, Region 4');
     await user.click(screen.getByRole('button', { name: 'Save affiliation' }));
@@ -88,13 +74,12 @@ describe('Edit show judge affiliation field (MYK9-2294)', () => {
     );
   });
 
-  it('keeps the saved value on screen even when the judge list refetch never lands', async () => {
+  it('keeps the saved value on screen even when the refetch never lands', async () => {
     const user = userEvent.setup();
     renderNote();
     const input = await screen.findByLabelText('Affiliation');
-    await waitFor(() => expect(input).toHaveValue('Region 3'));
     await waitFor(() => expect(input).toBeEnabled());
-    mocks.fetchJudges.mockReturnValue(new Promise(() => {}));
+    mocks.fetchEditor.mockReturnValue(new Promise(() => {}));
     await user.clear(input);
     await user.type(input, '  Region 9  ');
     await user.click(screen.getByRole('button', { name: 'Save affiliation' }));
@@ -102,7 +87,7 @@ describe('Edit show judge affiliation field (MYK9-2294)', () => {
     expect(input).toHaveValue('Region 9');
   });
 
-  it('keeps the draft and reports the refusal when the save fails (offline)', async () => {
+  it('keeps the draft and reports the refusal when a save fails', async () => {
     const user = userEvent.setup();
     mocks.setJudgeAffiliation.mockRejectedValue(
       Object.assign(
@@ -119,7 +104,13 @@ describe('Edit show judge affiliation field (MYK9-2294)', () => {
     await user.click(screen.getByRole('button', { name: 'Save affiliation' }));
     await waitFor(() => expect(toast.error).toHaveBeenCalled());
     expect(input).toHaveValue('Region 3 x');
-    expect(input).toBeEnabled();
+  });
+
+  it('is disabled with a reconnect message while offline', async () => {
+    mocks.online = false;
+    renderNote();
+    expect(await screen.findByText('Reconnect to add the affiliation')).toBeInTheDocument();
+    expect(screen.getByLabelText('Affiliation')).toBeDisabled();
   });
 
   it('shows no field on a show that is not ASCA', async () => {
@@ -128,51 +119,44 @@ describe('Edit show judge affiliation field (MYK9-2294)', () => {
     expect(screen.queryByLabelText('Affiliation')).not.toBeInTheDocument();
   });
 
-  it('offers the field for a judge in the no-longer-qualified list too', async () => {
+  it('shows a no-longer-qualified judge their stored value, read through the assignment', async () => {
+    mocks.fetchEditor.mockResolvedValue({ 'judge-1': ready('Region 7') });
     renderWith(<JudgeAffiliation judgeId="judge-1" />);
     const input = await screen.findByLabelText('Affiliation');
-    await waitFor(() => expect(input).toBeEnabled());
+    await waitFor(() => expect(input).toHaveValue('Region 7'));
+    expect(input).toBeEnabled();
   });
 
-  it.each([
-    ['a local-only row', [row({ _localOnly: true })], false],
-    ['a row with a pending mutation', [row()], true],
-    ['no row yet (ticked, not saved)', [], false],
-  ])('is disabled with "Saving the judge first" for %s', async (_label, rows, unsynced) => {
-    mocks.getByShowId.mockResolvedValue(rows);
-    mocks.hasUnsyncedLocalWork.mockResolvedValue(unsynced);
+  it('is disabled with "Saving the judge first" while the server has no assignment yet', async () => {
+    mocks.fetchEditor.mockResolvedValue({});
     renderNote();
     expect(await screen.findByText('Saving the judge first')).toBeInTheDocument();
     expect(screen.getByLabelText('Affiliation')).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Save affiliation' })).toBeDisabled();
   });
 
-  it('is ready when one live assignment is on the server, even if another is pending', async () => {
-    mocks.getByShowId.mockResolvedValue([
-      row({ id: 'ja-show', _syncStatus: 'synced' }),
-      row({ id: 'ja-class', _syncStatus: 'pending' }),
-    ]);
-    mocks.hasUnsyncedLocalWork.mockImplementation(async (id: string) => id === 'ja-class');
+  it('shows no field when every assignment is declined or cancelled', async () => {
+    mocks.fetchEditor.mockResolvedValue({ 'judge-1': { status: 'inactive', affiliation: null } });
     renderNote();
-    const input = await screen.findByLabelText('Affiliation');
-    await waitFor(() => expect(input).toBeEnabled());
+    expect(await screen.findByText('Assigned to show')).toBeInTheDocument();
+    await waitFor(() => expect(mocks.fetchEditor).toHaveBeenCalled());
+    await waitFor(() => expect(screen.queryByLabelText('Affiliation')).not.toBeInTheDocument());
     expect(screen.queryByText('Saving the judge first')).not.toBeInTheDocument();
   });
 
-  it.each(['declined', 'cancelled'])(
-    'shows no field when the only assignment is %s, instead of waiting forever',
-    async status => {
-      mocks.getByShowId.mockResolvedValue([row({ status })]);
-      renderNote();
-      expect(await screen.findByText('Assigned to show')).toBeInTheDocument();
-      await waitFor(() => expect(mocks.getByShowId).toHaveBeenCalled());
-      await waitFor(() => expect(screen.queryByLabelText('Affiliation')).not.toBeInTheDocument());
-      expect(screen.queryByText('Saving the judge first')).not.toBeInTheDocument();
-    }
-  );
+  it('disables a ready field when a refresh fails', async () => {
+    const queryClient = createTestQueryClient();
+    renderNote('ASCA', queryClient);
+    const input = await screen.findByLabelText('Affiliation');
+    await waitFor(() => expect(input).toBeEnabled());
+    mocks.fetchEditor.mockRejectedValue(new Error('read failed'));
+    await landUpload(queryClient);
+    await waitFor(() => expect(input).toBeDisabled());
+    expect(screen.getByText('Saving the judge first')).toBeInTheDocument();
+  });
 
-  it('reads readiness once per show and listens once, however many judges are listed', async () => {
-    mocks.getByShowId.mockResolvedValue([row(), row({ id: 'ja-2', personId: 'judge-2' })]);
+  it('reads once per show however many judges are listed', async () => {
+    mocks.fetchEditor.mockResolvedValue({ 'judge-1': ready(), 'judge-2': ready('Region 5') });
     renderWith(
       <>
         <AssignedJudgeNote judgeId="judge-1" />
@@ -183,28 +167,42 @@ describe('Edit show judge affiliation field (MYK9-2294)', () => {
     await waitFor(() =>
       screen.getAllByLabelText('Affiliation').forEach(input => expect(input).toBeEnabled())
     );
-    expect(mocks.getByShowId).toHaveBeenCalledTimes(1);
-    expect(mocks.getByShowId).toHaveBeenCalledWith('show-1');
-    expect(mocks.subscribe).toHaveBeenCalledTimes(1);
+    expect(mocks.fetchEditor).toHaveBeenCalledTimes(1);
+    expect(mocks.fetchEditor).toHaveBeenCalledWith('show-1');
+  });
+
+  it('re-reads on reopening Edit show, so an upload acknowledged while closed enables it', async () => {
+    const queryClient = createTestQueryClient();
+    mocks.fetchEditor.mockResolvedValue({});
+    const first = renderNote('ASCA', queryClient);
+    await screen.findByText('Saving the judge first');
+    first.unmount();
+    mocks.fetchEditor.mockResolvedValue({ 'judge-1': ready() });
+    renderNote('ASCA', queryClient);
+    const input = await screen.findByLabelText('Affiliation');
+    await waitFor(() => expect(input).toBeEnabled());
   });
 
   it('stays disabled after reopening Edit show while the upload is unacknowledged', async () => {
-    mocks.getByShowId.mockResolvedValue([row({ _syncStatus: 'pending' })]);
-    const first = renderNote();
+    const queryClient = createTestQueryClient();
+    mocks.fetchEditor.mockResolvedValue({});
+    const first = renderNote('ASCA', queryClient);
     await screen.findByText('Saving the judge first');
     first.unmount();
-    renderNote();
+    renderNote('ASCA', queryClient);
     expect(await screen.findByText('Saving the judge first')).toBeInTheDocument();
+    await waitFor(() => expect(mocks.fetchEditor).toHaveBeenCalledTimes(2));
     expect(screen.getByLabelText('Affiliation')).toBeDisabled();
   });
 
-  it('enables once the upload is acknowledged, then saves', async () => {
+  it('enables once a sync pass lands the assignment upload, then saves', async () => {
     const user = userEvent.setup();
-    mocks.getByShowId.mockResolvedValue([row({ _localOnly: true })]);
-    renderNote();
+    const queryClient = createTestQueryClient();
+    mocks.fetchEditor.mockResolvedValue({});
+    renderNote('ASCA', queryClient);
     await screen.findByText('Saving the judge first');
-    mocks.getByShowId.mockResolvedValue([row({ _syncStatus: 'synced' })]);
-    await act(async () => mocks.listener?.());
+    mocks.fetchEditor.mockResolvedValue({ 'judge-1': ready() });
+    await landUpload(queryClient);
     const input = screen.getByLabelText('Affiliation');
     await waitFor(() => expect(input).toBeEnabled());
     expect(screen.queryByText('Saving the judge first')).not.toBeInTheDocument();

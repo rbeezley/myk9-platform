@@ -152,6 +152,8 @@ export interface EntryManagementEntry {
   refundAmount?: number | null;
   /** MYK9-2303: `entries.club_refunded_amount`, dollars the club paid back directly after the payout. */
   clubRefundedAmount?: number | null;
+  /** `entries.discount_amount` in dollars; the club-refund cap is fee minus discount minus refunds. */
+  discountAmount?: number;
   refundedAt?: string | null;
   /** Stripe charge this entry was paid under — the per-ORDER grouping key for
    * online entries, which have no registrationId */

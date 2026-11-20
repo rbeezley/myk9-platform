@@ -39,6 +39,7 @@ export function withEntryManagementMoneyRoots(
       : {}),
     ...(root.comped !== undefined ? { comped: root.comped } : {}),
     ...(root.compedReason !== undefined ? { compedReason: root.compedReason } : {}),
+    ...(root.discountAmount !== undefined ? { discountAmount: root.discountAmount } : {}),
     ...(root.refundAmount !== undefined ? { refundAmount: root.refundAmount } : {}),
     ...(root.clubRefundedAmount !== undefined
       ? { clubRefundedAmount: root.clubRefundedAmount }

@@ -63,11 +63,16 @@ const earlier: ClubSettledRefundRow = {
   created_at: '2026-11-18T10:00:00Z',
 };
 
-function renderDialog() {
+function renderDialog(overrides: Partial<EntryManagementEntry> = {}) {
   const onRefunded = vi.fn();
   const onOpenChange = vi.fn();
   render(
-    <RefundEntryDialog open onOpenChange={onOpenChange} entry={entry} onRefunded={onRefunded} />
+    <RefundEntryDialog
+      open
+      onOpenChange={onOpenChange}
+      entry={{ ...entry, ...overrides }}
+      onRefunded={onRefunded}
+    />
   );
   return { onRefunded, onOpenChange };
 }
@@ -109,6 +114,25 @@ describe('club settled refund form in the refund dialog', () => {
     await user.clear(amount);
     await user.type(amount, '25.01');
     expect(screen.getByRole('button', { name: /save record/i })).toBeDisabled();
+  });
+
+  it('rejects a third decimal place even though Save bypasses the native step', async () => {
+    renderDialog();
+    const user = userEvent.setup();
+    const amount = await screen.findByLabelText(/^amount/i);
+    await user.clear(amount);
+    await user.type(amount, '10.123');
+    expect(screen.getByText('Enter dollars and cents (two decimal places).')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /save record/i })).toBeDisabled();
+  });
+
+  it('takes the discount off the prefill and the displayed maximum', async () => {
+    svc.list.mockResolvedValue([]);
+    renderDialog({ totalFee: 50, discountAmount: 10, refundAmount: null, clubRefundedAmount: 0 });
+    const amount = await screen.findByLabelText(/^amount/i);
+    await waitFor(() => expect(amount).toHaveValue(40));
+    expect(amount).toHaveAttribute('max', '40');
+    expect(screen.getByLabelText('Amount (max $40.00)')).toBeInTheDocument();
   });
 
   it('records with the entered values, the money root and one retry key', async () => {

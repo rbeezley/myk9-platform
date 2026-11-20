@@ -59,6 +59,8 @@ export interface SecretaryEntry {
   refund_amount: number | null;
   /** MYK9-2303: net the club paid back directly after the payout; absent before the migration. */
   club_refunded_amount?: number | null;
+  /** `entries.discount_amount` in dollars; the club-refund cap nets it out of the fee. */
+  discount_amount?: number | null;
   /** MYK9-1637: server-derived; a succeeded, unrefunded Stripe order paid for this entry. */
   card_paid?: boolean | null;
   refunded_at: string | null;

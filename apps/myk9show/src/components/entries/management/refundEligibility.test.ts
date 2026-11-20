@@ -122,6 +122,7 @@ describe('offersRefundDialog', () => {
       paymentStatus: PaymentStatus.PAID_ONLINE,
       refundedAt: '2026-11-01T00:00:00Z',
       clubRefundedAmount: 10,
+      totalFee: 10,
     } as const;
     expect(offersRefundDialog(entry)).toBe(true);
     // The card-refund predicate is unchanged: no card refund is owed on this entry.
@@ -135,6 +136,33 @@ describe('offersRefundDialog', () => {
         paymentStatus: PaymentStatus.PAID_ONLINE,
         refundedAt: '2026-11-01T00:00:00Z',
         clubRefundedAmount: 0,
+        totalFee: 20,
+        refundAmount: 20,
+      })
+    ).toBe(false);
+  });
+
+  it('offers the dialog after a partial card refund with no club record yet', () => {
+    const entry = {
+      paymentMethod: 'online',
+      paymentStatus: PaymentStatus.PAID_ONLINE,
+      refundedAt: '2026-11-01T00:00:00Z',
+      totalFee: 50,
+      refundAmount: 15,
+    } as const;
+    expect(offersRefundDialog(entry)).toBe(true);
+    expect(isStripeRefundable(entry)).toBe(false);
+  });
+
+  it('does not offer the dialog once the discount, card refund and club payback cover the fee', () => {
+    expect(
+      offersRefundDialog({
+        paymentMethod: 'online',
+        paymentStatus: PaymentStatus.PAID_ONLINE,
+        refundedAt: '2026-11-01T00:00:00Z',
+        totalFee: 50,
+        discountAmount: 10,
+        refundAmount: 40,
       })
     ).toBe(false);
   });

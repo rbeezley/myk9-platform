@@ -73,7 +73,9 @@ export type RefundableEntry = Pick<
   'id' | 'totalFee' | 'dogName' | 'moneyRootEntryId'
 > &
   // MYK9-1976: the show, so the dialog can print the club's policy text beside the amount.
-  Partial<Pick<EntryManagementEntry, 'showId' | 'refundAmount' | 'clubRefundedAmount'>>;
+  Partial<
+    Pick<EntryManagementEntry, 'showId' | 'refundAmount' | 'clubRefundedAmount' | 'discountAmount'>
+  >;
 
 function describeManualPolicy(policy: WithdrawalPolicy | null): string {
   if (!policy) return '';

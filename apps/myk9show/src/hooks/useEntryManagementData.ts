@@ -176,6 +176,7 @@ export function mapSecretaryEntryToEntryManagementEntry(
         ]
       : [],
     totalFee: entry.entry_fee || 0,
+    ...(entry.discount_amount ? { discountAmount: entry.discount_amount } : {}),
     paidAmount: getEntryPaidAmount({
       paymentStatus: mapPaymentStatus(entry.payment_status),
       enrollmentPaymentStatus:

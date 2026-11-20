@@ -73,6 +73,7 @@ export function ClubSettledRefundForm({ entry, onClose, onChanged }: ClubSettled
     : dollarsToCents(entry.clubRefundedAmount ?? 0);
   const remainingCents = remainingBalanceCents(
     entry.totalFee,
+    entry.discountAmount,
     entry.refundAmount,
     clubRefundedCents
   );
@@ -92,8 +93,11 @@ export function ClubSettledRefundForm({ entry, onClose, onChanged }: ClubSettled
   const shownAmount = amount ?? centsToDollars(remainingCents);
   const amountNumber = Number(shownAmount);
   const amountCents = Math.round(amountNumber * 100);
+  // Save bypasses the native step, so a third decimal place is rejected here.
+  const amountHasFractionalCents = /\.\d{3,}/.test(shownAmount.trim());
   const amountValid =
     shownAmount.trim() !== '' &&
+    !amountHasFractionalCents &&
     Number.isFinite(amountNumber) &&
     amountCents > 0 &&
     amountCents <= remainingCents;
@@ -177,6 +181,11 @@ export function ClubSettledRefundForm({ entry, onClose, onChanged }: ClubSettled
             value={shownAmount}
             onChange={e => setAmount(e.target.value)}
           />
+          {amountHasFractionalCents && (
+            <p className="text-xs text-destructive">
+              Enter dollars and cents (two decimal places).
+            </p>
+          )}
         </div>
 
         <div className="space-y-1">

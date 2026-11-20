@@ -7,18 +7,22 @@ export function netClubRefundedCents(rows: Pick<ClubSettledRefundListRow, 'amoun
 }
 
 /**
- * What is left to refund: the entry fee, less the card refund and the club's net
+ * What is left to refund: the entry fee, less the discount, the card refund and the club's net
  * payback. Never below zero. The server cap is authoritative; this only prefills
  * and bounds the field.
  */
 export function remainingBalanceCents(
   totalFee: number,
+  discountAmount: number | null | undefined,
   cardRefundAmount: number | null | undefined,
   clubRefundedCents: number
 ): number {
   return Math.max(
     0,
-    dollarsToCents(totalFee) - dollarsToCents(cardRefundAmount ?? 0) - clubRefundedCents
+    dollarsToCents(totalFee) -
+      dollarsToCents(discountAmount ?? 0) -
+      dollarsToCents(cardRefundAmount ?? 0) -
+      clubRefundedCents
   );
 }
 

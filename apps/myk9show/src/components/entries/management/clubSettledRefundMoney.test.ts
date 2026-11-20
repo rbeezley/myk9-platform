@@ -13,14 +13,20 @@ describe('netClubRefundedCents', () => {
 
 describe('remainingBalanceCents', () => {
   it('floors at zero when the refunds exceed the fee', () => {
-    expect(remainingBalanceCents(20, 15, 1000)).toBe(0);
+    expect(remainingBalanceCents(20, 0, 15, 1000)).toBe(0);
   });
 
   it('takes the card refund and the club refund off a $50 fee', () => {
-    expect(remainingBalanceCents(50, 15, 1000)).toBe(2500);
+    expect(remainingBalanceCents(50, 0, 15, 1000)).toBe(2500);
   });
 
   it('treats a missing card refund as none', () => {
-    expect(remainingBalanceCents(50, null, 1000)).toBe(4000);
+    expect(remainingBalanceCents(50, null, null, 1000)).toBe(4000);
+  });
+});
+
+describe('remainingBalanceCents with a discount', () => {
+  it('takes the discount off a $50 fee before any refund', () => {
+    expect(remainingBalanceCents(50, 10, null, 0)).toBe(4000);
   });
 });

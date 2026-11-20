@@ -293,6 +293,7 @@ export function toSecretaryEntry(
     withdrawn_at: pullMetadata?.withdrawn_at ?? null,
     payment_method: entry.paymentMethod ?? null,
     refund_amount: numberFrom(replicatedField(entry, 'refundAmount', 'refund_amount')),
+    discount_amount: numberFrom(replicatedField(entry, 'discountAmount', 'discount_amount')),
     club_refunded_amount: numberFrom(
       replicatedField(entry, 'clubRefundedAmount', 'club_refunded_amount')
     ),

@@ -22,6 +22,7 @@ export interface SecretaryPullMetadata {
   withdrawal_reason_code: string | null;
 }
 
+// MYK9-2303: club_refunded_amount is deliberately not selected here (MYK9-1757 / ENTRY_MAPPER_COLUMNS_NOT_COLD_READ precedent). It is read only through the replicated view until migration 20261121093700 is applied everywhere; then add it back.
 const SECRETARY_ENTRIES_BASE_SELECT = `
         id,
         dog_id,
@@ -55,7 +56,7 @@ const SECRETARY_ENTRIES_BASE_SELECT = `
         withdrawal_reason,
         payment_method,
         refund_amount,
-        club_refunded_amount,
+        discount_amount,
         card_paid,
         refunded_at,
         stripe_payment_intent_id,

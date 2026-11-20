@@ -17,6 +17,7 @@ import type { ShowExperienceSnapshot } from '@/features/experience/experienceSna
 import type { GeneratedPremium, PremiumStyle } from '@/types/premium-types';
 import { normalizeEntryLimit } from '@/features/premium/premiumEntryLimit';
 import { usePremiumFacts } from '@/features/premium/usePremiumFacts';
+import { usePremiumDraftCache } from '@/features/premium/premiumDraftCache';
 import { applyEditorCopyToPremium } from '@/features/premium/premiumEditorCopy';
 import {
   PREMIUM_JUDGE_AFFILIATIONS_KEY,
@@ -71,6 +72,7 @@ export function ShowEditPremiumTab({
     },
     [handleValueChange]
   );
+  const draftCache = usePremiumDraftCache();
   // The preview lists the same secretary and chair the published premium will (MYK9-2053).
   const { data: officials } = useShowOfficials(showId);
   const queryClient = useQueryClient();
@@ -211,6 +213,7 @@ export function ShowEditPremiumTab({
               }
               onPremiumChange={handleGeneratedPremiumChange}
               onInkSaverChange={handleInkSaverChange}
+              {...(draftCache ? { draftCache } : {})}
               {...(onPremiumEditedChange ? { onEditedChange: onPremiumEditedChange } : {})}
               {...(onPremiumPendingChange ? { onPendingChange: onPremiumPendingChange } : {})}
             />

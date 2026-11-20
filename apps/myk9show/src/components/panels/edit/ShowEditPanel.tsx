@@ -13,6 +13,7 @@ import { DEFAULT_SHOW_EDIT_TAB, type ShowEditTab } from '@/components/shows/show
 import { useEditingPresence } from '@/features/show-presence/useEditingPresence';
 import { PREMIUM_PENDING_REASON } from '@/features/premium/premiumPendingCopy';
 import { EditingBadge } from '@/features/show-presence/EditingBadge';
+import { PremiumDraftCacheProvider } from '@/features/premium/premiumDraftCache';
 
 // Cast needed: Zod's .optional() outputs `T | undefined` in its _output type,
 // but exactOptionalPropertyTypes treats `field?: T` as "T when present, absent otherwise".
@@ -123,8 +124,9 @@ const ShowEditPanelSession: React.FC<ShowEditPanelProps> = ({
     [onSave, openedFormData, askPremiumChoice]
   );
 
+  // MYK9-2236: above the panel, so premium edits outlive the body and tab unmounts.
   return (
-    <>
+    <PremiumDraftCacheProvider>
       <EditPanelWrapper<ShowEditFormData>
         open={open}
         onClose={onClose}
@@ -155,7 +157,7 @@ const ShowEditPanelSession: React.FC<ShowEditPanelProps> = ({
         />
       </EditPanelWrapper>
       {premiumPromptDialog}
-    </>
+    </PremiumDraftCacheProvider>
   );
 };
 

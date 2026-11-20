@@ -16,6 +16,9 @@ import { computePremiumDiff } from './logPremiumGeneration';
 import { fileToDataUrl, resolvePdfCoverImageSrc } from './coverImageDataUrl';
 import { withGenerationTimeout } from './withGenerationTimeout';
 import { stripPlaceholderNarratives } from './premiumNarratives';
+import { PremiumPdfPreviewOverlay } from './PremiumPdfPreviewOverlay';
+import { cachedDraftFor, withFreshFacts, type PremiumDraftCache } from './premiumDraftCache';
+import { usePremiumDraftSync } from './usePremiumDraftSync';
 import type { GeneratedPremium, PremiumStyle } from '../../types/premium-types';
 
 interface PremiumContentEditorProps {
@@ -34,6 +37,8 @@ interface PremiumContentEditorProps {
   onInkSaverChange?: (inkSaver: boolean) => void;
   /** True while a Regenerate is pending, so the parent can hold Save-with-publish. */
   onPendingChange?: (pending: boolean) => void;
+  /** Keeps the edits across unmounts (MYK9-2236); without one, inactive resets the editor. */
+  draftCache?: PremiumDraftCache;
 }
 
 // Loaded on demand: the PDF buttons (and the templates) pull in @react-pdf/renderer.
@@ -52,24 +57,34 @@ export function PremiumContentEditor({
   onEditedChange,
   onInkSaverChange,
   onPendingChange,
+  draftCache,
 }: PremiumContentEditorProps) {
   const { generate, isLoading, error, reset } = useGeneratePremium();
   const logMutation = useLogPremiumGeneration(clubId);
   const updateTemplateMutation = useUpdatePremiumTemplate(clubId);
-  const [original, setOriginal] = useState<GeneratedPremium | null>(() => initialPremium ?? null);
+  // MYK9-2236: a remount restores what the secretary had, and takes fresh facts once offered.
+  const [restored] = useState(() => cachedDraftFor(draftCache, showId));
+  const factsPendingRef = useRef(restored !== null);
+  const [original, setOriginal] = useState<GeneratedPremium | null>(
+    () => restored?.original ?? initialPremium ?? null
+  );
   const [supplemental, setSupplemental] = useState<GeneratedPremium['supplemental'] | null>(
-    () => initialPremium?.supplemental ?? null
+    () => restored?.supplemental ?? initialPremium?.supplemental ?? null
   );
-  const [narratives, setNarratives] = useState<GeneratedPremium['narratives'] | null>(() =>
-    initialPremium ? stripPlaceholderNarratives(initialPremium.narratives) : null
+  const [narratives, setNarratives] = useState<GeneratedPremium['narratives'] | null>(
+    () =>
+      restored?.narratives ??
+      (initialPremium ? stripPlaceholderNarratives(initialPremium.narratives) : null)
   );
-  const [inkSaver, setInkSaver] = useState(false);
+  const [inkSaver, setInkSaver] = useState(restored?.inkSaver ?? false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfCoverImageSrc, setPdfCoverImageSrc] = useState<string | null>(null);
   const [pdfCoverImageRemoteUrl, setPdfCoverImageRemoteUrl] = useState<string | null>(null);
   const [coverImageResolveFailed, setCoverImageResolveFailed] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [generationError, setGenerationError] = useState<string | null>(null);
+  const [generationError, setGenerationError] = useState<string | null>(
+    restored?.generationError ?? null
+  );
   const [isGenerating, setIsGenerating] = useState(false);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
   const [autoGenerateAttemptedFor, setAutoGenerateAttemptedFor] = useState<string | null>(null);
@@ -83,15 +98,9 @@ export function PremiumContentEditor({
 
   useEffect(() => {
     onPremiumChangeRef.current = onPremiumChange;
-  }, [onPremiumChange]);
-
-  useEffect(() => {
     onInkSaverChangeRef.current = onInkSaverChange;
-  }, [onInkSaverChange]);
-
-  useEffect(() => {
     onPendingChangeRef.current = onPendingChange;
-  }, [onPendingChange]);
+  }, [onPremiumChange, onInkSaverChange, onPendingChange]);
 
   useEffect(() => {
     // Only regenerating an existing draft holds Save: a first generation has no old premium.
@@ -130,6 +139,7 @@ export function PremiumContentEditor({
       const result = await withGenerationTimeout(generate(showId));
       if (latestRequestRef.current !== requestId) return;
       const cleaned = { ...result, narratives: stripPlaceholderNarratives(result.narratives) };
+      factsPendingRef.current = false;
       setOriginal(cleaned);
       setSupplemental(cleaned.supplemental);
       setNarratives(cleaned.narratives);
@@ -148,7 +158,13 @@ export function PremiumContentEditor({
 
   useEffect(() => {
     // A request in flight owns the draft; this must not populate over it or clear its flag.
-    if (!active || original || !initialPremium || latestRequestRef.current !== 0) return;
+    if (!active || !initialPremium || latestRequestRef.current !== 0) return;
+    if (original && factsPendingRef.current) {
+      factsPendingRef.current = false;
+      setOriginal(withFreshFacts(initialPremium, original));
+      return;
+    }
+    if (original) return;
     setOriginal(initialPremium);
     setSupplemental(initialPremium.supplemental);
     setNarratives(stripPlaceholderNarratives(initialPremium.narratives));
@@ -182,8 +198,18 @@ export function PremiumContentEditor({
     showOrg,
   ]);
 
+  usePremiumDraftSync(
+    draftCache,
+    active,
+    { showId, original, supplemental, narratives, generationError, inkSaver },
+    () => {
+      onPremiumChangeRef.current?.(undefined);
+      onInkSaverChangeRef.current?.(false);
+    }
+  );
+
   useEffect(() => {
-    if (active) return;
+    if (active || draftCache) return;
     latestRequestRef.current = 0;
     reset();
     setOriginal(null);
@@ -200,7 +226,7 @@ export function PremiumContentEditor({
     setAutoGenerateAttemptedFor(null);
     onPremiumChangeRef.current?.(undefined);
     onInkSaverChangeRef.current?.(false);
-  }, [active, reset]);
+  }, [active, draftCache, reset]);
 
   function buildFinalPremium(): GeneratedPremium | null {
     if (!original || !supplemental || !narratives) return null;
@@ -331,7 +357,7 @@ export function PremiumContentEditor({
   useEffect(() => {
     onPremiumChangeRef.current?.(finalPremium ?? undefined);
   }, [finalPremium]);
-  usePremiumContentEdited(supplemental, narratives, onEditedChange);
+  usePremiumContentEdited(supplemental, narratives, onEditedChange, draftCache);
 
   useEffect(() => {
     onInkSaverChangeRef.current?.(inkSaver);
@@ -460,28 +486,11 @@ export function PremiumContentEditor({
       </div>
 
       {previewOpen && (
-        <div
-          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70"
-          onClick={e => {
-            if (e.target === e.currentTarget) setPreviewOpen(false);
-          }}
-        >
-          <div className="flex h-[92vh] w-[90vw] max-w-5xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl">
-            <div className="flex shrink-0 items-center justify-between border-b px-4 py-2">
-              <span className="text-sm font-medium text-gray-900">
-                {original?.show.name ?? 'Premium Preview'}
-              </span>
-              <button
-                className="rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-900"
-                onClick={() => setPreviewOpen(false)}
-                aria-label="Close preview"
-              >
-                x
-              </button>
-            </div>
-            {pdfUrl && <iframe src={pdfUrl} className="flex-1 border-0" title="PDF Preview" />}
-          </div>
-        </div>
+        <PremiumPdfPreviewOverlay
+          title={original?.show.name ?? 'Premium Preview'}
+          pdfUrl={pdfUrl}
+          onClose={() => setPreviewOpen(false)}
+        />
       )}
     </>
   );

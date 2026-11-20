@@ -124,33 +124,60 @@ describe('the capture spec and its job', () => {
       .filter(line => !marks.some(mark => line.trim().startsWith(mark)))
       .join('\n');
   const spec = code('src/test/e2e/capture/landingRingCapture.spec.ts', ['//', '/*', '*']);
+  const entriesSpec = code('src/test/e2e/capture/landingSceneEntriesCapture.spec.ts', [
+    '//',
+    '/*',
+    '*',
+  ]);
+  const specs = { ring: spec, entries: entriesSpec };
   const workflow = code('../../.github/workflows/landing-capture.yml', ['#']);
 
-  it('skips outside the capture job and asks every start condition before any test', () => {
-    expect(spec).toMatch(/test\.skip\(\s*process\.env\.PLAYWRIGHT_LANDING_CAPTURE !== 'true',/);
-    const beforeAll = spec.slice(
-      spec.indexOf('test.beforeAll('),
-      spec.indexOf("test('no WebSocket")
-    );
-    expect(beforeAll).toMatch(/captureStartProblem\(\{/);
-    for (const fact of [
-      "inWorkflow: process.env.GITHUB_ACTIONS === 'true'",
-      'productionOptIn: process.env[ALLOW_PRODUCTION_FIXTURE_SIGN_IN] !== undefined',
-      'supabaseUrl: process.env.VITE_SUPABASE_URL',
-      "bundleFound: existsSync(join(APP_DIR, 'dist', 'index.html'))",
-      "bundleFilesNamingProduction: bundleFilesNamingProduction(join(APP_DIR, 'dist')).length",
-      'outbound: await probeOutbound(OUTBOUND_PROBE.host, OUTBOUND_PROBE.port)',
-    ]) {
-      expect(beforeAll, fact).toContain(fact);
+  it.each(Object.entries(specs))(
+    'skips outside the capture job and asks every start condition before any test (%s)',
+    (_name, text) => {
+      expect(text).toMatch(/test\.skip\(\s*process\.env\.PLAYWRIGHT_LANDING_CAPTURE !== 'true',/);
+      const beforeAll = text.slice(
+        text.indexOf('test.beforeAll('),
+        text.indexOf("test('no WebSocket")
+      );
+      expect(beforeAll).toMatch(/captureStartProblem\(\{/);
+      for (const fact of [
+        "inWorkflow: process.env.GITHUB_ACTIONS === 'true'",
+        'productionOptIn: process.env[ALLOW_PRODUCTION_FIXTURE_SIGN_IN] !== undefined',
+        'supabaseUrl: process.env.VITE_SUPABASE_URL',
+        "bundleFound: existsSync(join(APP_DIR, 'dist', 'index.html'))",
+        "bundleFilesNamingProduction: bundleFilesNamingProduction(join(APP_DIR, 'dist')).length",
+        'outbound: await probeOutbound(OUTBOUND_PROBE.host, OUTBOUND_PROBE.port)',
+      ]) {
+        expect(beforeAll, fact).toContain(fact);
+      }
+      expect(beforeAll).toMatch(/if \(problem\) throw new Error\(problem\);/);
+      expect(text).not.toMatch(/connectToServer/);
     }
-    expect(beforeAll).toMatch(/if \(problem\) throw new Error\(problem\);/);
-    // One sign-in, after the hold is installed on the capture's own context.
+  );
+
+  it('signs in only after the hold is installed on the capture’s own contexts', () => {
+    // The ring capture signs one account in; the Entries capture signs two, one per device.
     expect(spec.match(/signInAsJudge\(/g)).toHaveLength(1);
     expect(spec.indexOf('await holdWebSockets(context)')).toBeGreaterThan(0);
     expect(spec.indexOf('await holdWebSockets(context)')).toBeLessThan(
       spec.indexOf('signInAsJudge(')
     );
-    expect(spec).not.toMatch(/connectToServer/);
+    expect(entriesSpec.match(/signInAs(Exhibitor|Secretary)\(/g)).toHaveLength(2);
+    const firstSignIn = entriesSpec.search(/signInAs(Exhibitor|Secretary)\(/);
+    expect(entriesSpec.indexOf('await holdWebSockets(context)')).toBeGreaterThan(0);
+    expect(entriesSpec.indexOf('await holdWebSockets(context)')).toBeLessThan(firstSignIn);
+    expect(entriesSpec.indexOf('await holdWebSockets(deskContext)')).toBeGreaterThan(0);
+    expect(entriesSpec.indexOf('await holdWebSockets(deskContext)')).toBeLessThan(firstSignIn);
+    // Both contexts are served the downloaded fonts, and no page is opened before that.
+    expect(entriesSpec.indexOf('await serveFontsFrom(deskContext, fontsDir)')).toBeLessThan(
+      entriesSpec.indexOf('deskContext.newPage()')
+    );
+    // The card checkout is Stripe's page, which this job cannot reach and must never press.
+    expect(entriesSpec).not.toMatch(
+      /\.click\(\)[^;]*\bpay\b|clickClearOfStickyChrome\(page, pay\)/
+    );
+    expect(entriesSpec).not.toMatch(/stripe/i);
   });
 
   it('closes the network for both address families before the control and the capture', () => {
@@ -180,24 +207,32 @@ describe('the capture spec and its job', () => {
     expect(workflow).toMatch(/MYK9_E2E_LOAD_FIXTURE: 'false'/);
   });
 
-  it('uploads only what this run took: an empty output folder, then all nine files', () => {
-    // The spec never writes over the checked-in copies, and refuses a folder that exists.
-    expect(spec).toMatch(/join\(process\.env\.CAPTURE_OUT_DIR \?\? '', 'apps', 'myk9show'\)/);
-    expect(spec).toMatch(/if \(existsSync\(OUT_APP_DIR\)\) \{\s+throw new Error\(/);
-    expect(spec).not.toMatch(/join\(APP_DIR, '(public|src)'/);
+  it('uploads only what this run took: an empty output folder, then every file of both scenes', () => {
+    // Neither spec writes over the checked-in copies, and each refuses its own folder if it exists.
+    for (const text of [spec, entriesSpec]) {
+      expect(text).toMatch(/join\(process\.env\.CAPTURE_OUT_DIR \?\? '', 'apps', 'myk9show'\)/);
+      expect(text).toMatch(
+        /if \(existsSync\(IMG_DIR\) \|\| existsSync\(REGIONS_FILE\)\) \{\s+throw new Error\(/
+      );
+      expect(text).not.toMatch(/join\(APP_DIR, '(public|src)'/);
+      expect(text).toMatch(/expect\(loadedFaces\)\.toContain\('Montserrat'\);/);
+      expect(text).not.toMatch(/document\.fonts\.check\(/);
+    }
     // The job copies nothing from the checkout into the artifact, and counts the files.
     expect(workflow).not.toMatch(/\bcp\b/);
     expect(workflow).toMatch(/CAPTURE_OUT_DIR: \$\{\{ runner\.temp \}\}\/landing-capture\/out/);
     expect(workflow).toMatch(
       /for shot in classes offline sheet running result confirm saved sent; do\s+test -s /
     );
-    expect(workflow).toMatch(/landing-capture\/out" -type f \| wc -l\)" -eq 9/);
+    expect(workflow).toMatch(
+      /for shot in phone-dogs phone-classes phone-payment phone-pending phone-accepted desk-before desk-list desk-review desk-accepted; do\s+test -s /
+    );
+    expect(workflow).toMatch(/scenes\/entries" -type f \| wc -l\)" -eq 9/);
+    expect(workflow).toMatch(/landing-capture\/out" -type f \| wc -l\)" -eq 19/);
     expect(workflow.indexOf('Check the capture is whole')).toBeLessThan(
       workflow.indexOf('Upload the capture')
     );
-    // The captures are set in a font face that really loaded.
-    expect(spec).toMatch(/expect\(loadedFaces\)\.toContain\('Montserrat'\);/);
-    expect(spec).not.toMatch(/document\.fonts\.check\(/);
+    // The captures are set in a font face that really loaded (checked in both specs above).
   });
 
   it('runs on a pull request that changes anything the capture depends on', () => {
@@ -224,8 +259,9 @@ describe('the capture spec and its job', () => {
   it('lists the capture spec in the capture mode only', () => {
     const config = readFileSync(resolve(app, 'playwright.ci.config.ts'), 'utf8');
     expect(config.match(/landingRingCapture/g)).toHaveLength(1);
+    expect(config.match(/landingSceneEntriesCapture/g)).toHaveLength(1);
     expect(config).toMatch(
-      /const LANDING_CAPTURE_SPECS = \['\*\*\/capture\/landingRingCapture\.spec\.ts'\];/
+      /const LANDING_CAPTURE_SPECS = \[\s+'\*\*\/capture\/landingRingCapture\.spec\.ts',\s+'\*\*\/capture\/landingSceneEntriesCapture\.spec\.ts',\s+\];/
     );
     expect(config).toMatch(/testMatch: isLandingCapture\s+\? LANDING_CAPTURE_SPECS/);
   });

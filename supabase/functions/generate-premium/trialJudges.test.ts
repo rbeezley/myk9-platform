@@ -4,6 +4,7 @@ import { join } from 'node:path';
 
 import {
   PREMIUM_JUDGE_ASSIGNMENTS_SELECT,
+  formatClassLabel,
   formatResidence,
   premiumTrialJudges,
   type PremiumJudgeAssignmentRow,
@@ -252,5 +253,42 @@ describe('a roster judge with class assignments (MYK9-2244)', () => {
     it('a pick on a live class still suppresses the roster row', () => {
       expect(premiumTrialJudges([rosterRow, deadRow], live, [live, dead({})])).toEqual([]);
     });
+  });
+});
+
+// MYK9-2248: the judge list applies the same cancelled-class rule as the rest of the premium.
+describe('cancelled classes and name-only classes (MYK9-2248)', () => {
+  const detective = { id: 'c-det', element: null, level: null, name: 'Detective', section: null };
+  const cancelled = { ...classes[3]!, status: 'cancelled' };
+  const cancelledTrial = {
+    id: 't-2',
+    status: 'scheduled',
+    classes: [classes[0]!, cancelled, detective],
+  };
+
+  it('prints no class for a cancelled class, and drops a judge whose only class was cancelled', () => {
+    const rows = [row(donovan, 'c-buried'), row(kerr, 'c-int'), row(kerr, 'c-buried')];
+    expect(premiumTrialJudges(rows, cancelledTrial)).toEqual([
+      expect.objectContaining({ name: 'Pat Donovan', classes: ['Buried Master'] }),
+      expect.objectContaining({ name: 'Sam Kerr', classes: ['Buried Master'] }),
+    ]);
+    expect(premiumTrialJudges([row(kerr, 'c-int')], cancelledTrial)).toEqual([]);
+  });
+
+  it('does not turn a roster judge whose only pick was cancelled into a whole-trial judge', () => {
+    const rosterRow = row(kerr, null, { trial_id: null });
+    expect(
+      premiumTrialJudges([rosterRow, row(kerr, 'c-int', { trial_id: null })], cancelledTrial, [
+        cancelledTrial,
+      ])
+    ).toEqual([]);
+  });
+
+  it('keeps the label of a name-only class, matching the class list', () => {
+    expect(premiumTrialJudges([row(donovan, 'c-det')], cancelledTrial)).toEqual([
+      expect.objectContaining({ classes: ['Detective'] }),
+    ]);
+    expect(formatClassLabel({ ...detective, section: 'A' })).toBe('Detective A');
+    expect(formatClassLabel({ ...detective, name: null })).toBeNull();
   });
 });

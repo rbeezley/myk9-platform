@@ -28,6 +28,7 @@ import {
   SyncCacheWriter,
   abortableWait,
   configureConflictSurfacing,
+  isShortOnlyFailure,
   configureRemoteCountCadence,
   markRealtimeReconnected,
   type ReplicationConflictEventDetail,
@@ -93,8 +94,12 @@ import {
   invalidatePostSyncQueries,
   refetchShowEntriesAfterScopedSync,
 } from './showEntriesPostSync';
+import { registerShortReplicaReporter } from '@/services/observability/shortReplicaAlert';
 import { getRingsideUploadSyncTargets, type UploadSyncTarget } from './ringsideUploadSyncTargets';
 import { targetsForUploadedEntryInserts } from './showScopeTargets';
+
+// One reporter for every table sync, whoever calls it (MYK9-2254).
+registerShortReplicaReporter();
 
 interface SyncStatus {
   isSyncing: boolean;
@@ -459,6 +464,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
                 ok: result.success,
                 error: result.error,
                 recoveredFromEmptyReplica: result.recoveredFromEmptyReplica ?? false,
+                shortReplica: isShortOnlyFailure(result),
               };
             } catch (err) {
               if (signal.aborted)

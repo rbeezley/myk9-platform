@@ -3,6 +3,8 @@
  * (`mapSecretaryEntryToEntryManagementEntry`) and the Refund all result lines (MYK9-1862).
  */
 
+import { ownerNameCacheKey, recallOwnerNames } from '@/services/database/dogs/ownerNameCache';
+
 interface NamedPerson {
   first_name: string | null;
   last_name: string | null;
@@ -14,7 +16,7 @@ export interface EntryDisplayNameSource {
   dog: {
     name: string;
     call_name: string | null;
-    owner: NamedPerson | null;
+    owner: (NamedPerson & { id?: string | null }) | null;
   } | null;
 }
 
@@ -25,12 +27,27 @@ export function personName(person: NamedPerson | null | undefined): string | nul
   return name || null;
 }
 
+/** Shown in the owner's place when the dog has an owner whose name is not on this device (MYK9-2256). */
+export const OWNER_NAME_NOT_ON_DEVICE = 'Owner name not on this device';
+
 /**
  * Online (webhook-created) entries set the dog's owner FK but never the legacy `handler` text;
  * mail-in entries set the text only.
+ *
+ * `ownerId` is the dog's owner id. With none, the entry has no owner record (a mail-in entry), so
+ * the typed handler text is the only name there is and stays. With one, the handler text is never
+ * the owner (it can be someone else): use the joined name, else the names-only device copy, else
+ * say the name is not on this device.
  */
-export function entryOwnerName(entry: EntryDisplayNameSource): string {
-  return personName(entry.dog?.owner) || entry.handler || 'Unknown';
+export function entryOwnerName(
+  entry: EntryDisplayNameSource,
+  ownerId: string | null | undefined = entry.dog?.owner?.id
+): string {
+  if (!ownerId) return personName(entry.dog?.owner) || entry.handler || 'Unknown';
+  const joined = personName(entry.dog?.owner);
+  if (joined) return joined;
+  const remembered = recallOwnerNames([ownerId], ownerNameCacheKey()).get(ownerId);
+  return personName(remembered) || OWNER_NAME_NOT_ON_DEVICE;
 }
 
 /** The call name, else the registered name. */

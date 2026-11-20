@@ -27,10 +27,14 @@ const plural = (count: number, one: string, many: string) => (count === 1 ? one 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
- * "before Thursday's payout": the payout day in words. The payout DATE is a calendar day
- * (`computeSettleDate`); "today" is read on the show's own calendar, so a US evening does not
- * already count as tomorrow. A weekday names a calendar date, so it needs no zone. A payout a week
- * or more away is named by its date; one already past, or unknown, is not mentioned.
+ * "before the payout (as early as Thursday)": the earliest payout day in words. The payout DATE is
+ * a calendar day (`computeSettleDate`); "today" is read on the show's own calendar, so a US evening
+ * does not already count as tomorrow. A weekday names a calendar date, so it needs no zone. A day a
+ * week or more away is named by its date; one already past, or unknown, is not mentioned.
+ *
+ * MYK9-2172: that day is when a payout becomes eligible, never a promise. The payout brake keeps it
+ * waiting for release, and the payout run also parks it while the club's bank account cannot
+ * receive it, so the day is only ever named as the earliest the payout can go.
  */
 export function payoutDayText(
   payoutDate: string | null,
@@ -42,17 +46,17 @@ export function payoutDayText(
   const today = new Date(`${currentCalendarDate(now ?? new Date(), timeZone)}T12:00:00Z`);
   const days = Math.round((payout.getTime() - today.getTime()) / DAY_MS);
   if (Number.isNaN(days) || days < 0) return '';
-  if (days === 0) return " before today's payout";
+  if (days === 0) return ' before the payout (as early as today)';
   if (days < 7) {
     const weekday = payout.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
-    return ` before ${weekday}'s payout`;
+    return ` before the payout (as early as ${weekday})`;
   }
   const date = payout.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     timeZone: 'UTC',
   });
-  return ` before the ${date} payout`;
+  return ` before the payout (as early as ${date})`;
 }
 
 /** `total` is the run-out offers' count, as the list gave it. */

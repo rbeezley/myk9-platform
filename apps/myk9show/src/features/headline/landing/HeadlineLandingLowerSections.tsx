@@ -54,7 +54,7 @@ export function ScheduleAndPlan({ data }: { data: HeritageLandingData }) {
           <div className="hd-card" key={`${card.num}-${card.title}`}>
             <div className="num">{card.num}</div>
             <h3 className="title">{card.title}</h3>
-            <div className="meta">{card.meta || 'Details TBD'}</div>
+            <div className="meta">{card.meta || 'Details to be announced'}</div>
             <div className="info">{card.info}</div>
           </div>
         ))}

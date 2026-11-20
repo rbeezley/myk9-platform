@@ -8,6 +8,8 @@ import { SyncCacheWriter } from './syncCacheWriter';
 import { ABORTED_SYNC_MESSAGE, abortableWait } from './abortable';
 import { abortReason } from './mutation-utils';
 import { countCoveredRows, countServerBackedRows, getCoveredRemoteIds } from './replicaCoverage';
+import { WatermarkTracker, computeSince, planWatermark } from './syncWatermark';
+import { checkShortReplica, recountRemoteRows, shortReplicaMessage } from './shortReplicaCheck';
 export { countServerBackedRows };
 import { overReplicaWatched, runStaleCleanup } from './syncStaleCleanup';
 import { beginRemoteCountPass, coverageFell } from './remoteCountCadence';
@@ -177,16 +179,11 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     const recoveredFromEmptyReplica =
       localRows.length === 0 && (metadata?.expectedRemoteRows ?? metadata?.totalRows ?? 0) > 0;
 
-    // Finite-guard the persisted watermark: a corrupt IDB value (NaN/Infinity)
-    // would otherwise reach `new Date(since).toISOString()` in the adapter and
-    // throw a RangeError, wedging that table's sync. NaN is already falsy (→ 0);
-    // this also catches Infinity. A bad watermark degrades to a full-ish fetch,
-    // never a thrown sync.
-    const persistedWatermark = metadata?.lastIncrementalSyncAt;
-    const safeWatermark = Number.isFinite(persistedWatermark) ? (persistedWatermark as number) : 0;
-    const rawSince = forceFullSync ? 0 : safeWatermark;
-    const buffer = options.incrementalBufferMs ?? 0;
-    const since = rawSince > buffer ? rawSince - buffer : 0;
+    const since = computeSince(
+      metadata?.lastIncrementalSyncAt,
+      forceFullSync,
+      options.incrementalBufferMs ?? 0
+    );
     // MYK9-1633: how a full sync's write tells a restore from a race (shouldKeepNewerRow).
     const versionsAtFetch = forceFullSync
       ? await table.cleanServerVersions(localRows.map(r => r.id))
@@ -216,6 +213,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     // A server row this sync could not apply because another account holds
     // unsent work on it: the download is not whole for this account.
     let skippedForeignUnsentRow = false;
+    const heldBackIds = new Set<string>();
     const coveredServerIds = getCoveredRemoteIds(remoteRows, adapter);
     // Collect clean rows for a single bulk IDB transaction (batchSet perf path).
     const cleanRowsToCache: TLocal[] = [];
@@ -224,32 +222,21 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     const takenOverIds: string[] = [];
     const serverVersionMap = new Map<string, number>();
 
-    // Track the max server `updated_at` actually observed this fetch. This — not
-    // the client clock — becomes the next incremental watermark.
-    let maxRemoteUpdatedAt = 0;
-    let sawRemoteTimestamp = false;
+    // The max server `updated_at` observed this fetch, not the client clock, is the next watermark.
+    const watermark = new WatermarkTracker();
 
     for (const remote of remoteRows) {
       const id = String(adapter.getRemoteId(remote));
       serverIds.add(id);
 
-      if (adapter.getRemoteUpdatedAt) {
-        const ts = adapter.getRemoteUpdatedAt(remote);
-        // NaN/null guard: a row with no usable server timestamp is still cached as
-        // data below, but must never enter the watermark max — Math.max(NaN, …) is
-        // NaN, and new Date(NaN).toISOString() throws on the next fetch, breaking
-        // every subsequent sync.
-        if (typeof ts === 'number' && Number.isFinite(ts)) {
-          if (ts > maxRemoteUpdatedAt) maxRemoteUpdatedAt = ts;
-          sawRemoteTimestamp = true;
-        }
-      }
+      watermark.observe(adapter.getRemoteUpdatedAt?.(remote));
 
       // Whoever owns it: another account's UNSENT row must be seen to be kept.
       const existing = await table.getReplicatedRowIncludingOtherAccounts(id);
       const ownRow = !accountOwned || existing?.ownerAuthUserId === syncingAuthUserId;
       if (existing?.isDirty && !ownRow) {
         skippedForeignUnsentRow = true;
+        heldBackIds.add(id);
         continue;
       }
       const remoteLocal = { ...adapter.toLocalRow(remote), id } as TLocal;
@@ -260,6 +247,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       const remoteServerVersion = (remote as Record<string, unknown>).version as number | undefined;
 
       if (adapter.shouldSkipRemoteRow?.(remote, { local })) {
+        heldBackIds.add(id);
         continue;
       }
 
@@ -369,39 +357,47 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       cache,
     });
 
-    // Whole for THIS account: the fetch covered the server's count, nothing was
-    // held back for another account's unsent work, every row taken over is now
-    // its own, an empty answer was proven, and the same account was signed in at
-    // both ends. The cache settles the stamp from this (see scopeStampDirective).
+    // MYK9-2254: a full download short of the count fails; a counted whole pass re-arms.
+    const afterRows = await getLocalRowsForScope();
+    const shortCheck =
+      expectedRemoteRows !== undefined
+        ? await checkShortReplica({
+            full: forceFullSync,
+            tableName: table.getTableName(),
+            scopeValue: scope.value,
+            expectedRemoteRows,
+            localRows: afterRows,
+            pendingDeleteIds,
+            deleteQueueUnreadable: pendingDeleteIds === undefined && !!adapter.getPendingDeleteIds,
+            heldBackIds,
+            coveredServerIds,
+            recount: () => recountRemoteRows(adapter, scope, signal),
+          })
+        : undefined;
+    const serverCount = shortCheck?.serverCount ?? expectedRemoteRows;
+    const shortReplica = shortCheck?.short ?? null;
+    // Whole for THIS account: the fetch covered the server's count, nothing was held back for another
+    // account's unsent work, taken-over rows are its own, an empty answer was proven, same sign-in at both ends.
     let wholeDownload = false;
     if (accountOwned) {
       // A count skipped by the cadence proves nothing about completeness.
       const fetchComplete =
-        expectedRemoteRows === undefined
-          ? !count.skipped
-          : coveredServerIds.size >= expectedRemoteRows;
+        serverCount === undefined ? !count.skipped : coveredServerIds.size >= serverCount;
       wholeDownload =
         fetchComplete &&
+        !shortReplica &&
         !skippedForeignUnsentRow &&
         !rowsLeftForeign &&
         (serverIds.size > 0 || (await scopeEmptyIsProven())) &&
         (await table.getCurrentAuthUserId()) === syncingAuthUserId;
     }
 
-    // Server-authoritative, monotonic watermark, routed to the correct scope slot.
-    // Advance only to a timestamp the client actually observed from the server, and
-    // never backward (monotonic inside the cache transaction so a concurrent slow
-    // sync can't regress a faster one). Fall back to the legacy client clock ONLY
-    // when the adapter provides no timestamp hook. With a hook but nothing observed
-    // (empty fetch), leave the watermark untouched.
-    const advanceWatermark = Boolean(adapter.getRemoteUpdatedAt) && sawRemoteTimestamp;
-    const watermarkUpdate: Partial<{ lastIncrementalSyncAt: number }> = advanceWatermark
-      ? { lastIncrementalSyncAt: maxRemoteUpdatedAt }
-      : adapter.getRemoteUpdatedAt
-        ? {}
-        : { lastIncrementalSyncAt: Date.now() };
+    const { advanceWatermark, watermarkUpdate } = planWatermark(
+      Boolean(adapter.getRemoteUpdatedAt),
+      watermark
+    );
 
-    const totalRows = (await getLocalRowsForScope()).length;
+    const totalRows = afterRows.length;
     // A stale sync (the account changed) completes nothing, but still settles the stamp.
     if (accountOwned && (await table.getCurrentAuthUserId()) !== syncingAuthUserId) {
       await table.updateSyncMetadata(
@@ -417,7 +413,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       );
     }
     const scopeSyncedBy = accountOwned
-      ? scopeStampDirective(writtenIds, syncingAuthUserId, wholeDownload)
+      ? scopeStampDirective(writtenIds, syncingAuthUserId, wholeDownload, shortReplica !== null)
       : undefined;
 
     stopIfAborted();
@@ -427,12 +423,12 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       {
         ...watermarkUpdate,
         // Record full-sync completions so the 24h self-heal (above) has a baseline.
-        ...(forceFullSync ? { lastFullSyncAt: Date.now() } : {}),
-        syncStatus: 'idle',
-        errorMessage: undefined,
+        ...(forceFullSync && !shortReplica ? { lastFullSyncAt: Date.now() } : {}),
+        syncStatus: shortReplica ? 'error' : 'idle',
+        errorMessage: shortReplica ? shortReplicaMessage(shortReplica) : undefined,
         conflictCount: conflictsResolved,
         totalRows,
-        ...(expectedRemoteRows !== undefined ? { expectedRemoteRows } : {}),
+        ...(serverCount !== undefined ? { expectedRemoteRows: serverCount } : {}),
       },
       {
         scopeValue: scope.value,
@@ -440,6 +436,10 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
         ...(scopeSyncedBy !== undefined ? { scopeSyncedBy } : {}),
       }
     );
+
+    if (shortReplica) {
+      return { ...failed('full-sync', shortReplicaMessage(shortReplica)), shortReplica };
+    }
 
     // An incremental fetch can hide a deletion behind an equal count (one row
     // deleted and one added since the last sync): the pre-fetch check saw the

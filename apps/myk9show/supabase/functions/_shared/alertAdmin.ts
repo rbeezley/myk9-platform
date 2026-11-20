@@ -21,6 +21,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import {
   buildAlertRow,
   runAlertAdmin,
+  type RunAlertAdminResult,
   type InsertResultLike,
   type AlertDeliveryOptions,
 } from './alertAdminCore.ts';
@@ -101,8 +102,8 @@ export async function alertAdmin(
   subject: string,
   html: string,
   opts: AlertAdminOptions = {}
-): Promise<void> {
-  await runAlertAdmin(subject, {
+): Promise<RunAlertAdminResult> {
+  return await runAlertAdmin(subject, {
     insert: () => insertOperatorAlert(subject, html, opts),
     sendEmail: () => sendAlertEmail(subject, html),
     skipEmailOnDuplicate: opts.skipEmailOnDuplicate,

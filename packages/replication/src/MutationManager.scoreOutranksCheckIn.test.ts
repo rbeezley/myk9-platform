@@ -135,6 +135,9 @@ describe('a check-in change never holds a queued score (MYK9-2010)', () => {
 
     await manager.uploadPendingMutations();
     await vi.waitFor(async () => expect(await pendingFor(tableName)).toHaveLength(0));
+    // The drop deletes the queued write first and markAsSynced clears the flag after it, so an
+    // empty queue is not yet a clean row. Wait on the event under test, not on the queue.
+    await vi.waitFor(async () => expect((await table.getReplicatedRow('1'))?.isDirty).toBe(false));
 
     const row = await table.getReplicatedRow('1');
     expect(row?.isDirty).toBe(false);

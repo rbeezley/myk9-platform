@@ -128,3 +128,27 @@ describe('firstLiveTrialType (MYK9-2286)', () => {
     expect(firstLiveTrialType([])).toBeNull();
   });
 });
+
+describe('requirementFactsFromShow venue (MYK9-2245)', () => {
+  const venueOf = (over: Record<string, unknown>) =>
+    requirementFactsFromShow({
+      show: { ...show, ...over } as unknown as Show,
+      trials,
+      classes,
+      judges: [],
+      secretaryName: null,
+      chairName: null,
+      committee: [],
+    }).venue;
+
+  it('counts a saved street address as the venue when the location is blank', () => {
+    expect(venueOf({ location: '', address: '12 Fair Road', city: 'Lexington', state: 'KY' })).toBe(
+      '12 Fair Road, Lexington, KY'
+    );
+  });
+
+  it('is empty only when neither location nor address is set', () => {
+    expect(venueOf({ location: '  ' })).toBe('');
+    expect(venueOf({})).toBe('Hall');
+  });
+});

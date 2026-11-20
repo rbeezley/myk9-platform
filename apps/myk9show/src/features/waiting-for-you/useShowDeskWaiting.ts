@@ -14,7 +14,10 @@ import type { ShowDeskWaitingInput } from '@/features/show-map/showDeskWaitingSi
 export function useShowDeskWaiting(input: {
   showId: string;
   entries: ReadonlyMap<string, EntryManagementEntry> | undefined;
-  /** `shows.end_date`: the payout goes three days after it (`computeSettleDate`). */
+  /**
+   * `shows.end_date`: a payout can go three days after it at the earliest (`computeSettleDate`).
+   * That day is eligibility, not a promise (MYK9-2172).
+   */
   showEndDate?: string | null | undefined;
   /** The show's calendar (its trials' IANA zone), for "today" in the payout wording. */
   timeZone?: string | null | undefined;

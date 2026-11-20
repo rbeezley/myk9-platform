@@ -29,8 +29,9 @@ export async function anyRowNotOwnedBy<T extends { id: string }>(
 export function scopeStampDirective(
   writtenIds: readonly string[],
   syncingAuthUserId: string | null,
-  whole: boolean
+  whole: boolean,
+  short = false
 ): ScopeStampDirective | undefined {
   if (syncingAuthUserId === null) return undefined;
-  return { syncingAuthUserId, whole, writtenIds };
+  return { syncingAuthUserId, whole, writtenIds, ...(short ? { short } : {}) };
 }

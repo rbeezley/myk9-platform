@@ -63,6 +63,7 @@ const { classes, offline, sheet, running, result, confirm, saved, sent } = regio
 
 export const RING_SCENE: TimelineSceneData = {
   id: 'showday-ring',
+  name: 'Show day ring walkthrough',
   lines: SCENE_LINES['showday-ring'],
   phone: {
     label: 'The judge’s phone',

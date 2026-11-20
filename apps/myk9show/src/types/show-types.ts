@@ -84,6 +84,12 @@ export interface Show extends ShowAscaFacts {
   startDate: string;
   endDate: string;
   location: string;
+  /** MYK9-2245: the venue's separate columns, which the premium composes its venue from. */
+  venueName?: string | undefined;
+  address?: string | undefined;
+  city?: string | undefined;
+  state?: string | undefined;
+  zipCode?: string | undefined;
   // Venue coordinates, secretary-confirmed via VenuePinMap; null = no pin placed
   latitude?: number | null;
   longitude?: number | null;

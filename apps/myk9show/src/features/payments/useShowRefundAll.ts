@@ -32,7 +32,7 @@ export interface ShowRefundAllResult {
 const ERROR_MESSAGES: Record<string, string> = {
   [STEP_UP_REQUIRED_CODE]: 'No refunds were issued. Confirm your password to continue.',
   payout_already_sent:
-    'This show’s entry fees were already paid out to the club, so bulk refunds can’t be issued from here. They are still possible: contact myK9Show support, who issues them manually and recovers the club’s share.',
+    'The club has already been paid for this show, so these refunds can’t be issued here. Refunds still owed are the club’s to pay each exhibitor directly: for each entry, pay only what is still owed after any refund already made.',
   payout_in_progress: 'A payout to the club is in flight. Try again after it completes.',
   show_not_cancelled: 'Mark the show cancelled before refunding all entries.',
   // The lock is taken before any refund, so on these two nothing was refunded.

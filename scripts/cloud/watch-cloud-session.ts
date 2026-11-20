@@ -143,14 +143,23 @@ type Pr = {
   body: string | null;
 };
 
+/**
+ * A design-first plan branch (`claude/myk9-<n>-plan-<topic>`, orchestrate SKILL.md) shares the
+ * implementer prefix but is not implementation work: it never counts as a push or a PR.
+ */
+export function isPlanBranch(name: string, issue: string): boolean {
+  return name.replace(/^refs\/heads\//, '').startsWith(`claude/myk9-${issue}-plan-`);
+}
+
 /** The lane reference's rule: the prefix, or any `claude/` branch whose body says `Fixes MYK9-<n>`. */
 export function matchingPrs(prs: Pr[], issue: string): Pr[] {
   const prefix = `claude/myk9-${issue}-`;
   const fixes = new RegExp(`Fixes MYK9-${issue}\\b`);
   return prs.filter(
     p =>
-      p.headRefName.startsWith(prefix) ||
-      (p.headRefName.startsWith('claude/') && fixes.test(p.body ?? ''))
+      !isPlanBranch(p.headRefName, issue) &&
+      (p.headRefName.startsWith(prefix) ||
+        (p.headRefName.startsWith('claude/') && fixes.test(p.body ?? '')))
   );
 }
 
@@ -196,10 +205,10 @@ export function observe(
     ),
     issue
   );
-  const refs = parseJson<unknown[]>(
+  const refs = parseJson<{ ref?: string }[]>(
     gh(['api', `repos/{owner}/{repo}/git/matching-refs/heads/claude/myk9-${issue}-`]),
     'api matching-refs'
-  );
+  ).filter(r => !isPlanBranch(r.ref ?? '', issue));
   const ready = prs.filter(p => !p.isDraft);
   let headCommitAt: number | null = null;
   let gateComments: GateComment[] = [];

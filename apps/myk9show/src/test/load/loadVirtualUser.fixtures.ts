@@ -30,7 +30,7 @@ export interface FakePostgrestOptions {
    * reader's replica is not empty (an empty replica scans ids on every pass).
    */
   readonly seedScannedTables?: boolean;
-  /** Answer this table's delta with a full page (1000 rows), as a capped delta arrives. */
+  /** Answer this table's first delta page with a full page (1000 rows), then an empty continuation. */
   readonly fullPageDeltaTable?: string;
   /** Fail this table's GETs (the delta) with a 500 while its HEAD count still answers. */
   readonly failDeltaTable?: string;
@@ -71,6 +71,9 @@ export function createFakePostgrest(options: FakePostgrestOptions = {}): FakePos
       return json({ message: 'fixture delta failure' }, 500);
     }
     if (table === options.fullPageDeltaTable && method === 'GET') {
+      // MYK9-2252: the readers page, so the continuation (the keyset `or` filter)
+      // finds the table drained; a full page on every request would never end.
+      if (url.searchParams.has('or')) return json([]);
       return json(
         Array.from({ length: 1000 }, (_, i) => ({
           id: `${table}-full-${i}`,

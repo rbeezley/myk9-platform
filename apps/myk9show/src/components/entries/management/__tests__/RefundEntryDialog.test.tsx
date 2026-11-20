@@ -128,15 +128,14 @@ describe('RefundEntryDialog', () => {
 
     await user.click(screen.getByRole('button', { name: /issue refund/i }));
 
-    // The blocked-refund message must route somewhere actionable, not dead-end
-    // (MYK9-195): the operator completes it via the post-payout clawback runbook.
-    // The actionable route for the SECRETARY is "contact myK9Show support";
-    // the runbook's repo path used to be printed here too, which is an internal
-    // artifact they cannot open, so the assertion pins the route rather than
-    // that path (impeccable p3, C13).
-    expect(
-      await screen.findByText(/already been paid out to the club.*contact myK9Show support/i)
-    ).toBeInTheDocument();
+    // After the payout the club settles the refund with the exhibitor directly
+    // (owner decision 2026-11-13, MYK9-2302). This reverses the August 2026
+    // wording (MYK9-195, #1678; pinned in #1835) that sent the secretary to
+    // myK9Show support for a manual clawback; the clawback is now an operator's
+    // exception, not the route the secretary is given.
+    const message = await screen.findByText(/club has already been paid for this show/i);
+    expect(message).toHaveTextContent(/the club.s to pay the exhibitor directly/i);
+    expect(message).not.toHaveTextContent(/support/i);
     expect(onRefunded).not.toHaveBeenCalled();
   });
 

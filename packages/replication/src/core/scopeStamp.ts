@@ -14,6 +14,11 @@ export interface ScopeStampDirective {
    * owns any of them is read inside the metadata transaction (MYK9-1149).
    */
   writtenIds: readonly string[];
+  /**
+   * A confirmed short download (MYK9-2254): the account's own stamp no longer
+   * vouches for the scope, so it is cleared. Another account's stamp is never touched.
+   */
+  short?: boolean;
 }
 
 export interface ResolvedScopeStamp {
@@ -31,7 +36,8 @@ export interface ResolvedScopeStamp {
 
 /**
  * - whole: stamp the syncing account.
- * - not whole, stored stamp is the syncing account's: keep it (its rows are its own).
+ * - not whole, stored stamp is the syncing account's: keep it (its rows are its own), unless the
+ *   download was confirmed short: then clear it (the scope is no longer whole).
  * - not whole, rows written and the stored stamp is another's or absent: clear it
  *   and leave a marker, so the scope is foreign, not never-synced, for everyone else.
  * - nothing written (no id handed over is still the syncing account's): leave the stored stamp alone.
@@ -47,6 +53,7 @@ export async function resolveScopeStamp(
   if (option.whole)
     return { stamp: option.syncingAuthUserId, recordMarker: false, freezeCursor: false };
   if (stored === option.syncingAuthUserId) {
+    if (option.short) return { stamp: null, recordMarker: true, freezeCursor: false };
     return { stamp: undefined, recordMarker: false, freezeCursor: false };
   }
   if (!(await wroteRows())) {

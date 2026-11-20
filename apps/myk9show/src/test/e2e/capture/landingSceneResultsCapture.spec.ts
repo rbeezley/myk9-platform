@@ -129,24 +129,28 @@ const scrollToMiddle = (target: Locator) =>
  * leaves them, so every desktop frame shows the class list and the open class from one position.
  */
 async function alignResultsPanes(page: Page) {
-  await page.getByTestId('master-detail-layout').evaluate(el => {
-    let scroller: Element | null = el.parentElement;
-    while (
-      scroller &&
-      !(
-        scroller.scrollHeight > scroller.clientHeight &&
-        /(auto|scroll)/.test(getComputedStyle(scroller).overflowY)
-      )
-    ) {
-      scroller = scroller.parentElement;
-    }
-    const target = scroller ?? document.scrollingElement;
-    if (!target) throw new Error('nothing scrolls the Results page');
-    target.scrollTo({
-      top: target.scrollTop + el.getBoundingClientRect().top - 196,
-      behavior: 'instant',
+  // The show's own list-and-detail wraps the Results one, so the last in the document is the class list's.
+  await page
+    .getByTestId('master-detail-layout')
+    .last()
+    .evaluate(el => {
+      let scroller: Element | null = el.parentElement;
+      while (
+        scroller &&
+        !(
+          scroller.scrollHeight > scroller.clientHeight &&
+          /(auto|scroll)/.test(getComputedStyle(scroller).overflowY)
+        )
+      ) {
+        scroller = scroller.parentElement;
+      }
+      const target = scroller ?? document.scrollingElement;
+      if (!target) throw new Error('nothing scrolls the Results page');
+      target.scrollTo({
+        top: target.scrollTop + el.getBoundingClientRect().top - 196,
+        behavior: 'instant',
+      });
     });
-  });
   await page.waitForTimeout(1200);
 }
 

@@ -4,6 +4,7 @@ import { render, userEvent } from '@/test/utils/testUtils';
 import { onlineManager } from '@tanstack/react-query';
 import { fromAny } from '@total-typescript/shoehorn';
 import { createUser, searchUsers } from '@/services/database/users';
+import type { User } from '@/types/user-types';
 import { useUserStore } from '@/store/userStore';
 import { CreatePersonForm } from '../CreatePersonForm';
 
@@ -160,13 +161,13 @@ describe('CreatePersonForm on a device with no saved people (MYK9-2257)', () => 
 describe('CreatePersonForm offline with a saved people directory (MYK9-2265)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    const saved = [
-      fromAny({
+    const saved: User[] = [
+      {
         id: 'person-saved-1',
         firstName: 'Molly',
         lastName: 'Mailbox',
         email: 'molly.mailbox@example.com',
-      }),
+      },
     ];
     useUserStore.setState({ people: saved, users: saved, loadUsers: vi.fn() });
   });

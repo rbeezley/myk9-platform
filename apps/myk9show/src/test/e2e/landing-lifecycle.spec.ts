@@ -126,6 +126,9 @@ for (const vp of VIEWPORTS) {
                 window.innerHeight * 0.4;
           window.scrollTo({ top, behavior: 'instant' });
         }, to);
+      // The text above the show-day dot wraps by its font (the Entries open scene's five lines
+      // are most of it), so the jump is measured once the fonts are in, not before they shift it.
+      await page.evaluate(() => document.fonts.ready);
       await jump('showday');
       await expect
         .poll(() => reachedDots(page))

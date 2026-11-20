@@ -22,6 +22,7 @@ import { downloadLeavesRowAsIs, shouldKeepNewerRow } from './downloadRowGuards';
 import { MAX_CHUNK_SIZE } from '../constants';
 import { withQuotaEviction } from '../quota-eviction';
 import { deleteRowsIfClean, type DeleteRowsIfCleanResult } from './deleteRowsIfClean';
+import { redactCleanRows, type RedactCleanRowsResult } from './redactCleanRows';
 import type { SyncDeleteAuthority } from './syncDeleteAuthority';
 import {
   repairStuckPendingFlags,
@@ -394,6 +395,17 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
     const result = await deleteRowsIfClean(db, this.tableName, ids, remoteVersions);
     if (result.deleted.length > 0) {
       this.logger.log(`[${this.tableName}] Deleted ${result.deleted.length} clean rows`);
+      this.notifyListeners();
+    }
+    return result;
+  }
+
+  /** Rewrite the rows with no unsynced local work (MYK9-2255; see `redactCleanRows`). */
+  async redactCleanRows(redact: (data: T) => T): Promise<RedactCleanRowsResult> {
+    const db = await this.getDb();
+    const result = await redactCleanRows(db, this.tableName, redact);
+    if (result.redacted.length > 0) {
+      this.logger.log(`[${this.tableName}] Redacted ${result.redacted.length} clean rows`);
       this.notifyListeners();
     }
     return result;

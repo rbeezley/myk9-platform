@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware';
 import type { User, JudgeInfo } from '@/types/user-types';
 // import type { Dog } from '@/types/dog-types'; // Unused import
 import { getOptimalStorage } from '@/services/database/storage-adapter';
@@ -8,6 +8,12 @@ import { getOptimalStorage } from '@/services/database/storage-adapter';
 // import { getLastModifiedBy, getCurrentUserUUID } from '@/utils/authHelpers';
 import { reportStoreError } from '@/utils/standardizedErrorHandler';
 import { logger } from '@/services/LoggingService';
+import {
+  currentPeopleGeneration,
+  isPeopleContactPurgePending,
+  isPeopleContactSealed,
+} from '@/services/database/users/peopleContactSeal';
+import { stripUsersContact } from '@/services/database/users/peopleContactRedaction';
 
 // Input types for creating/updating users
 export interface UserInput {
@@ -90,6 +96,27 @@ interface UserStore {
 
   // Cleanup
   reset?: () => void;
+}
+
+/**
+ * The saved directory is a cache (the live store holds the current value), so a
+ * failed write is logged, not an unhandled rejection. The sign-out removal does
+ * its own write and reports its own failure (MYK9-2255).
+ */
+function getUsersStorage(): StateStorage {
+  const base = getOptimalStorage('users');
+  return {
+    ...base,
+    getItem: name => base.getItem(name),
+    removeItem: name => base.removeItem(name),
+    setItem: async (name, value) => {
+      try {
+        await base.setItem(name, value);
+      } catch (error) {
+        logger.warn('Could not save the people directory', 'store', { error });
+      }
+    },
+  };
 }
 
 export const useUserStore = create<UserStore>()(
@@ -330,8 +357,16 @@ export const useUserStore = create<UserStore>()(
       setUsers: users => set({ users, people: users }),
 
       loadUsers: async (options = {}): Promise<void> => {
+        // MYK9-2255: a sign-out while this load runs moves the generation; the
+        // result is then dropped rather than writing contact details back.
+        const startedGeneration = currentPeopleGeneration();
         try {
           set({ isLoading: true, error: null });
+
+          // A removal that failed at sign-out runs again before the directory is read.
+          const { ensurePeopleContactPurged } =
+            await import('@/services/database/users/signOutPeopleContact');
+          await ensurePeopleContactPurged();
 
           // Import here to avoid circular dependencies
           const { getAllUsers } = await import('@/services/database/users');
@@ -341,6 +376,11 @@ export const useUserStore = create<UserStore>()(
 
           if (error) {
             throw error;
+          }
+
+          if (startedGeneration !== currentPeopleGeneration() || isPeopleContactSealed()) {
+            set({ isLoading: false });
+            return;
           }
 
           // Map database results to User objects
@@ -454,7 +494,7 @@ export const useUserStore = create<UserStore>()(
     }),
     {
       name: 'myk9show-user-storage',
-      storage: createJSONStorage(() => getOptimalStorage('users')),
+      storage: createJSONStorage(getUsersStorage),
       // Only persist the users data, not the UI state
       partialize: state => ({
         users: state.users,
@@ -464,11 +504,21 @@ export const useUserStore = create<UserStore>()(
       // so without this merge it would stay as [] after rehydration while
       // `users` has the restored data — causing dropdowns that read from
       // `people` to appear empty.
-      merge: (persistedState, currentState) => ({
-        ...currentState,
-        ...(persistedState as Partial<UserStore>),
-        people: (persistedState as Partial<UserStore>).users ?? currentState.users,
-      }),
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as Partial<UserStore>;
+        // MYK9-2255: a rehydration after sign-out (or before an unconfirmed
+        // removal has run again) must not bring contact details back.
+        const users =
+          persisted.users && (isPeopleContactSealed() || isPeopleContactPurgePending())
+            ? stripUsersContact(persisted.users)
+            : persisted.users;
+        return {
+          ...currentState,
+          ...persisted,
+          ...(users ? { users } : {}),
+          people: users ?? currentState.users,
+        };
+      },
       version: 1,
       migrate: (persistedState: unknown, version: number) => {
         // Handle version migrations if needed

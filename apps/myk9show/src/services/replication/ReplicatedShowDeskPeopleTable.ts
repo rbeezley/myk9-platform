@@ -1,5 +1,6 @@
 import { ReplicatedTable, type SyncResult } from '@myk9/replication';
 import { logger } from '@myk9/core';
+import { stripShowDeskPersonContact } from '@/services/database/users/peopleContactRedaction';
 
 export interface ShowDeskPersonInput {
   id?: string;
@@ -94,6 +95,15 @@ export class ReplicatedShowDeskPeopleTable extends ReplicatedTable<ReplicatedSho
     logger.log(`[${this.getTableName()}] Created show-desk person ${id}`);
 
     return person;
+  }
+
+  /**
+   * Sign-out (MYK9-2255): a person already sent keeps the name only; an unsent
+   * one keeps every field, because it is the only copy until it is sent. The
+   * check and the rewrite share one transaction with the queue.
+   */
+  async redactSentContact(): Promise<{ redacted: string[]; kept: string[] }> {
+    return this.redactCleanRows(stripShowDeskPersonContact);
   }
 
   protected resolveConflict(

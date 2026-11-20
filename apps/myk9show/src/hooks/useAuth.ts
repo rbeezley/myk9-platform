@@ -6,6 +6,8 @@ import { supabase } from '../lib/supabase';
 import { rbacService } from '@/services/rbac/RBACService';
 import { captureAuthEmailRequestFailure } from '@/services/observability/sentry';
 import { clearAppearanceCache } from '@/context/themeClasses';
+import { purgePeopleContactOnSignOut } from '@/services/database/users/signOutPeopleContact';
+import { releasePeopleContactSeal } from '@/services/database/users/peopleContactSeal';
 import { clearOwnerNameCache } from '@/services/database/dogs/ownerNameCache';
 import { replicatedClassesTable } from '@/services/replication';
 import { ringsideClaimMatchesUser } from '@/features/at-show/ringsideClaimCache';
@@ -190,6 +192,10 @@ export function useAuth() {
         clearClubOnboardingDraft();
         clearAllRbacWarmTokens();
         useRingsideGrantStore.getState().clearGrant();
+        // MYK9-2255: phone, email and address leave the saved people; names stay.
+        void purgePeopleContactOnSignOut();
+      } else if (nextUser) {
+        releasePeopleContactSeal();
       }
       if (
         _event === 'SIGNED_IN' &&
@@ -368,6 +374,8 @@ export function useAuth() {
     clearAppearanceCache();
     // Before the navigation: the unload may beat the hook's own effects.
     clearAllRbacWarmTokens();
+    // MYK9-2255: finish the removal before the unload can cut it off (never throws).
+    await purgePeopleContactOnSignOut();
     window.location.href = '/';
   }, []);
 

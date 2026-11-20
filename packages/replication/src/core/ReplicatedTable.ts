@@ -1539,6 +1539,15 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     return this.batchManager.deleteRowsIfClean(ids, remoteVersions, by);
   }
 
+  /**
+   * Rewrite every row that holds no unsynced local work with `redact`, every
+   * account's rows included, atomically against the mutation queue (MYK9-2255).
+   * Unsent rows are left whole.
+   */
+  async redactCleanRows(redact: (data: T) => T): Promise<{ redacted: string[]; kept: string[] }> {
+    return this.batchManager.redactCleanRows(redact);
+  }
+
   /** One-time repair for rows stuck at a `'pending'` data flag (MYK9-1055). */
   async repairStuckPendingFlags<TRemote>(
     adapter: StuckRepairAdapter<TRemote, T>

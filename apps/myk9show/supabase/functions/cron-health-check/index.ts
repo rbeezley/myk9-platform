@@ -30,6 +30,7 @@ import type { HealthCheckRunMode } from '../_shared/healthCheckCadence.ts';
 import { readPlatformSettingsRowCount } from '../_shared/platformSettingsChecks.ts';
 import { PUBLIC_LISTING_STATUSES, readListedShows } from '../_shared/strayShowChecks.ts';
 import { alertAdmin } from '../_shared/alertAdmin.ts';
+import { alertWasEmailed } from '../_shared/alertAdminCore.ts';
 import {
   LIVE_CLUB_SHOW_STATUSES,
   runScaleLimitsCheck,
@@ -190,7 +191,7 @@ async function runScaleLimits(): Promise<void> {
     },
     raiseAlert: async (subject, html, opts) => {
       const result = await alertAdmin(subject, html, opts);
-      return { emailed: result.emailAttempted && result.emailError == null };
+      return { emailed: alertWasEmailed(result) };
     },
     markEmailed: async (source, dedupeKey, detail) => {
       const { error } = await supabase

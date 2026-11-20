@@ -21,6 +21,8 @@ import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import {
   buildAlertRow,
   runAlertAdmin,
+  sendAlertEmailWith,
+  DEFAULT_ALERT_SUBJECT_PREFIX,
   type RunAlertAdminResult,
   type InsertResultLike,
   type AlertDeliveryOptions,
@@ -42,6 +44,8 @@ export interface AlertAdminOptions extends AlertDeliveryOptions {
   dedupeKey?: string;
   /** Structured context (payment identifiers, amounts, etc.). */
   detail?: Record<string, unknown>;
+  /** Subject prefix; defaults to the payments one every older caller relied on. */
+  subjectPrefix?: string;
 }
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -75,29 +79,6 @@ async function insertOperatorAlert(
   };
 }
 
-async function sendAlertEmail(subject: string, html: string): Promise<void> {
-  if (!resendApiKey) {
-    console.log(`Alert email skipped (no RESEND_API_KEY): ${subject}`);
-    return;
-  }
-  const res = await sendResendEmailWithRetry({
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${resendApiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: 'myK9Show <notifications@myk9show.com>',
-      to: alertEmail,
-      subject: `[myK9Show payments] ${subject}`,
-      html,
-    }),
-  });
-  if (!res.ok) {
-    throw new Error(`Alert email failed (${res.status}): ${subject}`);
-  }
-}
-
 export async function alertAdmin(
   subject: string,
   html: string,
@@ -105,7 +86,18 @@ export async function alertAdmin(
 ): Promise<RunAlertAdminResult> {
   return await runAlertAdmin(subject, {
     insert: () => insertOperatorAlert(subject, html, opts),
-    sendEmail: () => sendAlertEmail(subject, html),
+    sendEmail: () =>
+      sendAlertEmailWith(
+        {
+          apiKey: resendApiKey,
+          to: alertEmail,
+          post: init => sendResendEmailWithRetry(init),
+          log: console.log,
+        },
+        subject,
+        html,
+        opts.subjectPrefix ?? DEFAULT_ALERT_SUBJECT_PREFIX
+      ),
     skipEmailOnDuplicate: opts.skipEmailOnDuplicate,
     log: console.log,
     logError: console.error,

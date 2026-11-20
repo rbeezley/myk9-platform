@@ -40,6 +40,9 @@ export const LIVE_CLUB_SHOW_STATUSES = [
 
 export const SCALE_ALERT_SOURCE = 'scale-limits';
 
+/** Not "payments": this is the first alert that is not about money. */
+export const SCALE_ALERT_SUBJECT_PREFIX = '[myK9Show platform]';
+
 export type ScaleCounts = Record<ScaleCountKey, number>;
 
 /** Keys whose count has reached its alert-at number. */
@@ -76,7 +79,13 @@ export interface ScaleLimitsDeps {
   raiseAlert: (
     subject: string,
     html: string,
-    opts: { severity: 'warn'; source: string; dedupeKey: string; detail: Record<string, unknown> }
+    opts: {
+      severity: 'warn';
+      source: string;
+      dedupeKey: string;
+      detail: Record<string, unknown>;
+      subjectPrefix: string;
+    }
   ) => Promise<{ emailed: boolean }>;
   /** Records on the row(s) that the email went out (detail.emailed = true). */
   markEmailed: (
@@ -111,6 +120,7 @@ export async function runScaleLimitsCheck(deps: ScaleLimitsDeps): Promise<ScaleL
       source: SCALE_ALERT_SOURCE,
       dedupeKey,
       detail,
+      subjectPrefix: SCALE_ALERT_SUBJECT_PREFIX,
     });
     if (!emailed) return { status: 'email_failed', dedupeKey };
     await deps.markEmailed(SCALE_ALERT_SOURCE, dedupeKey, { ...detail, emailed: true });

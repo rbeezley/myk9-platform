@@ -1,6 +1,14 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
-import { buildAlertRow, classifyInsertResult, runAlertAdmin } from './alertAdminCore';
+import {
+  type AlertEmailDeps,
+  sendAlertEmailWith,
+  DEFAULT_ALERT_SUBJECT_PREFIX,
+  alertWasEmailed,
+  buildAlertRow,
+  classifyInsertResult,
+  runAlertAdmin,
+} from './alertAdminCore';
 
 describe('buildAlertRow', () => {
   it('falls back to { html } as detail when opts.detail is absent (legacy no-opts callers)', () => {
@@ -72,7 +80,12 @@ describe('runAlertAdmin', () => {
       skipEmailOnDuplicate: true,
     });
     expect(sendEmail).not.toHaveBeenCalled();
-    expect(result).toEqual({ insertOutcome: 'deduped', emailAttempted: false, emailError: null });
+    expect(result).toEqual({
+      insertOutcome: 'deduped',
+      emailAttempted: false,
+      emailError: null,
+      emailSent: false,
+    });
   });
 
   it('still attempts email on insert failure when duplicate skipping is enabled', async () => {
@@ -126,6 +139,40 @@ describe('runAlertAdmin', () => {
     expect(result.insertOutcome).toBe('inserted');
   });
 
+  it('reports a skipped send (no key) as not sent, and never as emailed', async () => {
+    const insert = vi.fn().mockResolvedValue({ error: null });
+    const sendEmail = vi.fn().mockResolvedValue({ sent: false });
+
+    const result = await runAlertAdmin('subject', { insert, sendEmail });
+
+    expect(result.emailSent).toBe(false);
+    expect(alertWasEmailed(result)).toBe(false);
+  });
+
+  it('counts a real send on a saved row as emailed', async () => {
+    const insert = vi.fn().mockResolvedValue({ error: null });
+    const sendEmail = vi.fn().mockResolvedValue({ sent: true });
+
+    expect(alertWasEmailed(await runAlertAdmin('subject', { insert, sendEmail }))).toBe(true);
+  });
+
+  it('does not count an email sent while the insert failed (no row to stamp)', async () => {
+    const insert = vi.fn().mockResolvedValue({ error: { code: '42501', message: 'nope' } });
+    const sendEmail = vi.fn().mockResolvedValue({ sent: true });
+
+    const result = await runAlertAdmin('subject', { insert, sendEmail });
+
+    expect(result.emailSent).toBe(true);
+    expect(alertWasEmailed(result)).toBe(false);
+  });
+
+  it('does not count a send that threw', async () => {
+    const insert = vi.fn().mockResolvedValue({ error: null });
+    const sendEmail = vi.fn().mockRejectedValue(new Error('resend down'));
+
+    expect(alertWasEmailed(await runAlertAdmin('subject', { insert, sendEmail }))).toBe(false);
+  });
+
   it('treats a dedupe unique-violation as benign and still attempts email', async () => {
     const insert = vi.fn().mockResolvedValue({ error: { code: '23505', message: 'dup' } });
     const sendEmail = vi.fn().mockResolvedValue(undefined);
@@ -147,5 +194,54 @@ describe('runAlertAdmin', () => {
 
     expect(result.insertOutcome).toBe('insert_failed');
     expect(logError).toHaveBeenCalled();
+  });
+});
+
+describe('sendAlertEmailWith (MYK9-2301)', () => {
+  const okPost = () => vi.fn<AlertEmailDeps['post']>(async () => ({ ok: true, status: 200 }));
+  const sentBody = (post: ReturnType<typeof okPost>) =>
+    JSON.parse(post.mock.calls.at(0)?.[0].body ?? '{}');
+
+  it('skips and reports not sent when no key is configured', async () => {
+    const post = okPost();
+    const log = vi.fn();
+    await expect(
+      sendAlertEmailWith(
+        { apiKey: undefined, to: 'ops@example.com', post, log },
+        'Subj',
+        '<p>x</p>'
+      )
+    ).resolves.toEqual({ sent: false });
+    expect(post).not.toHaveBeenCalled();
+    expect(log).toHaveBeenCalledWith('Alert email skipped (no RESEND_API_KEY): Subj');
+  });
+
+  it('sends with the payments prefix by default and reports sent', async () => {
+    const post = okPost();
+    await expect(
+      sendAlertEmailWith({ apiKey: 'k', to: 'ops@example.com', post, log: vi.fn() }, 'Subj', 'h')
+    ).resolves.toEqual({ sent: true });
+    const body = sentBody(post);
+    expect(body.subject).toBe(`${DEFAULT_ALERT_SUBJECT_PREFIX} Subj`);
+    expect(DEFAULT_ALERT_SUBJECT_PREFIX).toBe('[myK9Show payments]');
+    expect(body.to).toBe('ops@example.com');
+  });
+
+  it('uses the prefix it is given', async () => {
+    const post = okPost();
+    await sendAlertEmailWith(
+      { apiKey: 'k', to: 'ops@example.com', post, log: vi.fn() },
+      'Subj',
+      'h',
+      '[myK9Show platform]'
+    );
+    expect(sentBody(post).subject).toBe('[myK9Show platform] Subj');
+  });
+
+  it('throws when the provider refuses the email', async () => {
+    const post = vi.fn<AlertEmailDeps['post']>(async () => ({ ok: false, status: 500 }));
+    await expect(
+      sendAlertEmailWith({ apiKey: 'k', to: 'ops@example.com', post, log: vi.fn() }, 'Subj', 'h')
+    ).rejects.toThrow('Alert email failed (500): Subj');
   });
 });

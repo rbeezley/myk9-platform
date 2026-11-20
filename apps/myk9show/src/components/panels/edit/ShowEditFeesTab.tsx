@@ -187,17 +187,6 @@ export const ShowEditFeesTab: React.FC<ShowEditFeesTabProps> = ({
 
             <div className="flex items-center space-x-2">
               <Checkbox
-                id="allowNonOwnerHandlers"
-                checked={data.allowNonOwnerHandlers || false}
-                onCheckedChange={handleCheckboxChange('allowNonOwnerHandlers')}
-              />
-              <Label htmlFor="allowNonOwnerHandlers" className="text-sm font-medium">
-                Allow non-owner handlers
-              </Label>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Checkbox
                 id="isNationals"
                 checked={data.isNationals || false}
                 onCheckedChange={handleCheckboxChange('isNationals')}

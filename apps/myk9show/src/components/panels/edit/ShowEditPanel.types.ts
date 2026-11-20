@@ -55,7 +55,6 @@ export interface ShowEditFormData extends Record<string, unknown> {
   startingArmbandNumber?: number;
   maxEntriesPerDog?: number;
   maxTotalEntries?: number;
-  allowNonOwnerHandlers?: boolean;
   isNationals?: boolean;
   acceptCheckPayments?: boolean;
   acceptCashPayments?: boolean;

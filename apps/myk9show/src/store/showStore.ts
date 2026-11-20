@@ -32,11 +32,16 @@ import {
   readShowsOrThrow,
 } from './showStoreReads';
 import { invalidateVenuePinIfLocationChanged } from '@/features/maps/invalidateVenuePin';
-import { pickShowUsesUpdates } from '@/services/replication/showUsesColumns';
 import {
   pickShowAscaFactUpdates,
   type ShowAscaFacts,
 } from '@/services/replication/showAscaFactColumns';
+import {
+  assertShowUpdatesValid,
+  toLocalUpdates,
+  toReplicatedUpdates,
+  type ShowUpdates,
+} from './showUpdateFields';
 
 /**
  * Convert ReplicatedShow (database schema) to Show (app schema)
@@ -72,6 +77,10 @@ export function replicatedToShow(replicated: ReplicatedShow): Show {
       : {}),
     // MYK9-2220: a reload or replica notification must keep the saved cap (offline Edit show).
     ...(replicated.maxTotalEntries != null ? { maxTotalEntries: replicated.maxTotalEntries } : {}),
+    // MYK9-2222: a reload must keep the saved first armband, or Edit show reopens on 100.
+    ...(replicated.startingArmbandNumber != null
+      ? { startingArmbandNumber: replicated.startingArmbandNumber }
+      : {}),
     clubId: replicated.clubId || '',
     clubName: '', // Derived from club store
     clubAddress: '', // Derived from club store
@@ -253,7 +262,7 @@ interface ShowStore {
 
   // Local-First Actions
   addShow: (showData: ShowInput) => Promise<Show>;
-  updateShow: (id: string, updates: Partial<ShowInput>) => Promise<Show | null>;
+  updateShow: (id: string, updates: ShowUpdates) => Promise<Show | null>;
   deleteShow: (id: string) => Promise<void>;
   deleteShowCascading: (id: string) => Promise<void>;
   purgeDeletedShow: (id: string) => Promise<void>;
@@ -410,7 +419,7 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
     }
   },
 
-  updateShow: async (id: string, rawUpdates: Partial<ShowInput>): Promise<Show | null> => {
+  updateShow: async (id: string, rawUpdates: ShowUpdates): Promise<Show | null> => {
     try {
       set({ isLoading: true, error: null });
 
@@ -423,50 +432,10 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
 
       const updates = invalidateVenuePinIfLocationChanged(currentShow.location, rawUpdates);
 
-      // Update in replicated table (handles version increment and sync metadata)
-      // Build update object with only defined values to satisfy exactOptionalPropertyTypes
-      const replicatedUpdates: Partial<ReplicatedShow> = {};
-      if (updates.name !== undefined) replicatedUpdates.name = updates.name;
-      if (updates.organization !== undefined) replicatedUpdates.organization = updates.organization;
-      if (updates.startDate !== undefined) replicatedUpdates.startDate = updates.startDate;
-      if (updates.endDate !== undefined) replicatedUpdates.endDate = updates.endDate;
-      if (updates.location !== undefined) replicatedUpdates.location = updates.location;
-      if (updates.latitude !== undefined) replicatedUpdates.latitude = updates.latitude;
-      if (updates.longitude !== undefined) replicatedUpdates.longitude = updates.longitude;
-      if (updates.status !== undefined) replicatedUpdates.status = updates.status;
-      if (updates.entryOpenDate !== undefined)
-        replicatedUpdates.entryOpenDate = updates.entryOpenDate;
-      if (updates.entryCloseDate !== undefined)
-        replicatedUpdates.entryCloseDate = updates.entryCloseDate;
-      if (updates.preEntryFee !== undefined)
-        replicatedUpdates.preEntryFee = parseFloat(updates.preEntryFee);
-      if (updates.dayOfShowFee !== undefined)
-        replicatedUpdates.dayOfShowFee = parseFloat(updates.dayOfShowFee);
-      // MYK9-2221: present means the form decides; a cleared box clears the cap.
-      if ('maxEntriesPerDog' in updates)
-        replicatedUpdates.maxEntriesPerDog = updates.maxEntriesPerDog;
-      // MYK9-2220: present means the form decides; a cleared box clears the limit.
-      if ('maxTotalEntries' in updates) replicatedUpdates.maxTotalEntries = updates.maxTotalEntries;
-      if (updates.juniorHandlerFee !== undefined)
-        replicatedUpdates.juniorHandlerFee =
-          updates.juniorHandlerFee.trim() === '' ? null : Number(updates.juniorHandlerFee);
-      if (updates.clubId !== undefined) replicatedUpdates.clubId = updates.clubId;
-      if (updates.acceptCheckPayments !== undefined)
-        replicatedUpdates.acceptCheckPayments = updates.acceptCheckPayments;
-      if (updates.acceptCashPayments !== undefined)
-        replicatedUpdates.acceptCashPayments = updates.acceptCashPayments;
-      if ('logoUrl' in updates) replicatedUpdates.logoUrl = updates.logoUrl as string;
-      if ('coverImageUrl' in updates)
-        replicatedUpdates.coverImageUrl = updates.coverImageUrl as string;
-      if ('accentColor' in updates) replicatedUpdates.accentColor = updates.accentColor as string;
-      if (updates.confirmationMessage !== undefined)
-        replicatedUpdates.confirmationMessage = updates.confirmationMessage.trim() || null;
-      // Style is persisted only by Preview's narrow RPC command. Generic show
-      // edits must not carry a stale style snapshot into a full-row mutation.
-      if (updates.isNationals !== undefined) replicatedUpdates.isNationals = updates.isNationals;
-      Object.assign(replicatedUpdates, pickShowUsesUpdates(updates));
-      // MYK9-2290: null clears an ASCA premium fact; undefined leaves it.
-      Object.assign(replicatedUpdates, pickShowAscaFactUpdates(updates));
+      // MYK9-2222: one field map (showUpdateFields) decides what reaches the replicated row and
+      // the local copy. A value that can never be written throws before anything is.
+      assertShowUpdatesValid(updates);
+      const replicatedUpdates = toReplicatedUpdates(updates);
 
       // MYK9-2081: an edit that changed only the judge list has no show column to write.
       const showMutationId =
@@ -492,51 +461,8 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
         );
       }
 
-      // Create updated show with local-only fields preserved
-      // Filter out undefined values from updates to satisfy exactOptionalPropertyTypes
-      const definedUpdates: Partial<Show> = {};
-      if (updates.name !== undefined) definedUpdates.name = updates.name;
-      if (updates.organization !== undefined) definedUpdates.organization = updates.organization;
-      if (updates.startDate !== undefined) definedUpdates.startDate = updates.startDate;
-      if (updates.endDate !== undefined) definedUpdates.endDate = updates.endDate;
-      if (updates.location !== undefined) definedUpdates.location = updates.location;
-      if (updates.latitude !== undefined) definedUpdates.latitude = updates.latitude;
-      if (updates.longitude !== undefined) definedUpdates.longitude = updates.longitude;
-      if (updates.status !== undefined) definedUpdates.status = updates.status;
-      if (updates.events !== undefined) definedUpdates.events = updates.events;
-      if (updates.source !== undefined) definedUpdates.source = updates.source;
-      if (updates.entryOpenDate !== undefined) definedUpdates.entryOpenDate = updates.entryOpenDate;
-      if (updates.entryCloseDate !== undefined)
-        definedUpdates.entryCloseDate = updates.entryCloseDate;
-      if (updates.preEntryFee !== undefined) definedUpdates.preEntryFee = updates.preEntryFee;
-      if (updates.dayOfShowFee !== undefined) definedUpdates.dayOfShowFee = updates.dayOfShowFee;
-      if ('maxEntriesPerDog' in updates) definedUpdates.maxEntriesPerDog = updates.maxEntriesPerDog;
-      if ('maxTotalEntries' in updates) definedUpdates.maxTotalEntries = updates.maxTotalEntries;
-      if (updates.juniorHandlerFee !== undefined)
-        definedUpdates.juniorHandlerFee = updates.juniorHandlerFee;
-      if (updates.clubId !== undefined) definedUpdates.clubId = updates.clubId;
-      if (updates.acceptCheckPayments !== undefined)
-        definedUpdates.acceptCheckPayments = updates.acceptCheckPayments;
-      if (updates.acceptCashPayments !== undefined)
-        definedUpdates.acceptCashPayments = updates.acceptCashPayments;
-      if (updates.clubName !== undefined) definedUpdates.clubName = updates.clubName;
-      if (updates.clubAddress !== undefined) definedUpdates.clubAddress = updates.clubAddress;
-      if (updates.clubEmail !== undefined) definedUpdates.clubEmail = updates.clubEmail;
-      if ('logoUrl' in updates) definedUpdates.logoUrl = updates.logoUrl as string;
-      if ('coverImageUrl' in updates)
-        definedUpdates.coverImageUrl = updates.coverImageUrl as string;
-      if ('accentColor' in updates) definedUpdates.accentColor = updates.accentColor as string;
-      if (updates.confirmationMessage !== undefined)
-        definedUpdates.confirmationMessage = updates.confirmationMessage.trim();
-      if (updates.assignedJudges !== undefined)
-        definedUpdates.assignedJudges = updates.assignedJudges;
-      // Style is owned by Preview's update_show_style RPC; a generic settings
-      // save must not optimistically persist its stale form snapshot.
-      if (updates.isNationals !== undefined) definedUpdates.isNationals = updates.isNationals;
-      // MYK9-1622: without the switch fields, this rebuild from the pre-save copy put the old
-      // value back over the replica's new one, and the switch snapped back off.
-      Object.assign(definedUpdates, pickShowUsesUpdates(updates));
-      Object.assign(definedUpdates, pickShowAscaFactUpdates(updates));
+      // Local-only fields (club name, judges) travel through the same map.
+      const definedUpdates = toLocalUpdates(updates);
 
       // Optimistic update, applied to the show as it is NOW, not to `currentShow`: that copy was
       // read before the save's await, so another save (a second switch flipped quickly) or the

@@ -21,7 +21,6 @@ const FIELD_LOCATION: Record<string, FieldLocation<ShowEditTab>> = {
   startingArmbandNumber: { tab: 'fees', elementId: 'startingArmbandNumber' },
   maxEntriesPerDog: { tab: 'fees', elementId: 'maxEntriesPerDog' },
   maxTotalEntries: { tab: 'fees', elementId: 'maxTotalEntries' },
-  allowNonOwnerHandlers: { tab: 'fees', elementId: 'allowNonOwnerHandlers' },
   isNationals: { tab: 'fees', elementId: 'isNationals' },
   publishExperience: { tab: 'premium', elementId: 'premium-tab-heading' },
   generatedPremium: { tab: 'premium', elementId: 'premium-tab-heading' },

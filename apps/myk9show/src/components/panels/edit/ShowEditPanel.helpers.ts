@@ -51,9 +51,6 @@ export const showToFormData = (show: Partial<Show>): ShowEditFormData => {
     startingArmbandNumber: show.startingArmbandNumber ?? 100,
     ...(show.maxEntriesPerDog !== undefined && { maxEntriesPerDog: show.maxEntriesPerDog }),
     ...(show.maxTotalEntries !== undefined && { maxTotalEntries: show.maxTotalEntries }),
-    ...(show.allowNonOwnerHandlers !== undefined && {
-      allowNonOwnerHandlers: show.allowNonOwnerHandlers,
-    }),
     isNationals: show.isNationals ?? false,
     acceptCheckPayments: show.acceptCheckPayments ?? false,
     acceptCashPayments: show.acceptCashPayments ?? false,
@@ -100,7 +97,6 @@ export const formDataToShow = (formData: ShowEditFormData): Partial<Show> => ({
   startingArmbandNumber: formData.startingArmbandNumber,
   maxEntriesPerDog: formData.maxEntriesPerDog,
   maxTotalEntries: formData.maxTotalEntries,
-  allowNonOwnerHandlers: formData.allowNonOwnerHandlers,
   isNationals: formData.isNationals,
   acceptCheckPayments: formData.acceptCheckPayments,
   acceptCashPayments: formData.acceptCashPayments,

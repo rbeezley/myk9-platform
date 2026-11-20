@@ -214,7 +214,6 @@ export const showSchemas = {
         .min(1, { message: 'Max total entries must be at least 1' })
         .max(2147483647, { message: 'Max total entries is too large' })
         .optional(),
-      allowNonOwnerHandlers: z.boolean().optional(),
       isNationals: z.boolean().optional(),
       acceptCheckPayments: z.boolean().optional(),
       acceptCashPayments: z.boolean().optional(),

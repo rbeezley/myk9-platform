@@ -47,7 +47,10 @@ describe('useShowRefundAll', () => {
     await waitFor(() => expect(result.current.isError).toBe(true));
     const message = showRefundAllErrorMessage(result.current.error);
     expect(message).toMatch(/club has already been paid for this show/i);
-    expect(message).toMatch(/the club.s to pay each exhibitor directly/i);
+    expect(message).toMatch(/still owed are the club.s to pay each exhibitor directly/i);
+    // stripe-refund-show refuses before reading entries, so the refusal cannot
+    // say every exhibitor is still owed: the club checks prior refunds first.
+    expect(message).toMatch(/check which exhibitors have already been refunded/i);
     expect(message).not.toMatch(/support/i);
   });
 });

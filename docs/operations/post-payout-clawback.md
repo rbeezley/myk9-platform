@@ -67,16 +67,23 @@ Route by what you found:
 ## Case A — operator clawback after payout (an exception you may choose)
 
 The default is that the club settles the refund with the exhibitor directly. Use these steps
-only when you decide the platform should complete the refund instead, and tell the club before
-you start (step 2).
+only when you decide the platform should complete the refund instead. Because the default
+puts the payment in the club's hands, the club may already have paid the exhibitor, or
+scheduled it, and that payment never shows in Stripe: do not issue anything until the treasurer
+has confirmed in writing what is still owed (step 2).
 
 **1. Fix the amount.** Cap it at the entry fee, mirroring in-app policy (`validateRefund`
 rejects `amount_exceeds_fee`; the platform fee is never refunded). Everything below assumes
 refund ≤ entry fee, which keeps the transfer-reversal math one number.
 
-**2. Notify the club before touching their money.** A transfer reversal pulls funds from a
-bank account the club may have already spent from. Email the treasurer what happened, the
-amount, and why — reversing first and explaining later is how you lose a club.
+**2. Agree it with the club before touching their money.** A transfer reversal pulls funds from
+a bank account the club may have already spent from. Email the treasurer what happened, the
+amount, and why — reversing first and explaining later is how you lose a club. Before step 3,
+get the treasurer's written answer to two things: the amount the club has **not** already paid
+or scheduled to this exhibitor, and the club's agreement that it will not pay that amount
+itself. Refund only that confirmed amount. If the club has already paid in full, stop: there is
+nothing to refund or reverse. (On the signal-2 path the Stripe refund already exists, so ask
+the treasurer to confirm the club has not also paid the exhibitor directly.)
 
 **3. Refund the exhibitor.** Stripe dashboard → Payments → search the
 `stripe_payment_intent_id` → Refund → enter the partial amount. Note the refund id (`re_...`).

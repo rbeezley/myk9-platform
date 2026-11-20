@@ -68,13 +68,14 @@ export const PEAK_LEAD: Record<Audience, string> = {
 };
 
 // A still is one picture from the Landing capture workflow (landingStillsCapture.spec.ts, MYK9-2309).
-// A desktop still is a 680x425 window of the screen at twice its size, so its words read where the
-// page draws it (about 440px wide, about 330 on a phone); a phone still is the whole 390x844 screen.
-const desktopStill = (file: string, alt: string): Shot => ({
+// A desktop still is a window of the screen, cut so no label or sentence is cut, at twice its size
+// (so its words read where the page draws it: about 440px wide, about 294 on a phone); a phone still
+// is the whole 390x844 screen.
+const desktopStill = (file: string, alt: string, width: number, height: number): Shot => ({
   src: `/landing/stills/${file}.png`,
   alt,
-  width: 680,
-  height: 425,
+  width,
+  height,
   shape: 'desktop',
 });
 const phoneStill = (file: string, alt: string): Shot => ({
@@ -88,11 +89,15 @@ const phoneStill = (file: string, alt: string): Shot => ({
 const SHOTS = {
   'club-create-show': desktopStill(
     'club-create-show',
-    'The Add Show wizard on Step 1 of 4, with the steps Show Details, Trials and Classes and the Clone from a previous show box with its Select a past show to clone menu'
+    'The Add Show wizard’s four steps, Show Details, Trials, Classes and Review, with the first step marked',
+    600,
+    240
   ),
   'exhibitor-find-a-show': desktopStill(
     'exhibitor-find-a-show',
-    'Find Shows cards for the Heartland Scent Work Classic, marked Entry Submitted, and the Heartland ASCA Scent Detection Trial, marked Accepting Entries'
+    'Find Shows cards for the Heartland Scent Work Classic, marked Entry Submitted, and the Heartland ASCA Scent Detection Trial, marked Accepting Entries',
+    640,
+    400
   ),
   'exhibitor-my-entries': phoneStill(
     'exhibitor-my-entries',

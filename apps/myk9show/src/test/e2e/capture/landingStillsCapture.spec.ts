@@ -44,14 +44,14 @@ const DESK = { width: 1440, height: 900 };
 const SCALE = 2;
 /**
  * The page draws a desktop still about 440px wide (about 330 on a phone), so a whole 1440px screen
- * would print at a quarter size. Each desktop still is a window of this size cut from the screen,
- * the shape the page already draws (8:5), set in CSS pixels (the image is twice that).
+ * would print at a quarter size. Each desktop still is a window cut from the screen, set in CSS
+ * pixels (the image is twice that), and each is chosen so no label or sentence is cut.
  */
 type Clip = { x: number; y: number; width: number; height: number };
-/** The wizard's step card, its steps and the clone box, from the left edge of the form. */
-const CLUBS_WINDOW: Clip = { x: 225, y: 185, width: 680, height: 425 };
-/** The two right-hand cards of Find Shows: the show the exhibitor entered, and the one below it. */
-const FIND_WINDOW: Clip = { x: 720, y: 415, width: 680, height: 425 };
+/** The wizard's four steps whole, from Show Details to Review, under the top of the step card. */
+const CLUBS_WINDOW: Clip = { x: 455, y: 190, width: 600, height: 240 };
+/** Find Shows: the right-hand column of cards, whole, from the column's left edge (see below). */
+const FIND_SIZE = { width: 640, height: 400 };
 const SETUP_SQL = join(dirname(fileURLToPath(import.meta.url)), 'landingStillsSetup.sql');
 
 const APP_DIR = process.cwd();
@@ -208,8 +208,12 @@ test('captures the four stills from the secretary’s desktop, the exhibitor’s
       await expect(desk.getByText(/draft/i)).toHaveCount(0);
       await expect(desk.getByPlaceholder('Enter show name')).toHaveValue('');
       await expectNothingMisleading(desk);
+      // Nothing is focused: the clone menu would otherwise show a focus ring that reads as an error.
+      await desk.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
       await desk.mouse.move(0, 0);
       await desk.waitForTimeout(1200);
+      await logBox('Show Details step', desk.getByText('Show Details', { exact: true }).first());
+      await logBox('Review step', desk.getByText('Review', { exact: true }).first());
       await logBox('step card', desk.getByText('Step 1 of 4'));
       await logBox('clone card', desk.getByText('Clone from a previous show'));
       await logBox('basics', desk.getByRole('heading', { name: 'Basics' }));
@@ -231,7 +235,8 @@ test('captures the four stills from the secretary’s desktop, the exhibitor’s
       await expect(dogCard.first()).toContainText('100');
       await expectNothingMisleading(page);
       await expect(page.getByText('Show day is here')).toHaveCount(0);
-      await scrollToTop(dogCard);
+      // From the show's own heading (name, date, place), with Willow's card under it.
+      await scrollToTop(page.getByRole('region', { name: 'Heartland Scent Work Classic' }), 56);
       await page.mouse.move(0, 0);
       await page.waitForTimeout(1200);
       console.log('Willow card reads ::', (await dogCard.first().innerText()).replace(/\s+/g, ' '));
@@ -250,11 +255,9 @@ test('captures the four stills from the secretary’s desktop, the exhibitor’s
       await expectAppFont(page);
       // The dog's Overview, above the picture and out of it, names its owner by account address.
       const heading = page.getByRole('heading', { name: 'Competitions' });
-      await expectNothingMisleading(
-        page,
-        page.locator('.myk9-section-card').filter({ has: heading })
-      );
-      await scrollToTop(heading);
+      const competitions = page.locator('.myk9-section-card').filter({ has: heading });
+      await expectNothingMisleading(page, competitions);
+      await scrollToTop(competitions, 56);
       await page.mouse.move(0, 0);
       await page.waitForTimeout(1200);
       console.log(
@@ -274,12 +277,20 @@ test('captures the four stills from the secretary’s desktop, the exhibitor’s
       await expectNothingMisleading(page);
       await page.mouse.move(0, 0);
       await page.waitForTimeout(1200);
+      const card = await classic.first().boundingBox();
+      if (!card) throw new Error('the Heartland Scent Work Classic card has no box');
       await logBox('first card', classic);
       console.log(
         'Find Shows reads ::',
         (await page.locator('main').innerText()).replace(/\s+/g, ' ')
       );
-      await still(page, 'exhibitor-find-a-show.png', FIND_WINDOW);
+      // From the card column's left edge (a few pixels into the gap beside it), so no part of the
+      // neighbouring card is in frame; the entered show's card and the one under it are whole.
+      await still(page, 'exhibitor-find-a-show.png', {
+        x: Math.round(card.x) - 4,
+        y: Math.round(card.y) - 11,
+        ...FIND_SIZE,
+      });
     });
 
     // The app opened its realtime socket in these contexts and they held it: the hold was

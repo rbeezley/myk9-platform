@@ -10,8 +10,6 @@ import { expectNoLandingSpills } from './helpers/landingGeometry';
  */
 
 const STILLS = { club: 1, exhibitor: 3 } as const;
-/** What each shape's picture is of, in CSS pixels, so the drawn size says how large its words are. */
-const SCREEN_WIDTH = { phone: 390, desktop: 680 } as const;
 
 async function openLanding(page: Page) {
   await page.goto('/');
@@ -60,6 +58,8 @@ for (const width of [390, 1280]) {
                 columnLeft: column.left,
                 columnRight: column.right,
                 natural: img.naturalWidth / img.naturalHeight,
+                // Every still is captured at twice its size, so this is the screen width it shows.
+                shown: img.naturalWidth / 2,
               };
             }
           );
@@ -86,10 +86,7 @@ for (const width of [390, 1280]) {
           expect(still.width / still.height, label).toBeCloseTo(still.natural, 1);
           // The words in a picture read at about two fifths of their size or more; a phone screen is drawn
           // at most 220px wide, a desktop window at most 440px.
-          expect(
-            still.width / SCREEN_WIDTH[still.shape],
-            `${label} is drawn too small`
-          ).toBeGreaterThan(0.4);
+          expect(still.width / still.shown, `${label} is drawn too small`).toBeGreaterThan(0.4);
           expect(still.width, label).toBeLessThanOrEqual(still.shape === 'phone' ? 221 : 441);
         }
         await expectNoLandingSpills(page, `${width}px ${audience} stills`);

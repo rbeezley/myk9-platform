@@ -1,8 +1,7 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import type { User, JudgeInfo } from '@/types/user-types';
 // import type { Dog } from '@/types/dog-types'; // Unused import
-import { getOptimalStorage } from '@/services/database/storage-adapter';
 // syncService removed - using database-first approach
 // import { generateId } from '@/utils/idUtils';
 // import { getLastModifiedBy, getCurrentUserUUID } from '@/utils/authHelpers';
@@ -10,10 +9,9 @@ import { reportStoreError } from '@/utils/standardizedErrorHandler';
 import { logger } from '@/services/LoggingService';
 import {
   currentPeopleGeneration,
-  isPeopleContactPurgePending,
   isPeopleContactSealed,
 } from '@/services/database/users/peopleContactSeal';
-import { stripUsersContact } from '@/services/database/users/peopleContactRedaction';
+import { getUsersStorage, mergePersistedUsers } from './userStorePersistence';
 
 // Input types for creating/updating users
 export interface UserInput {
@@ -96,27 +94,6 @@ interface UserStore {
 
   // Cleanup
   reset?: () => void;
-}
-
-/**
- * The saved directory is a cache (the live store holds the current value), so a
- * failed write is logged, not an unhandled rejection. The sign-out removal does
- * its own write and reports its own failure (MYK9-2255).
- */
-function getUsersStorage(): StateStorage {
-  const base = getOptimalStorage('users');
-  return {
-    ...base,
-    getItem: name => base.getItem(name),
-    removeItem: name => base.removeItem(name),
-    setItem: async (name, value) => {
-      try {
-        await base.setItem(name, value);
-      } catch (error) {
-        logger.warn('Could not save the people directory', 'store', { error });
-      }
-    },
-  };
 }
 
 export const useUserStore = create<UserStore>()(
@@ -504,21 +481,8 @@ export const useUserStore = create<UserStore>()(
       // so without this merge it would stay as [] after rehydration while
       // `users` has the restored data — causing dropdowns that read from
       // `people` to appear empty.
-      merge: (persistedState, currentState) => {
-        const persisted = persistedState as Partial<UserStore>;
-        // MYK9-2255: a rehydration after sign-out (or before an unconfirmed
-        // removal has run again) must not bring contact details back.
-        const users =
-          persisted.users && (isPeopleContactSealed() || isPeopleContactPurgePending())
-            ? stripUsersContact(persisted.users)
-            : persisted.users;
-        return {
-          ...currentState,
-          ...persisted,
-          ...(users ? { users } : {}),
-          people: users ?? currentState.users,
-        };
-      },
+      merge: (persistedState, currentState) =>
+        mergePersistedUsers(persistedState as Partial<UserStore>, currentState),
       version: 1,
       migrate: (persistedState: unknown, version: number) => {
         // Handle version migrations if needed

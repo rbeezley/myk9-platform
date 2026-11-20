@@ -240,4 +240,6 @@ jobs:
       - name: Verify production serves this commit
         env:
           COMMIT_SHA: ${{ needs.preflight.outputs.commit_sha }}
+          # Present only when this run built; then it is the one expectation.
+          EXPECTED_ENTRY_FILE: .vercel/output/static/build-entry.txt
         run: bash "$RUNNER_TEMP/verify-production.sh"

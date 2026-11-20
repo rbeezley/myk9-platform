@@ -15,6 +15,7 @@
 #   COMMIT_SHA     required, full 40-char SHA production must serve
 #   DOMAIN_URL     default https://myk9show.com
 #   ALIAS_URL      default https://myk9-platform-myk9show.vercel.app
+#   EXPECTED_ENTRY_FILE  optional path of the locally built build-entry.txt
 #   VERIFY_TRIES   attempts per check (default 6)
 #   VERIFY_SLEEP   seconds between attempts (default 10)
 #
@@ -71,30 +72,47 @@ done
 # MYK9-2247: the stamp, written at build time next to build-sha.txt, names the
 # entry chunk the build produced. Each canonical homepage must serve exactly
 # that chunk, so two hosts that agree on a stale cached homepage still fail.
+entry_re='^src="/assets/[^"]*index-[A-Za-z0-9_-]+\.js"$'
+# After a publish the workflow hands over the stamp it just wrote locally, the
+# one expectation both hosts must meet; on a skip the hosts' own stamps must agree.
 expected=""
+if [[ -n "${EXPECTED_ENTRY_FILE:-}" && -f "$EXPECTED_ENTRY_FILE" ]]; then
+  expected="$(tr -d '[:space:]' <"$EXPECTED_ENTRY_FILE")"
+  [[ "$expected" =~ $entry_re ]] || {
+    echo "$EXPECTED_ENTRY_FILE does not hold an entry chunk: '${expected:0:80}'" >&2
+    exit 1
+  }
+fi
 for host in "$domain" "$alias_url"; do
   stamp=""
   for ((attempt = 1; attempt <= tries; attempt += 1)); do
     stamp="$(served_stamp "$host" "$attempt")"
-    [[ -n "$stamp" ]] && break
+    # The SPA catch-all can answer a missing stamp with index.html (HTTP 200),
+    # so only a complete entry chunk counts as a stamp.
+    [[ "$stamp" =~ $entry_re ]] && break
+    stamp=""
     if ((attempt < tries)); then sleep "$pause"; fi
   done
   [[ -n "$stamp" ]] || {
     echo "$host has no build-entry.txt stamp, so its homepage cannot be checked against the build. This deployment predates the stamp: rerun with rebuild_live=true to rebuild and republish it." >&2
     exit 1
   }
+  [[ -n "$expected" ]] || expected="$stamp"
+  [[ "$stamp" == "$expected" ]] || {
+    echo "build stamp mismatch: $host/build-entry.txt names '$stamp', expected '$expected'. The hosts serve different builds. Rerun with rebuild_live=true to republish." >&2
+    exit 1
+  }
   found=""
   for ((attempt = 1; attempt <= tries; attempt += 1)); do
     found="$(entry "$host/")"
-    [[ "$found" == "$stamp" ]] && break
-    echo "attempt $attempt: $host/ entry=$found expected=$stamp"
+    [[ "$found" == "$expected" ]] && break
+    echo "attempt $attempt: $host/ entry=$found expected=$expected"
     if ((attempt < tries)); then sleep "$pause"; fi
   done
-  [[ "$found" == "$stamp" ]] || {
-    echo "entry chunk mismatch: $host/ serves '$found', the build produced '$stamp' (a stale homepage is still being served). If this commit is already live, rerun with rebuild_live=true to republish it." >&2
+  [[ "$found" == "$expected" ]] || {
+    echo "entry chunk mismatch: $host/ serves '$found', the build produced '$expected' (a stale homepage is still being served). If this commit is already live, rerun with rebuild_live=true to republish it." >&2
     exit 1
   }
-  expected="$stamp"
 done
 public="$expected"
 

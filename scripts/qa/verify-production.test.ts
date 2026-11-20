@@ -31,7 +31,8 @@ afterEach(() => {
 function run(
   served: Record<string, string>,
   commitSha = SHA,
-  stalled: string[] = []
+  stalled: string[] = [],
+  expectedEntry?: string
 ): { status: number | null; stdout: string; stderr: string; summary: string; urls: string[] } {
   const bin = mkdtempSync(join(tmpdir(), 'verify-prod-'));
   dirs.push(bin);
@@ -58,6 +59,8 @@ function run(
   chmodSync(join(bin, 'curl'), 0o755);
   const summary = join(bin, 'summary.md');
   writeFileSync(summary, '');
+  const expectedFile = join(bin, 'expected-entry.txt');
+  if (expectedEntry !== undefined) writeFileSync(expectedFile, expectedEntry);
   const r = spawnSync('bash', [SCRIPT], {
     encoding: 'utf8',
     env: {
@@ -65,6 +68,7 @@ function run(
       HOME: process.env.HOME,
       GITHUB_STEP_SUMMARY: summary,
       COMMIT_SHA: commitSha,
+      ...(expectedEntry === undefined ? {} : { EXPECTED_ENTRY_FILE: expectedFile }),
       VERIFY_TRIES: '2',
       VERIFY_SLEEP: '0',
     },
@@ -149,6 +153,37 @@ describe('verify-production.sh', { timeout: 30_000 }, () => {
     expect(r.status).toBe(1);
     expect(r.stderr).toContain(`${DOMAIN} has no build-entry.txt stamp`);
     expect(r.stderr).toContain('rebuild_live=true');
+  });
+
+  it('fails when each homepage matches its own stamp but the stamps differ', () => {
+    const r = run({
+      ...healthy(),
+      [`${ALIAS}/`]: page('OLD'),
+      [`${ALIAS}/build-entry.txt`]: `${entry('OLD')}\n`,
+    });
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain('build stamp mismatch');
+    expect(r.stderr).toContain('rebuild_live=true');
+  });
+
+  it('holds both hosts to the locally built stamp when one is handed over', () => {
+    const allOld = {
+      ...healthy(),
+      [`${DOMAIN}/`]: page('OLD'),
+      [`${ALIAS}/`]: page('OLD'),
+      [`${DOMAIN}/build-entry.txt`]: `${entry('OLD')}\n`,
+      [`${ALIAS}/build-entry.txt`]: `${entry('OLD')}\n`,
+    };
+    expect(run(allOld).status).toBe(0);
+    const r = run(allOld, SHA, [], `${entry('ABC')}\n`);
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain('build stamp mismatch');
+  });
+
+  it('does not take SPA fallback HTML for a stamp', () => {
+    const r = run({ ...healthy(), [`${DOMAIN}/build-entry.txt`]: page('ABC') });
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain(`${DOMAIN} has no build-entry.txt stamp`);
   });
 
   it('fails when a homepage has no entry chunk', () => {

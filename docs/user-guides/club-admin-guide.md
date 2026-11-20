@@ -182,7 +182,7 @@ After your show's end date, myK9Show automatically initiates a deposit to your c
 
 **When does the deposit arrive?**
 
-About three days after the show's end date. During the launch period myK9Show checks each payout before it is sent, so the payout can go a little later than that. Until it goes, the Payments tab shows it as **Payout scheduled, waiting for release**. Once it is sent, your bank typically posts it the following business day. Weekends and bank holidays may add one day.
+About three days after the show's end date. During the launch period myK9Show checks each payout before it is sent, so the payout can go a little later than that. While a payout is awaiting that release, the Payments tab shows it as **Payout scheduled, waiting for release** (a club whose bank setup is not finished sees **Waiting for account** instead). Once it is sent, your bank typically posts it the following business day. Weekends and bank holidays may add one day.
 
 **What is the deposit amount?**
 

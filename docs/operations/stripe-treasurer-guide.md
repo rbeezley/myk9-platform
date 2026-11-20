@@ -215,8 +215,9 @@ You are not yet an admin of your club in myK9Show. Email us at the address below
 ## Being paid
 
 **When.** About three days after your show's last day. During the launch period myK9Show checks
-each payout before it is sent, and the Payments tab shows **Payout scheduled, waiting for release**
-until it goes. Your bank usually shows the deposit the next business day after it is sent. Weekends
+each payout before it is sent, and while a payout is awaiting that release the Payments tab shows
+**Payout scheduled, waiting for release**. (If your bank setup is not finished, it shows
+**Waiting for account** instead.) Your bank usually shows the deposit the next business day after it is sent. Weekends
 and bank holidays can add a day.
 
 **How much.**
@@ -247,8 +248,8 @@ comes out of your club's entry fees.
 
 **What if we need to refund an entry?**
 Your show secretary refunds it from the entry in myK9Show, and the money goes back to the
-exhibitor's card. This works up until your club is paid, about three days after the show or a little later. The service fee
-is not refunded.
+exhibitor's card. This works while the payout is waiting for release, and stops once the Payments tab shows
+**Sending**. The service fee is not refunded.
 
 **What if we need to refund someone after we have been paid?**
 By then the money is in your club's bank account, so your club pays the exhibitor directly, by

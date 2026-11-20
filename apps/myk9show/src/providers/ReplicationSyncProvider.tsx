@@ -305,7 +305,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       }));
 
       try {
-        const result = reportShortReplica(await tableConfig.table.sync(syncScopeId), syncScopeId);
+        const result = reportShortReplica(await tableConfig.table.sync(syncScopeId));
 
         if (result.success) {
           logger.info('Table synced', 'replication', {
@@ -455,14 +455,14 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
             try {
               // Bounded by the pass signal whatever a table does after its download.
               const result = reportShortReplica(
-                await abortableWait(table.sync(scope, { signal }), signal),
-                scope
+                await abortableWait(table.sync(scope, { signal }), signal)
               );
               return {
                 name,
                 ok: result.success,
                 error: result.error,
                 recoveredFromEmptyReplica: result.recoveredFromEmptyReplica ?? false,
+                shortReplica: result.shortReplica !== undefined,
               };
             } catch (err) {
               if (signal.aborted)

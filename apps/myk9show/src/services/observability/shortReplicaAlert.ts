@@ -6,26 +6,26 @@ import type { SyncResult } from '@myk9/replication';
  * server's count (MYK9-2254). The sync engine is logger-free, so it hands the
  * facts back on the result and this reports them. The sync runs every minute
  * and a short device stays short, so the key is remembered until a later sync
- * of the same table and scope succeeds (whole again). In memory: a reload
+ * of the same table succeeds (whole again), which clears every scope of that table: a success
+ * result carries no scope, and unscoped tables sync with {}. In memory: a reload
  * reports once more, which is the safe direction.
  *
  * No banner and no toast: the offline line and the checklist already say an
  * offline copy is incomplete (docs/INTENT.md, "Offline Is Normal, Not Broken").
  */
-const reported = new Set<string>();
+const reported = new Map<string, Set<string>>();
 
-const keyOf = (tableName: string, scope: string | undefined) =>
-  JSON.stringify([tableName, scope ?? '']);
-
-export function reportShortReplica(result: SyncResult, scope?: string): SyncResult {
+export function reportShortReplica(result: SyncResult): SyncResult {
   const short = result.shortReplica;
   if (!short) {
-    if (result.success) reported.delete(keyOf(result.tableName, scope));
+    if (result.success) reported.delete(result.tableName);
     return result;
   }
-  const key = keyOf(short.tableName, short.scope);
-  if (reported.has(key)) return result;
-  reported.add(key);
+  const key = short.scope ?? '';
+  const keys = reported.get(short.tableName) ?? new Set<string>();
+  if (keys.has(key)) return result;
+  keys.add(key);
+  reported.set(short.tableName, keys);
   Sentry.withScope(sentryScope => {
     sentryScope.setLevel('error');
     sentryScope.setTag('replication_table', short.tableName);

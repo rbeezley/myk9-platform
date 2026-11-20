@@ -134,8 +134,8 @@ async function expectAppFont(page: Page) {
 }
 
 /** Nothing on a still's screen may read as a fixture, a test account or a walk. */
-async function expectNothingMisleading(page: Page) {
-  const text = await page.locator('body').innerText();
+async function expectNothingMisleading(page: Page, scope?: Locator) {
+  const text = await (scope ?? page.locator('body')).innerText();
   expect(text).not.toMatch(/fixture|\bZZ|E2E|\bwalk\b|myk9t|\.example/i);
   expect(text).not.toContain('Show your results publicly?');
 }
@@ -244,8 +244,12 @@ test('captures the four stills from the secretary’s desktop, the exhibitor’s
       await reloadUntilVisibleAfterTab(page, cards);
       await expect(cards).toHaveCount(3);
       await expectAppFont(page);
-      await expectNothingMisleading(page);
+      // The dog's Overview, above the picture and out of it, names its owner by account address.
       const heading = page.getByRole('heading', { name: 'Competitions' });
+      await expectNothingMisleading(
+        page,
+        page.locator('.myk9-section-card').filter({ has: heading })
+      );
       await scrollToTop(heading);
       await page.mouse.move(0, 0);
       await page.waitForTimeout(1200);

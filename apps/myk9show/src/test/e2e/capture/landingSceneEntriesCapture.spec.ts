@@ -1,5 +1,7 @@
+import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import {
   ALLOW_PRODUCTION_FIXTURE_SIGN_IN,
@@ -11,7 +13,7 @@ import {
   probeOutbound,
   serveFontsFrom,
 } from '../helpers/landingCapture';
-import { signInAsExhibitor } from '../helpers/testUsers';
+import { signIn } from '../helpers/testUsers';
 import {
   chipById,
   chipClassId,
@@ -52,14 +54,19 @@ const PHONE = { width: 390, height: 844 };
 const PHONE_SCALE = 2;
 const DESK = { width: 1440, height: 900 };
 const DESK_SCALE = 1;
-// A demo exhibitor's dog whose entries all wait for the secretary, so her card on My Entries
-// reads Pending review before the walk and Accepted after it (a dog with any accepted entry
-// reads Accepted, whatever else is pending).
-const DOG = 'Maple';
-// Classes none of the demo exhibitor's dogs are entered in and the ring capture does not read
-// (it scores a dog in Exterior Excellent, and the judge is assigned classes 031 to 035). A class
-// another of her dogs is already in asks who handles the second dog, which the scene is not about.
-const CLASSES_TO_ENTER = ['Container Advanced', 'Buried Novice A', 'Exterior Advanced'];
+// The second demo exhibitor has no entries anywhere; landingEntriesSetup.sql gives her two dogs and
+// one form at the show (the job's own database, before the walk). Piper is the dog the walk
+// enters; Tessa is already in the full class, so for Piper it reads Full. Her card on My Entries
+// reads Pending review before the walk and Accepted after it.
+const DOG = 'Piper';
+const EXHIBITOR_EMAIL = 'exhibitor2@myk9t.com';
+const SETUP_SQL = join(dirname(fileURLToPath(import.meta.url)), 'landingEntriesSetup.sql');
+// Classes a fresh dog can be entered in and the ring capture does not read.
+const CLASSES_TO_ENTER = [
+  'Buried Novice A',
+  'Handler Discrimination Novice A',
+  'Container Advanced',
+];
 // Handler Discrimination Advanced on trial 4 holds one entry against a limit of one, and no
 // waitlist, so the wizard marks it Full (supabase/seed-demo.sql, MYK9-515).
 const FULL_CLASS_ID = 'dec1a55e-0000-0000-0000-000000000045';
@@ -179,6 +186,14 @@ test('captures the Entries open scene on the exhibitor’s phone and the secreta
   mkdirSync(IMG_DIR, { recursive: true });
   mkdirSync(dirname(REGIONS_FILE), { recursive: true });
 
+  // The job's own database, set up for the walk. psql is given the stack's own URL, and only
+  // when that is this machine; the start conditions above already refused anything else.
+  const dbUrl = process.env.SUPABASE_DB_URL ?? '';
+  expect(['127.0.0.1', 'localhost']).toContain(new URL(dbUrl).hostname);
+  execFileSync('psql', [dbUrl, '-v', 'ON_ERROR_STOP=1', '-q', '-f', SETUP_SQL], {
+    stdio: ['ignore', 'ignore', 'inherit'],
+  });
+
   await serveFontsFrom(context, fontsDir);
   const heldPhoneSockets = await holdWebSockets(context);
   // The secretary's desktop is a second browser context, so everything the first one is
@@ -225,12 +240,12 @@ test('captures the Entries open scene on the exhibitor’s phone and the secreta
     expect(await queue.innerText()).not.toMatch(
       /class limit|max(imum)? entries|capacity|spots? (left|remaining)/i
     );
-    // The demo exhibitor has one entry form at the show, so her new entry joins it: the row's
+    // The exhibitor has one entry form at the show (Tessa's), so her new entry joins it: the row's
     // count of entries is how the capture knows the new one has arrived. (A row's text runs its
     // elements together, so the count is matched after anything but a digit, not at a word edge.)
     const entryCount = async (row: Locator) =>
       Number(/(\d+) Entr(?:y|ies)/.exec(await row.innerText())?.[1]);
-    const entriesBefore = await entryCount(rows.filter({ hasText: 'Casey Morgan' }).first());
+    const entriesBefore = await entryCount(rows.filter({ hasText: 'Riley Parker' }).first());
     expect(entriesBefore, 'the exhibitor’s form is in the list').toBeGreaterThan(0);
     console.log('entries on the form before ::', entriesBefore);
     await desk.waitForTimeout(1500);
@@ -239,7 +254,8 @@ test('captures the Entries open scene on the exhibitor’s phone and the secreta
     });
 
     // Line 1: the exhibitor picks a dog, then classes, and a full class says so.
-    await signInAsExhibitor(page, `/shows/${SHOW_ID}/register`);
+    const exhibitorPassword = process.env.E2E_EXHIBITOR2_PASSWORD ?? '';
+    await signIn(page, EXHIBITOR_EMAIL, exhibitorPassword, `/shows/${SHOW_ID}/register`);
     await stage('the wizard', page, () =>
       expect(page.getByRole('heading', { name: 'Enter This Show' })).toBeVisible({
         timeout: 60_000,
@@ -410,9 +426,7 @@ test('captures the Entries open scene on the exhibitor’s phone and the secreta
       await accept.click();
       const header = panel.locator('header');
       await expect(header).not.toContainText('Needs review', { timeout: 30_000 });
-      // The form's own label reads Mixed statuses, as the demo form also holds scored entries,
-      // so the ring is on the entry itself: its row in the form, now reading Accepted.
-      console.log('the form reads ::', await header.innerText());
+      // The ring is on the entry itself, its row in the form now reading Accepted.
       const entry = panel
         .locator('div')
         .filter({ hasText: new RegExp(`${enteredClass}:\\s*Accepted`) })
@@ -420,7 +434,12 @@ test('captures the Entries open scene on the exhibitor’s phone and the secreta
       await expect(entry).toBeVisible({ timeout: 30_000 });
       await scrollToMiddle(entry);
       await desk.waitForTimeout(1000);
-      await shoot('desk', desk, deskShots, 'accepted', { entry });
+      // The form's Communication section reads "No decision email sent yet" until the email goes
+      // out, which line 5 says it will; measured, so the scene's camera can keep it out of frame.
+      await shoot('desk', desk, deskShots, 'accepted', {
+        entry,
+        communication: panel.getByText('Communication and history'),
+      });
     });
 
     // Line 5, on the phone: the entry changes to Accepted.

@@ -163,8 +163,8 @@ describe('the capture spec and its job', () => {
     expect(spec.indexOf('await holdWebSockets(context)')).toBeLessThan(
       spec.indexOf('signInAsJudge(')
     );
-    expect(entriesSpec.match(/signInAs(Exhibitor|Secretary)\(/g)).toHaveLength(2);
-    const firstSignIn = entriesSpec.search(/signInAs(Exhibitor|Secretary)\(/);
+    expect(entriesSpec.match(/\bsignIn(AsSecretary)?\(/g)).toHaveLength(2);
+    const firstSignIn = entriesSpec.search(/\bsignIn(AsSecretary)?\(/);
     expect(entriesSpec.indexOf('await holdWebSockets(context)')).toBeGreaterThan(0);
     expect(entriesSpec.indexOf('await holdWebSockets(context)')).toBeLessThan(firstSignIn);
     expect(entriesSpec.indexOf('await holdWebSockets(deskContext)')).toBeGreaterThan(0);
@@ -173,6 +173,12 @@ describe('the capture spec and its job', () => {
     expect(entriesSpec.indexOf('await serveFontsFrom(deskContext, fontsDir)')).toBeLessThan(
       entriesSpec.indexOf('deskContext.newPage()')
     );
+    // The job's database is set up only after the target is shown to be on this machine, and
+    // before any page opens.
+    const setup = entriesSpec.indexOf("execFileSync('psql'");
+    expect(setup).toBeGreaterThan(0);
+    expect(entriesSpec.indexOf("['127.0.0.1', 'localhost']")).toBeLessThan(setup);
+    expect(setup).toBeLessThan(entriesSpec.indexOf('await serveFontsFrom(context, fontsDir)'));
     // The card checkout is Stripe's page, which this job cannot reach and must never press.
     expect(entriesSpec).not.toMatch(
       /\.click\(\)[^;]*\bpay\b|clickClearOfStickyChrome\(page, pay\)/

@@ -78,7 +78,7 @@ jobs:
       # never given to this job, so nothing it runs could sign in there.
       - name: Make this job's own account passwords
         run: |
-          for name in E2E_SECRETARY_PASSWORD E2E_ADMIN_PASSWORD E2E_JUDGE_PASSWORD E2E_DEMO_EXHIBITOR_PASSWORD; do
+          for name in E2E_SECRETARY_PASSWORD E2E_ADMIN_PASSWORD E2E_JUDGE_PASSWORD E2E_DEMO_EXHIBITOR_PASSWORD E2E_EXHIBITOR2_PASSWORD; do
             value="Job-$(openssl rand -hex 16)-9a"
             echo "::add-mask::$value"
             echo "$name=$value" >> "$GITHUB_ENV"

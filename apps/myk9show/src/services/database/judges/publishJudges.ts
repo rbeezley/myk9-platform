@@ -8,20 +8,13 @@ import { replicatedClassesTable } from '@/services/replication/ReplicatedClasses
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 import { formatJudgeResidence } from '@/utils/formatJudgeResidence';
-import {
-  formatPremiumClassLabel,
-  isLivePremiumRow,
-  premiumTrialKey,
-} from '@/features/premium/premiumClassLabel';
+import { formatPremiumClassLabel, premiumTrialKey } from '@/features/premium/premiumClassLabel';
 import { readJudgeAssignmentsOrThrow } from './assignmentReads';
-import { listedJudgeIds } from './publishJudgeRoster';
 
 interface ServerJudgeRow {
   person_id: string;
   show_id: string;
   class_id: string | null;
-  trial_id: string | null;
-  status: string | null;
   invited_at: string | null;
   confirmed_at: string | null;
   judge: {
@@ -33,18 +26,11 @@ interface ServerJudgeRow {
     judge_affiliation: string | null;
   } | null;
   assigned_class: {
-    name: string | null;
     element: string | null;
     level: string | null;
     section: string | null;
-    status: string | null;
     deleted_at: string | null;
-    trial: {
-      name: string;
-      date: string;
-      status: string | null;
-      deleted_at: string | null;
-    } | null;
+    trial: { name: string; date: string; deleted_at: string | null } | null;
   } | null;
 }
 
@@ -70,17 +56,13 @@ function collectClassLabels(
   >();
   for (const row of rows) {
     const cls = row.assigned_class;
-    // A deleted or cancelled class or trial is not on the premium (the `livePremiumClasses` /
-    // `livePremiumTrials` rule), so it gives the judge no class there.
-    if (!cls || !isLivePremiumRow(cls) || (cls.trial && !isLivePremiumRow(cls.trial))) continue;
-    // A class with no element or level keeps its label through the name fallback (MYK9-2248).
+    // A deleted class or trial is not on the premium, so it gives the judge no class there.
+    if (!cls?.element || !cls.level || cls.deleted_at || cls.trial?.deleted_at) continue;
     const label = formatPremiumClassLabel({
-      element: cls.element ?? '',
-      level: cls.level ?? '',
+      element: cls.element,
+      level: cls.level,
       section: cls.section,
-      name: cls.name,
     });
-    if (!label.trim()) continue;
     const entry = byPerson.get(row.person_id) ?? { all: new Set<string>(), byTrial: new Map() };
     entry.all.add(label);
     if (cls.trial) {
@@ -116,11 +98,11 @@ async function readServerJudges(
     const { data, error } = await supabase
       .from('judge_assignments')
       .select(
-        `id, person_id, show_id, class_id, trial_id, status, invited_at, confirmed_at,
+        `id, person_id, show_id, class_id, invited_at, confirmed_at,
          judge:people!judge_assignments_person_id_fkey(id, first_name, last_name, city, state, judge_affiliation),
          assigned_class:classes!judge_assignments_class_id_fkey(
-           name, element, level, section, status, deleted_at,
-           trial:trials!classes_trial_id_fkey(name, date, status, deleted_at)
+           element, level, section, deleted_at,
+           trial:trials!classes_trial_id_fkey(name, date, deleted_at)
          )`
       )
       .eq('show_id', showId)
@@ -131,21 +113,16 @@ async function readServerJudges(
     rows.push(...page);
     if (page.length < SERVER_PAGE_SIZE) break;
   }
-  // Which people the premium lists follows the generator; `keys` below keeps every row, so the
-  // device comparison still sees a cancelled pick.
-  const listed = listedJudgeIds(rows);
-  const assignments = rows
-    .filter(row => listed.has(row.person_id))
-    .map(
-      row =>
-        ({
-          personId: row.person_id,
-          showId: row.show_id,
-          classId: row.class_id,
-          invitedAt: row.invited_at,
-          confirmedAt: row.confirmed_at,
-        }) as ReplicatedJudgeAssignment
-    );
+  const assignments = rows.map(
+    row =>
+      ({
+        personId: row.person_id,
+        showId: row.show_id,
+        classId: row.class_id,
+        invitedAt: row.invited_at,
+        confirmedAt: row.confirmed_at,
+      }) as ReplicatedJudgeAssignment
+  );
   const people = rows.flatMap(row =>
     row.judge
       ? [

@@ -20,17 +20,3 @@ export function formatPremiumClassLabel(cls: {
 export function premiumTrialKey(name: string, date: string): string {
   return `${name}|${date}`;
 }
-
-/**
- * MYK9-2248: a class the premium prints: not cancelled (`classes.status`, MYK9-1863) and not
- * soft-deleted. The app's copy of `livePremiumClasses` in
- * `supabase/functions/generate-premium/liveTrials.ts`, which this app cannot import;
- * `premiumClassLabel.test.ts` runs both on the same rows so the two cannot drift. A trial counts
- * the same way (`livePremiumTrials`): not cancelled, not soft-deleted.
- */
-export function isLivePremiumRow(row: {
-  status?: string | null;
-  deleted_at?: string | null;
-}): boolean {
-  return !row.deleted_at && row.status !== 'cancelled';
-}

@@ -1940,7 +1940,7 @@ export type Database = {
           {
             foreignKeyName: "club_settled_refunds_reverses_id_fkey"
             columns: ["reverses_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "club_settled_refunds"
             referencedColumns: ["id"]
           },

@@ -223,6 +223,13 @@ const PREMIUM_PUBLISH_COLUMNS = [
   'published_premium_at',
   'published_premium_version',
   'own_premium_link',
+  // MYK9-2282: the replica keeps the announcement until its next sync, so after Unpublish the
+  // signed-in show page would still show it. `{}` content means unpublished; every reader goes
+  // through readExperienceSnapshot (MYK9-2285).
+  'experience_is_published',
+  'experience_published_at',
+  'experience_published_style',
+  'experience_published_content',
 ] as const;
 
 // Get show by ID with complete details (excluding soft-deleted)

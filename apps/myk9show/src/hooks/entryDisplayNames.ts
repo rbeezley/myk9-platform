@@ -4,6 +4,7 @@
  */
 
 import { ownerNameCacheKey, recallOwnerNames } from '@/services/database/dogs/ownerNameCache';
+import { useUserStore } from '@/store/userStore';
 
 interface NamedPerson {
   first_name: string | null;
@@ -47,7 +48,14 @@ export function entryOwnerName(
   const joined = personName(entry.dog?.owner);
   if (joined) return joined;
   const remembered = recallOwnerNames([ownerId], ownerNameCacheKey()).get(ownerId);
-  return personName(remembered) || OWNER_NAME_NOT_ON_DEVICE;
+  const rememberedName = personName(remembered);
+  if (rememberedName) return rememberedName;
+  // The saved people directory (management devices only) is the last offline source (MYK9-2265).
+  const saved = useUserStore.getState().users.find(person => person.id === ownerId);
+  return (
+    personName({ first_name: saved?.firstName ?? null, last_name: saved?.lastName ?? null }) ||
+    OWNER_NAME_NOT_ON_DEVICE
+  );
 }
 
 /** The call name, else the registered name. */

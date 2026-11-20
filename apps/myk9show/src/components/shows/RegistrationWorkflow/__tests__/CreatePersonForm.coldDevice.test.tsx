@@ -156,3 +156,40 @@ describe('CreatePersonForm on a device with no saved people (MYK9-2257)', () => 
     await waitFor(() => expect(onExhibitorCreated).toHaveBeenCalled());
   }, 15000);
 });
+
+describe('CreatePersonForm offline with a saved people directory (MYK9-2265)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    const saved = [
+      fromAny({
+        id: 'person-saved-1',
+        firstName: 'Molly',
+        lastName: 'Mailbox',
+        email: 'molly.mailbox@example.com',
+      }),
+    ];
+    useUserStore.setState({ people: saved, users: saved, loadUsers: vi.fn() });
+  });
+
+  afterEach(() => {
+    setOnline(true);
+    vi.restoreAllMocks();
+  });
+
+  it('catches a person already saved on this device and says what the check covered', async () => {
+    setOnline(false);
+    const user = userEvent.setup();
+    render(<CreatePersonForm open onOpenChange={vi.fn()} onExhibitorCreated={vi.fn()} />);
+
+    await typePerson(user);
+    expect(await screen.findByTestId('person-duplicate-checked-saved')).toHaveTextContent(
+      'Checked the people saved on this device.'
+    );
+    await user.click(await screen.findByRole('button', { name: /Next: Contact/ }));
+
+    expect(await screen.findByTestId('person-duplicate-notice')).toBeInTheDocument();
+    expect(screen.getByTestId('person-duplicate-checked-saved')).toBeInTheDocument();
+    expect(createUserMock).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Can't check for an existing person/)).not.toBeInTheDocument();
+  });
+});

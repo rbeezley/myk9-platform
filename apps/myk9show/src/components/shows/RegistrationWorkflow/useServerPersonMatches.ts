@@ -8,6 +8,9 @@ import type { User } from '@/types/dog-types';
 /** Plain words shown when the duplicate check had nothing to check against (MYK9-2257). */
 export const DUPLICATE_CHECK_UNAVAILABLE = "Can't check for an existing person right now";
 
+/** Shown when offline and the check ran over the saved people directory only (MYK9-2265). */
+export const DUPLICATE_CHECK_SAVED_ONLY = 'Checked the people saved on this device.';
+
 export interface ServerMatchResult {
   /** People the server returned for the typed name or email. */
   people: User[];

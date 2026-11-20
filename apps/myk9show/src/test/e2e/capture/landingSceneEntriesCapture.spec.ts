@@ -226,7 +226,8 @@ test('captures the Entries open scene on the exhibitor’s phone and the secreta
       /class limit|max(imum)? entries|capacity|spots? (left|remaining)/i
     );
     // The demo exhibitor has one entry form at the show, so her new entry joins it: the row's
-    // count of entries is how the capture knows the new one has arrived.
+    // count of entries is how the capture knows the new one has arrived. (A row's text runs its
+    // elements together, so the count is matched after anything but a digit, not at a word edge.)
     const entryCount = async (row: Locator) =>
       Number(/(\d+) Entr(?:y|ies)/.exec(await row.innerText())?.[1]);
     const entriesBefore = await entryCount(rows.filter({ hasText: 'Casey Morgan' }).first());
@@ -351,7 +352,7 @@ test('captures the Entries open scene on the exhibitor’s phone and the secreta
     // Line 4: the form is in the secretary's list, marked Needs review, with its payment.
     const form = rows
       .filter({ hasText: confirmation })
-      .filter({ hasText: new RegExp(`\\b${entriesBefore + 1} Entries\\b`) })
+      .filter({ hasText: new RegExp(`(?<!\\d)${entriesBefore + 1} Entries`) })
       .filter({ hasText: 'Needs review' });
     await stage('the secretary’s list after', desk, async () => {
       await desk.reload();

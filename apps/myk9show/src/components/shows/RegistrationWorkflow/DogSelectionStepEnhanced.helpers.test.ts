@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Dog } from '@/types/dog-types';
 import {
+  shouldListPeopleMatches,
   addDogSelection,
   addVisibleDogSelections,
   filterAccessibleDogs,
@@ -124,5 +125,29 @@ describe('filterAccessibleDogs', () => {
 
   it('excludes non-active dogs', () => {
     expect(filterAccessibleDogs([dog({ status: 'deceased' })])).toEqual([]);
+  });
+});
+
+describe('shouldListPeopleMatches (MYK9-2262)', () => {
+  const answered = {
+    advancedSearch: true,
+    serverSearchHasCurrentData: true,
+    serverSearchFailed: false,
+    isServerSearching: false,
+    filtersApplied: false,
+  };
+
+  it('lists people once the system-wide search answered with no dog', () => {
+    expect(shouldListPeopleMatches(answered)).toBe(true);
+  });
+
+  it.each([
+    ['the exhibitor flow (no advanced search)', { advancedSearch: false }],
+    ['a search that has not answered for this text', { serverSearchHasCurrentData: false }],
+    ['a failed search', { serverSearchFailed: true }],
+    ['a search still running', { isServerSearching: true }],
+    ['filters hiding dogs', { filtersApplied: true }],
+  ])('never for %s', (_label, change) => {
+    expect(shouldListPeopleMatches({ ...answered, ...change })).toBe(false);
   });
 });

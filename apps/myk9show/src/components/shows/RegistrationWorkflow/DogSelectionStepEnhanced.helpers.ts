@@ -160,3 +160,25 @@ export function getEmptyStateMessage(
   }
   return "You don't have any dogs yet. Add a dog from your profile to get started.";
 }
+
+/**
+ * MYK9-2262: the people under "no dogs match" claim "No dogs yet", so they show only when that
+ * claim is checked: the secretary's system-wide search (which matches owner names, MYK9-2020)
+ * answered for exactly this text with no dog, no filter hid any, and it did not fail. The
+ * exhibitor's own flow (no advanced search) never shows them.
+ */
+export function shouldListPeopleMatches(state: {
+  advancedSearch: boolean;
+  serverSearchHasCurrentData: boolean;
+  serverSearchFailed: boolean;
+  isServerSearching: boolean;
+  filtersApplied: boolean;
+}): boolean {
+  return (
+    state.advancedSearch &&
+    state.serverSearchHasCurrentData &&
+    !state.serverSearchFailed &&
+    !state.isServerSearching &&
+    !state.filtersApplied
+  );
+}

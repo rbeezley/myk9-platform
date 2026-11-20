@@ -46,6 +46,7 @@ import {
   getDogEligibilityStatus,
   getRegistrationNumberLabel,
   getEmptyStateMessage,
+  shouldListPeopleMatches,
   getRegistrationShownInRow,
   removeDogSelection,
   removeVisibleDogSelections,
@@ -601,7 +602,13 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
                     )}
                   </p>
                 )}
-                {!isServerSearching && !serverSearchFailed && normalizedSearchQuery && (
+                {shouldListPeopleMatches({
+                  advancedSearch: workflowConfig.features.advancedSearch,
+                  serverSearchHasCurrentData,
+                  serverSearchFailed,
+                  isServerSearching,
+                  filtersApplied,
+                }) && (
                   <NoDogsMatchPeople
                     query={normalizedSearchQuery}
                     onDogCreated={handleDogCreated}

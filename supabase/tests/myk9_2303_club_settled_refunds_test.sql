@@ -514,7 +514,7 @@ $$;
 -- A direct UPDATE of the cached total by an authenticated user is refused. Either the
 -- guard trigger raises, or the entries RLS policy hides the row (zero rows changed);
 -- in neither case may the total move. The guard itself is proven below as the table
--- owner with no flag, which no RLS policy can mask.
+-- owner, which no RLS policy can mask.
 DO $$
 DECLARE
   v_rows int;
@@ -543,19 +543,27 @@ BEGIN
   BEGIN
     UPDATE public.entries SET club_refunded_amount = 999
      WHERE id = '00000000-0000-0000-0000-000000230092';
-    RAISE EXCEPTION 'FAIL an unflagged UPDATE of club_refunded_amount succeeded';
-  EXCEPTION WHEN raise_exception THEN
-    IF SQLERRM LIKE 'FAIL%' THEN RAISE; END IF;
-    RAISE NOTICE 'PASS the guard refuses an unflagged UPDATE of club_refunded_amount';
+    RAISE EXCEPTION 'FAIL an UPDATE of club_refunded_amount off its ledger succeeded';
+  EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE 'PASS the guard refuses an UPDATE of club_refunded_amount off its ledger';
+  END;
+  -- Codex #4292: a caller-settable setting is no way through. The old write flag,
+  -- set by hand, still does not let the total leave its ledger.
+  BEGIN
+    PERFORM set_config('myk9.club_settled_refund_write', 'on', true);
+    UPDATE public.entries SET club_refunded_amount = 999
+     WHERE id = '00000000-0000-0000-0000-000000230091';
+    RAISE EXCEPTION 'FAIL a flagged direct UPDATE of club_refunded_amount succeeded';
+  EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE 'PASS a flagged direct UPDATE of club_refunded_amount is still refused';
   END;
   BEGIN
     INSERT INTO public.entries (show_id, trial_id, entry_status, payment_status,
                                 payment_method, entry_fee, club_refunded_amount)
     VALUES ('00000000-0000-0000-0000-000000230011', '00000000-0000-0000-0000-000000230021',
             'submitted', 'paid', 'online', 40, 5);
-    RAISE EXCEPTION 'FAIL an unflagged INSERT planted club_refunded_amount';
-  EXCEPTION WHEN raise_exception THEN
-    IF SQLERRM LIKE 'FAIL%' THEN RAISE; END IF;
+    RAISE EXCEPTION 'FAIL an INSERT planted club_refunded_amount';
+  EXCEPTION WHEN insufficient_privilege THEN
     RAISE NOTICE 'PASS the guard refuses an INSERT with a non-zero club_refunded_amount';
   END;
   IF (SELECT club_refunded_amount FROM public.entries
@@ -565,14 +573,23 @@ BEGIN
 END;
 $$;
 
--- --- service role may write the column; the table shape CHECKs hold ----------
+-- --- service role is held to the same ledger invariant; shape CHECKs hold ------
 RESET ROLE;
 SET LOCAL ROLE service_role;
 DO $$
 BEGIN
+  -- Rewriting the value the ledger already sums to (25) is allowed ...
   UPDATE public.entries SET club_refunded_amount = 25
    WHERE id = '00000000-0000-0000-0000-000000230091';
-  RAISE NOTICE 'PASS service_role may write club_refunded_amount';
+  RAISE NOTICE 'PASS service_role may rewrite club_refunded_amount to its ledger sum';
+  -- ... any other value is not.
+  BEGIN
+    UPDATE public.entries SET club_refunded_amount = 30
+     WHERE id = '00000000-0000-0000-0000-000000230091';
+    RAISE EXCEPTION 'FAIL service_role moved club_refunded_amount off its ledger';
+  EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE 'PASS service_role cannot move club_refunded_amount off its ledger';
+  END;
 END;
 $$;
 RESET ROLE;

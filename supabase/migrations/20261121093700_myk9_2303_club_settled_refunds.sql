@@ -113,30 +113,30 @@ ALTER TABLE public.entries
   ADD COLUMN club_refunded_amount numeric(10, 2) NOT NULL DEFAULT 0;
 
 COMMENT ON COLUMN public.entries.club_refunded_amount IS
-  'MYK9-2303: net dollars the club paid this entry''s exhibitor directly after the payout (sum of club_settled_refunds rows). Written only by the club settled refund RPCs or service role. Separate from refund_amount, which is the Stripe refund.';
+  'MYK9-2303: net dollars the club paid this entry''s exhibitor directly after the payout. Always equal to the sum of the entry''s club_settled_refunds rows (enforced by trg_restrict_entry_club_refunded_amount_*). Separate from refund_amount, which is the Stripe refund.';
 
--- Model: restrict_entry_refund_columns (20260609220000). The entries_update RLS policy
--- gives managers full-row UPDATE through PostgREST, which would let the cached total
--- drift from its ledger. Only the RPCs (which set the transaction-local flag around
--- their one UPDATE, as set_club_authorization does) and service role may change it.
+-- The entries_update RLS policy gives managers full-row UPDATE through PostgREST, so a
+-- privilege flag a caller could set would not hold the line (Codex, #4292). The guard
+-- is an invariant instead: whoever writes the column, service role included, it must
+-- equal the sum of the entry's ledger rows. The ledger itself is append-only and has
+-- no INSERT grant for authenticated, so only the two RPCs below (which insert the
+-- ledger row first, then move the total) can ever change the figure.
 CREATE OR REPLACE FUNCTION private.restrict_entry_club_refunded_amount()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
 AS $$
+DECLARE
+  v_ledger numeric;
 BEGIN
-  IF (SELECT current_setting('role', true)) = 'service_role'
-     OR (SELECT current_setting('myk9.club_settled_refund_write', true)) = 'on' THEN
-    RETURN NEW;
-  END IF;
+  SELECT COALESCE(sum(r.amount), 0) INTO v_ledger
+    FROM public.club_settled_refunds r
+   WHERE r.entry_id = NEW.id;
 
-  IF TG_OP = 'INSERT' THEN
-    IF NEW.club_refunded_amount <> 0 THEN
-      RAISE EXCEPTION 'club_refunded_amount is written only by the club settled refund functions';
-    END IF;
-  ELSIF NEW.club_refunded_amount IS DISTINCT FROM OLD.club_refunded_amount THEN
-    RAISE EXCEPTION 'club_refunded_amount is written only by the club settled refund functions';
+  IF NEW.club_refunded_amount IS DISTINCT FROM v_ledger THEN
+    RAISE EXCEPTION 'club_refunded_amount must equal the sum of the entry''s club_settled_refunds rows'
+      USING ERRCODE = '42501';
   END IF;
 
   RETURN NEW;
@@ -269,14 +269,12 @@ BEGIN
   )
   RETURNING * INTO v_row;
 
-  -- The one sanctioned path through restrict_entry_club_refunded_amount(): open the
-  -- flag only for this UPDATE, then close it (transaction-local either way).
-  PERFORM set_config('myk9.club_settled_refund_write', 'on', true);
+  -- The ledger row above is already in, so the new total equals the ledger sum that
+  -- restrict_entry_club_refunded_amount() requires.
   UPDATE public.entries
      SET club_refunded_amount = club_refunded_amount + p_amount
    WHERE id = v_entry.id
   RETURNING club_refunded_amount INTO v_total;
-  PERFORM set_config('myk9.club_settled_refund_write', '', true);
 
   RETURN to_jsonb(v_row) || jsonb_build_object('club_refunded_amount', v_total);
 END;
@@ -354,12 +352,10 @@ BEGIN
   )
   RETURNING * INTO v_row;
 
-  PERFORM set_config('myk9.club_settled_refund_write', 'on', true);
   UPDATE public.entries
      SET club_refunded_amount = club_refunded_amount + v_row.amount
    WHERE id = v_entry.id
   RETURNING club_refunded_amount INTO v_total;
-  PERFORM set_config('myk9.club_settled_refund_write', '', true);
 
   RETURN to_jsonb(v_row) || jsonb_build_object('club_refunded_amount', v_total);
 END;

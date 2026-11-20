@@ -1872,6 +1872,87 @@ export type Database = {
           },
         ]
       }
+      club_settled_refunds: {
+        Row: {
+          amount: number
+          client_refund_id: string | null
+          created_at: string
+          entry_id: string
+          id: string
+          method: string | null
+          note: string | null
+          paid_on: string | null
+          recorded_by: string | null
+          reference: string | null
+          reverses_id: string | null
+          show_id: string
+        }
+        Insert: {
+          amount: number
+          client_refund_id?: string | null
+          created_at?: string
+          entry_id: string
+          id?: string
+          method?: string | null
+          note?: string | null
+          paid_on?: string | null
+          recorded_by?: string | null
+          reference?: string | null
+          reverses_id?: string | null
+          show_id: string
+        }
+        Update: {
+          amount?: number
+          client_refund_id?: string | null
+          created_at?: string
+          entry_id?: string
+          id?: string
+          method?: string | null
+          note?: string | null
+          paid_on?: string | null
+          recorded_by?: string | null
+          reference?: string | null
+          reverses_id?: string | null
+          show_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_settled_refunds_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "club_settled_refunds_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_authenticated_entry_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "club_settled_refunds_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_authenticated_entry_results_replication"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "club_settled_refunds_reverses_id_fkey"
+            columns: ["reverses_id"]
+            isOneToOne: false
+            referencedRelation: "club_settled_refunds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "club_settled_refunds_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       club_stripe_accounts: {
         Row: {
           club_id: string
@@ -12195,6 +12276,7 @@ export type Database = {
           class_level: string | null
           class_name: string | null
           class_results_released_at: string | null
+          club_refunded_amount: number | null
           comped: boolean | null
           comped_reason: string | null
           confirmation_email_message_id: string | null
@@ -12519,6 +12601,7 @@ export type Database = {
           class_level: string | null
           class_name: string | null
           class_results_released_at: string | null
+          club_refunded_amount: number | null
           comped: boolean | null
           comped_reason: string | null
           confirmation_email_message_id: string | null
@@ -15606,6 +15689,18 @@ export type Database = {
           replayed: boolean
         }[]
       }
+      record_club_settled_refund: {
+        Args: {
+          p_amount: number
+          p_client_refund_id: string
+          p_entry_id: string
+          p_method: string
+          p_note: string
+          p_paid_on: string
+          p_reference: string
+        }
+        Returns: Json
+      }
       record_enrollment_payment: {
         Args: {
           p_amount?: number
@@ -16056,6 +16151,10 @@ export type Database = {
           id: string
           name: string
         }[]
+      }
+      reverse_club_settled_refund: {
+        Args: { p_client_refund_id: string; p_note: string; p_refund_id: string }
+        Returns: Json
       }
       reverse_move_up_entry: {
         Args: { p_destination_entry_id: string }

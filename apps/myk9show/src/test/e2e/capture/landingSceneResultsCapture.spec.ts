@@ -235,7 +235,9 @@ test('captures the Results scene on the secretaryâ€™s desktop and the exhibitorâ
     await stage('the class', desk, async () => {
       await classRow.locator('a').first().click();
       await expect(detail).toBeVisible({ timeout: 30_000 });
-      await expect(detail.getByRole('cell', { name: DOG })).toBeVisible({ timeout: 30_000 });
+      await expect(detail.locator('tbody tr').filter({ hasText: DOG })).toHaveCount(1, {
+        timeout: 30_000,
+      });
       // The table's Place column carries the placements, 1 to 3.
       await expect(detail.locator('tbody tr')).toHaveCount(3);
       const places = await detail.locator('tbody tr td:first-child').allInnerTexts();
@@ -264,6 +266,7 @@ test('captures the Results scene on the secretaryâ€™s desktop and the exhibitorâ
         'the class line reads before ::',
         (await classLine.first().innerText()).replace(/\s+/g, ' ')
       );
+      await expect(page.getByText('Show your results publicly?')).toHaveCount(0);
       await shoot('phone', page, phoneShots, 'before', { row: classLine });
     });
 
@@ -305,6 +308,8 @@ test('captures the Results scene on the secretaryâ€™s desktop and the exhibitorâ
       await reloadUntilVisible(page, newResult, 10);
       await scrollToMiddle(newResult);
       await page.waitForTimeout(1200);
+      // She answered the one-time results question, so it is in no frame (MYK9-1944).
+      await expect(page.getByText('Show your results publicly?')).toHaveCount(0);
       await shoot('phone', page, phoneShots, 'new', { button: newResult });
     });
     await stage('the result card', page, async () => {

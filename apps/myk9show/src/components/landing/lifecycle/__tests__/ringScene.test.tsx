@@ -171,8 +171,9 @@ describe('the ring scene on the page', () => {
     const demo = container.querySelector('#showday .lc-demo');
     expect(demo).not.toBeNull();
     expect(scene!.compareDocumentPosition(demo!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    // The Entries open scene plays on the step above it; the ring scene is the one that is solo.
-    expect(container.querySelectorAll('.tl-scene')).toHaveLength(2);
+    // The Entries open scene plays on the step above it and the Results scene on the step below;
+    // the ring scene is the one that is solo.
+    expect(container.querySelectorAll('.tl-scene')).toHaveLength(3);
     expect(container.querySelectorAll('.tl-scene[data-solo="true"]')).toHaveLength(1);
     expect(screen.getByRole('button', { name: /The signal drops/ })).toBeInTheDocument();
   });
@@ -182,7 +183,11 @@ describe('the ring scene on the page', () => {
     const names = screen
       .getAllByRole('region', { name: /walkthrough/i })
       .map(r => r.getAttribute('aria-label'));
-    expect(names).toEqual(['Entries walkthrough', 'Show day ring walkthrough']);
+    expect(names).toEqual([
+      'Entries walkthrough',
+      'Show day ring walkthrough',
+      'Results walkthrough',
+    ]);
   });
 
   it('plays on the exhibitor’s meanwhile side, where the judge’s still was', () => {
@@ -190,8 +195,8 @@ describe('the ring scene on the page', () => {
       <LifecycleTimeline audience="exhibitor" onAudienceChange={vi.fn()} />
     );
     expect(sceneIn(container, 'lc-meanwhile')).not.toBeNull();
-    // Plus the Entries open scene, on its own step's main side.
-    expect(container.querySelectorAll('.tl-scene')).toHaveLength(2);
+    // Plus the Entries open and Results scenes, each on its own step's main side.
+    expect(container.querySelectorAll('.tl-scene')).toHaveLength(3);
     const showday = STORIES.exhibitor.find(s => s.id === 'showday')!;
     expect(showday).not.toHaveProperty('meanwhileShot');
   });

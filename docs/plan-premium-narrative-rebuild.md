@@ -44,10 +44,15 @@ and over storing the built text apart from the secretary's edits (too much for l
    - **any other Edit show field has unsaved changes.** The reason line reads "Save the show
      first, then reopen Premium to use its current details." Without this hold, a changed venue
      or date would print new in the details and old in Show Hours, because Save & Publish lays
-     the editor's text over refreshed facts (`applyEditorCopyToPremium`). The panel already knows
-     when it is dirty; it passes that down as a prop, just as `savedOrganization` is passed today.
-     A whole-form hold is simpler than listing the inputs each narrative reads, and it cannot
-     drift when a narrative starts reading a new one.
+     the editor's text over refreshed facts (`applyEditorCopyToPremium`).
+     **"Unsaved" excludes the premium editor's own fields.** The panel's whole-form dirty flag
+     cannot be reused: opening Premium on a published show writes the loaded draft into
+     `generatedPremium`, which `showToFormData` never sets, so the flag turns true with no user
+     edit and would hold both links every time. Instead the panel compares the form's
+     non-premium fields with the snapshot it opened with, leaving out `generatedPremium`,
+     `inkSaver` and `style`. It passes the result down as a prop, the way `savedOrganization` is
+     passed today. Comparing every non-premium field is simpler than listing the inputs each
+     narrative reads, and it cannot drift when a narrative starts reading a new one.
 5. **Offline there is no link,** including when the editor loaded online and then lost its
    connection. `builtNarratives` stays in the editor's state after the facts query is disabled,
    so visibility is gated on `useIsOnline()` as well as on the field being present. With no
@@ -83,6 +88,10 @@ and over storing the built text apart from the secretary's edits (too much for l
     unsaved changes;
   - it is absent with no `builtNarratives`, and it disappears when the editor goes offline
     after a successful load.
+- Through `ShowEditPanel` (not the editor alone):
+  - opening Premium on a published show, which loads the draft, leaves the link enabled under a
+    narrative that differs;
+  - changing the venue disables it, with the reason line.
 - Browser walk on a published draft: add a trial and save. Reopen Edit show › Premium, see the
   link under Trial Information, use it, then Save & Publish. In the published PDF, assert on the
   narrative paragraphs, not the schedule (`StandardBody` lists trials from structured facts

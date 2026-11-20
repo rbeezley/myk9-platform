@@ -95,6 +95,7 @@ import {
 } from './showEntriesPostSync';
 import { getRingsideUploadSyncTargets, type UploadSyncTarget } from './ringsideUploadSyncTargets';
 import { targetsForUploadedEntryInserts } from './showScopeTargets';
+import { reportShortReplica } from '@/services/observability/shortReplicaAlert';
 
 interface SyncStatus {
   isSyncing: boolean;
@@ -304,7 +305,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       }));
 
       try {
-        const result = await tableConfig.table.sync(syncScopeId);
+        const result = reportShortReplica(await tableConfig.table.sync(syncScopeId), syncScopeId);
 
         if (result.success) {
           logger.info('Table synced', 'replication', {
@@ -453,7 +454,10 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
           selectedTables.map(async ({ name, table, scope }) => {
             try {
               // Bounded by the pass signal whatever a table does after its download.
-              const result = await abortableWait(table.sync(scope, { signal }), signal);
+              const result = reportShortReplica(
+                await abortableWait(table.sync(scope, { signal }), signal),
+                scope
+              );
               return {
                 name,
                 ok: result.success,

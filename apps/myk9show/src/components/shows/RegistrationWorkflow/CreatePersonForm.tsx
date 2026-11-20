@@ -15,6 +15,7 @@ import {
   type PersonIdentityCandidate,
 } from '@/utils/personIdentity';
 import { replicatedShowDeskPeopleTable } from '@/services/replication/ReplicatedShowDeskPeopleTable';
+import { DUPLICATE_CHECK_UNAVAILABLE, useServerPersonMatches } from './useServerPersonMatches';
 
 interface CreatePersonFormProps {
   open: boolean;
@@ -91,6 +92,9 @@ export const CreatePersonForm: React.FC<CreatePersonFormProps> = ({
   }>({ candidates: [], key: '' });
   const [allowedKey, setAllowedKey] = useState<string | null>(null);
   const [identityKey, setIdentityKey] = useState('');
+  const [typed, setTyped] = useState<Partial<PersonRecord> | null>(null);
+  // A device that never loaded the directory cannot check it: ask the server (MYK9-2257).
+  const { serverPeople, serverFailed, check } = useServerPersonMatches(open, typed);
 
   // Loaded once the form opens: the duplicate check reads the whole roster.
   React.useEffect(() => {
@@ -101,6 +105,7 @@ export const CreatePersonForm: React.FC<CreatePersonFormProps> = ({
     setDuplicates({ candidates: [], key: '' });
     setAllowedKey(null);
     setIdentityKey('');
+    setTyped(null);
     onOpenChange(false);
   };
 
@@ -110,6 +115,7 @@ export const CreatePersonForm: React.FC<CreatePersonFormProps> = ({
       .join('|');
 
   const handleDataChange = useCallback((data: Partial<PersonRecord>) => {
+    setTyped(data);
     setIdentityKey(
       [data.firstName, data.lastName, data.email]
         .map(part => (part ?? '').trim().toLowerCase())
@@ -118,19 +124,26 @@ export const CreatePersonForm: React.FC<CreatePersonFormProps> = ({
   }, []);
 
   /** True when the person looks like someone already on file and has not been waved through. */
-  const holdForDuplicate = (data: Partial<PersonRecord>): boolean => {
+  const holdForDuplicate = (
+    data: Partial<PersonRecord>,
+    serverMatches: typeof serverPeople = serverPeople
+  ): boolean => {
     const key = keyOf(data);
     if (allowedKey === key) return false;
-    const candidate = findLikelyDuplicatePersonCandidate(people, {
-      firstName: data.firstName ?? '',
-      lastName: data.lastName ?? '',
-      email: data.email ?? '',
-      phone: data.phone ?? '',
-      streetAddress: data.address ?? '',
-      city: data.city ?? '',
-      state: data.state ?? '',
-      zipCode: data.zipCode ?? '',
-    });
+    const known = new Set(people.map(person => person.id));
+    const candidate = findLikelyDuplicatePersonCandidate(
+      [...people, ...serverMatches.filter(person => !known.has(person.id))],
+      {
+        firstName: data.firstName ?? '',
+        lastName: data.lastName ?? '',
+        email: data.email ?? '',
+        phone: data.phone ?? '',
+        streetAddress: data.address ?? '',
+        city: data.city ?? '',
+        state: data.state ?? '',
+        zipCode: data.zipCode ?? '',
+      }
+    );
     if (!candidate) {
       setDuplicates({ candidates: [], key });
       return false;
@@ -142,7 +155,10 @@ export const CreatePersonForm: React.FC<CreatePersonFormProps> = ({
   const handleSave = async (data: Partial<PersonRecord>) => {
     // The card above the tabs explains this; the panel keeps the form open
     // without a failure toast.
-    if (holdForDuplicate(data)) throw new PanelSaveHandledError();
+    // The saved directory may be empty on this device; the server answers when it can.
+    // "Add anyway" was already chosen for this person: do not wait on the lookup again.
+    const fresh = people.length === 0 && allowedKey !== keyOf(data) ? await check(data) : null;
+    if (holdForDuplicate(data, fresh?.people)) throw new PanelSaveHandledError();
     setDuplicates({ candidates: [], key: '' });
 
     if (offlineFirst) {
@@ -227,6 +243,8 @@ export const CreatePersonForm: React.FC<CreatePersonFormProps> = ({
     onDuplicateSelected(existing, { pendingMutationIds });
   };
 
+  const couldNotCheck =
+    people.length === 0 && serverFailed && identityKey.replace(/\|/g, '') !== '';
   const shown = duplicates.key === identityKey ? duplicates.candidates : [];
   const notice =
     shown.length > 0 ? (
@@ -242,6 +260,14 @@ export const CreatePersonForm: React.FC<CreatePersonFormProps> = ({
           }}
         />
       </DuplicateNotice>
+    ) : couldNotCheck ? (
+      <p
+        role="status"
+        data-testid="person-duplicate-check-unavailable"
+        className="mb-4 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-warning"
+      >
+        {DUPLICATE_CHECK_UNAVAILABLE}. You can still add this person.
+      </p>
     ) : null;
 
   return (

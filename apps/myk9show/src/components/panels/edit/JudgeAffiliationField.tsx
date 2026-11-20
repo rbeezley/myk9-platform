@@ -7,7 +7,10 @@ import { Label } from '@/components/ui/label';
 import { queryKeys } from '@/lib/queryClient';
 import { PREMIUM_JUDGE_AFFILIATIONS_KEY } from '@/services/database/judges/judgeAffiliationKeys';
 import { setJudgeAffiliation } from '@/services/database/judges/setJudgeAffiliation';
-import { useJudgeAffiliationEditor } from '@/hooks/queries/useJudgeAffiliationEditor';
+import {
+  useJudgeAffiliationEditor,
+  useJudgeAffiliationRoster,
+} from '@/hooks/queries/useJudgeAffiliationEditor';
 import { useEditPanel } from './useEditPanel';
 import type { ShowEditFormData } from './ShowEditPanel.types';
 import { friendlySaveError } from '@/utils/friendlySaveError';
@@ -15,6 +18,38 @@ import { friendlySaveError } from '@/utils/friendlySaveError';
 export const JUDGE_AFFILIATION_MAX_LENGTH = 200;
 export const JUDGE_AFFILIATION_WAIT = 'Saving the judge first';
 export const JUDGE_AFFILIATION_OFFLINE = 'Reconnect to add the affiliation';
+export const JUDGE_AFFILIATION_CHECKING = 'Checking with myK9Show';
+export const JUDGE_AFFILIATION_READ_ERROR_ROW =
+  'Could not load. Use Try again at the top of this list.';
+export const JUDGE_AFFILIATION_READ_ERROR =
+  "Could not reach myK9Show to load the judges' affiliations";
+
+/**
+ * MYK9-2297: mounted once inside Edit show's Judges tab, it owns the roster read every
+ * Affiliation field selects from, so the tab reads once when it opens and not per judge. A
+ * failed read is reported here once, with one Try again, while every field stays disabled.
+ */
+export const AffiliationRoster: React.FC = () => {
+  const { data: show } = useEditPanel<ShowEditFormData>();
+  const { readFailed, isReading, retry } = useJudgeAffiliationRoster(
+    show.organization === 'ASCA' ? show.id : undefined
+  );
+  if (!readFailed) return null;
+  return (
+    <div role="alert" className="mb-4 flex flex-wrap items-center gap-2 text-sm text-destructive">
+      <span>{JUDGE_AFFILIATION_READ_ERROR}</span>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={isReading}
+        onClick={() => void retry()}
+      >
+        {isReading ? 'Checking…' : 'Try again'}
+      </Button>
+    </div>
+  );
+};
 
 /**
  * On an ASCA show, the Affiliation field for one assigned judge (MYK9-2294), in either judges
@@ -97,9 +132,16 @@ export const JudgeAffiliationField: React.FC<{ showId: string | undefined; judge
           Save affiliation
         </Button>
       </div>
+      {/* The read error is announced once, by AffiliationRoster; each row only points to it. */}
       {!ready && (
         <p className="text-sm text-muted-foreground">
-          {readiness === 'offline' ? JUDGE_AFFILIATION_OFFLINE : JUDGE_AFFILIATION_WAIT}
+          {readiness === 'offline'
+            ? JUDGE_AFFILIATION_OFFLINE
+            : readiness === 'error'
+              ? JUDGE_AFFILIATION_READ_ERROR_ROW
+              : readiness === 'checking'
+                ? JUDGE_AFFILIATION_CHECKING
+                : JUDGE_AFFILIATION_WAIT}
         </p>
       )}
     </div>

@@ -20,6 +20,12 @@ const harness = vi.hoisted(() => ({
   createJudge: vi.fn(),
   judges: [] as unknown[],
   judgesLoaded: true,
+  fetchAffiliations: vi.fn(),
+}));
+
+vi.mock('@/services/database/judges/judgeAffiliations', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/database/judges/judgeAffiliations')>()),
+  fetchShowJudgeAffiliationEditor: harness.fetchAffiliations,
 }));
 
 vi.mock('@/components/shows/wizard/steps/useShowDetailsStepActions', () => ({
@@ -50,6 +56,7 @@ vi.mock('../ShowOfficialsEditor', () => ({ ShowOfficialsEditor: () => null }));
 
 import { EditPanelContext, type EditPanelContextValue } from '../useEditPanel';
 import { ShowEditForm } from '../ShowEditForm';
+import { judgeAffiliationEditorKey } from '@/hooks/queries/useJudgeAffiliationEditor';
 
 const OLIVE: Judge = {
   id: 'other-judge',
@@ -107,8 +114,7 @@ const PanelHarness: React.FC<{ organization: string; client: QueryClient }> = ({
   );
 };
 
-function renderPanel(organization = 'AKC') {
-  const client = new QueryClient();
+function renderPanel(organization = 'AKC', client = new QueryClient()) {
   const invalidate = vi.spyOn(client, 'invalidateQueries');
   const view = render(<PanelHarness organization={organization} client={client} />);
   return { ...view, invalidate };
@@ -166,6 +172,18 @@ describe('unlisted assigned judges', () => {
     ];
     renderPanel('AKC');
     expect(screen.getByRole('checkbox', { name: /sam show/i })).toBeChecked();
+  });
+
+  it('re-reads the affiliation roster once when the Judges tab opens, even when cached (MYK9-2297)', async () => {
+    roster.current = [
+      { judgeId: 'show-level', judgeName: 'Sam Show', hasShowLevelAssignment: true } as never,
+    ];
+    harness.fetchAffiliations.mockResolvedValue({});
+    const client = new QueryClient();
+    client.setQueryData(judgeAffiliationEditorKey('show-1'), {});
+    renderPanel('ASCA', client);
+    await waitFor(() => expect(harness.fetchAffiliations).toHaveBeenCalledTimes(1));
+    expect(harness.fetchAffiliations).toHaveBeenCalledWith('show-1');
   });
 
   it('flags no one while the qualification read is still loading', () => {

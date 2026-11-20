@@ -6,7 +6,13 @@ import { toast } from 'sonner';
 import { createTestQueryClient, render } from '@/test/utils/testUtils';
 import { getPostSyncInvalidationKeys } from '@/providers/replicationSyncStatus';
 import { EditPanelContext, type EditPanelContextValue } from '../useEditPanel';
-import { AssignedJudgeNote, JudgeAffiliation } from '../JudgeAffiliationField';
+import {
+  AssignedJudgeNote,
+  JUDGE_AFFILIATION_READ_ERROR,
+  JUDGE_AFFILIATION_READ_ERROR_ROW,
+  JudgeAffiliation,
+  AffiliationRoster,
+} from '../JudgeAffiliationField';
 
 const mocks = vi.hoisted(() => ({
   fetchEditor: vi.fn(),
@@ -25,11 +31,18 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 const ready = (affiliation: string | null = 'Region 3') => ({ status: 'ready', affiliation });
 
+/** The Judges tab as Edit show mounts it: one roster read, then a field per judge row. */
+const judgesTab = (children: React.ReactNode, organization = 'ASCA') => (
+  <EditPanelContext.Provider
+    value={{ data: { id: 'show-1', organization } } as unknown as EditPanelContextValue}
+  >
+    <AffiliationRoster />
+    {children}
+  </EditPanelContext.Provider>
+);
+
 function renderWith(children: React.ReactNode, organization = 'ASCA', queryClient?: QueryClient) {
-  const context = {
-    data: { id: 'show-1', organization },
-  } as unknown as EditPanelContextValue;
-  return render(<EditPanelContext.Provider value={context}>{children}</EditPanelContext.Provider>, {
+  return render(judgesTab(children, organization), {
     ...(queryClient !== undefined && { queryClient }),
   });
 }
@@ -152,21 +165,84 @@ describe('Edit show judge affiliation field (MYK9-2294)', () => {
     mocks.fetchEditor.mockRejectedValue(new Error('read failed'));
     await landUpload(queryClient);
     await waitFor(() => expect(input).toBeDisabled());
-    expect(screen.getByText('Saving the judge first')).toBeInTheDocument();
+    expect(screen.getByText(JUDGE_AFFILIATION_READ_ERROR)).toBeInTheDocument();
+    expect(screen.queryByText('Saving the judge first')).not.toBeInTheDocument();
   });
 
-  it('reads once per show however many judges are listed', async () => {
-    mocks.fetchEditor.mockResolvedValue({ 'judge-1': ready(), 'judge-2': ready('Region 5') });
+  it('says once for the tab that the read failed, with Try again, not "Saving the judge first" (MYK9-2297)', async () => {
+    const user = userEvent.setup();
+    mocks.fetchEditor.mockRejectedValue(new Error('read failed'));
     renderWith(
       <>
         <AssignedJudgeNote judgeId="judge-1" />
         <AssignedJudgeNote judgeId="judge-2" />
-      </>
+      </>,
+      'ASCA',
+      createTestQueryClient()
     );
-    await waitFor(() => expect(screen.getAllByLabelText('Affiliation')).toHaveLength(2));
+    expect(await screen.findByRole('alert')).toHaveTextContent(JUDGE_AFFILIATION_READ_ERROR);
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Try again' })).toHaveLength(1);
+    // Each disabled row still says why, quietly, pointing at the one Try again.
+    expect(screen.getAllByText(JUDGE_AFFILIATION_READ_ERROR_ROW)).toHaveLength(2);
+    expect(screen.queryByText('Saving the judge first')).not.toBeInTheDocument();
+    screen.getAllByLabelText('Affiliation').forEach(input => expect(input).toBeDisabled());
+    let answer: (value: unknown) => void = () => undefined;
+    mocks.fetchEditor.mockReturnValue(new Promise(resolve => (answer = resolve)));
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+    // Nothing was ever read, so the retry is a first read again: each field says so.
+    expect(await screen.findAllByText('Checking with myK9Show')).toHaveLength(2);
+    expect(screen.queryByText('Saving the judge first')).not.toBeInTheDocument();
+    await act(async () => answer({ 'judge-1': ready(), 'judge-2': ready() }));
     await waitFor(() =>
       screen.getAllByLabelText('Affiliation').forEach(input => expect(input).toBeEnabled())
     );
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('keeps a typed draft through a failed read and its Try again (MYK9-2297)', async () => {
+    const user = userEvent.setup();
+    const queryClient = createTestQueryClient();
+    renderNote('ASCA', queryClient);
+    const input = await screen.findByLabelText('Affiliation');
+    await waitFor(() => expect(input).toBeEnabled());
+    await user.clear(input);
+    await user.type(input, 'Region 8');
+    mocks.fetchEditor.mockRejectedValue(new Error('read failed'));
+    await landUpload(queryClient);
+    expect(await screen.findByText(JUDGE_AFFILIATION_READ_ERROR)).toBeInTheDocument();
+    expect(input).toBeDisabled();
+    expect(input).toHaveValue('Region 8');
+    let answer: (value: unknown) => void = () => undefined;
+    mocks.fetchEditor.mockReturnValue(new Promise(resolve => (answer = resolve)));
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByRole('button', { name: 'Checking…' })).toBeDisabled();
+    await act(async () => answer({ 'judge-1': ready() }));
+    await waitFor(() => expect(input).toBeEnabled());
+    expect(input).toHaveValue('Region 8');
+    expect(screen.getByRole('button', { name: 'Save affiliation' })).toBeEnabled();
+  });
+
+  it('reads once when the Judges tab opens, not again per judge ticked (MYK9-2297)', async () => {
+    mocks.fetchEditor.mockResolvedValue({ 'judge-1': ready(), 'judge-2': ready('Region 5') });
+    const tab = renderWith(
+      <AssignedJudgeNote judgeId="judge-1" />,
+      'ASCA',
+      createTestQueryClient()
+    );
+    await waitFor(() => expect(screen.getByLabelText('Affiliation')).toBeEnabled());
+    tab.rerender(
+      judgesTab(
+        <>
+          <AssignedJudgeNote judgeId="judge-1" />
+          <AssignedJudgeNote judgeId="judge-2" />
+        </>
+      )
+    );
+    await waitFor(() =>
+      screen.getAllByLabelText('Affiliation').forEach(input => expect(input).toBeEnabled())
+    );
+    expect(screen.getAllByLabelText('Affiliation')[1]).toHaveValue('Region 5');
     expect(mocks.fetchEditor).toHaveBeenCalledTimes(1);
     expect(mocks.fetchEditor).toHaveBeenCalledWith('show-1');
   });

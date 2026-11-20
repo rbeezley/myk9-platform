@@ -37,6 +37,8 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+const PHONE_BEFORE_ALT = phone!.shots.before!.alt;
+
 describe('the Results scene', () => {
   it('is the secretary’s desktop and the exhibitor’s phone, on the plan’s four lines', () => {
     expect(RESULTS_SCENE.name).toBe('Results walkthrough');
@@ -182,6 +184,19 @@ describe('the Results scene', () => {
         expect(shot.width / space.width).toBe(scale);
       }
     }
+  });
+
+  it('is staged with results held until the release, so the phone shows no result before it', () => {
+    const setup = readFileSync(
+      resolve(process.cwd(), 'src/test/e2e/capture/landingResultsSetup.sql'),
+      'utf8'
+    );
+    expect(setup).toMatch(/SET preset = 'review', placement_timing = 'manual_release'/);
+    expect(PHONE_BEFORE_ALT).not.toMatch(/Qualified|preliminary|\d:\d\d/);
+    // The released frame's camera holds the header and chips and stops above what follows them.
+    const view = frames.find(f => f.desk!.shot === 'released')!.desk!;
+    const { header } = regions.desk.shots.released.regions;
+    expect(inside(header, view.camera)).toBe(true);
   });
 
   it('describes every capture, within the copy rules', () => {

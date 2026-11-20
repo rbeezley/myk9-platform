@@ -24,7 +24,7 @@ type DeskShot = keyof typeof DESK_SHOTS;
 // Each description is of what the camera holds in that frame, in the labels the screen uses.
 const PHONE_ALT: Record<PhoneShot, string> = {
   before:
-    'My Entries on the phone: Piper, Armband 101, marked Scored, and her Container Novice A line reading Qualified, 0:41.30, preliminary',
+    'My Entries on the phone: Piper, Armband 101, marked Scored, and her Container Novice A line with no result on it yet',
   new: 'My Entries on the phone: Piper, Armband 101, marked Scored, and on her Container Novice A line a New result button',
   card: 'The New result card on the phone: Piper, Armband 101, Heartland Scent Work Classic, Q and 1st in Container Novice A, Time 41.30s, Faults 0 faults, and a Share button',
 };

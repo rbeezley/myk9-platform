@@ -32,7 +32,9 @@ import {
   entryDogRegisteredName,
   entryOwnerName,
   personName,
+  withSavedOwnerNames,
 } from '@/hooks/entryDisplayNames';
+import { useUserStore } from '@/store/userStore';
 
 interface UseEntryManagementDataReturn {
   // Auth
@@ -293,7 +295,13 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
   const [showError, setShowError] = useState<string | null>(null);
 
   // Entry data
-  const [entries, setEntries] = useState<EntryManagementEntry[]>([]);
+  const [heldEntries, setEntries] = useState<EntryManagementEntry[]>([]);
+  // MYK9-2265: owner names follow the saved directory when it rehydrates after mapping.
+  const savedUsers = useUserStore(state => state.users);
+  const entries = useMemo(
+    () => withSavedOwnerNames(heldEntries, savedUsers) as EntryManagementEntry[],
+    [heldEntries, savedUsers]
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [loadedEntriesShowId, setLoadedEntriesShowId] = useState<string | null>(null);
   // The show whose rows are on screen, read inside `loadEntries` without re-creating it.

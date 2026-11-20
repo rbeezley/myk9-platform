@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { entryOwnerName, OWNER_NAME_NOT_ON_DEVICE } from '../entryDisplayNames';
+import {
+  entryOwnerName,
+  OWNER_NAME_NOT_ON_DEVICE,
+  withSavedOwnerNames,
+} from '../entryDisplayNames';
+import { useUserStore } from '@/store/userStore';
 import { rememberOwnerNames, ownerNameCacheKey } from '@/services/database/dogs/ownerNameCache';
 
 vi.mock('@/services/database/persistedAuthUserId', () => ({
@@ -13,6 +18,7 @@ function entry(owner: { id: string; first_name: string | null; last_name: string
 describe('entryOwnerName (MYK9-2256)', () => {
   beforeEach(() => {
     window.localStorage.clear();
+    useUserStore.setState({ users: [], people: [] });
   });
   afterEach(() => {
     window.localStorage.clear();
@@ -42,6 +48,56 @@ describe('entryOwnerName (MYK9-2256)', () => {
     rememberOwnerNames([{ id: 'o1', first_name: 'Olive', last_name: 'Owner' }], key);
     expect(entryOwnerName(entry({ id: 'o1', first_name: null, last_name: null }))).toBe(
       'Olive Owner'
+    );
+  });
+
+  it('reads the saved people directory when no joined or names-only copy has the owner (MYK9-2265)', () => {
+    useUserStore.setState({
+      users: [{ id: 'o1', firstName: 'Dana', lastName: 'Directory' }],
+      people: [],
+    });
+    expect(entryOwnerName(entry({ id: 'o1', first_name: null, last_name: null }))).toBe(
+      'Dana Directory'
+    );
+  });
+
+  it('prefers the saved directory over the names-only device copy (MYK9-2265)', () => {
+    const key = ownerNameCacheKey();
+    if (!key) throw new Error('expected a persisted auth user for the cache key');
+    rememberOwnerNames([{ id: 'o1', first_name: 'Old', last_name: 'Cache' }], key);
+    useUserStore.setState({
+      users: [{ id: 'o1', firstName: 'Dana', lastName: 'Directory' }],
+      people: [],
+    });
+    expect(entryOwnerName(entry({ id: 'o1', first_name: null, last_name: null }))).toBe(
+      'Dana Directory'
+    );
+  });
+
+  it('re-resolves held owner names once the directory arrives, and keeps the array when nothing changes', () => {
+    const held = [
+      { id: 'a', ownerId: 'o1', ownerName: OWNER_NAME_NOT_ON_DEVICE },
+      { id: 'b', ownerId: 'o2', ownerName: 'Olive Owner' },
+    ];
+    expect(withSavedOwnerNames(held, [])).toBe(held);
+    const users = [
+      { id: 'o1', firstName: 'Dana', lastName: 'Directory' },
+      { id: 'o2', firstName: 'Other', lastName: 'Person' },
+    ];
+    const next = withSavedOwnerNames(held, users);
+    expect(next.map(row => row.ownerName)).toEqual(['Dana Directory', 'Olive Owner']);
+    expect(withSavedOwnerNames(held, [{ id: 'zz', firstName: 'No', lastName: 'Match' }])).toBe(
+      held
+    );
+  });
+
+  it('says the name is not on this device when the saved directory lacks the owner', () => {
+    useUserStore.setState({
+      users: [{ id: 'other', firstName: 'Dana', lastName: 'Directory' }],
+      people: [],
+    });
+    expect(entryOwnerName(entry({ id: 'o1', first_name: null, last_name: null }))).toBe(
+      OWNER_NAME_NOT_ON_DEVICE
     );
   });
 });

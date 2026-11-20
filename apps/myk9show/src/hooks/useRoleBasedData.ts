@@ -1,10 +1,12 @@
 import { useMemo } from 'react';
+import { onlineManager } from '@tanstack/react-query';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useEntriesPersonId } from '@/hooks/useEntriesPersonId';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useUserStore } from '@/store/userStore';
 import { useUsersQuery } from '@/hooks/queries/useUsersQuery';
 import { UserRole } from '@/types/auth-types';
+import type { User } from '@/types/user-types';
 import { selectOwnedDogs } from '@/utils/dogOwnership';
 import { rosterIsOwnDogsOnly } from '@/utils/dogRosterScope';
 import { getUserPersonFromAuthId, resolveViewerPersonId } from '@/utils/viewerPerson';
@@ -53,13 +55,23 @@ export function useRoleBasedDogs() {
   return filteredDogs;
 }
 
+const EMPTY_PEOPLE: User[] = [];
+
 export function useRoleBasedPeople() {
   const { userWithRoles, hasRole } = useAuthContext();
-  const { data: allPeople = [], isLoading, error, refetch } = useUsersQuery();
+  const { data: queried, isLoading, error, refetch, fetchStatus } = useUsersQuery();
+  // MYK9-2265: with no signal the server read is paused and never answers; the saved people
+  // directory (same columns, loaded by management sessions only) stands in so a person's
+  // phone and email still open from the desk. Never used when the server has answered, and
+  // an error while online stays an error.
+  const savedPeople = useUserStore(state => state.users);
+  const offline = fetchStatus === 'paused' || !onlineManager.isOnline();
+  const usingSaved = queried === undefined && !isLoading && offline;
+  const allPeople = queried ?? (usingSaved ? savedPeople : EMPTY_PEOPLE);
 
   const filteredPeople = useMemo(() => {
     // Early return for loading, error, or empty data
-    if (isLoading || error || !userWithRoles || !allPeople || allPeople.length === 0) {
+    if (isLoading || (error && !usingSaved) || !userWithRoles || allPeople.length === 0) {
       return [];
     }
 
@@ -78,7 +90,7 @@ export function useRoleBasedPeople() {
     }
 
     return [];
-  }, [userWithRoles, hasRole, allPeople, isLoading, error]);
+  }, [userWithRoles, hasRole, allPeople, isLoading, error, usingSaved]);
 
   return { people: filteredPeople, isLoading, error: error as Error | null, refetch };
 }

@@ -15,7 +15,11 @@ import {
   type PersonIdentityCandidate,
 } from '@/utils/personIdentity';
 import { replicatedShowDeskPeopleTable } from '@/services/replication/ReplicatedShowDeskPeopleTable';
-import { DUPLICATE_CHECK_UNAVAILABLE, useServerPersonMatches } from './useServerPersonMatches';
+import {
+  DUPLICATE_CHECK_SAVED_ONLY,
+  DUPLICATE_CHECK_UNAVAILABLE,
+  useServerPersonMatches,
+} from './useServerPersonMatches';
 
 interface CreatePersonFormProps {
   open: boolean;
@@ -245,21 +249,34 @@ export const CreatePersonForm: React.FC<CreatePersonFormProps> = ({
 
   const couldNotCheck =
     people.length === 0 && serverFailed && identityKey.replace(/\|/g, '') !== '';
+  // Offline with a saved directory: the check ran, but only over the people saved here (MYK9-2265).
+  const checkedSavedOnly =
+    people.length > 0 && serverFailed && identityKey.replace(/\|/g, '') !== '';
+  const savedOnlyLine = (
+    <p data-testid="person-duplicate-checked-saved" className="mb-4 text-sm text-muted-foreground">
+      {DUPLICATE_CHECK_SAVED_ONLY}
+    </p>
+  );
   const shown = duplicates.key === identityKey ? duplicates.candidates : [];
   const notice =
     shown.length > 0 ? (
-      <DuplicateNotice>
-        <CreateExhibitorDuplicates
-          duplicates={shown}
-          onSelect={candidate => {
-            void handleUseExisting(candidate.person).then(handleClose);
-          }}
-          onAddAnyway={() => {
-            setAllowedKey(identityKey);
-            setDuplicates({ candidates: [], key: '' });
-          }}
-        />
-      </DuplicateNotice>
+      <>
+        {checkedSavedOnly && savedOnlyLine}
+        <DuplicateNotice>
+          <CreateExhibitorDuplicates
+            duplicates={shown}
+            onSelect={candidate => {
+              void handleUseExisting(candidate.person).then(handleClose);
+            }}
+            onAddAnyway={() => {
+              setAllowedKey(identityKey);
+              setDuplicates({ candidates: [], key: '' });
+            }}
+          />
+        </DuplicateNotice>
+      </>
+    ) : checkedSavedOnly ? (
+      savedOnlyLine
     ) : couldNotCheck ? (
       <p
         role="status"

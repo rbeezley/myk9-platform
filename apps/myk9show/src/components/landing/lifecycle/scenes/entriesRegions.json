@@ -118,7 +118,7 @@
       "accepted": {
         "file": "desk-accepted.png",
         "regions": {
-          "badge": {
+          "entry": {
             "x": 0,
             "y": 0,
             "w": 10,

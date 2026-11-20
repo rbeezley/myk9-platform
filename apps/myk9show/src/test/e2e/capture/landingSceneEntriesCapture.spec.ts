@@ -52,9 +52,9 @@ const PHONE = { width: 390, height: 844 };
 const PHONE_SCALE = 2;
 const DESK = { width: 1440, height: 900 };
 const DESK_SCALE = 1;
-// The demo exhibitor's dog with one entry of her own, still waiting for the secretary, so her
-// card on My Entries reads Pending review before the walk and Accepted after it (a dog with an
-// accepted entry reads Accepted whatever else is pending).
+// A demo exhibitor's dog whose entries all wait for the secretary, so her card on My Entries
+// reads Pending review before the walk and Accepted after it (a dog with any accepted entry
+// reads Accepted, whatever else is pending).
 const DOG = 'Maple';
 // Classes none of the demo exhibitor's dogs are entered in and the ring capture does not read
 // (it scores a dog in Exterior Excellent, and the judge is assigned classes 031 to 035). A class
@@ -225,6 +225,12 @@ test('captures the Entries open scene on the exhibitor’s phone and the secreta
     expect(await queue.innerText()).not.toMatch(
       /class limit|max(imum)? entries|capacity|spots? (left|remaining)/i
     );
+    // The demo exhibitor has one entry form at the show, so her new entry joins it: the row's
+    // count of entries is how the capture knows the new one has arrived.
+    const entryCount = async (row: Locator) =>
+      Number(/(\d+) Entr(?:y|ies)/.exec(await row.innerText())?.[1]);
+    const entriesBefore = await entryCount(rows.filter({ hasText: 'Casey Morgan' }).first());
+    expect(entriesBefore, 'the exhibitor’s form is in the list').toBeGreaterThan(0);
     await desk.waitForTimeout(1500);
     await shoot('desk', desk, deskShots, 'before', {
       queue: desk.locator('section[aria-label="Entry forms"]'),
@@ -272,6 +278,7 @@ test('captures the Entries open scene on the exhibitor’s phone and the secreta
       await shoot('phone', page, phoneShots, 'classes', { chip: fullChip });
     });
 
+    let enteredClass = '';
     await stage('choosing a class', page, async () => {
       let classId = '';
       for (const name of CLASSES_TO_ENTER) {
@@ -280,6 +287,7 @@ test('captures the Entries open scene on the exhibitor’s phone and the secreta
         );
         if ((await chips.count()) > 0) {
           classId = await chipClassId(chips.first());
+          enteredClass = name;
           break;
         }
       }
@@ -341,7 +349,10 @@ test('captures the Entries open scene on the exhibitor’s phone and the secreta
     });
 
     // Line 4: the form is in the secretary's list, marked Needs review, with its payment.
-    const form = rows.filter({ hasText: confirmation }).filter({ hasText: 'Needs review' });
+    const form = rows
+      .filter({ hasText: confirmation })
+      .filter({ hasText: new RegExp(`\\b${entriesBefore + 1} Entries\\b`) })
+      .filter({ hasText: 'Needs review' });
     await stage('the secretary’s list after', desk, async () => {
       await desk.reload();
       await reloadUntilVisible(desk, form.first());
@@ -373,26 +384,17 @@ test('captures the Entries open scene on the exhibitor’s phone and the secreta
       await accept.click();
       const header = panel.locator('header');
       await expect(header).not.toContainText('Needs review', { timeout: 30_000 });
-      // The form's label once nothing on it waits for review: Accepted, or Mixed statuses when
-      // the form also holds scored entries (the demo exhibitor's earlier classes).
-      const badge = header.getByText(/^(Accepted|Mixed statuses|Complete)$/).first();
-      await expect(badge).toBeVisible();
-      console.log('the form reads ::', await badge.innerText());
-      await scrollToMiddle(panel.locator('header'));
+      // The form's own label reads Mixed statuses, as the demo form also holds scored entries,
+      // so the ring is on the entry itself: its row in the form, now reading Accepted.
+      console.log('the form reads ::', await header.innerText());
+      const entry = panel
+        .locator('div')
+        .filter({ hasText: new RegExp(`${enteredClass}:\\s*Accepted`) })
+        .last();
+      await expect(entry).toBeVisible({ timeout: 30_000 });
+      await scrollToMiddle(entry);
       await desk.waitForTimeout(1000);
-      await shoot('desk', desk, deskShots, 'accepted', { badge });
-
-      // Off camera: the dog's own earlier entry, which no screen of this scene is about, is
-      // accepted too, so the dog's card reads Accepted and not what its oldest entry reads.
-      const earlier = rows.filter({ hasText: DOG }).filter({ hasText: 'No confirmation' });
-      const earlierPending = earlier.filter({ hasText: 'Needs review' });
-      await earlierPending
-        .first()
-        .getByRole('button', { name: /^Review for / })
-        .click();
-      await expect(checklist).toBeVisible({ timeout: 30_000 });
-      await accept.click();
-      await expect(earlierPending).toHaveCount(0, { timeout: 30_000 });
+      await shoot('desk', desk, deskShots, 'accepted', { entry });
     });
 
     // Line 5, on the phone: the entry changes to Accepted.

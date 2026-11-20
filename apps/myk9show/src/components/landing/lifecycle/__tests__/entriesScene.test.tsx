@@ -134,7 +134,7 @@ describe('the Entries open scene', () => {
     // 5: Accepted, on the secretary's screen and then on the phone.
     expect(at(4).desk!.shot).toBe('accepted');
     expect(at(4).phone!.shot).toBe('accepted');
-    expect(at(4).desk!.ring).toEqual(regions.desk.shots.accepted.regions.badge);
+    expect(at(4).desk!.ring).toEqual(regions.desk.shots.accepted.regions.entry);
   });
 
   it('rings the Accept button on the review frame and keeps the item it belongs to in view', () => {

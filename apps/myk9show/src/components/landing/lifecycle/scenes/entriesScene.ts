@@ -97,7 +97,7 @@ const phoneNow = phoneView('accepted', phoneAccepted.regions.badge);
 const deskForm = deskView('list', list.regions.row);
 // One button: the ring is the Accept button, and the camera holds the item it belongs to.
 const deskReview = deskView('review', review.regions.accept, review.regions.item);
-const deskNow = deskView('accepted', deskAccepted.regions.badge);
+const deskNow = deskView('accepted', deskAccepted.regions.entry);
 
 const ENTRIES_FRAMES: readonly SceneFrame[] = [
   { line: 0, ms: 3600, subject: 'phone', desk: deskBefore, phone: phoneDogs },

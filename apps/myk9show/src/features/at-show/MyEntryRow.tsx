@@ -145,6 +145,9 @@ export function MyEntryRow({
             dogName={detail.dogName}
             className={detail.className}
             placement={detail.releasedPlacement}
+            handlerId={detail.handlerId}
+            ownerId={detail.dogOwnerId}
+            coOwnerId={detail.dogCoOwnerId}
             isReleased
           />
         )}

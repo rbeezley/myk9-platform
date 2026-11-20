@@ -67,6 +67,11 @@ export interface EntryClass {
   withdrawalReasonCode?: string | null | undefined;
   /** Denormalized handler display name; may differ from the dog owner when a proxy handles the dog. */
   handler?: string | undefined;
+  /** `entries.handler_id`; null/absent for a typed-in handler (MYK9-2311). */
+  handlerId?: string | null | undefined;
+  /** The dog's `owner_id` / `co_owner_id` when the read carried them (MYK9-2311). */
+  dogOwnerId?: string | null | undefined;
+  dogCoOwnerId?: string | null | undefined;
   /**
    * This ROW's own payment status. Money math must run per row: an order can
    * mix paid and pending class rows, and collapsing them to the first row's

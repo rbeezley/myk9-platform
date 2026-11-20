@@ -393,6 +393,9 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
             className={cls.name}
             placement={cls.finalPlacement}
             handlerName={cls.handler}
+            handlerId={cls.handlerId}
+            ownerId={cls.dogOwnerId}
+            coOwnerId={cls.dogCoOwnerId}
             isReleased={Boolean(cls.resultsReleasedAt)}
           />
         )}

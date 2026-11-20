@@ -66,6 +66,28 @@ describe('useMyShowResults (MYK9-1026)', () => {
     expect(result.current.has('e2')).toBe(false);
   });
 
+  it('carries the entry people by id for the results-public note (MYK9-2311)', async () => {
+    getUserEntries.mockResolvedValue({
+      data: [
+        {
+          id: 'e1',
+          show_id: 'show-1',
+          handler_id: null,
+          dog: { owner_id: 'person-1', co_owner_id: 'person-2' },
+        },
+      ],
+      error: null,
+      source: 'confirmed',
+    });
+    const { result } = renderHook(() => useMyShowResults('show-1'), { wrapper });
+    await waitFor(() => expect(result.current.size).toBe(1));
+    expect(result.current.get('e1')).toMatchObject({
+      handlerId: null,
+      dogOwnerId: 'person-1',
+      dogCoOwnerId: 'person-2',
+    });
+  });
+
   // MYK9-1519: the offline fallback nulls the same result columns the server's mask does,
   // so only a server answer may say a result is withheld.
   it.each([

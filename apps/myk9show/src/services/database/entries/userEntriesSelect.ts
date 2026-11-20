@@ -50,7 +50,9 @@ const USER_ENTRIES_SELECT_BASE = `
         id,
         name,
         call_name,
-        breed
+        breed,
+        owner_id,
+        co_owner_id
       ),
       show:show_id (
         id,

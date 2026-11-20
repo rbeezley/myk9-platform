@@ -5,7 +5,6 @@
  * Trials are date-specific events within a show.
  */
 
-import { POSTGREST_MAX_ROWS } from './postgrestMaxRows';
 import {
   ReplicatedTable,
   syncReplicatedTable,
@@ -235,7 +234,6 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
       // must not read as a missing row (MYK9-762).
       getPendingDeleteIds: ({ scope }) => this.pendingDeletes.coveredIds(scope.value),
       countsTowardRemoteCoverage: remote => !remote.deleted_at,
-      remotePageSize: POSTGREST_MAX_ROWS,
       getRemoteRowCount: async ({ scope }) => {
         try {
           let query = supabase
@@ -267,10 +265,11 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
           return undefined;
         }
       },
-      fetchRemoteRows: async ({ scope, since, cache }) => {
+      fetchRemoteRows: async ({ scope, since, cache, signal }) => {
         const rows = (await fetchKeysetPages({
           base: () => supabase.from('trials').select('*'),
           since,
+          signal,
           scope: query => (scope.value ? query.eq('show_id', scope.value) : query),
         })) as unknown as TrialRow[];
 

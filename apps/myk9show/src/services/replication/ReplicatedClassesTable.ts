@@ -5,7 +5,6 @@
  * Classes are competition categories within a trial.
  */
 
-import { POSTGREST_MAX_ROWS } from './postgrestMaxRows';
 import {
   ReplicatedTable,
   databaseManager,
@@ -894,7 +893,6 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
 
     const adapter: SyncReplicatedTableAdapter<EnrichedClassRow, ReplicatedClass> = {
       ...this.getRowRefetchAdapter(),
-      remotePageSize: POSTGREST_MAX_ROWS,
       getRemoteRowCount: async ({ scope }) => {
         try {
           let query = supabase.from('classes').select('id', { count: 'exact', head: true });
@@ -923,12 +921,13 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
           return undefined;
         }
       },
-      fetchRemoteRows: async ({ scope, since, forceFullSync }) => {
+      fetchRemoteRows: async ({ scope, since, forceFullSync, signal }) => {
         // A full sync re-derives everything; never answer it from the enrichment cache.
         if (forceFullSync) invalidateClassEnrichment();
         const rows = (await fetchKeysetPages({
           base: () => supabase.from('classes').select(classReplicationSelect()),
           since,
+          signal,
           scope: query => (scope.value ? query.eq('trial_id', scope.value) : query),
         })) as unknown as ClassRow[];
         return this.enrichClassRows(

@@ -1,7 +1,7 @@
 /**
  * MYK9-2252: the shared keyset pager reads every row, not the first `max_rows`.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { fetchKeysetPages } from '../keysetPager';
 import { createFakePostgrestTable } from '@/test/utils/fakePostgrestTable';
 
@@ -83,6 +83,44 @@ describe('fetchKeysetPages', () => {
 
     expect(result).toHaveLength(1100);
     expect(table.requests.every(request => request.includes('eq show_id'))).toBe(true);
+  });
+
+  it('stops paging after the current page when the signal aborts', async () => {
+    const table = createFakePostgrestTable(makeRows(2500, i => new Date(T0 + i).toISOString()));
+    const controller = new AbortController();
+    const abortSignal = vi.fn((signal: AbortSignal) => signal);
+    let started = 0;
+
+    const read = fetchKeysetPages({
+      base: () => {
+        started += 1;
+        const builder = table.from();
+        const withAbort = Object.assign(builder, {
+          abortSignal: (signal: AbortSignal) => {
+            abortSignal(signal);
+            // Cancel while the first page is in flight.
+            controller.abort(new Error('sync cancelled'));
+            return withAbort;
+          },
+        });
+        return withAbort;
+      },
+      since: 0,
+      signal: controller.signal,
+    });
+
+    await expect(read).rejects.toThrow('sync cancelled');
+    expect(started).toBe(1);
+    expect(table.requests).toHaveLength(1);
+    expect(abortSignal).toHaveBeenCalledWith(controller.signal);
+  });
+
+  it('throws instead of returning short when a full page ends on a row without id or updated_at', async () => {
+    const rows = makeRows(1000, i => new Date(T0 + i).toISOString());
+    rows[999] = { id: '', updated_at: rows[999]!.updated_at };
+    const table = createFakePostgrestTable(rows);
+
+    await expect(readAll(table)).rejects.toThrow(/without id or updated_at/);
   });
 
   it('throws with the server message and the prefix on an error', async () => {

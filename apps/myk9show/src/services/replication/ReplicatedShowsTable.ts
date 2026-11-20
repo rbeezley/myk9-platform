@@ -9,7 +9,6 @@
  */
 
 import { fetchKeysetPages } from './keysetPager';
-import { POSTGREST_MAX_ROWS } from './postgrestMaxRows';
 import {
   ReplicatedTable,
   syncReplicatedTable,
@@ -195,7 +194,6 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
 
     const adapter: SyncReplicatedTableAdapter<ShowRow, ReplicatedShow> = {
       ...this.getRowRefetchAdapter(),
-      remotePageSize: POSTGREST_MAX_ROWS,
       getRemoteRowCount: ({ scope }) => getLiveShowCount(scope.value),
       // A soft-deleted show is filtered out of every fetch, so it is never
       // overwritten or removed here. Once a full fetch proves complete against
@@ -211,7 +209,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
         const inScope = scope.value ? held.filter(row => row.clubId === scope.value) : held;
         return verifyShowsGone(inScope.map(row => row.id));
       },
-      fetchRemoteRows: async ({ scope, since }) => {
+      fetchRemoteRows: async ({ scope, since, signal }) => {
         return (await fetchKeysetPages({
           base: () =>
             supabase
@@ -227,6 +225,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
               .select('*')
               .is('deleted_at', null),
           since,
+          signal,
           scope: query => (scope.value ? query.eq('club_id', scope.value) : query),
         })) as unknown as ShowRow[];
       },

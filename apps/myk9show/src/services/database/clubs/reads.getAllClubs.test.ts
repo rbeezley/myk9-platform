@@ -38,6 +38,20 @@ describe('getAllClubs paging', () => {
     expect(server.table.requests).toHaveLength(3);
   });
 
+  it('sorts case-insensitively, puts a null name last and breaks ties by id', async () => {
+    server.table = createFakePostgrestTable([
+      { id: 'c', name: null, deleted_at: null },
+      { id: 'b', name: 'beta', deleted_at: null },
+      { id: 'a2', name: 'Alpha', deleted_at: null },
+      { id: 'a1', name: 'alpha', deleted_at: null },
+      { id: 'd', name: 'Zulu', deleted_at: null },
+    ]);
+
+    const { data } = await getAllClubs();
+
+    expect(data.map(club => club.id)).toEqual(['a1', 'a2', 'b', 'd', 'c']);
+  });
+
   it('returns the error and no rows when a page fails', async () => {
     server.table = {
       requests: [],

@@ -32,7 +32,16 @@ export const getAllClubs = async () => {
       if (page.length < POSTGREST_MAX_ROWS) break;
       lastId = String(page[page.length - 1]?.id);
     }
-    rows.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    // Case-insensitive, nulls last, id as the tiebreak so the order is stable.
+    rows.sort((a, b) => {
+      if (a.name === null || b.name === null) {
+        if (a.name !== b.name) return a.name === null ? 1 : -1;
+      } else {
+        const byName = a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+        if (byName !== 0) return byName;
+      }
+      return String(a.id).localeCompare(String(b.id));
+    });
 
     logQuery('club', 'select_all_with_shows', Date.now() - startTime);
     return { data: rows, error: null };

@@ -501,7 +501,7 @@ describe('Dog Queries', () => {
       const result = await searchAllDogs('Smith, Jo (Jr)');
 
       expect(embedFilter(chain, 'search_0_owner')).toBe(
-        'first_name.ilike."%Smith, Jo (Jr)%",last_name.ilike."%Smith, Jo (Jr)%",and(first_name.ilike."%Smith,%",last_name.ilike."%Jo (Jr)%"),and(first_name.ilike."%Smith, Jo%",last_name.ilike."%(Jr)%")'
+        'first_name.ilike."%Smith, Jo (Jr)%",last_name.ilike."%Smith, Jo (Jr)%",and(first_name.ilike."%Smith%",last_name.ilike."%Jo Jr%"),and(first_name.ilike."%Smith Jo%",last_name.ilike."%Jr%")'
       );
       expect(embedFilter(chain, 'search_0_registrations')).toBe(
         'registration_number.ilike."%Smith, Jo (Jr)%",registered_name.ilike."%Smith, Jo (Jr)%",breed.ilike."%Smith, Jo (Jr)%"'

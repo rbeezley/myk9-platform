@@ -1,49 +1,113 @@
 {
   "phone": {
-    "space": { "width": 390, "height": 844 },
+    "space": {
+      "width": 390,
+      "height": 844
+    },
     "scale": 2,
     "shots": {
       "before": {
         "file": "phone-before.png",
-        "regions": { "row": { "x": 24, "y": 400, "w": 342, "h": 80 } }
+        "regions": {
+          "row": {
+            "x": 39,
+            "y": 371,
+            "w": 312,
+            "h": 173
+          }
+        }
       },
       "new": {
         "file": "phone-new.png",
-        "regions": { "button": { "x": 240, "y": 400, "w": 110, "h": 44 } }
+        "regions": {
+          "button": {
+            "x": 39,
+            "y": 490,
+            "w": 113,
+            "h": 44
+          }
+        }
       },
       "card": {
         "file": "phone-card.png",
-        "regions": { "card": { "x": 20, "y": 200, "w": 350, "h": 400 } }
+        "regions": {
+          "card": {
+            "x": 20,
+            "y": 211,
+            "w": 350,
+            "h": 408
+          }
+        }
       }
     }
   },
   "desk": {
-    "space": { "width": 1440, "height": 900 },
+    "space": {
+      "width": 1440,
+      "height": 900
+    },
     "scale": 1,
     "shots": {
       "list": {
         "file": "desk-list.png",
         "regions": {
-          "row": { "x": 150, "y": 400, "w": 600, "h": 100 },
-          "action": { "x": 650, "y": 410, "w": 100, "h": 44 }
+          "row": {
+            "x": 117,
+            "y": 369,
+            "w": 483,
+            "h": 90
+          },
+          "action": {
+            "x": 445,
+            "y": 377,
+            "w": 143,
+            "h": 44
+          }
         }
       },
       "class": {
         "file": "desk-class.png",
-        "regions": { "table": { "x": 840, "y": 400, "w": 540, "h": 200 } }
+        "regions": {
+          "table": {
+            "x": 621,
+            "y": 550,
+            "w": 795,
+            "h": 225
+          }
+        }
       },
       "release": {
         "file": "desk-release.png",
         "regions": {
-          "button": { "x": 1200, "y": 400, "w": 160, "h": 44 },
-          "card": { "x": 840, "y": 380, "w": 540, "h": 100 }
+          "button": {
+            "x": 638,
+            "y": 473,
+            "w": 171,
+            "h": 44
+          },
+          "card": {
+            "x": 622,
+            "y": 349,
+            "w": 793,
+            "h": 184
+          }
         }
       },
       "released": {
         "file": "desk-released.png",
         "regions": {
-          "chips": { "x": 856, "y": 300, "w": 400, "h": 40 },
-          "header": { "x": 856, "y": 200, "w": 500, "h": 150 }
+          "chips": {
+            "x": 621,
+            "y": 302,
+            "w": 795,
+            "h": 30
+          },
+          "header": {
+            "x": 621,
+            "y": 208,
+            "w": 795,
+            "h": 124
+          }
         }
       }
     }

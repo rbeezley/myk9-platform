@@ -21,19 +21,21 @@ const DESK_SHOTS = regions.desk.shots;
 type PhoneShot = keyof typeof PHONE_SHOTS;
 type DeskShot = keyof typeof DESK_SHOTS;
 
+// Each description is of what the camera holds in that frame, in the labels the screen uses.
 const PHONE_ALT: Record<PhoneShot, string> = {
-  before: 'My Entries on the phone: Piper’s card, with Container Novice A and its result',
-  new: 'My Entries on the phone: Piper’s Container Novice A line, now with a New result button',
-  card: 'The New result card on the phone: Piper, Q and 1st in Container Novice A, with the time',
+  before:
+    'My Entries on the phone: Piper, Armband 101, marked Scored, and her Container Novice A line reading Qualified, 0:41.30, preliminary',
+  new: 'My Entries on the phone: Piper, Armband 101, marked Scored, and on her Container Novice A line a New result button',
+  card: 'The New result card on the phone: Piper, Armband 101, Heartland Scent Work Classic, Q and 1st in Container Novice A, Time 41.30s, Faults 0 faults, and a Share button',
 };
 const DESK_ALT: Record<DeskShot, string> = {
-  list: 'The Results tab: Container Novice A, Scored 3 / 3, marked Needs checking, with Check scores as the next step',
+  list: 'The Results tab, with Show set to Needs me (1): Container Novice A, Scored 3 / 3, marked Needs checking, with Check scores beside it',
   class:
-    'The open class on the Results tab: the table of placements, with Piper first and the time beside each dog',
+    'The open class on the Results tab: a Release results button above the table of placements, with Piper first, Q, 0:41.30, then Willow and Cooper',
   release:
-    'The open class with its Release results button, under Release the results, before it is pressed',
+    'The open class, Container Novice A, marked Not released and Needs checking, with a Release results button under Release the results',
   released:
-    'The open class after the press: Scored 3 / 3, 3 Q, and Released shown beside its status',
+    'The open class after the press: Container Novice A, Scored 3 / 3, 3 Q and Released shown twice, with Print the results sheet and result labels as the next step',
 };
 
 const phoneShot = (name: PhoneShot): SceneShot => ({

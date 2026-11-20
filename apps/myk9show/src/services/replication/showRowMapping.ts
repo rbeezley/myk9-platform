@@ -62,6 +62,8 @@ export function rowToShow(row: ShowRow): ReplicatedShow {
       (publishedFields.experience_published_at as string | null | undefined) ?? null,
     experiencePublishedStyle:
       (publishedFields.experience_published_style as string | null | undefined) ?? null,
-    experiencePublishedContent: readExperienceSnapshot(publishedFields.experience_published_content),
+    experiencePublishedContent: readExperienceSnapshot(
+      publishedFields.experience_published_content
+    ),
   };
 }

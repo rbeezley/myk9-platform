@@ -78,13 +78,14 @@ The **Shows** page lists every show your club is hosting or has hosted. To start
 
 ![Shows list filtered to your club — cards for past and upcoming shows](../screenshots/C-02.png)
 
-**Before you can publish.** Every draft show carries a list headed **Before you can publish**. It shows only what stands in the way, and each line opens the place to fix it. The same list appears on the show's page, on the wizard's **Review** step and on the **Show Created!** screen. The lines you may see are:
+**Before you can publish.** Every draft show carries a list headed **Before you can publish**. It shows only what stands in the way. A line you can fix links to the place to fix it. A line that waits on someone else says who: myK9Show, Stripe or your club's admins. On the wizard's **Review** step the premium line has no link yet: save the show first, then publish its premium list from the show's page. The same list appears on the show's page, on the wizard's **Review** step and on the **Show Created!** screen. The lines you may see are:
 
 - "Your club is waiting for myK9Show approval." Waiting on myK9Show, usually about a day.
 - "Your club has not finished setting up payouts." or "Stripe is reviewing your club's bank account." See [Section 4](#section-4--connect-your-bank-account-to-receive-payouts).
 - "Publish the premium list, or turn on "We publish our own premium list"."
 - "Set when entries open and close."
 - "Entries have to open before they close."
+- "Turn online entries on." Only an older draft saved with online entries off shows this. There is no switch for it any more: email [support@myk9show.com](mailto:support@myk9show.com).
 
 Publish is refused until every line is gone, and the refusal names what is missing. The list goes away when the show is published.
 
@@ -142,7 +143,7 @@ The member's row now shows a **Show Manager** badge (key icon) indicating active
 
 ## Section 4 — Connect Your Bank Account to Receive Payouts
 
-Before your club can receive entry fee revenue, a treasurer needs to complete Stripe's onboarding. This takes about 10 minutes and only needs to be done once per club. The bank step needs a club admin. If your treasurer is not one yet, add them first (see [Section 7](#section-7--club-members), **Admins tab**), then send them the [Club Treasurer Guide](../operations/stripe-treasurer-guide.md).
+Before your club can receive entry fee revenue, a treasurer needs to complete Stripe's onboarding. This takes about 10 minutes and only needs to be done once per club. The bank step needs a club admin. If your treasurer is not one yet, add them first (see [Section 7](#section-7--club-members), **Admins tab**), then point them to this section: the steps below are theirs.
 
 **Have this ready before you start:**
 
@@ -163,7 +164,7 @@ Before your club can receive entry fee revenue, a treasurer needs to complete St
 
 ![C-04: Payments tab — Bank account card with the Connect bank account button](../screenshots/C-04.png)
 
-**A secretary who is not a club admin cannot connect the bank.** On the show's **Before you can publish** list, the payouts line names the club's admins and offers **Email them the link**, which opens an email to them with the link to your Payments tab. Watch for that email, and for the line to clear once payouts are enabled.
+**A secretary who is not a club admin cannot connect the bank.** On the show's **Before you can publish** list, while the payouts line waits on a club admin it names the club's admins and, when it has their email, offers **Email them the link**, which opens an email to them with the link to your Payments tab. Watch for that email, and for the line to clear once payouts are enabled.
 
 Once onboarding is complete, the Payments tab shows a **Payouts enabled** badge. Your club will receive a deposit automatically after each show closes — you do not need to request it.
 

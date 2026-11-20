@@ -376,9 +376,10 @@ export function ResultsClassDetail({
             Scored {row.scoredCount} / {row.expectedCount}
           </Badge>
           <Badge variant="outline">{row.qualifiedCount} Q</Badge>
-          <Badge variant="outline">
-            {released ? 'Released' : row.phase === 'release-unknown' ? 'Unknown' : 'Not released'}
-          </Badge>
+          {/* The phase chip already names the release for these two phases (MYK9-2312). */}
+          {row.phase !== 'released' && row.phase !== 'release-unknown' && (
+            <Badge variant="outline">{released ? 'Released' : 'Not released'}</Badge>
+          )}
           <ResultsStatusChip phase={row.phase} label={row.phaseLabel} />
         </div>
       </header>

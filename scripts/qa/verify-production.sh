@@ -9,13 +9,12 @@
 #   1. MYK9-896: both hosts' build-sha.txt (cache-busted) must name COMMIT_SHA.
 #   2. MYK9-546 / MYK9-2247: each host's canonical homepage `/` (what visitors
 #      get) must name the entry chunk the build stamped in build-entry.txt.
-#      That also proves the hosts agree, and a cached old homepage on both
-#      cannot pass. A deployment without the stamp fails: rebuild_live=true.
+#      The stamps must agree across hosts and each homepage must match its
+#      host's stamp, so a cached old homepage on both cannot pass. A deployment without the stamp fails: rebuild_live=true.
 #
 #   COMMIT_SHA     required, full 40-char SHA production must serve
 #   DOMAIN_URL     default https://myk9show.com
 #   ALIAS_URL      default https://myk9-platform-myk9show.vercel.app
-#   EXPECTED_ENTRY_FILE  optional path of the locally built build-entry.txt
 #   VERIFY_TRIES   attempts per check (default 6)
 #   VERIFY_SLEEP   seconds between attempts (default 10)
 #
@@ -70,51 +69,43 @@ for host in "$domain" "$alias_url"; do
 done
 
 # MYK9-2247: the stamp, written at build time next to build-sha.txt, names the
-# entry chunk the build produced. Each canonical homepage must serve exactly
-# that chunk, so two hosts that agree on a stale cached homepage still fail.
+# entry chunk the build produced. Only what the hosts serve is compared: both
+# stamps must be well-formed (the SPA catch-all can answer a missing stamp with
+# index.html, HTTP 200, so only a complete entry chunk counts), equal to each
+# other, and each canonical homepage must serve exactly its host's stamp. A stale
+# stamp or homepage is retried like any propagation delay, never failed at first
+# sight, and no locally built expectation is involved (a rerun job rebuilds with
+# a different hash than what is live).
 entry_re='^src="/assets/[^"]*index-[A-Za-z0-9_-]+\.js"$'
-# After a publish the workflow hands over the stamp it just wrote locally, the
-# one expectation both hosts must meet; on a skip the hosts' own stamps must agree.
-expected=""
-if [[ -n "${EXPECTED_ENTRY_FILE:-}" && -f "$EXPECTED_ENTRY_FILE" ]]; then
-  expected="$(tr -d '[:space:]' <"$EXPECTED_ENTRY_FILE")"
-  [[ "$expected" =~ $entry_re ]] || {
-    echo "$EXPECTED_ENTRY_FILE does not hold an entry chunk: '${expected:0:80}'" >&2
-    exit 1
-  }
-fi
-for host in "$domain" "$alias_url"; do
-  stamp=""
-  for ((attempt = 1; attempt <= tries; attempt += 1)); do
-    stamp="$(served_stamp "$host" "$attempt")"
-    # The SPA catch-all can answer a missing stamp with index.html (HTTP 200),
-    # so only a complete entry chunk counts as a stamp.
-    [[ "$stamp" =~ $entry_re ]] && break
-    stamp=""
-    if ((attempt < tries)); then sleep "$pause"; fi
-  done
-  [[ -n "$stamp" ]] || {
-    echo "$host has no build-entry.txt stamp, so its homepage cannot be checked against the build. This deployment predates the stamp: rerun with rebuild_live=true to rebuild and republish it." >&2
-    exit 1
-  }
-  [[ -n "$expected" ]] || expected="$stamp"
-  [[ "$stamp" == "$expected" ]] || {
-    echo "build stamp mismatch: $host/build-entry.txt names '$stamp', expected '$expected'. The hosts serve different builds. Rerun with rebuild_live=true to republish." >&2
-    exit 1
-  }
-  found=""
-  for ((attempt = 1; attempt <= tries; attempt += 1)); do
-    found="$(entry "$host/")"
-    [[ "$found" == "$expected" ]] && break
-    echo "attempt $attempt: $host/ entry=$found expected=$expected"
-    if ((attempt < tries)); then sleep "$pause"; fi
-  done
-  [[ "$found" == "$expected" ]] || {
-    echo "entry chunk mismatch: $host/ serves '$found', the build produced '$expected' (a stale homepage is still being served). If this commit is already live, rerun with rebuild_live=true to republish it." >&2
+stamp_d=""
+stamp_a=""
+home_d=""
+home_a=""
+for ((attempt = 1; attempt <= tries; attempt += 1)); do
+  stamp_d="$(served_stamp "$domain" "$attempt")"
+  stamp_a="$(served_stamp "$alias_url" "$attempt")"
+  [[ "$stamp_d" =~ $entry_re ]] || stamp_d=""
+  [[ "$stamp_a" =~ $entry_re ]] || stamp_a=""
+  home_d="$(entry "$domain/")"
+  home_a="$(entry "$alias_url/")"
+  if [[ -n "$stamp_d" && "$stamp_d" == "$stamp_a" && "$home_d" == "$stamp_d" && "$home_a" == "$stamp_d" ]]; then
+    break
+  fi
+  echo "attempt $attempt: $domain stamp=$stamp_d homepage=$home_d; $alias_url stamp=$stamp_a homepage=$home_a"
+  if ((attempt < tries)); then sleep "$pause"; fi
+done
+
+for pair in "$domain|$stamp_d" "$alias_url|$stamp_a"; do
+  [[ -n "${pair#*|}" ]] || {
+    echo "${pair%%|*} has no build-entry.txt stamp, so its homepage cannot be checked against the build. This deployment predates the stamp: rerun with rebuild_live=true to rebuild and republish it." >&2
     exit 1
   }
 done
-public="$expected"
+[[ "$stamp_d" == "$stamp_a" && "$home_d" == "$stamp_d" && "$home_a" == "$stamp_d" ]] || {
+  echo "entry chunk mismatch: $domain stamp '$stamp_d' homepage '$home_d'; $alias_url stamp '$stamp_a' homepage '$home_a'. The hosts do not serve one build, or a stale homepage is still being served. Rerun with rebuild_live=true to republish." >&2
+  exit 1
+}
+public="$stamp_d"
 
 echo "Verified: $domain and $alias_url serve $public built from $commit_sha"
 if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then

@@ -32,12 +32,16 @@ function run(
   served: Record<string, string>,
   commitSha = SHA,
   stalled: string[] = [],
-  expectedEntry?: string
+  sequences: Record<string, string[]> = {}
 ): { status: number | null; stdout: string; stderr: string; summary: string; urls: string[] } {
   const bin = mkdtempSync(join(tmpdir(), 'verify-prod-'));
   dirs.push(bin);
   for (const [url, body] of Object.entries(served))
     writeFileSync(join(bin, encodeURIComponent(url)), body);
+  for (const [url, bodies] of Object.entries(sequences))
+    bodies.forEach((body, i) =>
+      writeFileSync(join(bin, `${encodeURIComponent(url)}.${i + 1}`), body)
+    );
   for (const url of stalled) writeFileSync(join(bin, `${encodeURIComponent(url)}.stall`), '');
   const log = join(bin, 'requested.txt');
   writeFileSync(log, '');
@@ -49,6 +53,8 @@ function run(
       `echo "$url" >>"${log}"`,
       'base="${url%%\\?*}"',
       `f="${bin}/$(node -e 'process.stdout.write(encodeURIComponent(process.argv[1]))' "$base")"`,
+      'n=0; [ -f "$f.count" ] && n=$(cat "$f.count"); n=$((n + 1)); echo "$n" >"$f.count"',
+      '[ -f "$f.$n" ] && f="$f.$n"',
       '[ -f "$f" ] || { echo "curl: (22) The requested URL returned error: 404" >&2; exit 22; }',
       'cat "$f"',
       '[ -f "$f.stall" ] && { echo "curl: (28) Operation timed out" >&2; exit 28; }',
@@ -59,8 +65,6 @@ function run(
   chmodSync(join(bin, 'curl'), 0o755);
   const summary = join(bin, 'summary.md');
   writeFileSync(summary, '');
-  const expectedFile = join(bin, 'expected-entry.txt');
-  if (expectedEntry !== undefined) writeFileSync(expectedFile, expectedEntry);
   const r = spawnSync('bash', [SCRIPT], {
     encoding: 'utf8',
     env: {
@@ -68,7 +72,6 @@ function run(
       HOME: process.env.HOME,
       GITHUB_STEP_SUMMARY: summary,
       COMMIT_SHA: commitSha,
-      ...(expectedEntry === undefined ? {} : { EXPECTED_ENTRY_FILE: expectedFile }),
       VERIFY_TRIES: '2',
       VERIFY_SLEEP: '0',
     },
@@ -142,7 +145,7 @@ describe('verify-production.sh', { timeout: 30_000 }, () => {
     });
     expect(r.status).toBe(1);
     expect(r.stderr).toContain('entry chunk mismatch');
-    expect(r.stderr).toContain(`serves '${entry('OLD')}', the build produced '${entry('ABC')}'`);
+    expect(r.stderr).toContain(`homepage '${entry('OLD')}'`);
     expect(r.stderr).toContain('rebuild_live=true');
   });
 
@@ -162,22 +165,27 @@ describe('verify-production.sh', { timeout: 30_000 }, () => {
       [`${ALIAS}/build-entry.txt`]: `${entry('OLD')}\n`,
     });
     expect(r.status).toBe(1);
-    expect(r.stderr).toContain('build stamp mismatch');
+    expect(r.stderr).toContain('entry chunk mismatch');
     expect(r.stderr).toContain('rebuild_live=true');
   });
 
-  it('holds both hosts to the locally built stamp when one is handed over', () => {
-    const allOld = {
+  it('fails when each host matches its own stamp but the hosts differ', () => {
+    const r = run({
       ...healthy(),
-      [`${DOMAIN}/`]: page('OLD'),
       [`${ALIAS}/`]: page('OLD'),
-      [`${DOMAIN}/build-entry.txt`]: `${entry('OLD')}\n`,
       [`${ALIAS}/build-entry.txt`]: `${entry('OLD')}\n`,
-    };
-    expect(run(allOld).status).toBe(0);
-    const r = run(allOld, SHA, [], `${entry('ABC')}\n`);
+    });
     expect(r.status).toBe(1);
-    expect(r.stderr).toContain('build stamp mismatch');
+    expect(r.stderr).toContain(`stamp '${entry('ABC')}' homepage '${entry('ABC')}'`);
+    expect(r.stderr).toContain(`stamp '${entry('OLD')}' homepage '${entry('OLD')}'`);
+  });
+
+  it('retries a stale stamp that becomes current within the attempts', () => {
+    const r = run(healthy(), SHA, [], {
+      [`${DOMAIN}/build-entry.txt`]: [`${entry('OLD')}\n`, `${entry('ABC')}\n`],
+    });
+    expect(r.status).toBe(0);
+    expect(r.summary).toContain('index-ABC.js');
   });
 
   it('does not take SPA fallback HTML for a stamp', () => {

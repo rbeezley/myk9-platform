@@ -45,14 +45,20 @@ and over storing the built text apart from the secretary's edits (too much for l
      first, then reopen Premium to use its current details." Without this hold, a changed venue
      or date would print new in the details and old in Show Hours, because Save & Publish lays
      the editor's text over refreshed facts (`applyEditorCopyToPremium`).
-     **"Unsaved" excludes the premium editor's own fields.** The panel's whole-form dirty flag
-     cannot be reused: opening Premium on a published show writes the loaded draft into
-     `generatedPremium`, which `showToFormData` never sets, so the flag turns true with no user
-     edit and would hold both links every time. Instead the panel compares the form's
-     non-premium fields with the snapshot it opened with, leaving out `generatedPremium`,
-     `inkSaver` and `style`. It passes the result down as a prop, the way `savedOrganization` is
-     passed today. Comparing every non-premium field is simpler than listing the inputs each
-     narrative reads, and it cannot drift when a narrative starts reading a new one.
+     **"Unsaved" means one of the fields the narratives are built from, and no other.** Those
+     are the non-trial fields of `NarrativeShowRow` (`premiumNarratives.ts`): `name`,
+     `start_date`, `end_date`, `location`, `venue_name`, `city` and `state`. Trials are not
+     edited in Edit show; they save from their own panel, so they are always saved. The panel
+     compares these form fields with the snapshot it opened with, and passes the result down as
+     a prop, the way `savedOrganization` is passed today.
+
+     Two earlier versions of this rule were rejected in review. Both reused or trimmed the
+     whole-form dirty flag. That flag turns true on its own when the editor loads its draft into
+     `generatedPremium`, and an exclusion list misses every premium-tab control added later
+     ("Generate exhibitor documents on save" was the first). An allowlist of the builder's
+     inputs has neither problem. To keep it from drifting, a parity test fails when
+     `NarrativeShowRow` gains a non-trial field that the allowlist lacks, reading the edge
+     function the way `premiumFactsParity.test.tsx` does.
 5. **Offline there is no link,** including when the editor loaded online and then lost its
    connection. `builtNarratives` stays in the editor's state after the facts query is disabled,
    so visibility is gated on `useIsOnline()` as well as on the field being present. With no
@@ -91,7 +97,9 @@ and over storing the built text apart from the secretary's edits (too much for l
 - Through `ShowEditPanel` (not the editor alone):
   - opening Premium on a published show, which loads the draft, leaves the link enabled under a
     narrative that differs;
+  - ticking "Generate exhibitor documents on save" leaves it enabled;
   - changing the venue disables it, with the reason line.
+- Parity test: the allowlist equals `NarrativeShowRow`'s non-trial keys.
 - Browser walk on a published draft: add a trial and save. Reopen Edit show › Premium, see the
   link under Trial Information, use it, then Save & Publish. In the published PDF, assert on the
   narrative paragraphs, not the schedule (`StandardBody` lists trials from structured facts

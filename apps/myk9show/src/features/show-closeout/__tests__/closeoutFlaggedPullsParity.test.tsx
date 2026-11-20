@@ -20,6 +20,7 @@ import type { SyncableTrial } from '@/store/trial-store-types';
 
 const replica = vi.hoisted(() => ({ rows: [] as Record<string, unknown>[], fail: false }));
 const clearFlaggedPull = vi.hoisted(() => vi.fn());
+const scratchShowMapEntry = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/database/entries', () => ({
   getEntriesForShow: vi.fn(async () =>
@@ -34,6 +35,10 @@ vi.mock('@/services/database/entries', () => ({
   searchEntries: vi.fn(),
 }));
 vi.mock('@/services/database/entries/flaggedPull', () => ({ clearFlaggedPull }));
+vi.mock('@/features/show-map/showMapActionMutations', () => ({
+  scratchShowMapEntry,
+  undoShowMapScratch: vi.fn(),
+}));
 vi.mock('@/hooks/queries/useRefreshShowEntriesOnOpen', () => ({
   useRefreshShowEntriesOnOpen: () => undefined,
 }));
@@ -288,5 +293,11 @@ describe('MYK9-2180: one flagged-pull read for the Finish list and the close ste
     expect(sunDialog).toContain('Sun Oct 11, Trial 2, entry SUN002');
     expect(sunDialog).not.toContain('SAT001');
     expect(sunDialog).not.toMatch(/removed|deleted/i);
+
+    // The Pull writes the Sunday entry, never its Saturday twin.
+    scratchShowMapEntry.mockResolvedValue({ entryId: 'entry-sun002' });
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Pull' }));
+    await vi.waitFor(() => expect(scratchShowMapEntry).toHaveBeenCalledTimes(1));
+    expect(scratchShowMapEntry).toHaveBeenCalledWith('entry-sun002', undefined, expect.anything());
   });
 });

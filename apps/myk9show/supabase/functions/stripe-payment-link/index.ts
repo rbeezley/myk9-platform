@@ -10,7 +10,7 @@ import {
 } from '../_shared/cartItemPricing.ts';
 import { showTimeZoneFromTrials, type ShowTrialZoneRow } from '../_shared/showTimeZone.ts';
 import { buildEntryPaymentLinkSession } from '../_shared/entryPaymentLink.ts';
-import { isStripeLiveMode } from '../_shared/stripeMode.ts';
+import { requireStripeLivemode } from '../_shared/stripeMode.ts';
 import { clubPayoutsRefusal, type ClubAccountLookup } from '../_shared/clubPayoutsGate.ts';
 import {
   WITHDRAWAL_DISCLOSURE_SELECT,
@@ -31,7 +31,8 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 const stripe = new Stripe(stripeSecret, {
   appInfo: { name: 'myK9Show', version: '1.0.0' },
 });
-const stripeLivemode = isStripeLiveMode(stripeSecret);
+// Fails closed at boot on a key whose mode is unknown (MYK9-2187).
+const stripeLivemode = requireStripeLivemode(stripeSecret);
 
 // Stripe Checkout Sessions live at most 24h (min 30 min). A secretary's "pay
 // within N days" intent is tracked by the entry's own deadline, NOT the link —

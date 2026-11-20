@@ -43,7 +43,7 @@ export type TransferLookup =
 /**
  * What Stripe has for this show's transfer_group. Never throws. The lookup
  * trusts the job's current Stripe mode: an attempt made under the other mode's
- * key is invisible here. The mode check is MYK9-2187.
+ * key is invisible here, and nothing here guards against that: see MYK9-2305.
  */
 export async function lookUpShowTransfer(
   stripe: StripeTransfers,

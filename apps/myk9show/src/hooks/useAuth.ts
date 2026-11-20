@@ -10,6 +10,7 @@ import { clearOwnerNameCache } from '@/services/database/dogs/ownerNameCache';
 import { replicatedClassesTable } from '@/services/replication';
 import { ringsideClaimMatchesUser } from '@/features/at-show/ringsideClaimCache';
 import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
+import { bumpSignOutGeneration, setRedactionPending } from '@/store/userStoreContactRedaction';
 import type { User } from '@supabase/supabase-js';
 import { clearClubOnboardingDraft } from '@/components/landing/lifecycle/clubOnboardingDraft';
 import {
@@ -186,6 +187,16 @@ export function useAuth() {
       if (_event === 'SIGNED_OUT') {
         clearAppearanceCache();
         clearOwnerNameCache();
+        // MYK9-2255: phone, email and address leave the saved people; names stay.
+        // The marker and generation are set synchronously from a light static module, so a
+        // failed chunk load (a deploy mid-session, an uncached offline chunk) still leaves
+        // the next start to strip, and a directory load in flight cannot write contacts back.
+        // Only the store and the strip stay dynamic: the people store is lazily loaded.
+        setRedactionPending();
+        bumpSignOutGeneration();
+        void import('@/services/database/users/signOutPeopleRedaction')
+          .then(m => m.redactPeopleContactsOnDevice())
+          .catch(error => console.error('Could not remove saved contact details:', error));
         // MYK9-2046: the unsent home page club form holds contact details.
         clearClubOnboardingDraft();
         clearAllRbacWarmTokens();

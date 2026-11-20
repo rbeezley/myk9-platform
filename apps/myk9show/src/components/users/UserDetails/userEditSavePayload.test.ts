@@ -55,3 +55,18 @@ describe('buildUserEditSavePayload', () => {
     });
   });
 });
+
+describe('buildUserEditSavePayload, judge affiliation (MYK9-2292)', () => {
+  it('forwards the affiliation, including a cleared one', () => {
+    expect(buildUserEditSavePayload({ judgeAffiliation: 'Region 4' })).toMatchObject({
+      judgeAffiliation: 'Region 4',
+    });
+    expect(buildUserEditSavePayload({ judgeAffiliation: '' })).toMatchObject({
+      judgeAffiliation: '',
+    });
+  });
+
+  it('omits it when the panel did not produce one, so a save never clears it', () => {
+    expect('judgeAffiliation' in buildUserEditSavePayload({ firstName: 'Jane' })).toBe(false);
+  });
+});

@@ -55,6 +55,8 @@ export interface UserFormData extends Record<string, unknown> {
    * alone (the save is a merge patch, see `juniorHandlerNumbersPatch`).
    */
   juniorHandlerNumbers: Record<string, string>;
+  /** MYK9-2292 (ASCA §1.5.7): a judge's affiliation, free text; '' when none. Judges only. */
+  judgeAffiliation: string;
   profileImage?: string;
   judgeQualifications: JudgeQualification[];
   roles: string[];

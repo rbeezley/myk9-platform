@@ -23,6 +23,7 @@ interface ServerJudgeRow {
     last_name: string | null;
     city: string | null;
     state: string | null;
+    judge_affiliation: string | null;
   } | null;
   assigned_class: {
     element: string | null;
@@ -98,7 +99,7 @@ async function readServerJudges(
       .from('judge_assignments')
       .select(
         `id, person_id, show_id, class_id, invited_at, confirmed_at,
-         judge:people!judge_assignments_person_id_fkey(id, first_name, last_name, city, state),
+         judge:people!judge_assignments_person_id_fkey(id, first_name, last_name, city, state, judge_affiliation),
          assigned_class:classes!judge_assignments_class_id_fkey(
            element, level, section, deleted_at,
            trial:trials!classes_trial_id_fkey(name, date, deleted_at)
@@ -139,11 +140,18 @@ async function readServerJudges(
       residenceByPerson.set(row.person_id, formatJudgeResidence(row.judge.city, row.judge.state));
     }
   }
+  const affiliationByPerson = new Map<string, string | null>();
+  for (const row of rows) {
+    if (row.judge) {
+      affiliationByPerson.set(row.person_id, row.judge.judge_affiliation?.trim() || null);
+    }
+  }
   const classLabels = collectClassLabels(rows);
   return {
     judges: buildAssignedJudges(assignments, showId, people).map(judge => ({
       ...judge,
       residence: residenceByPerson.get(judge.judgeId) ?? null,
+      affiliation: affiliationByPerson.get(judge.judgeId) ?? null,
       classLabels: classLabels.get(judge.judgeId)?.all ?? [],
       classLabelsByTrial: classLabels.get(judge.judgeId)?.byTrial ?? [],
     })),

@@ -2,9 +2,14 @@ import type { PremiumTrialFacts } from '../../premiumFacts';
 
 type JudgeFact = PremiumTrialFacts['judges'][number];
 
-/** "Jane Smith, Springfield, IL", or the name alone for a judge with no city (MYK9-2067). */
+/**
+ * "Jane Smith, Springfield, IL", or the name alone for a judge with no city (MYK9-2067), then
+ * " (ASCA-approved judge, Region 4)" when the premium carries an affiliation (MYK9-2292; the facts
+ * hold one only on an ASCA premium).
+ */
 export function judgeHeading(judge: JudgeFact): string {
-  return judge.residence ? `${judge.name}, ${judge.residence}` : judge.name;
+  const named = judge.residence ? `${judge.name}, ${judge.residence}` : judge.name;
+  return judge.affiliation ? `${named} (${judge.affiliation})` : named;
 }
 
 /** The judge's classes as one line, or null when they have none (a judge on every class). */

@@ -59,6 +59,7 @@ const userFormObject = z.object({
   zipCode: z.string(),
   dateOfBirth: dateOfBirthSchema,
   juniorHandlerNumbers: z.record(z.string(), z.string()),
+  judgeAffiliation: z.string().max(200, 'Keep the affiliation under 200 characters'),
   profileImage: z.string().optional(),
   judgeQualifications: z.array(judgeQualificationSchema),
   roles: z.array(z.string()),
@@ -118,6 +119,7 @@ export const userToFormData = (user: Partial<UserType>): UserFormData => {
     // could read the value: the stored date of birth does not reach this panel.
     dateOfBirth: '',
     juniorHandlerNumbers: {},
+    judgeAffiliation: user.judgeAffiliation || '',
     profileImage: user.profileImage || (userRecord.profile_image_url as string) || '',
     judgeQualifications: (user.judgeQualifications as JudgeQualification[]) || [],
     roles: (user.roles || []) as unknown as string[], // Handle UserRole[] type
@@ -172,6 +174,8 @@ export const formDataToUser = (formData: UserFormData): Partial<UserType> => ({
   zipCode: formData.zipCode,
   // MYK9-570 / MYK9-664: emitted only when somebody typed one (write-only).
   ...juniorHandlerFieldsToSave(formData),
+  // MYK9-2292: a judge's field only, and always sent for one so a cleared box clears it.
+  ...(formData.roles.includes('judge') && { judgeAffiliation: formData.judgeAffiliation.trim() }),
   profileImage: formData.profileImage,
   judgeQualifications: formData.judgeQualifications,
   roles: formData.roles as UserRole[],

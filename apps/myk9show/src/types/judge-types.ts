@@ -12,6 +12,8 @@ export interface ShowJudgeAssignment {
   hasShowLevelAssignment?: boolean;
   /** "City, ST" of residence for the premium (MYK9-2067); null or absent when `people` has no city. */
   residence?: string | null;
+  /** "ASCA-approved judge, Region 4" (MYK9-2292, ASCA §1.5.7) from `people.judge_affiliation`; null or absent when unset. */
+  affiliation?: string | null;
   /** Labels ("Element Level Section") of the classes assigned at class level. */
   classLabels?: string[];
   /**

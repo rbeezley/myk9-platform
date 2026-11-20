@@ -5518,6 +5518,7 @@ export type Database = {
           email: string | null
           first_name: string
           id: string
+          judge_affiliation: string | null
           last_name: string
           license_key: string | null
           phone: string | null
@@ -5543,6 +5544,7 @@ export type Database = {
           email?: string | null
           first_name: string
           id?: string
+          judge_affiliation?: string | null
           last_name: string
           license_key?: string | null
           phone?: string | null
@@ -5568,6 +5570,7 @@ export type Database = {
           email?: string | null
           first_name?: string
           id?: string
+          judge_affiliation?: string | null
           last_name?: string
           license_key?: string | null
           phone?: string | null

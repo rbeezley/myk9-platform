@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { User as UserType } from '@/types/user-types';
+import { UserRole } from '@/types/auth-types';
 import { formDataToUser, userFormSchema, userToFormData } from './UserEditPanel.helpers';
 
 const formData = userToFormData({
@@ -72,5 +73,43 @@ describe('junior handler fields are write-only', () => {
     expect(userFormSchema.safeParse({ ...base, dateOfBirth: '2999-01-01' }).success).toBe(false);
     expect(userFormSchema.safeParse({ ...base, dateOfBirth: '' }).success).toBe(true);
     expect(userFormSchema.safeParse({ ...base, dateOfBirth: '04/03/2011' }).success).toBe(false);
+  });
+});
+
+/** MYK9-2292 (ASCA §1.5.7): a judge's affiliation, typed on the person editor. */
+describe('judge affiliation', () => {
+  const judge: Partial<UserType> = {
+    id: 'person-2',
+    firstName: 'Jane',
+    lastName: 'Smith',
+    roles: [UserRole.JUDGE],
+    judgeAffiliation: 'ASCA-approved judge, Region 4',
+  };
+
+  it('seeds the form from the person and sends it back trimmed for a judge', () => {
+    const form = userToFormData(judge);
+    expect(form.judgeAffiliation).toBe('ASCA-approved judge, Region 4');
+    expect(formDataToUser({ ...form, judgeAffiliation: '  Region 5  ' })).toMatchObject({
+      judgeAffiliation: 'Region 5',
+    });
+  });
+
+  it('sends a cleared box as an empty string, so the stored value is cleared', () => {
+    expect(formDataToUser({ ...userToFormData(judge), judgeAffiliation: '' })).toMatchObject({
+      judgeAffiliation: '',
+    });
+  });
+
+  it('is never sent for a person who is not a judge', () => {
+    const form = userToFormData({ ...judge, roles: [] });
+    expect('judgeAffiliation' in formDataToUser(form)).toBe(false);
+  });
+
+  it('refuses an affiliation over 200 characters', () => {
+    const result = userFormSchema.safeParse({
+      ...userToFormData(judge),
+      judgeAffiliation: 'x'.repeat(201),
+    });
+    expect(result.success).toBe(false);
   });
 });

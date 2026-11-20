@@ -76,7 +76,8 @@ export type PremiumFactId =
   | 'spectatorsPolicy'
   | 'photographerContact'
   | 'limitedMobility'
-  | 'rvHookups';
+  | 'rvHookups'
+  | 'judgeAffiliation';
 
 export type PremiumFactSource =
   'club' | 'show' | 'trial' | 'class' | 'person' | 'template' | 'registry';
@@ -196,6 +197,8 @@ export const PREMIUM_FACT_CATALOG: readonly PremiumFactDefinition[] = [
     requiredBy: ['ASCA'],
   },
   { id: 'rvHookups', label: 'RV hook-ups', source: 'template', requiredBy: [] },
+  // MYK9-2292: ASCA §1.5.7, typed once on each judge's person record.
+  { id: 'judgeAffiliation', label: 'Judge affiliation', source: 'person', requiredBy: ['ASCA'] },
 ];
 
 // ─── Formatting every style shares ──────────────────────────────────────────────────────
@@ -317,7 +320,13 @@ export interface PremiumTrialFacts {
   date: string;
   startTime: string | null;
   eventNumber: string | null;
-  judges: Array<{ name: string; residence: string | null; classes: string[] }>;
+  judges: Array<{
+    name: string;
+    residence: string | null;
+    /** MYK9-2292 (ASCA §1.5.7): the judge's affiliation; null on every other registry's premium. */
+    affiliation: string | null;
+    classes: string[];
+  }>;
   /** "Element Level Section" in the registry's progression order. */
   classLabels: string[];
   /** MYK9-2229: "Trial entry limit: N entries." when this trial has its own limit, else null. */
@@ -472,6 +481,8 @@ export function buildPremiumFacts(
         judges: (trial.judges ?? []).map(j => ({
           name: j.name,
           residence: j.residence?.trim() || null,
+          // ASCA only: another registry's premium never prints an affiliation typed on the judge.
+          affiliation: registry === 'ASCA' ? j.affiliation?.trim() || null : null,
           // Only the classes this trial runs, in its own progression order.
           classes: [...new Set(classLabels.filter(label => (j.classes ?? []).includes(label)))],
         })),

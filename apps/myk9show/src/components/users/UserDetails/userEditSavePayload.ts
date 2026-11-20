@@ -25,6 +25,9 @@ export function buildUserEditSavePayload(userData: Partial<UserType>): Partial<U
     city: userData.city || '',
     state: userData.state || '',
     zipCode: userData.zipCode || '',
+    // MYK9-2292: forwarded only when the panel produced it (the judge field), so a save from a
+    // surface without it never clears a stored affiliation.
+    ...(userData.judgeAffiliation !== undefined && { judgeAffiliation: userData.judgeAffiliation }),
     // MYK9-570: the junior handler inputs. Both are optional on the form, so
     // both are forwarded only when the panel actually produced them.
     ...(userData.dateOfBirth !== undefined && { dateOfBirth: userData.dateOfBirth }),

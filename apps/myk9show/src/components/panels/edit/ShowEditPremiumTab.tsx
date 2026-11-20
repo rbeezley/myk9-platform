@@ -275,6 +275,7 @@ function buildLocalPremiumDraft(
       judges: (data.assignedJudges ?? []).map(judge => ({
         name: judge.judgeName,
         residence: judge.residence ?? null,
+        affiliation: judge.affiliation ?? null,
         classes: judge.classLabels ?? [],
       })),
       classes: (trial.classes ?? []).map(cls => ({

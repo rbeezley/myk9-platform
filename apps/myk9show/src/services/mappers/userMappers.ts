@@ -92,6 +92,7 @@ export const mapDatabaseToUser = (dbUser: Record<string, unknown>): User => {
     state: dbUser.state as string,
     zipCode: dbUser.zip_code as string,
     profileImage: dbUser.profile_image as string,
+    judgeAffiliation: (dbUser.judge_affiliation as string | null) || undefined,
     user_id: dbUser.auth_user_id as string, // Link to auth.users for RBAC
 
     // MYK9-664: no dateOfBirth / juniorHandlerNumbers here. They are not

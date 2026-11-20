@@ -48,6 +48,7 @@ export const mapDbUserToUser = (dbUser: MappableDbUser): User => ({
   state: dbUser.state || undefined,
   zipCode: dbUser.zip_code || undefined,
   country: dbUser.country || undefined,
+  judgeAffiliation: dbUser.judge_affiliation || undefined,
   profileImage: dbUser.profile_image || undefined,
   user_id: dbUser.auth_user_id || undefined,
   // MYK9-664: no dateOfBirth / juniorHandlerNumbers — they live in
@@ -75,6 +76,8 @@ export const mapUserToDbUpdate = (user: Partial<User>): PersonUpdate => {
   if (user.state !== undefined) dbUpdate.state = user.state;
   if (user.zipCode !== undefined) dbUpdate.zip_code = user.zipCode;
   if (user.country !== undefined) dbUpdate.country = user.country;
+  // MYK9-2292: an empty string clears it (the save function stores a blank as NULL).
+  if (user.judgeAffiliation !== undefined) dbUpdate.judge_affiliation = user.judgeAffiliation;
   if (user.profileImage !== undefined) dbUpdate.profile_image = user.profileImage;
   // MYK9-570 / MYK9-664: written to `people_private` by `updateUser` through
   // the RPC. An empty string clears the date. The numbers are a MERGE patch: a

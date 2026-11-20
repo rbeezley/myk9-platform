@@ -115,6 +115,8 @@ const generatedPremiumSchema = z.object({
         z.object({
           name: z.string(),
           residence: nullableText.default(null),
+          // MYK9-2292: optional, so an older premium parses and zod keeps it on a new one.
+          affiliation: nullableText.optional(),
           classes: z.array(z.string()).default([]),
         })
       ),

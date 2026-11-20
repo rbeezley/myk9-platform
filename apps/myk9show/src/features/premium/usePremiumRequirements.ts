@@ -10,6 +10,8 @@ import { useClubPremiumTemplates } from '@/hooks/queries/usePremiumTemplates';
 import type { ClubPremiumTemplate } from '@/types/premium-types';
 import { useShowOfficials } from '@/hooks/queries/useShowOfficials';
 import { fetchShowCommittee, getCommittee } from '@/services/database/club-memberships/committee';
+import { fetchShowJudgeAffiliations } from '@/services/database/judges/judgeAffiliations';
+import type { ShowJudgeAffiliation } from '@/services/database/judges/judgeAffiliations';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type { Show } from '@/types/show-types';
 import type { PremiumFactId } from './premiumFacts';
@@ -50,6 +52,8 @@ interface PremiumRequirementInputs {
   trials: ReadonlyArray<RequirementTrial>;
   classes: ReadonlyArray<RequirementClass>;
   judges: ReadonlyArray<ShowJudgeAssignment>;
+  /** MYK9-2292: each judge with the affiliation typed on them; absent means not known here. */
+  judgeAffiliations?: ReadonlyArray<ShowJudgeAffiliation> | undefined;
   secretaryName: string | null;
   secretaryAddress?: string | null;
   secretaryEmail?: string | null | undefined;
@@ -139,6 +143,7 @@ export function requirementFactsFromShow(input: PremiumRequirementInputs): Premi
         }),
     committee: input.committee,
     showTerms: buildShowTermFacts(show),
+    ...(input.judgeAffiliations && { judgeAffiliations: input.judgeAffiliations }),
     recordingFeeDates: premiumRecordingFeeDates(
       trials.map(trial => ({ date: trial.trialDate ?? null, status: trial.status ?? null })),
       show.startDate
@@ -202,6 +207,13 @@ export function usePremiumRequirements(
   const templates = useClubPremiumTemplates(
     enabled && registry === 'ASCA' ? (show.clubId ?? '') : ''
   );
+  // MYK9-2292: ASCA §1.5.7. The affiliation is typed on each judge's person record, which the
+  // device's judge roster does not carry, so it is read (online) only where the roster is held.
+  const affiliations = useQuery({
+    queryKey: ['premiumJudgeAffiliations', show.id],
+    queryFn: () => fetchShowJudgeAffiliations(show.id),
+    enabled: enabled && registry === 'ASCA' && judges !== null,
+  });
   // Whether the show has replaced the club's committee; decides which list "Fix it" opens.
   const ownCommittee = useQuery({
     queryKey: committeeScopeKey({ kind: 'show', showId: show.id }),
@@ -210,7 +222,14 @@ export function usePremiumRequirements(
   });
 
   // Hold the list until the officials and committee answer, so it does not grow under the reader.
-  if (!enabled || !registry || officials.isLoading || committee.isLoading || templates.isLoading) {
+  if (
+    !enabled ||
+    !registry ||
+    officials.isLoading ||
+    committee.isLoading ||
+    templates.isLoading ||
+    affiliations.isLoading
+  ) {
     return { items: [], registry };
   }
 
@@ -231,12 +250,14 @@ export function usePremiumRequirements(
   }
   if (!committee.data) unavailable.add('committee');
   if (!judges) unavailable.add('judges');
+  if (!judges || !affiliations.data) unavailable.add('judgeAffiliation');
 
   const facts = requirementFactsFromShow({
     show,
     trials,
     classes,
     judges: judges ?? [],
+    judgeAffiliations: affiliations.data,
     secretaryName: personName(officials.data?.secretaries[0]),
     secretaryAddress: officials.data?.secretaries[0]?.mailingAddress ?? null,
     chairName: personName(officials.data?.chairmen[0]),

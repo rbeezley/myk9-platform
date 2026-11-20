@@ -172,7 +172,13 @@ export interface GeneratedPremium {
      * for a judge on every class). Both are absent on a premium generated before it, which also
      * carried `elements`; nothing reads `elements` any more.
      */
-    judges: Array<{ name: string; residence?: string | null; classes?: string[] }>;
+    judges: Array<{
+      name: string;
+      residence?: string | null;
+      /** MYK9-2292 (ASCA §1.5.7); absent on a premium generated before it. Prints on ASCA only. */
+      affiliation?: string | null;
+      classes?: string[];
+    }>;
     classes: Array<{
       element: string;
       level: string;

@@ -281,6 +281,7 @@ const launchCriticalSqlTests = [
   'myk9_1931_class_fee_wins_test.sql',
   'golden_replay_trial_27835_test.sql',
   'myk9_2291_club_template_asca_facts_test.sql',
+  'myk9_2292_judge_affiliation_test.sql',
 ];
 
 // Runs `command` with a stand-in psql first on PATH that logs its arguments,

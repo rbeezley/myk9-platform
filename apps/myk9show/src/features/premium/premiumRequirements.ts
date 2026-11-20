@@ -55,6 +55,8 @@ export interface PremiumRequirementFacts {
   recordingFeeDates?: readonly string[];
   /** MYK9-2290: the show's ASCA terms as printed. Absent means not known here, and nothing is said. */
   showTerms?: ReadonlyArray<{ label: string }>;
+  /** MYK9-2292: each judge on the show with the affiliation typed on them. Absent means not known here. */
+  judgeAffiliations?: ReadonlyArray<{ id: string; name: string; affiliation: string | null }>;
   trials: Array<
     Pick<PremiumFacts['trials'][number], 'name' | 'eventNumber' | 'classLabels'> & {
       /** The trial's id when known; it scopes the link to that trial. */
@@ -211,6 +213,18 @@ const CHECKS: Partial<Record<PremiumFactId, Check>> = {
           : []
       ),
     href: editShow('judges'),
+  },
+  // MYK9-2292: ASCA §1.5.7. One item per judge on the show with no affiliation on their record.
+  judgeAffiliation: {
+    missing: (f, r) =>
+      (f.judgeAffiliations ?? [])
+        .filter(j => blank(j.affiliation))
+        .map(j => ({
+          key: `judgeAffiliation:${j.id}`,
+          message: `${r} requires each judge's affiliation. Add it for ${j.name} on their person record.`,
+          href: `/people/${j.id}`,
+        })),
+    href: () => null,
   },
   secretary: {
     missing: (f, r) =>

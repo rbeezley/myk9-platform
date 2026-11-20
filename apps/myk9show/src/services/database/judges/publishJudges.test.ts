@@ -190,7 +190,13 @@ describe('fetchShowJudgesForPublish', () => {
       assigned: { element: string | null; level: string | null; section: string | null } | null
     ) => ({
       ...row(personId, 'Pat'),
-      judge: { id: personId, first_name: 'Pat', last_name: 'Judge', ...place },
+      judge: {
+        id: personId,
+        first_name: 'Pat',
+        last_name: 'Judge',
+        judge_affiliation: null,
+        ...place,
+      },
       assigned_class: assigned,
     });
 
@@ -267,6 +273,36 @@ describe('fetchShowJudgesForPublish', () => {
       expect(judges).toEqual([
         expect.objectContaining({ judgeId: 'j1', classLabels: [], classLabelsByTrial: [] }),
         expect.objectContaining({ judgeId: 'j2', classLabels: [], classLabelsByTrial: [] }),
+      ]);
+    });
+
+    // MYK9-2292: the publish read and the generator (trialJudges.ts) agree on the affiliation.
+    it("asks for the judge's affiliation and carries it trimmed, null when blank", async () => {
+      const place = { city: 'Springfield', state: 'IL' };
+      server.range.mockResolvedValue({
+        data: [
+          {
+            ...withPlace('j1', place, null),
+            judge: {
+              id: 'j1',
+              first_name: 'Pat',
+              last_name: 'Judge',
+              ...place,
+              judge_affiliation: '  ASCA-approved judge, Region 4 ',
+            },
+          },
+          withPlace('j2', place, null),
+        ],
+        error: null,
+      });
+      device.read.mockRejectedValue(new Error('IDB timeout'));
+
+      const judges = await fetchShowJudgesForPublish('show-1');
+
+      expect(server.select).toHaveBeenCalledWith(expect.stringContaining('judge_affiliation'));
+      expect(judges).toEqual([
+        expect.objectContaining({ judgeId: 'j1', affiliation: 'ASCA-approved judge, Region 4' }),
+        expect.objectContaining({ judgeId: 'j2', affiliation: null }),
       ]);
     });
 

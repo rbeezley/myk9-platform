@@ -59,6 +59,7 @@ const userFormObject = z.object({
   zipCode: z.string(),
   dateOfBirth: dateOfBirthSchema,
   juniorHandlerNumbers: z.record(z.string(), z.string()),
+  judgeAffiliation: z.string().max(200, 'Keep the affiliation under 200 characters'),
   profileImage: z.string().optional(),
   judgeQualifications: z.array(judgeQualificationSchema),
   roles: z.array(z.string()),
@@ -118,6 +119,7 @@ export const userToFormData = (user: Partial<UserType>): UserFormData => {
     // could read the value: the stored date of birth does not reach this panel.
     dateOfBirth: '',
     juniorHandlerNumbers: {},
+    judgeAffiliation: user.judgeAffiliation || '',
     profileImage: user.profileImage || (userRecord.profile_image_url as string) || '',
     judgeQualifications: (user.judgeQualifications as JudgeQualification[]) || [],
     roles: (user.roles || []) as unknown as string[], // Handle UserRole[] type
@@ -160,8 +162,36 @@ function juniorHandlerFieldsToSave(
   };
 }
 
+/**
+ * Whether the Judge section (the affiliation) applies to this person: a judge role, or a judge
+ * qualification (the show wizard's new judge has only the qualification). One rule for showing
+ * the field and for saving it (MYK9-2292).
+ */
+export const isJudgePerson = (person: {
+  roles?: readonly unknown[] | undefined;
+  judgeQualifications?: readonly unknown[] | undefined;
+}): boolean =>
+  (person.roles ?? []).includes('judge') || (person.judgeQualifications ?? []).length > 0;
+
+/**
+ * MYK9-2292: a judge's affiliation goes out only when the field differs from the value the panel
+ * opened with. A surface that never loaded the stored affiliation (the admin roster) opens with
+ * '' and must not clear it by saving an unrelated phone number; a cleared box still clears it.
+ */
+function judgeAffiliationToSave(
+  formData: UserFormData,
+  initialData: UserFormData | undefined
+): Pick<Partial<UserType>, 'judgeAffiliation'> {
+  if (!isJudgePerson(formData)) return {};
+  const next = formData.judgeAffiliation.trim();
+  return next === (initialData?.judgeAffiliation ?? '').trim() ? {} : { judgeAffiliation: next };
+}
+
 // Convert form data back to UserType
-export const formDataToUser = (formData: UserFormData): Partial<UserType> => ({
+export const formDataToUser = (
+  formData: UserFormData,
+  initialData?: UserFormData
+): Partial<UserType> => ({
   firstName: formData.firstName,
   lastName: formData.lastName,
   email: formData.email,
@@ -172,6 +202,7 @@ export const formDataToUser = (formData: UserFormData): Partial<UserType> => ({
   zipCode: formData.zipCode,
   // MYK9-570 / MYK9-664: emitted only when somebody typed one (write-only).
   ...juniorHandlerFieldsToSave(formData),
+  ...judgeAffiliationToSave(formData, initialData),
   profileImage: formData.profileImage,
   judgeQualifications: formData.judgeQualifications,
   roles: formData.roles as UserRole[],

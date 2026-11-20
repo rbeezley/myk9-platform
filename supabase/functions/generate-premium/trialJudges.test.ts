@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import {
+  PREMIUM_JUDGE_ASSIGNMENTS_SELECT,
   formatResidence,
   premiumTrialJudges,
   type PremiumJudgeAssignmentRow,
@@ -45,6 +46,7 @@ describe('premiumTrialJudges', () => {
         {
           name: 'Pat Donovan',
           residence: 'Demoville, KS',
+          affiliation: null,
           classes: ['Buried Master', 'Container Novice B'],
         },
       ]
@@ -53,7 +55,12 @@ describe('premiumTrialJudges', () => {
 
   it('matches a class-level row with no trial_id (set_class_judge) through its class', () => {
     expect(premiumTrialJudges([row(donovan, 'c-int', { trial_id: null })], trial)).toEqual([
-      { name: 'Pat Donovan', residence: 'Demoville, KS', classes: ['Interior Advanced'] },
+      {
+        name: 'Pat Donovan',
+        residence: 'Demoville, KS',
+        affiliation: null,
+        classes: ['Interior Advanced'],
+      },
     ]);
   });
 
@@ -70,17 +77,27 @@ describe('premiumTrialJudges', () => {
         trial
       )
     ).toEqual([
-      { name: 'Sam Kerr', residence: null, classes: ['Container Novice A', 'Interior Advanced'] },
-      { name: 'Pat Donovan', residence: 'Demoville, KS', classes: ['Container Novice A'] },
+      {
+        name: 'Sam Kerr',
+        residence: null,
+        affiliation: null,
+        classes: ['Container Novice A', 'Interior Advanced'],
+      },
+      {
+        name: 'Pat Donovan',
+        residence: 'Demoville, KS',
+        affiliation: null,
+        classes: ['Container Novice A'],
+      },
     ]);
   });
 
   it('lists no classes for a whole-trial judge, and a whole-show judge appears on every trial', () => {
     expect(premiumTrialJudges([row(donovan, 'c-int'), row(donovan, null)], trial)).toEqual([
-      { name: 'Pat Donovan', residence: 'Demoville, KS', classes: [] },
+      { name: 'Pat Donovan', residence: 'Demoville, KS', affiliation: null, classes: [] },
     ]);
     expect(premiumTrialJudges([row(kerr, null, { trial_id: null })], trial)).toEqual([
-      { name: 'Sam Kerr', residence: null, classes: [] },
+      { name: 'Sam Kerr', residence: null, affiliation: null, classes: [] },
     ]);
     expect(premiumTrialJudges([row(kerr, null, { trial_id: 't-1' })], trial)).toEqual([]);
   });
@@ -123,6 +140,32 @@ describe('premiumTrialJudges', () => {
   });
 });
 
+describe('judge affiliation (MYK9-2292)', () => {
+  const affiliated = { ...donovan, judge_affiliation: '  ASCA-approved judge, Region 4  ' };
+
+  it('selects the column the premium reads', () => {
+    expect(PREMIUM_JUDGE_ASSIGNMENTS_SELECT).toContain('judge_affiliation');
+  });
+
+  it('carries the trimmed affiliation once per judge, whatever their class count', () => {
+    expect(
+      premiumTrialJudges([row(affiliated, 'c-cont-b'), row(affiliated, 'c-buried')], trial)
+    ).toEqual([
+      {
+        name: 'Pat Donovan',
+        residence: 'Demoville, KS',
+        affiliation: 'ASCA-approved judge, Region 4',
+        classes: ['Buried Master', 'Container Novice B'],
+      },
+    ]);
+  });
+
+  it.each([null, undefined, '   '])('is null when the affiliation is %j', judge_affiliation => {
+    const [judge] = premiumTrialJudges([row({ ...donovan, judge_affiliation }, 'c-int')], trial);
+    expect(judge?.affiliation).toBeNull();
+  });
+});
+
 describe('formatResidence', () => {
   it('prints "City, ST", the city alone, or nothing without a city', () => {
     expect(formatResidence(' Demoville ', ' KS ')).toBe('Demoville, KS');
@@ -159,7 +202,12 @@ describe('a roster judge with class assignments (MYK9-2244)', () => {
 
   it('lists the judge only on the trial of their class, with that class', () => {
     expect(premiumTrialJudges([rosterRow, classRow], t1)).toEqual([
-      { name: 'Pat Donovan', residence: 'Demoville, KS', classes: ['Buried Novice'] },
+      {
+        name: 'Pat Donovan',
+        residence: 'Demoville, KS',
+        affiliation: null,
+        classes: ['Buried Novice'],
+      },
     ]);
     expect(premiumTrialJudges([rosterRow, classRow], t2)).toEqual([]);
   });
@@ -167,7 +215,7 @@ describe('a roster judge with class assignments (MYK9-2244)', () => {
   it('a roster-only judge still lists on every trial with no class line', () => {
     for (const trialRow of [t1, t2]) {
       expect(premiumTrialJudges([rosterRow], trialRow)).toEqual([
-        { name: 'Pat Donovan', residence: 'Demoville, KS', classes: [] },
+        { name: 'Pat Donovan', residence: 'Demoville, KS', affiliation: null, classes: [] },
       ]);
     }
   });
@@ -197,7 +245,7 @@ describe('a roster judge with class assignments (MYK9-2244)', () => {
       ['a deleted trial', dead({ deleted_at: 'x' })],
     ])('a pick on %s leaves the roster judge on the whole trial', (_label, other) => {
       expect(premiumTrialJudges([rosterRow, deadRow], live, [live, other])).toEqual([
-        { name: 'Pat Donovan', residence: 'Demoville, KS', classes: [] },
+        { name: 'Pat Donovan', residence: 'Demoville, KS', affiliation: null, classes: [] },
       ]);
     });
 

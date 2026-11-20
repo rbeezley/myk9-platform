@@ -52,6 +52,18 @@ describe('replicationSyncStatus helpers', () => {
     ]);
   });
 
+  it('refreshes the premium judge-affiliation checklist once a roster, person, class or trial upload lands', () => {
+    expect(getPostSyncInvalidationKeys(['judge_assignments'])).toContainEqual([
+      'premiumJudgeAffiliations',
+    ]);
+    expect(getPostSyncInvalidationKeys(['people'])).toContainEqual(['premiumJudgeAffiliations']);
+    expect(getPostSyncInvalidationKeys(['classes'])).toContainEqual(['premiumJudgeAffiliations']);
+    expect(getPostSyncInvalidationKeys(['trials'])).toContainEqual(['premiumJudgeAffiliations']);
+    expect(getPostSyncInvalidationKeys(['entries'])).not.toContainEqual([
+      'premiumJudgeAffiliations',
+    ]);
+  });
+
   it('does not hide a failed scope behind a successful scope of the same table', () => {
     const result = classifyTableSyncResults(
       [

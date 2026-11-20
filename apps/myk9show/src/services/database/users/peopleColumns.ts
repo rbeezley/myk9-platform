@@ -28,4 +28,4 @@
  * it — which collapses every row type to `GenericStringError`.
  */
 export const PEOPLE_MAPPER_COLUMNS =
-  'id, first_name, last_name, email, phone, street_address, city, state, zip_code, country, profile_image, auth_user_id, status, created_at, updated_at, deleted_at, deleted_by' as const;
+  'id, first_name, last_name, email, phone, street_address, city, state, zip_code, country, profile_image, judge_affiliation, auth_user_id, status, created_at, updated_at, deleted_at, deleted_by' as const;

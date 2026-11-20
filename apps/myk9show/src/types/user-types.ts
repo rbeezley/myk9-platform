@@ -13,6 +13,8 @@ export interface User {
   state?: string | undefined;
   zipCode?: string | undefined;
   country?: string | undefined;
+  /** MYK9-2292: `people.judge_affiliation` (ASCA §1.5.7), free text; printed beside a judge on an ASCA premium. */
+  judgeAffiliation?: string | undefined;
   /**
    * MYK9-570: `people.date_of_birth`, ISO `YYYY-MM-DD`. Junior handler status is
    * DERIVED from this and the trial date — see

@@ -366,22 +366,22 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
 
   // Stable identity: the wrapper re-runs its data effect whenever this changes.
   const handleDataChange = useCallback(
-    (data: UserFormData) => onDataChange?.(formDataToUser(data)),
-    [onDataChange]
+    (data: UserFormData) => onDataChange?.(formDataToUser(data, initialFormData)),
+    [onDataChange, initialFormData]
   );
 
   // Handle save — persist profile data. Role assignments have their own
   // scope-aware surface in User Management.
   const handleSave = useCallback(
     async (formData: UserFormData, context: EditPanelSaveContext) => {
-      const userData = formDataToUser(formData);
+      const userData = formDataToUser(formData, initialFormData);
 
       if (onSave) {
         // Forward the context so a create can route to its record inside runSelfNavigation.
         await onSave(userData, context);
       }
     },
-    [onSave]
+    [onSave, initialFormData]
   );
 
   return (
@@ -416,7 +416,7 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
               ...(onBeforeNext
                 ? {
                     beforeNext: (_tab: string, data: unknown) =>
-                      onBeforeNext(formDataToUser(data as UserFormData)),
+                      onBeforeNext(formDataToUser(data as UserFormData, initialFormData)),
                   }
                 : {}),
             },

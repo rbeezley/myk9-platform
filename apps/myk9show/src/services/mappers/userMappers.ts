@@ -1,7 +1,7 @@
 // Type mapping utilities for User Store <-> Database integration
 // Phase 2.2: User Store Integration
 
-import type { User, JudgeInfo } from '@/types/user-types';
+import type { User, JudgeInfo, JudgeQualification } from '@/types/user-types';
 import type { UserRole } from '@/types/auth-types';
 import type { DbUserInsert, DbUserUpdate, DbJudgeAvailability } from '@/types/database-mappings';
 import type { UserInput } from '@/store/userStore';
@@ -78,6 +78,30 @@ export const mapUserInputToUpdate = (input: Partial<UserInput>): DbUserUpdate =>
 /**
  * Convert database user result to User type (for backward compatibility)
  */
+/**
+ * The joined `judge_qualifications(...)` rows as the app's JudgeQualification list, or [] when the
+ * select did not join them. One mapping for every people reader (MYK9-2292: the roster and the
+ * profile both decide "is this a judge" from it).
+ */
+export const mapDbJudgeQualifications = (raw: unknown): JudgeQualification[] =>
+  Array.isArray(raw)
+    ? (raw as Array<Record<string, unknown>>).map(qual => ({
+        judgeNumber: (qual.judge_number as string) || '',
+        organization: (qual.organization as 'AKC' | 'UKC' | 'NACSW' | 'CPE' | 'OTHER') || 'OTHER',
+        showTypes: (qual.disciplines as string[]) || [],
+        certificationDate: (qual.date_obtained as string) || '',
+        status: qual.is_active
+          ? ('Active' as const)
+          : qual.suspension_date
+            ? ('Suspended' as const)
+            : ('Expired' as const),
+        level: (qual.qualification_level as string) || 'Regular',
+        disciplines: (qual.disciplines as string[]) || [],
+        dateObtained: qual.date_obtained ? new Date(qual.date_obtained as string) : null,
+        expirationDate: qual.expiration_date ? new Date(qual.expiration_date as string) : null,
+      }))
+    : [];
+
 export const mapDatabaseToUser = (dbUser: Record<string, unknown>): User => {
   return {
     id: dbUser.id as string,
@@ -92,6 +116,7 @@ export const mapDatabaseToUser = (dbUser: Record<string, unknown>): User => {
     state: dbUser.state as string,
     zipCode: dbUser.zip_code as string,
     profileImage: dbUser.profile_image as string,
+    judgeAffiliation: (dbUser.judge_affiliation as string | null) || undefined,
     user_id: dbUser.auth_user_id as string, // Link to auth.users for RBAC
 
     // MYK9-664: no dateOfBirth / juniorHandlerNumbers here. They are not
@@ -110,23 +135,7 @@ export const mapDatabaseToUser = (dbUser: Record<string, unknown>): User => {
     roles: extractRoles(dbUser),
 
     // Judge qualifications - handle if present (from nested select)
-    judgeQualifications: Array.isArray(dbUser.judge_qualifications)
-      ? (dbUser.judge_qualifications as Array<Record<string, unknown>>).map(qual => ({
-          judgeNumber: (qual.judge_number as string) || '',
-          organization: (qual.organization as 'AKC' | 'UKC' | 'NACSW' | 'CPE' | 'OTHER') || 'OTHER',
-          showTypes: (qual.disciplines as string[]) || [],
-          certificationDate: (qual.date_obtained as string) || '',
-          status: qual.is_active
-            ? ('Active' as const)
-            : qual.suspension_date
-              ? ('Suspended' as const)
-              : ('Expired' as const),
-          level: (qual.qualification_level as string) || 'Regular',
-          disciplines: (qual.disciplines as string[]) || [],
-          dateObtained: qual.date_obtained ? new Date(qual.date_obtained as string) : null,
-          expirationDate: qual.expiration_date ? new Date(qual.expiration_date as string) : null,
-        }))
-      : [],
+    judgeQualifications: mapDbJudgeQualifications(dbUser.judge_qualifications),
 
     // Judge info - build from judge qualifications
     judgeInfo:

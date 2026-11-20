@@ -17,6 +17,7 @@ import { JuniorHandlerFields } from '@/components/common/JuniorHandlerFields';
 import type { RegistryId } from '@/features/registries';
 import { useEditPanel } from './useEditPanel';
 import type { UserFormData } from './UserEditPanel.types';
+import { isJudgePerson } from './UserEditPanel.helpers';
 
 /**
  * Whether the editor may offer to change this person's email: see
@@ -93,6 +94,8 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   const lastNameError = form?.getError('lastName');
   const emailError = form?.getError('email');
   const dateOfBirthError = form?.getError('dateOfBirth');
+  const judgeAffiliationError = form?.getError('judgeAffiliation');
+  const isJudge = isJudgePerson(data);
   const emailInputProps = { id: 'email', type: 'email', value: data.email, name: 'email' } as const;
 
   return (
@@ -209,6 +212,34 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                 }))
               }
             />
+          </div>
+        </>
+      )}
+
+      {!isCreate && isJudge && (
+        <>
+          <Separator />
+          <div className="space-y-4">
+            <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+              Judge
+            </h4>
+            {/* MYK9-2292: typed once here, printed beside the judge's name on an ASCA premium. */}
+            <FormField
+              label="Affiliation"
+              fieldId="judgeAffiliation"
+              optional
+              error={judgeAffiliationError}
+              hint="ASCA premiums print this beside the judge's name."
+            >
+              <Input
+                id="judgeAffiliation"
+                name="judgeAffiliation"
+                value={data.judgeAffiliation ?? ''}
+                onChange={e => form?.setValue('judgeAffiliation', e.target.value)}
+                onBlur={() => form?.touchField('judgeAffiliation')}
+                placeholder="e.g. ASCA-approved judge, Region 4"
+              />
+            </FormField>
           </div>
         </>
       )}

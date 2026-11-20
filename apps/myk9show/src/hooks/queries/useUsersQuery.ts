@@ -16,6 +16,7 @@ import {
 } from '@/services/database/users';
 import type { DbUser, DbUserInsert } from '@/types/database-mappings';
 import { fetchAdminUserListRows } from './adminUserListPaging';
+import { PREMIUM_JUDGE_AFFILIATIONS_KEY } from '@/services/database/judges/judgeAffiliations';
 import { logger } from '@/services/LoggingService';
 import { ensureError } from '@myk9/core';
 import { extractRoles } from '@/services/mappers/userMappers';
@@ -48,6 +49,7 @@ export const mapDbUserToUser = (dbUser: MappableDbUser): User => ({
   state: dbUser.state || undefined,
   zipCode: dbUser.zip_code || undefined,
   country: dbUser.country || undefined,
+  judgeAffiliation: dbUser.judge_affiliation || undefined,
   profileImage: dbUser.profile_image || undefined,
   user_id: dbUser.auth_user_id || undefined,
   // MYK9-664: no dateOfBirth / juniorHandlerNumbers — they live in
@@ -75,6 +77,8 @@ export const mapUserToDbUpdate = (user: Partial<User>): PersonUpdate => {
   if (user.state !== undefined) dbUpdate.state = user.state;
   if (user.zipCode !== undefined) dbUpdate.zip_code = user.zipCode;
   if (user.country !== undefined) dbUpdate.country = user.country;
+  // MYK9-2292: an empty string clears it (the save function stores a blank as NULL).
+  if (user.judgeAffiliation !== undefined) dbUpdate.judge_affiliation = user.judgeAffiliation;
   if (user.profileImage !== undefined) dbUpdate.profile_image = user.profileImage;
   // MYK9-570 / MYK9-664: written to `people_private` by `updateUser` through
   // the RPC. An empty string clears the date. The numbers are a MERGE patch: a
@@ -276,6 +280,21 @@ export function useUsersStatisticsQuery() {
   });
 }
 
+/**
+ * The save's result is a plain `people` row: no roles, no qualifications. Carries the cached
+ * person's across, so what makes them a judge survives the save.
+ */
+function keepJudgeEligibility(previous: User | null | undefined, saved: User): User {
+  if (!previous) return saved;
+  return {
+    ...saved,
+    roles: saved.roles?.length ? saved.roles : previous.roles,
+    judgeQualifications: saved.judgeQualifications?.length
+      ? saved.judgeQualifications
+      : previous.judgeQualifications,
+  };
+}
+
 // Mutation hooks
 export function useCreateUserMutation() {
   const queryClient = useQueryClient();
@@ -308,13 +327,21 @@ export function useUpdateUserMutation() {
     networkMode: 'always',
     mutationFn: ({ id, updates }: { id: string; updates: Partial<User> }) =>
       UserService.update(id, updates),
-    onSuccess: (updatedUser: User) => {
+    onSuccess: (savedUser: User) => {
+      // The save returns a plain `people` row with no roles or qualifications. Keep the cached
+      // person's, or the edit panel loses whether this is a judge (MYK9-2292).
+      const previous = queryClient.getQueryData<User | null>(queryKeys.users.detail(savedUser.id));
+      const updatedUser = keepJudgeEligibility(previous, savedUser);
       queryClient.setQueryData(queryKeys.users.detail(updatedUser.id), updatedUser);
 
       queryClient.setQueryData(queryKeys.users.all, (oldData: User[] | undefined) => {
         if (!oldData) return [updatedUser];
-        return oldData.map(user => (user.id === updatedUser.id ? updatedUser : user));
+        return oldData.map(user =>
+          user.id === updatedUser.id ? keepJudgeEligibility(user, savedUser) : user
+        );
       });
+      // MYK9-2292: the premium checklist reads each judge's affiliation from the person.
+      queryClient.invalidateQueries({ queryKey: [PREMIUM_JUDGE_AFFILIATIONS_KEY] });
 
       queryClient.invalidateQueries({ queryKey: [...queryKeys.users.all, 'admin'] });
     },

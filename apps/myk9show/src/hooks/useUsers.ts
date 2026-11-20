@@ -5,6 +5,7 @@ import type { User } from '@/types/user-types';
 import { getAllUsers, createUser, updateUser, deleteUser } from '@/services/database/users';
 import { mapDatabaseToUser } from '@/services/mappers/userMappers';
 import { rbacService } from '@/services/rbac';
+import { PREMIUM_JUDGE_AFFILIATIONS_KEY } from '@/services/database/judges/judgeAffiliations';
 
 export function useUsers() {
   return useQuery<User[]>({
@@ -77,6 +78,10 @@ export function useUpdatePerson() {
         state: person.state || null,
         zip_code: person.zipCode || null,
         profile_image: person.profileImage || null,
+        // MYK9-2292: only when the caller set it; absent means leave what is stored.
+        ...(person.judgeAffiliation !== undefined && {
+          judge_affiliation: person.judgeAffiliation,
+        }),
         // MYK9-570 / MYK9-664: written to `people_private` by `updateUser`.
         // Forwarded only when the caller set them: an absent value means "leave
         // what is stored", and a manager's form never holds the stored value.
@@ -100,6 +105,8 @@ export function useUpdatePerson() {
       // MYK9-1010: the dog roster carries each owner's address, which gates
       // AKC classes in the entry wizard.
       queryClient.invalidateQueries({ queryKey: queryKeys.dogs });
+      // MYK9-2292: the premium checklist reads each judge's affiliation from the person.
+      queryClient.invalidateQueries({ queryKey: [PREMIUM_JUDGE_AFFILIATIONS_KEY] });
     },
   });
 }

@@ -14,7 +14,7 @@ import { livePremiumTrials, type PremiumScheduleTrialRow } from './liveTrials.ts
 
 /** The show-wide `judge_assignments` select: where the row applies and the judge's printable facts. */
 export const PREMIUM_JUDGE_ASSIGNMENTS_SELECT =
-  'trial_id, class_id, status, people!judge_assignments_person_id_fkey(id, first_name, last_name, city, state)';
+  'trial_id, class_id, status, people!judge_assignments_person_id_fkey(id, first_name, last_name, city, state, judge_affiliation)';
 
 /** Statuses that keep a judge off the premium, as `generate-trial-packet` treats them. */
 const INACTIVE_STATUSES = new Set(['declined', 'cancelled']);
@@ -29,6 +29,7 @@ export interface PremiumJudgeAssignmentRow {
     last_name: string | null;
     city?: string | null;
     state?: string | null;
+    judge_affiliation?: string | null;
   } | null;
 }
 
@@ -43,6 +44,8 @@ export interface PremiumTrialClassRow {
 export interface PremiumTrialJudge {
   name: string;
   residence: string | null;
+  /** MYK9-2292 (ASCA §1.5.7): `people.judge_affiliation`, trimmed; null when empty. Every style prints it on an ASCA premium only. */
+  affiliation: string | null;
   classes: string[];
 }
 
@@ -82,7 +85,13 @@ export function premiumTrialJudges(
   const classById = new Map(liveClasses.map(cls => [cls.id, cls]));
   const byPerson = new Map<
     string,
-    { name: string; residence: string | null; classIds: Set<string>; wholeTrial: boolean }
+    {
+      name: string;
+      residence: string | null;
+      affiliation: string | null;
+      classIds: Set<string>;
+      wholeTrial: boolean;
+    }
   >();
 
   // A show-level row (no class, no trial) is roster membership, which the wizard writes beside
@@ -122,6 +131,7 @@ export function premiumTrialJudges(
     const entry = byPerson.get(person.id) ?? {
       name,
       residence: formatResidence(person.city, person.state),
+      affiliation: person.judge_affiliation?.trim() || null,
       classIds: new Set<string>(),
       wholeTrial: false,
     };
@@ -137,6 +147,11 @@ export function premiumTrialJudges(
           .sort((a, b) => (classOrder.get(a) ?? 0) - (classOrder.get(b) ?? 0))
           .map(id => formatClassLabel(classById.get(id)!))
           .filter((label): label is string => label !== null);
-    return { name: entry.name, residence: entry.residence, classes: [...new Set(labels)] };
+    return {
+      name: entry.name,
+      residence: entry.residence,
+      affiliation: entry.affiliation,
+      classes: [...new Set(labels)],
+    };
   });
 }

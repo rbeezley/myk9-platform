@@ -15,6 +15,7 @@ const FIELD_LOCATION: Record<string, FieldLocation<UserTabValue>> = {
   email: { tab: 'basic', elementId: 'email' },
   dateOfBirth: { tab: 'basic', elementId: 'user-edit-date-of-birth' },
   juniorHandlerNumbers: { tab: 'basic', elementId: 'user-edit-date-of-birth' },
+  judgeAffiliation: { tab: 'basic', elementId: 'judgeAffiliation' },
   bio: { tab: 'basic', elementId: 'bio' },
   profileImage: { tab: 'basic', elementId: 'firstName' },
   phone: { tab: 'contact', elementId: 'phone' },

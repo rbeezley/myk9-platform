@@ -83,7 +83,10 @@ for (const width of [390, 1280]) {
             still.columnRight + 0.5
           );
           // Drawn whole at its own shape, never stretched.
-          expect(still.width / still.height, label).toBeCloseTo(still.natural, 1);
+          // (Within 8%: the picture's 1px border is part of the box, which a wide, short one feels.)
+          expect(Math.abs(still.width / still.height / still.natural - 1), label).toBeLessThan(
+            0.08
+          );
           // The words in a picture read at about two fifths of their size or more; a phone screen is drawn
           // at most 220px wide, a desktop window at most 440px.
           expect(still.width / still.shown, `${label} is drawn too small`).toBeGreaterThan(0.4);

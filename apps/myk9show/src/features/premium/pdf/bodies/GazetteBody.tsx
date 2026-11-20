@@ -162,7 +162,9 @@ export function GazetteBody({ data, tokens }: Props) {
             </View>
             <Text style={bodyTextStyle}>Pre-entry: ${f.fees.preEntry ?? '—'}</Text>
             <Text style={bodyTextStyle}>Day-of: ${f.fees.dayOf ?? '—'}</Text>
-            <Text style={bodyTextStyle}>{f.fees.paymentMethods.join(' · ') || 'Payment TBD'}</Text>
+            <Text style={bodyTextStyle}>
+              {f.fees.paymentMethods.join(' · ') || 'Payment to be announced'}
+            </Text>
           </View>
         )}
 

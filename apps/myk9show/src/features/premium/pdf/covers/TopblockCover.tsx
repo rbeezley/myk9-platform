@@ -1,4 +1,5 @@
 import { Page, Text, View } from '@react-pdf/renderer';
+import { TO_BE_ANNOUNCED_LABEL } from '@/lib/format/fallbackLabels';
 import type { CoverContext } from './coverContext';
 import { PdfFooter } from '../PdfFooter';
 
@@ -86,7 +87,7 @@ export function renderTopblockCover({
                 color: t.accentColor,
               }}
             >
-              {venue || 'TBD'}
+              {venue || TO_BE_ANNOUNCED_LABEL}
             </Text>
           </View>
           <View style={{ flex: 1 }}>

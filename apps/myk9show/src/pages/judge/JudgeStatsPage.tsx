@@ -5,6 +5,7 @@
  * Shows season summary, upcoming assignments, and qualification status.
  */
 
+import { TO_BE_ANNOUNCED_LABEL } from '@/lib/format/fallbackLabels';
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatCard, StatCardSkeleton, StatsGrid } from '@myk9/ui';
@@ -200,7 +201,7 @@ const JudgeStatsPage: React.FC = () => {
                       <p className="text-xs text-muted-foreground">
                         {assignment.show_start_date
                           ? formatShortCalendarDate(assignment.show_start_date)
-                          : 'Date TBD'}
+                          : TO_BE_ANNOUNCED_LABEL}
                         {assignment.fee ? ` — $${assignment.fee}` : ''}
                       </p>
                     </div>

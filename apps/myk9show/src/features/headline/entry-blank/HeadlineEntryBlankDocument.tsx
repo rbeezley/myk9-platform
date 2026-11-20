@@ -1,5 +1,6 @@
 import '../../../features/premium/pdf/pdfFonts';
 
+import { TO_BE_ANNOUNCED_LABEL } from '@/lib/format/fallbackLabels';
 import { Document, Page, Text, View } from '@react-pdf/renderer';
 import type { ReactNode } from 'react';
 import type { EntryBlankProps } from '@/features/heritage/entry-blank/types';
@@ -287,7 +288,9 @@ export function HeadlineEntryBlankDocument(props: EntryBlankProps) {
               <Text style={{ fontFamily: DISPLAY, fontSize: 11 }}>
                 {props.mailTo.secretaryName ?? 'Trial Secretary'}
               </Text>
-              <Text style={{ marginTop: 4 }}>{props.mailTo.poBox ?? 'Mailing address TBD'}</Text>
+              <Text style={{ marginTop: 4 }}>
+                {props.mailTo.poBox ?? 'Mailing address to be announced'}
+              </Text>
               <Text>{props.mailTo.cityStateZip ?? ''}</Text>
               <Text style={{ marginTop: 5, color: ACCENT }}>{props.mailTo.email ?? ''}</Text>
             </Box>
@@ -316,7 +319,7 @@ export function HeadlineEntryBlankDocument(props: EntryBlankProps) {
           }}
         >
           <Text style={{ fontFamily: DISPLAY, fontSize: 7, color: MUTE }}>
-            ENTRIES CLOSE {props.closeDate ?? 'TBD'}
+            ENTRIES CLOSE {props.closeDate ?? TO_BE_ANNOUNCED_LABEL}
           </Text>
           <Text style={{ fontFamily: DISPLAY, fontSize: 7, color: ACCENT }}>
             {props.onlineEntryUrl ?? 'myK9Show'}

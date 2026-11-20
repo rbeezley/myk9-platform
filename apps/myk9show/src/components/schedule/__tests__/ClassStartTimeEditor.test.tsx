@@ -55,9 +55,11 @@ describe('ClassStartTimeEditor', () => {
     expect(screen.getByLabelText('Start time')).toHaveValue('9:00 AM');
   });
 
-  it('shows TBD when there is no start time yet', () => {
+  it('shows To be announced when there is no start time yet', () => {
     render(<ClassStartTimeEditor {...baseProps} startTime={null} />);
-    expect(screen.getByRole('button', { name: /edit start time/i })).toHaveTextContent('TBD');
+    expect(screen.getByRole('button', { name: /edit start time/i })).toHaveTextContent(
+      'To be announced'
+    );
   });
 
   it('saves a valid time through replicatedClassesTable.updateClass and shows the new value', async () => {
@@ -128,7 +130,9 @@ describe('ClassStartTimeEditor', () => {
     await user.click(screen.getByRole('button', { name: /cancel editing start time/i }));
 
     expect(updateClassMock).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: /edit start time/i })).toHaveTextContent('TBD');
+    expect(screen.getByRole('button', { name: /edit start time/i })).toHaveTextContent(
+      'To be announced'
+    );
   });
 
   it('rejects invalid input with a plain-language message and does not save', async () => {

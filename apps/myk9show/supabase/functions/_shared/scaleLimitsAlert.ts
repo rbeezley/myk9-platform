@@ -69,12 +69,20 @@ export function buildScaleAlert(counts: ScaleCounts, crossed: readonly ScaleCoun
 
 export interface ScaleLimitsDeps {
   readCounts: () => Promise<ScaleCounts | { error: string }>;
-  /** True when ANY operator_alerts row (resolved or not) has this source and key. */
+  /** True when ANY operator_alerts row (resolved or not) with this source and key
+   * is recorded as emailed. A row whose email failed does not count, so the next
+   * run tries again. */
   alertExists: (source: string, dedupeKey: string) => Promise<boolean | { error: string }>;
   raiseAlert: (
     subject: string,
     html: string,
     opts: { severity: 'warn'; source: string; dedupeKey: string; detail: Record<string, unknown> }
+  ) => Promise<{ emailed: boolean }>;
+  /** Records on the row(s) that the email went out (detail.emailed = true). */
+  markEmailed: (
+    source: string,
+    dedupeKey: string,
+    detail: Record<string, unknown>
   ) => Promise<void>;
 }
 
@@ -82,6 +90,7 @@ export type ScaleLimitsOutcome =
   | { status: 'below' }
   | { status: 'already_alerted'; dedupeKey: string }
   | { status: 'alerted'; dedupeKey: string }
+  | { status: 'email_failed'; dedupeKey: string }
   | { status: 'error'; message: string };
 
 /** Never throws: the health snapshot must not fail because this check did. */
@@ -96,12 +105,15 @@ export async function runScaleLimitsCheck(deps: ScaleLimitsDeps): Promise<ScaleL
     if (typeof exists === 'object') return { status: 'error', message: exists.error };
     if (exists) return { status: 'already_alerted', dedupeKey };
     const { subject, html, detail } = buildScaleAlert(counts, crossed);
-    await deps.raiseAlert(subject, html, {
+    // No skipEmailOnDuplicate: a row left by a failed email must still be emailed.
+    const { emailed } = await deps.raiseAlert(subject, html, {
       severity: 'warn',
       source: SCALE_ALERT_SOURCE,
       dedupeKey,
       detail,
     });
+    if (!emailed) return { status: 'email_failed', dedupeKey };
+    await deps.markEmailed(SCALE_ALERT_SOURCE, dedupeKey, { ...detail, emailed: true });
     return { status: 'alerted', dedupeKey };
   } catch (err) {
     return { status: 'error', message: err instanceof Error ? err.message : String(err) };

@@ -184,10 +184,22 @@ async function runScaleLimits(): Promise<void> {
         .from('operator_alerts')
         .select('id', { count: 'exact', head: true })
         .eq('source', source)
-        .eq('dedupe_key', dedupeKey);
+        .eq('dedupe_key', dedupeKey)
+        .eq('detail->>emailed', 'true');
       return error ? { error: error.message } : (count ?? 0) > 0;
     },
-    raiseAlert: (subject, html, opts) => alertAdmin(subject, html, opts),
+    raiseAlert: async (subject, html, opts) => {
+      const result = await alertAdmin(subject, html, opts);
+      return { emailed: result.emailAttempted && result.emailError == null };
+    },
+    markEmailed: async (source, dedupeKey, detail) => {
+      const { error } = await supabase
+        .from('operator_alerts')
+        .update({ detail })
+        .eq('source', source)
+        .eq('dedupe_key', dedupeKey);
+      if (error) throw new Error(`mark emailed failed: ${error.message}`);
+    },
   });
   if (outcome.status === 'error') console.error('Scale limits check failed:', outcome.message);
   else console.log('Scale limits check:', outcome.status);
@@ -241,6 +253,7 @@ async function runHealthSnapshot(
       )
     );
     await insertSnapshot(snapshot, mode);
+    if (mode === 'full') await runScaleLimits();
     console.error('Health probe failed:', probeError?.message ?? 'no facts returned');
     return Response.json(
       { source: snapshot.source, overall_status: snapshot.overall_status, probe_error: true },

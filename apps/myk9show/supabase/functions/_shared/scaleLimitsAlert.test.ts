@@ -13,14 +13,16 @@ import {
 const base: ScaleCounts = { people: 88, dogs: 74, classes: 296, liveClubs: 1 };
 
 function harness(counts: ScaleCounts | { error: string }, existing: string[] = []) {
-  const raiseAlert = vi.fn().mockResolvedValue(undefined);
+  const raiseAlert = vi.fn().mockResolvedValue({ emailed: true });
+  const markEmailed = vi.fn().mockResolvedValue(undefined);
   const alertExists = vi.fn(async (_source: string, key: string) => existing.includes(key));
   const readCounts = vi.fn().mockResolvedValue(counts);
   return {
     raiseAlert,
     alertExists,
     readCounts,
-    run: () => runScaleLimitsCheck({ readCounts, alertExists, raiseAlert }),
+    markEmailed,
+    run: () => runScaleLimitsCheck({ readCounts, alertExists, raiseAlert, markEmailed }),
   };
 }
 
@@ -86,6 +88,44 @@ describe('runScaleLimitsCheck', () => {
     const second = harness(counts, [key]);
     expect(await second.run()).toEqual({ status: 'already_alerted', dedupeKey: key });
     expect(second.raiseAlert).not.toHaveBeenCalled();
+  });
+
+  it('records the email on the row only after it was sent', async () => {
+    const h = harness({ ...base, dogs: 12_000 });
+    await h.run();
+    expect(h.markEmailed).toHaveBeenCalledWith(
+      SCALE_ALERT_SOURCE,
+      scaleDedupeKey(['dogs']),
+      expect.objectContaining({ emailed: true })
+    );
+  });
+
+  it('retries on the next run when the email failed: nothing is recorded, so the set is not alerted', async () => {
+    const counts = { ...base, dogs: 12_000 };
+    const key = scaleDedupeKey(['dogs']);
+    const emailed = new Set<string>();
+    const raiseAlert = vi
+      .fn()
+      .mockResolvedValueOnce({ emailed: false })
+      .mockResolvedValue({ emailed: true });
+    const markEmailed = vi.fn(async (_s: string, k: string) => {
+      emailed.add(k);
+    });
+    const run = () =>
+      runScaleLimitsCheck({
+        readCounts: async () => counts,
+        alertExists: async (_s, k) => emailed.has(k),
+        raiseAlert,
+        markEmailed,
+      });
+
+    expect(await run()).toEqual({ status: 'email_failed', dedupeKey: key });
+    expect(markEmailed).not.toHaveBeenCalled();
+    expect(await run()).toEqual({ status: 'alerted', dedupeKey: key });
+    expect(raiseAlert).toHaveBeenCalledTimes(2);
+    expect(raiseAlert.mock.calls[1][2]).not.toHaveProperty('skipEmailOnDuplicate');
+    expect(await run()).toEqual({ status: 'already_alerted', dedupeKey: key });
+    expect(raiseAlert).toHaveBeenCalledTimes(2);
   });
 
   it('alerts again when a further count crosses, since that is a new set', async () => {

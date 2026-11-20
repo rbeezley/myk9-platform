@@ -6,6 +6,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
+import { NO_FLAGS } from '@/features/show-closeout/flaggedPullsTestUtils';
 import { within } from '@testing-library/react';
 import {
   classifyEntryRemoval,
@@ -157,7 +158,14 @@ describe('ShowCloseoutSummary labels', () => {
   });
 
   it('says "removed by the secretary" for the demo withdrawals, never "pulled"', async () => {
-    render(<ShowCloseoutSummary showId="show-1" deskWindow={null} entries={DEMO_ENTRIES} />);
+    render(
+      <ShowCloseoutSummary
+        flaggedPulls={NO_FLAGS}
+        showId="show-1"
+        deskWindow={null}
+        entries={DEMO_ENTRIES}
+      />
+    );
 
     const tile = screen.getByRole('group', { name: 'Pulled or withdrawn entries' });
     expect(within(tile).getByText('0')).toBeInTheDocument();

@@ -25,6 +25,7 @@ import { replicatedEntriesTable, replicatedShowsTable } from '@/services/replica
 import { getCockpitReportHref } from '@/features/show-map/cockpit/cockpitRoutes';
 import { useShowClassPaperwork } from '@/features/show-map/cockpit/useShowClassPaperwork';
 import { getShowDeskEntriesAvailability } from '@/pages/secretary/showDeskEntryAvailability';
+import { useCloseoutFlaggedPulls } from '@/features/show-closeout/useCloseoutFlaggedPulls';
 import { useShowDeskScheduleRead } from '@/pages/secretary/useShowDeskScheduleRead';
 import { buildResultsClassRows, type ResultsClassRow } from './buildResultsClassRows';
 
@@ -57,6 +58,9 @@ export function useResultsTabData(showId: string) {
     isError: entriesQuery.isError,
     isEnabled: Boolean(showId),
   });
+  // MYK9-2180: the Finish list's pull flags, from this same read (the close step derives its own
+  // the same way), so no second observer re-reads the entries.
+  const flaggedPulls = useCloseoutFlaggedPulls(entriesQuery);
   const returnTo = `${location.pathname}${location.search}`;
 
   const showTrials = useMemo(
@@ -205,6 +209,8 @@ export function useResultsTabData(showId: string) {
     rows: builtRows,
     /** The scores behind the rows, for the nationals leaderboard (MYK9-1516). */
     entries,
+    /** Unconfirmed check-in pull flags for the Finish list (MYK9-2180). */
+    flaggedPulls,
     /** The show's first day, which the leaderboard counts competition days from. */
     showStartDate: showQuery.data?.startDate ?? null,
     /** The show ranks by points (nationals); null while the show row is unread. */

@@ -20,6 +20,7 @@ import { useShowCloseoutInputs } from './useShowCloseoutInputs';
 export default function ShowCloseStep() {
   const params = useParams<{ showId?: string; id?: string }>();
   const inputs = useShowCloseoutInputs(params.showId ?? params.id);
+  const { flaggedPulls } = inputs;
   const { show, schedule } = inputs;
   const retrySchedule = () => void schedule.retry();
 
@@ -61,6 +62,7 @@ export default function ShowCloseStep() {
         showId={show.id}
         entries={inputs.entries}
         deskWindow={inputs.deskWindow}
+        flaggedPulls={flaggedPulls}
       />
       <CloseOutShowAction
         show={{ id: show.id, status: show.status }}
@@ -70,6 +72,7 @@ export default function ShowCloseStep() {
         incidents={inputs.incidents}
         submissions={inputs.submissions}
         scoreChanges={inputs.scoreChanges}
+        flaggedPulls={flaggedPulls}
       />
     </div>
   );

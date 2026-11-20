@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
+import { FAILED_FLAGS, NO_FLAGS, readFlags } from '@/features/show-closeout/flaggedPullsTestUtils';
 import { within } from '@testing-library/react';
 import { ShowCloseoutSummary } from '../ShowCloseoutSummary';
 import { summarizeCloseoutStatus } from '../showCloseoutStatus';
@@ -102,6 +103,7 @@ describe('ShowCloseoutSummary', () => {
     ]);
     render(
       <ShowCloseoutSummary
+        flaggedPulls={NO_FLAGS}
         showId="show-1"
         deskWindow={{
           showStartDate: '2026-09-17',
@@ -162,11 +164,13 @@ describe('ShowCloseoutSummary', () => {
       payment_status: 'paid',
       payment_method: 'online',
     });
+    const entries = [flagged('e1', 'dog-1'), flagged('e2', 'dog-1'), flagged('e3', 'dog-2')];
     render(
       <ShowCloseoutSummary
+        flaggedPulls={readFlags(entries)}
         showId="show-1"
         deskWindow={null}
-        entries={[flagged('e1', 'dog-1'), flagged('e2', 'dog-1'), flagged('e3', 'dog-2')]}
+        entries={entries}
       />
     );
 
@@ -187,14 +191,38 @@ describe('ShowCloseoutSummary', () => {
   });
 
   it('says "1 dog" for a single flagged dog', () => {
+    const entry = {
+      id: 'e1',
+      dog_id: 'dog-1',
+      entry_status: 'confirmed',
+      check_in_status: 'pulled',
+      payment_status: 'paid',
+      payment_method: 'online',
+    };
     render(
       <ShowCloseoutSummary
+        flaggedPulls={readFlags([entry])}
+        showId="show-1"
+        deskWindow={null}
+        entries={[entry]}
+      />
+    );
+
+    expect(
+      screen.getByText('1 dog flagged as pulled at the show, not confirmed.')
+    ).toBeInTheDocument();
+  });
+
+  // MYK9-2180: a failed refresh is "couldn't check", never a count from the rows still cached.
+  it('says the flags could not be checked when the latest entries read failed', async () => {
+    render(
+      <ShowCloseoutSummary
+        flaggedPulls={FAILED_FLAGS}
         showId="show-1"
         deskWindow={null}
         entries={[
           {
             id: 'e1',
-            dog_id: 'dog-1',
             entry_status: 'confirmed',
             check_in_status: 'pulled',
             payment_status: 'paid',
@@ -205,14 +233,19 @@ describe('ShowCloseoutSummary', () => {
     );
 
     expect(
-      screen.getByText('1 dog flagged as pulled at the show, not confirmed.')
+      screen.getByText("Couldn't check for dogs flagged as pulled at the show.")
     ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/flagged as pulled at the show, not confirmed/)
+    ).not.toBeInTheDocument();
+    expect(await screen.findByText('pull flags not checked')).toBeInTheDocument();
   });
 
   it('says the desk total is unavailable when the ledger cannot be read', async () => {
     mockListShowPayments.mockRejectedValue(new Error('offline'));
     render(
       <ShowCloseoutSummary
+        flaggedPulls={NO_FLAGS}
         showId="show-1"
         deskWindow={{
           showStartDate: '2026-09-17',
@@ -235,6 +268,7 @@ describe('ShowCloseoutSummary', () => {
     mockListShowPayments.mockReturnValue(new Promise(r => (resolve = r)));
     render(
       <ShowCloseoutSummary
+        flaggedPulls={NO_FLAGS}
         showId="show-1"
         deskWindow={{
           showStartDate: '2026-09-17',
@@ -286,7 +320,9 @@ describe('ShowCloseoutSummary', () => {
       },
     ]);
 
-    render(<ShowCloseoutSummary showId="show-1" entries={[]} deskWindow={null} />);
+    render(
+      <ShowCloseoutSummary flaggedPulls={NO_FLAGS} showId="show-1" entries={[]} deskWindow={null} />
+    );
 
     expect(await screen.findByText('1 reportable')).toBeInTheDocument();
     expect(
@@ -304,7 +340,9 @@ describe('ShowCloseoutSummary', () => {
   });
 
   it('renders a calm empty incident state', async () => {
-    render(<ShowCloseoutSummary showId="show-1" entries={[]} deskWindow={null} />);
+    render(
+      <ShowCloseoutSummary flaggedPulls={NO_FLAGS} showId="show-1" entries={[]} deskWindow={null} />
+    );
 
     expect(await screen.findByText('Nothing to reconcile')).toBeInTheDocument();
     expect(
@@ -315,7 +353,9 @@ describe('ShowCloseoutSummary', () => {
   it('renders a loading state without empty-state copy', () => {
     mockListShowIncidentCloseout.mockReturnValueOnce(new Promise(() => undefined));
 
-    render(<ShowCloseoutSummary showId="show-1" entries={[]} deskWindow={null} />);
+    render(
+      <ShowCloseoutSummary flaggedPulls={NO_FLAGS} showId="show-1" entries={[]} deskWindow={null} />
+    );
 
     expect(screen.getByText('Checking incidents')).toBeInTheDocument();
     expect(screen.getByText('Checking the incident log...')).toBeInTheDocument();
@@ -327,7 +367,9 @@ describe('ShowCloseoutSummary', () => {
   it('renders an error state without empty-state copy', async () => {
     mockListShowIncidentCloseout.mockRejectedValueOnce(new Error('network failed'));
 
-    render(<ShowCloseoutSummary showId="show-1" entries={[]} deskWindow={null} />);
+    render(
+      <ShowCloseoutSummary flaggedPulls={NO_FLAGS} showId="show-1" entries={[]} deskWindow={null} />
+    );
 
     expect(await screen.findByText('Check incidents')).toBeInTheDocument();
     expect(

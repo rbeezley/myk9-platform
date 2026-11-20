@@ -1,15 +1,20 @@
 import { fromAny } from '@total-typescript/shoehorn';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import { screen, within } from '@testing-library/react';
 
 import { calculateResultsRowsLeft } from '@/features/show-closeout/fromResultsRows';
+import { FAILED_FLAGS, NO_FLAGS, readFlags } from '@/features/show-closeout/flaggedPullsTestUtils';
+import type { CloseoutFlaggedPulls } from '@/features/show-closeout/useCloseoutFlaggedPulls';
 import type { SecretaryEntry } from '@/services/database/entries';
 import type { SyncableTrial } from '@/store/trial-store-types';
 import { render } from '@/test/utils/testUtils';
 import type { ResultsClassRow } from './buildResultsClassRows';
 import type { ResultsClassPhase } from './resultsNextAction';
 import { ResultsFinishRow } from './ResultsFinishRow';
+
+/** The flags `useCloseoutFlaggedPulls` hands the list, set per test. */
+const flags: { current: CloseoutFlaggedPulls } = { current: NO_FLAGS };
 
 const RELEASED = '2026-11-01T20:00:00Z';
 
@@ -60,12 +65,17 @@ function renderList(
       rows={rows}
       entries={entries}
       entriesTrusted
+      flaggedPulls={flags.current}
     />
   );
   return within(screen.getByRole('region', { name: 'Finish the show' }));
 }
 
 describe('ResultsFinishRow', () => {
+  beforeEach(() => {
+    flags.current = NO_FLAGS;
+  });
+
   it('shows the counts of the one calculation, cancelled and empty classes left out', () => {
     const list = renderList(SHOW_ROWS, [trialFor('AKC')]);
     const left = calculateResultsRowsLeft(SHOW_ROWS, [trialFor('AKC')]);
@@ -174,6 +184,7 @@ describe('ResultsFinishRow', () => {
         rows={SHOW_ROWS}
         entries={[]}
         entriesTrusted
+        flaggedPulls={flags.current}
         onOpenAfterShow={onOpen}
       />
     );
@@ -192,6 +203,7 @@ describe('ResultsFinishRow', () => {
         rows={SHOW_ROWS}
         entries={[]}
         entriesTrusted
+        flaggedPulls={flags.current}
         onOpenAfterShow={vi.fn()}
       />
     );
@@ -220,6 +232,7 @@ describe('ResultsFinishRow', () => {
         rows={SHOW_ROWS}
         entries={entries}
         entriesTrusted={entriesTrusted}
+        flaggedPulls={flags.current}
       />
     );
     return within(screen.getByRole('region', { name: 'Finish the show' }));
@@ -275,6 +288,7 @@ describe('ResultsFinishRow', () => {
   });
 
   // MYK9-2145: a flag stays a flag until the secretary confirms it at the Check-in desk.
+  // MYK9-2180: the line reads `useCloseoutFlaggedPulls`, the one read the close step shares.
   const flagged = (id: string, dogId: string, entryStatus = 'confirmed') =>
     fromAny<SecretaryEntry, unknown>({
       id,
@@ -285,15 +299,14 @@ describe('ResultsFinishRow', () => {
       is_scored: false,
       payment_status: 'paid',
       payment_method: 'online',
+      dog: { name: `Dog ${dogId}`, call_name: null },
+      class: { name: 'Open' },
     });
   const FLAG_LABEL = '2 dogs flagged as pulled at the show, not confirmed.';
 
   it('lists unconfirmed pull flags with a link to the Check-in desk, the other lines unchanged', () => {
-    const list = renderList(
-      SHOW_ROWS,
-      [trialFor('AKC')],
-      [flagged('e1', 'dog-1'), flagged('e2', 'dog-2')]
-    );
+    flags.current = readFlags([flagged('e1', 'dog-1'), flagged('e2', 'dog-2')]);
+    const list = renderList(SHOW_ROWS, [trialFor('AKC')]);
 
     expect(list.getByRole('link', { name: FLAG_LABEL })).toHaveAttribute(
       'href',
@@ -302,22 +315,81 @@ describe('ResultsFinishRow', () => {
     expect(list.getByRole('link', { name: '2 classes to release' })).toBeInTheDocument();
     expect(list.getByRole('link', { name: '1 class with results to print' })).toBeInTheDocument();
     expect(list.getByRole('link', { name: 'Close the show' })).toBeInTheDocument();
+    expect(list.queryByRole('group', { name: 'Class removed' })).not.toBeInTheDocument();
   });
 
-  it('lists no flag line once the desk confirmed the pull, or while the entries read is stale', () => {
-    const { unmount } = render(
-      <ResultsFinishRow
-        showId="show-1"
-        trials={[trialFor('AKC')]}
-        rows={SHOW_ROWS}
-        entries={[flagged('e1', 'dog-1'), flagged('e2', 'dog-2')]}
-        entriesTrusted={false}
-      />
-    );
-    expect(screen.queryByText(/flagged as pulled/)).not.toBeInTheDocument();
-    unmount();
+  it('lists no flag line once the desk confirmed the pull', () => {
+    flags.current = readFlags([flagged('e1', 'dog-1', 'scratched')]);
+    renderList(SHOW_ROWS, [trialFor('AKC')]);
 
-    renderList(SHOW_ROWS, [trialFor('AKC')], [flagged('e1', 'dog-1', 'scratched')]);
     expect(screen.queryByText(/flagged as pulled/)).not.toBeInTheDocument();
+  });
+
+  it('says it could not check, with no count, when the latest entries read failed', () => {
+    flags.current = FAILED_FLAGS;
+    // The stale rows still hold flags; none of them may be counted.
+    const list = renderList(SHOW_ROWS, [trialFor('AKC')], [flagged('e1', 'dog-1')]);
+
+    expect(
+      list.getByText("Couldn't check for dogs flagged as pulled at the show.")
+    ).toBeInTheDocument();
+    expect(list.queryByText(/not confirmed/)).not.toBeInTheDocument();
+    expect(list.queryByRole('link', { name: /flagged as pulled/ })).not.toBeInTheDocument();
+  });
+
+  // MYK9-2180: a flag with no joined class is listed here with Confirm and Clear, under "Class
+  // removed" only when the confirmed schedule no longer holds the class.
+  const orphan = (id: string, classId: string) =>
+    fromAny<SecretaryEntry, unknown>({
+      ...flagged(id, 'dog-2'),
+      class_id: classId,
+      trial_id: 'trial-1',
+      class: null,
+    });
+
+  it('lists a flag whose class is gone from the schedule under "Class removed"', () => {
+    flags.current = readFlags([flagged('e1', 'dog-1'), orphan('e2', 'gone')], {
+      'trial-1': [],
+    });
+    const list = renderList(SHOW_ROWS, [trialFor('AKC')]);
+
+    expect(list.getByRole('link', { name: FLAG_LABEL })).toBeInTheDocument();
+    const group = within(list.getByRole('group', { name: 'Class removed' }));
+    expect(group.getByText('Dog dog-2')).toBeInTheDocument();
+    expect(group.queryByText('Dog dog-1')).not.toBeInTheDocument();
+    expect(group.getByRole('button', { name: /^Confirm the pull for Dog dog-2, / })).toBeEnabled();
+    expect(
+      group.getByRole('button', { name: /^Clear the pull flag for Dog dog-2, / })
+    ).toBeEnabled();
+  });
+
+  it('says "Class unavailable" when removal is not verified, and tells two flags of one dog apart', () => {
+    flags.current = readFlags([orphan('entry-aaaaaa', 'c1'), orphan('entry-bbbbbb', 'c2')], {
+      'trial-1': [{ id: 'c1', element: 'Container', level: 'Novice', section: 'A' }],
+    });
+    const list = renderList(SHOW_ROWS, [trialFor('AKC')]);
+
+    const group = within(list.getByRole('group', { name: 'Class unavailable' }));
+    // c1 is still scheduled: its label. c2 is not, but its trial's classes are confirmed: removed.
+    expect(
+      group.getByRole('button', { name: 'Confirm the pull for Dog dog-2, Container Novice A' })
+    ).toBeInTheDocument();
+    const removed = within(list.getByRole('group', { name: 'Class removed' }));
+    expect(
+      removed.getByRole('button', { name: 'Confirm the pull for Dog dog-2, entry BBBBBB' })
+    ).toBeInTheDocument();
+  });
+
+  it('points to the list, not the Check-in desk, when the desk can resolve none of the flags', () => {
+    flags.current = readFlags([orphan('e2', 'gone')], { 'trial-1': [] });
+    const list = renderList(SHOW_ROWS, [trialFor('AKC')]);
+
+    expect(list.queryByRole('link', { name: /flagged as pulled/ })).not.toBeInTheDocument();
+    expect(
+      list.getByText(
+        /1 dog flagged as pulled at the show, not confirmed\. Confirm or clear each one/
+      )
+    ).toBeInTheDocument();
+    expect(list.getByRole('group', { name: 'Class removed' })).toBeInTheDocument();
   });
 });

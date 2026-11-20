@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useSecretaryShowEntriesQuery } from '@/hooks/queries/useEntriesDatabase';
 import { useResultsSentCheck } from '@/features/show-closeout/useResultsSentCheck';
+import { useCloseoutFlaggedPulls } from '@/features/show-closeout/useCloseoutFlaggedPulls';
 import {
   listShowIncidentCloseout,
   showIncidentCloseoutQueryKey,
@@ -49,6 +50,9 @@ export function useShowCloseoutInputs(showId: string | undefined) {
       { emitCurrent: false }
     );
   }, [queryClient, showId]);
+  // MYK9-2180: the close step's one flag read (card, close action and its confirmation), derived
+  // from this same entries query, as the Results tab's Finish list derives its own.
+  const flaggedPulls = useCloseoutFlaggedPulls(entriesQuery);
   const incidentsQuery = useQuery({
     queryKey: showIncidentCloseoutQueryKey(showId ?? ''),
     queryFn: () => listShowIncidentCloseout(showId ?? ''),
@@ -122,5 +126,6 @@ export function useShowCloseoutInputs(showId: string | undefined) {
     submissions,
     scoreChanges,
     deskWindow,
+    flaggedPulls,
   };
 }

@@ -263,7 +263,7 @@ export const CreatePersonForm: React.FC<CreatePersonFormProps> = ({
       <p
         role="status"
         data-testid="person-duplicate-check-unavailable"
-        className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950"
+        className="mb-4 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-warning"
       >
         {DUPLICATE_CHECK_UNAVAILABLE}. You can still add this person.
       </p>

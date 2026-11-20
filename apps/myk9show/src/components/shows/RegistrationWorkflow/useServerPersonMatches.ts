@@ -16,6 +16,9 @@ export interface ServerMatchResult {
 }
 
 const LOOKUP_DELAY_MS = 400;
+/** Venue wifi can report online and still stall: past this the lookup counts as failed. */
+export const LOOKUP_DEADLINE_MS = 4000;
+const EMPTY_STATE = { people: [], failed: false, key: '' };
 
 function identityTerms(data: Partial<PersonRecord>): string[] {
   const terms = [data.email, data.lastName].map(part => (part ?? '').trim());
@@ -31,12 +34,28 @@ function identityTerms(data: Partial<PersonRecord>): string[] {
 export async function fetchServerPersonMatches(
   data: Partial<PersonRecord>
 ): Promise<ServerMatchResult> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<ServerMatchResult>(resolve => {
+    timer = setTimeout(() => resolve({ people: [], failed: true }), LOOKUP_DEADLINE_MS);
+  });
+  try {
+    return await Promise.race([lookupServerPeople(data), deadline]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function lookupServerPeople(data: Partial<PersonRecord>): Promise<ServerMatchResult> {
   const terms = identityTerms(data);
   if (terms.length === 0) return { people: [], failed: false };
   if (!onlineManager.isOnline() || !navigator.onLine) return { people: [], failed: true };
   try {
-    const results = await Promise.all(terms.map(term => searchUsers(term)));
-    if (results.some(result => result.error)) return { people: [], failed: true };
+    const settled = await Promise.allSettled(terms.map(term => searchUsers(term)));
+    const results = settled.flatMap(item =>
+      item.status === 'fulfilled' && !item.value.error ? [item.value] : []
+    );
+    // Rows from a term that answered still count; failed only when none did.
+    if (results.length === 0) return { people: [], failed: true };
     const byId = new Map<string, User>();
     for (const result of results) {
       for (const row of result.data) {
@@ -56,12 +75,17 @@ export async function fetchServerPersonMatches(
  * the answer.
  */
 export function useServerPersonMatches(open: boolean, data: Partial<PersonRecord> | null) {
-  const [state, setState] = useState<ServerMatchResult & { key: string }>({
-    people: [],
-    failed: false,
-    key: '',
-  });
+  const [state, setState] = useState<ServerMatchResult & { key: string }>(EMPTY_STATE);
+  // A closed form forgets its answer, so a reopened one never shows a stale notice.
   const seq = useRef(0);
+  const [wasOpen, setWasOpen] = useState(open);
+  if (wasOpen !== open) {
+    setWasOpen(open);
+    if (!open) {
+      seq.current += 1;
+      setState(EMPTY_STATE);
+    }
+  }
   const key = data ? identityTerms(data).join('|') : '';
 
   useEffect(() => {

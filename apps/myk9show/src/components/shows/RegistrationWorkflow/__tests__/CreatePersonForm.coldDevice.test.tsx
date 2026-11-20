@@ -97,5 +97,62 @@ describe('CreatePersonForm on a device with no saved people (MYK9-2257)', () => 
     await typePerson(user);
 
     expect(await screen.findByText(/Can't check for an existing person right now/)).toBeVisible();
+
+    await user.click(await screen.findByRole('button', { name: /Next: Contact/ }));
+    await user.click(await screen.findByRole('button', { name: 'Add Person' }));
+    await waitFor(() => expect(createUserMock).toHaveBeenCalled());
   });
+
+  it('online with no server match: the person is created', async () => {
+    setOnline(true);
+    searchUsersMock.mockResolvedValue(fromAny({ data: [], error: null }));
+    const onExhibitorCreated = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <CreatePersonForm open onOpenChange={vi.fn()} onExhibitorCreated={onExhibitorCreated} />
+    );
+
+    await typePerson(user);
+    await user.click(await screen.findByRole('button', { name: /Next: Contact/ }));
+    await user.click(await screen.findByRole('button', { name: 'Add Person' }));
+
+    await waitFor(() => expect(createUserMock).toHaveBeenCalled());
+    expect(onExhibitorCreated).toHaveBeenCalled();
+    expect(screen.queryByTestId('person-duplicate-notice')).not.toBeInTheDocument();
+  });
+
+  it('keeps the rows of a term that answered when the other term fails', async () => {
+    setOnline(true);
+    searchUsersMock.mockImplementation(async term =>
+      term === 'Mailbox'
+        ? fromAny({ data: [SERVER_ROW], error: null })
+        : fromAny({ data: [], error: new Error('boom') })
+    );
+    const user = userEvent.setup();
+    render(<CreatePersonForm open onOpenChange={vi.fn()} onExhibitorCreated={vi.fn()} />);
+
+    await typePerson(user);
+    await user.click(await screen.findByRole('button', { name: /Next: Contact/ }));
+    await user.click(await screen.findByRole('button', { name: 'Add Person' }));
+
+    expect(await screen.findByTestId('person-duplicate-notice')).toBeInTheDocument();
+    expect(createUserMock).not.toHaveBeenCalled();
+  });
+
+  it('a lookup that never answers does not hold the save past the deadline', async () => {
+    setOnline(true);
+    searchUsersMock.mockReturnValue(new Promise(() => {}));
+    const onExhibitorCreated = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <CreatePersonForm open onOpenChange={vi.fn()} onExhibitorCreated={onExhibitorCreated} />
+    );
+
+    await typePerson(user);
+    await user.click(await screen.findByRole('button', { name: /Next: Contact/ }));
+    await user.click(await screen.findByRole('button', { name: 'Add Person' }));
+
+    await waitFor(() => expect(createUserMock).toHaveBeenCalled(), { timeout: 6000 });
+    await waitFor(() => expect(onExhibitorCreated).toHaveBeenCalled());
+  }, 15000);
 });

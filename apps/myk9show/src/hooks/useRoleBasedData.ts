@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { onlineManager } from '@tanstack/react-query';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useEntriesPersonId } from '@/hooks/useEntriesPersonId';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
@@ -58,12 +59,14 @@ const EMPTY_PEOPLE: User[] = [];
 
 export function useRoleBasedPeople() {
   const { userWithRoles, hasRole } = useAuthContext();
-  const { data: queried, isLoading, error, refetch } = useUsersQuery();
-  // MYK9-2265: with no signal the server read never answers; the saved people directory
-  // (same columns, loaded by management sessions only) stands in so a person's phone and
-  // email still open from the desk. Never used when the server has answered.
+  const { data: queried, isLoading, error, refetch, fetchStatus } = useUsersQuery();
+  // MYK9-2265: with no signal the server read is paused and never answers; the saved people
+  // directory (same columns, loaded by management sessions only) stands in so a person's
+  // phone and email still open from the desk. Never used when the server has answered, and
+  // an error while online stays an error.
   const savedPeople = useUserStore(state => state.users);
-  const usingSaved = queried === undefined && !isLoading;
+  const offline = fetchStatus === 'paused' || !onlineManager.isOnline();
+  const usingSaved = queried === undefined && !isLoading && offline;
   const allPeople = queried ?? (usingSaved ? savedPeople : EMPTY_PEOPLE);
 
   const filteredPeople = useMemo(() => {

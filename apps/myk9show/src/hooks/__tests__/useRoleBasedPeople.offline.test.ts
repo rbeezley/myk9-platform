@@ -32,7 +32,13 @@ function asRole(role: UserRole) {
 
 function offlineQuery() {
   vi.mocked(useUsersQuery).mockReturnValue(
-    fromPartial({ data: undefined, isLoading: false, error: null, refetch: vi.fn() })
+    fromPartial({
+      data: undefined,
+      isLoading: false,
+      error: null,
+      fetchStatus: 'paused',
+      refetch: vi.fn(),
+    })
   );
 }
 
@@ -57,6 +63,22 @@ describe('useRoleBasedPeople with no signal (MYK9-2265)', () => {
     asRole(UserRole.JUDGE);
     const { result } = renderHook(() => useRoleBasedPeople());
     expect(result.current.people).toEqual([]);
+  });
+
+  it('keeps the error state when the read failed while online', () => {
+    asRole(UserRole.SECRETARY);
+    vi.mocked(useUsersQuery).mockReturnValue(
+      fromPartial({
+        data: undefined,
+        isLoading: false,
+        error: new Error('boom'),
+        fetchStatus: 'idle',
+        refetch: vi.fn(),
+      })
+    );
+    const { result } = renderHook(() => useRoleBasedPeople());
+    expect(result.current.people).toEqual([]);
+    expect(result.current.error?.message).toBe('boom');
   });
 
   it('prefers the server answer when it has one', () => {

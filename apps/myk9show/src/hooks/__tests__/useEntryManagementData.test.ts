@@ -4,6 +4,7 @@ import {
   mapSecretaryEntryToEntryManagementEntry,
   useEntryManagementData,
 } from '../useEntryManagementData';
+import { useUserStore } from '@/store/userStore';
 import { PaymentStatus } from '@/types/show-registration-types';
 
 const mocks = vi.hoisted(() => ({
@@ -208,6 +209,38 @@ describe('useEntryManagementData', () => {
     await waitFor(() => expect(result.current.entries).toHaveLength(1));
 
     expect(result.current.entries[0]?.moneyRootUnresolved).toBe(true);
+  });
+
+  it('re-resolves an owner name when the saved directory arrives after the entries were mapped (MYK9-2265)', async () => {
+    useUserStore.setState({ users: [], people: [] });
+    mocks.getEntriesForShow.mockResolvedValue({
+      data: [
+        {
+          id: 'entry-1',
+          show_id: 'show-1',
+          entry_status: 'confirmed',
+          dog: { name: 'Rex', owner: { id: 'owner-9', first_name: null, last_name: null } },
+          class: null,
+          registration: null,
+          trial: null,
+        },
+      ],
+      error: null,
+    });
+    const { result } = renderHook(() => useEntryManagementData());
+    await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
+    act(() => result.current.setSelectedShowId('show-1'));
+    await waitFor(() => expect(result.current.entries).toHaveLength(1));
+    expect(result.current.entries[0]?.ownerName).toBe('Owner name not on this device');
+
+    act(() =>
+      useUserStore.setState({
+        users: [{ id: 'owner-9', firstName: 'Dana', lastName: 'Directory' }],
+      })
+    );
+    expect(result.current.entries[0]?.ownerName).toBe('Dana Directory');
+    expect(mocks.getEntriesForShow).toHaveBeenCalledTimes(1);
+    useUserStore.setState({ users: [], people: [] });
   });
 
   it('loads shows on mount', async () => {

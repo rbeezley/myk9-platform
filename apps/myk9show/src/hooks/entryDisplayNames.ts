@@ -5,6 +5,7 @@
 
 import { ownerNameCacheKey, recallOwnerNames } from '@/services/database/dogs/ownerNameCache';
 import { useUserStore } from '@/store/userStore';
+import type { User } from '@/types/user-types';
 
 interface NamedPerson {
   first_name: string | null;
@@ -47,15 +48,38 @@ export function entryOwnerName(
   if (!ownerId) return personName(entry.dog?.owner) || entry.handler || 'Unknown';
   const joined = personName(entry.dog?.owner);
   if (joined) return joined;
+  // The saved people directory (management devices only) is reloaded on every online
+  // management boot, so it outranks the names-only device copy (MYK9-2265).
+  const saved = savedOwnerName(ownerId, useUserStore.getState().users);
+  if (saved) return saved;
   const remembered = recallOwnerNames([ownerId], ownerNameCacheKey()).get(ownerId);
-  const rememberedName = personName(remembered);
-  if (rememberedName) return rememberedName;
-  // The saved people directory (management devices only) is the last offline source (MYK9-2265).
-  const saved = useUserStore.getState().users.find(person => person.id === ownerId);
-  return (
-    personName({ first_name: saved?.firstName ?? null, last_name: saved?.lastName ?? null }) ||
-    OWNER_NAME_NOT_ON_DEVICE
-  );
+  return personName(remembered) || OWNER_NAME_NOT_ON_DEVICE;
+}
+
+function savedOwnerName(ownerId: string, users: readonly User[]): string | null {
+  const saved = users.find(person => person.id === ownerId);
+  return personName({ first_name: saved?.firstName ?? null, last_name: saved?.lastName ?? null });
+}
+
+/**
+ * Held entries whose owner name was "not on this device" when they were mapped, re-resolved
+ * against the saved directory once it arrives (a cold offline boot rehydrates it after the
+ * mapping). Returns the same array when nothing changes.
+ */
+export function withSavedOwnerNames<T extends { ownerId?: string | null; ownerName: string }>(
+  entries: readonly T[],
+  users: readonly User[]
+): readonly T[] {
+  if (users.length === 0) return entries;
+  let changed = false;
+  const next = entries.map(entry => {
+    if (!entry.ownerId || entry.ownerName !== OWNER_NAME_NOT_ON_DEVICE) return entry;
+    const name = savedOwnerName(entry.ownerId, users);
+    if (!name) return entry;
+    changed = true;
+    return { ...entry, ownerName: name };
+  });
+  return changed ? next : entries;
 }
 
 /** The call name, else the registered name. */

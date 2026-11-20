@@ -6,11 +6,11 @@
 # a fresh dispatch, a re-run of failed jobs and a real publish all prove the same
 # thing against the same URLs.
 #
-#   1. MYK9-546: myk9show.com once served a bundle days behind the default
-#      alias, so both homepages (canonical `/`, what visitors get) must name
-#      the same non-empty entry chunk.
-#   2. MYK9-896: a chunk comparison cannot tell an old build from a new one, so
-#      both hosts' build-sha.txt (cache-busted) must name COMMIT_SHA.
+#   1. MYK9-896: both hosts' build-sha.txt (cache-busted) must name COMMIT_SHA.
+#   2. MYK9-546 / MYK9-2247: each host's canonical homepage `/` (what visitors
+#      get) must name the entry chunk the build stamped in build-entry.txt.
+#      That also proves the hosts agree, and a cached old homepage on both
+#      cannot pass. A deployment without the stamp fails: rebuild_live=true.
 #
 #   COMMIT_SHA     required, full 40-char SHA production must serve
 #   DOMAIN_URL     default https://myk9show.com
@@ -48,17 +48,10 @@ served_sha() {
   tr -d '[:space:]' <<<"$body"
 }
 
-public=""
-for ((attempt = 1; attempt <= tries; attempt += 1)); do
-  default_alias="$(entry "$alias_url/")"
-  public="$(entry "$domain/")"
-  [[ -n "$public" && "$default_alias" == "$public" ]] && break
-  echo "attempt $attempt: $alias_url/ entry=$default_alias $domain/ entry=$public"
-  if ((attempt < tries)); then sleep "$pause"; fi
-done
-[[ -n "$public" && "$default_alias" == "$public" ]] || {
-  echo "entry chunk mismatch: $alias_url/ serves '$default_alias', $domain/ serves '$public'. If this commit is already live, rerun with rebuild_live=true to republish it." >&2
-  exit 1
+served_stamp() {
+  local body
+  body="$(curl --fail --silent --location --max-time 20 "$1/build-entry.txt?v=$commit_sha-$(date +%s)-$2" 2>/dev/null)" || return 0
+  tr -d '[:space:]' <<<"$body"
 }
 
 for host in "$domain" "$alias_url"; do
@@ -74,6 +67,36 @@ for host in "$domain" "$alias_url"; do
     exit 1
   }
 done
+
+# MYK9-2247: the stamp, written at build time next to build-sha.txt, names the
+# entry chunk the build produced. Each canonical homepage must serve exactly
+# that chunk, so two hosts that agree on a stale cached homepage still fail.
+expected=""
+for host in "$domain" "$alias_url"; do
+  stamp=""
+  for ((attempt = 1; attempt <= tries; attempt += 1)); do
+    stamp="$(served_stamp "$host" "$attempt")"
+    [[ -n "$stamp" ]] && break
+    if ((attempt < tries)); then sleep "$pause"; fi
+  done
+  [[ -n "$stamp" ]] || {
+    echo "$host has no build-entry.txt stamp, so its homepage cannot be checked against the build. This deployment predates the stamp: rerun with rebuild_live=true to rebuild and republish it." >&2
+    exit 1
+  }
+  found=""
+  for ((attempt = 1; attempt <= tries; attempt += 1)); do
+    found="$(entry "$host/")"
+    [[ "$found" == "$stamp" ]] && break
+    echo "attempt $attempt: $host/ entry=$found expected=$stamp"
+    if ((attempt < tries)); then sleep "$pause"; fi
+  done
+  [[ "$found" == "$stamp" ]] || {
+    echo "entry chunk mismatch: $host/ serves '$found', the build produced '$stamp' (a stale homepage is still being served). If this commit is already live, rerun with rebuild_live=true to republish it." >&2
+    exit 1
+  }
+  expected="$stamp"
+done
+public="$expected"
 
 echo "Verified: $domain and $alias_url serve $public built from $commit_sha"
 if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then

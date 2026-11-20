@@ -17,6 +17,7 @@ const SHA = 'a'.repeat(40);
 const OTHER = 'b'.repeat(40);
 const page = (chunk: string) =>
   `<!doctype html><html><head><script type="module" src="/assets/scripts/index-${chunk}.js"></script></head></html>`;
+const entry = (chunk: string) => `src="/assets/scripts/index-${chunk}.js"`;
 const dirs: string[] = [];
 afterEach(() => {
   for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true });
@@ -82,6 +83,8 @@ const healthy = (): Record<string, string> => ({
   [`${ALIAS}/`]: page('ABC'),
   [`${DOMAIN}/build-sha.txt`]: `${SHA}\n`,
   [`${ALIAS}/build-sha.txt`]: `${SHA}\n`,
+  [`${DOMAIN}/build-entry.txt`]: `${entry('ABC')}\n`,
+  [`${ALIAS}/build-entry.txt`]: `${entry('ABC')}\n`,
 });
 
 describe('verify-production.sh', { timeout: 30_000 }, () => {
@@ -98,6 +101,9 @@ describe('verify-production.sh', { timeout: 30_000 }, () => {
     expect(r.urls).toContain(`${ALIAS}/`);
     const shaReads = r.urls.filter(u => u.includes('build-sha.txt'));
     expect(shaReads).toHaveLength(2);
+    const stampReads = r.urls.filter(u => u.includes('build-entry.txt'));
+    expect(stampReads).toHaveLength(2);
+    for (const u of stampReads) expect(u).toMatch(/build-entry\.txt\?v=a{40}-\d+-1$/);
     for (const u of shaReads) expect(u).toMatch(/build-sha\.txt\?v=a{40}-\d+-1$/);
   });
 
@@ -121,6 +127,27 @@ describe('verify-production.sh', { timeout: 30_000 }, () => {
     const r = run({ ...healthy(), [`${DOMAIN}/`]: page('OLD') });
     expect(r.status).toBe(1);
     expect(r.stderr).toContain('entry chunk mismatch');
+    expect(r.stderr).toContain('rebuild_live=true');
+  });
+
+  it('fails when both hosts serve the same stale homepage the build replaced', () => {
+    const r = run({
+      ...healthy(),
+      [`${DOMAIN}/`]: page('OLD'),
+      [`${ALIAS}/`]: page('OLD'),
+    });
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain('entry chunk mismatch');
+    expect(r.stderr).toContain(`serves '${entry('OLD')}', the build produced '${entry('ABC')}'`);
+    expect(r.stderr).toContain('rebuild_live=true');
+  });
+
+  it('fails with a rebuild message when the deployment has no entry stamp', () => {
+    const served = healthy();
+    delete served[`${DOMAIN}/build-entry.txt`];
+    const r = run(served);
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain(`${DOMAIN} has no build-entry.txt stamp`);
     expect(r.stderr).toContain('rebuild_live=true');
   });
 

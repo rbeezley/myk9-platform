@@ -167,6 +167,11 @@ jobs:
           set -euo pipefail
           [[ "$(git rev-parse HEAD)" == "$COMMIT_SHA" ]]
           printf '%s\n' "$COMMIT_SHA" >.vercel/output/static/build-sha.txt
+          # MYK9-2247: also stamp the entry chunk the build produced, in the
+          # same form verify-production.sh reads off a live homepage.
+          entry="$(grep -oE 'src="/assets/[^"]*index-[A-Za-z0-9_-]+\.js"' .vercel/output/static/index.html | sort -u)"
+          [[ -n "$entry" && "$entry" != *$'\n'* ]] || { echo "expected exactly one entry chunk in the built index.html, got: '$entry'" >&2; exit 1; }
+          printf '%s\n' "$entry" >.vercel/output/static/build-entry.txt
 
       # MYK9-2240: the last read of what production serves before publishing,
       # with main's full history so the ancestry check can see the live commit.

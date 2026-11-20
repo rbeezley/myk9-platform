@@ -52,6 +52,10 @@ export interface ClubPremiumTemplate {
   hospitalityNotes: string | null;
   awardsDescription: string | null;
   additionalNotes: string | null;
+  /** MYK9-2291 (ASCA §1.5.18): concerns for handicapped or limited-mobility handlers or dogs. */
+  limitedMobilityNotes: string | null;
+  /** MYK9-2291 (ASCA §1.5.22): RV hook-up amenities and availability. */
+  rvHookupNotes: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -63,6 +67,10 @@ export interface PremiumSupplemental {
   hospitalityNotes: string | null;
   awardsDescription: string | null;
   additionalNotes: string | null;
+  /** MYK9-2291 (ASCA §1.5.18); absent on a premium generated before it. Prints on ASCA only. */
+  limitedMobilityNotes?: string | null;
+  /** MYK9-2291 (ASCA §1.5.22); absent on a premium generated before it. Prints on ASCA only. */
+  rvHookupNotes?: string | null;
 }
 
 /**

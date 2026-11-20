@@ -45,6 +45,8 @@ export interface PremiumRequirementFacts {
     vetClinic: { name: string; phone: string; address: string } | null;
     accommodationCount: number;
     awardsDescription: string | null;
+    /** MYK9-2291 (ASCA §1.5.18). */
+    limitedMobilityNotes?: string | null;
   };
   /**
    * MYK9-2044: the calendar dates the recording fee is priced on (each live trial's date, else
@@ -286,6 +288,14 @@ const CHECKS: Partial<Record<PremiumFactId, Check>> = {
     'Spectators and videoing',
     'whether spectators and videoing are allowed'
   ),
+  // MYK9-2291: ASCA §1.5.18. RV hook-ups (§1.5.22) apply only to an RV park, so they are optional.
+  limitedMobility: {
+    missing: (f, r) =>
+      f.template && blank(f.template.limitedMobilityNotes)
+        ? `${r} requires concerns for handicapped or limited-mobility handlers or dogs (say so if there are none). Add them to the club's premium template.`
+        : null,
+    href: clubPage,
+  },
   entryWindow: {
     missing: (f, r) =>
       blank(f.entry.opens) || blank(f.entry.closes)

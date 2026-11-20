@@ -138,6 +138,9 @@ const generatedPremiumSchema = z.object({
     hospitalityNotes: nullableText,
     awardsDescription: nullableText,
     additionalNotes: nullableText,
+    // MYK9-2291: optional, so an older premium parses and zod keeps them on a new one.
+    limitedMobilityNotes: nullableText.optional(),
+    rvHookupNotes: nullableText.optional(),
   }),
   narratives: z.object({ showHours: z.string(), trialInformation: z.string() }),
 });

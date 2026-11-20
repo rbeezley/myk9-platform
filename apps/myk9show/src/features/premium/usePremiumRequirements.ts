@@ -134,6 +134,7 @@ export function requirementFactsFromShow(input: PremiumRequirementInputs): Premi
               : null,
             accommodationCount: input.template?.accommodations.length ?? 0,
             awardsDescription: input.template?.awardsDescription ?? null,
+            limitedMobilityNotes: input.template?.limitedMobilityNotes ?? null,
           },
         }),
     committee: input.committee,

@@ -334,6 +334,7 @@ describe('ASCA club-template and contact facts (MYK9-2286)', () => {
     vetClinic: { name: 'Valley Emergency Vet', phone: '555-0199', address: '' },
     accommodationCount: 2,
     awardsDescription: 'Ribbons and rosettes',
+    limitedMobilityNotes: 'Flat paved path',
     ...over,
   });
   const asca = (patch: Partial<PremiumRequirementFacts> = {}) => ({
@@ -366,12 +367,13 @@ describe('ASCA club-template and contact facts (MYK9-2286)', () => {
     );
   });
 
-  it('lists a club with no template at all as missing all three', () => {
+  it('lists a club with no template at all as missing all four', () => {
     const none = { vetClinic: null, accommodationCount: 0, awardsDescription: null };
     expect(idsFor(asca({ template: none }), 'ASCA')).toEqual([
       'vetClinic',
       'accommodations',
       'awards',
+      'limitedMobility',
     ]);
   });
 

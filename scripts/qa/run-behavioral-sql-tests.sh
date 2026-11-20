@@ -78,6 +78,7 @@ TEST_FILES=(
   "$TEST_DIR/club_authorization_gate_test.sql"
   "$TEST_DIR/myk9_979_online_entries_switch_test.sql"
   "$TEST_DIR/myk9_2163_publish_needs_payouts_test.sql"
+  "$TEST_DIR/myk9_2291_club_template_asca_facts_test.sql"
   "$TEST_DIR/myk9_2197_show_publish_blockers_test.sql"
   "$TEST_DIR/myk9_2199_club_first_show_published_test.sql"
   "$TEST_DIR/myk9_2054_own_premium_unpublish_test.sql"

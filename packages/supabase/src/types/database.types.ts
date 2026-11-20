@@ -1770,6 +1770,8 @@ export type Database = {
         Row: {
           accommodations: Json
           additional_notes: string | null
+          limited_mobility_notes: string | null
+          rv_hookup_notes: string | null
           awards_description: string | null
           club_id: string
           cover_image_url: string | null
@@ -1788,6 +1790,8 @@ export type Database = {
         Insert: {
           accommodations?: Json
           additional_notes?: string | null
+          limited_mobility_notes?: string | null
+          rv_hookup_notes?: string | null
           awards_description?: string | null
           club_id: string
           cover_image_url?: string | null
@@ -1806,6 +1810,8 @@ export type Database = {
         Update: {
           accommodations?: Json
           additional_notes?: string | null
+          limited_mobility_notes?: string | null
+          rv_hookup_notes?: string | null
           awards_description?: string | null
           club_id?: string
           cover_image_url?: string | null

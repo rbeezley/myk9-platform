@@ -1,0 +1,137 @@
+{
+  "phone": {
+    "space": {
+      "width": 390,
+      "height": 844
+    },
+    "scale": 2,
+    "shots": {
+      "dogs": {
+        "file": "phone-dogs.png",
+        "regions": {
+          "row": {
+            "x": 33,
+            "y": 385,
+            "w": 324,
+            "h": 187
+          }
+        }
+      },
+      "classes": {
+        "file": "phone-classes.png",
+        "regions": {
+          "chip": {
+            "x": 95,
+            "y": 424,
+            "w": 224,
+            "h": 152
+          }
+        }
+      },
+      "payment": {
+        "file": "phone-payment.png",
+        "regions": {
+          "pay": {
+            "x": 218,
+            "y": 783,
+            "w": 140,
+            "h": 48
+          }
+        }
+      },
+      "pending": {
+        "file": "phone-pending.png",
+        "regions": {
+          "badge": {
+            "x": 39,
+            "y": 384,
+            "w": 160,
+            "h": 26
+          }
+        }
+      },
+      "accepted": {
+        "file": "phone-accepted.png",
+        "regions": {
+          "badge": {
+            "x": 238,
+            "y": 341,
+            "w": 113,
+            "h": 26
+          }
+        }
+      }
+    }
+  },
+  "desk": {
+    "space": {
+      "width": 1440,
+      "height": 900
+    },
+    "scale": 1,
+    "shots": {
+      "before": {
+        "file": "desk-before.png",
+        "regions": {
+          "queue": {
+            "x": 150,
+            "y": 407,
+            "w": 669,
+            "h": 256
+          }
+        }
+      },
+      "list": {
+        "file": "desk-list.png",
+        "regions": {
+          "row": {
+            "x": 151,
+            "y": 414,
+            "w": 667,
+            "h": 120
+          }
+        }
+      },
+      "review": {
+        "file": "desk-review.png",
+        "regions": {
+          "checklist": {
+            "x": 852,
+            "y": 249,
+            "w": 513,
+            "h": 449
+          },
+          "item": {
+            "x": 869,
+            "y": 302,
+            "w": 479,
+            "h": 130
+          },
+          "accept": {
+            "x": 882,
+            "y": 375,
+            "w": 84,
+            "h": 44
+          }
+        }
+      },
+      "accepted": {
+        "file": "desk-accepted.png",
+        "regions": {
+          "entry": {
+            "x": 902,
+            "y": 356,
+            "w": 413,
+            "h": 76
+          },
+          "communication": {
+            "x": 869,
+            "y": 609,
+            "w": 231,
+            "h": 21
+          }
+        }
+      }
+    }
+  }
+}

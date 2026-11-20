@@ -92,7 +92,7 @@ export function TimelineScene({
       data-lead={lead}
       data-mode={mode}
       data-solo={solo ? 'true' : undefined}
-      aria-label="Walkthrough"
+      aria-label={scene.name}
     >
       <div className="tl-scene-grid">
         <div className="tl-scene-words">

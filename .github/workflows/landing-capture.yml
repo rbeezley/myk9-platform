@@ -78,7 +78,7 @@ jobs:
       # never given to this job, so nothing it runs could sign in there.
       - name: Make this job's own account passwords
         run: |
-          for name in E2E_SECRETARY_PASSWORD E2E_ADMIN_PASSWORD E2E_JUDGE_PASSWORD E2E_DEMO_EXHIBITOR_PASSWORD; do
+          for name in E2E_SECRETARY_PASSWORD E2E_ADMIN_PASSWORD E2E_JUDGE_PASSWORD E2E_DEMO_EXHIBITOR_PASSWORD E2E_EXHIBITOR2_PASSWORD; do
             value="Job-$(openssl rand -hex 16)-9a"
             echo "::add-mask::$value"
             echo "$name=$value" >> "$GITHUB_ENV"
@@ -137,7 +137,7 @@ jobs:
 
       # The spec proves the closed network again before it signs in. No retries: the walk
       # scores a dog for real, so a second attempt would start from a different database.
-      - name: Capture the ring scene
+      - name: Capture the landing scenes
         working-directory: apps/myk9show
         run: >-
           sg landing-capture -c
@@ -159,7 +159,12 @@ jobs:
           done
           test "$(find "$out/public/landing/scenes/ring" -type f | wc -l)" -eq 8
           test -s "$out/src/components/landing/lifecycle/scenes/ringRegions.json"
-          test "$(find "$RUNNER_TEMP/landing-capture/out" -type f | wc -l)" -eq 9
+          for shot in phone-dogs phone-classes phone-payment phone-pending phone-accepted desk-before desk-list desk-review desk-accepted; do
+            test -s "$out/public/landing/scenes/entries/$shot.png"
+          done
+          test "$(find "$out/public/landing/scenes/entries" -type f | wc -l)" -eq 9
+          test -s "$out/src/components/landing/lifecycle/scenes/entriesRegions.json"
+          test "$(find "$RUNNER_TEMP/landing-capture/out" -type f | wc -l)" -eq 19
 
       # This repository's artifacts are public (MYK9-1057): fail before the upload if one of
       # the job's passwords (in the environment since the first step) is in the regions file.
@@ -171,7 +176,7 @@ jobs:
       - name: Upload the capture
         uses: actions/upload-artifact@v7
         with:
-          name: landing-capture-ring
+          name: landing-capture
           path: ${{ runner.temp }}/landing-capture/out/
           if-no-files-found: error
           retention-days: 14

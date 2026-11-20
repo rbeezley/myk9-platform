@@ -171,8 +171,18 @@ describe('the ring scene on the page', () => {
     const demo = container.querySelector('#showday .lc-demo');
     expect(demo).not.toBeNull();
     expect(scene!.compareDocumentPosition(demo!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(container.querySelectorAll('.tl-scene')).toHaveLength(1);
+    // The Entries open scene plays on the step above it; the ring scene is the one that is solo.
+    expect(container.querySelectorAll('.tl-scene')).toHaveLength(2);
+    expect(container.querySelectorAll('.tl-scene[data-solo="true"]')).toHaveLength(1);
     expect(screen.getByRole('button', { name: /The signal drops/ })).toBeInTheDocument();
+  });
+
+  it('names each walkthrough so a screen reader can tell them apart', () => {
+    render(<LifecycleTimeline audience="club" onAudienceChange={vi.fn()} />);
+    const names = screen
+      .getAllByRole('region', { name: /walkthrough/i })
+      .map(r => r.getAttribute('aria-label'));
+    expect(names).toEqual(['Entries walkthrough', 'Show day ring walkthrough']);
   });
 
   it('plays on the exhibitor’s meanwhile side, where the judge’s still was', () => {
@@ -180,7 +190,8 @@ describe('the ring scene on the page', () => {
       <LifecycleTimeline audience="exhibitor" onAudienceChange={vi.fn()} />
     );
     expect(sceneIn(container, 'lc-meanwhile')).not.toBeNull();
-    expect(container.querySelectorAll('.tl-scene')).toHaveLength(1);
+    // Plus the Entries open scene, on its own step's main side.
+    expect(container.querySelectorAll('.tl-scene')).toHaveLength(2);
     const showday = STORIES.exhibitor.find(s => s.id === 'showday')!;
     expect(showday).not.toHaveProperty('meanwhileShot');
   });
@@ -199,7 +210,7 @@ describe('the ring scene on the page', () => {
   it('jumps to a line’s capture when the line is pressed', () => {
     const { container } = render(<LifecycleTimeline audience="club" onAudienceChange={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: /The score is read back/ }));
-    expect(container.querySelector('.tl-scene-shot[data-on="true"]')).toHaveAttribute(
+    expect(container.querySelector('#showday .tl-scene-shot[data-on="true"]')).toHaveAttribute(
       'data-shot',
       'confirm'
     );

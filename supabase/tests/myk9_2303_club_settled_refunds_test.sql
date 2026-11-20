@@ -284,10 +284,11 @@ BEGIN
   v_retry := public.record_club_settled_refund(
     '00000000-0000-0000-0000-000000230091', 10, current_date, 'check', '1042', 'refund by check',
     '00000000-0000-0000-0000-000000230d01');
+  -- authenticated has no SELECT on public.entries (reads go through the views), so the
+  -- cached total is read from the RPC's own return here and from the table as owner below.
   IF v_retry->>'id' <> v_first->>'id'
      OR (SELECT count(*) FROM public.club_settled_refunds) <> 1
-     OR (SELECT club_refunded_amount FROM public.entries
-          WHERE id = '00000000-0000-0000-0000-000000230091') <> 10 THEN
+     OR (v_retry->>'club_refunded_amount')::numeric <> 10 THEN
     RAISE EXCEPTION 'FAIL the retry key wrote twice: %', v_retry;
   END IF;
   RAISE NOTICE 'PASS the retry key writes once and returns the original row';
@@ -426,6 +427,8 @@ SELECT public.t2303_expect(
 SELECT public.record_club_settled_refund(
   '00000000-0000-0000-0000-000000230091', 15, current_date, 'other', NULL, 'right one', NULL);
 
+-- Read the cached total as the owner: authenticated has no SELECT on public.entries.
+RESET ROLE;
 DO $$
 BEGIN
   IF (SELECT club_refunded_amount FROM public.entries
@@ -437,6 +440,8 @@ BEGIN
   RAISE NOTICE 'PASS a reversal restored the balance and the cached total equals the ledger net';
 END;
 $$;
+-- Back to the caller set above (the jwt claim is a setting, untouched by RESET ROLE).
+SET LOCAL ROLE authenticated;
 
 -- --- reads: officials see rows, an unrelated admin and an exhibitor see none ---
 DO $$

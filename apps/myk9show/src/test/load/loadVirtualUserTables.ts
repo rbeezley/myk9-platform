@@ -101,23 +101,28 @@ async function readDelta<T extends TimestampedRow>(
   return out.rows;
 }
 
-/** Keyset-paged delta on (updated_at, id), as judge_assignments and dog_registrations read. */
+/**
+ * Keyset-paged delta on (updated_at, id), as the keyset pager (MYK9-2252) and the
+ * judge_assignments and dog_registrations readers do.
+ */
 async function readKeysetDelta<T extends TimestampedRow>(
   ctx: ReaderContext,
   table: string,
-  select: string
+  select: string,
+  bufferMs: number = INCREMENTAL_BUFFER_MS,
+  narrow: Narrow = q => q
 ): Promise<T[] | null> {
   const rows: T[] = [];
   let cursor: { updatedAt: string; id: string } | undefined;
   for (;;) {
     const page = await ctx.request<T>(table, () => {
-      const query = ctx.client.from(table).select(select);
+      const query = narrow(ctx.client.from(table).select(select));
       return (
         cursor
           ? query.or(
               `updated_at.gt.${cursor.updatedAt},and(updated_at.eq.${cursor.updatedAt},id.gt.${cursor.id})`
             )
-          : query.gt('updated_at', ctx.sinceIso(table, INCREMENTAL_BUFFER_MS))
+          : query.gt('updated_at', ctx.sinceIso(table, bufferMs))
       )
         .order('updated_at', { ascending: true })
         .order('id', { ascending: true })
@@ -170,14 +175,12 @@ const live: Narrow = query => query.is('deleted_at', null);
 
 async function syncShows(ctx: ReaderContext): Promise<void> {
   await countedDelta(ctx, 'shows', live, () =>
-    readDelta(ctx, 'shows', '*', INCREMENTAL_BUFFER_MS, live)
+    readKeysetDelta(ctx, 'shows', '*', INCREMENTAL_BUFFER_MS, live)
   );
 }
 
 async function syncTrials(ctx: ReaderContext): Promise<void> {
-  await countedDelta(ctx, 'trials', live, () =>
-    readDelta(ctx, 'trials', '*', INCREMENTAL_BUFFER_MS)
-  );
+  await countedDelta(ctx, 'trials', live, () => readKeysetDelta(ctx, 'trials', '*'));
 }
 
 async function syncClasses(ctx: ReaderContext): Promise<void> {
@@ -186,7 +189,7 @@ async function syncClasses(ctx: ReaderContext): Promise<void> {
     'classes',
     q => q,
     () =>
-      readDelta<TimestampedRow & EnrichableClassRow>(
+      readKeysetDelta<TimestampedRow & EnrichableClassRow>(
         ctx,
         'classes',
         `${ctx.classColumnSelect}, ${CLASS_JUDGE_EMBED}`,
@@ -297,7 +300,7 @@ async function syncWaitlistEntries(ctx: ReaderContext): Promise<void> {
     ctx,
     'waitlist_entries',
     q => q,
-    () => readDelta(ctx, 'waitlist_entries', '*', INCREMENTAL_BUFFER_MS)
+    () => readKeysetDelta(ctx, 'waitlist_entries', '*')
   );
 }
 

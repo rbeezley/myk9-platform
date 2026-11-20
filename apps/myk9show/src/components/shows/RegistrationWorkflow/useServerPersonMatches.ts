@@ -28,6 +28,11 @@ function identityTerms(data: Partial<PersonRecord>): string[] {
   return terms.filter((term, index) => term.length >= 2 && terms.indexOf(term) === index);
 }
 
+/** The key a lookup answer is stored under: the email and last name that were searched. */
+export function serverMatchKey(data: Partial<PersonRecord>): string {
+  return identityTerms(data).join('|');
+}
+
 /**
  * Asks the server for people matching the typed email and last name, so the
  * duplicate check still works on a device whose saved people directory is empty
@@ -89,7 +94,7 @@ export function useServerPersonMatches(open: boolean, data: Partial<PersonRecord
       setState(EMPTY_STATE);
     }
   }
-  const key = data ? identityTerms(data).join('|') : '';
+  const key = data ? serverMatchKey(data) : '';
 
   useEffect(() => {
     if (!open || !data || key === '') return;
@@ -107,10 +112,13 @@ export function useServerPersonMatches(open: boolean, data: Partial<PersonRecord
   const check = useCallback(async (value: Partial<PersonRecord>) => {
     seq.current += 1;
     const result = await fetchServerPersonMatches(value);
-    setState({ ...result, key: identityTerms(value).join('|') });
+    setState({ ...result, key: serverMatchKey(value) });
     return result;
   }, []);
 
   const current = state.key === key ? state : { people: [], failed: false };
-  return { serverPeople: current.people, serverFailed: current.failed, check };
+  // The last answer the hook settled on, whatever identity it was for: the save reuses
+  // it when `key` matches the person being saved, so it never waits on the lookup twice.
+  const settled = state.key === '' ? null : state;
+  return { serverPeople: current.people, serverFailed: current.failed, check, settled };
 }

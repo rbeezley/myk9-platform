@@ -140,6 +140,42 @@ describe('CreatePersonForm on a device with no saved people (MYK9-2257)', () => 
     expect(createUserMock).not.toHaveBeenCalled();
   });
 
+  it('reuses a failed debounced answer at save instead of asking the server again', async () => {
+    setOnline(true);
+    searchUsersMock.mockResolvedValue(fromAny({ data: [], error: new Error('boom') }));
+    const user = userEvent.setup();
+    render(<CreatePersonForm open onOpenChange={vi.fn()} onExhibitorCreated={vi.fn()} />);
+
+    await typePerson(user);
+    expect(await screen.findByText(/Can't check for an existing person right now/)).toBeVisible();
+    const callsBeforeSave = searchUsersMock.mock.calls.length;
+
+    await user.click(await screen.findByRole('button', { name: /Next: Contact/ }));
+    await user.click(await screen.findByRole('button', { name: 'Add Person' }));
+
+    await waitFor(() => expect(createUserMock).toHaveBeenCalled());
+    expect(searchUsersMock).toHaveBeenCalledTimes(callsBeforeSave);
+  });
+
+  it('still asks at save when the identity changed after the settled answer', async () => {
+    setOnline(true);
+    searchUsersMock.mockResolvedValue(fromAny({ data: [], error: null }));
+    const user = userEvent.setup();
+    render(<CreatePersonForm open onOpenChange={vi.fn()} onExhibitorCreated={vi.fn()} />);
+
+    await typePerson(user);
+    await waitFor(() => expect(searchUsersMock).toHaveBeenCalledWith('Mailbox'));
+    await user.type(screen.getByLabelText(/Last Name/i), 'x');
+    const callsBeforeSave = searchUsersMock.mock.calls.length;
+
+    await user.click(await screen.findByRole('button', { name: /Next: Contact/ }));
+    await user.click(await screen.findByRole('button', { name: 'Add Person' }));
+
+    await waitFor(() => expect(createUserMock).toHaveBeenCalled());
+    expect(searchUsersMock.mock.calls.length).toBeGreaterThan(callsBeforeSave);
+    expect(searchUsersMock).toHaveBeenCalledWith('Mailboxx');
+  });
+
   it('a lookup that never answers does not hold the save past the deadline', async () => {
     setOnline(true);
     searchUsersMock.mockReturnValue(new Promise(() => {}));

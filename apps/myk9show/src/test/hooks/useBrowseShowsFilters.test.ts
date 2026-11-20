@@ -67,6 +67,36 @@ function isoDate(d: Date): string {
 // included alongside boundary-case shows whose presence/absence we're testing.
 const ANCHOR = makeShow({ id: 'anchor', startDate: '2099-01-01', endDate: '2099-01-02' });
 
+describe('useBrowseShowsFilters — Open filter and paused card entries (MYK9-2192)', () => {
+  it('holds a paused show out of the Open bucket', async () => {
+    const windowOpen = {
+      onlineEntriesEnabled: true,
+      status: 'published',
+      entryOpenDate: localISODate(-5),
+      entryCloseDate: localISODate(40),
+    };
+    const open = makeShow({ id: 'open', ...windowOpen });
+    const paused = makeShow({ id: 'paused', ...windowOpen });
+    const { result } = renderHook(
+      () =>
+        useBrowseShowsFilters({
+          shows: [open, paused, ANCHOR],
+          entries: [],
+          userContext: null,
+          selectedTab: 'all',
+          pausedShowIds: new Set(['paused']),
+        }),
+      { wrapper }
+    );
+    act(() => result.current.setFilters(f => ({ ...f, entryStatus: 'open' })));
+    await waitFor(() => {
+      const ids = result.current.filteredShows.map(s => s.id);
+      expect(ids).toContain('open');
+      expect(ids).not.toContain('paused');
+    });
+  });
+});
+
 describe('useBrowseShowsFilters — upcoming filter (UTC/local boundary regression)', () => {
   it('skips a show with no usable dates instead of throwing', async () => {
     const malformedShow = {

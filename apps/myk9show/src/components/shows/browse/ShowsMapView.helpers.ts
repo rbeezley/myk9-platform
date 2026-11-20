@@ -9,7 +9,10 @@ export interface LocatedShow {
 }
 
 /** Split filtered shows into mappable pins and an omitted count. */
-export function partitionMappableShows(shows: EnhancedShow[]): {
+export function partitionMappableShows(
+  shows: EnhancedShow[],
+  pausedShowIds: ReadonlySet<string> = new Set()
+): {
   located: LocatedShow[];
   omittedCount: number;
 } {
@@ -21,7 +24,7 @@ export function partitionMappableShows(shows: EnhancedShow[]): {
         show,
         lat: show.latitude,
         lng: show.longitude,
-        status: deriveShowMarkerStatus(show),
+        status: deriveShowMarkerStatus(show, undefined, pausedShowIds.has(show.id)),
       });
     } else {
       omittedCount += 1;

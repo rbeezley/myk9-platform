@@ -15,6 +15,8 @@ interface MonthScrubberProps {
   value: string;
   onChange: (key: string) => void;
   className?: string;
+  /** MYK9-2192: shows whose card entries are paused; their dot reads muted, not open. */
+  pausedShowIds?: ReadonlySet<string>;
 }
 
 const DOT_CLASS: Record<MonthDot, string> = {
@@ -40,8 +42,17 @@ function tileAriaLabel(tile: MonthTile): string {
  * the open entries are before clicking. Past months sit dimmed to the left, so
  * the strip also replaces the old Past Shows tab (MYK9-427).
  */
-export function MonthScrubber({ shows, value, onChange, className }: MonthScrubberProps) {
-  const tiles = useMemo(() => buildMonthTiles(shows, new Date(), value), [shows, value]);
+export function MonthScrubber({
+  shows,
+  value,
+  onChange,
+  className,
+  pausedShowIds,
+}: MonthScrubberProps) {
+  const tiles = useMemo(
+    () => buildMonthTiles(shows, new Date(), value, pausedShowIds),
+    [shows, value, pausedShowIds]
+  );
   const selectedRef = useRef<HTMLButtonElement>(null);
 
   // Land with the selected tile in view (past months sit to its left).

@@ -17,6 +17,7 @@ import { usePlatformFeeRatesQuery } from '@/hooks/queries/usePlatformFeeRates';
 import { formatPlatformFeeLabel } from '@/store/cartStore.helpers';
 import { getEntryStatus } from '@/utils/entryStatusUtils';
 import { acceptsOnlineEntries } from '@/features/payments/onlineEntryGate';
+import { useShowCardEntriesPaused } from '@/features/payments/cardEntriesPaused';
 import type { Show } from '@/types/show-types';
 
 interface ServiceFeeNoteProps {
@@ -25,12 +26,12 @@ interface ServiceFeeNoteProps {
 }
 
 /** True while an exhibitor could still enter this show online (open, or opening later). */
-function exhibitorCouldEnterOnline(show: Show): boolean {
+function exhibitorCouldEnterOnline(show: Show, cardEntriesPaused: boolean): boolean {
   // A row whose value is not known yet (a partial or stale read) quotes no fee. The entry
   // status alone does not cover it: a future window reads `not_yet_open` before the status
   // looks at this value.
   if (!acceptsOnlineEntries(show)) return false;
-  const { status } = getEntryStatus(show);
+  const { status } = getEntryStatus(show, false, { cardEntriesPaused });
   return status === 'accepting' || status === 'closing_soon' || status === 'not_yet_open';
 }
 
@@ -42,7 +43,11 @@ function exhibitorCouldEnterOnline(show: Show): boolean {
  */
 export function useServiceFeeLabel(show: Show): string | null {
   const { rates, state } = usePlatformFeeRatesQuery();
-  if (state !== 'ready' || !rates || !exhibitorCouldEnterOnline(show)) return null;
+  // MYK9-2192: a paused show takes no card payment, so no card fee is quoted for it.
+  const cardEntriesPaused = useShowCardEntriesPaused(show);
+  if (state !== 'ready' || !rates || !exhibitorCouldEnterOnline(show, cardEntriesPaused)) {
+    return null;
+  }
   const label = formatPlatformFeeLabel(rates);
   return label === '0%' ? null : label;
 }

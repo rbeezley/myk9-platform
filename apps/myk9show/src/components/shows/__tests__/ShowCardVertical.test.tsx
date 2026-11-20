@@ -3,11 +3,6 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { ShowCardVertical, ShowCardVerticalSkeleton } from '../ShowCardVertical';
 import type { Show } from '@/types/show-types';
 
-vi.mock('@/features/payments/cardEntriesPaused', async importOriginal => ({
-  ...(await importOriginal<typeof import('@/features/payments/cardEntriesPaused')>()),
-  useShowCardEntriesPaused: () => false,
-}));
-
 // Helper to create a minimal Show for testing
 function createMockShow(overrides: Partial<Show> = {}): Show {
   return {

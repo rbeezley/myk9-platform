@@ -7,6 +7,8 @@ import type { Show } from '@/types/show-types';
 interface EntryClosedNoticeProps {
   shows: Show[];
   selectedTab: string;
+  /** MYK9-2192: shows whose card entries are paused; Enter is not offered for them. */
+  pausedShowIds?: ReadonlySet<string>;
 }
 
 /**
@@ -16,9 +18,16 @@ interface EntryClosedNoticeProps {
  * tabs never surface it; renders nothing when the list is empty (the EmptyState
  * covers that) or when any show can still be entered.
  */
-export function EntryClosedNotice({ shows, selectedTab }: EntryClosedNoticeProps) {
+export function EntryClosedNotice({ shows, selectedTab, pausedShowIds }: EntryClosedNoticeProps) {
   if (selectedTab !== 'all' || shows.length === 0) return null;
-  if (shows.some(show => getEntryStatus(show).canEnter)) return null;
+  if (
+    shows.some(
+      show =>
+        getEntryStatus(show, false, { cardEntriesPaused: pausedShowIds?.has(show.id) === true })
+          .canEnter
+    )
+  )
+    return null;
 
   // MYK9-808: a past month tile intentionally keeps showing its shows (it
   // replaced the old Past Shows tab, MYK9-427), but every one of them already

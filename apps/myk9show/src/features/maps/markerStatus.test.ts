@@ -60,6 +60,11 @@ describe('deriveShowMarkerStatus', () => {
     expect(deriveShowMarkerStatus(makeShow({ entryCloseDate: '2026-07-26' }))).toBe('closing-soon');
   });
 
+  it('a show with paused card entries is closed, not open (MYK9-2192)', () => {
+    expect(deriveShowMarkerStatus(makeShow({}), undefined, true)).toBe('closed');
+    expect(deriveShowMarkerStatus(makeShow({}), undefined, false)).toBe('open');
+  });
+
   it('lifecycle statuses render closed regardless of dates', () => {
     for (const status of ['draft', 'closed', 'in_progress', 'completed', 'cancelled']) {
       expect(deriveShowMarkerStatus(makeShow({ status }))).toBe('closed');

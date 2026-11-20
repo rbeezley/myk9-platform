@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { isPublicShowStatus } from './onlineEntryGate';
@@ -8,7 +9,8 @@ import { isPublicShowStatus } from './onlineEntryGate';
  */
 export const CARD_ENTRIES_PAUSED_MESSAGE = 'Card entries are paused. Contact the secretary.';
 
-type PaymentMethodShow = {
+export type PaymentMethodShow = {
+  id?: string | undefined;
   status?: string | null | undefined;
   acceptCheckPayments?: boolean | null | undefined;
   acceptCashPayments?: boolean | null | undefined;
@@ -20,29 +22,58 @@ export function takesCheckOrCash(show: PaymentMethodShow | null | undefined): bo
 }
 
 const CARD_PAUSED_STALE_MS = 60 * 1000;
+/** The server reads at most this many ids per call; a longer list is asked in slices. */
+const SERVER_ID_CAP = 500;
 
-/**
- * True when the server says card entries are paused for this show AND the show takes neither
- * check nor cash, so Enter would lead nowhere. The answer is public_safe: one show-level boolean
- * (show_card_entries_paused, MYK9-2192), the same predicate checkout's refusal rests on. An
- * online-only read; any failure, or being offline, reads as "not paused" so the page renders as
- * it does today. A show that takes check or cash never asks.
- */
-export function useShowCardEntriesPaused(show: PaymentMethodShow & { id?: string }): boolean {
-  const showId = show.id;
-  const asks = Boolean(showId) && isPublicShowStatus(show.status) && !takesCheckOrCash(show);
+export const NO_PAUSED_SHOWS: ReadonlySet<string> = new Set<string>();
+
+/** The shows worth asking about: public, and taking neither check nor cash. Sorted, unique. */
+export function cardPausedCandidateIds(shows: readonly PaymentMethodShow[]): string[] {
+  const ids = new Set<string>();
+  for (const show of shows) {
+    if (show.id && isPublicShowStatus(show.status) && !takesCheckOrCash(show)) ids.add(show.id);
+  }
+  return [...ids].sort();
+}
+
+function usePausedAmong(ids: string[]): ReadonlySet<string> {
   const query = useQuery({
-    queryKey: ['show-card-entries-paused', showId],
+    queryKey: ['shows-card-entries-paused', ids],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('show_card_entries_paused', {
-        p_show_id: showId as string,
-      });
-      if (error) throw error;
-      return data === true;
+      const paused: string[] = [];
+      for (let i = 0; i < ids.length; i += SERVER_ID_CAP) {
+        const { data, error } = await supabase.rpc('shows_card_entries_paused', {
+          p_show_ids: ids.slice(i, i + SERVER_ID_CAP),
+        });
+        if (error) throw error;
+        paused.push(...(data ?? []));
+      }
+      return paused;
     },
-    enabled: asks,
+    enabled: ids.length > 0,
     staleTime: CARD_PAUSED_STALE_MS,
     retry: false,
   });
-  return asks && query.data === true;
+  const data = query.data;
+  const asked = ids.length > 0;
+  return useMemo(() => (asked && data ? new Set(data) : NO_PAUSED_SHOWS), [asked, data]);
+}
+
+/**
+ * The ids, among the given shows, whose card entries are paused (shows_card_entries_paused,
+ * MYK9-2192, the same predicate checkout's refusal rests on). ONE query for the whole list,
+ * keyed by the sorted candidate ids. An online-only read: any failure, or being offline, reads
+ * as an empty set so the page renders as it does today. A show that takes check or cash, or is
+ * not public, is never asked about.
+ */
+export function useShowsCardEntriesPaused(
+  shows: readonly PaymentMethodShow[]
+): ReadonlySet<string> {
+  return usePausedAmong(cardPausedCandidateIds(shows));
+}
+
+/** The detail page: the same batched function, asked about one show. */
+export function useShowCardEntriesPaused(show: PaymentMethodShow): boolean {
+  const paused = usePausedAmong(cardPausedCandidateIds([show]));
+  return show.id !== undefined && paused.has(show.id);
 }

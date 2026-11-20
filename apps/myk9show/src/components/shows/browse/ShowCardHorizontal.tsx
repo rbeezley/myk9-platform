@@ -8,7 +8,7 @@ import { useEntryDogLink } from '@/features/registration/entryDogContext';
 import { DateCircle } from '@/components/shows/DateCircle';
 import { EntryStatusBadge } from '@/components/shows/EntryStatusBadge';
 import { getEntryStatus } from '@/utils/entryStatusUtils';
-import { useShowCardEntriesPaused } from '@/features/payments/cardEntriesPaused';
+import { usePausedShowIds } from '@/features/payments/cardEntriesPausedContext';
 import { getTypeBadge } from '@/utils/browseShowsUtils';
 import { getShowCardStatus } from '@/utils/showCardUtils';
 import { formatShowDateRange } from '@/lib/format/dates';
@@ -36,7 +36,7 @@ export const ShowCardHorizontal: React.FC<ShowCardHorizontalProps> = ({
   distanceMiles = null,
 }) => {
   const entryDogLink = useEntryDogLink();
-  const cardEntriesPaused = useShowCardEntriesPaused(show);
+  const cardEntriesPaused = usePausedShowIds().has(show.id);
   const entryStatus = getEntryStatus(show, userHasEntries, { cardEntriesPaused });
   const showCardStatus = getShowCardStatus(show, entryStatus.status);
 

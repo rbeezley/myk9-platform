@@ -3,9 +3,15 @@ import { render, screen } from '@testing-library/react';
 import { EntryClosedNotice } from './EntryClosedNotice';
 import type { Show } from '@/types/show-types';
 
-const { canEnter } = vi.hoisted(() => ({ canEnter: vi.fn() }));
+const { canEnter, statusOptions } = vi.hoisted(() => ({
+  canEnter: vi.fn(),
+  statusOptions: vi.fn(),
+}));
 vi.mock('@/utils/entryStatusUtils', () => ({
-  getEntryStatus: () => ({ canEnter: canEnter() }),
+  getEntryStatus: (_show: unknown, _entered: unknown, options: unknown) => {
+    statusOptions(options);
+    return { canEnter: canEnter() };
+  },
 }));
 
 const show = (id: string, dates: Partial<Show> = {}): Show => ({ id, ...dates }) as Show;
@@ -13,6 +19,21 @@ const show = (id: string, dates: Partial<Show> = {}): Show => ({ id, ...dates })
 describe('EntryClosedNotice', () => {
   beforeEach(() => {
     canEnter.mockReset();
+    statusOptions.mockReset();
+  });
+
+  // MYK9-2192: the notice reads the same paused answer as the cards.
+  it('asks each show with its paused answer', () => {
+    canEnter.mockReturnValue(false);
+    render(
+      <EntryClosedNotice
+        shows={[show('paused'), show('open')]}
+        selectedTab="all"
+        pausedShowIds={new Set(['paused'])}
+      />
+    );
+    expect(statusOptions).toHaveBeenCalledWith({ cardEntriesPaused: true });
+    expect(statusOptions).toHaveBeenCalledWith({ cardEntriesPaused: false });
   });
 
   it('renders nothing off the "all" tab', () => {

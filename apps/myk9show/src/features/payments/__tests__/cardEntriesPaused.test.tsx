@@ -8,8 +8,10 @@ vi.mock('@/lib/supabase', () => ({ supabase: { rpc } }));
 
 import {
   CARD_ENTRIES_PAUSED_MESSAGE,
+  cardPausedCandidateIds,
   takesCheckOrCash,
   useShowCardEntriesPaused,
+  useShowsCardEntriesPaused,
 } from '../cardEntriesPaused';
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -39,28 +41,51 @@ describe('cardEntriesPaused', () => {
     expect(takesCheckOrCash({ acceptCheckPayments: false, acceptCashPayments: false })).toBe(false);
   });
 
-  it('asks the server for the show and reports paused when it says true', async () => {
-    rpc.mockResolvedValue({ data: true, error: null });
+  it('asks only about public shows that take neither check nor cash, sorted and unique', () => {
+    expect(
+      cardPausedCandidateIds([
+        { ...noCheckOrCash, id: 'b' },
+        { ...noCheckOrCash, id: 'a' },
+        { ...noCheckOrCash, id: 'a' },
+        { ...noCheckOrCash, id: 'draft', status: 'draft' },
+        { ...noCheckOrCash, id: 'check', acceptCheckPayments: true },
+      ])
+    ).toEqual(['a', 'b']);
+  });
+
+  it('asks ONE batched question for a whole list and reads the paused ids', async () => {
+    rpc.mockResolvedValue({ data: ['b'], error: null });
+    const shows = [
+      { ...noCheckOrCash, id: 'b' },
+      { ...noCheckOrCash, id: 'a' },
+      { ...noCheckOrCash, id: 'c' },
+    ];
+    const { result } = renderHook(() => useShowsCardEntriesPaused(shows), { wrapper });
+    await waitFor(() => expect(result.current.has('b')).toBe(true));
+    expect(result.current.has('a')).toBe(false);
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(rpc).toHaveBeenCalledWith('shows_card_entries_paused', {
+      p_show_ids: ['a', 'b', 'c'],
+    });
+  });
+
+  it('asks the same function with one id for the detail page', async () => {
+    rpc.mockResolvedValue({ data: ['show-1'], error: null });
     const { result } = renderHook(() => useShowCardEntriesPaused(noCheckOrCash), { wrapper });
     await waitFor(() => expect(result.current).toBe(true));
-    expect(rpc).toHaveBeenCalledWith('show_card_entries_paused', { p_show_id: 'show-1' });
+    expect(rpc).toHaveBeenCalledWith('shows_card_entries_paused', { p_show_ids: ['show-1'] });
   });
 
-  it('never asks when the show takes check or cash', () => {
+  it('never asks when every show takes check or cash or is not public', () => {
     const { result } = renderHook(
-      () => useShowCardEntriesPaused({ ...noCheckOrCash, acceptCheckPayments: true }),
+      () =>
+        useShowsCardEntriesPaused([
+          { ...noCheckOrCash, acceptCheckPayments: true },
+          { ...noCheckOrCash, id: 'draft', status: 'draft' },
+        ]),
       { wrapper }
     );
-    expect(result.current).toBe(false);
-    expect(rpc).not.toHaveBeenCalled();
-  });
-
-  it('never asks for a show that is not public', () => {
-    const { result } = renderHook(
-      () => useShowCardEntriesPaused({ ...noCheckOrCash, status: 'draft' }),
-      { wrapper }
-    );
-    expect(result.current).toBe(false);
+    expect(result.current.size).toBe(0);
     expect(rpc).not.toHaveBeenCalled();
   });
 

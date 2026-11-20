@@ -45,18 +45,15 @@ import {
 } from '@/components/list-toolkit';
 import { useViewPreference } from '@/hooks/useViewPreference';
 import { usePageExportAction } from '@/features/actions/pageEditTarget';
-import { dropExportColumns, exportRowsCsv } from '@/utils/downloadCsv';
-import {
-  SHOWS_EXPORT_HEADERS,
-  SHOWS_GUEST_EXPORT_OMIT,
-  showsExportRows,
-} from '@/components/shows/browse/showsExport';
+import { exportShowsAsGuestCsv, exportShowsCsv } from '@/components/shows/browse/showsExport';
 import { ErrorState } from '@/components/common/ErrorState';
 
 // Extracted hooks and components
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { getTabsForUser, filterShowsForTab } from '@/utils/unified-shows-config';
 import { useBrowseShowsFilters } from '@/hooks/useBrowseShowsFilters';
+import { useShowsCardEntriesPaused } from '@/features/payments/cardEntriesPaused';
+import { CardEntriesPausedProvider } from '@/features/payments/cardEntriesPausedContext';
 import { useBrowseShowsData } from '@/hooks/useBrowseShowsData';
 import { ShowCardGrid, ShowsTableView, ShowBulkActionsBar } from '@/components/shows/browse';
 import { MonthScrubber } from '@/components/shows/browse/MonthScrubber';
@@ -135,7 +132,8 @@ const BrowseShowsPage: React.FC = () => {
     handleRetry,
   } = useBrowseShowsData({ filteredShows: filteredShowsState, selectedTab });
 
-  // Use extracted filter hook
+  // MYK9-2192: one answer for the whole list; the cards, table, map, filter and notice share it.
+  const pausedShowIds = useShowsCardEntriesPaused(shows);
   const {
     filters,
     setFilters,
@@ -143,7 +141,7 @@ const BrowseShowsPage: React.FC = () => {
     monthScopedShows,
     hasActiveFilters,
     clearAllFilters,
-  } = useBrowseShowsFilters({ shows, entries, userContext, selectedTab, origin });
+  } = useBrowseShowsFilters({ shows, entries, userContext, selectedTab, origin, pausedShowIds });
 
   // Sync filtered shows into state for the data hook (avoids second hook call)
   useEffect(() => {
@@ -275,18 +273,10 @@ const BrowseShowsPage: React.FC = () => {
   usePageExportAction({
     id: 'shows',
     enabled: viewMode === 'table' && enhancedShows.length > 0,
-    run: () => exportRowsCsv('shows', SHOWS_EXPORT_HEADERS, showsExportRows(enhancedShows)),
+    run: () => exportShowsCsv(enhancedShows, pausedShowIds),
   });
-  // A signed-out visitor has no header Actions menu: the same list, minus the columns the public
-  // table does not show (MYK9-933).
-  const exportShowsAsGuest = () => {
-    const { headers, rows } = dropExportColumns(
-      SHOWS_EXPORT_HEADERS,
-      showsExportRows(enhancedShows),
-      SHOWS_GUEST_EXPORT_OMIT
-    );
-    exportRowsCsv('shows', headers, rows);
-  };
+  // A signed-out visitor has no header Actions menu: the same list, minus the secretary columns.
+  const exportShowsAsGuest = () => exportShowsAsGuestCsv(enhancedShows, pausedShowIds);
 
   // Handle a view change: remember it, and drop a `?view=` link's override so the choice sticks.
   const handleViewModeChange = useCallback(
@@ -568,6 +558,7 @@ const BrowseShowsPage: React.FC = () => {
             shows={monthScopedShows}
             value={filters.month}
             onChange={handleMonthChange}
+            pausedShowIds={pausedShowIds}
           />
 
           {/* Tabs — hidden for guests and exhibitors, who only have Browse All */}
@@ -581,10 +572,14 @@ const BrowseShowsPage: React.FC = () => {
               {isTabSwitching || isViewModeChanging ? (
                 <TabContentSkeleton viewMode={viewMode} count={4} />
               ) : (
-                <>
-                  <EntryClosedNotice shows={enhancedShows} selectedTab={selectedTab} />
+                <CardEntriesPausedProvider pausedShowIds={pausedShowIds}>
+                  <EntryClosedNotice
+                    shows={enhancedShows}
+                    selectedTab={selectedTab}
+                    pausedShowIds={pausedShowIds}
+                  />
                   {renderShowsView()}
-                </>
+                </CardEntriesPausedProvider>
               )}
             </TabsContent>
           </PrimaryTabs>

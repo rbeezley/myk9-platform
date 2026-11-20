@@ -12,6 +12,7 @@ import type { ShowMarkerStatus } from '@/features/maps/markerStatus';
 import { OSM_TILE_URL, OSM_ATTRIBUTION, US_CENTER, MISSING_TILE_URL } from '@/features/maps/tiles';
 import { formatShowDateRange } from '@/lib/format/dates';
 import { useEntryDogLink } from '@/features/registration/entryDogContext';
+import { usePausedShowIds } from '@/features/payments/cardEntriesPausedContext';
 import { partitionMappableShows, type LocatedShow } from './ShowsMapView.helpers';
 
 /** Marker/legend colors — fixed palette chosen to read on OSM tiles in both themes. */
@@ -106,7 +107,11 @@ interface ShowsMapViewProps {
  */
 export function ShowsMapView({ shows, onSwitchToCards }: ShowsMapViewProps) {
   const entryDogLink = useEntryDogLink();
-  const { located, omittedCount } = useMemo(() => partitionMappableShows(shows), [shows]);
+  const pausedShowIds = usePausedShowIds();
+  const { located, omittedCount } = useMemo(
+    () => partitionMappableShows(shows, pausedShowIds),
+    [shows, pausedShowIds]
+  );
 
   if (located.length === 0) {
     return (

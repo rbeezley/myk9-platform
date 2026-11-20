@@ -27,12 +27,13 @@ const ENTERABLE_STATUSES: ReadonlySet<string> = new Set(['published', 'accepting
  */
 export function deriveShowMarkerStatus(
   show: Show,
-  capacity?: MarkerCapacityInput
+  capacity?: MarkerCapacityInput,
+  cardEntriesPaused = false
 ): ShowMarkerStatus {
   if (!ENTERABLE_STATUSES.has(show.status)) return 'closed';
 
-  const entry = getEntryStatus(show);
-  // not_yet_open, window_unknown, closed and setup_incomplete all land here:
+  const entry = getEntryStatus(show, false, { cardEntriesPaused });
+  // not_yet_open, window_unknown, closed, setup_incomplete and card_paused all land here:
   // the map has no "opens later" pin, and a window nobody set must not get one.
   if (!entry.canEnter) return 'closed';
 

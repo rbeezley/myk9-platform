@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CardEntriesPausedScope } from '@/features/payments/cardEntriesPausedContext';
 import { ShowCardVertical, ShowCardVerticalSkeleton } from './ShowCardVertical';
 import type { Show } from '@/types/show-types';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -137,78 +138,82 @@ export const UpcomingShows: React.FC<UpcomingShowsProps> = ({
   // Grid layout
   if (variant === 'grid') {
     return (
-      <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 ${className}`}>
-        {shows.map(show => (
-          <ShowCardVertical
-            key={show.id}
-            show={show}
-            onViewDetails={() => handleViewDetails(show.id)}
-          />
-        ))}
-      </div>
+      <CardEntriesPausedScope shows={shows}>
+        <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 ${className}`}>
+          {shows.map(show => (
+            <ShowCardVertical
+              key={show.id}
+              show={show}
+              onViewDetails={() => handleViewDetails(show.id)}
+            />
+          ))}
+        </div>
+      </CardEntriesPausedScope>
     );
   }
 
   // Carousel layout (default)
   return (
-    <div className={`relative ${className}`}>
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-3xl font-bold">Upcoming Shows</h2>
-        <div className="flex gap-2">
-          {onAddShow && <Button onClick={onAddShow}>+ Add Show</Button>}
-          {canScrollLeft && (
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="Scroll left"
-              onClick={() => scroll('left')}
-              className="rounded-full border-primary/20 hover:bg-primary/5 hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300 shadow-sm"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </Button>
-          )}
-          {canScrollRight && (
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="Scroll right"
-              onClick={() => scroll('right')}
-              className="rounded-full border-primary/20 hover:bg-primary/5 hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300 shadow-sm"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </Button>
-          )}
-        </div>
-      </div>
-
-      <div
-        ref={scrollRef}
-        className="flex gap-5 overflow-x-auto pb-4 hide-scrollbar scroll-smooth snap-x snap-mandatory"
-        style={{ scrollBehavior: 'smooth' }}
-        onMouseDown={handleUserScroll}
-        onTouchStart={handleUserScroll}
-      >
-        {shows.map(show => (
-          <div key={show.id} className="snap-start flex-shrink-0">
-            <ShowCardVertical show={show} onViewDetails={() => handleViewDetails(show.id)} />
+    <CardEntriesPausedScope shows={shows}>
+      <div className={`relative ${className}`}>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-3xl font-bold">Upcoming Shows</h2>
+          <div className="flex gap-2">
+            {onAddShow && <Button onClick={onAddShow}>+ Add Show</Button>}
+            {canScrollLeft && (
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="Scroll left"
+                onClick={() => scroll('left')}
+                className="rounded-full border-primary/20 hover:bg-primary/5 hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300 shadow-sm"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </Button>
+            )}
+            {canScrollRight && (
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="Scroll right"
+                onClick={() => scroll('right')}
+                className="rounded-full border-primary/20 hover:bg-primary/5 hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300 shadow-sm"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </Button>
+            )}
           </div>
-        ))}
-      </div>
+        </div>
 
-      {/* Scroll indicators */}
-      {shows.length > 1 && (
-        <div className="flex justify-center mt-4 gap-2">
-          {shows.map((_, idx) => (
-            <span
-              key={idx}
-              className={`w-2 h-2 rounded-full transition-all duration-200 ${
-                scrollIndex === idx ? 'bg-primary' : 'bg-muted'
-              }`}
-            />
+        <div
+          ref={scrollRef}
+          className="flex gap-5 overflow-x-auto pb-4 hide-scrollbar scroll-smooth snap-x snap-mandatory"
+          style={{ scrollBehavior: 'smooth' }}
+          onMouseDown={handleUserScroll}
+          onTouchStart={handleUserScroll}
+        >
+          {shows.map(show => (
+            <div key={show.id} className="snap-start flex-shrink-0">
+              <ShowCardVertical show={show} onViewDetails={() => handleViewDetails(show.id)} />
+            </div>
           ))}
         </div>
-      )}
-    </div>
+
+        {/* Scroll indicators */}
+        {shows.length > 1 && (
+          <div className="flex justify-center mt-4 gap-2">
+            {shows.map((_, idx) => (
+              <span
+                key={idx}
+                className={`w-2 h-2 rounded-full transition-all duration-200 ${
+                  scrollIndex === idx ? 'bg-primary' : 'bg-muted'
+                }`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </CardEntriesPausedScope>
   );
 };
 

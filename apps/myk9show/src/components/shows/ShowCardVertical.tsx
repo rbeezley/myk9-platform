@@ -5,7 +5,7 @@ import { DateCircle } from '@/components/shows/DateCircle';
 import { ShowProgressBar } from '@/components/shows/ShowProgressBar';
 import { EntryStatusBadge } from '@/components/shows/EntryStatusBadge';
 import { getEntryStatus } from '@/utils/entryStatusUtils';
-import { useShowCardEntriesPaused } from '@/features/payments/cardEntriesPaused';
+import { usePausedShowIds } from '@/features/payments/cardEntriesPausedContext';
 import { getTypeBadge } from '@/utils/browseShowsUtils';
 import { getShowCardStatus, computeShowProgress } from '@/utils/showCardUtils';
 import type { Show } from '@/types/show-types';
@@ -27,7 +27,7 @@ export const ShowCardVertical: React.FC<ShowCardVerticalProps> = ({
   scoredTrials = 0,
   onViewDetails,
 }) => {
-  const cardEntriesPaused = useShowCardEntriesPaused(show);
+  const cardEntriesPaused = usePausedShowIds().has(show.id);
   const entryStatus = getEntryStatus(show, false, { cardEntriesPaused });
   const showCardStatus = getShowCardStatus(show, entryStatus.status);
   const { totalTrials } = computeShowProgress(show);

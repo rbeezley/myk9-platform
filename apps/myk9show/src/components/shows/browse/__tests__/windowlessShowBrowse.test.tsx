@@ -25,11 +25,6 @@ import { deriveShowMarkerStatus } from '@/features/maps/markerStatus';
 import { useBrowseShowsFilters } from '@/hooks/useBrowseShowsFilters';
 import type { Show } from '@/types/show-types';
 
-vi.mock('@/features/payments/cardEntriesPaused', async importOriginal => ({
-  ...(await importOriginal<typeof import('@/features/payments/cardEntriesPaused')>()),
-  useShowCardEntriesPaused: () => false,
-}));
-
 const NOW = new Date('2026-09-23T15:00:00.000Z');
 
 function windowlessShow(): Show {

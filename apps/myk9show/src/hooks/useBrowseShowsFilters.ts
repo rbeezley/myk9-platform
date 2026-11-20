@@ -4,6 +4,7 @@ import type { Show } from '@/types/show-types';
 import type { SyncableShowEntry } from '@/store/entryStore';
 import { filterShowsForTab } from '@/utils/unified-shows-config';
 import type { UserShowContext } from '@/types/unified-shows-types';
+import { NO_PAUSED_SHOWS } from '@/features/payments/cardEntriesPaused';
 import { getEntryStatus, userHasEntriesForShow } from '@/utils/entryStatusUtils';
 import {
   ALL_MONTHS_KEY,
@@ -118,6 +119,8 @@ interface UseBrowseShowsFiltersProps {
   selectedTab: string;
   /** The visitor's chosen location; enables the radius filter and nearest-first sort. */
   origin?: LatLng | null;
+  /** MYK9-2192: shows whose card entries are paused; the Open filter never holds them. */
+  pausedShowIds?: ReadonlySet<string>;
 }
 
 interface UseBrowseShowsFiltersReturn {
@@ -141,6 +144,7 @@ export function useBrowseShowsFilters({
   userContext,
   selectedTab,
   origin = null,
+  pausedShowIds = NO_PAUSED_SHOWS,
 }: UseBrowseShowsFiltersProps): UseBrowseShowsFiltersReturn {
   // URL-backed so a refresh, back-navigation, or shared link keeps the same
   // result set (MYK9-221). Same [values, setValues] contract as useState.
@@ -234,7 +238,9 @@ export function useBrowseShowsFilters({
     if (filters.entryStatus !== 'all') {
       filtered = filtered.filter(show => {
         const hasUserEntries = userHasEntriesForShow(show.id, entries);
-        const status = getEntryStatus(show, hasUserEntries);
+        const status = getEntryStatus(show, hasUserEntries, {
+          cardEntriesPaused: pausedShowIds.has(show.id),
+        });
         // Each bucket names the ONE status it holds. `not_yet_open`,
         // `window_unknown`, `submitted` and `setup_incomplete` match no bucket:
         // a show with no entry window is never filed as open (MYK9-649).
@@ -305,7 +311,7 @@ export function useBrowseShowsFilters({
     }
 
     setFilteredShows(filtered);
-  }, [shows, entries, userContext, selectedTab, filters, origin]);
+  }, [shows, entries, userContext, selectedTab, filters, origin, pausedShowIds]);
 
   // Apply filters when dependencies change
   useEffect(() => {

@@ -1,4 +1,4 @@
--- MYK9-2192: public.show_card_entries_paused(p_show_id)
+-- MYK9-2192: public.shows_card_entries_paused(p_show_ids)
 -- (20261121174500_myk9_2192_show_card_entries_paused.sql).
 --
 --   0. Wiring: anon and authenticated may execute it; PUBLIC may not.
@@ -10,6 +10,9 @@
 --   5. A draft show, a soft-deleted show and an unknown id: false.
 --   6. A demo club with no payouts: true (the publish gate's exemption is
 --      never checkout's).
+--   8. One call over a mix (paused, not paused, draft, deleted, unknown, demo,
+--      duplicate): returns exactly the paused public ids, each once.
+--   9. The cap: only the first 500 ids are read.
 --   7. The answer follows the same predicate checkout rests on, for every
 --      fixture show.
 --
@@ -69,15 +72,15 @@ UPDATE public.shows SET deleted_at = now()
 -- ---------------------------------------------------------------------------
 DO $$
 BEGIN
-  IF to_regprocedure('public.show_card_entries_paused(uuid)') IS NULL THEN
-    RAISE EXCEPTION 'FAIL 0 public.show_card_entries_paused(uuid) is missing';
+  IF to_regprocedure('public.shows_card_entries_paused(uuid[])') IS NULL THEN
+    RAISE EXCEPTION 'FAIL 0 public.shows_card_entries_paused(uuid[]) is missing';
   END IF;
-  IF NOT has_function_privilege('anon', 'public.show_card_entries_paused(uuid)', 'EXECUTE')
-     OR NOT has_function_privilege('authenticated', 'public.show_card_entries_paused(uuid)', 'EXECUTE') THEN
-    RAISE EXCEPTION 'FAIL 0 anon and authenticated must be able to execute show_card_entries_paused';
+  IF NOT has_function_privilege('anon', 'public.shows_card_entries_paused(uuid[])', 'EXECUTE')
+     OR NOT has_function_privilege('authenticated', 'public.shows_card_entries_paused(uuid[])', 'EXECUTE') THEN
+    RAISE EXCEPTION 'FAIL 0 anon and authenticated must be able to execute shows_card_entries_paused';
   END IF;
-  IF has_function_privilege('public', 'public.show_card_entries_paused(uuid)', 'EXECUTE') THEN
-    RAISE EXCEPTION 'FAIL 0 PUBLIC must not execute show_card_entries_paused';
+  IF has_function_privilege('public', 'public.shows_card_entries_paused(uuid[])', 'EXECUTE') THEN
+    RAISE EXCEPTION 'FAIL 0 PUBLIC must not execute shows_card_entries_paused';
   END IF;
   RAISE NOTICE 'PASS 0 anon and authenticated execute; PUBLIC does not';
 END;
@@ -90,31 +93,31 @@ SET LOCAL ROLE anon;
 
 DO $$
 BEGIN
-  IF public.show_card_entries_paused('00000000-0000-0000-0000-000002192101') IS NOT TRUE THEN
+  IF (SELECT count(*) > 0 FROM public.shows_card_entries_paused(ARRAY['00000000-0000-0000-0000-000002192101']::uuid[])) IS NOT TRUE THEN
     RAISE EXCEPTION 'FAIL 1 published show, club with no payout account: expected true';
   END IF;
-  IF public.show_card_entries_paused('00000000-0000-0000-0000-000002192102') IS NOT FALSE THEN
+  IF (SELECT count(*) > 0 FROM public.shows_card_entries_paused(ARRAY['00000000-0000-0000-0000-000002192102']::uuid[])) IS NOT FALSE THEN
     RAISE EXCEPTION 'FAIL 2 published show, club with payouts: expected false';
   END IF;
-  IF public.show_card_entries_paused('00000000-0000-0000-0000-000002192103') IS NOT TRUE THEN
+  IF (SELECT count(*) > 0 FROM public.shows_card_entries_paused(ARRAY['00000000-0000-0000-0000-000002192103']::uuid[])) IS NOT TRUE THEN
     RAISE EXCEPTION 'FAIL 3 club with payouts only in the other mode: expected true';
   END IF;
-  IF public.show_card_entries_paused('00000000-0000-0000-0000-000002192104') IS NOT TRUE THEN
+  IF (SELECT count(*) > 0 FROM public.shows_card_entries_paused(ARRAY['00000000-0000-0000-0000-000002192104']::uuid[])) IS NOT TRUE THEN
     RAISE EXCEPTION 'FAIL 4 payouts-disabled account: expected true';
   END IF;
-  IF public.show_card_entries_paused('00000000-0000-0000-0000-000002192105') IS NOT FALSE THEN
+  IF (SELECT count(*) > 0 FROM public.shows_card_entries_paused(ARRAY['00000000-0000-0000-0000-000002192105']::uuid[])) IS NOT FALSE THEN
     RAISE EXCEPTION 'FAIL 5 draft show: expected false';
   END IF;
-  IF public.show_card_entries_paused('00000000-0000-0000-0000-000002192106') IS NOT FALSE THEN
+  IF (SELECT count(*) > 0 FROM public.shows_card_entries_paused(ARRAY['00000000-0000-0000-0000-000002192106']::uuid[])) IS NOT FALSE THEN
     RAISE EXCEPTION 'FAIL 5 soft-deleted show: expected false';
   END IF;
-  IF public.show_card_entries_paused('00000000-0000-0000-0000-000002192999') IS NOT FALSE THEN
+  IF (SELECT count(*) > 0 FROM public.shows_card_entries_paused(ARRAY['00000000-0000-0000-0000-000002192999']::uuid[])) IS NOT FALSE THEN
     RAISE EXCEPTION 'FAIL 5 unknown show: expected false';
   END IF;
-  IF public.show_card_entries_paused(NULL) IS NOT FALSE THEN
+  IF (SELECT count(*) > 0 FROM public.shows_card_entries_paused(NULL)) IS NOT FALSE THEN
     RAISE EXCEPTION 'FAIL 5 null show id: expected false';
   END IF;
-  IF public.show_card_entries_paused('00000000-0000-0000-0000-000002192107') IS NOT TRUE THEN
+  IF (SELECT count(*) > 0 FROM public.shows_card_entries_paused(ARRAY['00000000-0000-0000-0000-000002192107']::uuid[])) IS NOT TRUE THEN
     RAISE EXCEPTION 'FAIL 6 demo club with no payouts: expected true (checkout has no demo exemption)';
   END IF;
   RAISE NOTICE 'PASS 1-6 anon answers';
@@ -137,7 +140,7 @@ BEGIN
        AND s.deleted_at IS NULL
        AND s.status = 'published'
   LOOP
-    IF public.show_card_entries_paused(v_row.id)
+    IF (SELECT count(*) > 0 FROM public.shows_card_entries_paused(ARRAY[v_row.id]))
        IS DISTINCT FROM NOT public.can_accept_online_entry_payment(v_row.club_id, false) THEN
       RAISE EXCEPTION 'FAIL 7 show % disagrees with can_accept_online_entry_payment', v_row.id;
     END IF;
@@ -145,5 +148,69 @@ BEGIN
   RAISE NOTICE 'PASS 7 matches can_accept_online_entry_payment';
 END;
 $$;
+
+-- ---------------------------------------------------------------------------
+-- 8. One call over a mix, asked as anon
+-- ---------------------------------------------------------------------------
+SET LOCAL ROLE anon;
+
+DO $
+DECLARE
+  v_got uuid[];
+BEGIN
+  SELECT COALESCE(array_agg(id ORDER BY id), '{}') INTO v_got
+    FROM public.shows_card_entries_paused(ARRAY[
+      '00000000-0000-0000-0000-000002192101',
+      '00000000-0000-0000-0000-000002192102',
+      '00000000-0000-0000-0000-000002192103',
+      '00000000-0000-0000-0000-000002192104',
+      '00000000-0000-0000-0000-000002192105',
+      '00000000-0000-0000-0000-000002192106',
+      '00000000-0000-0000-0000-000002192107',
+      '00000000-0000-0000-0000-000002192999',
+      '00000000-0000-0000-0000-000002192101'
+    ]::uuid[]) AS id;
+  IF v_got IS DISTINCT FROM ARRAY[
+      '00000000-0000-0000-0000-000002192101',
+      '00000000-0000-0000-0000-000002192103',
+      '00000000-0000-0000-0000-000002192104',
+      '00000000-0000-0000-0000-000002192107'
+    ]::uuid[] THEN
+    RAISE EXCEPTION 'FAIL 8 mixed call returned %', v_got;
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.shows_card_entries_paused(ARRAY[]::uuid[])) THEN
+    RAISE EXCEPTION 'FAIL 8 an empty list must return nothing';
+  END IF;
+  RAISE NOTICE 'PASS 8 one call over a mix';
+END;
+$;
+
+-- ---------------------------------------------------------------------------
+-- 9. The cap: the 500th id is read, the 501st is not
+-- ---------------------------------------------------------------------------
+DO $
+DECLARE
+  v_filler uuid[];
+BEGIN
+  SELECT array_agg(gen_random_uuid()) INTO v_filler FROM generate_series(1, 499);
+
+  IF NOT EXISTS (
+    SELECT 1 FROM public.shows_card_entries_paused(
+      v_filler || '00000000-0000-0000-0000-000002192101'::uuid)
+  ) THEN
+    RAISE EXCEPTION 'FAIL 9 the 500th id must be read';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.shows_card_entries_paused(
+      v_filler || gen_random_uuid() || '00000000-0000-0000-0000-000002192101'::uuid)
+  ) THEN
+    RAISE EXCEPTION 'FAIL 9 an id past the 500th must be ignored';
+  END IF;
+  RAISE NOTICE 'PASS 9 cap of 500 ids';
+END;
+$;
+
+RESET ROLE;
 
 ROLLBACK;

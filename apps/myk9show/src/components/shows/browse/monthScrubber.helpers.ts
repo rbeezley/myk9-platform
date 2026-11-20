@@ -41,7 +41,13 @@ function keyFor(year: number, monthIndex: number): string {
   return `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
 }
 
-function monthTile(key: string, bucket: Show[], isPast: boolean, year: number | null): MonthTile {
+function monthTile(
+  key: string,
+  bucket: Show[],
+  isPast: boolean,
+  year: number | null,
+  pausedShowIds: ReadonlySet<string>
+): MonthTile {
   const [tileYear, tileMonth] = key.split('-').map(Number);
   const date = new Date(tileYear, tileMonth - 1, 1);
   return {
@@ -49,13 +55,15 @@ function monthTile(key: string, bucket: Show[], isPast: boolean, year: number | 
     label: date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase(),
     year,
     count: bucket.length,
-    dots: bucket.slice(0, MAX_DOTS).map(dotFor),
+    dots: bucket.slice(0, MAX_DOTS).map(show => dotFor(show, pausedShowIds)),
     isPast,
   };
 }
 
-function dotFor(show: Show): MonthDot {
-  const status = getEntryStatus(show).status;
+function dotFor(show: Show, pausedShowIds: ReadonlySet<string>): MonthDot {
+  const status = getEntryStatus(show, false, {
+    cardEntriesPaused: pausedShowIds.has(show.id),
+  }).status;
   switch (status) {
     case 'closing_soon':
       return 'closing';
@@ -95,7 +103,8 @@ function isUpcoming(show: Show, startOfToday: Date): boolean {
 export function buildMonthTiles(
   shows: Show[],
   now: Date = new Date(),
-  selectedKey?: string
+  selectedKey?: string,
+  pausedShowIds: ReadonlySet<string> = new Set()
 ): MonthTile[] {
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const currentKey = keyFor(now.getFullYear(), now.getMonth());
@@ -117,7 +126,7 @@ export function buildMonthTiles(
       label: 'ALL',
       year: null,
       count: upcoming.length,
-      dots: upcoming.slice(0, MAX_DOTS).map(dotFor),
+      dots: upcoming.slice(0, MAX_DOTS).map(show => dotFor(show, pausedShowIds)),
       isPast: false,
     },
   ];
@@ -128,7 +137,9 @@ export function buildMonthTiles(
     const key = keyFor(date.getFullYear(), date.getMonth());
     const bucket = byMonth.get(key) ?? [];
     const year = date.getFullYear();
-    tiles.push(monthTile(key, bucket, key < currentKey, year !== previousYear ? year : null));
+    tiles.push(
+      monthTile(key, bucket, key < currentKey, year !== previousYear ? year : null, pausedShowIds)
+    );
     previousYear = year;
   }
 
@@ -145,7 +156,8 @@ export function buildMonthTiles(
       selectedKey,
       byMonth.get(selectedKey) ?? [],
       selectedKey < currentKey,
-      displayYear
+      displayYear,
+      pausedShowIds
     );
     if (selectedBeforeWindow) {
       tiles.splice(1, 0, selectedTile);

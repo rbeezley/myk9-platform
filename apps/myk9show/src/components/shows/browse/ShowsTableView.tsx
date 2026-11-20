@@ -7,6 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { DataTable, type DataTableColumnMeta } from '@/components/ui/data-table';
 import type { EnhancedShow } from '@/hooks/useBrowseShowsData';
 import { EntryStatusBadge } from '@/components/shows/EntryStatusBadge';
+import { usePausedShowIds } from '@/features/payments/cardEntriesPausedContext';
 import { getEntryStatus } from '@/utils/entryStatusUtils';
 import { formatShowsTableDateRange, splitShowLocation } from './ShowsTableView.helpers';
 
@@ -24,106 +25,110 @@ interface ShowsTableViewProps {
 const PUBLIC_COLUMN_VISIBILITY = { organization: false, status: false } as const;
 const MANAGING_COLUMN_VISIBILITY = { organization: false } as const;
 
-const DATA_COLUMNS: ColumnDef<EnhancedShow, unknown>[] = [
-  {
-    accessorKey: 'name',
-    header: 'Show',
-    accessorFn: show => (show.name ?? '').toLowerCase(),
-    meta: {},
-    cell: ({ row }) => {
-      // events can repeat the organization (seed data does); say it once.
-      const subline = [
-        row.original.organization,
-        ...row.original.events.filter(e => e !== row.original.organization),
-      ].filter(Boolean);
-      return (
-        <div className="min-w-0">
-          <div className="font-medium">{row.original.name}</div>
-          {subline.length > 0 && (
-            <div className="text-xs text-muted-foreground">{subline.join(' · ')}</div>
-          )}
-        </div>
-      );
+function buildDataColumns(pausedShowIds: ReadonlySet<string>): ColumnDef<EnhancedShow, unknown>[] {
+  return [
+    {
+      accessorKey: 'name',
+      header: 'Show',
+      accessorFn: show => (show.name ?? '').toLowerCase(),
+      meta: {},
+      cell: ({ row }) => {
+        // events can repeat the organization (seed data does); say it once.
+        const subline = [
+          row.original.organization,
+          ...row.original.events.filter(e => e !== row.original.organization),
+        ].filter(Boolean);
+        return (
+          <div className="min-w-0">
+            <div className="font-medium">{row.original.name}</div>
+            {subline.length > 0 && (
+              <div className="text-xs text-muted-foreground">{subline.join(' · ')}</div>
+            )}
+          </div>
+        );
+      },
     },
-  },
-  {
-    id: 'dateRange',
-    header: 'Dates',
-    accessorFn: show => show.startDate ?? '',
-    meta: {},
-    cell: ({ row }) => (
-      <span className="whitespace-nowrap text-muted-foreground">
-        {row.original.startDate
-          ? formatShowsTableDateRange(row.original.startDate, row.original.endDate)
-          : '\u2014'}
-      </span>
-    ),
-  },
-  {
-    accessorKey: 'location',
-    header: 'Location',
-    accessorFn: show => (show.location ?? '').toLowerCase(),
-    meta: {},
-    cell: ({ row }) => {
-      // Two lines (venue / city) instead of one truncated string, so the column
-      // needs no horizontal scroll to be readable (MYK9-427).
-      const { venue, locality } = splitShowLocation(row.original.location);
-      if (!venue) return <span className="text-muted-foreground">{'\u2014'}</span>;
-      return (
-        <div className="min-w-0 leading-snug">
-          <div>{venue}</div>
-          {locality && <div className="text-xs text-muted-foreground">{locality}</div>}
-        </div>
-      );
+    {
+      id: 'dateRange',
+      header: 'Dates',
+      accessorFn: show => show.startDate ?? '',
+      meta: {},
+      cell: ({ row }) => (
+        <span className="whitespace-nowrap text-muted-foreground">
+          {row.original.startDate
+            ? formatShowsTableDateRange(row.original.startDate, row.original.endDate)
+            : '\u2014'}
+        </span>
+      ),
     },
-  },
-  {
-    id: 'entries',
-    header: 'Entries',
-    accessorFn: show => getEntryStatus(show, show.userHasEntries).label,
-    meta: {},
-    cell: ({ row }) => (
-      <EntryStatusBadge
-        show={row.original}
-        userHasEntries={row.original.userHasEntries}
-        className="whitespace-nowrap"
-      />
-    ),
-  },
-  {
-    accessorKey: 'organization',
-    header: 'Organization',
-    accessorFn: show => (show.organization ?? '').toLowerCase(),
-    meta: {},
-    cell: ({ row }) => (
-      <span className="text-muted-foreground truncate">
-        {row.original.organization || '\u2014'}
-      </span>
-    ),
-  },
-  {
-    accessorKey: 'status',
-    header: 'Status',
-    accessorFn: show => (show.status ?? '').toLowerCase(),
-    meta: {},
-    cell: ({ row }) => (
-      <StatusBadge
-        family="show"
-        status={row.original.status}
-        className="whitespace-nowrap text-xs"
-      />
-    ),
-  },
-  {
-    accessorKey: 'clubName',
-    header: 'Host Club',
-    accessorFn: show => (show.clubName ?? '').toLowerCase(),
-    meta: {},
-    cell: ({ row }) => (
-      <span className="text-muted-foreground truncate">{row.original.clubName || '\u2014'}</span>
-    ),
-  },
-];
+    {
+      accessorKey: 'location',
+      header: 'Location',
+      accessorFn: show => (show.location ?? '').toLowerCase(),
+      meta: {},
+      cell: ({ row }) => {
+        // Two lines (venue / city) instead of one truncated string, so the column
+        // needs no horizontal scroll to be readable (MYK9-427).
+        const { venue, locality } = splitShowLocation(row.original.location);
+        if (!venue) return <span className="text-muted-foreground">{'\u2014'}</span>;
+        return (
+          <div className="min-w-0 leading-snug">
+            <div>{venue}</div>
+            {locality && <div className="text-xs text-muted-foreground">{locality}</div>}
+          </div>
+        );
+      },
+    },
+    {
+      id: 'entries',
+      header: 'Entries',
+      // The paused set rides on table meta, so the sort key and the badge agree (MYK9-2192).
+      accessorFn: show => getEntryStatus(show, show.userHasEntries).label,
+      meta: {},
+      cell: ({ row }) => (
+        <EntryStatusBadge
+          show={row.original}
+          userHasEntries={row.original.userHasEntries}
+          cardEntriesPaused={pausedShowIds.has(row.original.id)}
+          className="whitespace-nowrap"
+        />
+      ),
+    },
+    {
+      accessorKey: 'organization',
+      header: 'Organization',
+      accessorFn: show => (show.organization ?? '').toLowerCase(),
+      meta: {},
+      cell: ({ row }) => (
+        <span className="text-muted-foreground truncate">
+          {row.original.organization || '\u2014'}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      accessorFn: show => (show.status ?? '').toLowerCase(),
+      meta: {},
+      cell: ({ row }) => (
+        <StatusBadge
+          family="show"
+          status={row.original.status}
+          className="whitespace-nowrap text-xs"
+        />
+      ),
+    },
+    {
+      accessorKey: 'clubName',
+      header: 'Host Club',
+      accessorFn: show => (show.clubName ?? '').toLowerCase(),
+      meta: {},
+      cell: ({ row }) => (
+        <span className="text-muted-foreground truncate">{row.original.clubName || '\u2014'}</span>
+      ),
+    },
+  ];
+}
 
 export const ShowsTableView: React.FC<ShowsTableViewProps> = ({
   shows,
@@ -133,10 +138,12 @@ export const ShowsTableView: React.FC<ShowsTableViewProps> = ({
 }) => {
   const navigate = useNavigate();
   const entryDogLink = useEntryDogLink();
+  const pausedShowIds = usePausedShowIds();
   const hasSelection = Boolean(onToggleSelect && shows.some(canManageShow));
 
   const columns = useMemo<ColumnDef<EnhancedShow, unknown>[]>(() => {
-    if (!hasSelection) return DATA_COLUMNS;
+    const dataColumns = buildDataColumns(pausedShowIds);
+    if (!hasSelection) return dataColumns;
     const selectCol: ColumnDef<EnhancedShow, unknown> = {
       id: '_select',
       header: () => null,
@@ -152,8 +159,8 @@ export const ShowsTableView: React.FC<ShowsTableViewProps> = ({
         ) : null,
       meta: { interactive: true } satisfies DataTableColumnMeta,
     };
-    return [selectCol, ...DATA_COLUMNS];
-  }, [canManageShow, hasSelection, isSelected, onToggleSelect]);
+    return [selectCol, ...dataColumns];
+  }, [canManageShow, hasSelection, isSelected, onToggleSelect, pausedShowIds]);
 
   return (
     <DataTable<EnhancedShow>

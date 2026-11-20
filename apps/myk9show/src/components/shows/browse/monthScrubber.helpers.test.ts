@@ -163,6 +163,17 @@ describe('buildMonthTiles', () => {
     expect(tile?.dots).toHaveLength(MAX_DOTS);
   });
 
+  it('draws a paused show as muted, not open (MYK9-2192)', () => {
+    const shows = [
+      makeShow({ id: 'paused', startDate: '2026-10-05', entryCloseDate: '2026-11-05' }),
+      makeShow({ id: 'open', startDate: '2026-10-15', entryCloseDate: '2026-11-05' }),
+    ];
+    const tile = buildMonthTiles(shows, NOW, undefined, new Set(['paused'])).find(
+      t => t.key === '2026-10'
+    );
+    expect(tile?.dots).toEqual(['muted', 'open']);
+  });
+
   it('skips a show with no parseable start date instead of throwing', () => {
     const tiles = buildMonthTiles([makeShow({ id: 'bad', startDate: '', endDate: '' })], NOW);
     expect(tiles.every(t => t.count === 0)).toBe(true);

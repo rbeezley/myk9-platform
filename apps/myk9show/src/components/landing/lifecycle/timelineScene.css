@@ -183,7 +183,9 @@
   min-width: 0;
   transition: opacity 500ms ease;
 }
-.tl-scene-device[data-dim='true'] {
+/* The resting device's screen fades; its label stays at full contrast, since it is text a
+   reader still needs (WCAG 4.5:1, a11y smoke on the landing page). */
+.tl-scene-device[data-dim='true'] > :not(.tl-scene-who) {
   opacity: 0.45;
 }
 .tl-scene-who {

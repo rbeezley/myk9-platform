@@ -1,3 +1,5 @@
+import { isShortOnlyFailure } from '@myk9/replication';
+
 /**
  * What a `syncAtShowData` operation tells a caller that needs to know whether
  * the show actually arrived (MYK9-1350). Replication syncs report a failure as
@@ -8,6 +10,11 @@
 export interface AtShowSyncOutcome {
   /** True only when the trials sync and every scope resolved without `success: false`. */
   success: boolean;
+  /**
+   * Set when not successful and every failed result is only a download that stayed short of
+   * the server's count (MYK9-2254): not a volunteer-facing failure, so no warning for it.
+   */
+  shortOnly?: boolean;
 }
 
 /** The operation running per show, and whether it re-fetches every row. */
@@ -32,9 +39,12 @@ export function settledScopesOutcome(
 ): AtShowSyncOutcome {
   const failed = results.find(result => result.status === 'rejected');
   if (failed) throw failed.reason;
-  return {
-    success:
-      !isSyncResultFailed(trialsResult) &&
-      results.every(result => result.status === 'fulfilled' && !isSyncResultFailed(result.value)),
-  };
+  const failedValues = [
+    trialsResult,
+    ...results.map(result => (result as PromiseFulfilledResult<unknown>).value),
+  ].filter(isSyncResultFailed);
+  if (failedValues.length === 0) return { success: true };
+  return failedValues.every(isShortOnlyFailure)
+    ? { success: false, shortOnly: true }
+    : { success: false };
 }

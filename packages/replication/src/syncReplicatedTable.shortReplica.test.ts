@@ -5,6 +5,11 @@ import { syncReplicatedTable, type SyncReplicatedTableAdapter } from './syncRepl
 import { parseUpdatedAtMs } from './parseUpdatedAt';
 import { resetRemoteCountCadenceForTests } from './remoteCountCadence';
 import { countAccountedRows } from './shortReplicaCheck';
+import {
+  isShortOnlyFailure,
+  setShortReplicaReporter,
+  type ShortReplicaObservation,
+} from './shortReplicaReporter';
 import type { SyncResult } from './types';
 
 /**
@@ -90,11 +95,13 @@ describe('a download short of the server count (MYK9-2254)', () => {
     const { databaseManager } = await import('./core/DatabaseManager');
     await databaseManager.reset();
     resetRemoteCountCadenceForTests();
+    setShortReplicaReporter(null);
     who.current = 'user-a';
     table = mount(new PlainTable(name()));
   });
 
   afterEach(async () => {
+    setShortReplicaReporter(null);
     const { databaseManager } = await import('./core/DatabaseManager');
     await databaseManager.reset();
   });
@@ -126,6 +133,73 @@ describe('a download short of the server count (MYK9-2254)', () => {
 
     expect(result.success).toBe(false);
     expect((await owned.getSyncMetadata('show-1'))?.syncedByAuthUserId).toBeUndefined();
+  });
+
+  it('un-stamps a scope this account had whole when a later full download is short', async () => {
+    const owned = mount(new OwnedTable(name()));
+    await syncReplicatedTable(owned, adapterFor([row('1'), row('2')], [2]), scope);
+    expect((await owned.getSyncMetadata('show-1'))?.syncedByAuthUserId).toBe('user-a');
+
+    const result = await syncReplicatedTable(owned, adapterFor([row('1')], [3]), scope, {
+      forceFullSync: true,
+    });
+
+    expect(result.shortReplica).toBeDefined();
+    expect((await owned.getSyncMetadata('show-1'))?.syncedByAuthUserId).toBeUndefined();
+  });
+
+  it("does not clear another account's newer stamp on a short download", async () => {
+    const owned = mount(new OwnedTable(name()));
+    await syncReplicatedTable(owned, adapterFor([row('1'), row('2')], [2]), scope);
+    who.current = 'user-b';
+    await syncReplicatedTable(owned, adapterFor([row('1'), row('2')], [2]), scope);
+    expect((await owned.getSyncMetadata('show-1'))?.syncedByAuthUserId).toBe('user-b');
+    who.current = 'user-a';
+
+    // A's short download wrote none of the rows B holds, so B's stamp is not A's to clear.
+    const result = await syncReplicatedTable(owned, adapterFor([], [3]), scope, {
+      forceFullSync: true,
+    });
+
+    expect(result.shortReplica).toBeDefined();
+    expect((await owned.getSyncMetadata('show-1'))?.syncedByAuthUserId).toBe('user-b');
+  });
+
+  it('does not let a skipped tombstone stand in for a missing active row', async () => {
+    // The server counts 3 rows; the tombstone is skipped and the count excludes it.
+    const adapter = adapterFor([row('1'), row('2')], [3], {
+      shouldSkipRemoteRow: remote => remote.id === '2',
+      countsTowardRemoteCoverage: remote => remote.id !== '2',
+    });
+
+    const result = await syncReplicatedTable(table, adapter, scope);
+
+    expect(result.shortReplica).toMatchObject({ serverCount: 3, deviceCount: 1 });
+  });
+
+  it('hands every counted full download to the one registered reporter', async () => {
+    const seen: ShortReplicaObservation[] = [];
+    setShortReplicaReporter(o => seen.push(o));
+
+    await syncReplicatedTable(table, adapterFor([row('1')], [2]), scope);
+    await syncReplicatedTable(table, adapterFor([row('1'), row('2')], [2]), scope, {
+      forceFullSync: true,
+    });
+
+    expect(seen.map(o => o.short?.deviceCount ?? null)).toEqual([1, null]);
+    expect(seen.every(o => o.scope === 'show-1' && o.tableName === table.getTableName())).toBe(
+      true
+    );
+  });
+
+  it('survives a reporter that throws', async () => {
+    setShortReplicaReporter(() => {
+      throw new Error('boom');
+    });
+
+    const result = await syncReplicatedTable(table, adapterFor([row('1')], [2]), scope);
+
+    expect(result.shortReplica).toBeDefined();
   });
 
   it('raises no alarm for rows the device rightly does not hold', async () => {
@@ -192,8 +266,22 @@ describe('a download short of the server count (MYK9-2254)', () => {
 describe('countAccountedRows (MYK9-2254)', () => {
   it('counts a held-back id once, and not when the row is already on the device', () => {
     const local = [{ id: 'a' }, { id: 'b', _localOnly: true }];
-    expect(countAccountedRows(local, undefined, new Set(['c']))).toBe(2);
-    expect(countAccountedRows(local, undefined, new Set(['a']))).toBe(1);
-    expect(countAccountedRows(local, new Set(['c']), new Set(['c']))).toBe(2);
+    expect(countAccountedRows(local, undefined, new Set(['c']), new Set(['c']))).toBe(2);
+    expect(countAccountedRows(local, undefined, new Set(['a']), new Set(['a']))).toBe(1);
+    expect(countAccountedRows(local, new Set(['c']), new Set(['c']), new Set(['c']))).toBe(2);
+  });
+
+  it('ignores a held-back id the server count does not include', () => {
+    expect(countAccountedRows([{ id: 'a' }], undefined, new Set(['t']), new Set(['a']))).toBe(1);
+  });
+});
+
+describe('isShortOnlyFailure (MYK9-2254)', () => {
+  it('is true only for a failed result that carries a short report', () => {
+    const short = { tableName: 't', scope: undefined, serverCount: 2, deviceCount: 1 };
+    expect(isShortOnlyFailure({ success: false, shortReplica: short })).toBe(true);
+    expect(isShortOnlyFailure({ success: false })).toBe(false);
+    expect(isShortOnlyFailure({ success: true })).toBe(false);
+    expect(isShortOnlyFailure(undefined)).toBe(false);
   });
 });

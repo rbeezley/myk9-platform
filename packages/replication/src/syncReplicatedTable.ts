@@ -9,7 +9,7 @@ import { ABORTED_SYNC_MESSAGE, abortableWait } from './abortable';
 import { abortReason } from './mutation-utils';
 import { countCoveredRows, countServerBackedRows, getCoveredRemoteIds } from './replicaCoverage';
 import { WatermarkTracker, computeSince, planWatermark } from './syncWatermark';
-import { checkShortReplica, shortReplicaMessage } from './shortReplicaCheck';
+import { checkShortReplica, recountRemoteRows, shortReplicaMessage } from './shortReplicaCheck';
 export { countServerBackedRows };
 import { overReplicaWatched, runStaleCleanup } from './syncStaleCleanup';
 import { beginRemoteCountPass, coverageFell } from './remoteCountCadence';
@@ -358,26 +358,26 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     });
 
     // MYK9-2254: a full download that leaves the device short of the count is a failure.
+    const afterRows = await getLocalRowsForScope();
     const shortCheck =
       forceFullSync && expectedRemoteRows !== undefined
         ? await checkShortReplica({
             tableName: table.getTableName(),
             scopeValue: scope.value,
             expectedRemoteRows,
-            localRows: await getLocalRowsForScope(),
+            localRows: afterRows,
             pendingDeleteIds,
             deleteQueueUnreadable: pendingDeleteIds === undefined && !!adapter.getPendingDeleteIds,
             heldBackIds,
-            recount: () => adapter.getRemoteRowCount?.({ scope, ...(signal ? { signal } : {}) }),
+            coveredServerIds,
+            recount: () => recountRemoteRows(adapter, scope, signal),
           })
         : undefined;
     const serverCount = shortCheck?.serverCount ?? expectedRemoteRows;
     const shortReplica = shortCheck?.short ?? null;
-
-    // Whole for THIS account: the fetch covered the server's count, nothing was
-    // held back for another account's unsent work, every row taken over is now
-    // its own, an empty answer was proven, and the same account was signed in at
-    // both ends. The cache settles the stamp from this (see scopeStampDirective).
+    // Whole for THIS account: the fetch covered the server's count, nothing was held back for
+    // another account's unsent work, taken-over rows are its own, an empty answer was proven, and
+    // the same account was signed in at both ends. The cache settles the stamp from this.
     let wholeDownload = false;
     if (accountOwned) {
       // A count skipped by the cadence proves nothing about completeness.
@@ -397,7 +397,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       watermark
     );
 
-    const totalRows = (await getLocalRowsForScope()).length;
+    const totalRows = afterRows.length;
     // A stale sync (the account changed) completes nothing, but still settles the stamp.
     if (accountOwned && (await table.getCurrentAuthUserId()) !== syncingAuthUserId) {
       await table.updateSyncMetadata(
@@ -413,7 +413,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       );
     }
     const scopeSyncedBy = accountOwned
-      ? scopeStampDirective(writtenIds, syncingAuthUserId, wholeDownload)
+      ? scopeStampDirective(writtenIds, syncingAuthUserId, wholeDownload, shortReplica !== null)
       : undefined;
 
     stopIfAborted();

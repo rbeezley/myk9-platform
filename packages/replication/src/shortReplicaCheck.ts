@@ -1,4 +1,7 @@
+import { abortableWait } from './abortable';
 import { countCoveredRows } from './replicaCoverage';
+import type { SyncReplicatedTableAdapter, SyncScope } from './syncReplicatedTable.types';
+import { observeShortReplica } from './shortReplicaReporter';
 import type { ShortReplicaReport } from './types';
 
 export interface ShortReplicaCheckInput {
@@ -17,6 +20,8 @@ export interface ShortReplicaCheckInput {
    * work sits on them, or the adapter skips them on purpose.
    */
   heldBackIds: ReadonlySet<string>;
+  /** The ids the server's count includes: a held-back row outside it stands in for nothing. */
+  coveredServerIds: ReadonlySet<string>;
   /** A second count of the same scope; undefined when it could not be taken. */
   recount: () => Promise<number | undefined> | undefined;
 }
@@ -31,12 +36,15 @@ export interface ShortReplicaCheck {
 /**
  * Rows this device accounts for after a full download (MYK9-2254): the
  * coverage rule the count check uses, plus the server rows held back on
- * purpose. A held-back id that is already a local row is counted once.
+ * purpose, when the server's count includes them (a skipped soft-deleted
+ * tombstone cannot stand in for a missing active row). A held-back id that is
+ * already a local row is counted once.
  */
 export function countAccountedRows(
   localRows: readonly object[],
   pendingDeleteIds: ReadonlySet<string> | undefined,
-  heldBackIds: ReadonlySet<string>
+  heldBackIds: ReadonlySet<string>,
+  coveredServerIds: ReadonlySet<string>
 ): number {
   const known = new Set<string>(pendingDeleteIds ?? []);
   for (const row of localRows) {
@@ -44,7 +52,7 @@ export function countAccountedRows(
     if (id !== undefined && id !== null) known.add(String(id));
   }
   let heldBack = 0;
-  for (const id of heldBackIds) if (!known.has(id)) heldBack++;
+  for (const id of heldBackIds) if (coveredServerIds.has(id) && !known.has(id)) heldBack++;
   return countCoveredRows(localRows, pendingDeleteIds) + heldBack;
 }
 
@@ -53,16 +61,21 @@ export function countAccountedRows(
  * failure. The first count can be stale-high (a row deleted on the server
  * between the count and the fetch), so a short device is confirmed with a
  * second count before it is called short. A second count that cannot be taken
- * confirms nothing: no alarm.
+ * confirms nothing: no alarm and no all-clear. Every settled verdict goes to
+ * the app's one reporter (see shortReplicaReporter.ts).
  */
 export async function checkShortReplica(input: ShortReplicaCheckInput): Promise<ShortReplicaCheck> {
   if (input.deleteQueueUnreadable) return { serverCount: input.expectedRemoteRows, short: null };
   const deviceCount = countAccountedRows(
     input.localRows,
     input.pendingDeleteIds,
-    input.heldBackIds
+    input.heldBackIds,
+    input.coveredServerIds
   );
+  const observe = (short: ShortReplicaReport | null) =>
+    observeShortReplica({ tableName: input.tableName, scope: input.scopeValue, short });
   if (deviceCount >= input.expectedRemoteRows) {
+    observe(null);
     return { serverCount: input.expectedRemoteRows, short: null };
   }
   let second: number | undefined;
@@ -75,13 +88,24 @@ export async function checkShortReplica(input: ShortReplicaCheckInput): Promise<
     return { serverCount: input.expectedRemoteRows, short: null };
   }
   const serverCount = Math.floor(second);
-  return {
-    serverCount,
-    short:
-      deviceCount < serverCount
-        ? { tableName: input.tableName, scope: input.scopeValue, serverCount, deviceCount }
-        : null,
-  };
+  const short: ShortReplicaReport | null =
+    deviceCount < serverCount
+      ? { tableName: input.tableName, scope: input.scopeValue, serverCount, deviceCount }
+      : null;
+  observe(short);
+  return { serverCount, short };
+}
+
+/** The second count, bounded by the pass signal like the first. */
+export function recountRemoteRows(
+  adapter: SyncReplicatedTableAdapter<any, any>,
+  scope: SyncScope,
+  signal?: AbortSignal
+): Promise<number | undefined> {
+  return abortableWait(
+    Promise.resolve(adapter.getRemoteRowCount?.({ scope, ...(signal ? { signal } : {}) })),
+    signal
+  );
 }
 
 export function shortReplicaMessage(report: ShortReplicaReport): string {

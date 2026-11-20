@@ -25,7 +25,7 @@ export function useAtShowEntryListRefresh(
   useEffect(() => {
     if (phase === 'idle' || phase === 'refreshing') return;
     const options = { id: ENTRY_LIST_REFRESH_TOAST_ID, duration: TOAST_MS };
-    if (phase === 'done') toast(CLASS_REFRESH_MESSAGES.done, options);
+    if (phase === 'done' || phase === 'incomplete') toast(CLASS_REFRESH_MESSAGES[phase], options);
     else toast.warning(CLASS_REFRESH_MESSAGES[phase], options);
   }, [phase]);
   return result;

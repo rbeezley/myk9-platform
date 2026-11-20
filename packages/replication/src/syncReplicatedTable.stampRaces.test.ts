@@ -399,7 +399,15 @@ describe('scope stamp races (MYK9-1148)', () => {
       table.getSyncMetadataOrThrow = async () => {
         throw new Error('metadata read timed out');
       };
-      await sync(adapter(() => [row('r1')], { getRemoteRowCount: vi.fn(async () => 2) }));
+      // Not whole, and not a confirmed short either (the delete queue cannot be read).
+      await sync(
+        adapter(() => [row('r1')], {
+          getRemoteRowCount: vi.fn(async () => 2),
+          getPendingDeleteIds: async () => {
+            throw new Error('queue unreadable');
+          },
+        })
+      );
       table.getSyncMetadata = getSyncMetadata;
 
       expect(await stampOf()).toBe('user-a');

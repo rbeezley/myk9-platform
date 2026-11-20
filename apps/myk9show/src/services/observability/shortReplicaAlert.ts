@@ -1,31 +1,31 @@
 import * as Sentry from '@sentry/react';
-import type { SyncResult } from '@myk9/replication';
+import { setShortReplicaReporter, type ShortReplicaObservation } from '@myk9/replication';
 
 /**
  * One Sentry event per table and scope while a download stays short of the
- * server's count (MYK9-2254). The sync engine is logger-free, so it hands the
- * facts back on the result and this reports them. The sync runs every minute
- * and a short device stays short, so the key is remembered until a later sync
- * of the same table succeeds (whole again), which clears every scope of that table: a success
- * result carries no scope, and unscoped tables sync with {}. In memory: a reload
- * reports once more, which is the safe direction.
+ * server's count (MYK9-2254). The sync engine is logger-free and calls ONE
+ * reporter, registered once at startup, after every counted full sync, whoever
+ * ran it. The sync runs every minute and a short device stays short, so a
+ * (table, scope) is remembered until THAT table and scope completes whole,
+ * which re-arms only it. In memory: a reload reports once more, which is the
+ * safe direction.
  *
  * No banner and no toast: the offline line and the checklist already say an
  * offline copy is incomplete (docs/INTENT.md, "Offline Is Normal, Not Broken").
  */
-const reported = new Map<string, Set<string>>();
+const reported = new Set<string>();
 
-export function reportShortReplica(result: SyncResult): SyncResult {
-  const short = result.shortReplica;
+const keyOf = (tableName: string, scope: string | undefined) =>
+  JSON.stringify([tableName, scope ?? '']);
+
+export function reportShortReplica({ tableName, scope, short }: ShortReplicaObservation): void {
+  const key = keyOf(tableName, scope);
   if (!short) {
-    if (result.success) reported.delete(result.tableName);
-    return result;
+    reported.delete(key);
+    return;
   }
-  const key = short.scope ?? '';
-  const keys = reported.get(short.tableName) ?? new Set<string>();
-  if (keys.has(key)) return result;
-  keys.add(key);
-  reported.set(short.tableName, keys);
+  if (reported.has(key)) return;
+  reported.add(key);
   Sentry.withScope(sentryScope => {
     sentryScope.setLevel('error');
     sentryScope.setTag('replication_table', short.tableName);
@@ -41,7 +41,11 @@ export function reportShortReplica(result: SyncResult): SyncResult {
       `Offline copy is short: ${short.tableName} holds ${short.deviceCount} of ${short.serverCount} rows`
     );
   });
-  return result;
+}
+
+/** Called once where observability starts. */
+export function registerShortReplicaReporter(): void {
+  setShortReplicaReporter(reportShortReplica);
 }
 
 export function resetShortReplicaReportsForTests(): void {

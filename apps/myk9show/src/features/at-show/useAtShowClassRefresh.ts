@@ -9,13 +9,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { isAbortSyncError } from '@/services/replication/syncErrorUtils';
 import { syncAtShowData } from './atShowDataAdapter';
 
-export type ClassRefreshPhase = 'idle' | 'refreshing' | 'done' | 'failed' | 'offline';
+export type ClassRefreshPhase =
+  'idle' | 'refreshing' | 'done' | 'incomplete' | 'failed' | 'offline';
 
 const RESULT_VISIBLE_MS = 4000;
 
 export const CLASS_REFRESH_MESSAGES: Record<Exclude<ClassRefreshPhase, 'idle'>, string> = {
   refreshing: 'Refreshing',
   done: 'Up to date',
+  incomplete: 'Still catching up. Showing what is on this device.',
   failed: "Couldn't refresh. Showing what is on this device.",
   offline: "You're offline. Showing what is on this device.",
 };
@@ -52,7 +54,7 @@ export function useAtShowClassRefresh(
     try {
       const outcome = await syncAtShowData(showId, { forceFullSync: true });
       await reload();
-      settle(outcome.success ? 'done' : 'failed');
+      settle(outcome.success ? 'done' : outcome.shortOnly ? 'incomplete' : 'failed');
     } catch (error) {
       // Going offline mid-refresh aborts the sync (MYK9-1629): that is the
       // offline answer, not a failure.

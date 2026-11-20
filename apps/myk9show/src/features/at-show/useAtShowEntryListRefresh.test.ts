@@ -60,6 +60,23 @@ describe('useAtShowEntryListRefresh (MYK9-1746)', () => {
     );
   });
 
+  it('answers a short-only download with a plain note, never a warning (MYK9-2254)', async () => {
+    mocks.syncAtShowData.mockResolvedValue({ success: false, shortOnly: true });
+    const refresh = vi.fn(() => Promise.resolve());
+    const { result } = renderHook(() => useAtShowEntryListRefresh('show-1', refresh));
+
+    await act(async () => {
+      await result.current.refresh();
+    });
+
+    expect(result.current.phase).toBe('incomplete');
+    expect(mocks.toast.warning).not.toHaveBeenCalled();
+    expect(mocks.toast).toHaveBeenCalledWith('Still catching up. Showing what is on this device.', {
+      id: 'entry-list-refresh',
+      duration: 4000,
+    });
+  });
+
   it('answers done and re-reads the list after a successful sync', async () => {
     mocks.syncAtShowData.mockResolvedValue({ success: true });
     const refresh = vi.fn(() => Promise.resolve());

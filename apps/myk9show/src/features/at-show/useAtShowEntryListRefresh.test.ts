@@ -120,6 +120,25 @@ describe('useAtShowEntryListRefresh (MYK9-1746)', () => {
     expect(result.current.phase).toBe('idle');
   });
 
+  it('keeps the offline answer on a second offline tap (MYK9-2304)', async () => {
+    mocks.isOnline = false;
+    const { result } = renderHook(() =>
+      useAtShowEntryListRefresh(
+        'show-1',
+        vi.fn(() => Promise.resolve())
+      )
+    );
+    await act(async () => {
+      await result.current.refresh();
+    });
+    await act(async () => {
+      await result.current.refresh();
+    });
+
+    expect(mocks.toast.dismiss).not.toHaveBeenCalled();
+    expect(result.current.phase).toBe('offline');
+  });
+
   it('does not toast while idle', () => {
     renderHook(() =>
       useAtShowEntryListRefresh(

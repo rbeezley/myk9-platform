@@ -50,6 +50,12 @@ export function replicatedToShow(replicated: ReplicatedShow): Show {
     startDate: replicated.startDate,
     endDate: replicated.endDate,
     location: replicated.location || '',
+    // MYK9-2245: the placeholder Show must carry the same venue columns rowToShow reads.
+    venueName: replicated.venueName,
+    address: replicated.address,
+    city: replicated.city,
+    state: replicated.state,
+    zipCode: replicated.zipCode,
     latitude: replicated.latitude ?? null,
     longitude: replicated.longitude ?? null,
     status: replicated.status || 'draft',

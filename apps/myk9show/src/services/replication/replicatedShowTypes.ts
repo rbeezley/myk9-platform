@@ -17,6 +17,9 @@ export interface ReplicatedShow extends ShowCloseRecord, ShowAscaFacts {
   venueName?: string | undefined;
   city?: string | undefined;
   state?: string | undefined;
+  /** MYK9-2245: the street address and ZIP the premium prints and its checklist reads. */
+  address?: string | undefined;
+  zipCode?: string | undefined;
   status?: string | undefined;
   deletedAt?: string | null | undefined;
   entryOpenDate?: string | undefined;

@@ -76,6 +76,22 @@ export function renderEditorialCover({
         >
           {tagline}
         </Text>
+        {/* The welcome replaces the tagline, never the venue (MYK9-2245). */}
+        {tagline !== fallback && venue ? (
+          <Text
+            style={{
+              fontFamily: t.displayFont,
+              fontStyle: 'italic',
+              fontSize: 11,
+              color: t.secondaryColor,
+              textAlign: 'center',
+              lineHeight: 1.4,
+              marginTop: 6,
+            }}
+          >
+            {fallback}
+          </Text>
+        ) : null}
         {coverImageUrl ? (
           <View
             style={{

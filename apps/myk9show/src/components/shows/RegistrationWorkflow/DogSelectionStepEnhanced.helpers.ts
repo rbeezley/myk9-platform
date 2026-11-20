@@ -144,3 +144,19 @@ export function isDogSelectable(dog: Dog): boolean {
 export function filterAccessibleDogs(dogs: Dog[]): Dog[] {
   return dogs.filter(isDogSelectable);
 }
+
+export function getEmptyStateMessage(
+  searchQuery: string,
+  filtersApplied: boolean,
+  advancedSearch: boolean,
+  registrationNumberLabel: string
+): string {
+  if (searchQuery.trim()) return 'No dogs match your search. Try a different name or breed.';
+  // Filters exist only with advanced search (the Filter menu lives in DogSearchInterface).
+  if (advancedSearch) {
+    return filtersApplied
+      ? `No dogs match these filters. Clear them or search by name, breed, or ${registrationNumberLabel}.`
+      : `Search by name, breed, or ${registrationNumberLabel} to find a dog to enter.`;
+  }
+  return "You don't have any dogs yet. Add a dog from your profile to get started.";
+}

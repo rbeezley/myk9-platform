@@ -45,12 +45,14 @@ import {
   filterAccessibleDogs,
   getDogEligibilityStatus,
   getRegistrationNumberLabel,
+  getEmptyStateMessage,
   getRegistrationShownInRow,
   removeDogSelection,
   removeVisibleDogSelections,
 } from './DogSelectionStepEnhanced.helpers';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { DogRow, type DogRowData } from './DogTableRow';
+import { NoDogsMatchPeople } from './NoDogsMatchPeople';
 
 type SortColumn = 'callName' | 'breed' | 'owner' | 'regNumber';
 
@@ -96,22 +98,6 @@ interface DogSelectionStepProps {
   showStartDate?: string | undefined;
   /** The show being entered; recorded on dogs and people created here (MYK9-1059). */
   createdFromShowId?: string | undefined;
-}
-
-function getEmptyStateMessage(
-  searchQuery: string,
-  filtersApplied: boolean,
-  advancedSearch: boolean,
-  registrationNumberLabel: string
-): string {
-  if (searchQuery.trim()) return 'No dogs match your search. Try a different name or breed.';
-  // Filters exist only with advanced search (the Filter menu lives in DogSearchInterface).
-  if (advancedSearch) {
-    return filtersApplied
-      ? `No dogs match these filters. Clear them or search by name, breed, or ${registrationNumberLabel}.`
-      : `Search by name, breed, or ${registrationNumberLabel} to find a dog to enter.`;
-  }
-  return "You don't have any dogs yet. Add a dog from your profile to get started.";
 }
 
 export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
@@ -614,6 +600,16 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
                       registrationNumberLabel
                     )}
                   </p>
+                )}
+                {!isServerSearching && !serverSearchFailed && normalizedSearchQuery && (
+                  <NoDogsMatchPeople
+                    query={normalizedSearchQuery}
+                    onDogCreated={handleDogCreated}
+                    showStartDate={showStartDate}
+                    createdFromShowId={createdFromShowId}
+                    defaultRegistryId={showRegistryId}
+                    offlineFirst={offlineFirst}
+                  />
                 )}
               </div>
             )}

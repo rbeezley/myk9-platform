@@ -17,6 +17,7 @@ import type { Trial } from '@/store/trialStore';
 import type { SyncableClassData } from '@/store/classStore';
 import type { EditMode } from './show-creation-wizard-types';
 import { getTrialTimezone } from '@/features/registries';
+import { toWizardShowDay } from '@/utils/wizardTrialDates';
 
 interface BuildEditModeDraftArgs {
   editMode: EditMode;
@@ -109,14 +110,15 @@ export function buildEditModeDraft({
     show: {
       name: existingShow.name,
       organization: existingShow.organization as 'AKC' | 'UKC' | 'Other',
-      startDate: existingShow.startDate,
-      endDate: existingShow.endDate,
+      // MYK9-2284: stored as midnight UTC; the wizard reads local days.
+      startDate: toWizardShowDay(existingShow.startDate),
+      endDate: toWizardShowDay(existingShow.endDate),
       location: existingShow.location,
       latitude: existingShow.latitude ?? null,
       longitude: existingShow.longitude ?? null,
       clubId: existingShow.clubId,
-      entryOpenDate: existingShow.entryOpenDate,
-      entryCloseDate: existingShow.entryCloseDate,
+      entryOpenDate: toWizardShowDay(existingShow.entryOpenDate),
+      entryCloseDate: toWizardShowDay(existingShow.entryCloseDate),
       preEntryFee: parseFloat(existingShow.preEntryFee) || 0,
       dayOfShowFee: parseFloat(existingShow.dayOfShowFee || '0') || 0,
       startingArmbandNumber: existingShow.startingArmbandNumber ?? 100,

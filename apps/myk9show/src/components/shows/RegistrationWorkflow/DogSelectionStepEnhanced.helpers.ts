@@ -144,3 +144,41 @@ export function isDogSelectable(dog: Dog): boolean {
 export function filterAccessibleDogs(dogs: Dog[]): Dog[] {
   return dogs.filter(isDogSelectable);
 }
+
+export function getEmptyStateMessage(
+  searchQuery: string,
+  filtersApplied: boolean,
+  advancedSearch: boolean,
+  registrationNumberLabel: string
+): string {
+  if (searchQuery.trim()) return 'No dogs match your search. Try a different name or breed.';
+  // Filters exist only with advanced search (the Filter menu lives in DogSearchInterface).
+  if (advancedSearch) {
+    return filtersApplied
+      ? `No dogs match these filters. Clear them or search by name, breed, or ${registrationNumberLabel}.`
+      : `Search by name, breed, or ${registrationNumberLabel} to find a dog to enter.`;
+  }
+  return "You don't have any dogs yet. Add a dog from your profile to get started.";
+}
+
+/**
+ * MYK9-2262: the people under "no dogs match" claim "No dogs yet", so they show only when that
+ * claim is checked: the secretary's system-wide search (which matches owner names, MYK9-2020)
+ * answered for exactly this text with no dog, no filter hid any, and it did not fail. The
+ * exhibitor's own flow (no advanced search) never shows them.
+ */
+export function shouldListPeopleMatches(state: {
+  advancedSearch: boolean;
+  serverSearchHasCurrentData: boolean;
+  serverSearchFailed: boolean;
+  isServerSearching: boolean;
+  filtersApplied: boolean;
+}): boolean {
+  return (
+    state.advancedSearch &&
+    state.serverSearchHasCurrentData &&
+    !state.serverSearchFailed &&
+    !state.isServerSearching &&
+    !state.filtersApplied
+  );
+}

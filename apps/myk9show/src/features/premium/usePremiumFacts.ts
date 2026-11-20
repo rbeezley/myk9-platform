@@ -22,6 +22,10 @@ export function usePremiumFacts(showId: string | undefined, enabled: boolean) {
     queryKey: ['shows', showId, 'premium-facts', visit],
     queryFn: () => fetchPremiumFacts(showId as string),
     enabled: Boolean(showId) && enabled && online,
+    // The app default keeps the previous key's data while a query re-keys within the same entity
+    // scope, and the new visit's key still names this show: opt out (MYK9-2307), or the editor
+    // seeds from the last visit's facts as if they were fresh and ignores the real read.
+    placeholderData: () => undefined,
     staleTime: 0,
     gcTime: 0,
     retry: false,

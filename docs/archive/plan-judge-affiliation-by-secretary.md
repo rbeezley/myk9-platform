@@ -1,6 +1,6 @@
 # A show's secretary sets a judge's affiliation (MYK9-2294)
 
-> **Status:** Active
+> **Status:** Complete
 
 Design first (orchestrate rule, #4224): this changes who may write part of a person's record, so
 it is reviewed before any code. The owner decided on 2026-11-19 to use option B, a single-field

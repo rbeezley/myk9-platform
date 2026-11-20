@@ -312,7 +312,17 @@ test('captures the four stills from the secretary’s desktop, the exhibitor’s
       };
       expectInside('the entered show’s card', card, findWindow);
       const second = page.getByRole('link', { name: /Heartland ASCA Scent Detection Trial/ });
-      await expect(second.first()).toContainText('Accepting Entries');
+      // The card's link carries no text of its own; its name and its status badge are what the alt names.
+      expectInside(
+        'the ASCA show’s name',
+        await textBox(page.getByText('Heartland ASCA Scent Detection Trial', { exact: true })),
+        findWindow
+      );
+      expectInside(
+        'the ASCA show’s status',
+        await textBox(page.getByText('Accepting Entries').last()),
+        findWindow
+      );
       expectInside('the ASCA show’s card', await second.first().boundingBox(), findWindow);
       await still(page, 'exhibitor-find-a-show.png', findWindow);
     });

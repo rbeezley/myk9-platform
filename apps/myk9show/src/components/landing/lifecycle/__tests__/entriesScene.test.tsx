@@ -31,7 +31,9 @@ const inside = (inner: Region, outer: Region) =>
   inner.x + inner.w <= outer.x + outer.w &&
   inner.y + inner.h <= outer.y + outer.h;
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('the Entries open scene', () => {
   it('is the secretary’s desktop and the exhibitor’s phone, on the plan’s five lines', () => {

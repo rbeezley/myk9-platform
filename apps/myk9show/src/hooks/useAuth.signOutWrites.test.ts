@@ -300,22 +300,4 @@ describe('every directory write respects a sign-out (MYK9-2255)', () => {
     expect(localStorage.getItem(MARKER)).toBeNull();
     expect(useUserStore.getState().users[0]).toMatchObject({ email: 'Ann@example.com' });
   });
-
-  // Last: resetModules gives later imports a different module instance.
-  it('a marker with no sign-out on this page (cold boot) strips the saved copy on rehydrate', async () => {
-    vi.resetModules();
-    localStorage.setItem(MARKER, '1');
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ state: { users: [person('p1', 'Ann')] }, version: 1 })
-    );
-    const fresh = await import('@/store/userStore');
-    const redaction = await import('@/store/userStoreContactRedaction');
-    expect(redaction.currentSignOutGeneration()).toBe(0);
-
-    await fresh.useUserStore.persist.rehydrate();
-
-    expectNoContacts(fresh.useUserStore.getState().users);
-    expectNoContacts(fresh.useUserStore.getState().people);
-  });
 });

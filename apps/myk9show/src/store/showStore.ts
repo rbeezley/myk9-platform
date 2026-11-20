@@ -4,6 +4,7 @@ import type { ShowJudgeAssignment } from '@/types/judge-types';
 import { mockShows } from '@/mockData/mockShows';
 import { shouldUseMockData } from '@/config/dataSource';
 import { replicatedShowsTable, type ReplicatedShow } from '@/services/replication';
+import { readExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import {
   replicatedClubsTable,
   type ReplicatedClub,
@@ -90,7 +91,8 @@ export function replicatedToShow(replicated: ReplicatedShow): Show {
     experienceIsPublished: replicated.experienceIsPublished ?? false,
     experiencePublishedAt: replicated.experiencePublishedAt ?? null,
     experiencePublishedStyle: replicated.experiencePublishedStyle ?? null,
-    experiencePublishedContent: replicated.experiencePublishedContent ?? null,
+    // A replica cached before MYK9-2285 may still hold the column default `{}`.
+    experiencePublishedContent: readExperienceSnapshot(replicated.experiencePublishedContent),
     // Sync metadata
     _version: replicated._version || 1,
     _lastModified: replicated._lastModified || new Date(),

@@ -55,7 +55,9 @@ class LoadingErrorBoundary extends React.Component<
     return { hasError: true, error, retryCount: 0 };
   }
 
-  override componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+  override componentDidCatch(thrown: unknown, errorInfo: React.ErrorInfo) {
+    // A render can throw anything, `null` included; logging it must not throw in turn.
+    const error = thrown instanceof Error ? thrown : new Error(String(thrown));
     // MYK9-2285: an Error serializes to `{}`, so name the error in the message and metadata and
     // hand the error itself over for its stack; the component stack alone left no cause.
     logger.error(

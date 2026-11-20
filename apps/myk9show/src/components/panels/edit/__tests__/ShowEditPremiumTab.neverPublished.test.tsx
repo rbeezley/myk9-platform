@@ -57,6 +57,11 @@ describe('ShowEditPremiumTab on a never-published draft (MYK9-2285)', () => {
     expect(neverPublishedDraft().experiencePublishedContent).toBeNull();
   });
 
+  it('drops the empty snapshot a replica cached before the fix still carries', () => {
+    const cached = { ...neverPublishedDraft(), experiencePublishedContent: {} } as never;
+    expect(showToFormData(cached).experiencePublishedContent).toBeNull();
+  });
+
   it('opens the editor in its generate state instead of crashing', () => {
     render(
       <ShowEditPremiumTab

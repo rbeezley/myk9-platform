@@ -7,7 +7,6 @@ import { rbacService } from '@/services/rbac/RBACService';
 import { captureAuthEmailRequestFailure } from '@/services/observability/sentry';
 import { clearAppearanceCache } from '@/context/themeClasses';
 import { clearOwnerNameCache } from '@/services/database/dogs/ownerNameCache';
-import { redactPeopleContactsOnDevice } from '@/services/database/users/signOutPeopleRedaction';
 import { replicatedClassesTable } from '@/services/replication';
 import { ringsideClaimMatchesUser } from '@/features/at-show/ringsideClaimCache';
 import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
@@ -188,7 +187,10 @@ export function useAuth() {
         clearAppearanceCache();
         clearOwnerNameCache();
         // MYK9-2255: phone, email and address leave the saved people; names stay.
-        void redactPeopleContactsOnDevice();
+        // Dynamic: the lazily loaded people store stays out of this hook's static imports.
+        void import('@/services/database/users/signOutPeopleRedaction')
+          .then(m => m.redactPeopleContactsOnDevice())
+          .catch(error => console.error('Could not remove saved contact details:', error));
         // MYK9-2046: the unsent home page club form holds contact details.
         clearClubOnboardingDraft();
         clearAllRbacWarmTokens();

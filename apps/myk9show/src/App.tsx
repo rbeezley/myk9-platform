@@ -132,6 +132,19 @@ function UserDataInitializer() {
   return null;
 }
 
+// MYK9-2255: once per app start, strip contact details a failed sign-out left on sent
+// show-desk rows. A dynamic import keeps the people store out of the startup bundle.
+function PeopleContactCleanupInitializer() {
+  React.useEffect(() => {
+    void import('@/services/database/users/signOutPeopleRedaction')
+      .then(m => m.redactPeopleContactsOnStart())
+      .catch(error =>
+        logger.error('Could not start the people contact cleanup', 'app', {}, error as Error)
+      );
+  }, []);
+  return null;
+}
+
 function AnnouncementSubscriptionInitializer() {
   useAnnouncementSubscription();
   return null;
@@ -188,6 +201,7 @@ function App() {
         <StoreProvider>
           <AuthProvider>
             <UserDataInitializer />
+            <PeopleContactCleanupInitializer />
             <AnnouncementSubscriptionInitializer />
             <MessageSubscriptionInitializer />
             <NotificationMonitorInitializer />

@@ -10,26 +10,38 @@ import {
 /**
  * MYK9-2255: on sign-out the saved people directory and the device's own show-desk
  * people rows lose phone, email and address; names stay. Never throws, so sign-out
- * always completes. When either removal fails, a marker stays and
- * `retryPendingPeopleRedaction` runs it again before the next directory load.
- * The next online management sign-in reloads the directory with contact details.
+ * always completes.
+ *
+ * The pending marker covers the DIRECTORY only: it stays when the directory strip
+ * fails, and a management load that overwrites the directory settles it. The
+ * show-desk strip needs no marker: it is idempotent (a sent row never needs its
+ * contact details) and needs no session, so it runs at every sign-out and on every
+ * app start, and a failure simply retries at the next of those.
  */
 export function redactPeopleContactsOnDevice(): Promise<void> {
   // Every useAuth subscriber hears SIGNED_OUT; they share one run.
-  inFlight ??= runRedaction().finally(() => {
-    inFlight = null;
-  });
+  if (!inFlight) {
+    runCount += 1;
+    inFlight = runRedaction().finally(() => {
+      inFlight = null;
+    });
+  }
   return inFlight;
 }
 
 let inFlight: Promise<void> | null = null;
+let runCount = 0;
+
+/** The sign-out run in progress, or an already-resolved promise when none is. */
+export const peopleRedactionSettled = (): Promise<void> => inFlight ?? Promise.resolve();
+
+/** How many runs have started; lets a test wait for the run a SIGNED_OUT event schedules. */
+export const peopleRedactionRunCount = (): number => runCount;
 
 async function runRedaction(): Promise<void> {
   setRedactionPending();
-  let directoryDone = false;
-  let rowsDone = false;
   try {
-    directoryDone = await useUserStore.getState().redactContacts();
+    if (await useUserStore.getState().redactContacts()) clearRedactionPending();
   } catch (error) {
     logger.error(
       'Could not remove contact details from the saved directory',
@@ -38,11 +50,14 @@ async function runRedaction(): Promise<void> {
       error as Error
     );
   }
+  await redactShowDeskRows();
+}
+
+async function redactShowDeskRows(): Promise<void> {
   try {
     const { replicatedShowDeskPeopleTable } =
       await import('@/services/replication/ReplicatedShowDeskPeopleTable');
     await replicatedShowDeskPeopleTable.redactSentContacts();
-    rowsDone = true;
   } catch (error) {
     logger.error(
       'Could not remove contact details from show-desk people rows',
@@ -51,16 +66,29 @@ async function runRedaction(): Promise<void> {
       error as Error
     );
   }
-  if (directoryDone && rowsDone) clearRedactionPending();
 }
 
 /**
- * Runs a removal that failed at sign-out. A no-op when none is pending, and while
- * a session is signed in: the directory load overwrites the directory then and
- * settles the marker itself.
+ * Runs a directory removal that failed at sign-out. A no-op when none is pending,
+ * and while a session is signed in: the directory load overwrites the directory
+ * then and settles the marker itself.
  */
 export async function retryPendingPeopleRedaction(): Promise<void> {
   if (!isRedactionPending()) return;
   if (await hasAuthenticatedSession()) return;
   await redactPeopleContactsOnDevice();
+}
+
+/**
+ * Once per app start: strips sent show-desk rows (a failed sign-out strip lands
+ * here) and retries a pending directory removal. Never throws.
+ */
+export async function redactPeopleContactsOnStart(): Promise<void> {
+  try {
+    await retryPendingPeopleRedaction();
+    // A directory retry already stripped the rows; the strip is idempotent.
+    await redactShowDeskRows();
+  } catch (error) {
+    logger.error('Could not remove saved contact details at start', 'auth', {}, error as Error);
+  }
 }

@@ -49,7 +49,12 @@ vi.mock('@/services/database/users', () => ({
 import { useAuth } from '@/hooks/useAuth';
 import { useUserStore } from '@/store/userStore';
 import { currentSignOutGeneration, markDirectoryLoaded } from '@/store/userStoreContactRedaction';
-import { retryPendingPeopleRedaction } from '@/services/database/users/signOutPeopleRedaction';
+import {
+  peopleRedactionRunCount,
+  peopleRedactionSettled,
+  redactPeopleContactsOnStart,
+  retryPendingPeopleRedaction,
+} from '@/services/database/users/signOutPeopleRedaction';
 import { replicatedShowDeskPeopleTable as desk } from '@/services/replication/ReplicatedShowDeskPeopleTable';
 
 const STORAGE_KEY = 'myk9show-user-storage';
@@ -94,8 +99,10 @@ const flush = () => new Promise(resolve => setTimeout(resolve, 20));
 async function signOut(subscribers = 1) {
   const hooks = Array.from({ length: subscribers }, () => renderHook(() => useAuth()));
   for (const { result } of hooks) await waitFor(() => expect(result.current.loading).toBe(false));
+  const runsBefore = peopleRedactionRunCount();
   act(() => auth.listener?.('SIGNED_OUT', null));
-  await flush();
+  await vi.waitFor(() => expect(peopleRedactionRunCount()).toBeGreaterThan(runsBefore));
+  await peopleRedactionSettled();
 }
 
 const deskPerson = {
@@ -207,13 +214,61 @@ describe('every directory write respects a sign-out (MYK9-2255)', () => {
     expect(await desk.get('sent-1')).toMatchObject({ email: null, phone: null, address: null });
   });
 
-  it('a show-desk removal that fails keeps the marker; the directory is still stripped', async () => {
-    vi.spyOn(desk, 'redactSentContacts').mockRejectedValue(new Error('indexeddb unavailable'));
+  it('a show-desk strip that fails at sign-out is not lost to a management load: the next start strips it', async () => {
+    await desk.set(
+      'sent-1',
+      { id: 'sent-1', ...deskPerson },
+      false,
+      undefined,
+      undefined,
+      coldInsert
+    );
+    const strip = vi
+      .spyOn(desk, 'redactSentContacts')
+      .mockRejectedValueOnce(new Error('indexeddb unavailable'));
 
     await signOut();
 
-    expect(localStorage.getItem(MARKER)).not.toBeNull();
+    // The directory strip succeeded, so its marker is settled; the rows keep contacts.
+    expect(localStorage.getItem(MARKER)).toBeNull();
     expectNoContacts(useUserStore.getState().users);
+    expect(await desk.get('sent-1')).toMatchObject({ email: 'bo@example.com' });
+
+    // A management load runs in between; it must not hide the failed row strip.
+    directory.getAllUsers.mockResolvedValue({ data: [dbRow(person('p1', 'Ann'))], error: null });
+    await useUserStore.getState().loadUsers();
+    expect(await desk.get('sent-1')).toMatchObject({ email: 'bo@example.com' });
+
+    await redactPeopleContactsOnStart();
+
+    expect(strip).toHaveBeenCalledTimes(2);
+    expect(await desk.get('sent-1')).toMatchObject({
+      firstName: 'Bo',
+      email: null,
+      phone: null,
+      address: null,
+    });
+  });
+
+  it('a directory strip that fails keeps the marker, and the next start retries it while signed out', async () => {
+    const storage = useUserStore.persist.getOptions().storage;
+    const setItem = vi
+      .spyOn(storage!, 'setItem')
+      .mockRejectedValue(new Error('storage unavailable'));
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ state: { users: [person('p1', 'Ann')] }, version: 1 })
+    );
+
+    await signOut();
+    expect(localStorage.getItem(MARKER)).not.toBeNull();
+    expect(savedDirectory()[0]?.email).toBe('Ann@example.com');
+
+    setItem.mockRestore();
+    await redactPeopleContactsOnStart();
+
+    expect(localStorage.getItem(MARKER)).toBeNull();
+    expectNoContacts(savedDirectory());
   });
 
   it('many useAuth subscribers share one removal per sign-out, and a clean run clears the marker', async () => {

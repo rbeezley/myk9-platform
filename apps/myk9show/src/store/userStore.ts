@@ -457,7 +457,7 @@ export const useUserStore = create<UserStore>()(
       // failed) must not bring contact details back.
       merge: (persistedState, currentState) => {
         const persisted = persistedState as Partial<UserStore>;
-        const redact = currentSignOutGeneration() > 0 || isRedactionPending();
+        const redact = mustStripContacts();
         const users =
           redact && persisted.users ? stripPeopleContacts(persisted.users) : persisted.users;
         return {
@@ -466,18 +466,6 @@ export const useUserStore = create<UserStore>()(
           ...(users && { users }),
           people: users ?? currentState.users,
         };
-      },
-      onRehydrateStorage: () => () => {
-        if (isRedactionPending()) {
-          // After this module finishes loading: the retry module imports this store.
-          setTimeout(() => {
-            void import('@/services/database/users/signOutPeopleRedaction')
-              .then(m => m.retryPendingPeopleRedaction())
-              .catch(error =>
-                logger.error('Could not retry the people contact removal', 'store', {}, error)
-              );
-          }, 0);
-        }
       },
       version: 1,
       migrate: (persistedState: unknown, version: number) => {

@@ -37,6 +37,10 @@ vi.mock('@/services/database/users', () => ({ getAllUsers: directory.getAllUsers
 
 import { useAuth } from '@/hooks/useAuth';
 import { useUserStore } from '@/store/userStore';
+import {
+  peopleRedactionRunCount,
+  peopleRedactionSettled,
+} from '@/services/database/users/signOutPeopleRedaction';
 import { replicatedShowDeskPeopleTable as desk } from '@/services/replication/ReplicatedShowDeskPeopleTable';
 
 const STORAGE_KEY = 'myk9show-user-storage';
@@ -82,8 +86,10 @@ const flush = () => new Promise(resolve => setTimeout(resolve, 20));
 async function signOut() {
   const { result } = renderHook(() => useAuth());
   await waitFor(() => expect(result.current.loading).toBe(false));
+  const runsBefore = peopleRedactionRunCount();
   act(() => auth.listener?.('SIGNED_OUT', null));
-  await flush();
+  await vi.waitFor(() => expect(peopleRedactionRunCount()).toBeGreaterThan(runsBefore));
+  await peopleRedactionSettled();
 }
 
 describe('sign-out removes contact details from every saved person (MYK9-2255)', () => {

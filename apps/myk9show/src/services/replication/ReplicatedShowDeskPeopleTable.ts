@@ -41,6 +41,17 @@ export class ReplicatedShowDeskPeopleTable extends ReplicatedTable<ReplicatedSho
     super('people', { logger });
   }
 
+  /**
+   * A person added at the desk carries contact details and is stored until sent,
+   * so it is private to the account that added it (MYK9-2277), as entries are
+   * (MYK9-1133). A row saved before this change has no owner: it stays queued and
+   * is still sent (the queue is read by the account that queued it, never through
+   * these readers), and no account is shown it.
+   */
+  override usesAccountOwnedRows(): boolean {
+    return true;
+  }
+
   get lastMutationId(): string | null {
     return this._lastMutationId;
   }

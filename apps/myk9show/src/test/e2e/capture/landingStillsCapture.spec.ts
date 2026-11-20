@@ -48,9 +48,15 @@ const SCALE = 2;
  * pixels (the image is twice that), and each is chosen so no label or sentence is cut.
  */
 type Clip = { x: number; y: number; width: number; height: number };
-/** The wizard's four steps whole, from Show Details to Review, under the top of the step card. */
-const CLUBS_WINDOW: Clip = { x: 455, y: 190, width: 600, height: 240 };
+/** The wizard's four steps whole, from Show Details to Review, with the progress bar over them. */
+const CLUBS_WINDOW: Clip = { x: 455, y: 232, width: 600, height: 160 };
 /** Find Shows: the right-hand column of cards, whole, from the column's left edge (see below). */
+/**
+ * Past Results: from just above the Competitions card to the bottom of the phone. The Career view
+ * selector sticks under the app header on this page (it names the view the card is already
+ * showing), so it would read as a second Competitions heading; the frame starts under it.
+ */
+const PAST_RESULTS_WINDOW: Clip = { x: 0, y: 96, width: PHONE.width, height: PHONE.height - 96 };
 const FIND_SIZE = { width: 640, height: 400 };
 const SETUP_SQL = join(dirname(fileURLToPath(import.meta.url)), 'landingStillsSetup.sql');
 
@@ -258,13 +264,18 @@ test('captures the four stills from the secretary’s desktop, the exhibitor’s
       const competitions = page.locator('.myk9-section-card').filter({ has: heading });
       await expectNothingMisleading(page, competitions);
       await scrollToTop(competitions, 56);
+      await page.waitForTimeout(600);
+      const cardTop = (await competitions.first().boundingBox())?.y ?? 0;
+      console.log('box :: Competitions card top ::', cardTop);
+      expect(cardTop).toBeGreaterThan(PAST_RESULTS_WINDOW.y);
+      expect(cardTop).toBeLessThan(PAST_RESULTS_WINDOW.y + 24);
       await page.mouse.move(0, 0);
       await page.waitForTimeout(1200);
       console.log(
         'past results read ::',
         (await cards.allInnerTexts()).join(' | ').replace(/\s+/g, ' ')
       );
-      await still(page, 'exhibitor-past-results.png');
+      await still(page, 'exhibitor-past-results.png', PAST_RESULTS_WINDOW);
     });
 
     // The exhibitor's desktop: the same page, resized, on Find Shows.

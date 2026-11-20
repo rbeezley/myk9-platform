@@ -70,7 +70,7 @@ export const PEAK_LEAD: Record<Audience, string> = {
 // A still is one picture from the Landing capture workflow (landingStillsCapture.spec.ts, MYK9-2309).
 // A desktop still is a window of the screen, cut so no label or sentence is cut, at twice its size
 // (so its words read where the page draws it: about 440px wide, about 294 on a phone); a phone still
-// is the whole 390x844 screen.
+// is the 390px-wide screen, whole or from under the app header.
 const desktopStill = (file: string, alt: string, width: number, height: number): Shot => ({
   src: `/landing/stills/${file}.png`,
   alt,
@@ -78,11 +78,11 @@ const desktopStill = (file: string, alt: string, width: number, height: number):
   height,
   shape: 'desktop',
 });
-const phoneStill = (file: string, alt: string): Shot => ({
+const phoneStill = (file: string, alt: string, height = 844): Shot => ({
   src: `/landing/stills/${file}.png`,
   alt,
   width: 390,
-  height: 844,
+  height,
   shape: 'phone',
 });
 
@@ -91,7 +91,7 @@ const SHOTS = {
     'club-create-show',
     'The Add Show wizard’s four steps, Show Details, Trials, Classes and Review, with the first step marked',
     600,
-    240
+    160
   ),
   'exhibitor-find-a-show': desktopStill(
     'exhibitor-find-a-show',
@@ -101,11 +101,12 @@ const SHOTS = {
   ),
   'exhibitor-my-entries': phoneStill(
     'exhibitor-my-entries',
-    'My Entries card for Willow, Armband 100, marked Accepted, with Interior Advanced and Container Novice A on Mon, Jan 4, each noting Check in on the day'
+    'My Entries: the Heartland Scent Work Classic heading with In 45 days, Mon to Tue, Jan 4 to 5, Paid, Entries close Dec 28, 2026 and its address with a Directions link, then Willow’s card, Armband 100, marked Accepted, with Interior Advanced and Container Novice A on Mon, Jan 4, each noting Check in on the day'
   ),
   'exhibitor-past-results': phoneStill(
     'exhibitor-past-results',
-    'Willow’s Competitions card on the Past Results tab: three results from the Prairie Trail Fall Scent Work Trial, Exterior Novice A Q #1, Interior Novice A Q #2 and Container Novice A Q #1'
+    'Willow’s Competitions card on the Past Results tab: three results from the Prairie Trail Fall Scent Work Trial, Exterior Novice A Q #1, Interior Novice A Q #2 and Container Novice A Q #1',
+    748
   ),
   // The exhibitor's show-day explainer still: the banner shows only on a show's own day.
   'e-13': {

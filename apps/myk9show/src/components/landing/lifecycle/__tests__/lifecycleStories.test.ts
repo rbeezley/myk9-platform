@@ -100,8 +100,8 @@ describe('STORIES', () => {
           width: shot.width * 2,
           height: shot.height * 2,
         });
-        // A phone still is the whole screen; a desktop still is a window of it.
-        if (shot.shape === 'phone') expect([shot.width, shot.height], shot.src).toEqual([390, 844]);
+        // A phone still is the screen's full width; a desktop still is a window of it.
+        if (shot.shape === 'phone') expect(shot.width, shot.src).toBe(390);
         else expect(shot.width, shot.src).toBeLessThanOrEqual(680);
       }
     }

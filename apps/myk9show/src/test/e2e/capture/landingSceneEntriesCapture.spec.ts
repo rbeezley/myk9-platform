@@ -56,8 +56,10 @@ const DESK_SCALE = 1;
 // card on My Entries reads Pending review before the walk and Accepted after it (a dog with an
 // accepted entry reads Accepted whatever else is pending).
 const DOG = 'Maple';
-// Exterior Excellent is the class the ring capture scores a dog in.
-const AVOID_CLASS = /Exterior Excellent/;
+// Classes none of the demo exhibitor's dogs are entered in and the ring capture does not read
+// (it scores a dog in Exterior Excellent, and the judge is assigned classes 031 to 035). A class
+// another of her dogs is already in asks who handles the second dog, which the scene is not about.
+const CLASSES_TO_ENTER = ['Container Advanced', 'Buried Novice A', 'Exterior Advanced'];
 // Handler Discrimination Advanced on trial 4 holds one entry against a limit of one, and no
 // waitlist, so the wizard marks it Full (supabase/seed-demo.sql, MYK9-515).
 const FULL_CLASS_ID = 'dec1a55e-0000-0000-0000-000000000045';
@@ -271,14 +273,15 @@ test('captures the Entries open scene on the exhibitor’s phone and the secreta
     });
 
     await stage('choosing a class', page, async () => {
-      const addable = enabledClassChips(page);
-      const count = await addable.count();
       let classId = '';
-      for (let i = 0; i < count && !classId; i += 1) {
-        const name = await addable
-          .nth(i)
-          .evaluate(el => el.getAttribute('aria-label') ?? el.closest('label')?.textContent ?? '');
-        if (!AVOID_CLASS.test(name)) classId = await chipClassId(addable.nth(i));
+      for (const name of CLASSES_TO_ENTER) {
+        const chips = enabledClassChips(page).and(
+          page.getByRole('checkbox', { name: new RegExp(`^Enter ${DOG} in ${name}$`) })
+        );
+        if ((await chips.count()) > 0) {
+          classId = await chipClassId(chips.first());
+          break;
+        }
       }
       expect(classId, 'a class the dog can still be entered in').not.toBe('');
       const chip = chipById(page, classId);

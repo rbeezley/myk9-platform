@@ -9,6 +9,7 @@ import { getOptimalStorage } from '@/services/database/storage-adapter';
 import { reportStoreError } from '@/utils/standardizedErrorHandler';
 import { logger } from '@/services/LoggingService';
 import { persistJudgeInfo } from './userStoreJudgeInfo';
+import { redactDirectoryContacts } from './userStoreRedactContacts';
 import {
   currentSignOutGeneration,
   clearRedactionPending,
@@ -277,48 +278,10 @@ export const useUserStore = create<UserStore>()(
         // Data Management
         setUsers: users => set({ users, people: users }),
 
-        redactContacts: async (): Promise<boolean> => {
-          const persistApi = useUserStore.persist;
-          const storageName = persistApi.getOptions().name ?? '';
-          let source = get().users;
-          // A sign-out before hydration (an expired session at app start) sees an empty
-          // directory: strip the stored copy instead, so names are never wiped. The storage
-          // adapter turns a failed read into null, so no stored copy means "unknown": write
-          // nothing and keep the marker, and the next start strips the hydrated directory.
-          if (!persistApi.hasHydrated()) {
-            try {
-              const stored = await persistApi.getOptions().storage?.getItem(storageName);
-              const storedUsers = (stored?.state as { users?: User[] } | undefined)?.users;
-              if (!storedUsers) return false;
-              source = storedUsers;
-            } catch (error) {
-              logger.error(
-                'Could not read the saved people directory',
-                'store',
-                {},
-                error as Error
-              );
-              return false;
-            }
-          }
-          const users = stripPeopleContacts(source);
-          set({ users, people: users });
-          try {
-            await persistApi.getOptions().storage?.setItem(storageName, {
-              state: { users },
-              version: persistApi.getOptions().version ?? 0,
-            });
-            return true;
-          } catch (error) {
-            logger.error(
-              'Could not save the stripped people directory',
-              'store',
-              {},
-              error as Error
-            );
-            return false;
-          }
-        },
+        redactContacts: (): Promise<boolean> =>
+          redactDirectoryContacts(useUserStore.persist, get().users, users =>
+            set({ users, people: users })
+          ),
 
         loadUsers: async (options = {}): Promise<void> => {
           try {

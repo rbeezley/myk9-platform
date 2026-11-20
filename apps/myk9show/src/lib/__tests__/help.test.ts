@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { HELP_BASE_URL, helpUrl } from '../help';
+import { HELP_BASE_URL, SECRETARY_GUIDE_CREATE_SHOW_ANCHOR, helpUrl } from '../help';
 
 describe('helpUrl', () => {
   it('returns the help home when given no slug', () => {
@@ -17,5 +17,11 @@ describe('helpUrl', () => {
     for (const slug of ['exhibitor-guide', 'secretary-guide', 'club-admin-guide'] as const) {
       expect(helpUrl(slug).startsWith(`${HELP_BASE_URL}/guides/`)).toBe(true);
     }
+  });
+
+  it('jumps to a section of a guide when given an anchor', () => {
+    expect(helpUrl('secretary-guide', SECRETARY_GUIDE_CREATE_SHOW_ANCHOR)).toBe(
+      'https://help.myk9show.com/guides/secretary-guide#1--create-a-show-its-trials-and-its-classes'
+    );
   });
 });

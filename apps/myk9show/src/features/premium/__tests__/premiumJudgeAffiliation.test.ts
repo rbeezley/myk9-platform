@@ -9,6 +9,7 @@ import { missingPremiumFacts, type PremiumRequirementFacts } from '../premiumReq
 import { parseGeneratedPremium } from '../premiumPublishSchema';
 import type { GeneratedPremium } from '@/types/premium-types';
 import { generatedPremium } from './fixtures/generatedPremium';
+import { getShowEditHref } from '@/components/shows/showEditRoutes';
 
 const premiumWithJudge = (
   org: GeneratedPremium['org'],
@@ -91,22 +92,20 @@ describe('ASCA checklist, judge affiliation', () => {
   const affiliationItems = (f: PremiumRequirementFacts, registry: 'AKC' | 'UKC' | 'ASCA') =>
     missingPremiumFacts(f, registry, targets).filter(i => i.id === 'judgeAffiliation');
 
-  it('names each judge with no affiliation, linking only a profile the viewer may edit', () => {
+  it('names each judge with no affiliation and links to the Judges tab of Edit show', () => {
     const items = affiliationItems(
       facts([
-        { id: 'j1', name: 'Jane Smith', affiliation: null, canEdit: true },
+        { id: 'j1', name: 'Jane Smith', affiliation: null },
         { id: 'j2', name: 'Bob Lee', affiliation: 'ASCA-approved judge' },
         { id: 'j3', name: 'Cy Young', affiliation: '  ' },
       ]),
       'ASCA'
     );
     expect(items.map(i => i.key)).toEqual(['judgeAffiliation:j1', 'judgeAffiliation:j3']);
-    expect(items[0]?.href).toBe('/people/j1');
-    expect(items[0]?.message).toContain('Jane Smith');
-    // No link for a judge the viewer cannot edit, and the wording asks the judge to fix it.
-    expect(items[1]?.href).toBeNull();
+    expect(items[0]?.href).toBe(getShowEditHref(targets.showId, 'judges'));
+    expect(items[1]?.href).toBe(getShowEditHref(targets.showId, 'judges'));
     expect(items[1]?.message).toBe(
-      "ASCA requires each judge's affiliation. Ask Cy Young to add their affiliation on their myK9 profile."
+      "ASCA requires each judge's affiliation. Add Cy Young's affiliation in Edit show, under Judges."
     );
   });
 

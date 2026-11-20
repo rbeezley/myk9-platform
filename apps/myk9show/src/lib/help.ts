@@ -11,8 +11,13 @@ export type HelpGuideSlug = 'exhibitor-guide' | 'secretary-guide' | 'club-admin-
 
 /**
  * Build a URL into the help site. With no slug it points at the help home;
- * with a slug it deep-links the matching role guide.
+ * with a slug it deep-links the matching role guide, and an anchor jumps to a section in it.
  */
-export function helpUrl(slug?: HelpGuideSlug): string {
-  return slug ? `${HELP_BASE_URL}/guides/${slug}` : HELP_BASE_URL;
+export function helpUrl(slug?: HelpGuideSlug, anchor?: string): string {
+  if (!slug) return HELP_BASE_URL;
+  const url = `${HELP_BASE_URL}/guides/${slug}`;
+  return anchor ? `${url}#${anchor}` : url;
 }
+
+/** The secretary guide's "Create a show, its trials, and its classes" card (its heading's slug). */
+export const SECRETARY_GUIDE_CREATE_SHOW_ANCHOR = '1--create-a-show-its-trials-and-its-classes';

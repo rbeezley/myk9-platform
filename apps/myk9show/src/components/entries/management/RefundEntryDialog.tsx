@@ -29,7 +29,7 @@ import type { EntryManagementEntry } from '@/types/entry-management-types';
 const ERROR_MESSAGES: Record<string, string> = {
   [STEP_UP_REQUIRED_CODE]: 'No refund was issued. Confirm your password to continue.',
   payout_already_sent:
-    'This show’s entry fees have already been paid out to the club, so refunds can’t be issued from here. The refund is still possible: contact myK9Show support, who issues it manually and recovers the club’s share.',
+    'The club has already been paid for this show, so this refund can’t be issued here. The refund is the club’s to pay the exhibitor directly.',
   payout_in_progress: 'A payout to the club is in flight. Try again after it completes.',
   not_refundable: 'This entry has no refundable payment (it may already be refunded).',
   not_online_payment: 'This entry wasn’t paid online. Refund it the way it was paid.',

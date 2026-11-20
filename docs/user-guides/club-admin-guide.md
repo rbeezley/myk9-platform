@@ -231,7 +231,7 @@ Wait 1–2 business days. Stripe reviews new accounts before enabling payouts. I
 Log in to your Stripe Express dashboard at **express.stripe.com** using the email address you used during onboarding. From there you can update bank details, view transfer history, and manage the account.
 
 **"What if we need to refund an entry after the show?"**
-Your secretary handles refunds from the show's **Entry Forms** tab. If a refund is issued after the payout has already been sent, Stripe will deduct it from the next payout. Contact us if a refund exceeds the next payout amount.
+Your secretary handles refunds from the show's **Entry Forms** tab. Once your club's payout for a show has been sent, refunds can no longer be issued in myK9Show, and the app tells your secretary so. Any refund after that is your club's to pay the exhibitor directly.
 
 **"What does the service fee cover?"**
 Two things: Stripe's card processing, which myK9Show neither sets nor receives, and myK9Show's own share, which funds the platform your show runs on. It is charged to the exhibitor on top of the entry fee and is never taken out of your payout. The current rate and an approximate split are on the Payments tab and at [How our fees work](https://myk9show.com/fees).

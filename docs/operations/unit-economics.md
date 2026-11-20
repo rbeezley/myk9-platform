@@ -326,12 +326,14 @@ The exposure window is also small: payouts fire at `end_date` + 3 days, and most
 withdrawal requests arrive before a show, not four days after it ends.
 
 What remains is operational rather than financial. A legitimate post-payout refund
-has no in-app path — the guard blocks it, and completing it means a manual Stripe
-dashboard refund plus a transfer reversal, with no runbook.
-`cron-process-payouts` already emails exactly that instruction on a post-transfer
-mismatch, which is evidence the manual procedure is real and needed. The procedure
-is now written down: [`post-payout-clawback.md`](post-payout-clawback.md). The
-remaining in-app path is tracked as **MYK9-195**.
+has no in-app path: the guard blocks it and tells the secretary the club pays the
+exhibitor directly, which is the default (owner decision 2026-11-13). The operator
+may still choose to complete one as an exception, by a manual Stripe dashboard
+refund plus a transfer reversal; `cron-process-payouts` already emails exactly that
+instruction on a post-transfer mismatch, which is evidence the manual procedure is
+real and needed. The procedure is written down:
+[`post-payout-clawback.md`](post-payout-clawback.md) Case A. The remaining in-app
+path is tracked as **MYK9-195**.
 
 ---
 

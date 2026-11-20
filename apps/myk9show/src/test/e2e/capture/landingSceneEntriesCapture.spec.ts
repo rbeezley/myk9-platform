@@ -252,8 +252,10 @@ test('captures the Entries open scene on the exhibitor’s phone and the secreta
       await clickClearOfStickyChrome(page, dogOption);
       await expect(dogOption).toHaveAttribute('aria-checked', 'true');
     });
+    // The dog's card whole, between the sticky header and the sticky entry bar.
+    await scrollToMiddle(dogOption);
     await page.waitForTimeout(800);
-    await shoot('phone', page, phoneShots, 'dogs', { row: [dogOption, 300, 56] });
+    await shoot('phone', page, phoneShots, 'dogs', { row: [dogOption, 300, 200] });
     await clickClearOfStickyChrome(page, page.getByRole('button', { name: /^Next$/ }));
 
     await stage('the classes step', page, async () => {
@@ -318,7 +320,13 @@ test('captures the Entries open scene on the exhibitor’s phone and the secreta
         .locator('visible=true')
         .first();
       await expect(pay).toBeVisible({ timeout: 30_000 });
-      await page.waitForTimeout(800);
+      // The "added to your entry" toasts out of the way, and the chosen card method in view
+      // above the button, with the sentence that says where it goes.
+      for (const close of await page.getByRole('button', { name: 'Close toast' }).all()) {
+        await close.click().catch(() => {});
+      }
+      await scrollToMiddle(page.getByRole('button', { name: /^Credit\/Debit Card/i }));
+      await page.waitForTimeout(1200);
       await shoot('phone', page, phoneShots, 'payment', { pay });
     });
 
@@ -355,7 +363,7 @@ test('captures the Entries open scene on the exhibitor’s phone and the secreta
         'the dog’s card reads ::',
         (await dogCard.first().innerText()).replace(/\s+/g, ' ')
       );
-      await shoot('phone', page, phoneShots, 'pending', { badge: pending });
+      await shoot('phone', page, phoneShots, 'pending', { badge: [pending, 120, 24] });
     });
 
     // Line 4: the form is in the secretary's list, marked Needs review, with its payment.
@@ -422,7 +430,7 @@ test('captures the Entries open scene on the exhibitor’s phone and the secreta
       await reloadUntilVisible(page, accepted, 10);
       await scrollToMiddle(dogCard);
       await page.waitForTimeout(1200);
-      await shoot('phone', page, phoneShots, 'accepted', { badge: accepted });
+      await shoot('phone', page, phoneShots, 'accepted', { badge: [accepted, 90, 24] });
     });
 
     writeFileSync(

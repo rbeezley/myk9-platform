@@ -31,13 +31,14 @@ type PhoneShot = keyof typeof PHONE_SHOTS;
 type DeskShot = keyof typeof DESK_SHOTS;
 
 const PHONE_ALT: Record<PhoneShot, string> = {
-  dogs: 'The entry wizard on the exhibitor’s phone, Select Dogs to Enter, with Maple chosen',
+  dogs: 'The entry wizard on the exhibitor’s phone, Select Dogs to Enter, with Piper chosen',
   classes:
     'The wizard’s Select Classes step, with Handler Discrimination Advanced marked Full and a reason that the class is full',
   payment:
     'The wizard’s Payment step with the credit or debit card chosen and a button that reads Pay with the amount on it',
-  pending: 'My Entries on the phone: Maple’s card with a Pending review label',
-  accepted: 'My Entries on the phone: Maple’s card, now labelled Accepted',
+  pending:
+    'My Entries on the phone: Piper’s card with a Pending review label and the note that the secretary is reviewing it',
+  accepted: 'My Entries on the phone: Piper’s card, now labelled Accepted',
 };
 const DESK_ALT: Record<DeskShot, string> = {
   before:
@@ -45,8 +46,7 @@ const DESK_ALT: Record<DeskShot, string> = {
   list: 'The Entry Forms list with the exhibitor’s form marked Needs review, with Not paid yet beside it',
   review:
     'The open entry form, under To finish this form: the entries that need review, with Accept and Reject buttons',
-  accepted:
-    'The open entry form after Accept: Maple’s entry in Container Advanced now reads Accepted',
+  accepted: 'The open entry form after Accept: Piper’s entry in Buried Novice A now reads Accepted',
 };
 
 const phoneShot = (name: PhoneShot): SceneShot => ({

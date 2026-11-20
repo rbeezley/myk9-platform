@@ -152,6 +152,19 @@ describe('the Entries open scene', () => {
     expect(lineThree.phone!.camera).toEqual(lineTwo.phone!.camera);
   });
 
+  it('keeps the Communication section, which says no decision email has gone yet, out of frame on the Accepted capture', () => {
+    // Line 5 says the exhibitor gets an email; that section reads "No decision email sent yet".
+    const view = frames.find(f => f.desk!.shot === 'accepted')!.desk!;
+    const { entry, communication } = regions.desk.shots.accepted.regions;
+    expect(inside(entry, view.camera)).toBe(true);
+    const overlaps =
+      communication.y < view.camera.y + view.camera.h &&
+      communication.y + communication.h > view.camera.y &&
+      communication.x < view.camera.x + view.camera.w &&
+      communication.x + communication.w > view.camera.x;
+    expect(overlaps).toBe(false);
+  });
+
   it('uses every capture, and each file is on disk at the size the data states', () => {
     const used = new Set(frames.flatMap(f => [`desk:${f.desk!.shot}`, `phone:${f.phone!.shot}`]));
     expect(used).toEqual(

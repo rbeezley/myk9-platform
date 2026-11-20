@@ -168,17 +168,33 @@ describe('Edit show judge affiliation field (MYK9-2294)', () => {
     expect(screen.queryByText('Saving the judge first')).not.toBeInTheDocument();
   });
 
-  it('says the read failed, with Try again, instead of "Saving the judge first" (MYK9-2297)', async () => {
+  it('says once for the tab that the read failed, with Try again, not "Saving the judge first" (MYK9-2297)', async () => {
     const user = userEvent.setup();
     mocks.fetchEditor.mockRejectedValue(new Error('read failed'));
-    renderNote('ASCA', createTestQueryClient());
-    expect(await screen.findByText(JUDGE_AFFILIATION_READ_ERROR)).toBeInTheDocument();
+    renderWith(
+      <>
+        <AssignedJudgeNote judgeId="judge-1" />
+        <AssignedJudgeNote judgeId="judge-2" />
+      </>,
+      'ASCA',
+      createTestQueryClient()
+    );
+    expect(await screen.findByRole('alert')).toHaveTextContent(JUDGE_AFFILIATION_READ_ERROR);
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Try again' })).toHaveLength(1);
     expect(screen.queryByText('Saving the judge first')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Affiliation')).toBeDisabled();
-    mocks.fetchEditor.mockResolvedValue({ 'judge-1': ready() });
+    screen.getAllByLabelText('Affiliation').forEach(input => expect(input).toBeDisabled());
+    let answer: (value: unknown) => void = () => undefined;
+    mocks.fetchEditor.mockReturnValue(new Promise(resolve => (answer = resolve)));
     await user.click(screen.getByRole('button', { name: 'Try again' }));
-    await waitFor(() => expect(screen.getByLabelText('Affiliation')).toBeEnabled());
-    expect(screen.queryByText(JUDGE_AFFILIATION_READ_ERROR)).not.toBeInTheDocument();
+    // Nothing was ever read, so the retry is a first read again: each field says so.
+    expect(await screen.findAllByText('Checking with myK9Show')).toHaveLength(2);
+    expect(screen.queryByText('Saving the judge first')).not.toBeInTheDocument();
+    await act(async () => answer({ 'judge-1': ready(), 'judge-2': ready() }));
+    await waitFor(() =>
+      screen.getAllByLabelText('Affiliation').forEach(input => expect(input).toBeEnabled())
+    );
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('keeps a typed draft through a failed read and its Try again (MYK9-2297)', async () => {
@@ -194,8 +210,11 @@ describe('Edit show judge affiliation field (MYK9-2294)', () => {
     expect(await screen.findByText(JUDGE_AFFILIATION_READ_ERROR)).toBeInTheDocument();
     expect(input).toBeDisabled();
     expect(input).toHaveValue('Region 8');
-    mocks.fetchEditor.mockResolvedValue({ 'judge-1': ready() });
+    let answer: (value: unknown) => void = () => undefined;
+    mocks.fetchEditor.mockReturnValue(new Promise(resolve => (answer = resolve)));
     await user.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByRole('button', { name: 'Checking…' })).toBeDisabled();
+    await act(async () => answer({ 'judge-1': ready() }));
     await waitFor(() => expect(input).toBeEnabled());
     expect(input).toHaveValue('Region 8');
     expect(screen.getByRole('button', { name: 'Save affiliation' })).toBeEnabled();

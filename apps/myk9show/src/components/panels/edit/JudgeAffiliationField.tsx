@@ -18,16 +18,35 @@ import { friendlySaveError } from '@/utils/friendlySaveError';
 export const JUDGE_AFFILIATION_MAX_LENGTH = 200;
 export const JUDGE_AFFILIATION_WAIT = 'Saving the judge first';
 export const JUDGE_AFFILIATION_OFFLINE = 'Reconnect to add the affiliation';
-export const JUDGE_AFFILIATION_READ_ERROR = 'Could not reach myK9Show to check this judge';
+export const JUDGE_AFFILIATION_CHECKING = 'Checking with myK9Show';
+export const JUDGE_AFFILIATION_READ_ERROR =
+  "Could not reach myK9Show to load the judges' affiliations";
 
 /**
  * MYK9-2297: mounted once inside Edit show's Judges tab, it owns the roster read every
- * Affiliation field selects from, so the tab reads once when it opens and not per judge.
+ * Affiliation field selects from, so the tab reads once when it opens and not per judge. A
+ * failed read is reported here once, with one Try again, while every field stays disabled.
  */
 export const AffiliationRoster: React.FC = () => {
   const { data: show } = useEditPanel<ShowEditFormData>();
-  useJudgeAffiliationRoster(show.organization === 'ASCA' ? show.id : undefined);
-  return null;
+  const { readFailed, isReading, retry } = useJudgeAffiliationRoster(
+    show.organization === 'ASCA' ? show.id : undefined
+  );
+  if (!readFailed) return null;
+  return (
+    <div role="alert" className="mb-4 flex flex-wrap items-center gap-2 text-sm text-destructive">
+      <span>{JUDGE_AFFILIATION_READ_ERROR}</span>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={isReading}
+        onClick={() => void retry()}
+      >
+        {isReading ? 'Checking…' : 'Try again'}
+      </Button>
+    </div>
+  );
 };
 
 /**
@@ -59,10 +78,7 @@ export const JudgeAffiliationField: React.FC<{ showId: string | undefined; judge
   judgeId,
 }) => {
   const queryClient = useQueryClient();
-  const { readiness, affiliation, showSaved, retry, isReading } = useJudgeAffiliationEditor(
-    showId,
-    judgeId
-  );
+  const { readiness, affiliation, showSaved } = useJudgeAffiliationEditor(showId, judgeId);
   const ready = showId !== undefined && readiness === 'ready';
   const [draft, setDraft] = useState<string | null>(null);
   const value = draft ?? affiliation ?? '';
@@ -114,19 +130,15 @@ export const JudgeAffiliationField: React.FC<{ showId: string | undefined; judge
           Save affiliation
         </Button>
       </div>
-      {readiness === 'error' ? (
-        <div role="alert" className="flex flex-wrap items-center gap-2 text-sm text-destructive">
-          <span>{JUDGE_AFFILIATION_READ_ERROR}</span>
-          <Button type="button" variant="outline" size="sm" disabled={isReading} onClick={retry}>
-            Try again
-          </Button>
-        </div>
-      ) : (
-        !ready && (
-          <p className="text-sm text-muted-foreground">
-            {readiness === 'offline' ? JUDGE_AFFILIATION_OFFLINE : JUDGE_AFFILIATION_WAIT}
-          </p>
-        )
+      {/* A read error is reported once for the tab, by AffiliationRoster. */}
+      {!ready && readiness !== 'error' && (
+        <p className="text-sm text-muted-foreground">
+          {readiness === 'offline'
+            ? JUDGE_AFFILIATION_OFFLINE
+            : readiness === 'checking'
+              ? JUDGE_AFFILIATION_CHECKING
+              : JUDGE_AFFILIATION_WAIT}
+        </p>
       )}
     </div>
   );

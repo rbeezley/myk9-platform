@@ -5,6 +5,9 @@
  * All tables use IndexedDB for local storage with automatic sync to Supabase.
  */
 
+// MYK9-2254: registers the alert for a download that stays short of the server's count.
+import './shortReplicaAlert';
+
 // Clubs
 export {
   ReplicatedClubsTable,

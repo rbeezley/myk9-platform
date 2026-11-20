@@ -1,7 +1,6 @@
 import type { ReplicatedTable } from './core/ReplicatedTable';
 import type { SyncResult } from './types';
 import { repairStuckPendingFlagsOnce } from './core/repairStuckPendingFlags';
-import { reconcileDirtyRemoteRow } from './reconcileDirtyRemoteRow';
 import { anyRowNotOwnedBy, scopeStampDirective } from './rowOwnership';
 import { describeError } from './error-message';
 import { SyncCacheWriter } from './syncCacheWriter';
@@ -11,7 +10,14 @@ import { countCoveredRows, countServerBackedRows, getCoveredRemoteIds } from './
 export { countServerBackedRows };
 import { overReplicaWatched, runStaleCleanup } from './syncStaleCleanup';
 import { beginRemoteCountPass, coverageFell } from './remoteCountCadence';
-import { isConflictSurfacingEnabled } from './conflictConfig';
+import { failIfShort } from './shortReplicaCheck';
+import {
+  isScopeEmptyProven,
+  mergeIntoDirtyRow,
+  overReplicaAfterIncremental,
+  settleStaleAccountStamp,
+  watermarkFor,
+} from './syncPassHelpers';
 import type {
   SyncScope,
   SyncReplicatedTableAdapter,
@@ -217,6 +223,8 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     // unsent work on it: the download is not whole for this account.
     let skippedForeignUnsentRow = false;
     const coveredServerIds = getCoveredRemoteIds(remoteRows, adapter);
+    // Server rows rightly not held here: they are accounted for, not missing (MYK9-2254).
+    const skippedIds = new Set<string>();
     // Collect clean rows for a single bulk IDB transaction (batchSet perf path).
     const cleanRowsToCache: TLocal[] = [];
     // Rows another account (or nobody) owned that this download takes over: each
@@ -250,6 +258,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       const ownRow = !accountOwned || existing?.ownerAuthUserId === syncingAuthUserId;
       if (existing?.isDirty && !ownRow) {
         skippedForeignUnsentRow = true;
+        if (coveredServerIds.has(id)) skippedIds.add(id);
         continue;
       }
       const remoteLocal = { ...adapter.toLocalRow(remote), id } as TLocal;
@@ -260,40 +269,19 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       const remoteServerVersion = (remote as Record<string, unknown>).version as number | undefined;
 
       if (adapter.shouldSkipRemoteRow?.(remote, { local })) {
+        if (coveredServerIds.has(id)) skippedIds.add(id);
         continue;
       }
 
       if (existing?.isDirty) {
-        // Phase 4: detect same-field collisions when the flag is on and we have a
-        // clean base snapshot to diff against. If fields overlap → surface the
-        // conflict; the row is held dirty and the user must reconcile. Non-overlapping
-        // fields are reconciled below (merge untouched server fields + advance token).
-        const surfaceConflicts = options.conflictSurfacingEnabled ?? isConflictSurfacingEnabled();
-        if (surfaceConflicts && existing.baseData !== undefined) {
-          // Same-field collision → marked for the user; otherwise untouched server
-          // fields merge in and the OCC token (row and queue) advances.
-          const outcome = await reconcileDirtyRemoteRow(table, adapter, {
-            id,
-            existing: { ...existing, baseData: existing.baseData },
-            remoteLocal,
-            remoteServerVersion,
-          });
-          if (outcome.conflict || outcome.changed) rowsAffected++;
-          if (outcome.changed) conflictsResolved++;
-          continue;
-        }
-
-        // Flag off OR no base snapshot to diff against: legacy behavior. Let an
-        // adapter merge server-authoritative fields (last-write-wins); otherwise the
-        // dirty row is preserved untouched until its pending mutation uploads. No OCC
-        // token exists in this path (it is only captured when surfacing is on), so
-        // there is nothing to advance.
-        if (adapter.mergeDirtyRow) {
-          const merged = adapter.mergeDirtyRow(existing.data, remoteLocal);
-          await table.set(id, { ...merged, id } as TLocal, true);
-          rowsAffected++;
-          conflictsResolved++;
-        }
+        const dirty = await mergeIntoDirtyRow(table, adapter, options, {
+          id,
+          existing,
+          remoteLocal,
+          remoteServerVersion,
+        });
+        rowsAffected += dirty.rowsAffected;
+        conflictsResolved += dirty.conflictsResolved;
         continue;
       }
 
@@ -330,15 +318,8 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     // MYK9-880: a zero-row fetch is not proof of an empty scope. The count and
     // the fetch share one RLS, so an RLS gap returns 0 and 0 -- "complete".
     // Over a warm replica that needs independent proof; otherwise skip cleanup.
-    const scopeEmptyIsProven = async (): Promise<boolean> => {
-      if (serverIds.size > 0 || countServerBackedRows(await getAllRowsForScope()) === 0)
-        return true;
-      try {
-        return (await adapter.verifyScopeEmpty?.({ scope })) === true;
-      } catch {
-        return false;
-      }
-    };
+    const scopeEmptyIsProven = () =>
+      isScopeEmptyProven(serverIds.size, getAllRowsForScope, adapter, scope);
 
     // Stale cleanup deletes cached rows: the destructive step of a table sync.
     stopIfAborted();
@@ -369,6 +350,27 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       cache,
     });
 
+    // MYK9-2254: a counted full download that leaves the device short is a failure.
+    const short =
+      expectedRemoteRows === undefined
+        ? undefined
+        : await failIfShort({
+            table,
+            adapter,
+            scope,
+            signal,
+            forceFullSync,
+            stopIfAborted,
+            serverCount: expectedRemoteRows,
+            getLocalRows: getLocalRowsForScope,
+            pendingDeleteIds,
+            skippedIds,
+            accountOwned,
+            writtenIds,
+            authUserId: syncingAuthUserId,
+          });
+    if (short) return { ...failed('full-sync', short.message), shortReplica: short.info };
+
     // Whole for THIS account: the fetch covered the server's count, nothing was
     // held back for another account's unsent work, every row taken over is now
     // its own, an empty answer was proven, and the same account was signed in at
@@ -388,29 +390,17 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
         (await table.getCurrentAuthUserId()) === syncingAuthUserId;
     }
 
-    // Server-authoritative, monotonic watermark, routed to the correct scope slot.
-    // Advance only to a timestamp the client actually observed from the server, and
-    // never backward (monotonic inside the cache transaction so a concurrent slow
-    // sync can't regress a faster one). Fall back to the legacy client clock ONLY
-    // when the adapter provides no timestamp hook. With a hook but nothing observed
-    // (empty fetch), leave the watermark untouched.
-    const advanceWatermark = Boolean(adapter.getRemoteUpdatedAt) && sawRemoteTimestamp;
-    const watermarkUpdate: Partial<{ lastIncrementalSyncAt: number }> = advanceWatermark
-      ? { lastIncrementalSyncAt: maxRemoteUpdatedAt }
-      : adapter.getRemoteUpdatedAt
-        ? {}
-        : { lastIncrementalSyncAt: Date.now() };
+    // Server-authoritative, monotonic watermark (see watermarkFor).
+    const { advance: advanceWatermark, update: watermarkUpdate } = watermarkFor(
+      adapter,
+      sawRemoteTimestamp,
+      maxRemoteUpdatedAt
+    );
 
     const totalRows = (await getLocalRowsForScope()).length;
     // A stale sync (the account changed) completes nothing, but still settles the stamp.
     if (accountOwned && (await table.getCurrentAuthUserId()) !== syncingAuthUserId) {
-      await table.updateSyncMetadata(
-        {},
-        {
-          scopeValue: scope.value,
-          scopeSyncedBy: scopeStampDirective(writtenIds, syncingAuthUserId, false),
-        }
-      );
+      await settleStaleAccountStamp(table, scope, writtenIds, syncingAuthUserId);
       return failed(
         forceFullSync ? 'full-sync' : 'incremental-sync',
         'The signed-in account changed during the sync; nothing was completed.'
@@ -448,10 +438,12 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     // than leave the deleted row until the next one (MYK9-775, Codex P2).
     // Bounded: the re-run is already a full sync, so it cannot recurse.
     if (
-      overReplicaWatched(adapter) &&
-      !forceFullSync &&
-      expectedRemoteRows !== undefined &&
-      countServerBackedRows(await getLocalRowsForScope()) > expectedRemoteRows
+      await overReplicaAfterIncremental(
+        adapter,
+        forceFullSync,
+        expectedRemoteRows,
+        getLocalRowsForScope
+      )
     ) {
       const full = await syncReplicatedTable(table, adapter, scope, {
         ...options,

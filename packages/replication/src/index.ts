@@ -153,6 +153,8 @@ export { ABORTED_SYNC_MESSAGE, abortableWait } from './abortable';
 export { SyncCacheWriter } from './syncCacheWriter';
 export type { SyncDeleteAuthority } from './core/syncDeleteAuthority';
 export { countCoveredRows } from './replicaCoverage';
+export { configureShortReplicaObserver } from './shortReplicaCheck';
+export type { ShortReplica, ShortReplicaObserver } from './shortReplicaCheck';
 export {
   DEFAULT_REMOTE_COUNT_INTERVAL_MS,
   configureRemoteCountCadence,

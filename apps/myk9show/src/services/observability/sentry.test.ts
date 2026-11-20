@@ -3,14 +3,18 @@ import type { ErrorEvent as SentryErrorEvent } from '@sentry/react';
 
 const sentryMocks = vi.hoisted(() => ({
   captureException: vi.fn(),
+  captureMessage: vi.fn(),
   init: vi.fn(),
   setContext: vi.fn(),
+  setFingerprint: vi.fn(),
+  setLevel: vi.fn(),
   setTag: vi.fn(),
   withScope: vi.fn(),
 }));
 
 vi.mock('@sentry/react', () => ({
   captureException: sentryMocks.captureException,
+  captureMessage: sentryMocks.captureMessage,
   init: sentryMocks.init,
   withScope: sentryMocks.withScope,
 }));
@@ -19,6 +23,7 @@ import {
   buildSentryInitOptions,
   captureAuthEmailRequestFailure,
   captureErrorBoundaryException,
+  captureShortReplica,
   initializeSentry,
   isAuthEmailOperationalFailure,
   scrubSentryEvent,
@@ -30,6 +35,8 @@ describe('Sentry observability helpers', () => {
     sentryMocks.withScope.mockImplementation(callback =>
       callback({
         setContext: sentryMocks.setContext,
+        setFingerprint: sentryMocks.setFingerprint,
+        setLevel: sentryMocks.setLevel,
         setTag: sentryMocks.setTag,
       })
     );
@@ -256,5 +263,24 @@ describe('Sentry observability helpers', () => {
     captureAuthEmailRequestFailure(error, 'signup');
 
     expect(sentryMocks.captureException).not.toHaveBeenCalled();
+  });
+
+  it('names the table, scope and both counts in one error event for a short download', () => {
+    captureShortReplica({ table: 'classes', scope: 'trial-1', serverCount: 5, deviceCount: 3 });
+
+    expect(sentryMocks.setLevel).toHaveBeenCalledWith('error');
+    expect(sentryMocks.setTag).toHaveBeenCalledWith('replication_table', 'classes');
+    expect(sentryMocks.setContext).toHaveBeenCalledWith('replication_short', {
+      table: 'classes',
+      scope: 'trial-1',
+      serverCount: 5,
+      deviceCount: 3,
+    });
+    expect(sentryMocks.setFingerprint).toHaveBeenCalledWith([
+      'replication-short-download',
+      'classes',
+      'trial-1',
+    ]);
+    expect(sentryMocks.captureMessage).toHaveBeenCalledTimes(1);
   });
 });

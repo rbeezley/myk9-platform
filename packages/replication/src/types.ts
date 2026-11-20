@@ -292,6 +292,13 @@ export interface SyncResult {
    *  `success` still reflects the download, but pending local writes remain
    *  unsynced — callers must not treat this as a fully healthy sync. */
   uploadError?: string;
+  /** MYK9-2254: a full download that came back short of the server's count, confirmed by a second count. */
+  shortReplica?: {
+    table: string;
+    scope: string | undefined;
+    serverCount: number;
+    deviceCount: number;
+  };
 }
 
 /**

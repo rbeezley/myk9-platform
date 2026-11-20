@@ -132,7 +132,7 @@ describe('syncReplicatedTable pending deletes (MYK9-762)', () => {
   it('treats a failed pending-delete read as none, and still syncs', async () => {
     await table.set('1', { id: '1', name: 'Kept' });
     await seedRecentFullSync();
-    const adapter = countedAdapter([], 2);
+    const adapter = countedAdapter([{ id: '2', name: 'Server row' }], 2);
     adapter.getPendingDeleteIds = vi.fn(async () => Promise.reject(new Error('queue unreadable')));
 
     const result = await syncReplicatedTable(table, adapter);

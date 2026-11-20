@@ -271,6 +271,29 @@ export function captureMonitoredQueryFailure(error: unknown, queryKey: readonly 
   });
 }
 
+/**
+ * MYK9-2254: a full download left a device short of the server's row count.
+ * One event names the table, the scope and both counts; the fingerprint groups
+ * repeats per table and scope so the alert rule sees one issue, not a stream.
+ */
+export function captureShortReplica(info: {
+  table: string;
+  scope: string | undefined;
+  serverCount: number;
+  deviceCount: number;
+}): void {
+  Sentry.withScope(scope => {
+    scope.setLevel('error');
+    scope.setTag('replication_short', 'true');
+    scope.setTag('replication_table', info.table);
+    scope.setContext('replication_short', { ...info, scope: info.scope ?? 'all' });
+    scope.setFingerprint(['replication-short-download', info.table, info.scope ?? 'all']);
+    Sentry.captureMessage(
+      `Replica short after full download: ${info.table} holds ${info.deviceCount} of ${info.serverCount}`
+    );
+  });
+}
+
 export function isAuthEmailOperationalFailure(error: unknown): boolean {
   if (!isRecord(error)) return false;
 

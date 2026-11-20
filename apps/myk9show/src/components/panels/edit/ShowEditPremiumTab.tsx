@@ -85,8 +85,14 @@ export function ShowEditPremiumTab({
     showId,
     isActive && Boolean(showOrg) && hasPublishedContent
   );
+  // MYK9-2216: changing the organization invalidates the stored premium. Until the change is saved
+  // and the premium regenerated, no premium text is carried over, so old-organization narratives
+  // are never shown or published under the new organization.
+  const organizationChanged = Boolean(
+    showOrg && savedOrganization && savedOrganization !== showOrg
+  );
   const initialPremium = useMemo(() => {
-    if (factsLoading) return undefined;
+    if (factsLoading || organizationChanged) return undefined;
     if (serverFacts && publishedContent && serverFacts.org === showOrg) {
       // templateId null: a published show's cover edits never write to the club's shared template.
       return {
@@ -113,14 +119,22 @@ export function ShowEditPremiumTab({
       new Map((cachedAffiliations ?? []).map(judge => [judge.id, judge.affiliation]))
     );
     return draft && officials ? applyOfficialsToPremium(draft, officials) : draft;
-  }, [data, publishedContent, showOrg, officials, serverFacts, factsLoading, showId, queryClient]);
+  }, [
+    data,
+    publishedContent,
+    showOrg,
+    officials,
+    serverFacts,
+    factsLoading,
+    organizationChanged,
+    showId,
+    queryClient,
+  ]);
 
-  // MYK9-2213: generate-premium reads the SAVED organization, so while the form's differs a
-  // Regenerate would build the premium for the wrong one.
-  const regenerateBlockedReason =
-    showOrg && savedOrganization && savedOrganization !== showOrg
-      ? `Save the show first. Regenerate builds from the saved organization (${savedOrganization}).`
-      : undefined;
+  // generate-premium reads the SAVED organization, so Regenerate waits for the save.
+  const regenerateBlockedReason = organizationChanged
+    ? `The organization changed. Save the show, then regenerate the premium for ${showOrg} before publishing.`
+    : undefined;
 
   return (
     <TabsContent

@@ -53,6 +53,11 @@ export const markDirectoryLoaded = (generation: number): void => {
  * True from a sign-out until the next successful management load, and while a
  * removal is still pending. Every directory write checks it, so no writer
  * (add, update, revert, legacy setters) can put contact details back.
+ *
+ * It stays true after a sign-in until a management load succeeds, on purpose: the
+ * role is not known at SIGNED_IN, and releasing early could write contact details
+ * into a directory whose strip has not been confirmed. Roles that never load the
+ * directory keep names only, which is all they use.
  */
 export function mustStripContacts(): boolean {
   return signOutGeneration > loadedGeneration || isRedactionPending();

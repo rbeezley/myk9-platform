@@ -10,6 +10,7 @@ import { clearOwnerNameCache } from '@/services/database/dogs/ownerNameCache';
 import { replicatedClassesTable } from '@/services/replication';
 import { ringsideClaimMatchesUser } from '@/features/at-show/ringsideClaimCache';
 import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
+import { bumpSignOutGeneration, setRedactionPending } from '@/store/userStoreContactRedaction';
 import type { User } from '@supabase/supabase-js';
 import { clearClubOnboardingDraft } from '@/components/landing/lifecycle/clubOnboardingDraft';
 import {
@@ -187,7 +188,12 @@ export function useAuth() {
         clearAppearanceCache();
         clearOwnerNameCache();
         // MYK9-2255: phone, email and address leave the saved people; names stay.
-        // Dynamic: the lazily loaded people store stays out of this hook's static imports.
+        // The marker and generation are set synchronously from a light static module, so a
+        // failed chunk load (a deploy mid-session, an uncached offline chunk) still leaves
+        // the next start to strip, and a directory load in flight cannot write contacts back.
+        // Only the store and the strip stay dynamic: the people store is lazily loaded.
+        setRedactionPending();
+        bumpSignOutGeneration();
         void import('@/services/database/users/signOutPeopleRedaction')
           .then(m => m.redactPeopleContactsOnDevice())
           .catch(error => console.error('Could not remove saved contact details:', error));

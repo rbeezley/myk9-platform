@@ -9,8 +9,8 @@ import { getOptimalStorage } from '@/services/database/storage-adapter';
 import { reportStoreError } from '@/utils/standardizedErrorHandler';
 import { logger } from '@/services/LoggingService';
 import { persistJudgeInfo } from './userStoreJudgeInfo';
+import { redactDirectoryContacts } from './userStoreRedactContacts';
 import {
-  bumpSignOutGeneration,
   currentSignOutGeneration,
   clearRedactionPending,
   isRedactionPending,
@@ -278,27 +278,10 @@ export const useUserStore = create<UserStore>()(
         // Data Management
         setUsers: users => set({ users, people: users }),
 
-        redactContacts: async (): Promise<boolean> => {
-          bumpSignOutGeneration();
-          const users = stripPeopleContacts(get().users);
-          set({ users, people: users });
-          try {
-            const persistApi = useUserStore.persist;
-            await persistApi.getOptions().storage?.setItem(persistApi.getOptions().name ?? '', {
-              state: { users },
-              version: persistApi.getOptions().version ?? 0,
-            });
-            return true;
-          } catch (error) {
-            logger.error(
-              'Could not save the stripped people directory',
-              'store',
-              {},
-              error as Error
-            );
-            return false;
-          }
-        },
+        redactContacts: (): Promise<boolean> =>
+          redactDirectoryContacts(useUserStore.persist, get().users, users =>
+            set({ users, people: users })
+          ),
 
         loadUsers: async (options = {}): Promise<void> => {
           try {

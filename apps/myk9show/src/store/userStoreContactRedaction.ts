@@ -1,4 +1,5 @@
 import type { User } from '@/types/user-types';
+import { DIRECTORY_ONLY_CONTACT_KEYS, SHARED_CONTACT_KEYS } from '@/utils/personContactKeys';
 
 /**
  * MYK9-2255: the saved people directory keeps names but never contact details
@@ -9,19 +10,24 @@ import type { User } from '@/types/user-types';
 /** Set before a sign-out strip, cleared once the stripped copy is saved. */
 const PENDING_MARKER_KEY = 'myk9show-people-redaction-pending';
 
+const CONTACT_KEYS: readonly (keyof User)[] = [
+  ...SHARED_CONTACT_KEYS,
+  ...DIRECTORY_ONLY_CONTACT_KEYS,
+];
+
 export function stripPersonContacts(person: User): User {
-  const {
-    email: _email,
-    phone: _phone,
-    address: _address,
-    streetAddress: _streetAddress,
-    city: _city,
-    state: _state,
-    zipCode: _zipCode,
-    emergencyContact: _emergencyContact,
-    ...kept
-  } = person;
+  const kept = { ...person };
+  for (const key of CONTACT_KEYS) delete kept[key];
   return kept;
+}
+
+/** A store update with contact details removed from any directory list it carries. */
+export function withoutContacts<T extends { users?: User[]; people?: User[] }>(next: T): T {
+  return {
+    ...next,
+    ...(next.users && { users: stripPeopleContacts(next.users) }),
+    ...(next.people && { people: stripPeopleContacts(next.people) }),
+  };
 }
 
 export function stripPeopleContacts(users: readonly User[]): User[] {
@@ -36,6 +42,21 @@ export function stripPeopleContacts(users: readonly User[]): User[] {
 let signOutGeneration = 0;
 export const currentSignOutGeneration = (): number => signOutGeneration;
 export const bumpSignOutGeneration = (): number => ++signOutGeneration;
+
+/** The sign-out count at the last directory load that was allowed to write. */
+let loadedGeneration = 0;
+export const markDirectoryLoaded = (generation: number): void => {
+  loadedGeneration = generation;
+};
+
+/**
+ * True from a sign-out until the next successful management load, and while a
+ * removal is still pending. Every directory write checks it, so no writer
+ * (add, update, revert, legacy setters) can put contact details back.
+ */
+export function mustStripContacts(): boolean {
+  return signOutGeneration > loadedGeneration || isRedactionPending();
+}
 
 export function isRedactionPending(): boolean {
   try {

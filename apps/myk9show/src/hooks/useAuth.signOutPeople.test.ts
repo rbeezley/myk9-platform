@@ -31,7 +31,7 @@ vi.mock('@/services/replication', () => ({
   replicatedClassesTable: { clearCachedHideCounts: vi.fn().mockResolvedValue(undefined) },
 }));
 vi.mock('@/services/database/supabaseClient', () => ({
-  supabase: { rpc: vi.fn(), from: vi.fn() },
+  supabase: { rpc: vi.fn(), from: vi.fn(), auth: { getSession: auth.getSession } },
 }));
 vi.mock('@/services/database/users', () => ({ getAllUsers: directory.getAllUsers }));
 
@@ -148,6 +148,7 @@ describe('sign-out removes contact details from every saved person (MYK9-2255)',
     expect(savedDirectory()[0]?.email).toBe('Ann@example.com');
 
     setItem.mockRestore();
+    auth.getSession.mockResolvedValue({ data: { session: null } });
     directory.getAllUsers.mockImplementation(async () => {
       // The saved copy is already clean when the directory is read.
       expectNoContacts(savedDirectory());

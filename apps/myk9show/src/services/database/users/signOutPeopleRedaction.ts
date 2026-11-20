@@ -1,3 +1,4 @@
+import { hasAuthenticatedSession } from '@/services/database/_shared/session';
 import { logger } from '@/services/LoggingService';
 import { useUserStore } from '@/store/userStore';
 import {
@@ -13,7 +14,17 @@ import {
  * `retryPendingPeopleRedaction` runs it again before the next directory load.
  * The next online management sign-in reloads the directory with contact details.
  */
-export async function redactPeopleContactsOnDevice(): Promise<void> {
+export function redactPeopleContactsOnDevice(): Promise<void> {
+  // Every useAuth subscriber hears SIGNED_OUT; they share one run.
+  inFlight ??= runRedaction().finally(() => {
+    inFlight = null;
+  });
+  return inFlight;
+}
+
+let inFlight: Promise<void> | null = null;
+
+async function runRedaction(): Promise<void> {
   setRedactionPending();
   let directoryDone = false;
   let rowsDone = false;
@@ -43,7 +54,13 @@ export async function redactPeopleContactsOnDevice(): Promise<void> {
   if (directoryDone && rowsDone) clearRedactionPending();
 }
 
-/** Runs a removal that failed at sign-out. A no-op when none is pending. */
+/**
+ * Runs a removal that failed at sign-out. A no-op when none is pending, and while
+ * a session is signed in: the directory load overwrites the directory then and
+ * settles the marker itself.
+ */
 export async function retryPendingPeopleRedaction(): Promise<void> {
-  if (isRedactionPending()) await redactPeopleContactsOnDevice();
+  if (!isRedactionPending()) return;
+  if (await hasAuthenticatedSession()) return;
+  await redactPeopleContactsOnDevice();
 }

@@ -5,6 +5,7 @@ import {
   type SyncResult,
 } from '@myk9/replication';
 import { logger } from '@myk9/core';
+import { SHARED_CONTACT_KEYS, type SharedContactKey } from '@/utils/personContactKeys';
 
 export interface ShowDeskPersonInput {
   id?: string;
@@ -153,17 +154,13 @@ export class ReplicatedShowDeskPeopleTable extends ReplicatedTable<ReplicatedSho
   }
 }
 
-const NO_CONTACTS = {
-  email: null,
-  phone: null,
-  address: null,
-  city: null,
-  state: null,
-  zipCode: null,
-} as const;
+const NO_CONTACTS = Object.fromEntries(SHARED_CONTACT_KEYS.map(key => [key, null])) as Record<
+  SharedContactKey,
+  null
+>;
 
 function hasContacts(person: ReplicatedShowDeskPerson | undefined): boolean {
-  return !!person && Object.keys(NO_CONTACTS).some(k => person[k as keyof typeof NO_CONTACTS]);
+  return !!person && SHARED_CONTACT_KEYS.some(key => person[key]);
 }
 
 export const replicatedShowDeskPeopleTable = new ReplicatedShowDeskPeopleTable();

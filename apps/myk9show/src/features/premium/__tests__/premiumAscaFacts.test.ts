@@ -38,7 +38,10 @@ describe('buildShowTermFacts', () => {
   });
 
   it.each([
-    ['allowed', 'Spectators and videoing are allowed.'],
+    [
+      'allowed',
+      "Spectators are welcome; entry to the search areas is at the judge's discretion. Photographs and video of a dog's search only with the handler's permission, and no flash.",
+    ],
     ['not_allowed', 'Spectators and videoing are not allowed.'],
   ] as const)('prints the spectator policy %s', (spectatorsPolicy, text) => {
     expect(buildShowTermFacts({ spectatorsPolicy })).toEqual([

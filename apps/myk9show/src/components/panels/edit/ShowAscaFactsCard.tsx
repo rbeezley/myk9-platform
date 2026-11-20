@@ -47,7 +47,7 @@ export function ShowAscaFactsCard({ data, handleValueChange }: ShowAscaFactsCard
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
-        <FormField label="Sanctioning status" fieldId="ascaSanctionStatus" optional>
+        <FormField label="Sanctioning status" fieldId="ascaSanctionStatus">
           <Select
             value={data.ascaSanctionStatus || UNSET}
             onValueChange={choose('ascaSanctionStatus')}
@@ -70,19 +70,19 @@ export function ShowAscaFactsCard({ data, handleValueChange }: ShowAscaFactsCard
         <FormField
           label="Scents used for each level"
           fieldId="scentsByLevel"
-          optional
           hint="For example: Novice birch; Open birch and anise; Excellent birch, anise and clove."
         >
           <Textarea
             id="scentsByLevel"
             rows={3}
+            maxLength={2000}
             value={data.scentsByLevel ?? ''}
             onChange={event => handleValueChange('scentsByLevel')(event.target.value)}
             aria-describedby="scentsByLevel-hint"
           />
         </FormField>
 
-        <FormField label="Spectators and videoing" fieldId="spectatorsPolicy" optional>
+        <FormField label="Spectators and videoing" fieldId="spectatorsPolicy">
           <Select value={data.spectatorsPolicy || UNSET} onValueChange={choose('spectatorsPolicy')}>
             <SelectTrigger id="spectatorsPolicy">
               <SelectValue placeholder="Not set">
@@ -107,6 +107,7 @@ export function ShowAscaFactsCard({ data, handleValueChange }: ShowAscaFactsCard
         >
           <Input
             id="photographerContact"
+            maxLength={500}
             value={data.photographerContact ?? ''}
             onChange={event => handleValueChange('photographerContact')(event.target.value)}
             aria-describedby="photographerContact-hint"

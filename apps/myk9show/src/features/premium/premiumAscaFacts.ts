@@ -11,7 +11,10 @@ export interface PremiumRegistryStatementFact {
 const SANCTION_TEXT = { pending: 'Pending', approved: 'Approved' } as const;
 
 const SPECTATOR_TEXT = {
-  allowed: 'Spectators and videoing are allowed.',
+  // ASCA §1.8.15: search-area access is the judge's call, and recording needs the handler's
+  // permission (no flash), so "allowed" is never printed as blanket permission.
+  allowed:
+    "Spectators are welcome; entry to the search areas is at the judge's discretion. Photographs and video of a dog's search only with the handler's permission, and no flash.",
   not_allowed: 'Spectators and videoing are not allowed.',
 } as const;
 

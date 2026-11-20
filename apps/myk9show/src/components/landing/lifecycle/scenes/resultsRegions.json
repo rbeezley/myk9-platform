@@ -1,0 +1,115 @@
+{
+  "phone": {
+    "space": {
+      "width": 390,
+      "height": 844
+    },
+    "scale": 2,
+    "shots": {
+      "before": {
+        "file": "phone-before.png",
+        "regions": {
+          "row": {
+            "x": 39,
+            "y": 401,
+            "w": 312,
+            "h": 142
+          }
+        }
+      },
+      "new": {
+        "file": "phone-new.png",
+        "regions": {
+          "button": {
+            "x": 39,
+            "y": 490,
+            "w": 113,
+            "h": 44
+          }
+        }
+      },
+      "card": {
+        "file": "phone-card.png",
+        "regions": {
+          "card": {
+            "x": 20,
+            "y": 211,
+            "w": 350,
+            "h": 408
+          }
+        }
+      }
+    }
+  },
+  "desk": {
+    "space": {
+      "width": 1440,
+      "height": 900
+    },
+    "scale": 1,
+    "shots": {
+      "list": {
+        "file": "desk-list.png",
+        "regions": {
+          "row": {
+            "x": 117,
+            "y": 369,
+            "w": 483,
+            "h": 90
+          },
+          "action": {
+            "x": 445,
+            "y": 377,
+            "w": 143,
+            "h": 44
+          }
+        }
+      },
+      "class": {
+        "file": "desk-class.png",
+        "regions": {
+          "table": {
+            "x": 621,
+            "y": 550,
+            "w": 795,
+            "h": 225
+          }
+        }
+      },
+      "release": {
+        "file": "desk-class.png",
+        "regions": {
+          "button": {
+            "x": 638,
+            "y": 473,
+            "w": 171,
+            "h": 44
+          },
+          "card": {
+            "x": 622,
+            "y": 349,
+            "w": 793,
+            "h": 184
+          }
+        }
+      },
+      "released": {
+        "file": "desk-released.png",
+        "regions": {
+          "chips": {
+            "x": 621,
+            "y": 302,
+            "w": 795,
+            "h": 30
+          },
+          "header": {
+            "x": 621,
+            "y": 208,
+            "w": 795,
+            "h": 124
+          }
+        }
+      }
+    }
+  }
+}

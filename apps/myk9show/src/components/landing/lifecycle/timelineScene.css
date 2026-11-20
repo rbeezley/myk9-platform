@@ -181,9 +181,14 @@
   flex-direction: column;
   gap: 0.5rem;
   min-width: 0;
+}
+/* The resting device's screen fades; its label stays at full contrast, since it is text a
+   reader still needs (WCAG 4.5:1, a11y smoke on the landing page). The transition sits on the
+   element whose opacity changes, so switching devices still fades rather than snaps. */
+.tl-scene-device > :not(.tl-scene-who) {
   transition: opacity 500ms ease;
 }
-.tl-scene-device[data-dim='true'] {
+.tl-scene-device[data-dim='true'] > :not(.tl-scene-who) {
   opacity: 0.45;
 }
 .tl-scene-who {
@@ -292,7 +297,7 @@
 @media (prefers-reduced-motion: reduce) {
   .tl-scene .tl-scene-shot,
   .tl-scene-ring,
-  .tl-scene-device,
+  .tl-scene-device > :not(.tl-scene-who),
   .tl-scene-num,
   .tl-scene-prog {
     transition: none;

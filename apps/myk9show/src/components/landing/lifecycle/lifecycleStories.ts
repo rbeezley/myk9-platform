@@ -84,17 +84,12 @@ const phone = (id: string, alt: string): Shot => ({
 const SHOTS = {
   's-02': desktop('s-02', 'Create Show wizard, first step'),
   's-12': desktop('s-12', 'Reports page with the Check-in Sheet card, ready to print'),
-  's-20': desktop(
-    's-20',
-    'Results tab for Container Novice A, with Released and Needs checking chips and the placement table'
-  ),
   'e-01': desktop('e-01', 'Upcoming shows list with entry status'),
   'e-12': phone(
     'e-12',
     'My Entries card for Willow with armband 100, class, day and check-in status'
   ),
   'e-13': phone('e-13', 'My Entries on a phone with the Show Today banner'),
-  'e-17': phone('e-17', 'Class results with the placement table on a phone'),
   'e-16': phone('e-16', 'Willow’s past results with qualifying runs and a first place'),
 } as const;
 
@@ -238,7 +233,8 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
       id: 'results',
       title: 'Results',
       body: 'Placements are worked out from the scores. You choose when results go public.',
-      shot: SHOTS['s-20'],
+      shot: null,
+      scene: 'results',
       meanwhile: 'Each exhibitor sees their dog’s placement the moment you release it.',
     },
     {
@@ -286,7 +282,8 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
       id: 'results',
       title: 'There’s your placement',
       body: 'Your dog’s placement shows up as soon as the club releases results.',
-      shot: SHOTS['e-17'],
+      shot: null,
+      scene: 'results',
       meanwhile:
         'Placements are worked out from the scores, and the club chooses when to release them.',
     },

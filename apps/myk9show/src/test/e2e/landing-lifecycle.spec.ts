@@ -364,25 +364,30 @@ for (const vp of VIEWPORTS) {
       expect(result.failures, `minimum ratio observed ${result.min.toFixed(2)}`).toEqual([]);
     });
 
-    // 15 (owner, 2026-11-17, MYK9-1894): the ring scene added about one phone screen. MYK9-2295
-    // dropped the meanwhile screenshots, which took the club page from 14.90 to 12.91 screens and
-    // the exhibitor page from 14.02 to 13.31 at 390x844 (measured 2026-11-19). The limit stays 15,
-    // not 14: that room is what the Entries open scene (MYK9-2296) needs, and the owner chose to
-    // drop the stills instead of raising the limit (2026-11-19).
+    // The limit was 15 until MYK9-2308 (owner, 2026-11-17, MYK9-1894): the ring scene added about
+    // one phone screen. MYK9-2295 dropped the meanwhile screenshots, which took the club page from
+    // 14.90 to 12.91 screens and the exhibitor page from 14.02 to 13.31 at 390x844 (measured
+    // 2026-11-19). It stayed 15, not 14: that room is what the Entries open scene (MYK9-2296)
+    // needs, and the owner chose to drop the stills instead of raising the limit (2026-11-19).
     // The Entries open scene (MYK9-2296) is that room used: club 14.22 and exhibitor 14.45 screens at
     // 390x844 (measured 2026-11-20).
-    test('page length is 8 to 15 screens on phone', async ({ page }) => {
+    // 16 (owner, 2026-11-20, MYK9-2308): the Results scene adds about 0.8 of a screen, which puts
+    // the club page at 15.02 and the exhibitor page at 15.27 at 390x844 (measured 2026-11-20). The
+    // limit was raised to hold the scene, chosen over shortening scenes (fewer frames leave a line
+    // without its screen, and smaller frames bring back unreadable phone text) and over dropping
+    // the scene.
+    test('page length is 8 to 16 screens on phone', async ({ page }) => {
       test.skip(vp.name !== 'phone');
       await openLanding(page);
       const screens = await page.evaluate(
         () => document.documentElement.scrollHeight / window.innerHeight
       );
       expect(screens).toBeGreaterThanOrEqual(8);
-      expect(screens).toBeLessThanOrEqual(15);
+      expect(screens).toBeLessThanOrEqual(16);
     });
 
     // The default test above measures the club's story; the exhibitor's is its own page.
-    test('exhibitor page length is 8 to 15 screens on phone', async ({ page }) => {
+    test('exhibitor page length is 8 to 16 screens on phone', async ({ page }) => {
       test.skip(vp.name !== 'phone');
       await openLanding(page);
       await page.getByRole('button', { name: 'I’m entering a show' }).click();
@@ -391,7 +396,7 @@ for (const vp of VIEWPORTS) {
         () => document.documentElement.scrollHeight / window.innerHeight
       );
       expect(screens).toBeGreaterThanOrEqual(8);
-      expect(screens).toBeLessThanOrEqual(15);
+      expect(screens).toBeLessThanOrEqual(16);
     });
   });
 }

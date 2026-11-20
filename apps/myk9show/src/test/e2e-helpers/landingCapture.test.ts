@@ -129,7 +129,13 @@ describe('the capture spec and its job', () => {
     '/*',
     '*',
   ]);
-  const specs = { ring: spec, entries: entriesSpec };
+  const resultsSpec = code('src/test/e2e/capture/landingSceneResultsCapture.spec.ts', [
+    '//',
+    '/*',
+    '*',
+  ]);
+  const specs = { ring: spec, entries: entriesSpec, results: resultsSpec };
+  const twoDeviceSpecs = { entries: entriesSpec, results: resultsSpec };
   const workflow = code('../../.github/workflows/landing-capture.yml', ['#']);
 
   it.each(Object.entries(specs))(
@@ -157,33 +163,36 @@ describe('the capture spec and its job', () => {
   );
 
   it('signs in only after the hold is installed on the capture’s own contexts', () => {
-    // The ring capture signs one account in; the Entries capture signs two, one per device.
+    // The ring capture signs one account in; the two-device captures sign two, one per device.
     expect(spec.match(/signInAsJudge\(/g)).toHaveLength(1);
     expect(spec.indexOf('await holdWebSockets(context)')).toBeGreaterThan(0);
     expect(spec.indexOf('await holdWebSockets(context)')).toBeLessThan(
       spec.indexOf('signInAsJudge(')
     );
-    expect(entriesSpec.match(/\bsignIn(AsSecretary)?\(/g)).toHaveLength(2);
-    const firstSignIn = entriesSpec.search(/\bsignIn(AsSecretary)?\(/);
-    expect(entriesSpec.indexOf('await holdWebSockets(context)')).toBeGreaterThan(0);
-    expect(entriesSpec.indexOf('await holdWebSockets(context)')).toBeLessThan(firstSignIn);
-    expect(entriesSpec.indexOf('await holdWebSockets(deskContext)')).toBeGreaterThan(0);
-    expect(entriesSpec.indexOf('await holdWebSockets(deskContext)')).toBeLessThan(firstSignIn);
-    // Both contexts are served the downloaded fonts, and no page is opened before that.
-    expect(entriesSpec.indexOf('await serveFontsFrom(deskContext, fontsDir)')).toBeLessThan(
-      entriesSpec.indexOf('deskContext.newPage()')
-    );
-    // The job's database is set up only after the target is shown to be on this machine, and
-    // before any page opens.
-    const setup = entriesSpec.indexOf("execFileSync('psql'");
-    expect(setup).toBeGreaterThan(0);
-    expect(entriesSpec.indexOf("['127.0.0.1', 'localhost']")).toBeLessThan(setup);
-    expect(setup).toBeLessThan(entriesSpec.indexOf('await serveFontsFrom(context, fontsDir)'));
-    // The card checkout is Stripe's page, which this job cannot reach and must never press.
-    expect(entriesSpec).not.toMatch(
-      /\.click\(\)[^;]*\bpay\b|clickClearOfStickyChrome\(page, pay\)/
-    );
-    expect(entriesSpec).not.toMatch(/stripe/i);
+    for (const text of Object.values(twoDeviceSpecs)) {
+      expect(text.match(/\bsignIn(AsSecretary)?\(/g)).toHaveLength(2);
+      const firstSignIn = text.search(/\bsignIn(AsSecretary)?\(/);
+      expect(text.indexOf('await holdWebSockets(context)')).toBeGreaterThan(0);
+      expect(text.indexOf('await holdWebSockets(context)')).toBeLessThan(firstSignIn);
+      expect(text.indexOf('await holdWebSockets(deskContext)')).toBeGreaterThan(0);
+      expect(text.indexOf('await holdWebSockets(deskContext)')).toBeLessThan(firstSignIn);
+      // Both contexts are served the downloaded fonts, and no page is opened before that.
+      // Each guard must be present before its order means anything: indexOf is -1 when absent.
+      const deskFonts = text.indexOf('await serveFontsFrom(deskContext, fontsDir)');
+      expect(deskFonts).toBeGreaterThan(0);
+      expect(deskFonts).toBeLessThan(text.indexOf('deskContext.newPage()'));
+      // The job's database is set up only after the target is shown to be on this machine, and
+      // before any page opens.
+      const setup = text.indexOf("execFileSync('psql'");
+      expect(setup).toBeGreaterThan(0);
+      const loopbackCheck = text.indexOf("['127.0.0.1', 'localhost']");
+      expect(loopbackCheck).toBeGreaterThan(0);
+      expect(loopbackCheck).toBeLessThan(setup);
+      expect(setup).toBeLessThan(text.indexOf('await serveFontsFrom(context, fontsDir)'));
+      // The card checkout is Stripe's page, which this job cannot reach and must never press.
+      expect(text).not.toMatch(/\.click\(\)[^;]*\bpay\b|clickClearOfStickyChrome\(page, pay\)/);
+      expect(text).not.toMatch(/stripe/i);
+    }
   });
 
   it('closes the network for both address families before the control and the capture', () => {
@@ -213,9 +222,9 @@ describe('the capture spec and its job', () => {
     expect(workflow).toMatch(/MYK9_E2E_LOAD_FIXTURE: 'false'/);
   });
 
-  it('uploads only what this run took: an empty output folder, then every file of both scenes', () => {
-    // Neither spec writes over the checked-in copies, and each refuses its own folder if it exists.
-    for (const text of [spec, entriesSpec]) {
+  it('uploads only what this run took: an empty output folder, then every file of the three scenes', () => {
+    // No spec writes over the checked-in copies, and each refuses its own folder if it exists.
+    for (const text of [spec, entriesSpec, resultsSpec]) {
       expect(text).toMatch(/join\(process\.env\.CAPTURE_OUT_DIR \?\? '', 'apps', 'myk9show'\)/);
       expect(text).toMatch(
         /if \(existsSync\(IMG_DIR\) \|\| existsSync\(REGIONS_FILE\)\) \{\s+throw new Error\(/
@@ -234,7 +243,11 @@ describe('the capture spec and its job', () => {
       /for shot in phone-dogs phone-classes phone-payment phone-pending phone-accepted desk-before desk-list desk-review desk-accepted; do\s+test -s /
     );
     expect(workflow).toMatch(/scenes\/entries" -type f \| wc -l\)" -eq 9/);
-    expect(workflow).toMatch(/landing-capture\/out" -type f \| wc -l\)" -eq 19/);
+    expect(workflow).toMatch(
+      /for shot in phone-before phone-new phone-card desk-list desk-class desk-released; do\s+test -s /
+    );
+    expect(workflow).toMatch(/scenes\/results" -type f \| wc -l\)" -eq 6/);
+    expect(workflow).toMatch(/landing-capture\/out" -type f \| wc -l\)" -eq 26/);
     expect(workflow.indexOf('Check the capture is whole')).toBeLessThan(
       workflow.indexOf('Upload the capture')
     );
@@ -266,8 +279,11 @@ describe('the capture spec and its job', () => {
     const config = readFileSync(resolve(app, 'playwright.ci.config.ts'), 'utf8');
     expect(config.match(/landingRingCapture/g)).toHaveLength(1);
     expect(config.match(/landingSceneEntriesCapture/g)).toHaveLength(1);
+    expect(config.match(/landingSceneResultsCapture/g)).toHaveLength(1);
+    // Alphabetical, which is the order a single worker runs them in: the Results capture starts the
+    // show over, so it must come after the two that leave their own state behind.
     expect(config).toMatch(
-      /const LANDING_CAPTURE_SPECS = \[\s+'\*\*\/capture\/landingRingCapture\.spec\.ts',\s+'\*\*\/capture\/landingSceneEntriesCapture\.spec\.ts',\s+\];/
+      /const LANDING_CAPTURE_SPECS = \[\s+'\*\*\/capture\/landingRingCapture\.spec\.ts',\s+'\*\*\/capture\/landingSceneEntriesCapture\.spec\.ts',\s+'\*\*\/capture\/landingSceneResultsCapture\.spec\.ts',\s+\];/
     );
     expect(config).toMatch(/testMatch: isLandingCapture\s+\? LANDING_CAPTURE_SPECS/);
   });

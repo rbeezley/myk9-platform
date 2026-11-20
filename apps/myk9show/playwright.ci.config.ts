@@ -26,12 +26,14 @@ assertPlaywrightRunAllowed('playwright.ci.config.ts', shellEnv, {
 // (captureStartProblem in src/test/e2e/helpers/landingCapture.ts).
 const isLandingCapture = process.env.PLAYWRIGHT_LANDING_CAPTURE === 'true';
 // The ring capture runs first (the names sort so): it scores a dog in the same database, and
-// the Entries open capture enters in a class it does not read. The Results capture runs last: its
-// setup starts the show over, whatever the two before it left.
+// the Entries open capture enters in a class it does not read. The Results capture starts the show
+// over, whatever the two before it left; the stills capture runs after all three and starts it over
+// again, for what its four pictures show (MYK9-2309).
 const LANDING_CAPTURE_SPECS = [
   '**/capture/landingRingCapture.spec.ts',
   '**/capture/landingSceneEntriesCapture.spec.ts',
   '**/capture/landingSceneResultsCapture.spec.ts',
+  '**/capture/landingStillsCapture.spec.ts',
 ];
 const isA11ySmoke = process.env.PLAYWRIGHT_A11Y === 'true';
 const isRegression =

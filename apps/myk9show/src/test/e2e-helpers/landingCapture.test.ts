@@ -134,8 +134,9 @@ describe('the capture spec and its job', () => {
     '/*',
     '*',
   ]);
-  const specs = { ring: spec, entries: entriesSpec, results: resultsSpec };
-  const twoDeviceSpecs = { entries: entriesSpec, results: resultsSpec };
+  const stillsSpec = code('src/test/e2e/capture/landingStillsCapture.spec.ts', ['//', '/*', '*']);
+  const specs = { ring: spec, entries: entriesSpec, results: resultsSpec, stills: stillsSpec };
+  const twoDeviceSpecs = { entries: entriesSpec, results: resultsSpec, stills: stillsSpec };
   const workflow = code('../../.github/workflows/landing-capture.yml', ['#']);
 
   it.each(Object.entries(specs))(
@@ -222,12 +223,14 @@ describe('the capture spec and its job', () => {
     expect(workflow).toMatch(/MYK9_E2E_LOAD_FIXTURE: 'false'/);
   });
 
-  it('uploads only what this run took: an empty output folder, then every file of the three scenes', () => {
+  it('uploads only what this run took: an empty output folder, then every file of the scenes and stills', () => {
     // No spec writes over the checked-in copies, and each refuses its own folder if it exists.
-    for (const text of [spec, entriesSpec, resultsSpec]) {
+    for (const text of [spec, entriesSpec, resultsSpec, stillsSpec]) {
       expect(text).toMatch(/join\(process\.env\.CAPTURE_OUT_DIR \?\? '', 'apps', 'myk9show'\)/);
       expect(text).toMatch(
-        /if \(existsSync\(IMG_DIR\) \|\| existsSync\(REGIONS_FILE\)\) \{\s+throw new Error\(/
+        text === stillsSpec
+          ? /if \(existsSync\(IMG_DIR\)\) \{\s+throw new Error\(/
+          : /if \(existsSync\(IMG_DIR\) \|\| existsSync\(REGIONS_FILE\)\) \{\s+throw new Error\(/
       );
       expect(text).not.toMatch(/join\(APP_DIR, '(public|src)'/);
       expect(text).toMatch(/expect\(loadedFaces\)\.toContain\('Montserrat'\);/);
@@ -247,7 +250,11 @@ describe('the capture spec and its job', () => {
       /for shot in phone-before phone-new phone-card desk-list desk-class desk-released; do\s+test -s /
     );
     expect(workflow).toMatch(/scenes\/results" -type f \| wc -l\)" -eq 6/);
-    expect(workflow).toMatch(/landing-capture\/out" -type f \| wc -l\)" -eq 26/);
+    expect(workflow).toMatch(
+      /for still in club-create-show exhibitor-find-a-show exhibitor-my-entries exhibitor-past-results; do\s+test -s /
+    );
+    expect(workflow).toMatch(/public\/landing\/stills" -type f \| wc -l\)" -eq 4/);
+    expect(workflow).toMatch(/landing-capture\/out" -type f \| wc -l\)" -eq 30/);
     expect(workflow.indexOf('Check the capture is whole')).toBeLessThan(
       workflow.indexOf('Upload the capture')
     );
@@ -280,10 +287,12 @@ describe('the capture spec and its job', () => {
     expect(config.match(/landingRingCapture/g)).toHaveLength(1);
     expect(config.match(/landingSceneEntriesCapture/g)).toHaveLength(1);
     expect(config.match(/landingSceneResultsCapture/g)).toHaveLength(1);
-    // Alphabetical, which is the order a single worker runs them in: the Results capture starts the
-    // show over, so it must come after the two that leave their own state behind.
+    expect(config.match(/landingStillsCapture/g)).toHaveLength(1);
+    // Alphabetical, which is the order a single worker runs them in: the Results capture and the
+    // stills capture each start the show over, so each must come after the ones that leave their own
+    // state behind, and the stills capture after all three.
     expect(config).toMatch(
-      /const LANDING_CAPTURE_SPECS = \[\s+'\*\*\/capture\/landingRingCapture\.spec\.ts',\s+'\*\*\/capture\/landingSceneEntriesCapture\.spec\.ts',\s+'\*\*\/capture\/landingSceneResultsCapture\.spec\.ts',\s+\];/
+      /const LANDING_CAPTURE_SPECS = \[\s+'\*\*\/capture\/landingRingCapture\.spec\.ts',\s+'\*\*\/capture\/landingSceneEntriesCapture\.spec\.ts',\s+'\*\*\/capture\/landingSceneResultsCapture\.spec\.ts',\s+'\*\*\/capture\/landingStillsCapture\.spec\.ts',\s+\];/
     );
     expect(config).toMatch(/testMatch: isLandingCapture\s+\? LANDING_CAPTURE_SPECS/);
   });

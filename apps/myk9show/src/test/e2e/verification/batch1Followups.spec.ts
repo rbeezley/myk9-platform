@@ -186,7 +186,12 @@ test('dog Withdraw: failed policy read blocks, retry recovers, then withdraws (M
   const page = secretary.page;
   const refundCalls = watchRefundCalls(page);
   let blocked = 0;
+  // One handler for the whole test, switched off by a flag rather than page.unroute: unrouting while
+  // a policy read is in flight lets Playwright hand that request on to the context's loopback
+  // handler too, which then calls route.continue() on a route this handler already fulfilled.
+  let blockPolicyRead = true;
   await page.route(isPolicyRead, route => {
+    if (!blockPolicyRead) return route.fallback();
     blocked++;
     return route.fulfill({
       status: 500,
@@ -205,7 +210,7 @@ test('dog Withdraw: failed policy read blocks, retry recovers, then withdraws (M
   expect(blocked).toBeGreaterThanOrEqual(2);
   await screenshot(page, info, 'withdraw-policy-failed');
 
-  await page.unroute(isPolicyRead);
+  blockPolicyRead = false;
   await dialog.getByRole('button', { name: 'Try again' }).click();
   await expect(dialog.getByText('Suggested refund $25.00')).toHaveCount(2, { timeout: 30_000 });
   await expect(dialog.getByText("Couldn't check the refund policy")).toHaveCount(0);

@@ -187,6 +187,12 @@ export default defineConfig({
         __dirname,
         'node_modules/@supabase/supabase-js/dist/index.mjs'
       ),
+      // Deno-only imports of an edge function's index.ts (MYK9-2187 payoutBoot.test.ts).
+      'jsr:@supabase/functions-js/edge-runtime.d.ts': path.resolve(
+        __dirname,
+        'src/test/mocks/denoEdgeRuntime.ts'
+      ),
+      'npm:stripe@17.7.0': path.resolve(__dirname, 'src/test/mocks/npmStripe.ts'),
       // Stub packages that are not installed but imported by source files under test.
       // Tests that need real behavior mock these via vi.mock() in the test file.
       pako: path.resolve(__dirname, 'src/test/mocks/pako.ts'),

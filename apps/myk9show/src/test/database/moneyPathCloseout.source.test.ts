@@ -91,19 +91,33 @@ describe('money-path closeout source contracts', () => {
   // guard and cronHealthCheck.source.test.ts already pins it; this is the same
   // assertion for the money-moving twin, which had none.
   //
-  // The regex requires the guard as a real `if` on the four required names.
-  // A comment mentioning them does not satisfy it, and deleting the guard makes
-  // this test red rather than merely un-asserted.
-  it('refuses to start when any required secret is unset, including the cron secret', () => {
+  // MYK9-2187 moved the Stripe key out of the boot guard: a missing or
+  // unrecognised key now reaches the operator alert in the handler instead of
+  // failing the function silently at load. The database and cron secrets still
+  // fail closed at boot.
+  //
+  // Both regexes require real code, not a comment mentioning the names, and
+  // deleting either guard makes this test red rather than merely un-asserted.
+  it('fails closed on missing DB and cron secrets at boot, and on a missing or unknown Stripe key at request time with an alert', () => {
     const requiredEnvironmentGuard = payoutSource.match(
-      /if \(!supabaseUrl \|\| !supabaseServiceKey \|\| !stripeSecret \|\| !cronSecret\) \{[\s\S]*?\}/
+      /if \(!supabaseUrl \|\| !supabaseServiceKey \|\| !cronSecret\) \{[\s\S]*?\}/
     )?.[0];
 
     expect(
       requiredEnvironmentGuard,
-      'cron-process-payouts must fail closed at module load on a missing secret'
+      'cron-process-payouts must fail closed at module load on a missing DB or cron secret'
     ).toBeDefined();
     expect(requiredEnvironmentGuard).toContain('throw new Error');
+
+    const stripeKeyRefusal = payoutSource.match(
+      /if \(\(await refuseUnknownKeyMode\([^)]*\)\) \|\| !stripeSecret\) \{\s*return Response\.json\([^;]*\);/
+    )?.[0];
+
+    expect(
+      stripeKeyRefusal,
+      'cron-process-payouts must refuse a missing or unknown Stripe key before any money work'
+    ).toBeDefined();
+    expect(stripeKeyRefusal).toContain('status: 500');
   });
 
   it('scopes go-live Stripe ID purge to sandbox rows after livemode columns exist', () => {

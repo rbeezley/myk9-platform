@@ -5,7 +5,6 @@
  * Classes are competition categories within a trial.
  */
 
-import { POSTGREST_MAX_ROWS } from './postgrestMaxRows';
 import {
   ReplicatedTable,
   databaseManager,
@@ -23,6 +22,7 @@ import {
 } from '@myk9/replication';
 import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
+import { fetchKeysetPages } from './keysetPager';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import { createInFlightSharer, type ShareRead } from '@/services/database/_shared/shareInFlight';
 import { readPersistedAuthUserId } from '@/services/database/persistedAuthUserId';
@@ -893,7 +893,6 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
 
     const adapter: SyncReplicatedTableAdapter<EnrichedClassRow, ReplicatedClass> = {
       ...this.getRowRefetchAdapter(),
-      remotePageSize: POSTGREST_MAX_ROWS,
       getRemoteRowCount: async ({ scope }) => {
         try {
           let query = supabase.from('classes').select('id', { count: 'exact', head: true });
@@ -922,26 +921,15 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
           return undefined;
         }
       },
-      fetchRemoteRows: async ({ scope, since, forceFullSync }) => {
+      fetchRemoteRows: async ({ scope, since, forceFullSync, signal }) => {
         // A full sync re-derives everything; never answer it from the enrichment cache.
         if (forceFullSync) invalidateClassEnrichment();
-        let query = supabase
-          .from('classes')
-          .select(classReplicationSelect())
-          .gt('updated_at', new Date(since).toISOString())
-          .order('updated_at', { ascending: true });
-
-        if (scope.value) {
-          query = query.eq('trial_id', scope.value);
-        }
-
-        const { data, error } = await query;
-
-        if (error) {
-          throw new Error(`Supabase query failed: ${error.message}`);
-        }
-
-        const rows = (data ?? []) as unknown as ClassRow[];
+        const rows = (await fetchKeysetPages({
+          base: () => supabase.from('classes').select(classReplicationSelect()),
+          since,
+          signal,
+          scope: query => (scope.value ? query.eq('trial_id', scope.value) : query),
+        })) as unknown as ClassRow[];
         return this.enrichClassRows(
           [...rows, ...(await this.fetchOwedClassRows(rows, scope))],
           answered

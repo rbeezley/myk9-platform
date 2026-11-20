@@ -11,7 +11,6 @@
  * - Incremental sync (waitlist_entries has updated_at column)
  */
 
-import { POSTGREST_MAX_ROWS } from './postgrestMaxRows';
 import {
   ReplicatedTable,
   syncReplicatedTable,
@@ -22,6 +21,7 @@ import {
   type SyncOptions,
 } from '@myk9/replication';
 import { logger } from '@myk9/core';
+import { fetchKeysetPages } from './keysetPager';
 import { supabase } from '@/services/database/supabaseClient';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import { verifyWaitlistEntriesGone } from './waitlistScopeProof';
@@ -119,7 +119,6 @@ export class ReplicatedWaitlistEntriesTable extends ReplicatedTable<ReplicatedWa
     logger.log(`[${this.getTableName()}] Starting sync`);
 
     const adapter: SyncReplicatedTableAdapter<WaitlistEntryRow, ReplicatedWaitlistEntry> = {
-      remotePageSize: POSTGREST_MAX_ROWS,
       // Coverage self-heal (MYK9-660). An incremental sync only asks for rows
       // whose updated_at is past the watermark, so rows that become visible
       // because RLS widened (club admins reading their show's waitlist) are
@@ -151,18 +150,12 @@ export class ReplicatedWaitlistEntriesTable extends ReplicatedTable<ReplicatedWa
           return undefined;
         }
       },
-      fetchRemoteRows: async ({ since }) => {
-        const { data, error } = await supabase
-          .from('waitlist_entries')
-          .select('*')
-          .gt('updated_at', new Date(since).toISOString())
-          .order('updated_at', { ascending: true });
-
-        if (error) {
-          throw new Error(`Supabase query failed: ${error.message}`);
-        }
-
-        return (data ?? []) as unknown as WaitlistEntryRow[];
+      fetchRemoteRows: async ({ since, signal }) => {
+        return (await fetchKeysetPages({
+          base: () => supabase.from('waitlist_entries').select('*'),
+          since,
+          signal,
+        })) as unknown as WaitlistEntryRow[];
       },
       getRemoteId: remote => String(remote.id),
       getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),

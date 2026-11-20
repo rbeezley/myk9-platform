@@ -60,6 +60,8 @@ export interface Scenario {
   payoutsEnabled?: boolean;
   /** The destination check (club_stripe_accounts by stripe_account_id) errors. */
   destinationLookupError?: boolean;
+  /** The destination Stripe's transfers.create response reports (default: the club's account). */
+  createdDestination?: string | null;
 }
 
 const hasFilter = (q: Query, name: string, column: string) =>
@@ -170,7 +172,11 @@ export function run(scenario: Scenario) {
 
   const create = vi.fn(async () => {
     if (scenario.transferError) throw scenario.transferError;
-    return { id: 'tr_1' };
+    const destination =
+      scenario.createdDestination === undefined
+        ? ACCOUNT.stripe_account_id
+        : scenario.createdDestination;
+    return { id: 'tr_1', destination };
   });
   const list = vi.fn<ProcessShowDeps['stripe']['transfers']['list']>(async () => {
     if (scenario.listError) throw scenario.listError;

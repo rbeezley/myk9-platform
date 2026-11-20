@@ -61,10 +61,7 @@ export async function lookUpShowTransfer(
     const live = page.data.filter(t => !t.reversed && (t.amount_reversed ?? 0) < t.amount);
     const newest = live[0]; // Stripe lists newest first.
     if (!newest) return { kind: 'none' };
-    const destination =
-      typeof newest.destination === 'string'
-        ? newest.destination
-        : (newest.destination?.id ?? null);
+    const destination = stripeAccountIdOf(newest.destination);
     return {
       kind: 'found',
       transfer: {
@@ -78,6 +75,30 @@ export async function lookUpShowTransfer(
   } catch (err) {
     return { kind: 'error', message: err instanceof Error ? err.message : String(err) };
   }
+}
+
+/** A transfer's destination as Stripe returns it: an account id unless expanded. */
+export function stripeAccountIdOf(
+  destination: string | { id: string } | null | undefined
+): string | null {
+  const id = typeof destination === 'string' ? destination : (destination?.id ?? null);
+  return id && id.trim() !== '' ? id : null;
+}
+
+/**
+ * MYK9-2195: where a completed transfer went, as Stripe reported it, for every
+ * write that records a transfer as completed. No destination in Stripe's answer
+ * is recorded explicitly as not checked, never as a match. The approval tally
+ * counts a payout as matched only on paid_stripe_account_id equal to the
+ * approved account with paid_destination_checked true.
+ */
+export function paidDestinationColumns(stripeDestination: string | null): {
+  paid_stripe_account_id: string | null;
+  paid_destination_checked: boolean;
+} {
+  return stripeDestination
+    ? { paid_stripe_account_id: stripeDestination, paid_destination_checked: true }
+    : { paid_stripe_account_id: null, paid_destination_checked: false };
 }
 
 /**
@@ -115,6 +136,7 @@ async function recordStripeTransfer(
       stripe_transfer_id: transfer.id,
       amount_cents: transfer.amount,
       completed_at: new Date().toISOString(),
+      ...paidDestinationColumns(transfer.destination),
       ...account,
     })
     .eq('id', rowId)

@@ -28,6 +28,8 @@ const matched: LedgerPayout = {
   stripe_transfer_id: 'tr_1',
   completed_at: null,
   created_at: null,
+  paid_destination_checked: true,
+  paid_stripe_account_id: 'acct_club1',
   approval: {
     approvedAt: '2026-11-18T10:00:00Z',
     approvedAmountCents: 4500,
@@ -50,11 +52,9 @@ describe('PayoutBrakeCard', () => {
   it('shows the running tally from the payout history', () => {
     render(<PayoutBrakeCard payouts={[matched]} />);
     expect(screen.getByTestId('payout-approval-tally')).toHaveTextContent(
-      '1 payout approved, 1 sent for the approved amount'
+      '1 payout approved, 1 matched Stripe'
     );
-    expect(
-      screen.getByText('Which Stripe account received each payout is not checked here yet.')
-    ).toBeInTheDocument();
+    expect(screen.queryByText(/not checked/)).not.toBeInTheDocument();
   });
 
   it('turns the brake off only after a confirm that says what it leaves waiting', () => {

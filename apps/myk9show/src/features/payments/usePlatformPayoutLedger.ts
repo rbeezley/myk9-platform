@@ -97,6 +97,8 @@ export type PayoutRow = {
   approved_stripe_account_id?: string | null;
   hold_reason?: string | null;
   approval_reset_reason?: string | null;
+  paid_stripe_account_id?: string | null;
+  paid_destination_checked?: boolean | null;
   destination?: { stripe_account_id: string; payouts_enabled: boolean } | null;
 };
 
@@ -109,6 +111,7 @@ export type PayoutRow = {
 const PAYOUT_SELECT =
   'id, show_id, amount_cents, status, stripe_transfer_id, completed_at, created_at, ' +
   'approved_at, approved_amount_cents, approved_stripe_account_id, hold_reason, approval_reset_reason, ' +
+  'paid_stripe_account_id, paid_destination_checked, ' +
   'destination:club_stripe_accounts!show_payouts_club_stripe_account_id_fkey(stripe_account_id, payouts_enabled)';
 
 export function toLedgerPayout(p: PayoutRow): LedgerPayout {
@@ -120,6 +123,8 @@ export function toLedgerPayout(p: PayoutRow): LedgerPayout {
     stripe_transfer_id: p.stripe_transfer_id,
     completed_at: p.completed_at,
     created_at: p.created_at,
+    paid_stripe_account_id: p.paid_stripe_account_id ?? null,
+    paid_destination_checked: p.paid_destination_checked ?? null,
     approval: {
       approvedAt: p.approved_at ?? null,
       approvedAmountCents: p.approved_amount_cents ?? null,

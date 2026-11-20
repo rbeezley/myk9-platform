@@ -382,7 +382,7 @@ describe('ShowEditPremiumTab', () => {
       const queryClient = new QueryClient();
       queryClient.setQueryData(
         ['premiumJudgeAffiliations', 'show-1'],
-        [{ id: 'j1', name: 'Pat Judge', affiliation: 'Region 4', canEdit: false }]
+        [{ id: 'j1', name: 'Pat Judge', affiliation: 'Region 4' }]
       );
       renderOffline(queryClient);
       expect(printedJudges()).toEqual([

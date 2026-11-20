@@ -16203,6 +16203,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      set_judge_affiliation: {
+        Args: { p_affiliation: string; p_person_id: string; p_show_id: string }
+        Returns: undefined
+      }
       set_own_premium: {
         Args: {
           p_link?: string

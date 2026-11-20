@@ -45,6 +45,8 @@ export type SceneFrame = {
 
 export type TimelineSceneData = {
   id: SceneId;
+  /** The walkthrough's landmark name, so two scenes on one page read apart. */
+  name: string;
   lines: readonly SceneLine[];
   frames: readonly SceneFrame[];
   /** Two devices side by side, or one shown larger (the judge alone at the ring). */

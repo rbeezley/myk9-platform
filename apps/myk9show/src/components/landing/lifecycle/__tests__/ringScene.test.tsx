@@ -177,6 +177,14 @@ describe('the ring scene on the page', () => {
     expect(screen.getByRole('button', { name: /The signal drops/ })).toBeInTheDocument();
   });
 
+  it('names each walkthrough so a screen reader can tell them apart', () => {
+    render(<LifecycleTimeline audience="club" onAudienceChange={vi.fn()} />);
+    const names = screen
+      .getAllByRole('region', { name: /walkthrough/i })
+      .map(r => r.getAttribute('aria-label'));
+    expect(names).toEqual(['Entries walkthrough', 'Show day ring walkthrough']);
+  });
+
   it('plays on the exhibitor’s meanwhile side, where the judge’s still was', () => {
     const { container } = render(
       <LifecycleTimeline audience="exhibitor" onAudienceChange={vi.fn()} />

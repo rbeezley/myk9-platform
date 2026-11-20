@@ -31,6 +31,7 @@ const frame = (
 
 export const STAND_IN_ENTRIES_SCENE: TimelineSceneData = {
   id: 'entries',
+  name: 'Entries walkthrough',
   lines: SCENE_LINES.entries,
   frames: [
     frame(0, 4000, 'phone', 'before', 'dogs'),

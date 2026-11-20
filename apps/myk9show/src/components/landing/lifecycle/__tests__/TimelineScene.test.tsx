@@ -296,6 +296,7 @@ describe('TimelineScene', () => {
   describe('one device', () => {
     const solo: TimelineSceneData = {
       id: scene.id,
+      name: scene.name,
       lines: scene.lines,
       frames: scene.frames,
       phone: scene.phone,

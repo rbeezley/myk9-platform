@@ -42,8 +42,8 @@ const PHONE_ALT: Record<PhoneShot, string> = {
 };
 const DESK_ALT: Record<DeskShot, string> = {
   before:
-    'The secretary’s Entry Forms page: the list of entry forms, with the first form open beside it',
-  list: 'The Entry Forms list with the exhibitor’s form marked Needs review, with Not paid yet beside it',
+    'The secretary’s Entry Forms page: the top of the list of entry forms, waiting for the next one',
+  list: 'The Entry Forms list with the exhibitor’s form marked Needs review, with Payment due beside it',
   review:
     'The open entry form, under To finish this form: the entries that need review, with Accept and Reject buttons',
   accepted: 'The open entry form after Accept: Piper’s entry in Buried Novice A now reads Accepted',
@@ -117,6 +117,7 @@ const ENTRIES_FRAMES: readonly SceneFrame[] = [
 // review line 3, the Needs review row line 4 and Accepted line 5 (entriesScene.test.tsx).
 export const ENTRIES_SCENE: TimelineSceneData = {
   id: 'entries',
+  name: 'Entries walkthrough',
   lines: SCENE_LINES.entries,
   desk: {
     label: 'The secretary’s screen',

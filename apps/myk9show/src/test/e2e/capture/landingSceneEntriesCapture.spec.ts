@@ -271,7 +271,7 @@ test('captures the Entries open scene on the exhibitor’s phone and the secreta
     // The dog's card whole, between the sticky header and the sticky entry bar.
     await scrollToMiddle(dogOption);
     await page.waitForTimeout(800);
-    await shoot('phone', page, phoneShots, 'dogs', { row: [dogOption, 300, 200] });
+    await shoot('phone', page, phoneShots, 'dogs', { row: [dogOption, 300, 150] });
     await clickClearOfStickyChrome(page, page.getByRole('button', { name: /^Next$/ }));
 
     await stage('the classes step', page, async () => {

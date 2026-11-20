@@ -26,6 +26,22 @@ UPDATE public.shows
 SET name = 'Prairie Scent Work Trial'
 WHERE name LIKE 'Show-day fixture%';
 
+-- Results are held until the club releases them: the "After Review" choice in Visibility settings
+-- (preset 'review', every field on manual release; packages/secretary visibility-presets.ts). The
+-- seed's own 'open' preset shows scores as they are entered, which would put the result on the
+-- exhibitor's phone before the release the scene is about.
+UPDATE public.show_visibility_settings
+SET preset = 'review', placement_timing = 'manual_release', qualification_timing = 'manual_release',
+    time_timing = 'manual_release', faults_timing = 'manual_release'
+WHERE show_id = 'dededede-0000-0000-0000-000000000010';
+DELETE FROM public.trial_visibility_overrides
+WHERE trial_id IN (SELECT id FROM public.trials WHERE show_id = 'dededede-0000-0000-0000-000000000010');
+DELETE FROM public.class_visibility_overrides
+WHERE class_id IN (
+  SELECT c.id FROM public.classes c JOIN public.trials t ON t.id = c.trial_id
+  WHERE t.show_id = 'dededede-0000-0000-0000-000000000010'
+);
+
 -- The second demo exhibitor, under the name and address a club would see (a guard trigger refuses a
 -- contact address that differs from the sign-in one, so it is changed with triggers off, as in the
 -- Entries setup; a database that setup already touched has nothing left to change here).
@@ -137,7 +153,8 @@ BEGIN
      OR v_class.status IS DISTINCT FROM 'completed'
      OR v_class.scored_count IS DISTINCT FROM 3
      OR v_class.results_released_at IS NOT NULL
-     OR v_class.results_verified_at IS NOT NULL THEN
+     OR v_class.results_verified_at IS NOT NULL
+     OR (SELECT preset FROM public.show_visibility_settings WHERE show_id = 'dededede-0000-0000-0000-000000000010') IS DISTINCT FROM 'review' THEN
     RAISE EXCEPTION 'MYK9-2308 staging lost the finished class: placements %, class %', v_placements, v_class;
   END IF;
 END $$;

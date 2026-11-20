@@ -1,7 +1,7 @@
-import { render as rtlRender, screen } from '@testing-library/react';
+import { render as rtlRender, screen, type RenderOptions } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { mapDatabaseToShow } from '@/services/mappers/showMappers';
-import type { ReactNode } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const premiumEditorProps: Array<{
@@ -58,7 +58,7 @@ import { generatedPremium as baseGeneratedPremium } from '@/features/premium/__t
 import type { ShowTrial } from '@/types/show-types';
 
 // The tab reads the query cache for its offline judge affiliations (MYK9-2292).
-const render: typeof rtlRender = (ui, options) =>
+const render = (ui: ReactElement, options?: RenderOptions) =>
   rtlRender(ui, {
     wrapper: ({ children }) => (
       <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>

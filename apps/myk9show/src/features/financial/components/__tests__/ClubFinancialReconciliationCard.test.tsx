@@ -4,6 +4,7 @@ import { render } from '@/test/utils/testUtils';
 import { ClubFinancialReconciliationCard } from '../ClubFinancialReconciliationCard';
 import * as reconciliationModule from '../../useClubFinancialReconciliation';
 import type { ClubShowReconciliationRow } from '../../clubShowReconciliation';
+import { resolvePayoutSettlement } from '../../payoutSettlement';
 
 vi.mock('../../useClubFinancialReconciliation', () => ({
   useClubFinancialReconciliation: vi.fn(),
@@ -263,4 +264,39 @@ describe('ClubFinancialReconciliationCard', () => {
     expect(badge.className).toContain('destructive');
     expect(badge.className).not.toContain('chip-stone');
   });
+
+  // MYK9-2172: the payout brake's three statuses, through the real resolver, reach the club as one
+  // calm line. A held payout never shows the operator's reason, a failure, or a "Transferred" figure.
+  it.each(['awaiting_approval', 'approved', 'held'])(
+    'a %s payout reads "Payout scheduled, waiting for release", never failed or late',
+    status => {
+      const settlement = resolvePayoutSettlement(
+        {
+          payoutId: 'payout-3',
+          status,
+          amountCents: 7500,
+          stripeTransferId: null,
+          failureReason: null,
+          completedAt: null,
+          createdAt: '2026-11-20T08:00:00Z',
+        },
+        'enabled'
+      );
+      mockedHook.mockReturnValue({
+        rows: [row({ settlement })],
+        isLoading: false,
+        isError: false,
+        refetch: vi.fn(),
+      });
+      render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" />);
+
+      const badge = screen.getByText('Payout scheduled, waiting for release');
+      expect(badge.className).not.toContain('destructive');
+      expect(screen.getByText(/To transfer:/)).toBeInTheDocument();
+      expect(screen.queryByText(/Transferred:/)).not.toBeInTheDocument();
+      for (const alarm of [/needs attention/i, /failed/i, /late/i, /overdue/i, /retrying/i]) {
+        expect(screen.queryByText(alarm)).not.toBeInTheDocument();
+      }
+    }
+  );
 });

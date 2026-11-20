@@ -97,7 +97,7 @@ describe('refunds to decide: the pill, the menu and the Pulls list agree (MYK9-2
       waiting: {
         heldEntries: undefined,
         waitlist: null,
-        refundsToDecide: { count, payoutDate: '2026-11-19' },
+        refundsToDecide: { count, payoutDate: '2026-11-19', payoutDateIsExact: true },
       },
     });
     expect(pill?.id).toBe('refunds-to-decide');
@@ -145,20 +145,46 @@ describe('refunds to decide: the pill, the menu and the Pulls list agree (MYK9-2
 describe('payoutDayText', () => {
   const now = new Date('2026-11-17T15:00:00Z');
   it('names the payout day within a week, its date beyond, and nothing once it has passed', () => {
-    expect(payoutDayText('2026-11-17', now)).toBe(" before today's payout");
-    expect(payoutDayText('2026-11-19', now)).toBe(" before Thursday's payout");
-    expect(payoutDayText('2026-11-30', now)).toBe(' before the Nov 30 payout');
+    expect(payoutDayText('2026-11-17', now, null, true)).toBe(" before today's payout");
+    expect(payoutDayText('2026-11-19', now, null, true)).toBe(" before Thursday's payout");
+    expect(payoutDayText('2026-11-30', now, null, true)).toBe(' before the Nov 30 payout');
+    expect(payoutDayText('2026-11-16', now, null, true)).toBe('');
+    expect(payoutDayText(null, now, null, true)).toBe('');
+  });
+
+  // MYK9-2172: while the payout brake is on (or not known to be off) the payout waits for release,
+  // so the day is the earliest it can go and never a promise.
+  it('names the day only as the earliest unless the payout date is known to be exact', () => {
+    expect(payoutDayText('2026-11-17', now)).toBe(' before the payout (as early as today)');
+    expect(payoutDayText('2026-11-19', now)).toBe(' before the payout (as early as Thursday)');
+    expect(payoutDayText('2026-11-30', now)).toBe(' before the payout (as early as Nov 30)');
     expect(payoutDayText('2026-11-16', now)).toBe('');
-    expect(payoutDayText(null, now)).toBe('');
+  });
+
+  it('a pill whose payout date is not known to be exact promises no payout day', () => {
+    const [pill] = computeShowDeskPendingSignals({
+      showId: 'show-1',
+      tree,
+      entries: [],
+      currentDate: now,
+      waiting: {
+        heldEntries: undefined,
+        waitlist: null,
+        refundsToDecide: { count: 2, payoutDate: '2026-11-19' },
+      },
+    });
+    expect(pill?.label).toBe('2 refunds to decide before the payout (as early as Thursday)');
   });
 
   // 9 pm Wednesday in Chicago is already Thursday in UTC. The show's calendar says the Thursday
   // payout is tomorrow, not today.
   it("reads today on the show's calendar across UTC midnight", () => {
     const wednesdayEvening = new Date('2026-11-19T03:00:00Z');
-    expect(payoutDayText('2026-11-19', wednesdayEvening, 'America/Chicago')).toBe(
+    expect(payoutDayText('2026-11-19', wednesdayEvening, 'America/Chicago', true)).toBe(
       " before Thursday's payout"
     );
-    expect(payoutDayText('2026-11-19', wednesdayEvening, 'UTC')).toBe(" before today's payout");
+    expect(payoutDayText('2026-11-19', wednesdayEvening, 'UTC', true)).toBe(
+      " before today's payout"
+    );
   });
 });

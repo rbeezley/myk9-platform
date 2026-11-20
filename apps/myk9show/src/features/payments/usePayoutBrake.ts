@@ -29,10 +29,14 @@ const BRAKE_SELECT =
   'payouts_require_approval, payouts_require_approval_changed_at, ' +
   'changer:people!platform_settings_payouts_require_approval_changed_by_fkey(first_name, last_name)';
 
+/** Fail closed: anything but an explicit false reads as on. */
+function brakeIsOn(value: boolean | null | undefined): boolean {
+  return value !== false;
+}
+
 function toBrakeState(row: BrakeRow): PayoutBrakeState {
   return {
-    // Fail closed: anything but an explicit false reads as on.
-    on: row.payouts_require_approval !== false,
+    on: brakeIsOn(row.payouts_require_approval),
     changedAt: row.payouts_require_approval_changed_at,
     changedByName: personName(row.changer),
   };
@@ -55,6 +59,36 @@ export function usePayoutBrake() {
   });
 }
 
+export const PAYOUT_BRAKE_ON_QUERY_KEY = ['payout-brake', 'on'] as const;
+
+/**
+ * MYK9-2172: whether the brake is on, for the wording a club or secretary reads.
+ * The same column as usePayoutBrake, read alone: a club has no use for who
+ * switched it. Fails closed like usePayoutBrake: while it loads, offline, or on
+ * an error it reads as on, so no screen names an exact payout day the brake
+ * could make untrue.
+ */
+export function usePayoutBrakeOn(enabled = true): boolean {
+  const query = useQuery({
+    queryKey: PAYOUT_BRAKE_ON_QUERY_KEY,
+    enabled,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async (): Promise<boolean> => {
+      const { data, error } = await supabase
+        .from('platform_settings')
+        .select('payouts_require_approval')
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error('Could not read the payout brake.');
+      return brakeIsOn(
+        (data as { payouts_require_approval: boolean | null }).payouts_require_approval
+      );
+    },
+  });
+  return query.data ?? true;
+}
+
 export function useSetPayoutBrake() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -71,7 +105,10 @@ export function useSetPayoutBrake() {
       if (!data) throw Object.assign(new Error('Permission denied'), { code: '42501' });
       return toBrakeState(data as unknown as BrakeRow);
     },
-    onSuccess: state => queryClient.setQueryData(PAYOUT_BRAKE_QUERY_KEY, state),
+    onSuccess: state => {
+      queryClient.setQueryData(PAYOUT_BRAKE_QUERY_KEY, state);
+      queryClient.setQueryData(PAYOUT_BRAKE_ON_QUERY_KEY, state.on);
+    },
     // A refused write leaves the cache holding what the screen last read; reread it.
     onError: () => queryClient.invalidateQueries({ queryKey: PAYOUT_BRAKE_QUERY_KEY }),
   });

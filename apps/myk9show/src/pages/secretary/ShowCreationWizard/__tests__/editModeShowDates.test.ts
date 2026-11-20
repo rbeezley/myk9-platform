@@ -72,9 +72,7 @@ describe.each(['America/Chicago', 'America/Los_Angeles', 'Pacific/Auckland', 'UT
 
     it('defaults a new trial to the first show day', () => {
       const draft = addTrialsDraft(showSavedAs({}));
-      expect(getDefaultTrialDate(draft.show.startDate, draft.show.endDate, [])).toBe(
-        '2027-03-06'
-      );
+      expect(getDefaultTrialDate(draft.show.startDate, draft.show.endDate, [])).toBe('2027-03-06');
     });
 
     it('loads the entry dates on their stored calendar days', () => {

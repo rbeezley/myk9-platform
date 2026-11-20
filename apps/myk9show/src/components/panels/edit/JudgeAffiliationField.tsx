@@ -7,7 +7,10 @@ import { Label } from '@/components/ui/label';
 import { queryKeys } from '@/lib/queryClient';
 import { PREMIUM_JUDGE_AFFILIATIONS_KEY } from '@/services/database/judges/judgeAffiliationKeys';
 import { setJudgeAffiliation } from '@/services/database/judges/setJudgeAffiliation';
-import { useJudgeAffiliationEditor } from '@/hooks/queries/useJudgeAffiliationEditor';
+import {
+  useJudgeAffiliationEditor,
+  useJudgeAffiliationRoster,
+} from '@/hooks/queries/useJudgeAffiliationEditor';
 import { useEditPanel } from './useEditPanel';
 import type { ShowEditFormData } from './ShowEditPanel.types';
 import { friendlySaveError } from '@/utils/friendlySaveError';
@@ -15,6 +18,17 @@ import { friendlySaveError } from '@/utils/friendlySaveError';
 export const JUDGE_AFFILIATION_MAX_LENGTH = 200;
 export const JUDGE_AFFILIATION_WAIT = 'Saving the judge first';
 export const JUDGE_AFFILIATION_OFFLINE = 'Reconnect to add the affiliation';
+export const JUDGE_AFFILIATION_READ_ERROR = 'Could not reach myK9Show to check this judge';
+
+/**
+ * MYK9-2297: mounted once inside Edit show's Judges tab, it owns the roster read every
+ * Affiliation field selects from, so the tab reads once when it opens and not per judge.
+ */
+export const AffiliationRoster: React.FC = () => {
+  const { data: show } = useEditPanel<ShowEditFormData>();
+  useJudgeAffiliationRoster(show.organization === 'ASCA' ? show.id : undefined);
+  return null;
+};
 
 /**
  * On an ASCA show, the Affiliation field for one assigned judge (MYK9-2294), in either judges
@@ -45,7 +59,10 @@ export const JudgeAffiliationField: React.FC<{ showId: string | undefined; judge
   judgeId,
 }) => {
   const queryClient = useQueryClient();
-  const { readiness, affiliation, showSaved } = useJudgeAffiliationEditor(showId, judgeId);
+  const { readiness, affiliation, showSaved, retry, isReading } = useJudgeAffiliationEditor(
+    showId,
+    judgeId
+  );
   const ready = showId !== undefined && readiness === 'ready';
   const [draft, setDraft] = useState<string | null>(null);
   const value = draft ?? affiliation ?? '';
@@ -97,10 +114,19 @@ export const JudgeAffiliationField: React.FC<{ showId: string | undefined; judge
           Save affiliation
         </Button>
       </div>
-      {!ready && (
-        <p className="text-sm text-muted-foreground">
-          {readiness === 'offline' ? JUDGE_AFFILIATION_OFFLINE : JUDGE_AFFILIATION_WAIT}
-        </p>
+      {readiness === 'error' ? (
+        <div role="alert" className="flex flex-wrap items-center gap-2 text-sm text-destructive">
+          <span>{JUDGE_AFFILIATION_READ_ERROR}</span>
+          <Button type="button" variant="outline" size="sm" disabled={isReading} onClick={retry}>
+            Try again
+          </Button>
+        </div>
+      ) : (
+        !ready && (
+          <p className="text-sm text-muted-foreground">
+            {readiness === 'offline' ? JUDGE_AFFILIATION_OFFLINE : JUDGE_AFFILIATION_WAIT}
+          </p>
+        )
       )}
     </div>
   );

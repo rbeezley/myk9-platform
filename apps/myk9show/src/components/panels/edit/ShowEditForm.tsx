@@ -31,7 +31,7 @@ import { premiumOrgOf } from '@/features/premium/premiumOrg';
 import { ShowEditVenueTab } from './ShowEditVenueTab';
 import { ShowEditAddJudgeDialog } from './ShowEditAddJudge';
 import { useShowEditJudgeCreate } from './useShowEditJudgeCreate';
-import { AssignedJudgeNote, JudgeAffiliation } from './JudgeAffiliationField';
+import { AffiliationRoster, AssignedJudgeNote, JudgeAffiliation } from './JudgeAffiliationField';
 import type { ShowEditTab } from '@/components/shows/showEditRoutes';
 
 interface ShowEditFormProps {
@@ -303,6 +303,7 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
               </CardTitle>
             </CardHeader>
             <CardContent>
+              <AffiliationRoster />
               {judgeCreate.supportedOrg && (
                 <Button
                   type="button"

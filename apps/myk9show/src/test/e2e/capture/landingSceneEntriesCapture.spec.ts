@@ -232,6 +232,7 @@ test('captures the Entries open scene on the exhibitor’s phone and the secreta
       Number(/(\d+) Entr(?:y|ies)/.exec(await row.innerText())?.[1]);
     const entriesBefore = await entryCount(rows.filter({ hasText: 'Casey Morgan' }).first());
     expect(entriesBefore, 'the exhibitor’s form is in the list').toBeGreaterThan(0);
+    console.log('entries on the form before ::', entriesBefore);
     await desk.waitForTimeout(1500);
     await shoot('desk', desk, deskShots, 'before', {
       queue: desk.locator('section[aria-label="Entry forms"]'),
@@ -335,6 +336,10 @@ test('captures the Entries open scene on the exhibitor’s phone and the secreta
       return (await label.innerText()).replace(/^Confirmation number\s+/, '').trim();
     });
     expect(confirmation).not.toBe('');
+    console.log(
+      'the receipt reads ::',
+      (await page.locator('body').innerText()).replace(/\s+/g, ' ').slice(0, 1200)
+    );
 
     // Line 3: My Entries reads Pending review.
     const dogCard = page.locator('.myk9-entries-dog-card').filter({
@@ -346,6 +351,10 @@ test('captures the Entries open scene on the exhibitor’s phone and the secreta
       await reloadUntilVisible(page, pending);
       await scrollToMiddle(dogCard);
       await page.waitForTimeout(1200);
+      console.log(
+        'the dog’s card reads ::',
+        (await dogCard.first().innerText()).replace(/\s+/g, ' ')
+      );
       await shoot('phone', page, phoneShots, 'pending', { badge: pending });
     });
 
@@ -356,7 +365,13 @@ test('captures the Entries open scene on the exhibitor’s phone and the secreta
       .filter({ hasText: 'Needs review' });
     await stage('the secretary’s list after', desk, async () => {
       await desk.reload();
-      await reloadUntilVisible(desk, form.first());
+      await reloadUntilVisible(desk, form.first(), 3).catch(async error => {
+        console.log(
+          'the rows read ::',
+          (await rows.allInnerTexts()).map(text => text.replace(/\s+/g, ' ')).join(' | ')
+        );
+        throw error;
+      });
       await form
         .first()
         .getByRole('button', { name: /^Review for / })

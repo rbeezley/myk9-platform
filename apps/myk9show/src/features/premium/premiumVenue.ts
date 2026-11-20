@@ -7,11 +7,11 @@ export interface PremiumVenueParts {
   /** shows.location, the label older premiums printed. */
   venue: string | null;
   /** shows.venue_name; wins over `venue` as the label. */
-  venueName?: string | null;
-  address?: string | null;
-  city?: string | null;
-  state?: string | null;
-  zipCode?: string | null;
+  venueName?: string | null | undefined;
+  address?: string | null | undefined;
+  city?: string | null | undefined;
+  state?: string | null | undefined;
+  zipCode?: string | null | undefined;
 }
 
 const clean = (value: string | null | undefined): string => (value ?? '').trim();

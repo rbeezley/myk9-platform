@@ -126,6 +126,32 @@ describe('club settled refund form in the refund dialog', () => {
     expect(screen.getByRole('button', { name: /save record/i })).toBeDisabled();
   });
 
+  it('rejects an exponent amount that Number() would read as a small positive figure', async () => {
+    renderDialog();
+    const user = userEvent.setup();
+    const amount = await screen.findByLabelText(/^amount/i);
+    await user.clear(amount);
+    await user.type(amount, '15e-3');
+    expect(screen.getByText('Enter dollars and cents (two decimal places).')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /save record/i })).toBeDisabled();
+  });
+
+  it('keeps the card form out of reach after a partial card refund until the payout completes', async () => {
+    svc.status.mockResolvedValue('pending');
+    renderDialog({ refundedAt: '2026-11-10T10:00:00Z' });
+    expect(
+      await screen.findByText(/A card refund was already issued for this entry/)
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /issue refund/i })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Close' })).toHaveLength(2);
+  });
+
+  it('shows the club form for the same entry once the payout completed', async () => {
+    renderDialog({ refundedAt: '2026-11-10T10:00:00Z' });
+    expect(await screen.findByText('The club paid this back')).toBeInTheDocument();
+    expect(screen.queryByText(/A card refund was already issued/)).not.toBeInTheDocument();
+  });
+
   it('takes the discount off the prefill and the displayed maximum', async () => {
     svc.list.mockResolvedValue([]);
     renderDialog({ totalFee: 50, discountAmount: 10, refundAmount: null, clubRefundedAmount: 0 });

@@ -12192,6 +12192,7 @@ export type Database = {
           check_in_status: string | null
           class_element: string | null
           class_id: string | null
+          club_refunded_amount: number | null
           class_level: string | null
           class_name: string | null
           class_results_released_at: string | null
@@ -12516,6 +12517,7 @@ export type Database = {
           check_in_status: string | null
           class_element: string | null
           class_id: string | null
+          club_refunded_amount: number | null
           class_level: string | null
           class_name: string | null
           class_results_released_at: string | null

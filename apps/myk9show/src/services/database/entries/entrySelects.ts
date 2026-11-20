@@ -1,4 +1,3 @@
-// MYK9-2303: club_refunded_amount is deliberately not selected here (MYK9-1757 / ENTRY_MAPPER_COLUMNS_NOT_COLD_READ precedent). It is read only through the replicated view until migration 20261121093700 is applied everywhere; then add it back.
 export const AUTHENTICATED_ENTRY_READ_COLUMNS = `
       id,
       dog_id,
@@ -38,6 +37,7 @@ export const AUTHENTICATED_ENTRY_READ_COLUMNS = `
       registration_id,
       withdrawal_reason,
       refund_amount,
+      club_refunded_amount,
       card_paid,
       refund_notes,
       refunded_at,
@@ -68,10 +68,6 @@ export const AUTHENTICATED_ENTRY_READ_COLUMNS = `
  * degrading the whole query's type to `ParserError`. The duplication is the
  * price of the column list being type-checked at all; `moveUpLinkProjection.test.ts`
  * pins that the two lists differ by exactly this one column.
- *
- * MYK9-2303: `club_refunded_amount` is deliberately not selected here (MYK9-1757 /
- * `ENTRY_MAPPER_COLUMNS_NOT_COLD_READ` precedent). It is read only through the replicated
- * view until migration 20261121093700 is applied everywhere; then add it back (MYK9-2313).
  */
 export const AUTHENTICATED_ENTRY_READ_COLUMNS_WITH_MOVE_UP_LINK = `
       id,
@@ -112,6 +108,7 @@ export const AUTHENTICATED_ENTRY_READ_COLUMNS_WITH_MOVE_UP_LINK = `
       registration_id,
       withdrawal_reason,
       refund_amount,
+      club_refunded_amount,
       card_paid,
       refund_notes,
       refunded_at,

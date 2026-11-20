@@ -43,6 +43,7 @@ vi.mock('@/features/payments/useWithdrawalRefundSuggestion', () => ({
 }));
 
 import { RefundEntryDialog } from './RefundEntryDialog';
+import { PaymentStatus } from '@/types/show-registration-types';
 
 describe('RefundEntryDialog target (MYK9-639)', () => {
   it('posts the money root, not the run, for a moved-up dog', async () => {
@@ -57,6 +58,9 @@ describe('RefundEntryDialog target (MYK9-639)', () => {
           dogName: 'Acorn',
           totalFee: 35,
           moneyRootEntryId: 'source-moved',
+          paymentMethod: 'online',
+          paymentStatus: PaymentStatus.PAID_ONLINE,
+          refundedAt: null,
         }}
         onRefunded={() => {}}
       />
@@ -87,7 +91,15 @@ describe('RefundEntryDialog target (MYK9-639)', () => {
       <RefundEntryDialog
         open
         onOpenChange={() => {}}
-        entry={{ id: 'plain', dogName: 'Bella', totalFee: 35, moneyRootEntryId: 'plain' }}
+        entry={{
+          id: 'plain',
+          dogName: 'Bella',
+          totalFee: 35,
+          moneyRootEntryId: 'plain',
+          paymentMethod: 'online',
+          paymentStatus: PaymentStatus.PAID_ONLINE,
+          refundedAt: null,
+        }}
         onRefunded={() => {}}
       />
     );

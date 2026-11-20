@@ -93,11 +93,13 @@ export function ClubSettledRefundForm({ entry, onClose, onChanged }: ClubSettled
   const shownAmount = amount ?? centsToDollars(remainingCents);
   const amountNumber = Number(shownAmount);
   const amountCents = Math.round(amountNumber * 100);
-  // Save bypasses the native step, so a third decimal place is rejected here.
-  const amountHasFractionalCents = /\.\d{3,}/.test(shownAmount.trim());
+  // Save bypasses the native step and Number() accepts exponents, so the whole text must be
+  // plain dollars with at most two decimal places (rejects 10.123, 15e-3, 1e2 and -5).
+  const amountIsMalformed =
+    shownAmount.trim() !== '' && !/^\d+(\.\d{1,2})?$/.test(shownAmount.trim());
   const amountValid =
     shownAmount.trim() !== '' &&
-    !amountHasFractionalCents &&
+    !amountIsMalformed &&
     Number.isFinite(amountNumber) &&
     amountCents > 0 &&
     amountCents <= remainingCents;
@@ -181,7 +183,7 @@ export function ClubSettledRefundForm({ entry, onClose, onChanged }: ClubSettled
             value={shownAmount}
             onChange={e => setAmount(e.target.value)}
           />
-          {amountHasFractionalCents && (
+          {amountIsMalformed && (
             <p className="text-xs text-destructive">
               Enter dollars and cents (two decimal places).
             </p>

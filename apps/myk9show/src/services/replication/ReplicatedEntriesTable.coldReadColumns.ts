@@ -57,6 +57,7 @@ export const ENTRY_VIEW_MAPPER_COLUMNS = [
   'placement_tiebreak',
   'trial_id',
   'refund_amount',
+  'club_refunded_amount',
   'card_paid',
   'refunded_at',
   'stripe_payment_intent_id',
@@ -144,11 +145,7 @@ export const ENTRY_MAPPER_COLUMNS_ON_NEITHER_VIEW = [
  * "Flagged as pulled.") until the next sync overwrites it. Add it to the mapper columns above
  * once the migration is applied everywhere.
  */
-// MYK9-2303: `club_refunded_amount` follows the same deploy-order rule.
-export const ENTRY_MAPPER_COLUMNS_NOT_COLD_READ = [
-  'check_in_pulled_by',
-  'club_refunded_amount',
-] as const;
+export const ENTRY_MAPPER_COLUMNS_NOT_COLD_READ = ['check_in_pulled_by'] as const;
 
 /**
  * Whole-entry cold reads (write hydration, withdraw read, post-withdrawal

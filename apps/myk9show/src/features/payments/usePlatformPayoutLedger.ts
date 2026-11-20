@@ -15,9 +15,8 @@ import { chunk } from '@/utils/chunkIds';
 // (20260918041700) are applied; MYK9-654 retired their compat retries. MYK9-632:
 // a paid WITHDRAWAL with a recognised reason code owes the secretary a decision
 // too, so the count has to be able to see the code.
-// MYK9-2303: club_refunded_amount is deliberately not selected here (MYK9-1757 / ENTRY_MAPPER_COLUMNS_NOT_COLD_READ precedent). It is read only through the replicated view until migration 20261121093700 is applied everywhere; then add it back.
 const LEDGER_ENTRY_SELECT =
-  'id, show_id, entry_status, entry_fee, payment_method, payment_status, refund_amount, refund_decision, withdrawal_reason_code';
+  'id, show_id, entry_status, entry_fee, payment_method, payment_status, refund_amount, club_refunded_amount, refund_decision, withdrawal_reason_code';
 
 export async function loadPlatformPayoutLedgerEntryPage(
   from: number,

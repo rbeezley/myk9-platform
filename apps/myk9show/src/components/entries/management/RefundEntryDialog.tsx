@@ -29,6 +29,7 @@ import {
   showPayoutStatusQueryKey,
 } from '@/services/database/club-settled-refunds';
 import { ClubSettledRefundForm } from './ClubSettledRefundForm';
+import { isStripeRefundable } from './refundEligibility';
 
 // Server validation is authoritative; these map its error codes to language a
 // secretary can act on.
@@ -70,7 +71,13 @@ const REFUND_UNCONFIRMED =
  */
 export type RefundableEntry = Pick<
   EntryManagementEntry,
-  'id' | 'totalFee' | 'dogName' | 'moneyRootEntryId'
+  | 'id'
+  | 'totalFee'
+  | 'dogName'
+  | 'moneyRootEntryId'
+  | 'paymentMethod'
+  | 'paymentStatus'
+  | 'refundedAt'
 > &
   // MYK9-1976: the show, so the dialog can print the club's policy text beside the amount.
   Partial<
@@ -156,7 +163,7 @@ export function RefundEntryDialog({
   const [payoutSentRefusal, setPayoutSentRefusal] = useState(false);
 
   // After the payout the club settles the refund itself, so the dialog shows the club form.
-  const { data: payoutStatus } = useQuery({
+  const { data: payoutStatus, isPending: payoutStatusPending } = useQuery({
     queryKey: showPayoutStatusQueryKey(entry?.showId ?? ''),
     queryFn: () => getShowPayoutStatus(entry?.showId ?? ''),
     enabled: open && Boolean(entry?.showId),
@@ -322,6 +329,32 @@ export function RefundEntryDialog({
             onClose={() => handleOpenChange(false)}
             onChanged={onRefunded}
           />
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // MYK9-2303: a card refund already stamped this entry and the payout is not complete, so there
+  // is nothing to refund by card and nothing for the club to have paid back yet. While the payout
+  // read is in flight it says so, rather than flashing this note before the club form.
+  if (entry && !isStripeRefundable(entry)) {
+    const checkingPayout = payoutStatusPending && Boolean(entry.showId);
+    return (
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Refund entry payment</DialogTitle>
+            <DialogDescription>
+              {checkingPayout
+                ? 'Checking the show’s payout…'
+                : 'A card refund was already issued for this entry. Once the club has been paid for this show, you can record here what the club pays back directly.'}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => handleOpenChange(false)}>
+              Close
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     );

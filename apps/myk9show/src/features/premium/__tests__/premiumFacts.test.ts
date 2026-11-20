@@ -197,6 +197,7 @@ describe('judge facts (MYK9-2067)', () => {
       {
         name: 'Jane Smith',
         residence: 'Springfield, IL',
+        affiliation: null,
         classes: ['Container Novice A', 'Interior Advanced'],
       },
     ]);
@@ -211,9 +212,9 @@ describe('judge facts (MYK9-2067)', () => {
       ])
     );
     expect(facts.trials[0]?.judges).toEqual([
-      { name: 'No City', residence: null, classes: ['Container Novice A'] },
-      { name: 'Blank City', residence: null, classes: [] },
-      { name: 'Old Row', residence: null, classes: [] },
+      { name: 'No City', residence: null, affiliation: null, classes: ['Container Novice A'] },
+      { name: 'Blank City', residence: null, affiliation: null, classes: [] },
+      { name: 'Old Row', residence: null, affiliation: null, classes: [] },
     ]);
   });
 

@@ -16,6 +16,7 @@ const personRow: PersonTable['Row'] = {
   email: 'john@example.com',
   first_name: 'John',
   id: 'person-1',
+  judge_affiliation: null,
   last_name: 'Doe',
   license_key: null,
   phone: null,

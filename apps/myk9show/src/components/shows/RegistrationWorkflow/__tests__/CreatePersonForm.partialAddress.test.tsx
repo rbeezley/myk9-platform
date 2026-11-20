@@ -116,6 +116,7 @@ describe('the city/state rule stays an edit-mode rule', () => {
     zipCode: '',
     dateOfBirth: '',
     juniorHandlerNumbers: {},
+    judgeAffiliation: '',
     judgeQualifications: [],
     roles: [],
   };

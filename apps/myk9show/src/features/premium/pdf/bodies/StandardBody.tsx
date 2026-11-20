@@ -87,6 +87,12 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
           <Text style={s.value}>{f.classChanges}</Text>
         </View>
       )}
+      {f.showTerms.map(term => (
+        <View key={term.label} style={s.row}>
+          <Text style={s.label}>{term.label}</Text>
+          <Text style={s.value}>{term.text}</Text>
+        </View>
+      ))}
       {f.withdrawalPolicy && (
         <View style={s.row}>
           <Text style={s.label}>{f.withdrawalPolicy.label}</Text>

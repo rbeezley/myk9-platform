@@ -62,6 +62,7 @@ export function FieldGuideBody({ data, tokens }: Props) {
     f.recordingFee ||
     f.entryLimit ||
     f.classChanges ||
+    f.showTerms.length > 0 ||
     f.withdrawalPolicy ||
     f.scoutingStatement
   );
@@ -246,6 +247,12 @@ export function FieldGuideBody({ data, tokens }: Props) {
               <Text style={valueStyle}>{f.classChanges}</Text>
             </View>
           )}
+          {f.showTerms.map(term => (
+            <View key={term.label} style={rowStyle}>
+              <Text style={labelStyle}>{term.label}</Text>
+              <Text style={valueStyle}>{term.text}</Text>
+            </View>
+          ))}
           {f.withdrawalPolicy && (
             <View style={rowStyle}>
               <Text style={labelStyle}>{f.withdrawalPolicy.label}</Text>

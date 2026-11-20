@@ -18,6 +18,8 @@ import { normalizeEntryLimit } from '@/features/premium/premiumEntryLimit';
 import { usePremiumFacts } from '@/features/premium/usePremiumFacts';
 import { applyEditorCopyToPremium } from '@/features/premium/premiumEditorCopy';
 import type { ShowEditFormData } from './ShowEditPanel.types';
+import { ShowAscaFactsCard } from './ShowAscaFactsCard';
+import { ascaFactsFromForm } from './ShowEditPanel.helpers';
 
 interface ShowEditPremiumTabProps {
   data: ShowEditFormData;
@@ -161,6 +163,10 @@ export function ShowEditPremiumTab({
         </CardContent>
       </Card>
 
+      {showOrg === 'ASCA' && (
+        <ShowAscaFactsCard data={data} handleValueChange={handleValueChange} />
+      )}
+
       <Card className="transition-all duration-200 hover:shadow-md hover:shadow-primary/5">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -222,6 +228,8 @@ function buildLocalPremiumDraft(
     isLivePremiumTrial({ status: trial.status ?? null, deleted_at: trial.deletedAt ?? null })
   );
 
+  const asca = ascaFactsFromForm(data);
+
   return {
     org: showOrg,
     style: (data.style || 'monogram') as PremiumStyle,
@@ -238,6 +246,11 @@ function buildLocalPremiumDraft(
       acceptChecks: Boolean(data.acceptCheckPayments),
       acceptCash: Boolean(data.acceptCashPayments),
       maxTotalEntries: normalizeEntryLimit(data.maxTotalEntries),
+      // MYK9-2290: the form's unsaved ASCA facts, so the offline draft prints what is typed.
+      ascaSanctionStatus: asca.ascaSanctionStatus ?? null,
+      scentsByLevel: asca.scentsByLevel ?? null,
+      spectatorsPolicy: asca.spectatorsPolicy ?? null,
+      photographerContact: asca.photographerContact ?? null,
     },
     club: {
       name: data.clubName ?? '',

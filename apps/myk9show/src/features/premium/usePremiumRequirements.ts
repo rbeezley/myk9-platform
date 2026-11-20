@@ -14,6 +14,7 @@ import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type { Show } from '@/types/show-types';
 import type { PremiumFactId } from './premiumFacts';
 import { selectPremiumTemplate } from './selectPremiumTemplate';
+import { buildShowTermFacts } from './premiumAscaFacts';
 import {
   missingPremiumFacts,
   type PremiumRequirementFacts,
@@ -136,6 +137,7 @@ export function requirementFactsFromShow(input: PremiumRequirementInputs): Premi
           },
         }),
     committee: input.committee,
+    showTerms: buildShowTermFacts(show),
     recordingFeeDates: premiumRecordingFeeDates(
       trials.map(trial => ({ date: trial.trialDate ?? null, status: trial.status ?? null })),
       show.startDate

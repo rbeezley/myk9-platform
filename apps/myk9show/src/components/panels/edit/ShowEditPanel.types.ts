@@ -63,6 +63,11 @@ export interface ShowEditFormData extends Record<string, unknown> {
   logoUrl?: string;
   /** shows.confirmation_message: note to exhibitors (MYK9-2114). */
   confirmationMessage?: string;
+  /** MYK9-2290 ASCA premium facts; '' = not set. */
+  ascaSanctionStatus?: string;
+  scentsByLevel?: string;
+  spectatorsPolicy?: string;
+  photographerContact?: string;
   trials?: Show['trials'];
   /** The fees the form opened with; the junior fee limit checks only a changed fee (MYK9-1975). */
   feesAsOpened?: ShowFormFees;

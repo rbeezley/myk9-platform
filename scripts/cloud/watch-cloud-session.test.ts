@@ -10,6 +10,7 @@ import {
   decide,
   EXIT,
   matchingPrs,
+  observe,
   type Observation,
 } from './watch-cloud-session.ts';
 
@@ -92,6 +93,41 @@ describe('matchingPrs', () => {
     expect(matchingPrs([pr('claude/other', 'Fixes MYK9-55')], '5')).toEqual([]);
     expect(matchingPrs([pr('feature/x', 'Fixes MYK9-5')], '5')).toEqual([]);
     expect(matchingPrs([pr('claude/myk9-50-x')], '5')).toEqual([]);
+  });
+  it('ignores a plan branch, even one whose body says Fixes', () => {
+    expect(matchingPrs([pr('claude/myk9-5-plan-topic')], '5')).toEqual([]);
+    expect(matchingPrs([pr('claude/myk9-5-plan-topic', 'Fixes MYK9-5')], '5')).toEqual([]);
+    const impl = pr('claude/myk9-5-impl-abc');
+    expect(matchingPrs([pr('claude/myk9-5-plan-topic'), impl], '5')).toEqual([impl]);
+  });
+});
+
+describe('observe, plan branches', () => {
+  const ghWith = (refs: string[], prs: unknown[]) => (args: string[]) =>
+    args[0] === 'pr' ? JSON.stringify(prs) : JSON.stringify(refs.map(ref => ({ ref })));
+  const plan = 'refs/heads/claude/myk9-5-plan-topic';
+  it('a lone plan branch or plan PR is not a push or a ready PR', () => {
+    const prs = [
+      { number: 1, isDraft: false, headRefName: 'claude/myk9-5-plan-topic', body: 'Fixes MYK9-5' },
+    ];
+    const o = observe('5', 'first', T0, T0, ghWith([plan], prs));
+    expect(o.branchExists).toBe(false);
+    expect(o.readyPr).toBe(false);
+  });
+  it('an implementation branch beside a plan branch still counts', () => {
+    const o = observe('5', 'first', T0, T0, ghWith([plan, 'refs/heads/claude/myk9-5-impl-x'], []));
+    expect(o.branchExists).toBe(true);
+  });
+});
+
+describe('takeover ls-remote lookup', () => {
+  it('the grep -v leaves exactly the implementation branch beside a plan branch', () => {
+    const out = [
+      'a\trefs/heads/claude/myk9-5-impl-x',
+      'b\trefs/heads/claude/myk9-5-plan-topic',
+    ].join('\n');
+    const r = spawnSync('grep', ['-v', 'refs/heads/claude/myk9-5-plan-'], { input: out });
+    expect(r.stdout.toString().trim().split('\n')).toEqual(['a\trefs/heads/claude/myk9-5-impl-x']);
   });
 });
 

@@ -19,17 +19,7 @@ export interface ShowDeskWaitingInput {
    * day (`computeSettleDate`, `YYYY-MM-DD`; null when the show has no end date).
    */
   refundsToDecide?:
-    | {
-        count: number;
-        payoutDate: string | null;
-        timeZone?: string | null | undefined;
-        /**
-         * MYK9-2172: true only when the payout brake is known to be off, so the payout really goes
-         * on `payoutDate`. Absent or false: the date is only the earliest it can go.
-         */
-        payoutDateIsExact?: boolean | undefined;
-      }
-    | undefined;
+    { count: number; payoutDate: string | null; timeZone?: string | null | undefined } | undefined;
 }
 
 const plural = (count: number, one: string, many: string) => (count === 1 ? one : many);
@@ -37,37 +27,36 @@ const plural = (count: number, one: string, many: string) => (count === 1 ? one 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
- * "before Thursday's payout": the payout day in words. The payout DATE is a calendar day
- * (`computeSettleDate`); "today" is read on the show's own calendar, so a US evening does not
- * already count as tomorrow. A weekday names a calendar date, so it needs no zone. A payout a week
- * or more away is named by its date; one already past, or unknown, is not mentioned.
+ * "before the payout (as early as Thursday)": the earliest payout day in words. The payout DATE is
+ * a calendar day (`computeSettleDate`); "today" is read on the show's own calendar, so a US evening
+ * does not already count as tomorrow. A weekday names a calendar date, so it needs no zone. A day a
+ * week or more away is named by its date; one already past, or unknown, is not mentioned.
  *
- * MYK9-2172: unless `exact`, the payout brake may keep the payout waiting past that day, so the
- * day is named as the earliest the payout can go, never as the day it goes.
+ * MYK9-2172: that day is when a payout becomes eligible, never a promise. The payout brake keeps it
+ * waiting for release, and the payout run also parks it while the club's bank account cannot
+ * receive it, so the day is only ever named as the earliest the payout can go.
  */
 export function payoutDayText(
   payoutDate: string | null,
   now: Date | null | undefined,
-  timeZone?: string | null,
-  exact = false
+  timeZone?: string | null
 ): string {
   if (!payoutDate || !/^\d{4}-\d{2}-\d{2}$/.test(payoutDate)) return '';
   const payout = new Date(`${payoutDate}T12:00:00Z`);
   const today = new Date(`${currentCalendarDate(now ?? new Date(), timeZone)}T12:00:00Z`);
   const days = Math.round((payout.getTime() - today.getTime()) / DAY_MS);
   if (Number.isNaN(days) || days < 0) return '';
-  if (days === 0)
-    return exact ? " before today's payout" : ' before the payout (as early as today)';
+  if (days === 0) return ' before the payout (as early as today)';
   if (days < 7) {
     const weekday = payout.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
-    return exact ? ` before ${weekday}'s payout` : ` before the payout (as early as ${weekday})`;
+    return ` before the payout (as early as ${weekday})`;
   }
   const date = payout.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     timeZone: 'UTC',
   });
-  return exact ? ` before the ${date} payout` : ` before the payout (as early as ${date})`;
+  return ` before the payout (as early as ${date})`;
 }
 
 /** `total` is the run-out offers' count, as the list gave it. */
@@ -106,8 +95,7 @@ export function buildWaitingSignals(
       label: `${refunds.count} ${plural(refunds.count, 'refund', 'refunds')} to decide${payoutDayText(
         refunds.payoutDate,
         now,
-        refunds.timeZone,
-        refunds.payoutDateIsExact === true
+        refunds.timeZone
       )}`,
       href: getEntryListHref(showId, 'pulls'),
       destinationName: ENTRY_LIST_LABELS.pulls,

@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { useRegistrationNeededEntries } from '@/hooks/useRegistrationNeededEntries';
 import { computeSettleDate } from '@/features/payments/payoutLedger';
-import { usePayoutBrakeOn } from '@/features/payments/usePayoutBrake';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { useWaitlistWaiting } from './useWaitlistWaiting';
 import { findEntryRefundsToDecide } from './refundsToDecide';
@@ -16,8 +15,8 @@ export function useShowDeskWaiting(input: {
   showId: string;
   entries: ReadonlyMap<string, EntryManagementEntry> | undefined;
   /**
-   * `shows.end_date`: the payout can go three days after it (`computeSettleDate`); while the payout
-   * brake is on it waits for release, so that day is only the earliest (MYK9-2172).
+   * `shows.end_date`: a payout can go three days after it at the earliest (`computeSettleDate`).
+   * That day is eligibility, not a promise (MYK9-2172).
    */
   showEndDate?: string | null | undefined;
   /** The show's calendar (its trials' IANA zone), for "today" in the payout wording. */
@@ -29,7 +28,6 @@ export function useShowDeskWaiting(input: {
   const list = useMemo(() => (entries ? [...entries.values()] : []), [entries]);
   const held = useRegistrationNeededEntries(showId, list);
   const waitlist = useWaitlistWaiting(showId, enabled);
-  const brakeOn = usePayoutBrakeOn(enabled);
   // The Pulls menu count is this same call over the same entries (MYK9-2099).
   const refunds = useMemo(() => findEntryRefundsToDecide(list), [list]);
   // Saved decisions not read: the count could include a refund already denied, so no pill claims
@@ -43,7 +41,6 @@ export function useShowDeskWaiting(input: {
           count: refunds.count,
           payoutDate: computeSettleDate(showEndDate ?? null),
           timeZone: timeZone ?? null,
-          payoutDateIsExact: !brakeOn,
         }
       : undefined,
   };

@@ -32,7 +32,7 @@ vi.mock('@/lib/supabase', () => ({
   },
 }));
 
-import { usePayoutBrake, usePayoutBrakeOn, useSetPayoutBrake } from './usePayoutBrake';
+import { usePayoutBrake, useSetPayoutBrake } from './usePayoutBrake';
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -83,33 +83,6 @@ describe('usePayoutBrake', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data?.on).toBe(true);
     expect(result.current.data?.changedByName).toBeNull();
-  });
-});
-
-describe('usePayoutBrakeOn (MYK9-2172)', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('reads only the brake column, and reports off only for an explicit false', async () => {
-    maybeSingle.mockResolvedValue({ data: { payouts_require_approval: false }, error: null });
-    const { result } = renderHook(() => usePayoutBrakeOn(), { wrapper: createWrapper() });
-    await waitFor(() => expect(result.current).toBe(false));
-    expect(calls.select).toHaveBeenCalledWith('payouts_require_approval');
-  });
-
-  it('reads as on while loading and when the row cannot be read', async () => {
-    maybeSingle.mockResolvedValue({ data: null, error: null });
-    const { result } = renderHook(() => usePayoutBrakeOn(), { wrapper: createWrapper() });
-    expect(result.current).toBe(true);
-    await waitFor(() => expect(maybeSingle).toHaveBeenCalled());
-    expect(result.current).toBe(true);
-  });
-
-  it('reads as on and asks nothing when disabled', () => {
-    const { result } = renderHook(() => usePayoutBrakeOn(false), { wrapper: createWrapper() });
-    expect(result.current).toBe(true);
-    expect(maybeSingle).not.toHaveBeenCalled();
   });
 });
 

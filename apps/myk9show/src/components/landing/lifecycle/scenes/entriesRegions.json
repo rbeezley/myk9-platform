@@ -1,0 +1,131 @@
+{
+  "phone": {
+    "space": {
+      "width": 390,
+      "height": 844
+    },
+    "scale": 2,
+    "shots": {
+      "dogs": {
+        "file": "phone-dogs.png",
+        "regions": {
+          "row": {
+            "x": 0,
+            "y": 0,
+            "w": 10,
+            "h": 10
+          }
+        }
+      },
+      "classes": {
+        "file": "phone-classes.png",
+        "regions": {
+          "chip": {
+            "x": 0,
+            "y": 0,
+            "w": 10,
+            "h": 10
+          }
+        }
+      },
+      "payment": {
+        "file": "phone-payment.png",
+        "regions": {
+          "pay": {
+            "x": 0,
+            "y": 0,
+            "w": 10,
+            "h": 10
+          }
+        }
+      },
+      "pending": {
+        "file": "phone-pending.png",
+        "regions": {
+          "badge": {
+            "x": 0,
+            "y": 0,
+            "w": 10,
+            "h": 10
+          }
+        }
+      },
+      "accepted": {
+        "file": "phone-accepted.png",
+        "regions": {
+          "badge": {
+            "x": 0,
+            "y": 0,
+            "w": 10,
+            "h": 10
+          }
+        }
+      }
+    }
+  },
+  "desk": {
+    "space": {
+      "width": 1440,
+      "height": 900
+    },
+    "scale": 1,
+    "shots": {
+      "before": {
+        "file": "desk-before.png",
+        "regions": {
+          "queue": {
+            "x": 0,
+            "y": 0,
+            "w": 10,
+            "h": 10
+          }
+        }
+      },
+      "list": {
+        "file": "desk-list.png",
+        "regions": {
+          "row": {
+            "x": 0,
+            "y": 0,
+            "w": 10,
+            "h": 10
+          }
+        }
+      },
+      "review": {
+        "file": "desk-review.png",
+        "regions": {
+          "checklist": {
+            "x": 0,
+            "y": 0,
+            "w": 10,
+            "h": 10
+          },
+          "item": {
+            "x": 0,
+            "y": 0,
+            "w": 10,
+            "h": 10
+          },
+          "accept": {
+            "x": 0,
+            "y": 0,
+            "w": 10,
+            "h": 10
+          }
+        }
+      },
+      "accepted": {
+        "file": "desk-accepted.png",
+        "regions": {
+          "badge": {
+            "x": 0,
+            "y": 0,
+            "w": 10,
+            "h": 10
+          }
+        }
+      }
+    }
+  }
+}

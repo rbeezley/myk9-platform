@@ -9,18 +9,15 @@
  */
 import { deskStatusEditableFor } from '@/components/entries/management/checkInDesk/deskEditable';
 import { classifyEntryRemoval } from '@/features/payments/pullReconciliation';
-import { buildFullClassLabel } from '@/features/_shared/classLabel';
+import { formatTrialDayLabel } from '@/features/_shared/trialDateEligibility';
 import { mapEntryStatus } from '@/services/entryDisplay/entryStatusUiAdapter';
 import { mapClassEntryStatus } from '@/utils/entryManagementUtils';
-import type { StoredTrialClass } from '@/store/trial-store-types';
 
 /** The entry fields a flag is read from. Every one is on `SecretaryEntry`. */
 export interface FlaggedPullEntry {
   id: string;
   /** Counts a dog flagged in two classes once. */
   dog_id?: string | null;
-  class_id?: string | null;
-  trial_id?: string | null;
   armband?: string | null;
   entry_status?: string | null;
   check_in_status?: string | null;
@@ -30,37 +27,25 @@ export interface FlaggedPullEntry {
   /** The joined dog; `null` when the replica holds the entry but not its dog. */
   dog?: { name?: string | null; call_name?: string | null } | null;
   /**
-   * The joined class. `null` when this device could not join it: the class row is missing, was
-   * deleted, or the class read failed (the replica then joins every entry to `null`).
+   * The joined class. `null` when this device could not match it to a class on its list (the row
+   * is missing, or the class read failed). This device cannot tell which, so nothing here says the
+   * class was removed (MYK9-2180, owner decision 2026-11-20).
    */
   class?: { name?: string | null } | null;
+  /** The joined trial, which names the trial day; `null` when this device could not join it. */
+  trial?: { trial_date?: string | null; trial_number?: string | null } | null;
 }
-
-/**
- * The confirmed schedule, so a class with no joined row can be told apart: gone from its trial's
- * classes (removed), or still scheduled and only unreadable here. `null` while the schedule is not
- * confirmed: then nothing is called removed.
- */
-export type FlaggedPullSchedule = Readonly<
-  Record<string, readonly Pick<StoredTrialClass, 'id' | 'name' | 'element' | 'level' | 'section'>[]>
-> | null;
-
-/**
- * `joined`: the Check-in desk lists it on its class line. `removed`: its trial's confirmed classes
- * no longer hold it. `unavailable`: no joined class, removal not verified (MYK9-2180).
- */
-export type FlaggedPullClassState = 'joined' | 'removed' | 'unavailable';
 
 export interface FlaggedPull {
   entryId: string;
   dogName: string;
   armband: string | null;
-  classState: FlaggedPullClassState;
-  /** The class's name when known (joined, or read from the schedule); `null` when not. */
-  classLabel: string | null;
+  /** The Check-in desk lists it on its class line (its class is on this device's class list). */
+  onDesk: boolean;
   /**
-   * Where this flag sits, in words that tell two flags of one dog apart: the class label, else a
-   * short entry reference.
+   * Which entry this is, in words no other flag shares: the trial day (date and trial number, as
+   * the entry row carries them) and a short entry reference, e.g. "Sat Nov 21, Trial 1, entry
+   * 3F9A2C". One dog flagged in the same class on two days reads differently.
    */
   place: string;
 }
@@ -70,8 +55,8 @@ export interface FlaggedPullList {
   dogCount: number;
   items: readonly FlaggedPull[];
   /**
-   * Flags the Check-in desk cannot list (no joined class), so the close-out screens carry Confirm
-   * and Clear for them. Grouped by `classState`.
+   * Flags the Check-in desk cannot list (no class on this device's class list), so the close-out
+   * screens carry Confirm and Clear for them, in one group (`OFF_DESK_GROUP`).
    */
   offDesk: readonly FlaggedPull[];
   /** At least one flag is on a class line the Check-in desk lists. */
@@ -90,25 +75,19 @@ export const FLAGGED_PULLS_FAILED_TEXT = "Couldn't check for dogs flagged as pul
 export const FLAGGED_PULLS_LOADING_TEXT = 'Checking for dogs flagged as pulled at the show...';
 
 /**
+ * The one group the close-out screens list off-desk flags under. Worded neutrally: this device
+ * could not match the class, which is not proof it was removed (MYK9-2180).
+ */
+export const OFF_DESK_GROUP = {
+  label: "Not on this device's class list",
+  note: 'Flagged as pulled in a class that could not be matched to the schedule on this device, so the Check-in desk cannot list them. Confirm the pull or clear the flag here.',
+} as const;
+
+/**
  * Said when no flag can be resolved at the Check-in desk, which cannot list them: the screen's own
  * list (`FlaggedPullsOffDesk`) is where they are confirmed or cleared.
  */
-export const OFF_DESK_HINT =
-  'Confirm or clear each one under Class removed or Class unavailable on this page.';
-
-/** The groups the close-out screens list off-desk flags under, by class state. */
-export const OFF_DESK_GROUPS = [
-  {
-    state: 'removed',
-    label: 'Class removed',
-    note: 'Flagged as pulled in a class that is no longer on the schedule, so the Check-in desk cannot list them. Confirm the pull or clear the flag here.',
-  },
-  {
-    state: 'unavailable',
-    label: 'Class unavailable',
-    note: "Flagged as pulled in a class this device couldn't load, so the Check-in desk cannot list them. Confirm the pull or clear the flag here.",
-  },
-] as const satisfies readonly { state: FlaggedPullClassState; label: string; note: string }[];
+export const OFF_DESK_HINT = `Confirm or clear each one under ${OFF_DESK_GROUP.label} on this page.`;
 
 /**
  * A flag the Check-in desk would offer to confirm, by the desk's own rule (`deskStatusEditableFor`,
@@ -136,41 +115,35 @@ function dogNameOf(entry: FlaggedPullEntry): string {
   return entry.dog?.call_name || entry.dog?.name || 'Unknown Dog';
 }
 
-function classOf(
-  entry: FlaggedPullEntry,
-  schedule: FlaggedPullSchedule
-): Pick<FlaggedPull, 'classState' | 'classLabel'> {
-  // `undefined` is a caller that did not join the class; only a joined null is missing.
-  if (entry.class !== null) return { classState: 'joined', classLabel: entry.class?.name || null };
-  const trialClasses = schedule && entry.trial_id ? schedule[entry.trial_id] : undefined;
-  if (!trialClasses) return { classState: 'unavailable', classLabel: null };
-  const scheduled = trialClasses.find(cls => cls.id === entry.class_id);
-  if (!scheduled) return { classState: 'removed', classLabel: null };
-  return {
-    classState: 'unavailable',
-    classLabel: buildFullClassLabel(scheduled, '', scheduled.name),
-  };
+/** The trial day as the entry row carries it: its date, its trial number, or both. */
+function trialDayOf(entry: FlaggedPullEntry): string {
+  const day = formatTrialDayLabel(entry.trial?.trial_date);
+  const number = entry.trial?.trial_number?.trim();
+  const trial = number ? `Trial ${number}` : null;
+  return [day, trial].filter(Boolean).join(', ') || 'trial day unknown';
 }
 
-export function collectFlaggedPulls(
-  entries: readonly FlaggedPullEntry[],
-  schedule: FlaggedPullSchedule = null
-): FlaggedPullList {
+/** A short entry reference, the last six characters of its id. */
+export function entryReference(entryId: string): string {
+  return `entry ${entryId.slice(-6).toUpperCase()}`;
+}
+
+export function collectFlaggedPulls(entries: readonly FlaggedPullEntry[]): FlaggedPullList {
   const dogs = new Set<string>();
   const items: FlaggedPull[] = [];
   for (const entry of entries) {
     if (!isDeskConfirmableFlag(entry)) continue;
     dogs.add(entry.dog_id ?? `entry:${entry.id}`);
-    const cls = classOf(entry, schedule);
     items.push({
       entryId: entry.id,
       dogName: dogNameOf(entry),
       armband: entry.armband ?? null,
-      ...cls,
-      place: cls.classLabel ?? `entry ${entry.id.slice(-6).toUpperCase()}`,
+      // `undefined` is a caller that did not join the class; only a joined null is off the list.
+      onDesk: entry.class !== null,
+      place: `${trialDayOf(entry)}, ${entryReference(entry.id)}`,
     });
   }
-  const offDesk = items.filter(item => item.classState !== 'joined');
+  const offDesk = items.filter(item => !item.onDesk);
   return {
     dogCount: dogs.size,
     items,

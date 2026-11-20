@@ -1,18 +1,11 @@
-import {
-  collectFlaggedPulls,
-  type FlaggedPullEntry,
-  type FlaggedPullSchedule,
-} from './flaggedPulls';
+import { collectFlaggedPulls, type FlaggedPullEntry } from './flaggedPulls';
 import type { CloseoutFlaggedPulls } from './useCloseoutFlaggedPulls';
 
 const refresh = async () => {};
 
 /** What `useCloseoutFlaggedPulls` returns once the entries are read (MYK9-2180 tests). */
-export function readFlags(
-  entries: readonly FlaggedPullEntry[],
-  schedule: FlaggedPullSchedule = null
-): CloseoutFlaggedPulls {
-  return { status: 'read', ...collectFlaggedPulls(entries, schedule), refresh };
+export function readFlags(entries: readonly FlaggedPullEntry[]): CloseoutFlaggedPulls {
+  return { status: 'read', ...collectFlaggedPulls(entries), refresh };
 }
 
 export const NO_FLAGS: CloseoutFlaggedPulls = readFlags([]);

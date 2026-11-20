@@ -14,7 +14,7 @@ import type { SyncableTrial } from '@/store/trial-store-types';
  * MYK9-2180: the Results tab's Finish list and the close step derive unconfirmed pull flags with one
  * hook (`useCloseoutFlaggedPulls`, not mocked here) from their own entries reads
  * (`useResultsTabData`, `useShowCloseoutInputs`), so for one data set they show the same count and
- * the same "Class removed" dogs, and a failed refresh, or one awaiting its retry, is "couldn't
+ * the same "Not on this device's class list" dogs, and a failed refresh, or one awaiting its retry, is "couldn't
  * check" in both, never a count from the rows still cached.
  */
 
@@ -106,6 +106,7 @@ const flagged = (id: string, dogId: string, dogName: string, className: string |
   payment_method: 'online',
   dog: { id: dogId, name: dogName, call_name: null },
   class: className === null ? null : { id: 'class-1', name: className },
+  trial: { trial_type: null, trial_date: '2026-10-10', trial_number: '1' },
 });
 
 /** The Finish list as the Results tab mounts it, fed by the tab's own entries read. */
@@ -125,6 +126,7 @@ function ResultsFinish() {
 
 const TRIALS = [fromAny<SyncableTrial, unknown>({ id: 'trial-1', showId: 'show-1' })];
 const FLAG_TEXT = '2 dogs flagged as pulled at the show, not confirmed.';
+const GROUP = "Not on this device's class list";
 const FAILED_TEXT = "Couldn't check for dogs flagged as pulled at the show.";
 
 function renderBoth(queryClient: QueryClient = createTestQueryClient()) {
@@ -157,12 +159,12 @@ describe('MYK9-2180: one flagged-pull read for the Finish list and the close ste
     replica.fail = false;
     replica.rows = [
       flagged('entry-1', 'dog-1', 'Poppy', 'Container Novice A'),
-      // Its class is gone from the confirmed schedule: "Class removed".
+      // Its class is not on this device's class list: listed under the neutral group.
       { ...flagged('entry-2', 'dog-2', 'Biscuit', null), class_id: 'gone-class' },
     ];
   });
 
-  it('shows the same count and the same "Class removed" dog in both', async () => {
+  it('shows the same count and the same off-list dog in both', async () => {
     renderBoth();
     await closeStepReady();
 
@@ -171,12 +173,14 @@ describe('MYK9-2180: one flagged-pull read for the Finish list and the close ste
     expect(closeAction().getByText(FLAG_TEXT, { exact: false })).toBeInTheDocument();
 
     for (const view of [finishList(), closeCard()]) {
-      const group = within(view.getByRole('group', { name: 'Class removed' }));
+      const group = within(view.getByRole('group', { name: GROUP }));
       expect(group.getAllByRole('listitem').map(item => item.textContent)).toEqual([
         expect.stringContaining('Biscuit'),
       ]);
       expect(group.queryByText('Poppy')).not.toBeInTheDocument();
     }
+    // This device cannot prove a class was removed, so no screen says it was.
+    expect(document.body.textContent).not.toMatch(/removed|deleted/i);
   });
 
   it('says "couldn\'t check" in both after a failed refresh, never the cached count', async () => {
@@ -193,7 +197,7 @@ describe('MYK9-2180: one flagged-pull read for the Finish list and the close ste
     expect(closeCard().getByText(FAILED_TEXT)).toBeInTheDocument();
     expect(closeAction().getByText(FAILED_TEXT)).toBeInTheDocument();
     expect(screen.queryByText(FLAG_TEXT, { exact: false })).not.toBeInTheDocument();
-    expect(screen.queryByRole('group', { name: 'Class removed' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: GROUP })).not.toBeInTheDocument();
   });
 
   it('says "couldn\'t check" in both while a failed read awaits its retry', async () => {
@@ -219,21 +223,70 @@ describe('MYK9-2180: one flagged-pull read for the Finish list and the close ste
     queryClient.clear();
   });
 
-  it('acts on a "Class removed" flag with the desk\'s own Confirm and Clear', async () => {
+  it("acts on an off-list flag with the desk's own Confirm and Clear", async () => {
     clearFlaggedPull.mockResolvedValue('checked-in');
     const { user } = renderBoth();
     await closeStepReady();
-    const group = within(await closeCard().findByRole('group', { name: 'Class removed' }));
+    const group = within(await closeCard().findByRole('group', { name: GROUP }));
 
     await user.click(
-      group.getByRole('button', { name: 'Clear the pull flag for Biscuit, entry NTRY-2' })
+      group.getByRole('button', {
+        name: 'Clear the pull flag for Biscuit, Sat Oct 10, Trial 1, entry NTRY-2',
+      })
     );
     expect(clearFlaggedPull).toHaveBeenCalledWith('entry-2');
 
     await user.click(
-      group.getByRole('button', { name: 'Confirm the pull for Biscuit, entry NTRY-2' })
+      group.getByRole('button', {
+        name: 'Confirm the pull for Biscuit, Sat Oct 10, Trial 1, entry NTRY-2',
+      })
     );
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText(/Biscuit/)).toBeInTheDocument();
+  });
+
+  it('tells one dog flagged in the same class on two days apart: rows, buttons and dialogs', async () => {
+    const sat = { ...flagged('entry-sat001', 'dog-2', 'Biscuit', null), class_id: 'gone' };
+    replica.rows = [
+      sat,
+      {
+        ...sat,
+        id: 'entry-sun002',
+        trial_id: 'trial-2',
+        trial: { trial_type: null, trial_date: '2026-10-11', trial_number: '2' },
+      },
+    ];
+    const { user } = renderBoth();
+    await closeStepReady();
+    const SAT = 'Biscuit, Sat Oct 10, Trial 1, entry SAT001';
+    const SUN = 'Biscuit, Sun Oct 11, Trial 2, entry SUN002';
+
+    for (const view of [finishList(), closeCard()]) {
+      const group = within(await view.findByRole('group', { name: GROUP }));
+      const rows = group.getAllByRole('listitem').map(item => item.textContent);
+      expect(rows).toHaveLength(2);
+      expect(new Set(rows).size).toBe(2);
+      expect(rows[0]).toContain('Sat Oct 10, Trial 1, entry SAT001');
+      expect(rows[1]).toContain('Sun Oct 11, Trial 2, entry SUN002');
+      for (const target of [SAT, SUN]) {
+        expect(group.getByRole('button', { name: `Confirm the pull for ${target}` })).toBeEnabled();
+        expect(
+          group.getByRole('button', { name: `Clear the pull flag for ${target}` })
+        ).toBeEnabled();
+      }
+    }
+
+    const group = within(closeCard().getByRole('group', { name: GROUP }));
+    await user.click(group.getByRole('button', { name: `Confirm the pull for ${SAT}` }));
+    const satDialog = (await screen.findByRole('dialog')).textContent;
+    expect(satDialog).toContain('Sat Oct 10, Trial 1, entry SAT001');
+    expect(satDialog).not.toContain('SUN002');
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: /cancel/i }));
+
+    await user.click(group.getByRole('button', { name: `Confirm the pull for ${SUN}` }));
+    const sunDialog = (await screen.findByRole('dialog')).textContent;
+    expect(sunDialog).toContain('Sun Oct 11, Trial 2, entry SUN002');
+    expect(sunDialog).not.toContain('SAT001');
+    expect(sunDialog).not.toMatch(/removed|deleted/i);
   });
 });

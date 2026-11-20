@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import type { UseQueryResult } from '@tanstack/react-query';
-import { useShowDeskScheduleRead } from '@/pages/secretary/useShowDeskScheduleRead';
 import type { SecretaryEntry } from '@/services/database/entries';
 import { collectFlaggedPulls, type FlaggedPullsRead } from './flaggedPulls';
 
@@ -25,16 +24,10 @@ export type FlaggedPullsEntriesQuery = Pick<
  * States: `loading` until the first read; `failed` whenever the latest read did not succeed (an
  * error, a failed attempt awaiting or paused before its retry, or settled with no data), even with
  * older rows still cached: a count from stale rows is never shown as current. Otherwise `read`.
- * The confirmed schedule tells a removed class from one this device only could not load.
  */
 export function useCloseoutFlaggedPulls(query: FlaggedPullsEntriesQuery): CloseoutFlaggedPulls {
   const { data, isError, isLoading, failureCount, refetch } = query;
-  const schedule = useShowDeskScheduleRead();
-  const trialClasses = schedule.hasConfirmedSnapshot ? schedule.trialClasses : null;
-  const list = useMemo(
-    () => (data ? collectFlaggedPulls(data, trialClasses) : null),
-    [data, trialClasses]
-  );
+  const list = useMemo(() => (data ? collectFlaggedPulls(data) : null), [data]);
   return useMemo<CloseoutFlaggedPulls>(() => {
     const refresh = async () => {
       await refetch();

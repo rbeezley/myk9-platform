@@ -68,6 +68,7 @@
     "../../supabase/functions/send-lifecycle-email/lifecycle-email-judgeChanged.test.ts",
     "../../supabase/functions/send-lifecycle-email/lifecycle-email-entryChanged.test.ts",
     "../../supabase/functions/send-lifecycle-email/lifecycle-email-pullOut.test.ts",
+    "../../supabase/functions/send-lifecycle-email/lifecycle-email-refundDenied.test.ts",
     "../../supabase/functions/send-lifecycle-email/lifecycle-email-showCancelled.test.ts",
     "../../supabase/functions/send-lifecycle-email/lifecycle-email-route.test.ts",
     "../../supabase/functions/send-results/authz.test.ts",

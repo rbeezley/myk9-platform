@@ -215,15 +215,19 @@ test('captures the four stills from the secretary’s desktop, the exhibitor’s
     // The exhibitor's phone: My Entries, then Willow's Past Results.
     const exhibitorPassword = process.env.E2E_DEMO_EXHIBITOR_PASSWORD ?? '';
     await signIn(page, 'exhibitor@myk9t.com', exhibitorPassword, '/exhibitor/entries');
-    const dogCard = page.locator('.myk9-entries-dog-card').filter({
-      has: page.locator('.myk9-entries-dog-card-name', { hasText: 'Willow' }),
-    });
+    // Willow's card at the demo show (her past show's card is in the same page, further down).
+    const dogCard = page
+      .locator('.myk9-entries-dog-card')
+      .filter({ has: page.locator('.myk9-entries-dog-card-name', { hasText: 'Willow' }) })
+      .filter({ hasText: 'Interior Advanced' });
     await stage('My Entries', page, async () => {
       await reloadUntilVisible(page, dogCard.first());
       await expectAppFont(page);
       await expect(dogCard.locator('.myk9-entries-class-row')).toHaveCount(2);
       await expect(dogCard.first()).toContainText('100');
       await expectNothingMisleading(page);
+      await expect(page.getByText('Show day is here')).toHaveCount(0);
+      await scrollToTop(dogCard);
       await page.mouse.move(0, 0);
       await page.waitForTimeout(1200);
       console.log('Willow card reads ::', (await dogCard.first().innerText()).replace(/\s+/g, ' '));

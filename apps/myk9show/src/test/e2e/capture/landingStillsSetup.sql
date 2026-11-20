@@ -15,10 +15,18 @@ BEGIN;
 -- No history at the canonical show (see landingEntriesSetup.sql): triggers and foreign keys are off
 -- for the deletes only, so no money guard objects.
 SET LOCAL session_replication_role = replica;
+-- The show-day fixture (today's show) holds the demo exhibitor's own entries, and it puts a "Show day
+-- is here" banner on My Entries, so it starts empty too.
 DELETE FROM public.entries
-WHERE show_id IN ('dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000013');
-DELETE FROM public.enrollments WHERE show_id = 'dededede-0000-0000-0000-000000000010';
-DELETE FROM public.armbands WHERE show_id = 'dededede-0000-0000-0000-000000000010';
+WHERE show_id IN (
+  'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000013'
+) OR show_id IN (SELECT id FROM public.shows WHERE name = 'Prairie Scent Work Trial' OR name LIKE 'Show-day fixture%');
+DELETE FROM public.enrollments
+WHERE show_id = 'dededede-0000-0000-0000-000000000010'
+  OR show_id IN (SELECT id FROM public.shows WHERE name = 'Prairie Scent Work Trial' OR name LIKE 'Show-day fixture%');
+DELETE FROM public.armbands
+WHERE show_id = 'dededede-0000-0000-0000-000000000010'
+  OR show_id IN (SELECT id FROM public.shows WHERE name = 'Prairie Scent Work Trial' OR name LIKE 'Show-day fixture%');
 SET LOCAL session_replication_role = origin;
 
 UPDATE public.clubs

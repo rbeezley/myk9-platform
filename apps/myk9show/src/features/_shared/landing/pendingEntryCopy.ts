@@ -1,5 +1,6 @@
 import type { EntryPendingReason } from '@/utils/entryStatusUtils';
 import { calendarDateInTimeZone } from '@/utils/calendarDate';
+import { CARD_ENTRIES_PAUSED_MESSAGE } from '@/features/payments/cardEntriesPaused';
 import { formatShowDate, getCalendarDayParts } from './calendarDate';
 
 /**
@@ -55,6 +56,16 @@ export const NOT_OPEN_NO_DATE: PendingEntryCopy = {
   sub: 'Online entry is not available yet.',
 };
 
+/** MYK9-2192: the club's payouts are off and the show takes no check or cash. Neutral on purpose. */
+export const CARD_PAUSED_COPY: PendingEntryCopy = {
+  kind: 'not-open',
+  nav: 'Entries paused',
+  sentence: CARD_ENTRIES_PAUSED_MESSAGE,
+  headlineLead: 'Card entries are',
+  headlineAccent: 'paused',
+  sub: 'Contact the secretary.',
+};
+
 /** True when the open date (a calendar day or an instant) is still ahead of `now`. */
 function isFutureOpenDate(iso: string, timezone: string, now: Date): boolean {
   const day = getCalendarDayParts(iso);
@@ -74,6 +85,7 @@ export function pendingEntryCopy({
   timezone,
   now = new Date(),
 }: PendingEntryCopyInput): PendingEntryCopy {
+  if (entryPendingReason === 'card_paused') return CARD_PAUSED_COPY;
   if (entryPendingReason) {
     // Only `not_yet_open` with a date still ahead can say "opens <date>". The
     // other reasons (no window, unknown online setting) say nothing about when,

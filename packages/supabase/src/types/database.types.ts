@@ -16252,6 +16252,7 @@ export type Database = {
           trial_name: string
         }[]
       }
+      show_card_entries_paused: { Args: { p_show_id: string }; Returns: boolean }
       show_live_entry_person_ids: {
         Args: { p_show_id: string }
         Returns: string[]

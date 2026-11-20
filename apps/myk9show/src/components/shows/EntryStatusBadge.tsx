@@ -16,6 +16,8 @@ import {
 interface EntryStatusBadgeProps {
   show: Show;
   userHasEntries?: boolean;
+  /** MYK9-2192: from useShowCardEntriesPaused. */
+  cardEntriesPaused?: boolean;
   showIcon?: boolean;
   size?: 'sm' | 'md';
   className?: string;
@@ -28,6 +30,7 @@ const statusIcons: Record<EntryStatus, React.ReactNode> = {
   submitted: <CheckCircle2 className="h-3 w-3" />,
   not_yet_open: <CalendarClock className="h-3 w-3" />,
   setup_incomplete: <CalendarClock className="h-3 w-3" />,
+  card_paused: <AlertCircle className="h-3 w-3" />,
   // Not the calendar-clock: that glyph reads as "opens on a date", and nobody
   // set one (MYK9-649).
   window_unknown: <HelpCircle className="h-3 w-3" />,
@@ -36,11 +39,12 @@ const statusIcons: Record<EntryStatus, React.ReactNode> = {
 export function EntryStatusBadge({
   show,
   userHasEntries = false,
+  cardEntriesPaused = false,
   showIcon = true,
   size = 'sm',
   className = '',
 }: EntryStatusBadgeProps) {
-  const statusInfo = getEntryStatus(show, userHasEntries);
+  const statusInfo = getEntryStatus(show, userHasEntries, { cardEntriesPaused });
   const style = getEntryStatusBadgeStyle(statusInfo.status);
 
   const sizeClasses = size === 'sm' ? 'text-xs px-2 py-0.5' : 'text-sm px-3 py-1';

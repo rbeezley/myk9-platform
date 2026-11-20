@@ -5,6 +5,7 @@ import { DateCircle } from '@/components/shows/DateCircle';
 import { ShowProgressBar } from '@/components/shows/ShowProgressBar';
 import { EntryStatusBadge } from '@/components/shows/EntryStatusBadge';
 import { getEntryStatus } from '@/utils/entryStatusUtils';
+import { useShowCardEntriesPaused } from '@/features/payments/cardEntriesPaused';
 import { getTypeBadge } from '@/utils/browseShowsUtils';
 import { getShowCardStatus, computeShowProgress } from '@/utils/showCardUtils';
 import type { Show } from '@/types/show-types';
@@ -26,7 +27,8 @@ export const ShowCardVertical: React.FC<ShowCardVerticalProps> = ({
   scoredTrials = 0,
   onViewDetails,
 }) => {
-  const entryStatus = getEntryStatus(show, false);
+  const cardEntriesPaused = useShowCardEntriesPaused(show);
+  const entryStatus = getEntryStatus(show, false, { cardEntriesPaused });
   const showCardStatus = getShowCardStatus(show, entryStatus.status);
   const { totalTrials } = computeShowProgress(show);
 
@@ -53,7 +55,12 @@ export const ShowCardVertical: React.FC<ShowCardVerticalProps> = ({
           />
           <div className="flex-1 min-w-0 space-y-0.5">
             <div className="flex items-start gap-1.5 flex-wrap">
-              <EntryStatusBadge show={show} userHasEntries={false} size="sm" />
+              <EntryStatusBadge
+                show={show}
+                userHasEntries={false}
+                cardEntriesPaused={cardEntriesPaused}
+                size="sm"
+              />
             </div>
             <h3 className="text-sm font-bold leading-tight truncate group-hover:text-primary transition-colors">
               {show.name}

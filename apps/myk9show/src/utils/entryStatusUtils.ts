@@ -8,6 +8,7 @@ import { formatShortCalendarDate } from '@/lib/format/dates';
 import { isActiveSubmittedEntryStatus } from '@/services/entryDisplay/entryDisplaySelectors';
 import { currentEntryWindowDate, getEntryWindowTimezone } from './entryWindowDate';
 import { acceptsOnlineEntries } from '@/features/payments/onlineEntryGate';
+import { CARD_ENTRIES_PAUSED_MESSAGE } from '@/features/payments/cardEntriesPaused';
 
 export type EntryStatus =
   | 'window_unknown' // No entry window set (or today cannot be resolved): says nothing about when entries open
@@ -16,7 +17,8 @@ export type EntryStatus =
   | 'closing_soon' // Closing within 7 days
   | 'closed' // After entry close date
   | 'submitted' // User has submitted entries
-  | 'setup_incomplete'; // Show has no configured classes to enter
+  | 'setup_incomplete' // Show has no configured classes to enter
+  | 'card_paused'; // Open, but the club's payouts are off and no check or cash is taken (MYK9-2192)
 
 export interface EntryStatusInfo {
   status: EntryStatus;
@@ -29,6 +31,8 @@ export interface EntryStatusInfo {
 
 interface EntryStatusOptions {
   hasEntryClassInventory?: boolean | null;
+  /** MYK9-2192: the server says card entries are paused AND the show takes no check or cash. */
+  cardEntriesPaused?: boolean;
 }
 
 export function hasKnownEntryClassInventory(show: Show): boolean | null {
@@ -140,6 +144,15 @@ export function getEntryStatus(
     };
   }
 
+  if (options.cardEntriesPaused === true) {
+    return {
+      status: 'card_paused',
+      label: 'Entries Paused',
+      description: CARD_ENTRIES_PAUSED_MESSAGE,
+      canEnter: false,
+    };
+  }
+
   // Currently accepting entries
   const daysUntilClose = dayDiff(closeDate);
 
@@ -174,7 +187,8 @@ export function getEntryStatus(
  * `online_setting_unknown` is added by the landing caller, not by status.
  */
 export type EntryPendingReason =
-  Extract<EntryStatus, 'not_yet_open' | 'window_unknown'> | 'online_setting_unknown';
+  | Extract<EntryStatus, 'not_yet_open' | 'window_unknown' | 'card_paused'>
+  | 'online_setting_unknown';
 
 /**
  * The reason entries are not open YET: the window has not opened, or nobody set
@@ -186,6 +200,7 @@ export function entryPendingReasonFor(status: EntryStatus): EntryPendingReason |
   switch (status) {
     case 'not_yet_open':
     case 'window_unknown':
+    case 'card_paused':
       return status;
     case 'accepting':
     case 'closing_soon':
@@ -239,6 +254,7 @@ export function getEntryStatusBadgeStyle(status: EntryStatus): {
     case 'not_yet_open':
     case 'setup_incomplete':
     case 'window_unknown':
+    case 'card_paused':
       return {
         className: 'bg-muted/30 text-muted-foreground border-muted/10 border',
         variant: 'outline',

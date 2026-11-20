@@ -66,6 +66,7 @@ function dotFor(show: Show): MonthDot {
     case 'closed':
     case 'setup_incomplete':
     case 'window_unknown':
+    case 'card_paused':
       return 'muted';
     default:
       return unknownDot(status);

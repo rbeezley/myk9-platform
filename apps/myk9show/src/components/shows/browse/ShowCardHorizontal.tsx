@@ -8,6 +8,7 @@ import { useEntryDogLink } from '@/features/registration/entryDogContext';
 import { DateCircle } from '@/components/shows/DateCircle';
 import { EntryStatusBadge } from '@/components/shows/EntryStatusBadge';
 import { getEntryStatus } from '@/utils/entryStatusUtils';
+import { useShowCardEntriesPaused } from '@/features/payments/cardEntriesPaused';
 import { getTypeBadge } from '@/utils/browseShowsUtils';
 import { getShowCardStatus } from '@/utils/showCardUtils';
 import { formatShowDateRange } from '@/lib/format/dates';
@@ -35,7 +36,8 @@ export const ShowCardHorizontal: React.FC<ShowCardHorizontalProps> = ({
   distanceMiles = null,
 }) => {
   const entryDogLink = useEntryDogLink();
-  const entryStatus = getEntryStatus(show, userHasEntries);
+  const cardEntriesPaused = useShowCardEntriesPaused(show);
+  const entryStatus = getEntryStatus(show, userHasEntries, { cardEntriesPaused });
   const showCardStatus = getShowCardStatus(show, entryStatus.status);
 
   return (
@@ -80,7 +82,12 @@ export const ShowCardHorizontal: React.FC<ShowCardHorizontalProps> = ({
             <h3 className="text-base font-semibold leading-tight group-hover:text-primary transition-colors truncate">
               {show.name}
             </h3>
-            <EntryStatusBadge show={show} userHasEntries={userHasEntries} size="sm" />
+            <EntryStatusBadge
+              show={show}
+              userHasEntries={userHasEntries}
+              cardEntriesPaused={cardEntriesPaused}
+              size="sm"
+            />
           </div>
 
           <div className="flex items-center gap-2 text-sm text-muted-foreground">

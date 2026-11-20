@@ -38,6 +38,34 @@ describe('entryStatusUtils', () => {
       vi.useRealTimers();
     });
 
+    describe('when card entries are paused (MYK9-2192)', () => {
+      it('says paused and withholds Enter inside an open window', () => {
+        vi.setSystemTime(new Date(2024, 0, 15, 12));
+        const info = getEntryStatus(createMockShow(), false, { cardEntriesPaused: true });
+        expect(info).toMatchObject({
+          status: 'card_paused',
+          description: 'Card entries are paused. Contact the secretary.',
+          canEnter: false,
+        });
+        expect(info.label).not.toBe('Accepting Entries');
+        expect(entryPendingReasonFor(info.status)).toBe('card_paused');
+      });
+
+      it('still says closed after the window', () => {
+        vi.setSystemTime(new Date(2024, 2, 1, 12));
+        expect(getEntryStatus(createMockShow(), false, { cardEntriesPaused: true }).status).toBe(
+          'closed'
+        );
+      });
+
+      it('is accepting when not paused', () => {
+        vi.setSystemTime(new Date(2024, 0, 15, 12));
+        expect(getEntryStatus(createMockShow(), false, { cardEntriesPaused: false }).canEnter).toBe(
+          true
+        );
+      });
+    });
+
     describe('when the show has no entry window at all', () => {
       // `entryOpenDate` / `entryCloseDate` are typed `string` but are genuinely
       // absent on a show whose window was never set, and `toLocalDate` calls

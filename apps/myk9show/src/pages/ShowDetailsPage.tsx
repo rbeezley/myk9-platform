@@ -39,6 +39,7 @@ import {
   resolveResultsTabCount,
 } from './ShowDetailsPage.tabDefs';
 import { useShowResults } from '@/hooks/queries/useShowResults';
+import { useShowCardEntriesPaused } from '@/features/payments/cardEntriesPaused';
 import { getEntryStatus, entryPendingReasonFor } from '@/utils/entryStatusUtils';
 
 // Shared primitives
@@ -118,6 +119,9 @@ const ShowDetailsPage: React.FC = () => {
     }
     return null;
   }, [currentShow, readsReplica, id, shows]);
+
+  // MYK9-2192: a signed-out visitor is told card entries are paused, from the server.
+  const cardEntriesPaused = useShowCardEntriesPaused(actualCurrentShow ?? {});
 
   // `getEntryStatus` reads the clock on render; wake at each local midnight of the entry window
   // (the same zone rule it uses) so a page left open re-evaluates it as the window opens and
@@ -508,6 +512,7 @@ const ShowDetailsPage: React.FC = () => {
   // Before the public branch: getEntryStatus always handled `not_yet_open`.
   const entryStatus = getEntryStatus(actualCurrentShow, hasUserEntries, {
     hasEntryClassInventory,
+    cardEntriesPaused,
   });
 
   if (audience === 'public') {

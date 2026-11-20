@@ -20,6 +20,17 @@ describe('pendingEntryCopy', () => {
     expect(copy.headlineAccent).toBe('Jan 5');
   });
 
+  it('says card entries are paused, with no reason, for card_paused (MYK9-2192)', () => {
+    const copy = pendingEntryCopy({
+      entryPendingReason: 'card_paused',
+      entryOpenDate: '2027-01-05T00:00:00+00:00',
+      timezone: tz,
+      now,
+    });
+    expect(copy.sentence).toBe('Card entries are paused. Contact the secretary.');
+    expect(JSON.stringify(copy).toLowerCase()).not.toMatch(/stripe|payout|bank|money/);
+  });
+
   it('is neutral for not_yet_open when no date is known', () => {
     const copy = pendingEntryCopy({
       entryPendingReason: 'not_yet_open',

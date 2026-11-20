@@ -64,14 +64,14 @@ describe('EntryStatusBadge', () => {
       const show = createMockShow();
       render(<EntryStatusBadge show={show} userHasEntries={true} />);
 
-      expect(mockGetEntryStatus).toHaveBeenCalledWith(show, true);
+      expect(mockGetEntryStatus).toHaveBeenCalledWith(show, true, { cardEntriesPaused: false });
     });
 
     it('should default userHasEntries to false', () => {
       const show = createMockShow();
       render(<EntryStatusBadge show={show} />);
 
-      expect(mockGetEntryStatus).toHaveBeenCalledWith(show, false);
+      expect(mockGetEntryStatus).toHaveBeenCalledWith(show, false, { cardEntriesPaused: false });
     });
 
     it('should apply badge style classes', () => {
@@ -226,7 +226,9 @@ describe('EntryStatusBadge', () => {
       render(<EntryStatusBadge show={createMockShow()} userHasEntries={true} />);
 
       expect(screen.getByText('Entry Submitted')).toBeInTheDocument();
-      expect(mockGetEntryStatus).toHaveBeenCalledWith(expect.anything(), true);
+      expect(mockGetEntryStatus).toHaveBeenCalledWith(expect.anything(), true, {
+        cardEntriesPaused: false,
+      });
     });
 
     it('should render not_yet_open status correctly', () => {

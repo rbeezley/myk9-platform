@@ -295,7 +295,8 @@ is still clean. Run the review gate, with a maximum of 3 rounds.
   **A stall (10, 11 or 12) is a local takeover, with no owner question**: the Mac cannot tell a
   slow cloud session from a dead one, so the deadline itself is the decision. Set `$BRANCH` for this issue first, never reuse an earlier issue's. On exit 12 it is the
   PR's head branch. On exit 11, list this issue's branches
-  (`git -C "$MAIN" ls-remote origin "refs/heads/claude/myk9-$N-*"`): exactly one means it is
+  (`git -C "$MAIN" ls-remote origin "refs/heads/claude/myk9-$N-*" | grep -v "refs/heads/claude/myk9-$N-plan-"`,
+  because a design-first plan branch `claude/myk9-$N-plan-<topic>` is not the session's): exactly one means it is
   the session's; more than one (a leftover from an earlier attempt) is a hold naming them,
   never a guess. On exit 10 nothing was pushed, so `BRANCH="$PREFIX$SLUG"`, cut from
   `origin/main` (`git -C "$MAIN" worktree add "$WT" -b "$BRANCH" origin/main`). Otherwise fetch

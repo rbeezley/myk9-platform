@@ -123,7 +123,7 @@ all three of these are done and recorded in the ledger row (`premise:`, `approac
    - the shape you propose;
    - the "do nothing / delete it / link to what exists" option, weighed honestly.
 
-   Write it in its own worktree (branch `claude/myk9-<n>-plan-<topic>`, the prefix the cloud tooling accepts, created like any issue worktree),
+   Write it in its own worktree (branch `claude/myk9-<n>-plan-<topic>`, the prefix the cloud tooling accepts, created like any issue worktree; `-plan-` right after the number is excluded from cloud implementation discovery),
    never the primary checkout. Open it as a docs-only PR whose body says `Ignore MYK9-<n>`,
    so neither the plan PR nor its merge moves the issue. `pnpm qa:codex-review --post` reviews
    that diff and posts the verdict on the PR, so Codex reads the design, not code, and the

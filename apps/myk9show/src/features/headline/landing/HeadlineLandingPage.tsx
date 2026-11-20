@@ -1,4 +1,5 @@
 import { usePendingEntryCopy } from '@/features/_shared/landing/PendingEntryCopyContext';
+import { TO_BE_ANNOUNCED_LABEL } from '@/lib/format/fallbackLabels';
 import type { EntryPendingReason } from '@/utils/entryStatusUtils';
 import { formatEntryLimit } from '@/features/_shared/landing/entryLimit';
 import { useEffect } from 'react';
@@ -149,11 +150,11 @@ function Hero({
         </div>
         <div>
           <div className="l">Where</div>
-          <div className="v">{data.venueName ?? data.venueAddress ?? 'Venue TBD'}</div>
+          <div className="v">{data.venueName ?? data.venueAddress ?? 'Venue to be announced'}</div>
         </div>
         <div>
           <div className="l">Trials</div>
-          <div className="v">{data.trials.length || 'TBD'}</div>
+          <div className="v">{data.trials.length || TO_BE_ANNOUNCED_LABEL}</div>
         </div>
         <div>
           <div className="l">Capacity</div>
@@ -228,7 +229,7 @@ function Judges({ data }: { data: HeritageLandingData }) {
         <div className="hd-judges">
           {judges.map(judge => (
             <div className="hd-judge" key={judge.id}>
-              <div className="role">{joinOrFallback(judge.trials, 'Trials TBD')}</div>
+              <div className="role">{joinOrFallback(judge.trials, 'Trials to be announced')}</div>
               <h3 className="name">{judge.name}</h3>
               <div className="city">{judge.city ?? 'Assignment details will be posted here'}</div>
               <div className="panel">
@@ -264,7 +265,9 @@ function Particulars({ data }: { data: HeritageLandingData }) {
             <tr>
               <th>Format</th>
               <td>
-                {data.trials.length || 'TBD'} trial{data.trials.length === 1 ? '' : 's'}
+                {data.trials.length > 0
+                  ? `${data.trials.length} trial${data.trials.length === 1 ? '' : 's'}`
+                  : TO_BE_ANNOUNCED_LABEL}
               </td>
             </tr>
             <tr>
@@ -393,7 +396,7 @@ function Roster({ data }: { data: HeritageLandingData }) {
               <div className={`step ${step.status}`} key={`${step.label}-${step.date}`}>
                 <div className="num">{String(index + 1).padStart(2, '0')}</div>
                 <div className="when">
-                  {step.date ? formatJourneyDate(step.date, data.timezone) : 'TBD'}
+                  {step.date ? formatJourneyDate(step.date, data.timezone) : TO_BE_ANNOUNCED_LABEL}
                 </div>
                 <div className="what">
                   {step.label}

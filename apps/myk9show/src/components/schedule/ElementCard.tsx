@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { TO_BE_ANNOUNCED_LABEL } from '@/lib/format/fallbackLabels';
 import { CLASS_STATUS } from '@myk9/core';
 import { StatusBadge } from '@/components/status';
 import type { ElementSummary, LevelDetail } from './schedule-timeline.types';
@@ -84,7 +85,7 @@ export function ElementCard({
         : [
             element.status === CLASS_STATUS.CANCELLED
               ? 'Cancelled'
-              : (formatStartTime(element.startTime) ?? 'Start Time: TBD'),
+              : (formatStartTime(element.startTime) ?? 'Start time to be announced'),
           ]),
       ...(element.levelRange ? [element.levelRange] : []),
       judgeSummary(element.levels),
@@ -114,7 +115,7 @@ export function ElementCard({
                 {levelRowLabel(level, element.levels)}:{' '}
                 {level.status === CLASS_STATUS.CANCELLED
                   ? 'Cancelled'
-                  : (formatStartTime(level.startTime) ?? 'TBD')}
+                  : (formatStartTime(level.startTime) ?? TO_BE_ANNOUNCED_LABEL)}
               </li>
             ))}
           </ul>

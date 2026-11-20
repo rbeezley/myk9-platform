@@ -1,4 +1,5 @@
 import type { HeritageLandingData } from '@/features/heritage/landing/types';
+import { TO_BE_ANNOUNCED_LABEL } from '@/lib/format/fallbackLabels';
 import { formatDateInTimezone } from '@/features/heritage/landing/utils/dateFormat';
 
 const DATE_ONLY_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -29,14 +30,14 @@ function formatDateOnly(iso: string): string | null {
 }
 
 export function shortDate(iso: string | null, timezone: string): string {
-  if (!iso) return 'TBD';
+  if (!iso) return TO_BE_ANNOUNCED_LABEL;
   const dateOnly = formatDateOnly(iso);
   if (dateOnly) return dateOnly;
   return formatDateInTimezone(iso, timezone, 'short');
 }
 
 export function formatDateRange(data: HeritageLandingData): string {
-  if (!data.trialStartDate) return 'Dates TBD';
+  if (!data.trialStartDate) return 'Dates to be announced';
   const start = shortDate(data.trialStartDate, data.timezone);
   if (!data.trialEndDate || data.trialEndDate === data.trialStartDate) return start;
   const end = shortDate(data.trialEndDate, data.timezone);

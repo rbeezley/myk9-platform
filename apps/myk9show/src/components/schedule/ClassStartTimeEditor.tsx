@@ -1,4 +1,5 @@
 import { useEffect, useId, useState } from 'react';
+import { TO_BE_ANNOUNCED_LABEL } from '@/lib/format/fallbackLabels';
 import { Check, Pencil, X } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { formatClockTime24, isUnresolvedClockTime, parseStoredClockTime } from '@myk9/core';
@@ -73,7 +74,7 @@ export function ClassStartTimeEditor({
     setSavedStartTime(startTime);
   }, [startTime]);
 
-  const displayTime = formatStartTime(savedStartTime) ?? 'TBD';
+  const displayTime = formatStartTime(savedStartTime) ?? TO_BE_ANNOUNCED_LABEL;
 
   function openEditor() {
     setDraft(toTimeInputValue(savedStartTime));

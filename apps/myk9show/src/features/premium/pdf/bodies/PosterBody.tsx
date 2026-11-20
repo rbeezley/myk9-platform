@@ -1,4 +1,5 @@
 import { Page, Text, View } from '@react-pdf/renderer';
+import { TO_BE_ANNOUNCED_LABEL } from '@/lib/format/fallbackLabels';
 import { judgeHeading } from './judgeLine';
 import type { GeneratedPremium } from '../../../../types/premium-types';
 import type { StyleTokens } from '../pdfStyles';
@@ -100,7 +101,7 @@ export function PosterBody({ data, tokens }: Props) {
         </Text>
         <Text style={bodyStyle}>
           Pre-entry ${f.fees.preEntry ?? '—'} · Day-of ${f.fees.dayOf ?? '—'} ·{' '}
-          {f.fees.paymentMethods.join(', ') || 'Payment methods TBD'}.{'\n'}
+          {f.fees.paymentMethods.join(', ') || 'Payment methods to be announced'}.{'\n'}
           {entryWindowText ? `${entryWindowText}.` : ''}
         </Text>
       </View>
@@ -300,7 +301,7 @@ export function PosterBody({ data, tokens }: Props) {
             lineHeight: 1.05,
           }}
         >
-          {f.entry.closes ?? 'TBD'}
+          {f.entry.closes ?? TO_BE_ANNOUNCED_LABEL}
         </Text>
       </View>
     </Page>

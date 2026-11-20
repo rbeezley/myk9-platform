@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { TO_BE_ANNOUNCED_LABEL } from '@/lib/format/fallbackLabels';
 import { CLASS_STATUS } from '@myk9/core';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import type { ElementSummary } from './schedule-timeline.types';
@@ -18,7 +19,7 @@ export function ElementAccordion({ element, onNavigateToClass }: ElementAccordio
     ? `${element.totalCount}/${element.totalCount} ✓`
     : `${element.completedCount}/${element.totalCount}`;
 
-  const formattedTime = formatStartTime(element.startTime) ?? 'TBD';
+  const formattedTime = formatStartTime(element.startTime) ?? TO_BE_ANNOUNCED_LABEL;
 
   const [isOpen, setIsOpen] = useState(isInProgress);
 

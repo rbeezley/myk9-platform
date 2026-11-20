@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { screen, within } from '@testing-library/react';
+import { cleanup, screen, within } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { HeadlineLandingPage } from '../HeadlineLandingPage';
 import { mockViewportWidth } from '@/test/utils/mockViewportWidth';
@@ -8,6 +8,10 @@ import { NO_CLASSES_COPY } from '@/features/_shared/landing/pendingEntryCopy';
 import { ShowHasHappenedContext } from '@/features/_shared/landing/lateEntryContactContext';
 
 const landingDataState = vi.hoisted(() => ({
+  trials: [
+    { id: 'trial-1', trialNumber: 1, date: '2026-06-12', judgeName: 'Cynthia Beagles' },
+    { id: 'trial-2', trialNumber: 2, date: '2026-06-13', judgeName: 'Marcus Whitfield' },
+  ] as Array<{ id: string; trialNumber: number; date: string; judgeName: string }>,
   showName: 'Spring Scent Work Trial',
   entryCount: 137,
   entryLimit: 360 as number | null,
@@ -61,10 +65,7 @@ vi.mock('@/features/heritage/landing/useHeritageLandingData', () => ({
     venueName: 'Live Oak Civic Center',
     venueAddress: '8101 Pat Booker Rd',
     venueCity: 'San Antonio, TX',
-    trials: [
-      { id: 'trial-1', trialNumber: 1, date: '2026-06-12', judgeName: 'Cynthia Beagles' },
-      { id: 'trial-2', trialNumber: 2, date: '2026-06-13', judgeName: 'Marcus Whitfield' },
-    ],
+    trials: landingDataState.trials,
     judges: landingDataState.judges,
     entryCount: landingDataState.entryCount,
     entryLimit: landingDataState.entryLimit,
@@ -94,6 +95,10 @@ describe('HeadlineLandingPage', () => {
   const originalTimezone = process.env.TZ;
 
   afterEach(() => {
+    landingDataState.trials = [
+      { id: 'trial-1', trialNumber: 1, date: '2026-06-12', judgeName: 'Cynthia Beagles' },
+      { id: 'trial-2', trialNumber: 2, date: '2026-06-13', judgeName: 'Marcus Whitfield' },
+    ];
     landingDataState.showName = 'Spring Scent Work Trial';
     landingDataState.entryCount = 137;
     landingDataState.entryLimit = 360;
@@ -126,6 +131,24 @@ describe('HeadlineLandingPage', () => {
       'href',
       '/shows/show-1/register'
     );
+  });
+
+  it('Format row counts trials and never reads "To be announced trials"', () => {
+    const formatRow = () => screen.getByText('Format').closest('tr');
+
+    render(<HeadlineLandingPage show={null} trial={null} allTrials={[]} />);
+    expect(formatRow()?.querySelector('td')?.textContent).toBe('2 trials');
+    cleanup();
+
+    landingDataState.trials = [landingDataState.trials[0]];
+    render(<HeadlineLandingPage show={null} trial={null} allTrials={[]} />);
+    expect(formatRow()?.querySelector('td')?.textContent).toBe('1 trial');
+    cleanup();
+
+    landingDataState.trials = [];
+    render(<HeadlineLandingPage show={null} trial={null} allTrials={[]} />);
+    expect(formatRow()?.querySelector('td')?.textContent).toBe('To be announced');
+    expect(screen.queryByText(/To be announced trials?/)).toBeNull();
   });
 
   it('titles the judges section by what the data says', () => {

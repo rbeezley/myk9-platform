@@ -1,3 +1,5 @@
+import { PREMIUM_JUDGE_AFFILIATIONS_KEY } from '@/services/database/judges/judgeAffiliationKeys';
+
 export type TableSyncStatus = 'idle' | 'syncing' | 'success' | 'error';
 
 export interface TableSyncResultSummary {
@@ -51,7 +53,13 @@ export function classifyTableSyncResults(
 
 export function getPostSyncInvalidationKeys(tableNames: readonly string[]): string[][] {
   // The judge dashboard reads a denormalized judge_assignments + classes query.
-  return [...tableNames.map(name => [name]), ['judges', 'assignments']];
+  const keys = [...tableNames.map(name => [name]), ['judges', 'assignments']];
+  // MYK9-2292: the premium checklist reads each show judge's affiliation from the server, so it
+  // refreshes once an uploaded roster or person edit has actually landed, not when it was queued.
+  if (tableNames.some(name => name === 'judge_assignments' || name === 'people')) {
+    keys.push([PREMIUM_JUDGE_AFFILIATIONS_KEY]);
+  }
+  return keys;
 }
 
 export function shouldRequestPostUploadSync(

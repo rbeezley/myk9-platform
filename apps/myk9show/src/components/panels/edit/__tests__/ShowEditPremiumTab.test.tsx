@@ -58,13 +58,17 @@ import { generatedPremium as baseGeneratedPremium } from '@/features/premium/__t
 import type { ShowTrial } from '@/types/show-types';
 
 // The tab reads the query cache for its offline judge affiliations (MYK9-2292).
-const render = (ui: ReactElement, options?: RenderOptions) =>
-  rtlRender(ui, {
+// One client per render, so a rerender keeps the cache (the router is mocked here, so the shared
+// testUtils renderer, which mounts a MemoryRouter, does not fit this file).
+const render = (ui: ReactElement, options?: RenderOptions) => {
+  const client = new QueryClient();
+  return rtlRender(ui, {
     wrapper: ({ children }) => (
-      <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
     ),
     ...options,
   });
+};
 
 const baseData: ShowEditFormData = {
   id: 'show-1',

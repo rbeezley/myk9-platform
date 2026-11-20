@@ -15,7 +15,7 @@ export interface ShowJudgeAffiliation {
 }
 
 /** The premium checklist's affiliation read; prefix-invalidated by every write that can change it. */
-export const PREMIUM_JUDGE_AFFILIATIONS_KEY = 'premiumJudgeAffiliations' as const;
+export { PREMIUM_JUDGE_AFFILIATIONS_KEY } from './judgeAffiliationKeys';
 
 const PAGE_SIZE = 1000;
 

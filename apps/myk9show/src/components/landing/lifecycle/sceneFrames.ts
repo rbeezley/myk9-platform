@@ -110,6 +110,32 @@ export function windowOnRing(
   return { x: 0, y: Math.min(Math.max(centred, 0), space.height - h), w: space.width, h };
 }
 
+/**
+ * A zoom on a capture that is wider than the frame it is drawn in (the secretary's 1440px
+ * screen): a camera `width` wide in the frame's 5:3 shape, placed so `subject` sits in its
+ * middle and kept inside the page. It widens, never crops, when the subject (with `pad` around
+ * it) does not fit, so a ring is always whole. Measured regions only: nothing here is picked by eye.
+ */
+export function zoomOnRing(
+  space: SceneDeviceData['space'],
+  subject: Region,
+  width: number,
+  pad = 24
+): Region {
+  const shape = 3 / 5;
+  const wanted = Math.max(width, subject.w + 2 * pad, (subject.h + 2 * pad) / shape);
+  const w = Math.min(Math.round(wanted), space.width);
+  const h = Math.min(Math.round(w * shape), space.height);
+  const x = Math.round(subject.x + subject.w / 2 - w / 2);
+  const y = Math.round(subject.y + subject.h / 2 - h / 2);
+  return {
+    x: Math.min(Math.max(x, 0), space.width - w),
+    y: Math.min(Math.max(y, 0), space.height - h),
+    w,
+    h,
+  };
+}
+
 export function firstFrameOfLine(frames: readonly SceneFrame[], line: number): number {
   const i = frames.findIndex(f => f.line === line);
   return i < 0 ? 0 : i;

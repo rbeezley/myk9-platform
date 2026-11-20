@@ -83,14 +83,12 @@ const phone = (id: string, alt: string): Shot => ({
 
 const SHOTS = {
   's-02': desktop('s-02', 'Create Show wizard, first step'),
-  's-07': desktop('s-07', 'Entry Management showing entries that need review'),
   's-12': desktop('s-12', 'Reports page with the Check-in Sheet card, ready to print'),
   's-20': desktop(
     's-20',
     'Results tab for Container Novice A, with Released and Needs checking chips and the placement table'
   ),
   'e-01': desktop('e-01', 'Upcoming shows list with entry status'),
-  'e-02': desktop('e-02', 'Public show page with the Enter this show button'),
   'e-12': phone(
     'e-12',
     'My Entries card for Willow with armband 100, class, day and check-in status'
@@ -100,12 +98,6 @@ const SHOTS = {
   'e-16': phone('e-16', 'Willow’s past results with qualifying runs and a first place'),
 } as const;
 
-// Measured on e-02.png (1200x750); see docs/qa/landing-lifecycle-evidence.md.
-const EXHIBITOR_ENTRIES: readonly ExplainerStep[] = [
-  { x: 12, y: 68.5, w: 76, h: 14.5, caption: 'Dates, venue and trials, all on the show page' },
-  { x: 77, y: 7.5, w: 11, h: 6.5, caption: 'One button to enter' },
-  { x: 53, y: 87.5, w: 35, h: 7, caption: 'You always know when entries close' },
-];
 const EXHIBITOR_SHOW_DAY: readonly ExplainerStep[] = [
   { x: 5, y: 32.5, w: 90, h: 23, caption: 'Show day is here: your first class time and entries' },
   { x: 10, y: 44.8, w: 49, h: 7, caption: 'One tap to today’s classes' },
@@ -123,11 +115,11 @@ export const SCENE_LINES: Record<SceneId, readonly SceneLine[]> = {
   entries: [
     {
       head: 'An exhibitor enters online',
-      text: 'They pick a dog and their classes. A full class says so before they can enter it.',
+      text: 'They pick a dog and their classes. A full class says so, and they can only join its waiting list if you allow one.',
     },
     {
       head: 'They pay as they enter',
-      text: 'By card at the secure checkout, or by check or cash if you offer it.',
+      text: 'They pay by card at a secure checkout, or by check or cash at the show if you turn those on.',
     },
     {
       head: 'They can see where it stands',
@@ -219,7 +211,8 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
       id: 'entries',
       title: 'Entries open',
       body: 'Entries arrive in one list, already checked against class limits. Nothing to re-type.',
-      shot: SHOTS['s-07'],
+      shot: null,
+      scene: 'entries',
       meanwhile: 'Exhibitors enter online in a few minutes, with their dogs saved.',
     },
     {
@@ -268,8 +261,8 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
       id: 'entries',
       title: 'Enter in a few minutes',
       body: 'Pick your classes and enter online where the club accepts it.',
-      shot: SHOTS['e-02'],
-      explainer: EXHIBITOR_ENTRIES,
+      shot: null,
+      scene: 'entries',
       meanwhile: 'Entries arrive in one list, already checked against class limits.',
     },
     {

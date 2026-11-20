@@ -342,7 +342,10 @@ test('captures the Entries open scene on the exhibitor’s phone and the secreta
     await stage('the secretary’s list after', desk, async () => {
       await desk.reload();
       await reloadUntilVisible(desk, form.first());
-      await form.first().getByRole('button').first().click();
+      await form
+        .first()
+        .getByRole('button', { name: /^Review for / })
+        .click();
     });
     const panel = desk.getByRole('region', { name: /^Entry form for / });
     const checklist = panel.getByRole('region', { name: 'To finish this form' });
@@ -367,8 +370,11 @@ test('captures the Entries open scene on the exhibitor’s phone and the secreta
       await accept.click();
       const header = panel.locator('header');
       await expect(header).not.toContainText('Needs review', { timeout: 30_000 });
-      const badge = header.getByText('Accepted', { exact: true }).first();
+      // The form's label once nothing on it waits for review: Accepted, or Mixed statuses when
+      // the form also holds scored entries (the demo exhibitor's earlier classes).
+      const badge = header.getByText(/^(Accepted|Mixed statuses|Complete)$/).first();
       await expect(badge).toBeVisible();
+      console.log('the form reads ::', await badge.innerText());
       await scrollToMiddle(panel.locator('header'));
       await desk.waitForTimeout(1000);
       await shoot('desk', desk, deskShots, 'accepted', { badge });
@@ -377,7 +383,10 @@ test('captures the Entries open scene on the exhibitor’s phone and the secreta
       // accepted too, so the dog's card reads Accepted and not what its oldest entry reads.
       const earlier = rows.filter({ hasText: DOG }).filter({ hasText: 'No confirmation' });
       const earlierPending = earlier.filter({ hasText: 'Needs review' });
-      await earlierPending.first().getByRole('button').first().click();
+      await earlierPending
+        .first()
+        .getByRole('button', { name: /^Review for / })
+        .click();
       await expect(checklist).toBeVisible({ timeout: 30_000 });
       await accept.click();
       await expect(earlierPending).toHaveCount(0, { timeout: 30_000 });

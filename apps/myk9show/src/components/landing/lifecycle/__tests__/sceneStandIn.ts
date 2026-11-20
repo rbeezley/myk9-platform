@@ -51,7 +51,7 @@ export const STAND_IN_ENTRIES_SCENE: TimelineSceneData = {
         height: 750,
       },
       review: {
-        src: '/landing/stages/s-07.png',
+        src: '/landing/stages/s-12.png',
         alt: 'STAND-IN: secretary screen with the form marked Needs review',
         width: 1200,
         height: 750,

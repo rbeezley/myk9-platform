@@ -66,7 +66,7 @@ describe('resolvePayoutSettlement', () => {
     for (const status of ['awaiting_approval', 'approved', 'held']) {
       const row = resolvePayoutSettlement(payout({ status }), 'enabled');
       expect(row.state).toBe('in_progress');
-      expect(row.badgeLabel).not.toBe('Needs attention');
+      expect(row.badgeLabel).toBe('Payout scheduled, waiting for release');
     }
   });
 

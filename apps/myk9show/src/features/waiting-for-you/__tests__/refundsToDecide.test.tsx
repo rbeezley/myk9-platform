@@ -101,7 +101,7 @@ describe('refunds to decide: the pill, the menu and the Pulls list agree (MYK9-2
       },
     });
     expect(pill?.id).toBe('refunds-to-decide');
-    expect(pill?.label).toBe("4 refunds to decide before Thursday's payout");
+    expect(pill?.label).toBe('4 refunds to decide before the payout (as early as Thursday)');
     expect(pill?.href).toContain('exception=pulls');
     expect(pill?.destinationName).toBe('Pulls');
 
@@ -144,10 +144,12 @@ describe('refunds to decide: the pill, the menu and the Pulls list agree (MYK9-2
 
 describe('payoutDayText', () => {
   const now = new Date('2026-11-17T15:00:00Z');
-  it('names the payout day within a week, its date beyond, and nothing once it has passed', () => {
-    expect(payoutDayText('2026-11-17', now)).toBe(" before today's payout");
-    expect(payoutDayText('2026-11-19', now)).toBe(" before Thursday's payout");
-    expect(payoutDayText('2026-11-30', now)).toBe(' before the Nov 30 payout');
+  // MYK9-2172: the day is when the payout becomes eligible (the brake or a club's bank account can
+  // keep it waiting), so it is only ever named as the earliest, never as the day it goes.
+  it('names the earliest payout day within a week, its date beyond, and nothing once it has passed', () => {
+    expect(payoutDayText('2026-11-17', now)).toBe(' before the payout (as early as today)');
+    expect(payoutDayText('2026-11-19', now)).toBe(' before the payout (as early as Thursday)');
+    expect(payoutDayText('2026-11-30', now)).toBe(' before the payout (as early as Nov 30)');
     expect(payoutDayText('2026-11-16', now)).toBe('');
     expect(payoutDayText(null, now)).toBe('');
   });
@@ -157,8 +159,10 @@ describe('payoutDayText', () => {
   it("reads today on the show's calendar across UTC midnight", () => {
     const wednesdayEvening = new Date('2026-11-19T03:00:00Z');
     expect(payoutDayText('2026-11-19', wednesdayEvening, 'America/Chicago')).toBe(
-      " before Thursday's payout"
+      ' before the payout (as early as Thursday)'
     );
-    expect(payoutDayText('2026-11-19', wednesdayEvening, 'UTC')).toBe(" before today's payout");
+    expect(payoutDayText('2026-11-19', wednesdayEvening, 'UTC')).toBe(
+      ' before the payout (as early as today)'
+    );
   });
 });

@@ -85,18 +85,25 @@ if [[ -n "${EXPECTED_ENTRY_FILE:-}" && -f "$EXPECTED_ENTRY_FILE" ]]; then
 fi
 for host in "$domain" "$alias_url"; do
   stamp=""
+  last=""
   for ((attempt = 1; attempt <= tries; attempt += 1)); do
     stamp="$(served_stamp "$host" "$attempt")"
     # The SPA catch-all can answer a missing stamp with index.html (HTTP 200),
     # so only a complete entry chunk counts as a stamp.
-    [[ "$stamp" =~ $entry_re ]] && break
-    stamp=""
+    if [[ "$stamp" =~ $entry_re ]]; then
+      last="$stamp"
+      # With a known expectation a well-formed OLD stamp may just be a host
+      # that has not switched builds yet: keep retrying until it matches.
+      [[ -z "$expected" || "$stamp" == "$expected" ]] && break
+      echo "attempt $attempt: $host/build-entry.txt=$stamp expected=$expected"
+    fi
     if ((attempt < tries)); then sleep "$pause"; fi
   done
-  [[ -n "$stamp" ]] || {
+  [[ -n "$last" ]] || {
     echo "$host has no build-entry.txt stamp, so its homepage cannot be checked against the build. This deployment predates the stamp: rerun with rebuild_live=true to rebuild and republish it." >&2
     exit 1
   }
+  stamp="$last"
   [[ -n "$expected" ]] || expected="$stamp"
   [[ "$stamp" == "$expected" ]] || {
     echo "build stamp mismatch: $host/build-entry.txt names '$stamp', expected '$expected'. The hosts serve different builds. Rerun with rebuild_live=true to republish." >&2

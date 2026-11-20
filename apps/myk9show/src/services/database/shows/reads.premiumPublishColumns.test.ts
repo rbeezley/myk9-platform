@@ -74,6 +74,39 @@ describe('getShowById: premium-publish columns from the server row', () => {
     expect(result.data).toMatchObject(PUBLISH);
   });
 
+  it('takes the announcement state from the server row, so an Unpublish shows before a sync (MYK9-2282)', async () => {
+    mockShowsTable.getShowById.mockResolvedValue({
+      id: 'show-1',
+      name: 'Show',
+      clubId: null,
+      experienceIsPublished: true,
+      experiencePublishedAt: '2026-07-01T12:00:00Z',
+      experiencePublishedStyle: 'monogram',
+      experiencePublishedContent: { style: 'monogram', narratives: {} },
+    });
+    mockPostgrestGetShowById.mockResolvedValue({
+      data: {
+        id: 'show-1',
+        trials: [],
+        judge_assignments: [],
+        experience_is_published: false,
+        experience_published_at: null,
+        experience_published_style: null,
+        experience_published_content: {},
+      },
+      error: null,
+    });
+
+    const result = await getShowById('show-1');
+
+    expect(result.data).toMatchObject({
+      experience_is_published: false,
+      experience_published_at: null,
+      experience_published_style: null,
+      experience_published_content: {},
+    });
+  });
+
   it('keeps the replicated row when the remote read fails', async () => {
     mockPostgrestGetShowById.mockRejectedValue(new Error('offline'));
 

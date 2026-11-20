@@ -463,12 +463,12 @@ test('captures the Entries open scene on the exhibitor’s phone and the secreta
         2
       )}\n`
     );
-    // The app opened its realtime socket in both contexts and each held it: the hold was
-    // installed on the capture's own pages, not only proved in the test above.
-    for (const held of [heldPhoneSockets, heldDeskSockets]) {
-      expect(held.length).toBeGreaterThan(0);
-      expect(held.every(url => url.endsWith('/realtime/v1/websocket'))).toBe(true);
-    }
+    // The app opened its realtime socket in these contexts and they held it: the hold was
+    // installed on the capture's own pages, not only proved in the test above. Which of the two
+    // pages opens one depends on the role signed in, so the sockets are counted together.
+    const held = [...heldPhoneSockets, ...heldDeskSockets];
+    expect(held.length).toBeGreaterThan(0);
+    expect(held.every(url => url.endsWith('/realtime/v1/websocket'))).toBe(true);
     console.log(
       'sockets held in the browser ::',
       [...new Set([...heldPhoneSockets, ...heldDeskSockets])].join(', ')

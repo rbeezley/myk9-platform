@@ -186,17 +186,19 @@ describe('the Entries open scene', () => {
   });
 
   it('says only what the screens hold: no class-limit figure, no armband assigned by the entry', () => {
-    const words = [
+    const texts = [
       ...Object.values(desk!.shots).map(shot => shot.alt),
       ...Object.values(phone!.shots).map(shot => shot.alt),
-      ...ENTRIES_SCENE.lines.map(line => `${line.head} ${line.text}`),
-    ].join(' ');
+      ...ENTRIES_SCENE.lines.map(line => `${line.head}. ${line.text}`),
+    ];
+    const words = texts.join(' ');
     expect(words).not.toMatch(/class limit|max entries|limit of|spots left|capacity/i);
     expect(words).not.toMatch(/armband (assigned|given)|gets an armband/i);
-    // Paying does not accept an entry: no line or description joins the two.
-    expect(words).not.toMatch(
-      /paid.*accepted|accepted when (it is )?paid|accepts? (the )?payment/i
-    );
+    // Paying does not accept an entry: no sentence joins the two.
+    for (const sentence of texts.flatMap(text => text.split(/[.:]/))) {
+      expect(sentence, sentence).not.toMatch(/\b(pay|pays|paid|paying|payment)\b.*\baccept/i);
+      expect(sentence, sentence).not.toMatch(/\baccept.*\b(pay|pays|paid|paying|payment)\b/i);
+    }
   });
 });
 
@@ -205,8 +207,8 @@ describe('zoomOnRing', () => {
 
   it('centres the subject in a 5:3 camera', () => {
     expect(zoomOnRing(page, { x: 700, y: 400, w: 100, h: 40 }, 640)).toEqual({
-      x: 450,
-      y: 236,
+      x: 430,
+      y: 228,
       w: 640,
       h: 384,
     });

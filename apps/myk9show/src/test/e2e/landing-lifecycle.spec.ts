@@ -366,9 +366,24 @@ for (const vp of VIEWPORTS) {
     // the exhibitor page from 14.02 to 13.31 at 390x844 (measured 2026-11-19). The limit stays 15,
     // not 14: that room is what the Entries open scene (MYK9-2296) needs, and the owner chose to
     // drop the stills instead of raising the limit (2026-11-19).
+    // The Entries open scene (MYK9-2296) is that room used: club 14.22 and exhibitor 14.45 screens at
+    // 390x844 (measured 2026-11-20).
     test('page length is 8 to 15 screens on phone', async ({ page }) => {
       test.skip(vp.name !== 'phone');
       await openLanding(page);
+      const screens = await page.evaluate(
+        () => document.documentElement.scrollHeight / window.innerHeight
+      );
+      expect(screens).toBeGreaterThanOrEqual(8);
+      expect(screens).toBeLessThanOrEqual(15);
+    });
+
+    // The default test above measures the club's story; the exhibitor's is its own page.
+    test('exhibitor page length is 8 to 15 screens on phone', async ({ page }) => {
+      test.skip(vp.name !== 'phone');
+      await openLanding(page);
+      await page.getByRole('button', { name: 'I’m entering a show' }).click();
+      await expect(page.locator('#entries h3')).toHaveText('Enter in a few minutes');
       const screens = await page.evaluate(
         () => document.documentElement.scrollHeight / window.innerHeight
       );

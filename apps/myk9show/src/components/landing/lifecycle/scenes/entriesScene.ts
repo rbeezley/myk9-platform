@@ -40,11 +40,13 @@ const PHONE_ALT: Record<PhoneShot, string> = {
   accepted: 'My Entries on the phone: Maple’s card, now labelled Accepted',
 };
 const DESK_ALT: Record<DeskShot, string> = {
-  before: 'The secretary’s Entry Forms list before the exhibitor’s form arrives',
-  list: 'The Entry Forms list with the exhibitor’s form marked Needs review, with its payment shown beside it',
+  before:
+    'The secretary’s Entry Forms page: the list of entry forms, with the first form open beside it',
+  list: 'The Entry Forms list with the exhibitor’s form marked Needs review, with Not paid yet beside it',
   review:
-    'The open entry form, under To finish this form: one entry needs review, with an Accept button',
-  accepted: 'The open entry form after Accept, with its label changed to Accepted',
+    'The open entry form, under To finish this form: the entries that need review, with Accept and Reject buttons',
+  accepted:
+    'The open entry form after Accept: Maple’s entry in Container Advanced now reads Accepted',
 };
 
 const phoneShot = (name: PhoneShot): SceneShot => ({

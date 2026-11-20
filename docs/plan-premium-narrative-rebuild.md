@@ -35,12 +35,24 @@ and over storing the built text apart from the secretary's edits (too much for l
    the built text, after trimming. A secretary who never edited a section and whose show facts
    are unchanged sees nothing new. The link's presence is also the "this section is out of date"
    signal.
-4. **Same holds as Regenerate.** The link is disabled, with the same reason line, while
-   `isGenerating` is true or `regenerateBlockedReason` is set. That covers the unsaved
-   organization change, the second defect of the #4226 button. The built text reflects the
-   **saved** show, like everything else `generate-premium` reads.
-5. **Offline, or with no server response,** there is no `builtNarratives`, so there is no link.
-   The offline local draft does not try to build narratives itself.
+4. **Holds, beyond Regenerate's.** The built text reflects the **saved** show, like everything
+   else `generate-premium` reads, so the link must not offer it while the form says otherwise.
+   It is disabled, with a reason line, while:
+   - `isGenerating` is true;
+   - `regenerateBlockedReason` is set (the unsaved organization change, the second defect of
+     the #4226 button);
+   - **any other Edit show field has unsaved changes.** The reason line reads "Save the show
+     first, then reopen Premium to use its current details." Without this hold, a changed venue
+     or date would print new in the details and old in Show Hours, because Save & Publish lays
+     the editor's text over refreshed facts (`applyEditorCopyToPremium`). The panel already knows
+     when it is dirty; it passes that down as a prop, just as `savedOrganization` is passed today.
+     A whole-form hold is simpler than listing the inputs each narrative reads, and it cannot
+     drift when a narrative starts reading a new one.
+5. **Offline there is no link,** including when the editor loaded online and then lost its
+   connection. `builtNarratives` stays in the editor's state after the facts query is disabled,
+   so visibility is gated on `useIsOnline()` as well as on the field being present. With no
+   server response there is no `builtNarratives` at all. The offline local draft does not try
+   to build narratives itself.
 6. **Undo is the field.** The link replaces one field's text, and the Save prompt (MYK9-2201)
    already asks before publishing edited narratives. No confirm dialog: the action is visible,
    limited to one field, and the secretary can retype.
@@ -67,10 +79,16 @@ and over storing the built text apart from the secretary's edits (too much for l
 - Component tests on the real `PremiumEditorFields`:
   - the link is hidden when the text equals the built text;
   - it is shown when they differ, and clicking fills only that field;
-  - it is disabled with the reason while generating or blocked;
-  - it is absent with no `builtNarratives`.
-- Browser walk on a published draft: add a trial, reopen Edit show › Premium, see the link under
-  Trial Information, use it, Save & Publish, and confirm the published PDF lists the new trial.
+  - it is disabled with the reason while generating, while blocked, and while the form has
+    unsaved changes;
+  - it is absent with no `builtNarratives`, and it disappears when the editor goes offline
+    after a successful load.
+- Browser walk on a published draft: add a trial and save. Reopen Edit show › Premium, see the
+  link under Trial Information, use it, then Save & Publish. In the published PDF, assert on the
+  narrative paragraphs, not the schedule (`StandardBody` lists trials from structured facts
+  whatever the narrative says):
+  - the **Trial Information** paragraph names the new trial and the new trial count;
+  - the **Show Hours** paragraph keeps its prior text.
 
 ## Deploy
 

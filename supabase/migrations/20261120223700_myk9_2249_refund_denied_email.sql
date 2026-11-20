@@ -24,7 +24,7 @@
 --      `supabase functions deploy send-lifecycle-email --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt`; until then they wait).
 --      A denial is allowed on a COMPLETED show too: refunds are decided after closeout.
 --
--- Deploy order: db push, then `supabase functions deploy send-lifecycle-email --project-ref sojmvhhwsjxmfistvzbe` (see above).
+-- Deploy order: db push, then `supabase functions deploy send-lifecycle-email --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt`.
 -- Rollback: drop the 3-argument function and queue_refund_denied_email; delete refund_denied jobs
 -- and steps; restore the eleven-value step_type CHECKs and ensure_show_lifecycle_email_steps from
 -- 20261120053700; restore restrict_entry_refund_decision_columns from 20261117152900; drop the

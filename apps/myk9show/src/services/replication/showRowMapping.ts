@@ -29,6 +29,8 @@ export function rowToShow(row: ShowRow): ReplicatedShow {
     venueName: row.venue_name ?? undefined,
     city: row.city ?? undefined,
     state: row.state ?? undefined,
+    address: row.address ?? undefined,
+    zipCode: row.zip_code ?? undefined,
     status: row.status ?? undefined,
     deletedAt: row.deleted_at ?? null,
     entryOpenDate: row.entry_open_date ?? undefined,

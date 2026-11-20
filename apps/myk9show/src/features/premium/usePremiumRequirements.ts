@@ -18,6 +18,7 @@ import type { ShowJudgeAffiliation } from '@/services/database/judges/judgeAffil
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type { Show } from '@/types/show-types';
 import type { PremiumFactId } from './premiumFacts';
+import { composePremiumVenue } from './premiumVenue';
 import { selectPremiumTemplate } from './selectPremiumTemplate';
 import { buildShowTermFacts } from './premiumAscaFacts';
 import {
@@ -109,7 +110,16 @@ export function requirementFactsFromShow(input: PremiumRequirementInputs): Premi
   );
   return {
     clubName: show.clubName?.trim() || null,
-    venue: show.location?.trim() ?? '',
+    // The same venue rule the PDF prints, so a saved street address with a blank location is not
+    // reported missing (MYK9-2245).
+    venue: composePremiumVenue({
+      venue: show.location,
+      venueName: show.venueName,
+      address: show.address,
+      city: show.city,
+      state: show.state,
+      zipCode: show.zipCode,
+    }),
     startDate: show.startDate ?? '',
     fees: { hasAny: positive(show.preEntryFee) || positive(show.dayOfShowFee) },
     entry: {

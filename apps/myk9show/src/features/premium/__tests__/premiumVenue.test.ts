@@ -89,3 +89,27 @@ describe('premium venue: review fixes (MYK9-2230)', () => {
     ).toBe('12 Fair Road, Lexington, KY 40502');
   });
 });
+
+describe('premium venue: a city/state label prints once (MYK9-2245)', () => {
+  const street = { address: '12 Fair Road', zipCode: '40502' };
+  it('prints "City, ST" once, after the street', () => {
+    expect(
+      composePremiumVenue({ venue: 'Lexington, KY', city: 'Lexington', state: 'KY', ...street })
+    ).toBe('12 Fair Road, Lexington, KY 40502');
+  });
+  it('prints a bare city label once', () => {
+    expect(
+      composePremiumVenue({ venue: 'lexington', city: 'Lexington', state: 'KY', ...street })
+    ).toBe('12 Fair Road, Lexington, KY 40502');
+  });
+  it('keeps a real venue label ahead of the street', () => {
+    expect(
+      composePremiumVenue({
+        venue: 'Lexington Fairgrounds',
+        city: 'Lexington',
+        state: 'KY',
+        ...street,
+      })
+    ).toBe('Lexington Fairgrounds, 12 Fair Road, Lexington, KY 40502');
+  });
+});

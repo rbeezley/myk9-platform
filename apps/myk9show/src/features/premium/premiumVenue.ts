@@ -26,8 +26,15 @@ export function composePremiumVenue(parts: PremiumVenueParts): string {
   const locality = [city, stateZip].filter(Boolean).join(', ');
   // A part equal to one already printed (case aside) is not repeated: a location typed as the
   // street itself, or as the whole address, prints once. Whole-part equality only, no guessing.
+  // A label that is only the city, or "City, ST", is the locality itself: it prints once, after
+  // the street, not again ahead of it (MYK9-2245).
+  const labelLower = label.toLowerCase();
+  const isLocalityLabel =
+    !!city &&
+    (labelLower === city.toLowerCase() ||
+      labelLower === [city, clean(parts.state)].filter(Boolean).join(', ').toLowerCase());
   const printed: string[] = [];
-  for (const part of [label, address, locality]) {
+  for (const part of [isLocalityLabel ? '' : label, address, locality]) {
     if (part && !printed.some(p => p.toLowerCase() === part.toLowerCase())) printed.push(part);
   }
   const whole = printed.join(', ');

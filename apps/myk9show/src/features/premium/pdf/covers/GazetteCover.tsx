@@ -55,10 +55,13 @@ export function renderGazetteCover(ctx: CoverContext) {
     typeof (data.narratives as Record<string, unknown>).welcomeFromChair === 'string'
       ? ((data.narratives as Record<string, string>).welcomeFromChair ?? '')
       : '';
-  const article =
-    welcome && welcome.trim().length >= 20
-      ? welcome
-      : composeFallbackArticle(club, facts.showName, venue, dateRange);
+  const usesWelcome = welcome.trim().length >= 20;
+  const article = usesWelcome
+    ? welcome
+    : composeFallbackArticle(club, facts.showName, venue, dateRange);
+  // The welcome replaces the article, which is where the venue printed, so the dateline carries
+  // it then (MYK9-2245).
+  const dateline = usesWelcome && venue ? `${dateRange} ${MIDDOT} ${venue}` : dateRange;
 
   // Flatten judges across all trials, dedup by name, take up to JUDGES_STRIP_MAX.
   const judgeStrip = buildJudgeStrip(data.trials);
@@ -169,7 +172,7 @@ export function renderGazetteCover(ctx: CoverContext) {
           marginBottom: 12,
         }}
       >
-        {dateRange}
+        {dateline}
       </Text>
       <Text
         style={{

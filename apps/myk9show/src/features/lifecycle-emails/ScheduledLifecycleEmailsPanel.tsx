@@ -38,6 +38,8 @@ const STEP_LABELS: Record<LifecycleEmailStepSummary['stepType'], string> = {
   entry_changed: 'Entry changed',
   // MYK9-2001: told when she pulls or withdraws.
   pulled_out: 'Pulled out',
+  // MYK9-2249: told when the secretary denies a refund.
+  refund_denied: 'Refund denied',
   show_cancelled: 'Show cancelled',
 };
 
@@ -54,6 +56,7 @@ const PRODUCER_BACKED_STEP_TYPES = new Set<LifecycleEmailStepSummary['stepType']
   'judge_changed',
   'entry_changed',
   'pulled_out',
+  'refund_denied',
   'show_cancelled',
 ]);
 
@@ -70,6 +73,7 @@ const AUTOMATIC_STEP_TYPES = new Set<LifecycleEmailStepSummary['stepType']>([
   'judge_changed',
   'entry_changed',
   'pulled_out',
+  'refund_denied',
   'show_cancelled',
 ]);
 
@@ -78,6 +82,7 @@ const AUTOMATIC_STEP_TYPES = new Set<LifecycleEmailStepSummary['stepType']>([
 const ALWAYS_ON_STEP_TYPES = new Set<LifecycleEmailStepSummary['stepType']>([
   'entry_changed',
   'pulled_out',
+  'refund_denied',
   'show_cancelled',
 ]);
 

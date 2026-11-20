@@ -251,6 +251,18 @@ export function buildLifecycleEmailDraft(input: LifecycleEmailPreviewInput): {
           showLine,
         ]),
       };
+    // MYK9-2249: written and sent by the server at send time (send-lifecycle-email,
+    // lifecycle-email-refundDenied.ts); no screen drafts it.
+    case 'refund_denied':
+      return {
+        subject: `Refund decision at ${showName}`,
+        body: joinLines([
+          greeting,
+          '',
+          `The trial secretary decided there is no refund.`,
+          showLine,
+        ]),
+      };
     case 'registration_number_needed': {
       const dogName = input.entry?.dogName?.trim() || 'your dog';
       const registry = input.entry?.registryName?.trim();

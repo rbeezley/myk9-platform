@@ -296,11 +296,14 @@ describe('Deny refund reaches a server that accepts it', () => {
     );
 
     await userEvent.click(screen.getByRole('button', { name: /deny refund/i }));
+    await userEvent.type(screen.getByLabelText('Why is there no refund?'), 'Past the deadline.');
+    await userEvent.click(screen.getByRole('button', { name: 'Save denial' }));
 
     await waitFor(() => expect(onResolved).toHaveBeenCalled());
     expect(rpc).toHaveBeenCalledWith('set_entry_refund_decision', {
       p_entry_id: 'entry-1',
       p_decision: 'denied',
+      p_reason: 'Past the deadline.',
     });
   });
 
@@ -324,11 +327,14 @@ describe('Deny refund reaches a server that accepts it', () => {
 
     expect(screen.getByRole('button', { name: /issue refund/i })).toBeEnabled();
     await userEvent.click(screen.getByRole('button', { name: /deny refund/i }));
+    await userEvent.type(screen.getByLabelText('Why is there no refund?'), 'Past the deadline.');
+    await userEvent.click(screen.getByRole('button', { name: 'Save denial' }));
 
     await waitFor(() => expect(onResolved).toHaveBeenCalled());
     expect(rpc).toHaveBeenCalledWith('set_entry_refund_decision', {
       p_entry_id: 'entry-1',
       p_decision: 'denied',
+      p_reason: 'Past the deadline.',
     });
   });
 
@@ -346,6 +352,8 @@ describe('Deny refund reaches a server that accepts it', () => {
     );
 
     await userEvent.click(screen.getByRole('button', { name: /deny refund/i }));
+    await userEvent.type(screen.getByLabelText('Why is there no refund?'), 'Past the deadline.');
+    await userEvent.click(screen.getByRole('button', { name: 'Save denial' }));
 
     await waitFor(() => expect(rpc).toHaveBeenCalled());
     expect(onResolved).not.toHaveBeenCalled();

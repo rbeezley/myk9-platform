@@ -378,7 +378,9 @@ BEGIN
       -- class_change_requested_at (20261114201300, MYK9-1929) are granted SELECT to
       -- authenticated so the exhibitor and secretary see a pending class-change request.
       -- anon stays 0: the same migration REVOKEs them from anon.
-      ('entries','authenticated',60),
+      -- 60 -> 61: refund_decision_reason (20261120223700, MYK9-2249) is granted SELECT to
+      -- authenticated like refund_decision. anon stays 0: the same migration REVOKEs it.
+      ('entries','authenticated',61),
       ('judge_assignments','anon',10),
       ('judge_assignments','authenticated',12),
       ('dogs','anon',5),

@@ -27,7 +27,7 @@ export function useJudgeAssignmentUploaded(showId: string | undefined): Readonly
       const run = ++latest;
       let next: Set<string>;
       try {
-        const rows = (await replicatedJudgeAssignmentsTable.getAll()).filter(
+        const rows = (await replicatedJudgeAssignmentsTable.getAllOrThrow()).filter(
           row => row.showId === showId && row.status !== 'declined' && row.status !== 'cancelled'
         );
         const unsynced = await Promise.all(

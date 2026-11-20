@@ -6,7 +6,7 @@ import { EditPanelContext, type EditPanelContextValue } from '../useEditPanel';
 import { AssignedJudgeNote } from '../JudgeAffiliationField';
 
 const mocks = vi.hoisted(() => ({
-  getAll: vi.fn(),
+  getAllOrThrow: vi.fn(),
   hasUnsyncedLocalWork: vi.fn(),
   subscribe: vi.fn(),
   setJudgeAffiliation: vi.fn(),
@@ -15,7 +15,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/services/replication', () => ({
   replicatedJudgeAssignmentsTable: {
-    getAll: mocks.getAll,
+    getAllOrThrow: mocks.getAllOrThrow,
     hasUnsyncedLocalWork: mocks.hasUnsyncedLocalWork,
     subscribe: mocks.subscribe,
   },
@@ -53,7 +53,7 @@ describe('Edit show judge affiliation field (MYK9-2294)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.listener = undefined;
-    mocks.getAll.mockResolvedValue([row()]);
+    mocks.getAllOrThrow.mockResolvedValue([row()]);
     mocks.hasUnsyncedLocalWork.mockResolvedValue(false);
     mocks.setJudgeAffiliation.mockResolvedValue(undefined);
     mocks.subscribe.mockImplementation((callback: () => void) => {
@@ -91,7 +91,7 @@ describe('Edit show judge affiliation field (MYK9-2294)', () => {
     ['a row with a pending mutation', [row()], true],
     ['no row yet (ticked, not saved)', [], false],
   ])('is disabled with "Saving the judge first" for %s', async (_label, rows, unsynced) => {
-    mocks.getAll.mockResolvedValue(rows);
+    mocks.getAllOrThrow.mockResolvedValue(rows);
     mocks.hasUnsyncedLocalWork.mockResolvedValue(unsynced);
     renderNote();
     expect(await screen.findByText('Saving the judge first')).toBeInTheDocument();
@@ -100,7 +100,7 @@ describe('Edit show judge affiliation field (MYK9-2294)', () => {
   });
 
   it('stays disabled after reopening Edit show while the upload is unacknowledged', async () => {
-    mocks.getAll.mockResolvedValue([row({ _syncStatus: 'pending' })]);
+    mocks.getAllOrThrow.mockResolvedValue([row({ _syncStatus: 'pending' })]);
     const first = renderNote();
     await screen.findByText('Saving the judge first');
     first.unmount();
@@ -111,10 +111,10 @@ describe('Edit show judge affiliation field (MYK9-2294)', () => {
 
   it('enables once the upload is acknowledged, then saves', async () => {
     const user = userEvent.setup();
-    mocks.getAll.mockResolvedValue([row({ _localOnly: true })]);
+    mocks.getAllOrThrow.mockResolvedValue([row({ _localOnly: true })]);
     renderNote();
     await screen.findByText('Saving the judge first');
-    mocks.getAll.mockResolvedValue([row({ _syncStatus: 'synced' })]);
+    mocks.getAllOrThrow.mockResolvedValue([row({ _syncStatus: 'synced' })]);
     await act(async () => mocks.listener?.());
     const input = screen.getByLabelText('Affiliation');
     await waitFor(() => expect(input).toBeEnabled());

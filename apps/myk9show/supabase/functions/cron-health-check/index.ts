@@ -29,6 +29,12 @@ import {
 import type { HealthCheckRunMode } from '../_shared/healthCheckCadence.ts';
 import { readPlatformSettingsRowCount } from '../_shared/platformSettingsChecks.ts';
 import { PUBLIC_LISTING_STATUSES, readListedShows } from '../_shared/strayShowChecks.ts';
+import { alertAdmin } from '../_shared/alertAdmin.ts';
+import {
+  LIVE_CLUB_SHOW_STATUSES,
+  runScaleLimitsCheck,
+  type ScaleCounts,
+} from '../_shared/scaleLimitsAlert.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -127,6 +133,78 @@ async function fetchListedShows(mode: HealthCheckRunMode): Promise<unknown> {
   );
 }
 
+/** Rows not soft-deleted, counted the way the replicas count them. `id`, never
+ * `*` (LESSONS postgrest-count-column). */
+async function countLive(table: 'people' | 'dogs' | 'classes'): Promise<number> {
+  const { count, error } = await supabase
+    .from(table)
+    .select('id', { count: 'exact', head: true })
+    .is('deleted_at', null);
+  if (error || count == null) throw new Error(`${table} count failed: ${error?.message ?? 'null'}`);
+  return count;
+}
+
+/** Clubs with at least one non-deleted show in a public status: the set
+ * `club_has_public_show()` is true for. Paged, because a response is capped. */
+async function countLiveClubs(): Promise<number> {
+  const clubs = new Set<string>();
+  const pageSize = 1000;
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from('shows')
+      .select('club_id')
+      .in('status', [...LIVE_CLUB_SHOW_STATUSES])
+      .is('deleted_at', null)
+      .order('id', { ascending: true })
+      .range(from, from + pageSize - 1);
+    if (error) throw new Error(`live clubs count failed: ${error.message}`);
+    for (const row of data ?? []) if (row.club_id) clubs.add(row.club_id as string);
+    if ((data ?? []).length < pageSize) return clubs.size;
+  }
+}
+
+/** MYK9-2274: nightly full runs only. Never throws; a failure is logged. */
+async function runScaleLimits(): Promise<void> {
+  const outcome = await runScaleLimitsCheck({
+    readCounts: async (): Promise<ScaleCounts | { error: string }> => {
+      try {
+        const [people, dogs, classes, liveClubs] = await Promise.all([
+          countLive('people'),
+          countLive('dogs'),
+          countLive('classes'),
+          countLiveClubs(),
+        ]);
+        return { people, dogs, classes, liveClubs };
+      } catch (err) {
+        return { error: err instanceof Error ? err.message : String(err) };
+      }
+    },
+    alertExists: async (source, dedupeKey) => {
+      const { count, error } = await supabase
+        .from('operator_alerts')
+        .select('id', { count: 'exact', head: true })
+        .eq('source', source)
+        .eq('dedupe_key', dedupeKey)
+        .eq('detail->>emailed', 'true');
+      return error ? { error: error.message } : (count ?? 0) > 0;
+    },
+    raiseAlert: async (subject, html, opts) => {
+      const result = await alertAdmin(subject, html, opts);
+      return { emailed: result.emailAttempted && result.emailError == null };
+    },
+    markEmailed: async (source, dedupeKey, detail) => {
+      const { error } = await supabase
+        .from('operator_alerts')
+        .update({ detail })
+        .eq('source', source)
+        .eq('dedupe_key', dedupeKey);
+      if (error) throw new Error(`mark emailed failed: ${error.message}`);
+    },
+  });
+  if (outcome.status === 'error') console.error('Scale limits check failed:', outcome.message);
+  else console.log('Scale limits check:', outcome.status);
+}
+
 async function runHealthSnapshot(
   mode: HealthCheckRunMode,
   runToken: string | null
@@ -175,6 +253,7 @@ async function runHealthSnapshot(
       )
     );
     await insertSnapshot(snapshot, mode);
+    if (mode === 'full') await runScaleLimits();
     console.error('Health probe failed:', probeError?.message ?? 'no facts returned');
     return Response.json(
       { source: snapshot.source, overall_status: snapshot.overall_status, probe_error: true },
@@ -205,6 +284,7 @@ async function runHealthSnapshot(
     }
   );
   await insertSnapshot(snapshot, mode);
+  if (mode === 'full') await runScaleLimits();
 
   console.log(
     'Health check run:',

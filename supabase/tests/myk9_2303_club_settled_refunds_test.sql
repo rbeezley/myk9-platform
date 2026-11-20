@@ -288,7 +288,7 @@ BEGIN
   -- cached total is read from the RPC's own return here and from the table as owner below.
   IF v_retry->>'id' <> v_first->>'id'
      OR (SELECT count(*) FROM public.club_settled_refunds) <> 1
-     OR (v_retry->>'club_refunded_amount')::numeric <> 10 THEN
+     OR (v_retry->>'club_refunded_amount')::numeric IS DISTINCT FROM 10 THEN
     RAISE EXCEPTION 'FAIL the retry key wrote twice: %', v_retry;
   END IF;
   RAISE NOTICE 'PASS the retry key writes once and returns the original row';

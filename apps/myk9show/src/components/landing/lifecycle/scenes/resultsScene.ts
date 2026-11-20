@@ -35,7 +35,7 @@ const DESK_ALT: Record<DeskShot, string> = {
   release:
     'The open class, Container Novice A, marked Not released and Needs checking, with a Release results button under Release the results',
   released:
-    'The open class after the press: Container Novice A, Scored 3 / 3, 3 Q and Released shown twice, with Print the results sheet and result labels as the next step',
+    'The open class after the press: Container Novice A, Scored 3 / 3, 3 Q and Released, with Print the results sheet and result labels as the next step',
 };
 
 const phoneShot = (name: PhoneShot): SceneShot => ({

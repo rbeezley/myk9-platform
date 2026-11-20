@@ -318,7 +318,8 @@ test('captures the Results scene on the secretaryâ€™s desktop and the exhibitorâ
     const chips = detail.locator('header div.flex.flex-wrap').first();
     await stage('releasing', desk, async () => {
       await release.click();
-      await expect(chips.getByText('Released', { exact: true })).toHaveCount(2, {
+      // One Released chip: the badge yields to the phase chip (MYK9-2312).
+      await expect(chips.getByText('Released', { exact: true })).toHaveCount(1, {
         timeout: 60_000,
       });
       await expect(chips.getByText('Not released')).toHaveCount(0);

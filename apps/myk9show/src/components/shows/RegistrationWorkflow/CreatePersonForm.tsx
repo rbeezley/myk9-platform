@@ -156,7 +156,8 @@ export const CreatePersonForm: React.FC<CreatePersonFormProps> = ({
     // The card above the tabs explains this; the panel keeps the form open
     // without a failure toast.
     // The saved directory may be empty on this device; the server answers when it can.
-    const fresh = people.length === 0 ? await check(data) : null;
+    // "Add anyway" was already chosen for this person: do not wait on the lookup again.
+    const fresh = people.length === 0 && allowedKey !== keyOf(data) ? await check(data) : null;
     if (holdForDuplicate(data, fresh?.people)) throw new PanelSaveHandledError();
     setDuplicates({ candidates: [], key: '' });
 

@@ -10,7 +10,9 @@
 --   4. no other people column changes, version advances and updated_at moves (the fixture seeds
 --      an older updated_at, because now() is constant inside one transaction);
 --   5. the 200-character limit holds;
---   6. person_edit_allowed's definition is the same before and after.
+--   6. the RPC does not widen the general person editor: the show's manager still cannot
+--      edit the judge's record (can_edit_person false, update_person_details 42501), and no
+--      refused call wrote anything.
 
 BEGIN;
 
@@ -79,12 +81,6 @@ INSERT INTO public.judge_assignments (person_id, show_id, status) VALUES
 
 UPDATE public.shows SET deleted_at = now() WHERE id = '00000000-0000-0000-0000-000000229413';
 UPDATE public.people SET deleted_at = now() WHERE id = '00000000-0000-0000-0000-000000229436';
-
-CREATE TEMP TABLE myk9_2294_before AS
-SELECT string_agg(md5(pg_get_functiondef(p.oid)), ',' ORDER BY p.oid::regprocedure::text) AS def
-  FROM pg_proc p
- WHERE p.pronamespace = 'public'::regnamespace
-   AND p.proname IN ('person_edit_allowed', 'update_person_details');
 
 -- 1. Effective grants.
 DO $$
@@ -203,20 +199,40 @@ BEGIN
 END $$;
 RESET ROLE;
 
--- 6. No refused call wrote anything (checked as postgres, so RLS hides no row), and
--- person_edit_allowed and update_person_details are untouched.
+-- 6. The general person editor is not widened: the manager of the judge's show still cannot
+-- edit the rest of the judge's record (behavior, not a definition hash taken after the
+-- migration already ran).
+SET LOCAL ROLE authenticated;
+DO $$
+DECLARE
+  mgr_a CONSTANT uuid := '00000000-0000-0000-0000-000000229441';
+  judge CONSTANT uuid := '00000000-0000-0000-0000-000000229431';
+BEGIN
+  PERFORM set_config('request.jwt.claim.sub', mgr_a::text, true);
+  PERFORM set_config('request.jwt.claims',
+    jsonb_build_object('sub', mgr_a, 'role', 'authenticated')::text, true);
+  IF public.can_edit_person(judge) THEN
+    RAISE EXCEPTION 'FAIL the show manager can edit the judge''s whole record';
+  END IF;
+  BEGIN
+    PERFORM public.update_person_details(judge, jsonb_build_object('city', 'Hijacked'));
+    RAISE EXCEPTION 'FAIL update_person_details let the show manager edit the judge';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+
+-- Checked as postgres, so RLS hides no row.
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM public.people WHERE judge_affiliation = 'Intruder') THEN
     RAISE EXCEPTION 'FAIL a refused call still wrote the affiliation';
   END IF;
-  IF (SELECT string_agg(md5(pg_get_functiondef(p.oid)), ',' ORDER BY p.oid::regprocedure::text) FROM pg_proc p
-       WHERE p.pronamespace = 'public'::regnamespace
-         AND p.proname IN ('person_edit_allowed', 'update_person_details'))
-     IS DISTINCT FROM (SELECT def FROM myk9_2294_before) THEN
-    RAISE EXCEPTION 'FAIL person_edit_allowed or update_person_details changed';
+  IF (SELECT city FROM public.people WHERE id = '00000000-0000-0000-0000-000000229431')
+     IS DISTINCT FROM 'Austin' THEN
+    RAISE EXCEPTION 'FAIL the judge''s city changed';
   END IF;
-  RAISE NOTICE 'PASS anon refused, no refused write, person edit functions unchanged';
+  RAISE NOTICE 'PASS anon refused, no refused write, person editor not widened';
 END $$;
 
 ROLLBACK;

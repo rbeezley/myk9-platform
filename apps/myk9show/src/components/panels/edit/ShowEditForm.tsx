@@ -31,7 +31,7 @@ import { premiumOrgOf } from '@/features/premium/premiumOrg';
 import { ShowEditVenueTab } from './ShowEditVenueTab';
 import { ShowEditAddJudgeDialog } from './ShowEditAddJudge';
 import { useShowEditJudgeCreate } from './useShowEditJudgeCreate';
-import { AssignedJudgeNote } from './JudgeAffiliationField';
+import { AssignedJudgeNote, AffiliationSync, JudgeAffiliation } from './JudgeAffiliationField';
 import type { ShowEditTab } from '@/components/shows/showEditRoutes';
 
 interface ShowEditFormProps {
@@ -317,6 +317,7 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
               {data.organization ? (
                 availableJudges.length > 0 || unlistedAssignedJudges.length > 0 ? (
                   <div className="space-y-4">
+                    <AffiliationSync />
                     <p className="text-sm text-muted-foreground">
                       Select judges qualified for {data.organization} shows:
                     </p>
@@ -415,6 +416,7 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
                                   Open judge record to add a qualification
                                 </Link>
                               )}
+                              <JudgeAffiliation judgeId={aj.judgeId} />
                             </div>
                           </div>
                         </div>

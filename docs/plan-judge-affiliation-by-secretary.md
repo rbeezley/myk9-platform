@@ -4,7 +4,9 @@
 
 Design first (orchestrate rule, #4224): this changes who may write part of a person's record, so
 it is reviewed before any code. The owner decided on 2026-11-19 to use option B, a single-field
-RPC. Parent: MYK9-2292, which shipped `people.judge_affiliation` in #4239.
+RPC. Parent: MYK9-2292. **Prerequisite:** #4239 (`people.judge_affiliation`, its 200-character
+CHECK and the checklist item) must be merged before the build starts, and its migration applied
+before this RPC is deployed.
 
 ## What exists today
 
@@ -34,6 +36,9 @@ from PUBLIC and anon.
 
 - **Who may call it.** The caller must pass `can_manage_show(p_show_id)`. The person must also
   hold a `judge_assignments` row on that show whose status is not `declined` or `cancelled`.
+  At write time, the show must not be soft-deleted (`shows.deleted_at IS NULL`; `can_manage_show`
+  does not check this) and the person must not be soft-deleted, the same live-person rule
+  `update_person_details` enforces.
 - **What it writes.** It writes only `people.judge_affiliation`: `nullif(btrim(p_affiliation),
 '')`, kept within the existing 200-character CHECK. No other column changes. It does not go
   through `update_person_details`, so it cannot become a general person editor.
@@ -49,6 +54,9 @@ from PUBLIC and anon.
 
 - Where the secretary manages a show's judges (the existing judges list in Edit show), each
   judge on an ASCA show gets an "Affiliation" field that saves through the RPC.
+- A judge added in the current editing session has no `judge_assignments` row until Save
+  Changes. Their Affiliation field stays disabled, with "Save the show first", until the roster
+  save succeeds. This avoids a 42501 during ordinary setup.
 - The checklist line from #4239 then links there ("Add <name>'s affiliation") instead of saying
   "ask the judge".
 - No new page.
@@ -78,14 +86,20 @@ from PUBLIC and anon.
   - a manager of another show;
   - a secretary of the show whose target person is not assigned;
   - a declined or cancelled assignment;
+  - a soft-deleted show, and a soft-deleted person;
   - anon;
-- no other `people` column changes;
+- no other profile field changes. The replication triggers still run: the row's version
+  advances and `updated_at` moves. Neither trigger is suppressed for the test;
 - the 200-character limit holds;
 - `person_edit_allowed` is unchanged, checked by comparing its function definition before and
   after.
 
-**App test.** The affiliation field on an ASCA show's judge saves through the RPC. The checklist
-links to it.
+**App tests.**
+
+- The affiliation field on an ASCA show's judge saves through the RPC, and the checklist links
+  to it.
+- A judge added in the same editing session has a disabled field until Save Changes, then
+  saves.
 
 **Checks.** `pnpm qa:sql-local` passes, and the migration auditor reviews the migration.
 

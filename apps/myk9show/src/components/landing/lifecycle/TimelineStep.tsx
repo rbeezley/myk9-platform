@@ -70,7 +70,7 @@ export function TimelineStep({
         <StepScene id={step.scene} lead={sceneLead} />
         {step.scoresheetDemo && <ScoresheetDemo />}
         {step.nightBefore && <NightBeforeCard active={revealed} />}
-        {step.shot && !step.explainer && !step.scoresheetDemo && !step.nightBefore && (
+        {step.shot && !step.explainer && (
           <Screenshot shot={step.shot} />
         )}
       </div>

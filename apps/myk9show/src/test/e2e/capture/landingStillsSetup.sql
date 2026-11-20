@@ -178,7 +178,7 @@ BEGIN
   JOIN public.classes c ON c.id = e.class_id
   WHERE e.show_id = 'dededede-0000-0000-0000-000000000010'
     AND e.dog_id = 'dededede-0000-0000-0000-000000000041'
-    AND e.armband = 100 AND e.is_scored = false AND c.results_released_at IS NULL;
+    AND e.armband = '100' AND e.is_scored = false AND c.results_released_at IS NULL;
   SELECT count(*), count(*) FILTER (WHERE e.final_placement = 1) INTO v_released, v_firsts
   FROM public.entries e
   JOIN public.classes c ON c.id = e.class_id

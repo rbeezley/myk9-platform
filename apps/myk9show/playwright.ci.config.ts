@@ -288,6 +288,8 @@ const PR_SMOKE_SPECS = [
   '**/landing-lifecycle.spec.ts',
   // MYK9-1285: anonymous home page, step 6 of the story reaches the next heading at 1280 and 375.
   '**/landing-timeline-end.spec.ts',
+  // MYK9-2309: the captured stills and the two-device scenes fit the page at 390 and 1280. Anonymous, no database.
+  '**/landing-stills-geometry.spec.ts',
   '**/theme-light-until-chosen.spec.ts',
   '**/uat/secretary/qa-regression-proof.spec.ts',
   '**/uat/secretary/critical-path.spec.ts',

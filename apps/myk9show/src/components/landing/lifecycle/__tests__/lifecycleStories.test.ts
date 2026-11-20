@@ -65,6 +65,49 @@ describe('STORIES', () => {
     }
   });
 
+  // MYK9-2309: the steps that are not scenes keep one still each, captured by the Landing capture
+  // workflow at twice the size the page draws it. Nothing else carries a screenshot.
+  it('keeps one captured still on each step that is not a scene, and no other screenshot', () => {
+    const stills = (a: Audience) =>
+      Object.fromEntries(STORIES[a].map(s => [s.id, s.shot?.src.replace('/landing/', '') ?? null]));
+    expect(stills('club')).toEqual({
+      setup: 'stills/club-create-show.png',
+      entries: null,
+      before: null,
+      showday: null,
+      results: null,
+      after: null,
+    });
+    expect(stills('exhibitor')).toEqual({
+      setup: 'stills/exhibitor-find-a-show.png',
+      entries: null,
+      before: 'stills/exhibitor-my-entries.png',
+      showday: 'stages/e-13.png',
+      results: null,
+      after: 'stills/exhibitor-past-results.png',
+    });
+  });
+
+  it('draws each still from a capture of exactly twice its declared size', () => {
+    const pngSize = (file: string) => {
+      const header = readFileSync(file).subarray(16, 24);
+      return { width: header.readUInt32BE(0), height: header.readUInt32BE(4) };
+    };
+    for (const a of AUDIENCES) {
+      for (const shot of STORIES[a].flatMap(shotsOf)) {
+        if (!shot.src.startsWith('/landing/stills/')) continue;
+        expect(pngSize(resolve(publicDir, `.${shot.src}`)), shot.src).toEqual({
+          width: shot.width * 2,
+          height: shot.height * 2,
+        });
+        expect(shot.shape === 'phone' ? [390, 844] : [640, 400], shot.src).toEqual([
+          shot.width,
+          shot.height,
+        ]);
+      }
+    }
+  });
+
   it('gives the club story the practice scoresheet on show day and the night-before card before it', () => {
     const club = (id: string) => STORIES.club.find(x => x.id === id)!;
     expect(club('showday').scoresheetDemo).toBe(true);

@@ -7,7 +7,8 @@ export type Audience = 'club' | 'exhibitor';
 export type StepId = 'setup' | 'entries' | 'before' | 'showday' | 'results' | 'after';
 export type ShotShape = 'phone' | 'desktop';
 export type Shot = {
-  src: `/landing/stages/${string}.png`;
+  /** `stills/` holds the captures of the Landing capture workflow; `stages/` the one hand-taken still left. */
+  src: `/landing/${'stills' | 'stages'}/${string}.png`;
   alt: string;
   width: number;
   height: number;
@@ -66,15 +67,18 @@ export const PEAK_LEAD: Record<Audience, string> = {
   exhibitor: 'Then it’s show day.',
 };
 
-const desktop = (id: string, alt: string): Shot => ({
-  src: `/landing/stages/${id}.png`,
+// A still is one picture from the Landing capture workflow (landingStillsCapture.spec.ts, MYK9-2309).
+// A desktop still is a 640x400 window of the screen at twice its size, so its words read where the
+// page draws it (about 440px wide, about 330 on a phone); a phone still is the whole 390x844 screen.
+const desktopStill = (file: string, alt: string): Shot => ({
+  src: `/landing/stills/${file}.png`,
   alt,
-  width: 1200,
-  height: 750,
+  width: 640,
+  height: 400,
   shape: 'desktop',
 });
-const phone = (id: string, alt: string): Shot => ({
-  src: `/landing/stages/${id}.png`,
+const phoneStill = (file: string, alt: string): Shot => ({
+  src: `/landing/stills/${file}.png`,
   alt,
   width: 390,
   height: 844,
@@ -82,16 +86,19 @@ const phone = (id: string, alt: string): Shot => ({
 });
 
 const SHOTS = {
-  's-02': desktop('s-02', 'Create Show wizard, first step'),
-  's-12': desktop('s-12', 'Reports page with the Check-in Sheet card, ready to print'),
-  'e-01': desktop('e-01', 'Upcoming shows list with entry status'),
-  'e-12': phone(
-    'e-12',
-    'My Entries card for Willow with armband 100, class, day and check-in status'
-  ),
-  'e-13': phone('e-13', 'My Entries on a phone with the Show Today banner'),
-  'e-16': phone('e-16', 'Willow’s past results with qualifying runs and a first place'),
-} as const;
+  'club-create-show': desktopStill('club-create-show', 'ALT-CLUB-CREATE-SHOW'),
+  'exhibitor-find-a-show': desktopStill('exhibitor-find-a-show', 'ALT-FIND'),
+  'exhibitor-my-entries': phoneStill('exhibitor-my-entries', 'ALT-MY-ENTRIES'),
+  'exhibitor-past-results': phoneStill('exhibitor-past-results', 'ALT-PAST'),
+  // The exhibitor's show-day explainer still: the banner shows only on a show's own day.
+  'e-13': {
+    src: '/landing/stages/e-13.png',
+    alt: 'My Entries on a phone with the Show Today banner',
+    width: 390,
+    height: 844,
+    shape: 'phone',
+  },
+} as const satisfies Record<string, Shot>;
 
 const EXHIBITOR_SHOW_DAY: readonly ExplainerStep[] = [
   { x: 5, y: 32.5, w: 90, h: 23, caption: 'Show day is here: your first class time and entries' },
@@ -199,7 +206,7 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
       id: 'setup',
       title: 'Set up the show',
       body: 'Classes, levels and qualifying rules for AKC, UKC and ASCA are built in. Start from last year’s show and change what is new.',
-      shot: SHOTS['s-02'],
+      shot: SHOTS['club-create-show'],
       meanwhile: 'Exhibitors can find your show and read the premium list as soon as you publish.',
     },
     {
@@ -214,7 +221,7 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
       id: 'before',
       title: 'Before show day',
       body: 'Running orders, check-in sheets and armbands come from the entries you already have.',
-      shot: SHOTS['s-12'],
+      shot: null,
       nightBefore: true,
       meanwhile: 'Exhibitors see their armband number and their classes.',
     },
@@ -250,7 +257,7 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
       id: 'setup',
       title: 'Find a show',
       body: 'Browse upcoming scent work shows by registry and date. Open any show to see what the club has published.',
-      shot: SHOTS['e-01'],
+      shot: SHOTS['exhibitor-find-a-show'],
       meanwhile: 'The club sets up the show, with AKC, UKC or ASCA rules already built in.',
     },
     {
@@ -265,7 +272,7 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
       id: 'before',
       title: 'Know where to be',
       body: 'See your armband number and the classes your dog is entered in.',
-      shot: SHOTS['e-12'],
+      shot: SHOTS['exhibitor-my-entries'],
       meanwhile: 'Running orders, check-in sheets and armbands come straight from the entries.',
     },
     {
@@ -291,7 +298,7 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
       id: 'after',
       title: 'Every Q on your dog’s record',
       body: 'Qualifying runs stay on your dog’s record, show after show.',
-      shot: SHOTS['e-16'],
+      shot: SHOTS['exhibitor-past-results'],
       meanwhile: 'The results are already recorded, with nothing to re-type.',
     },
   ],

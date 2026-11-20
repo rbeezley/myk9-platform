@@ -248,8 +248,10 @@ comes out of your club's entry fees.
 
 **What if we need to refund an entry?**
 Your show secretary refunds it from the entry in myK9Show, and the money goes back to the
-exhibitor's card. This works while the payout is waiting for release, and stops once the Payments tab shows
-**Sending**. The service fee is not refunded.
+exhibitor's card. This works while the payout is waiting for release. It pauses while the Payments tab shows
+**Sending**, so wait. If the payout then fails to send, refund in myK9Show again. Once the
+payout shows **Paid**, settle the refund directly with the exhibitor. The service fee is not
+refunded.
 
 **What if we need to refund someone after we have been paid?**
 By then the money is in your club's bank account, so your club pays the exhibitor directly, by

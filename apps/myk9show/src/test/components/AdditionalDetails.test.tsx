@@ -16,10 +16,12 @@ describe('AdditionalDetails', () => {
     expect(screen.getByText('100')).toBeInTheDocument();
   });
 
-  it('renders non-owner handlers status', () => {
-    render(<AdditionalDetails show={{ allowNonOwnerHandlers: true } as Show} />);
-    expect(screen.getByText('Non-Owner Handlers')).toBeInTheDocument();
-    expect(screen.getByText('Allowed')).toBeInTheDocument();
+  it('no longer shows a non-owner handlers setting (MYK9-2222: nothing can set it)', () => {
+    const { container } = render(
+      <AdditionalDetails show={{ allowNonOwnerHandlers: true } as Show} />
+    );
+    expect(screen.queryByText('Non-Owner Handlers')).toBeNull();
+    expect(container.firstElementChild).toBeNull();
   });
 
   it('returns null when no additional details exist', () => {

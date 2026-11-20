@@ -83,7 +83,8 @@ UPDATE public.people SET deleted_at = now() WHERE id = '00000000-0000-0000-0000-
 CREATE TEMP TABLE myk9_2294_before AS
 SELECT string_agg(md5(pg_get_functiondef(p.oid)), ',' ORDER BY p.oid::regprocedure::text) AS def
   FROM pg_proc p
- WHERE p.pronamespace = 'public'::regnamespace AND p.proname = 'person_edit_allowed';
+ WHERE p.pronamespace = 'public'::regnamespace
+   AND p.proname IN ('person_edit_allowed', 'update_person_details');
 
 -- 1. Effective grants.
 DO $$
@@ -185,10 +186,6 @@ BEGIN
   IF (SELECT count(DISTINCT m) FROM unnest(msgs) AS m) <> 1 THEN
     RAISE EXCEPTION 'FAIL refusals reveal different messages: %', msgs;
   END IF;
-  IF EXISTS (SELECT 1 FROM public.people WHERE judge_affiliation = 'Intruder') THEN
-    RAISE EXCEPTION 'FAIL a refused call still wrote the affiliation';
-  END IF;
-
   RAISE NOTICE 'PASS set and clear, 42501 for every refusal, one message';
 END $$;
 
@@ -206,15 +203,20 @@ BEGIN
 END $$;
 RESET ROLE;
 
--- 6. person_edit_allowed is untouched.
+-- 6. No refused call wrote anything (checked as postgres, so RLS hides no row), and
+-- person_edit_allowed and update_person_details are untouched.
 DO $$
 BEGIN
-  IF (SELECT string_agg(md5(pg_get_functiondef(p.oid)), ',' ORDER BY p.oid::regprocedure::text) FROM pg_proc p
-       WHERE p.pronamespace = 'public'::regnamespace AND p.proname = 'person_edit_allowed')
-     IS DISTINCT FROM (SELECT def FROM myk9_2294_before) THEN
-    RAISE EXCEPTION 'FAIL person_edit_allowed changed';
+  IF EXISTS (SELECT 1 FROM public.people WHERE judge_affiliation = 'Intruder') THEN
+    RAISE EXCEPTION 'FAIL a refused call still wrote the affiliation';
   END IF;
-  RAISE NOTICE 'PASS anon refused, person_edit_allowed unchanged';
+  IF (SELECT string_agg(md5(pg_get_functiondef(p.oid)), ',' ORDER BY p.oid::regprocedure::text) FROM pg_proc p
+       WHERE p.pronamespace = 'public'::regnamespace
+         AND p.proname IN ('person_edit_allowed', 'update_person_details'))
+     IS DISTINCT FROM (SELECT def FROM myk9_2294_before) THEN
+    RAISE EXCEPTION 'FAIL person_edit_allowed or update_person_details changed';
+  END IF;
+  RAISE NOTICE 'PASS anon refused, no refused write, person edit functions unchanged';
 END $$;
 
 ROLLBACK;

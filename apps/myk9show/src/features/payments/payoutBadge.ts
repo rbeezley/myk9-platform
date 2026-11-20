@@ -1,6 +1,9 @@
 import type { ShowPayoutRow } from './useClubStripeAccount';
 import { NEUTRAL_STATUS_CHIP, WAITING_STATUS_CHIP } from '@/components/ui/statusChip';
 
+/** MYK9-2172: what a club sees while the payout brake keeps its payout waiting. */
+export const PAYOUT_WAITING_FOR_RELEASE_LABEL = 'Payout scheduled, waiting for release';
+
 export interface PayoutBadge {
   label: string;
   /** shadcn Badge variant — 'destructive' is the only one a treasurer must act on. */
@@ -104,8 +107,14 @@ export function resolvePayoutBadge(
     case 'approved':
     case 'held':
       // MYK9-2170 payout brake: the platform is checking it before it sends.
-      // Not sent yet, and nothing for the treasurer to do.
-      return { label: 'Not sent yet', variant: 'secondary', className: NEUTRAL_STATUS_CHIP };
+      // MYK9-2172: a held payout is still only waiting, so the club sees the
+      // same calm line for all three, never a failure or a late payout, and
+      // never the operator's hold reason.
+      return {
+        label: PAYOUT_WAITING_FOR_RELEASE_LABEL,
+        variant: 'secondary',
+        className: NEUTRAL_STATUS_CHIP,
+      };
     case 'failed':
       if (payout.superseded) {
         return { label: 'Earlier attempt', variant: 'secondary', className: NEUTRAL_STATUS_CHIP };

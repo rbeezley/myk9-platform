@@ -182,7 +182,7 @@ After your show's end date, myK9Show automatically initiates a deposit to your c
 
 **When does the deposit arrive?**
 
-Three days after the show's end date, myK9Show sends the transfer. Your bank typically posts it the following business day. Weekends and bank holidays may add one day.
+About three days after the show's end date. During the launch period myK9Show checks each payout before it is sent, so the payout can go a little later than that. Until it goes, the Payments tab shows it as **Payout scheduled, waiting for release**. Once it is sent, your bank typically posts it the following business day. Weekends and bank holidays may add one day.
 
 **What is the deposit amount?**
 
@@ -199,15 +199,16 @@ Three days after the show's end date, myK9Show sends the transfer. Your bank typ
 
 ![C-05: Payments tab — Payouts enabled, with the Show reconciliation card listing a show's transfer and Paid status](../screenshots/C-05.png)
 
-| Status                  | Meaning                                                          |
-| ----------------------- | ---------------------------------------------------------------- |
-| **Paid**                | Deposit sent; should appear in your bank within one business day |
-| **Sending**             | Transfer is in progress                                          |
-| **Scheduled**           | Your account is ready and the transfer has not gone out yet      |
-| **Waiting for account** | Stripe onboarding is not yet complete                            |
-| **Retrying**            | A transfer attempt failed; it will be retried automatically      |
-| **Needs attention**     | A transfer failed and will not retry on its own                  |
-| **Earlier attempt**     | An older transfer for the same show; a later attempt replaced it |
+| Status                                    | Meaning                                                                  |
+| ----------------------------------------- | ------------------------------------------------------------------------ |
+| **Paid**                                  | Deposit sent; should appear in your bank within one business day         |
+| **Sending**                               | Transfer is in progress                                                  |
+| **Scheduled**                             | Your account is ready and the transfer has not gone out yet              |
+| **Payout scheduled, waiting for release** | myK9Show is checking the payout before it is sent. Nothing for you to do |
+| **Waiting for account**                   | Stripe onboarding is not yet complete                                    |
+| **Retrying**                              | A transfer attempt failed; it will be retried automatically              |
+| **Needs attention**                       | A transfer failed and will not retry on its own                          |
+| **Earlier attempt**                       | An older transfer for the same show; a later attempt replaced it         |
 
 A show whose net amount is still being worked out reads **Net pending**.
 
@@ -221,7 +222,7 @@ A show whose net amount is still being worked out reads **Net pending**.
 Yes. Stripe requires identity verification for all account representatives before enabling payouts. They usually start with the last 4 digits, and may ask for more if they cannot verify the person that way. This is a legal requirement, not a myK9Show policy.
 
 **"When will we get paid?"**
-Three days after your show's end date. Your bank typically posts it the following business day. See [Section 5](#section-5--payout-timing-and-history).
+About three days after your show's end date, once myK9Show has checked the payout. Your bank typically posts it the following business day after it is sent. See [Section 5](#section-5--payout-timing-and-history).
 
 **"Stripe says our account is under review. What do we do?"**
 Wait 1–2 business days. Stripe reviews new accounts before enabling payouts. If it takes longer, contact Stripe directly at the email address they provided during onboarding.

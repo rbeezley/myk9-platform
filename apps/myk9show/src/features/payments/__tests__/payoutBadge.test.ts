@@ -70,11 +70,11 @@ describe('resolvePayoutBadge', () => {
     });
   });
 
-  it('a payout waiting on the payout brake reads "Not sent yet", never a failure (MYK9-2170)', () => {
+  it('a payout waiting on the payout brake reads as scheduled and waiting, never a failure (MYK9-2170, MYK9-2172)', () => {
     for (const status of ['awaiting_approval', 'approved', 'held']) {
       for (const accountState of ['enabled', 'not-enabled', 'unknown'] as const) {
         expect(resolvePayoutBadge(row(status), accountState)).toEqual({
-          label: 'Not sent yet',
+          label: 'Payout scheduled, waiting for release',
           variant: 'secondary',
           className: NEUTRAL_STATUS_CHIP,
         });

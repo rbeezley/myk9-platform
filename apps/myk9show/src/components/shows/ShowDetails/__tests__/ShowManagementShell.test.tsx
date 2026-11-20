@@ -921,6 +921,18 @@ describe('Edit Show saves judges as a change from the loaded list', () => {
     );
   });
 
+  it('re-reads the premium checklist affiliations once the judge list is saved (MYK9-2292)', async () => {
+    const invalidate = vi.spyOn(QueryClient.prototype, 'invalidateQueries');
+    try {
+      await saveWith([judge('j1')], [judge('j2')]);
+      await waitFor(() =>
+        expect(invalidate).toHaveBeenCalledWith({ queryKey: ['premiumJudgeAffiliations'] })
+      );
+    } finally {
+      invalidate.mockRestore();
+    }
+  });
+
   it('passes an unreadable (empty) loaded list through as empty, so nothing can be removed', async () => {
     await saveWith([], [judge('j3')]);
     await waitFor(() =>

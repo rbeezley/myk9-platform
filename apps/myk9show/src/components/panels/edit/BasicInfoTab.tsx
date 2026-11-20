@@ -17,6 +17,7 @@ import { JuniorHandlerFields } from '@/components/common/JuniorHandlerFields';
 import type { RegistryId } from '@/features/registries';
 import { useEditPanel } from './useEditPanel';
 import type { UserFormData } from './UserEditPanel.types';
+import { isJudgePerson } from './UserEditPanel.helpers';
 
 /**
  * Whether the editor may offer to change this person's email: see
@@ -94,7 +95,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   const emailError = form?.getError('email');
   const dateOfBirthError = form?.getError('dateOfBirth');
   const judgeAffiliationError = form?.getError('judgeAffiliation');
-  const isJudge = (data.roles ?? []).includes('judge');
+  const isJudge = isJudgePerson(data);
   const emailInputProps = { id: 'email', type: 'email', value: data.email, name: 'email' } as const;
 
   return (

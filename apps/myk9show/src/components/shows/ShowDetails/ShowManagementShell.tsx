@@ -27,6 +27,7 @@ import {
   premiumPublishFailureMessage,
 } from '@/features/premium/premiumPublishErrors';
 import { fetchShowJudgesForPublish, saveShowJudgeChanges } from '@/services/database/judges';
+import { PREMIUM_JUDGE_AFFILIATIONS_KEY } from '@/services/database/judges/judgeAffiliations';
 import { waitForShowSync } from '@/features/premium/waitForShowSync';
 import {
   SHOW_EDIT_TAB_PARAM,
@@ -383,6 +384,8 @@ function AuthorizedShowManagementShell({
                 show.assignedJudges || [],
                 showData.assignedJudges || []
               );
+              // MYK9-2292: the premium checklist's affiliation read names the roster's judges.
+              void queryClient.invalidateQueries({ queryKey: [PREMIUM_JUDGE_AFFILIATIONS_KEY] });
               // `localShow` is a StoreShow and carries no `trials`; merge rather
               // than replace, or the query's embedded trials are wiped (MYK9-676).
               queryClient.setQueryData<Show>(showQueryKeys.detail(id), current => ({

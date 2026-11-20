@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { isLivePremiumTrial } from '@myk9/core';
 import { useShowOfficials } from '@/hooks/queries/useShowOfficials';
 import { applyOfficialsToPremium } from '@/features/premium/premiumOfficials';
@@ -17,6 +18,10 @@ import type { GeneratedPremium, PremiumStyle } from '@/types/premium-types';
 import { normalizeEntryLimit } from '@/features/premium/premiumEntryLimit';
 import { usePremiumFacts } from '@/features/premium/usePremiumFacts';
 import { applyEditorCopyToPremium } from '@/features/premium/premiumEditorCopy';
+import {
+  PREMIUM_JUDGE_AFFILIATIONS_KEY,
+  type ShowJudgeAffiliation,
+} from '@/services/database/judges/judgeAffiliations';
 import type { ShowEditFormData } from './ShowEditPanel.types';
 import { ShowAscaFactsCard } from './ShowAscaFactsCard';
 import { ascaFactsFromForm } from './ShowEditPanel.helpers';
@@ -68,6 +73,7 @@ export function ShowEditPremiumTab({
   );
   // The preview lists the same secretary and chair the published premium will (MYK9-2053).
   const { data: officials } = useShowOfficials(showId);
+  const queryClient = useQueryClient();
   // MYK9-2244: online, the preview's facts are the server's (the same ones Save & Publish uses),
   // with only the editor's own copy and style laid over them. Offline or on failure the form-built
   // draft stands. The editor takes its first premium once, so nothing is handed over until the
@@ -92,9 +98,20 @@ export function ShowEditPremiumTab({
         templateId: null,
       };
     }
-    const draft = buildLocalPremiumDraft(data, showOrg, publishedContent);
+    // MYK9-2292: the device's judge roster carries no affiliation (it lives on the person record,
+    // which is not replicated). Use the last checklist read when this device has one; a judge it
+    // does not name prints no affiliation rather than a guessed one.
+    const cachedAffiliations = showId
+      ? queryClient.getQueryData<ShowJudgeAffiliation[]>([PREMIUM_JUDGE_AFFILIATIONS_KEY, showId])
+      : undefined;
+    const draft = buildLocalPremiumDraft(
+      data,
+      showOrg,
+      publishedContent,
+      new Map((cachedAffiliations ?? []).map(judge => [judge.id, judge.affiliation]))
+    );
     return draft && officials ? applyOfficialsToPremium(draft, officials) : draft;
-  }, [data, publishedContent, showOrg, officials, serverFacts, factsLoading]);
+  }, [data, publishedContent, showOrg, officials, serverFacts, factsLoading, showId, queryClient]);
 
   // MYK9-2213: generate-premium reads the SAVED organization, so while the form's differs a
   // Regenerate would build the premium for the wrong one.
@@ -218,7 +235,8 @@ function currencyToNumber(value: string): number {
 function buildLocalPremiumDraft(
   data: ShowEditFormData,
   showOrg: 'AKC' | 'UKC' | 'ASCA' | null,
-  publishedContent: ShowExperienceSnapshot | null
+  publishedContent: ShowExperienceSnapshot | null,
+  affiliationByJudgeId: ReadonlyMap<string, string | null>
 ): GeneratedPremium | undefined {
   if (!showOrg || !publishedContent) return undefined;
 
@@ -275,7 +293,7 @@ function buildLocalPremiumDraft(
       judges: (data.assignedJudges ?? []).map(judge => ({
         name: judge.judgeName,
         residence: judge.residence ?? null,
-        affiliation: judge.affiliation ?? null,
+        affiliation: affiliationByJudgeId.get(judge.judgeId) ?? null,
         classes: judge.classLabels ?? [],
       })),
       classes: (trial.classes ?? []).map(cls => ({

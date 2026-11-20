@@ -162,8 +162,36 @@ function juniorHandlerFieldsToSave(
   };
 }
 
+/**
+ * Whether the Judge section (the affiliation) applies to this person: a judge role, or a judge
+ * qualification (the show wizard's new judge has only the qualification). One rule for showing
+ * the field and for saving it (MYK9-2292).
+ */
+export const isJudgePerson = (person: {
+  roles?: readonly unknown[] | undefined;
+  judgeQualifications?: readonly unknown[] | undefined;
+}): boolean =>
+  (person.roles ?? []).includes('judge') || (person.judgeQualifications ?? []).length > 0;
+
+/**
+ * MYK9-2292: a judge's affiliation goes out only when the field differs from the value the panel
+ * opened with. A surface that never loaded the stored affiliation (the admin roster) opens with
+ * '' and must not clear it by saving an unrelated phone number; a cleared box still clears it.
+ */
+function judgeAffiliationToSave(
+  formData: UserFormData,
+  initialData: UserFormData | undefined
+): Pick<Partial<UserType>, 'judgeAffiliation'> {
+  if (!isJudgePerson(formData)) return {};
+  const next = formData.judgeAffiliation.trim();
+  return next === (initialData?.judgeAffiliation ?? '').trim() ? {} : { judgeAffiliation: next };
+}
+
 // Convert form data back to UserType
-export const formDataToUser = (formData: UserFormData): Partial<UserType> => ({
+export const formDataToUser = (
+  formData: UserFormData,
+  initialData?: UserFormData
+): Partial<UserType> => ({
   firstName: formData.firstName,
   lastName: formData.lastName,
   email: formData.email,
@@ -174,8 +202,7 @@ export const formDataToUser = (formData: UserFormData): Partial<UserType> => ({
   zipCode: formData.zipCode,
   // MYK9-570 / MYK9-664: emitted only when somebody typed one (write-only).
   ...juniorHandlerFieldsToSave(formData),
-  // MYK9-2292: a judge's field only, and always sent for one so a cleared box clears it.
-  ...(formData.roles.includes('judge') && { judgeAffiliation: formData.judgeAffiliation.trim() }),
+  ...judgeAffiliationToSave(formData, initialData),
   profileImage: formData.profileImage,
   judgeQualifications: formData.judgeQualifications,
   roles: formData.roles as UserRole[],

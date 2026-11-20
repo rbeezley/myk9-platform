@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react';
+import { render as rtlRender, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { mapDatabaseToShow } from '@/services/mappers/showMappers';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -55,6 +56,15 @@ import { NEW_YEAR_SHOW } from '@/test/fixtures/recordingFeeCalendar';
 import type { GeneratedPremium } from '@/types/premium-types';
 import { generatedPremium as baseGeneratedPremium } from '@/features/premium/__tests__/fixtures/generatedPremium';
 import type { ShowTrial } from '@/types/show-types';
+
+// The tab reads the query cache for its offline judge affiliations (MYK9-2292).
+const render: typeof rtlRender = (ui, options) =>
+  rtlRender(ui, {
+    wrapper: ({ children }) => (
+      <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
+    ),
+    ...options,
+  });
 
 const baseData: ShowEditFormData = {
   id: 'show-1',
@@ -320,6 +330,66 @@ describe('ShowEditPremiumTab', () => {
         show: { name: 'Test Show' },
         narratives: published.narratives,
       });
+    });
+  });
+
+  describe('offline, judge affiliations (MYK9-2292)', () => {
+    const judgeRoster = [
+      { judgeId: 'j1', judgeName: 'Pat Judge', assignedDate: '2026-05-01' },
+      { judgeId: 'j2', judgeName: 'Sam Judge', assignedDate: '2026-05-01' },
+    ];
+    const trial = {
+      id: 't1',
+      name: 'Saturday',
+      date: '2026-05-01',
+      classes: [],
+    } as unknown as ShowTrial;
+    const printedJudges = () =>
+      (
+        premiumEditorProps.at(-1)?.initialPremium as {
+          trials: Array<{ judges: Array<{ name: string; affiliation: string | null }> }>;
+        }
+      ).trials[0]?.judges;
+    const renderOffline = (queryClient: QueryClient) => {
+      publishedExperienceContentMock = buildExperienceSnapshot({
+        premium: baseGeneratedPremium(),
+        premiumPath: null,
+        premiumUrl: '',
+      });
+      premiumFactsMock = { data: undefined, isLoading: false };
+      render(
+        <ShowEditPremiumTab
+          data={{ ...baseData, assignedJudges: judgeRoster, trials: [trial] }}
+          clubId="c1"
+          showOrg="ASCA"
+          isActive
+          handleCheckboxChange={vi.fn(() => vi.fn())}
+          handleValueChange={vi.fn(() => vi.fn())}
+        />,
+        {
+          wrapper: ({ children }) => (
+            <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+          ),
+        }
+      );
+    };
+
+    it('prints the affiliation the last checklist read held, and nothing for a judge it lacks', () => {
+      const queryClient = new QueryClient();
+      queryClient.setQueryData(
+        ['premiumJudgeAffiliations', 'show-1'],
+        [{ id: 'j1', name: 'Pat Judge', affiliation: 'Region 4', canEdit: false }]
+      );
+      renderOffline(queryClient);
+      expect(printedJudges()).toEqual([
+        expect.objectContaining({ name: 'Pat Judge', affiliation: 'Region 4' }),
+        expect.objectContaining({ name: 'Sam Judge', affiliation: null }),
+      ]);
+    });
+
+    it('prints no affiliation when nothing is held locally', () => {
+      renderOffline(new QueryClient());
+      expect(printedJudges()?.map(judge => judge.affiliation)).toEqual([null, null]);
     });
   });
 

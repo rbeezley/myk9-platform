@@ -14,6 +14,9 @@ export interface ShowJudgeAffiliation {
   canEdit: boolean;
 }
 
+/** The premium checklist's affiliation read; prefix-invalidated by every write that can change it. */
+export const PREMIUM_JUDGE_AFFILIATIONS_KEY = 'premiumJudgeAffiliations' as const;
+
 const PAGE_SIZE = 1000;
 
 async function fetchAssignments(showId: string): Promise<LiveJudgeAssignmentRow[]> {

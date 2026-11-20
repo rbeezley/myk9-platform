@@ -10,7 +10,10 @@ import { useClubPremiumTemplates } from '@/hooks/queries/usePremiumTemplates';
 import type { ClubPremiumTemplate } from '@/types/premium-types';
 import { useShowOfficials } from '@/hooks/queries/useShowOfficials';
 import { fetchShowCommittee, getCommittee } from '@/services/database/club-memberships/committee';
-import { fetchShowJudgeAffiliations } from '@/services/database/judges/judgeAffiliations';
+import {
+  fetchShowJudgeAffiliations,
+  PREMIUM_JUDGE_AFFILIATIONS_KEY,
+} from '@/services/database/judges/judgeAffiliations';
 import type { ShowJudgeAffiliation } from '@/services/database/judges/judgeAffiliations';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type { Show } from '@/types/show-types';
@@ -210,7 +213,7 @@ export function usePremiumRequirements(
   // MYK9-2292: ASCA §1.5.7. The affiliation is typed on each judge's person record, which the
   // device's judge roster does not carry, so it is read (online) only where the roster is held.
   const affiliations = useQuery({
-    queryKey: ['premiumJudgeAffiliations', show.id],
+    queryKey: [PREMIUM_JUDGE_AFFILIATIONS_KEY, show.id],
     queryFn: () => fetchShowJudgeAffiliations(show.id),
     enabled: enabled && registry === 'ASCA' && judges !== null,
   });

@@ -280,11 +280,30 @@ export const useUserStore = create<UserStore>()(
 
         redactContacts: async (): Promise<boolean> => {
           bumpSignOutGeneration();
-          const users = stripPeopleContacts(get().users);
+          const persistApi = useUserStore.persist;
+          const storageName = persistApi.getOptions().name ?? '';
+          let source = get().users;
+          // A sign-out before hydration (an expired session at app start) sees an empty
+          // directory: strip the stored copy instead, so names are never wiped.
+          if (!persistApi.hasHydrated()) {
+            try {
+              const stored = await persistApi.getOptions().storage?.getItem(storageName);
+              const storedUsers = (stored?.state as { users?: User[] } | undefined)?.users;
+              if (storedUsers) source = storedUsers;
+            } catch (error) {
+              logger.error(
+                'Could not read the saved people directory',
+                'store',
+                {},
+                error as Error
+              );
+              return false;
+            }
+          }
+          const users = stripPeopleContacts(source);
           set({ users, people: users });
           try {
-            const persistApi = useUserStore.persist;
-            await persistApi.getOptions().storage?.setItem(persistApi.getOptions().name ?? '', {
+            await persistApi.getOptions().storage?.setItem(storageName, {
               state: { users },
               version: persistApi.getOptions().version ?? 0,
             });

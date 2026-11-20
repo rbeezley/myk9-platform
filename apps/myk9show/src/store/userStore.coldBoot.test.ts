@@ -53,4 +53,22 @@ describe('cold boot with a pending removal marker (MYK9-2255)', () => {
       }
     }
   });
+
+  it('keeps names when sign-out lands before hydration finishes', async () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ state: { users: [person] }, version: 1 }));
+    const { useUserStore } = await import('@/store/userStore');
+    vi.spyOn(useUserStore.persist, 'hasHydrated').mockReturnValue(false);
+    useUserStore.setState({ users: [], people: [] });
+    // setState persists the empty list; put the saved copy back, as a cold boot finds it.
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ state: { users: [person] }, version: 1 }));
+
+    expect(await useUserStore.getState().redactContacts()).toBe(true);
+
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}').state.users;
+    expect(saved).toHaveLength(1);
+    expect(saved[0].firstName).toBe('Ann');
+    expect(saved[0].email).toBeUndefined();
+    expect(saved[0].phone).toBeUndefined();
+    expect(useUserStore.getState().users[0].firstName).toBe('Ann');
+  });
 });

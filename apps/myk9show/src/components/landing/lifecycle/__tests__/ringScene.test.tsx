@@ -182,7 +182,7 @@ describe('the ring scene on the page', () => {
     expect(sceneIn(container, 'lc-meanwhile')).not.toBeNull();
     expect(container.querySelectorAll('.tl-scene')).toHaveLength(1);
     const showday = STORIES.exhibitor.find(s => s.id === 'showday')!;
-    expect(showday.meanwhileShot).toBeNull();
+    expect(showday).not.toHaveProperty('meanwhileShot');
   });
 
   it('jumps to a line’s capture when the line is pressed', () => {

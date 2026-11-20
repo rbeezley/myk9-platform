@@ -145,23 +145,11 @@
   background: #fff;
   box-shadow: 0 24px 48px -24px rgb(60 40 20 / 0.35);
 }
-.landing-v2 .lc-shot[data-side='main'][data-shape='desktop'] {
+.landing-v2 .lc-shot[data-shape='desktop'] {
   max-width: 440px;
 }
-.landing-v2 .lc-shot[data-side='main'][data-shape='phone'] {
+.landing-v2 .lc-shot[data-shape='phone'] {
   max-width: 220px;
-}
-.landing-v2 .lc-shot[data-side='meanwhile'][data-shape='desktop'] {
-  max-width: 75%;
-}
-.landing-v2 .lc-shot[data-side='meanwhile'][data-shape='phone'] {
-  max-width: 140px;
-}
-.landing-v2 .lc-row[data-peak='true'] .lc-shot[data-side='meanwhile'][data-shape='desktop'] {
-  max-width: 100%;
-}
-.landing-v2 .lc-row[data-peak='true'] .lc-shot[data-side='meanwhile'][data-shape='phone'] {
-  max-width: 200px;
 }
 
 /* Rail: dot fills when reached; the line below it fills when the NEXT step is reached. */

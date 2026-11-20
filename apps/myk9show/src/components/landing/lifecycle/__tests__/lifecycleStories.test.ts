@@ -12,7 +12,6 @@ import {
   STORIES,
   STORY_HEADING,
   type Audience,
-  type Shot,
   type StoryStep,
 } from '../lifecycleStories';
 
@@ -20,7 +19,7 @@ const appRoot = resolve(__dirname, '../../../../..');
 const publicDir = resolve(appRoot, 'public');
 const AUDIENCES: Audience[] = ['club', 'exhibitor'];
 
-const shotsOf = (s: StoryStep) => [s.shot, s.meanwhileShot].filter((x): x is Shot => x !== null);
+const shotsOf = (s: StoryStep) => (s.shot ? [s.shot] : []);
 const copyOf = (s: StoryStep) => [
   s.title,
   s.body,
@@ -43,6 +42,16 @@ describe('STORIES', () => {
     for (const a of AUDIENCES) {
       expect(STORIES[a].filter(s => s.peak).map(s => s.id)).toEqual(['showday']);
     }
+  });
+
+  it('shows no meanwhile screenshot on any step; the meanwhile side is a sentence or a scene', () => {
+    for (const a of AUDIENCES) {
+      for (const s of STORIES[a]) {
+        expect(s, `${a}/${s.id}`).not.toHaveProperty('meanwhileShot');
+        expect(s.meanwhile.length, `${a}/${s.id}`).toBeGreaterThan(10);
+      }
+    }
+    expect(STORIES.exhibitor.find(s => s.id === 'showday')!.meanwhileScene).toBe('showday-ring');
   });
 
   it('points every screenshot at a real file of 250 KB or less with real alt text', () => {

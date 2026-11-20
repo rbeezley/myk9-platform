@@ -363,7 +363,8 @@ for (const vp of VIEWPORTS) {
 
     // 15, not 14, while the animated scenes sit beside the stills they will replace (owner,
     // 2026-11-17, MYK9-1894): the ring scene adds about one phone screen. Bring this back to
-    // 14 when Phase 2 of docs/plan-landing-animated-timeline.md removes the two-column stills.
+    // 14 when the two-column stills go. MYK9-2295 dropped the meanwhile stills; the limit stays 15
+    // until CI measures both stories at 14 or fewer (it could not be measured when this changed).
     test('page length is 8 to 15 screens on phone', async ({ page }) => {
       test.skip(vp.name !== 'phone');
       await openLanding(page);

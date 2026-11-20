@@ -45,8 +45,8 @@ If this is your first time, you'll need an account before entering a show.
 
 1. From the show detail page, click **Enter This Show**.
 2. On the sign-in screen, click **Sign up** (under "Don't have an account?").
-3. Under **I am…**, tick **Exhibitor (I show dogs)**.
-4. Enter your first name, last name, email address and a password (at least 8 characters).
+3. Enter your first name, last name, email address and a password (at least 8 characters).
+4. Tick the box to agree to the Terms of Service and Privacy Policy, then click **Create account**.
 5. Check your inbox for a confirmation email → click the link to verify your address. If it does not arrive, use **Resend email**.
 6. You're signed in and ready to enter.
 
@@ -275,24 +275,11 @@ Fields you can update include call name, breed, sex, date of birth, color, heigh
 
 ---
 
-## Section 12 — Set Up a New Club
+## Section 12 — Add a Club, Join One, or Ask for Secretary Access
 
-If your club is not already in myK9Show, you can ask the myK9Show team to set it up without creating a second account.
+**Your club is not on myK9Show yet?** On the myK9Show home page, choose **Add your club** and fill in the form. You keep this same account. The rest, from the form to your club's first show, is in the Secretary Guide: [Your first show, if your club is new to myK9Show](https://help.myk9show.com/guides/secretary-guide#your-first-show-if-your-club-is-new-to-myk9show).
 
-1. Open the account menu, choose **Account**, then click **Request additional access**.
-2. Under **Set up a new club**, click **Request a new club**.
-3. Enter the **Club name** (the club's website and a message are optional) and click **Send request**.
-4. Wait for a site admin to review the request.
-
-Within a few minutes of sending, myK9Show emails you a confirmation at the email address on your account, and the myK9Show site admins are emailed that a new request is waiting. When a site admin approves or denies the request, you get a second email. If it is denied, that email includes the reviewer's note when one was entered.
-
-When the request is approved, the person who submitted it becomes an active member, **Club Admin**, and the club's **Secretary/show manager** for that club. Those permissions apply only to the new club. They can then create and run that club's shows using the same account.
-
----
-
-## Section 13 — Join an Existing Club or Ask for Secretary Access
-
-If your club already uses myK9Show, you can ask it for either of two things. They are separate requests, and the club's admins decide each one.
+**Your club already uses myK9Show?** You can ask it for either of two things. They are separate requests, and the club's admins decide each one.
 
 1. Open the account menu, choose **Account**, then click **Request additional access**.
 2. Under **Join an existing club**, click **Find an existing club**, search for the club, and select it.

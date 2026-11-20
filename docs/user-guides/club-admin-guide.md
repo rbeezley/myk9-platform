@@ -82,7 +82,7 @@ The **Shows** page lists every show your club is hosting or has hosted. To start
 
 - "Your club is waiting for myK9Show approval." Waiting on myK9Show, usually about a day.
 - "Your club has not finished setting up payouts." or "Stripe is reviewing your club's bank account." See [Section 4](#section-4--connect-your-bank-account-to-receive-payouts).
-- "Publish the premium list, or turn on "We publish our own premium list"."
+- "Publish the premium list, or turn on "We publish our own premium list"." On a saved show this line links to the **Premium List** card on the show's **About** tab. On the wizard's **Review** step, before a new show is saved, it has no link: choose **Add Show**, then publish the premium from the saved show's **About** tab.
 - "Set when entries open and close."
 - "Entries have to open before they close."
 - "Turn online entries on." Only an older draft saved with online entries off shows this. There is no switch for it any more: email [support@myk9show.com](mailto:support@myk9show.com).
@@ -164,7 +164,7 @@ Before your club can receive entry fee revenue, a treasurer needs to complete St
 
 ![C-04: Payments tab — Bank account card with the Connect bank account button](../screenshots/C-04.png)
 
-**A secretary who is not a club admin cannot connect the bank.** On the show's **Before you can publish** list, the payouts line can name the club's admins and offer **Email them the link**, which opens an email to them with the link to your Payments tab. Watch for that email, and for the line to clear once payouts are enabled.
+**A secretary who is not a club admin cannot connect the bank.** On the show's **Before you can publish** list, the payouts line can name the club's admins and offer **Email them the link**. That opens an email draft addressed to the admins, which the secretary sends. The Payments link is in the email's body: follow it from the email. Watch for that email, and for the line to clear once payouts are enabled.
 
 Once onboarding is complete, the Payments tab shows a **Payouts enabled** badge. Your club will receive a deposit automatically after each show closes — you do not need to request it.
 

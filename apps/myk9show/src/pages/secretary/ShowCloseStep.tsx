@@ -9,6 +9,7 @@ import {
   ShowDeskScheduleUnavailable,
 } from './ShowDeskScheduleReadState';
 import { useShowCloseoutInputs } from './useShowCloseoutInputs';
+import { useCloseoutFlaggedPulls } from '@/features/show-closeout/useCloseoutFlaggedPulls';
 
 /**
  * Results step 3, "Close the show" (MYK9-954). Show Day's closeout tool moved
@@ -19,7 +20,11 @@ import { useShowCloseoutInputs } from './useShowCloseoutInputs';
  */
 export default function ShowCloseStep() {
   const params = useParams<{ showId?: string; id?: string }>();
-  const inputs = useShowCloseoutInputs(params.showId ?? params.id);
+  const showId = params.showId ?? params.id;
+  const inputs = useShowCloseoutInputs(showId);
+  // MYK9-2180: one flag read for the card, the close action and its confirmation, and the same
+  // hook the Results tab's Finish list reads, so no two of them can disagree.
+  const flaggedPulls = useCloseoutFlaggedPulls(showId);
   const { show, schedule } = inputs;
   const retrySchedule = () => void schedule.retry();
 
@@ -61,6 +66,7 @@ export default function ShowCloseStep() {
         showId={show.id}
         entries={inputs.entries}
         deskWindow={inputs.deskWindow}
+        flaggedPulls={flaggedPulls}
       />
       <CloseOutShowAction
         show={{ id: show.id, status: show.status }}
@@ -70,6 +76,7 @@ export default function ShowCloseStep() {
         incidents={inputs.incidents}
         submissions={inputs.submissions}
         scoreChanges={inputs.scoreChanges}
+        flaggedPulls={flaggedPulls}
       />
     </div>
   );

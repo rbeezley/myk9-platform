@@ -26,25 +26,27 @@ export function resultsRowToLeftClass(row: ResultsClassRow): WhatIsLeftClass {
  * What the Results tab's rows leave to do. The tab carries no incidents or submissions, so only
  * the class lines are answered here; the rest report unknown rather than nothing, unless the
  * caller passes the send records (and the score history) it has read. Pass the show's trials to
- * get each registry's own lines, and its trusted entries for the unconfirmed pull flags
- * (MYK9-2145); without them that line counts nothing.
+ * get each registry's own lines, and the shared flag read (`useCloseoutFlaggedPulls`, MYK9-2180)
+ * for the unconfirmed pull flags; without it there is no such line.
  */
 export function calculateResultsRowsLeft(
   rows: readonly ResultsClassRow[],
   trials: readonly WhatIsLeftTrial[] = [],
-  sent: Pick<WhatIsLeftInput, 'submissions' | 'scoreChanges' | 'handlerClashes'> & {
-    entries?: WhatIsLeftInput['entries'] | undefined;
-  } = {
+  sent: Pick<
+    WhatIsLeftInput,
+    'submissions' | 'scoreChanges' | 'handlerClashes' | 'flaggedPulls'
+  > = {
     submissions: null,
   }
 ): WhatIsLeft {
   return calculateWhatIsLeft({
     classes: rows.map(resultsRowToLeftClass),
     trials,
-    entries: sent.entries ?? [],
+    entries: [],
     incidents: null,
     submissions: sent.submissions,
     scoreChanges: sent.scoreChanges,
     handlerClashes: sent.handlerClashes,
+    flaggedPulls: sent.flaggedPulls,
   });
 }

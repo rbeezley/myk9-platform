@@ -5,6 +5,7 @@ import { CloseOutShowAction } from '../CloseOutShowAction';
 import { ShowCloseoutSummary } from '../ShowCloseoutSummary';
 import { buildCloseoutReadiness } from '../showCloseOutShow';
 import type { ShowDayReconciliationEntry } from '../showDayReconciliationSummary';
+import { FAILED_FLAGS, NO_FLAGS, readFlags } from '@/features/show-closeout/flaggedPullsTestUtils';
 
 vi.mock('@/services/replication', () => ({
   replicatedShowsTable: { updateShow: vi.fn() },
@@ -28,7 +29,7 @@ const FLAG_TEXT = '1 dog flagged as pulled at the show, not confirmed.';
 const DESK_HREF = '/shows/show-1/entries?tab=exceptions&exception=check-in';
 
 /** A paid-online entry Ringside flagged pulled; the secretary has not confirmed it at the desk. */
-const FLAGGED: ShowDayReconciliationEntry = {
+const FLAGGED = {
   id: 'entry-1',
   dog_id: 'dog-1',
   entry_fee: 35,
@@ -36,7 +37,8 @@ const FLAGGED: ShowDayReconciliationEntry = {
   check_in_status: 'pulled',
   payment_status: 'paid',
   payment_method: 'online',
-};
+} satisfies ShowDayReconciliationEntry & { id: string; dog_id: string };
+const FAILED_TEXT = "Couldn't check for dogs flagged as pulled at the show.";
 
 /** Everything else about the show is done: scored, results sent, no incidents. */
 const CLEAN_SHOW = {
@@ -53,14 +55,22 @@ describe('MYK9-2145: an unconfirmed pull flag at close', () => {
   });
 
   it('is its own close concern, not a removal or a refund to decide', () => {
-    const readiness = buildCloseoutReadiness({ ...CLEAN_SHOW, entries: [FLAGGED] });
+    const readiness = buildCloseoutReadiness({
+      ...CLEAN_SHOW,
+      entries: [FLAGGED],
+      flaggedPulls: readFlags([FLAGGED]),
+    });
 
     expect(readiness.concerns).toEqual([FLAG_TEXT]);
     expect(readiness.concernItems).toEqual([{ kind: 'flagged-pulls', text: FLAG_TEXT }]);
   });
 
   it('adds no concern when no dog is flagged', () => {
-    const readiness = buildCloseoutReadiness({ ...CLEAN_SHOW, entries: [] });
+    const readiness = buildCloseoutReadiness({
+      ...CLEAN_SHOW,
+      entries: [],
+      flaggedPulls: NO_FLAGS,
+    });
 
     expect(readiness).toEqual({ concerns: [], concernItems: [], hasConcerns: false });
   });
@@ -68,8 +78,17 @@ describe('MYK9-2145: an unconfirmed pull flag at close', () => {
   it('reads the same on the summary card, the close action and its confirmation', async () => {
     const { user } = render(
       <>
-        <ShowCloseoutSummary showId="show-1" entries={[FLAGGED]} deskWindow={null} />
-        <CloseOutShowAction {...CLEAN_SHOW} entries={[FLAGGED]} />
+        <ShowCloseoutSummary
+          showId="show-1"
+          entries={[FLAGGED]}
+          deskWindow={null}
+          flaggedPulls={readFlags([FLAGGED])}
+        />
+        <CloseOutShowAction
+          {...CLEAN_SHOW}
+          entries={[FLAGGED]}
+          flaggedPulls={readFlags([FLAGGED])}
+        />
       </>
     );
 
@@ -101,5 +120,62 @@ describe('MYK9-2145: an unconfirmed pull flag at close', () => {
       DESK_HREF
     );
     expect(within(dialog).getByRole('button', { name: 'Close anyway' })).toBeInTheDocument();
+  });
+
+  // MYK9-2180: a failed refresh, with the flag still in the cached rows.
+  it('says "couldn\'t check" on the card, the close action and its confirmation, never a count', async () => {
+    const readiness = buildCloseoutReadiness({
+      ...CLEAN_SHOW,
+      entries: [FLAGGED],
+      flaggedPulls: FAILED_FLAGS,
+    });
+    expect(readiness.concernItems).toEqual([{ kind: 'flagged-pulls', text: FAILED_TEXT }]);
+
+    const { user } = render(
+      <>
+        <ShowCloseoutSummary
+          showId="show-1"
+          entries={[FLAGGED]}
+          deskWindow={null}
+          flaggedPulls={FAILED_FLAGS}
+        />
+        <CloseOutShowAction {...CLEAN_SHOW} entries={[FLAGGED]} flaggedPulls={FAILED_FLAGS} />
+      </>
+    );
+
+    const card = screen.getByRole('region', { name: 'Before you close the show' });
+    expect(within(card).getByText(FAILED_TEXT)).toBeInTheDocument();
+    const action = screen.getByRole('region', { name: 'Close the show' });
+    expect(within(action).getByText(FAILED_TEXT)).toBeInTheDocument();
+    expect(screen.queryByText(FLAG_TEXT, { exact: false })).not.toBeInTheDocument();
+
+    await user.click(within(action).getByRole('button', { name: 'Close the show' }));
+    const dialog = await screen.findByRole('alertdialog');
+    expect(within(dialog).getByText(FAILED_TEXT)).toBeInTheDocument();
+    expect(within(dialog).queryByText(FLAG_TEXT, { exact: false })).not.toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Close anyway' })).toBeInTheDocument();
+  });
+
+  it('lists a flag whose class row is missing under "Class removed", with Confirm and Clear', () => {
+    const orphan = { ...FLAGGED, dog: { name: 'Biscuit', call_name: null }, class: null };
+    render(
+      <ShowCloseoutSummary
+        showId="show-1"
+        entries={[FLAGGED]}
+        deskWindow={null}
+        flaggedPulls={readFlags([orphan])}
+      />
+    );
+
+    const card = screen.getByRole('region', { name: 'Before you close the show' });
+    expect(within(card).getByText(FLAG_TEXT)).toBeInTheDocument();
+    const group = within(card).getByRole('group', { name: 'Class removed' });
+    expect(within(group).getByText('Biscuit')).toBeInTheDocument();
+    expect(
+      within(group).getByRole('button', { name: 'Confirm the pull for Biscuit' })
+    ).toBeInTheDocument();
+    expect(
+      within(group).getByRole('button', { name: 'Clear the pull flag for Biscuit' })
+    ).toBeInTheDocument();
   });
 });

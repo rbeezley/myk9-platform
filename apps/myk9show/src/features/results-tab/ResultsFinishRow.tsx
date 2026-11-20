@@ -6,6 +6,8 @@ import { calculateResultsRowsLeft } from '@/features/show-closeout/fromResultsRo
 import { useResultsSentCheck } from '@/features/show-closeout/useResultsSentCheck';
 import { readHandlerClashes } from '@/features/show-closeout/handlerClash';
 import { buildFinishList } from '@/features/show-closeout/finishList';
+import { useCloseoutFlaggedPulls } from '@/features/show-closeout/useCloseoutFlaggedPulls';
+import { FlaggedPullsClassRemoved } from '@/features/show-closeout/FlaggedPullsClassRemoved';
 import { FINISH_LIST_ANCHOR } from '@/features/show-map/cockpit/cockpitRoutes';
 import type { SecretaryEntry } from '@/services/database/entries';
 import { Button } from '@/components/ui/button';
@@ -19,10 +21,7 @@ interface ResultsFinishRowProps {
   trials: readonly SyncableTrial[];
   /** Every class in the show, so the list counts what the Results tab itself counts. */
   rows: readonly ResultsClassRow[];
-  /**
-   * The show's entries, for dogs that share a handler in a class (MYK9-2031) and pull flags the
-   * Check-in desk has not confirmed (MYK9-2145).
-   */
+  /** The show's entries, for dogs that share a handler in a class (MYK9-2031). */
   entries: readonly SecretaryEntry[];
   /** False while the entries read is stale (a refresh failed): the line then says nothing. */
   entriesTrusted: boolean;
@@ -49,6 +48,8 @@ export function ResultsFinishRow({
     state => state.trialsHasConfirmedSnapshot && state.trialClassesHasConfirmedSnapshot
   );
   const sent = useResultsSentCheck(showId, scheduleReady ? rows : null);
+  // MYK9-2180: the close step reads the same hook, so the two cannot count flags differently.
+  const flaggedPulls = useCloseoutFlaggedPulls(showId);
   const items = useMemo(
     () =>
       buildFinishList(
@@ -56,11 +57,10 @@ export function ResultsFinishRow({
         calculateResultsRowsLeft(rows, trials, {
           ...sent,
           handlerClashes: entriesTrusted ? readHandlerClashes(entries) : undefined,
-          // MYK9-2145: unconfirmed pull flags, only from a read that is not stale.
-          entries: entriesTrusted ? entries : undefined,
+          flaggedPulls,
         })
       ),
-    [entries, entriesTrusted, rows, sent, showId, trials]
+    [entries, entriesTrusted, flaggedPulls, rows, sent, showId, trials]
   );
   const ref = useRef<HTMLElement>(null);
   const { hash } = useLocation();
@@ -113,6 +113,7 @@ export function ResultsFinishRow({
                   <ArrowRight className="h-4 w-4 flex-none" aria-hidden="true" />
                 </Link>
               )}
+              {item.key === 'flagged-pulls' && <FlaggedPullsClassRemoved flags={flaggedPulls} />}
             </li>
           );
         })}

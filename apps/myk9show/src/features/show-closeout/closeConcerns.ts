@@ -3,7 +3,8 @@
  * the kind it came from, so the close step can link the one it has a place for.
  */
 import { SENT_FILE_TEXT } from './submissionTimes';
-import type { WhatIsLeftLine, WhatIsLeftLineKey } from './whatIsLeft';
+import { FLAGGED_PULLS_FAILED_TEXT, FLAGGED_PULLS_LOADING_TEXT } from './flaggedPulls';
+import type { WhatIsLeftInput, WhatIsLeftLine, WhatIsLeftLineKey } from './whatIsLeft';
 
 export type CloseConcernKind = WhatIsLeftLineKey | 'no-submission' | 'sent-file';
 
@@ -19,6 +20,32 @@ export interface CloseConcern {
  */
 export function flaggedPullText(count: number): string {
   return `${count} ${count === 1 ? 'dog' : 'dogs'} flagged as pulled at the show, not confirmed.`;
+}
+
+/**
+ * The flagged-pulls line (MYK9-2145) from the caller's shared flag read (MYK9-2180). A flag is not
+ * a removal and not a refund to decide (docs/INTENT.md, Withdraw vs Pull), but the close step
+ * names it. A read that did not succeed is "couldn't check", with no count and `open: null`.
+ * `null` when the caller does not look.
+ */
+export function flaggedPullsLine(flags: WhatIsLeftInput['flaggedPulls']): WhatIsLeftLine | null {
+  if (!flags) return null;
+  const count = flags.status === 'read' ? (flags.dogCount ?? 0) : null;
+  const text =
+    count !== null
+      ? flaggedPullText(count)
+      : flags.status === 'loading'
+        ? FLAGGED_PULLS_LOADING_TEXT
+        : FLAGGED_PULLS_FAILED_TEXT;
+  return {
+    key: 'flagged-pulls',
+    kind: 'flagged-pulls',
+    label: text,
+    count,
+    classIds: [],
+    open: count === null ? null : count > 0,
+    closeConcern: text,
+  };
 }
 
 export function buildCloseConcerns(input: {

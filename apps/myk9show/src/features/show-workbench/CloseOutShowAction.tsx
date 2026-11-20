@@ -30,6 +30,7 @@ import {
 } from './showCloseOutShow';
 import type { ScoreChangeRead } from '@/features/show-closeout/whatIsLeft';
 import type { CloseConcern } from '@/features/show-closeout/closeConcerns';
+import type { CloseoutFlaggedPulls } from '@/features/show-closeout/useCloseoutFlaggedPulls';
 import { getCheckInDeskHref } from '@/components/entries/management/checkInDesk/checkInDeskRoutes';
 import type { ShowDayReconciliationEntry } from './showDayReconciliationSummary';
 import type { ShowIncidentSummary } from './showIncidents';
@@ -42,11 +43,24 @@ interface CloseOutShowActionProps {
   incidents: Pick<ShowIncidentSummary, 'reportableCount' | 'urgentCount'> | null;
   submissions: readonly ResultSubmissionSummary[] | null;
   scoreChanges?: ScoreChangeRead | undefined;
+  /** The close step's one flag read, shared with the summary card and the Finish list (MYK9-2180). */
+  flaggedPulls: CloseoutFlaggedPulls;
 }
 
-/** One close concern; a flag the Check-in desk has not confirmed links there (MYK9-2145). */
-function ConcernItem({ concern, showId }: { concern: CloseConcern; showId: string }) {
-  if (concern.kind !== 'flagged-pulls') return <li>{concern.text}</li>;
+/**
+ * One close concern; a flag the Check-in desk has not confirmed links there (MYK9-2145). A flag
+ * read that did not succeed is said as such, with nothing to open (MYK9-2180).
+ */
+function ConcernItem({
+  concern,
+  showId,
+  flagsRead,
+}: {
+  concern: CloseConcern;
+  showId: string;
+  flagsRead: boolean;
+}) {
+  if (concern.kind !== 'flagged-pulls' || !flagsRead) return <li>{concern.text}</li>;
   return (
     <li>
       {concern.text}{' '}
@@ -68,6 +82,7 @@ export function CloseOutShowAction({
   incidents,
   submissions,
   scoreChanges,
+  flaggedPulls,
 }: CloseOutShowActionProps) {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
@@ -75,8 +90,16 @@ export function CloseOutShowAction({
 
   const readiness = useMemo(
     () =>
-      buildCloseoutReadiness({ classes, trials, entries, incidents, submissions, scoreChanges }),
-    [classes, entries, incidents, scoreChanges, submissions, trials]
+      buildCloseoutReadiness({
+        classes,
+        trials,
+        entries,
+        incidents,
+        submissions,
+        scoreChanges,
+        flaggedPulls,
+      }),
+    [classes, entries, flaggedPulls, incidents, scoreChanges, submissions, trials]
   );
   const targets = useMemo(
     () => selectCloseoutCascadeTargets({ show, trials, classes }),
@@ -176,7 +199,12 @@ export function CloseOutShowAction({
                 </div>
                 <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
                   {readiness.concernItems.map(concern => (
-                    <ConcernItem key={concern.text} concern={concern} showId={show.id} />
+                    <ConcernItem
+                      key={concern.text}
+                      concern={concern}
+                      showId={show.id}
+                      flagsRead={flaggedPulls.status === 'read'}
+                    />
                   ))}
                 </ul>
               </div>
@@ -200,7 +228,12 @@ export function CloseOutShowAction({
           </div>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
             {readiness.concernItems.map(concern => (
-              <ConcernItem key={concern.text} concern={concern} showId={show.id} />
+              <ConcernItem
+                key={concern.text}
+                concern={concern}
+                showId={show.id}
+                flagsRead={flaggedPulls.status === 'read'}
+              />
             ))}
           </ul>
         </div>

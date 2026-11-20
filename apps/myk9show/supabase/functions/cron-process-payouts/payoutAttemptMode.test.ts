@@ -123,8 +123,12 @@ describe('the recovery step clears the hold', () => {
   // The operator's only statement, applied to a held row the way Postgres would.
   const applyOperatorCheck = (row: Record<string, unknown>) => {
     const sql = modeCheckedSql(String(row.id));
-    const guarded = row.status === 'processing' && row.stripe_transfer_id == null;
+    const guarded =
+      row.status === 'processing' &&
+      row.stripe_transfer_id == null &&
+      row.failure_reason !== MODE_CHECKED_REASON;
     expect(sql).toContain(`where id = '${String(row.id)}'`);
+    expect(sql).toContain(`failure_reason is distinct from '${MODE_CHECKED_REASON}'`);
     return guarded ? { ...row, failure_reason: MODE_CHECKED_REASON } : row;
   };
   const heldRow = { ...staleRow, status: 'processing', failure_reason: 'transfer_failed' };
@@ -165,6 +169,9 @@ describe('the recovery step clears the hold', () => {
     expect(applyOperatorCheck(failed)).toBe(failed);
     const recorded = { ...heldRow, stripe_transfer_id: 'tr_x' };
     expect(applyOperatorCheck(recorded)).toBe(recorded);
+    // A repeated check is a no-op (UPDATE 0).
+    const once = applyOperatorCheck(heldRow);
+    expect(applyOperatorCheck(once)).toBe(once);
   });
 
   it('after the stale path fails a checked row, the next pass asks in the run’s mode and queues again', async () => {

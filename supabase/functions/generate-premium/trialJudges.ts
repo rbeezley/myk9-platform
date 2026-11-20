@@ -1,4 +1,8 @@
-import { livePremiumTrials, type PremiumScheduleTrialRow } from './liveTrials.ts';
+import {
+  livePremiumClasses,
+  livePremiumTrials,
+  type PremiumScheduleTrialRow,
+} from './liveTrials.ts';
 
 /**
  * MYK9-2056 / MYK9-2067: a trial's judges as the premium prints them, "Name, City, ST" with the
@@ -38,6 +42,10 @@ export interface PremiumTrialClassRow {
   element: string | null;
   level: string | null;
   section: string | null;
+  /** A class with no element or level prints its name (MYK9-2231). */
+  name?: string | null;
+  /** `classes.status`; 'cancelled' keeps a class off the premium (MYK9-1863). */
+  status?: string | null;
   deleted_at?: string | null;
 }
 
@@ -60,10 +68,15 @@ export function formatResidence(
   return region ? `${place}, ${region}` : place;
 }
 
-/** "Element Level Section", the one label a premium prints for a class. */
+/**
+ * "Element Level Section", the one label a premium prints for a class; a class with no element
+ * or level (such as "Detective") prints its name (MYK9-2248). Mirrors the app's
+ * `formatPremiumClassLabel`, which this Deno function cannot import.
+ */
 export function formatClassLabel(cls: PremiumTrialClassRow): string | null {
-  if (!cls.element || !cls.level) return null;
-  return `${cls.element} ${cls.level}${cls.section ? ` ${cls.section}` : ''}`;
+  const base = [cls.element, cls.level].map(part => part?.trim()).filter(Boolean);
+  const label = base.length === 2 ? base.join(' ') : cls.name?.trim() || base.join(' ');
+  return label ? `${label}${cls.section ? ` ${cls.section}` : ''}` : null;
 }
 
 /**
@@ -71,7 +84,8 @@ export function formatClassLabel(cls: PremiumTrialClassRow): string | null {
  * `created_at`). A row applies to this trial when its class is one of the trial's live classes.
  * A row with no class covers every class of its trial, or of every trial when it has no trial
  * either (a whole-show judge); that judge lists no classes, so the renderer prints the name and
- * residence alone. Declined and cancelled assignments, and deleted classes, print nothing.
+ * residence alone. Declined and cancelled assignments, and deleted or cancelled classes, print
+ * nothing (MYK9-2248: the same `livePremiumClasses` rule as the rest of the premium).
  */
 export function premiumTrialJudges(
   rows: ReadonlyArray<PremiumJudgeAssignmentRow> | null | undefined,
@@ -80,7 +94,7 @@ export function premiumTrialJudges(
     PremiumScheduleTrialRow & { classes?: ReadonlyArray<PremiumTrialClassRow> | null }
   > | null
 ): PremiumTrialJudge[] {
-  const liveClasses = (trial.classes ?? []).filter(cls => !cls.deleted_at);
+  const liveClasses = livePremiumClasses(trial.classes);
   const classOrder = new Map(liveClasses.map((cls, index) => [cls.id, index]));
   const classById = new Map(liveClasses.map(cls => [cls.id, cls]));
   const byPerson = new Map<
@@ -97,6 +111,9 @@ export function premiumTrialJudges(
   // A show-level row (no class, no trial) is roster membership, which the wizard writes beside
   // the class picks: it must not turn a judge with class assignments into a whole-show judge.
   // Only assignments to LIVE classes (not soft-deleted, on a live trial) count as class picks.
+  // MYK9-2248: a pick on a CANCELLED class (on a live trial) still counts here, on purpose: a
+  // judge whose only picks were cancelled drops off the premium rather than falling back to the
+  // whole trial. Only the class's printed label is filtered (livePremiumClasses above).
   // Without the show's trials there is nothing to check a pick against, so every pick counts.
   const liveClassIds = showTrials
     ? new Set(

@@ -21,6 +21,8 @@ function rowToTemplate(row: Record<string, unknown>): ClubPremiumTemplate {
     hospitalityNotes: row.hospitality_notes as string | null,
     awardsDescription: row.awards_description as string | null,
     additionalNotes: row.additional_notes as string | null,
+    limitedMobilityNotes: (row.limited_mobility_notes as string | null) ?? null,
+    rvHookupNotes: (row.rv_hookup_notes as string | null) ?? null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
@@ -41,6 +43,8 @@ function templateToRow(t: Partial<ClubPremiumTemplate>): Record<string, unknown>
   if (t.hospitalityNotes !== undefined) row.hospitality_notes = t.hospitalityNotes;
   if (t.awardsDescription !== undefined) row.awards_description = t.awardsDescription;
   if (t.additionalNotes !== undefined) row.additional_notes = t.additionalNotes;
+  if (t.limitedMobilityNotes !== undefined) row.limited_mobility_notes = t.limitedMobilityNotes;
+  if (t.rvHookupNotes !== undefined) row.rv_hookup_notes = t.rvHookupNotes;
   return row;
 }
 

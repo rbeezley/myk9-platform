@@ -36,6 +36,8 @@ const template: ClubPremiumTemplate = {
   hospitalityNotes: null,
   awardsDescription: null,
   additionalNotes: null,
+  limitedMobilityNotes: null,
+  rvHookupNotes: null,
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',
 };
@@ -171,6 +173,27 @@ describe('PremiumTemplatesTab hotels', () => {
           accommodations: [{ name: 'Lakeside Inn', address: '', phone: '' }],
         })
       )
+    );
+  });
+
+  it('saves the limited-mobility and RV notes entered on the template', async () => {
+    templatesRef.current = [template];
+    updateMock.mockResolvedValue(undefined);
+    render(<PremiumTemplatesTab clubId="club-1" onClose={undefined} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    type('Limited mobility access (ASCA)', 'Gravel lot, 200 ft to the ring');
+    type('RV hook-ups (ASCA, optional)', '30 amp, 10 sites');
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() =>
+      expect(updateMock).toHaveBeenCalledWith({
+        id: 'tpl-1',
+        updates: expect.objectContaining({
+          limitedMobilityNotes: 'Gravel lot, 200 ft to the ring',
+          rvHookupNotes: '30 amp, 10 sites',
+        }),
+      })
     );
   });
 });

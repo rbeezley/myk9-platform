@@ -71,6 +71,8 @@ export function PremiumTemplatesTab({ clubId, onClose }: Props) {
     hospitalityNotes: null,
     awardsDescription: null,
     additionalNotes: null,
+    limitedMobilityNotes: null,
+    rvHookupNotes: null,
   };
   const [form, setForm] = useState(blank);
 
@@ -95,6 +97,8 @@ export function PremiumTemplatesTab({ clubId, onClose }: Props) {
       hospitalityNotes: t.hospitalityNotes,
       awardsDescription: t.awardsDescription,
       additionalNotes: t.additionalNotes,
+      limitedMobilityNotes: t.limitedMobilityNotes,
+      rvHookupNotes: t.rvHookupNotes,
     });
     setEditing(t);
     setCreating(false);
@@ -276,6 +280,30 @@ export function PremiumTemplatesTab({ clubId, onClose }: Props) {
               rows={2}
               value={form.awardsDescription ?? ''}
               onChange={e => setForm(f => ({ ...f, awardsDescription: e.target.value || null }))}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs" htmlFor="limited-mobility-notes">
+              Limited mobility access (ASCA)
+            </Label>
+            <Textarea
+              id="limited-mobility-notes"
+              rows={2}
+              placeholder="Distances, surfaces, steps; or say there are no concerns"
+              value={form.limitedMobilityNotes ?? ''}
+              onChange={e => setForm(f => ({ ...f, limitedMobilityNotes: e.target.value || null }))}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs" htmlFor="rv-hookup-notes">
+              RV hook-ups (ASCA, optional)
+            </Label>
+            <Textarea
+              id="rv-hookup-notes"
+              rows={2}
+              placeholder="Only if the show facility is an RV park"
+              value={form.rvHookupNotes ?? ''}
+              onChange={e => setForm(f => ({ ...f, rvHookupNotes: e.target.value || null }))}
             />
           </div>
           <div className="space-y-1">

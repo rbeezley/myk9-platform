@@ -78,3 +78,35 @@ describe.each(['AKC', 'UKC', 'ASCA'] as const)('%s ASCA show facts unset (MYK9-2
     expect(text).not.toContain('Spectators and videoing');
   });
 });
+
+// MYK9-2291: the two club-template facts follow the same rule.
+const CLUB_LINES = ['Gravel lot, 200 ft to the ring', '30 amp, 10 sites'];
+
+function withClubFacts(org: GeneratedPremium['org'], style: PremiumStyle, set: boolean) {
+  const premium = premiumFor(org, style, false);
+  if (set) {
+    premium.supplemental.limitedMobilityNotes = CLUB_LINES[0]!;
+    premium.supplemental.rvHookupNotes = CLUB_LINES[1]!;
+  }
+  return premium;
+}
+
+describe('ASCA club template facts (MYK9-2291)', () => {
+  it.each(STYLES)('%s: ASCA prints each once', style => {
+    const text = textOf(withClubFacts('ASCA', style, true));
+    for (const line of CLUB_LINES) expect(occurrences(text, line)).toBe(1);
+  });
+
+  it.each(['AKC', 'UKC'] as const)('%s prints neither, though the template holds them', org => {
+    for (const style of STYLES) {
+      const text = textOf(withClubFacts(org, style, true));
+      for (const line of CLUB_LINES) expect(text).not.toContain(line);
+    }
+  });
+
+  it.each(STYLES)('%s: ASCA prints no label when both are empty', style => {
+    const text = textOf(withClubFacts('ASCA', style, false));
+    expect(text).not.toContain('Limited mobility access');
+    expect(text).not.toContain('RV hook-ups');
+  });
+});

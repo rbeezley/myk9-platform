@@ -36,7 +36,11 @@ import {
   premiumTrialClassFeeText,
   premiumTrialWaitlistText,
 } from './premiumEntryTerms';
-import { buildShowTermFacts, type PremiumRegistryStatementFact } from './premiumAscaFacts';
+import {
+  buildClubTermFacts,
+  buildShowTermFacts,
+  type PremiumRegistryStatementFact,
+} from './premiumAscaFacts';
 
 // ─── Catalog: what each fact is, where it comes from, who requires it ───────────────────
 
@@ -182,6 +186,14 @@ export const PREMIUM_FACT_CATALOG: readonly PremiumFactDefinition[] = [
     requiredBy: ['ASCA'],
   },
   { id: 'photographerContact', label: 'Show photographer', source: 'show', requiredBy: [] },
+  // MYK9-2291: ASCA §1.5.18 and §1.5.22, typed once on the club's premium template.
+  {
+    id: 'limitedMobility',
+    label: 'Limited mobility access',
+    source: 'template',
+    requiredBy: ['ASCA'],
+  },
+  { id: 'rvHookups', label: 'RV hook-ups', source: 'template', requiredBy: [] },
 ];
 
 // ─── Formatting every style shares ──────────────────────────────────────────────────────
@@ -422,7 +434,10 @@ export function buildPremiumFacts(
     classChanges: premiumClassChangeText(show),
     // MYK9-2290: ASCA-only facts. A show switched to another registry keeps its hidden values
     // (the editor never wipes them) but they never print on that registry's premium.
-    showTerms: data.org === 'ASCA' ? buildShowTermFacts(show) : [],
+    showTerms:
+      data.org === 'ASCA'
+        ? [...buildShowTermFacts(show), ...buildClubTermFacts(data.supplemental)]
+        : [],
     withdrawalPolicy: buildWithdrawalPolicyFact(show.withdrawal),
     scoutingStatement: buildScoutingStatementFact(registry),
     entry: {

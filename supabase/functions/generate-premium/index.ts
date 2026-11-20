@@ -304,6 +304,12 @@ handle<GeneratePremiumPayload>(
           null,
         additionalNotes:
           ((template as Record<string, unknown> | null)?.additional_notes as string | null) ?? null,
+        // MYK9-2291: the club-level ASCA facts (§1.5.18, §1.5.22); null prints nothing.
+        limitedMobilityNotes:
+          ((template as Record<string, unknown> | null)?.limited_mobility_notes as string | null) ??
+          null,
+        rvHookupNotes:
+          ((template as Record<string, unknown> | null)?.rv_hookup_notes as string | null) ?? null,
       },
       narratives,
     };

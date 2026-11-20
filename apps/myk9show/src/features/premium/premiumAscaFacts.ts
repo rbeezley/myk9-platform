@@ -42,3 +42,18 @@ export function buildShowTermFacts(show: {
   if (photographer) facts.push({ label: 'Show photographer', text: photographer });
   return facts;
 }
+
+/**
+ * MYK9-2291 (ASCA §1.5.18, §1.5.22): the club-level facts typed once on the club's premium
+ * template. Each prints only when set, in every style; an empty one adds no line.
+ */
+export function buildClubTermFacts(
+  supplemental: GeneratedPremium['supplemental'] | null | undefined
+): PremiumRegistryStatementFact[] {
+  const facts: PremiumRegistryStatementFact[] = [];
+  const mobility = supplemental?.limitedMobilityNotes?.trim();
+  if (mobility) facts.push({ label: 'Limited mobility access', text: mobility });
+  const rv = supplemental?.rvHookupNotes?.trim();
+  if (rv) facts.push({ label: 'RV hook-ups', text: rv });
+  return facts;
+}

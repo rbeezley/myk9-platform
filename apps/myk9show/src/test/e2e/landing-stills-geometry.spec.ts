@@ -11,7 +11,7 @@ import { expectNoLandingSpills } from './helpers/landingGeometry';
 
 const STILLS = { club: 1, exhibitor: 3 } as const;
 /** What each shape's picture is of, in CSS pixels, so the drawn size says how large its words are. */
-const SCREEN_WIDTH = { phone: 390, desktop: 640 } as const;
+const SCREEN_WIDTH = { phone: 390, desktop: 680 } as const;
 
 async function openLanding(page: Page) {
   await page.goto('/');

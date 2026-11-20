@@ -100,7 +100,7 @@ describe('STORIES', () => {
           width: shot.width * 2,
           height: shot.height * 2,
         });
-        expect(shot.shape === 'phone' ? [390, 844] : [640, 400], shot.src).toEqual([
+        expect(shot.shape === 'phone' ? [390, 844] : [680, 425], shot.src).toEqual([
           shot.width,
           shot.height,
         ]);

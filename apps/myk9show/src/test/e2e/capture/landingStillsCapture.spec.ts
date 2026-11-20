@@ -48,6 +48,10 @@ const SCALE = 2;
  * the shape the page already draws (8:5), set in CSS pixels (the image is twice that).
  */
 type Clip = { x: number; y: number; width: number; height: number };
+/** The wizard's step card, its steps and the clone box, from the left edge of the form. */
+const CLUBS_WINDOW: Clip = { x: 225, y: 185, width: 680, height: 425 };
+/** The two right-hand cards of Find Shows: the show the exhibitor entered, and the one below it. */
+const FIND_WINDOW: Clip = { x: 720, y: 415, width: 680, height: 425 };
 const SETUP_SQL = join(dirname(fileURLToPath(import.meta.url)), 'landingStillsSetup.sql');
 
 const APP_DIR = process.cwd();
@@ -209,7 +213,7 @@ test('captures the four stills from the secretary’s desktop, the exhibitor’s
       await logBox('step card', desk.getByText('Step 1 of 4'));
       await logBox('clone card', desk.getByText('Clone from a previous show'));
       await logBox('basics', desk.getByRole('heading', { name: 'Basics' }));
-      await still(desk, 'club-create-show.png');
+      await still(desk, 'club-create-show.png', CLUBS_WINDOW);
     });
 
     // The exhibitor's phone: My Entries, then Willow's Past Results.
@@ -275,7 +279,7 @@ test('captures the four stills from the secretary’s desktop, the exhibitor’s
         'Find Shows reads ::',
         (await page.locator('main').innerText()).replace(/\s+/g, ' ')
       );
-      await still(page, 'exhibitor-find-a-show.png');
+      await still(page, 'exhibitor-find-a-show.png', FIND_WINDOW);
     });
 
     // The app opened its realtime socket in these contexts and they held it: the hold was

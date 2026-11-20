@@ -68,13 +68,13 @@ export const PEAK_LEAD: Record<Audience, string> = {
 };
 
 // A still is one picture from the Landing capture workflow (landingStillsCapture.spec.ts, MYK9-2309).
-// A desktop still is a 640x400 window of the screen at twice its size, so its words read where the
+// A desktop still is a 680x425 window of the screen at twice its size, so its words read where the
 // page draws it (about 440px wide, about 330 on a phone); a phone still is the whole 390x844 screen.
 const desktopStill = (file: string, alt: string): Shot => ({
   src: `/landing/stills/${file}.png`,
   alt,
-  width: 640,
-  height: 400,
+  width: 680,
+  height: 425,
   shape: 'desktop',
 });
 const phoneStill = (file: string, alt: string): Shot => ({
@@ -86,10 +86,22 @@ const phoneStill = (file: string, alt: string): Shot => ({
 });
 
 const SHOTS = {
-  'club-create-show': desktopStill('club-create-show', 'ALT-CLUB-CREATE-SHOW'),
-  'exhibitor-find-a-show': desktopStill('exhibitor-find-a-show', 'ALT-FIND'),
-  'exhibitor-my-entries': phoneStill('exhibitor-my-entries', 'ALT-MY-ENTRIES'),
-  'exhibitor-past-results': phoneStill('exhibitor-past-results', 'ALT-PAST'),
+  'club-create-show': desktopStill(
+    'club-create-show',
+    'The Add Show wizard on Step 1 of 4, with the steps Show Details, Trials and Classes and the Clone from a previous show box with its Select a past show to clone menu'
+  ),
+  'exhibitor-find-a-show': desktopStill(
+    'exhibitor-find-a-show',
+    'Find Shows cards for the Heartland Scent Work Classic, marked Entry Submitted, and the Heartland ASCA Scent Detection Trial, marked Accepting Entries'
+  ),
+  'exhibitor-my-entries': phoneStill(
+    'exhibitor-my-entries',
+    'My Entries card for Willow, Armband 100, marked Accepted, with Interior Advanced and Container Novice A on Mon, Jan 4, each noting Check in on the day'
+  ),
+  'exhibitor-past-results': phoneStill(
+    'exhibitor-past-results',
+    'Willow’s Competitions card on the Past Results tab: three results from the Prairie Trail Fall Scent Work Trial, Exterior Novice A Q #1, Interior Novice A Q #2 and Container Novice A Q #1'
+  ),
   // The exhibitor's show-day explainer still: the banner shows only on a show's own day.
   'e-13': {
     src: '/landing/stages/e-13.png',

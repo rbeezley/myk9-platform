@@ -28,5 +28,12 @@ export function useAtShowEntryListRefresh(
     if (phase === 'done') toast(CLASS_REFRESH_MESSAGES[phase], options);
     else toast.warning(CLASS_REFRESH_MESSAGES[phase], options);
   }, [phase]);
-  return result;
+  // A new refresh retires the previous answer, so a silent short-only retry
+  // cannot leave a stale "Up to date" on screen (MYK9-2304).
+  const { refresh: startRefresh } = result;
+  const refreshAndDismiss = useCallback(() => {
+    toast.dismiss(ENTRY_LIST_REFRESH_TOAST_ID);
+    return startRefresh();
+  }, [startRefresh]);
+  return { phase, refresh: refreshAndDismiss };
 }

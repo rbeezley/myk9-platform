@@ -5,7 +5,7 @@ import { useAtShowEntryListRefresh } from './useAtShowEntryListRefresh';
 const mocks = vi.hoisted(() => ({
   syncAtShowData: vi.fn(),
   isOnline: true,
-  toast: Object.assign(vi.fn(), { warning: vi.fn() }),
+  toast: Object.assign(vi.fn(), { warning: vi.fn(), dismiss: vi.fn() }),
 }));
 
 vi.mock('sonner', () => ({ toast: mocks.toast }));
@@ -18,6 +18,7 @@ describe('useAtShowEntryListRefresh (MYK9-1746)', () => {
     mocks.syncAtShowData.mockReset();
     mocks.toast.mockReset();
     mocks.toast.warning.mockReset();
+    mocks.toast.dismiss.mockReset();
     mocks.isOnline = true;
   });
 
@@ -93,6 +94,30 @@ describe('useAtShowEntryListRefresh (MYK9-1746)', () => {
     expect(mocks.toast.warning).not.toHaveBeenCalled();
     expect(mocks.syncAtShowData).toHaveBeenCalledWith('show-1', { forceFullSync: true });
     expect(refresh).toHaveBeenCalledWith(false);
+  });
+
+  it('dismisses the previous "Up to date" toast when a short-only retry starts (MYK9-2304)', async () => {
+    mocks.syncAtShowData.mockResolvedValueOnce({ success: true });
+    mocks.syncAtShowData.mockResolvedValueOnce({ success: false, shortOnly: true });
+    const { result } = renderHook(() =>
+      useAtShowEntryListRefresh(
+        'show-1',
+        vi.fn(() => Promise.resolve())
+      )
+    );
+    await act(async () => {
+      await result.current.refresh();
+    });
+    expect(mocks.toast).toHaveBeenCalledWith('Up to date', expect.anything());
+    mocks.toast.dismiss.mockClear();
+
+    await act(async () => {
+      await result.current.refresh();
+    });
+
+    expect(mocks.toast.dismiss).toHaveBeenCalledWith('entry-list-refresh');
+    expect(mocks.toast).toHaveBeenCalledTimes(1);
+    expect(result.current.phase).toBe('idle');
   });
 
   it('does not toast while idle', () => {

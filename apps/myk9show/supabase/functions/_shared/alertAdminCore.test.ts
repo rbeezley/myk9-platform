@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import {
+  type AlertEmailDeps,
   sendAlertEmailWith,
   DEFAULT_ALERT_SUBJECT_PREFIX,
   alertWasEmailed,
@@ -197,7 +198,9 @@ describe('runAlertAdmin', () => {
 });
 
 describe('sendAlertEmailWith (MYK9-2301)', () => {
-  const okPost = () => vi.fn(async () => ({ ok: true, status: 200 }));
+  const okPost = () => vi.fn<AlertEmailDeps['post']>(async () => ({ ok: true, status: 200 }));
+  const sentBody = (post: ReturnType<typeof okPost>) =>
+    JSON.parse(post.mock.calls.at(0)?.[0].body ?? '{}');
 
   it('skips and reports not sent when no key is configured', async () => {
     const post = okPost();
@@ -218,7 +221,7 @@ describe('sendAlertEmailWith (MYK9-2301)', () => {
     await expect(
       sendAlertEmailWith({ apiKey: 'k', to: 'ops@example.com', post, log: vi.fn() }, 'Subj', 'h')
     ).resolves.toEqual({ sent: true });
-    const body = JSON.parse(post.mock.calls[0][0].body);
+    const body = sentBody(post);
     expect(body.subject).toBe(`${DEFAULT_ALERT_SUBJECT_PREFIX} Subj`);
     expect(DEFAULT_ALERT_SUBJECT_PREFIX).toBe('[myK9Show payments]');
     expect(body.to).toBe('ops@example.com');
@@ -232,11 +235,11 @@ describe('sendAlertEmailWith (MYK9-2301)', () => {
       'h',
       '[myK9Show platform]'
     );
-    expect(JSON.parse(post.mock.calls[0][0].body).subject).toBe('[myK9Show platform] Subj');
+    expect(sentBody(post).subject).toBe('[myK9Show platform] Subj');
   });
 
   it('throws when the provider refuses the email', async () => {
-    const post = vi.fn(async () => ({ ok: false, status: 500 }));
+    const post = vi.fn<AlertEmailDeps['post']>(async () => ({ ok: false, status: 500 }));
     await expect(
       sendAlertEmailWith({ apiKey: 'k', to: 'ops@example.com', post, log: vi.fn() }, 'Subj', 'h')
     ).rejects.toThrow('Alert email failed (500): Subj');

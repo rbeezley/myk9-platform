@@ -3,6 +3,7 @@ import { replicatedEntriesTable } from '../ReplicatedEntriesTable';
 import { replicatedWaitlistEntriesTable } from '../ReplicatedWaitlistEntriesTable';
 import { replicatedArmbandsTable } from '../ReplicatedArmbandsTable';
 import { replicatedPaperworkPrintsTable } from '../ReplicatedPaperworkPrintsTable';
+import { replicatedShowDeskPeopleTable } from '../ReplicatedShowDeskPeopleTable';
 import { replicatedDogsTable } from '../ReplicatedDogsTable';
 import { replicatedClassesTable } from '../ReplicatedClassesTable';
 import { replicatedTrialsTable } from '../ReplicatedTrialsTable';
@@ -18,6 +19,7 @@ describe('account-owned replicated tables', () => {
     ['waitlist_entries', replicatedWaitlistEntriesTable],
     ['armbands', replicatedArmbandsTable],
     ['paperwork_prints', replicatedPaperworkPrintsTable],
+    ['people', replicatedShowDeskPeopleTable],
   ])('%s keeps rows per account', (_name, table) => {
     expect(table.usesAccountOwnedRows()).toBe(true);
   });

@@ -23,7 +23,8 @@ const harness = vi.hoisted(() => ({
   fetchAffiliations: vi.fn(),
 }));
 
-vi.mock('@/services/database/judges/judgeAffiliations', () => ({
+vi.mock('@/services/database/judges/judgeAffiliations', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/database/judges/judgeAffiliations')>()),
   fetchShowJudgeAffiliationEditor: harness.fetchAffiliations,
 }));
 

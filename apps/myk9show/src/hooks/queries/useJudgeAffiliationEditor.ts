@@ -64,7 +64,7 @@ export function useJudgeAffiliationEditor(showId: string | undefined, personId: 
   let readiness: JudgeAffiliationReadiness = 'waiting';
   if (!isOnline) readiness = 'offline';
   else if (query.isError) readiness = 'error';
-  else if (query.data === undefined) readiness = 'checking';
+  else if (showId !== undefined && query.data === undefined) readiness = 'checking';
   else if (entry) readiness = entry.status;
 
   /** After an acknowledged save: show the saved value at once, whatever a refetch does. */

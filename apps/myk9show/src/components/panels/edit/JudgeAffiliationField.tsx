@@ -19,6 +19,8 @@ export const JUDGE_AFFILIATION_MAX_LENGTH = 200;
 export const JUDGE_AFFILIATION_WAIT = 'Saving the judge first';
 export const JUDGE_AFFILIATION_OFFLINE = 'Reconnect to add the affiliation';
 export const JUDGE_AFFILIATION_CHECKING = 'Checking with myK9Show';
+export const JUDGE_AFFILIATION_READ_ERROR_ROW =
+  'Could not load. Use Try again at the top of this list.';
 export const JUDGE_AFFILIATION_READ_ERROR =
   "Could not reach myK9Show to load the judges' affiliations";
 
@@ -130,14 +132,16 @@ export const JudgeAffiliationField: React.FC<{ showId: string | undefined; judge
           Save affiliation
         </Button>
       </div>
-      {/* A read error is reported once for the tab, by AffiliationRoster. */}
-      {!ready && readiness !== 'error' && (
+      {/* The read error is announced once, by AffiliationRoster; each row only points to it. */}
+      {!ready && (
         <p className="text-sm text-muted-foreground">
           {readiness === 'offline'
             ? JUDGE_AFFILIATION_OFFLINE
-            : readiness === 'checking'
-              ? JUDGE_AFFILIATION_CHECKING
-              : JUDGE_AFFILIATION_WAIT}
+            : readiness === 'error'
+              ? JUDGE_AFFILIATION_READ_ERROR_ROW
+              : readiness === 'checking'
+                ? JUDGE_AFFILIATION_CHECKING
+                : JUDGE_AFFILIATION_WAIT}
         </p>
       )}
     </div>

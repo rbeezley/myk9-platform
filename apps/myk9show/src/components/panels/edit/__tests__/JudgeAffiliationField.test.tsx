@@ -9,6 +9,7 @@ import { EditPanelContext, type EditPanelContextValue } from '../useEditPanel';
 import {
   AssignedJudgeNote,
   JUDGE_AFFILIATION_READ_ERROR,
+  JUDGE_AFFILIATION_READ_ERROR_ROW,
   JudgeAffiliation,
   AffiliationRoster,
 } from '../JudgeAffiliationField';
@@ -182,6 +183,8 @@ describe('Edit show judge affiliation field (MYK9-2294)', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(JUDGE_AFFILIATION_READ_ERROR);
     expect(screen.getAllByRole('alert')).toHaveLength(1);
     expect(screen.getAllByRole('button', { name: 'Try again' })).toHaveLength(1);
+    // Each disabled row still says why, quietly, pointing at the one Try again.
+    expect(screen.getAllByText(JUDGE_AFFILIATION_READ_ERROR_ROW)).toHaveLength(2);
     expect(screen.queryByText('Saving the judge first')).not.toBeInTheDocument();
     screen.getAllByLabelText('Affiliation').forEach(input => expect(input).toBeDisabled());
     let answer: (value: unknown) => void = () => undefined;

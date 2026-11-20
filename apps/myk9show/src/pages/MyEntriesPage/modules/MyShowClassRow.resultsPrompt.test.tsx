@@ -16,8 +16,20 @@ vi.mock('@/hooks/queries/useShowSettingsDatabase', async importOriginal => ({
 }));
 
 vi.mock('@/components/preferences/ResultsPublicPrompt', () => ({
-  ResultsPublicPrompt: (props: { showId: string; dogName: string; placement: number }) => (
-    <div data-testid="prompt">{`${props.showId}|${props.dogName}|${props.placement}`}</div>
+  ResultsPublicPrompt: (props: {
+    showId: string;
+    dogName: string;
+    placement: number;
+    handlerId?: string | null;
+    ownerId?: string | null;
+    coOwnerId?: string | null;
+  }) => (
+    <>
+      <div data-testid="prompt">{`${props.showId}|${props.dogName}|${props.placement}`}</div>
+      <div data-testid="prompt-ids">
+        {[props.handlerId, props.ownerId, props.coOwnerId].map(id => String(id)).join('|')}
+      </div>
+    </>
   ),
 }));
 
@@ -84,6 +96,22 @@ describe('My Shows class row results-public prompt (MYK9-1944)', () => {
   it('renders the prompt on a released, placed result', () => {
     renderClass({ finalPlacement: 1, resultsReleasedAt: '2026-10-24T18:00:00Z' });
     expect(screen.getByTestId('prompt')).toHaveTextContent('show-heartland|Scout|1');
+  });
+
+  it('passes the handler, owner and co-owner ids through, keeping null and undefined apart', () => {
+    renderClass({
+      finalPlacement: 1,
+      resultsReleasedAt: '2026-10-24T18:00:00Z',
+      handlerId: null,
+      dogOwnerId: 'person-1',
+      dogCoOwnerId: 'person-2',
+    });
+    expect(screen.getByTestId('prompt-ids')).toHaveTextContent('null|person-1|person-2');
+  });
+
+  it('a row that does not carry the handler id passes undefined, not null', () => {
+    renderClass({ finalPlacement: 1, resultsReleasedAt: '2026-10-24T18:00:00Z' });
+    expect(screen.getByTestId('prompt-ids')).toHaveTextContent('undefined|undefined|undefined');
   });
 
   it('renders nothing for a result that did not place', () => {

@@ -184,7 +184,7 @@ describe('ResultsPublicPrompt (MYK9-1944)', () => {
       ownerId: 'person-sam',
       coOwnerId: null,
     });
-    expect(note).toHaveTextContent('Your results are now public. This result is public now.');
+    expect(note).toHaveTextContent('Your results are now public, including this one.');
     expect(note).not.toHaveTextContent('Casey Morgan');
     expect(note).not.toHaveTextContent(/co-owner|everyone on the entry/);
   });
@@ -208,7 +208,7 @@ describe('ResultsPublicPrompt (MYK9-1944)', () => {
       ownerId: 'person-sam',
       coOwnerId: null,
     });
-    expect(note).toHaveTextContent('This result is public now.');
+    expect(note).toHaveTextContent('including this one.');
   });
 
   it('a linked co-owner is waited for but not named', async () => {
@@ -228,6 +228,16 @@ describe('ResultsPublicPrompt (MYK9-1944)', () => {
     expect(note).toHaveTextContent(
       "If a co-owner or handler on this entry hasn't turned this on, this result stays private until they do."
     );
+  });
+
+  it('a row that carries the dog people but not the handler id hedges', async () => {
+    const note = await sayYes({
+      ownerId: 'person-sam',
+      coOwnerId: null,
+      handlerName: 'Pat Handler',
+    });
+    expect(note).toHaveTextContent(/If a co-owner or handler on this entry/);
+    expect(note).not.toHaveTextContent('including');
   });
 
   it('a row that carries a handler but not the dog owner or co-owner hedges', async () => {

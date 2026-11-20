@@ -13,8 +13,20 @@ import {
 } from './myAtShowEntryDetails.helpers';
 
 vi.mock('@/components/preferences/ResultsPublicPrompt', () => ({
-  ResultsPublicPrompt: (props: { showId: string; dogName: string; placement: number }) => (
-    <div data-testid="prompt">{`${props.showId}|${props.dogName}|${props.placement}`}</div>
+  ResultsPublicPrompt: (props: {
+    showId: string;
+    dogName: string;
+    placement: number;
+    handlerId?: string | null;
+    ownerId?: string | null;
+    coOwnerId?: string | null;
+  }) => (
+    <>
+      <div data-testid="prompt">{`${props.showId}|${props.dogName}|${props.placement}`}</div>
+      <div data-testid="prompt-ids">
+        {[props.handlerId, props.ownerId, props.coOwnerId].map(id => String(id)).join('|')}
+      </div>
+    </>
   ),
 }));
 
@@ -70,6 +82,16 @@ describe('MyEntryRow results-public prompt (MYK9-1944)', () => {
   it('renders the prompt on a released, placed result', () => {
     renderRow(SCORED);
     expect(screen.getByTestId('prompt')).toHaveTextContent('show-1|Scout|1');
+  });
+
+  it('passes the handler, owner and co-owner ids through, keeping null and undefined apart', () => {
+    renderRow({ ...SCORED, handlerId: null, dogOwnerId: 'person-1', dogCoOwnerId: 'person-2' });
+    expect(screen.getByTestId('prompt-ids')).toHaveTextContent('null|person-1|person-2');
+  });
+
+  it('a row that does not carry the ids passes undefined, not null', () => {
+    renderRow(SCORED);
+    expect(screen.getByTestId('prompt-ids')).toHaveTextContent('undefined|undefined|undefined');
   });
 
   it('renders nothing on a row the list did not pick', () => {

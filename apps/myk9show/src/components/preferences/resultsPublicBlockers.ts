@@ -13,7 +13,7 @@ export interface EntryPeopleIds {
   ownerId: string | null | undefined;
   /** `dogs.co_owner_id`; null is "no co-owner", `undefined` is "not on the row". */
   coOwnerId: string | null | undefined;
-  /** `entries.handler_id`; null is a typed-in handler or none. */
+  /** `entries.handler_id`; null is a typed-in handler or none, `undefined` is "not on the row". */
   handlerId: string | null | undefined;
   /** The handler's display name on the row, used only to name a linked handler. */
   handlerName: string | null | undefined;
@@ -31,9 +31,14 @@ export type OtherPeopleOnEntry =
 
 export function otherPeopleOnEntry(people: EntryPeopleIds): OtherPeopleOnEntry {
   const { viewerPersonId, ownerId, coOwnerId, handlerId, handlerName } = people;
-  // The dog's people are all-or-nothing on a row, so a missing owner or co-owner field means
-  // the read did not carry them. A missing viewer id cannot be told apart from "someone else".
-  if (!viewerPersonId || ownerId === undefined || coOwnerId === undefined) {
+  // A field the row did not carry (undefined) is unknown, never "no one": null is the only
+  // answer that means nobody is linked. A missing viewer id cannot be told apart from "someone else".
+  if (
+    !viewerPersonId ||
+    ownerId === undefined ||
+    coOwnerId === undefined ||
+    handlerId === undefined
+  ) {
     return { kind: 'unknown' };
   }
   const others = new Set(

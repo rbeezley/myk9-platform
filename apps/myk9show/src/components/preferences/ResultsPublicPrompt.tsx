@@ -78,14 +78,14 @@ export function ResultsPublicPrompt({
         role="status"
         data-testid="results-public-note"
       >
-        Your results are now public.
+        Your results are now public
         {others.kind === 'none'
-          ? ' This result is public now.'
+          ? ', including this one.'
           : others.kind === 'named'
-            ? ` This result shows publicly only once everyone on the entry has turned this on, including ${others.name}.`
+            ? `. This result shows publicly only once everyone on the entry has turned this on, including ${others.name}.`
             : others.kind === 'unnamed'
-              ? ' This result shows publicly only once everyone on the entry has turned this on.'
-              : " If a co-owner or handler on this entry hasn't turned this on, this result stays private until they do."}
+              ? '. This result shows publicly only once everyone on the entry has turned this on.'
+              : ". If a co-owner or handler on this entry hasn't turned this on, this result stays private until they do."}
       </p>
     );
   }

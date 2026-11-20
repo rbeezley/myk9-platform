@@ -226,6 +226,9 @@ const REVIEWED_CLUB_HELPER_POLICY_SITES: readonly string[] = [
   'club_registry_numbers_delete -> is_club_admin',
   'club_registry_numbers_insert -> is_club_admin',
   'club_registry_numbers_update -> is_club_admin',
+  // SAFE: shows.club_id is NOT NULL (20261004181900_myk9_1008_show_requires_club.sql), and the
+  // policy reaches it through shows s WHERE s.id = club_settled_refunds.show_id (MYK9-2303).
+  'club_settled_refunds_select -> is_club_admin',
   // SAFE: club_id is `uuid not null unique` (20260609120000_stripe_connect_payouts.sql).
   'club_stripe_accounts_select -> is_club_admin',
   // GUARDED: show_templates.club_id is nullable (a NULL is a platform template).

@@ -86,6 +86,7 @@ CREATE TRIGGER club_settled_refunds_append_only
 -- Who may read: the same predicate as show_payouts_select (site admin, the show's
 -- secretary, the show's club admin).
 ALTER TABLE public.club_settled_refunds ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.club_settled_refunds FORCE ROW LEVEL SECURITY;
 
 CREATE POLICY club_settled_refunds_select ON public.club_settled_refunds
   FOR SELECT TO authenticated

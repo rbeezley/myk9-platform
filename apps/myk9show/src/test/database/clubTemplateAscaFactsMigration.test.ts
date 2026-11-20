@@ -1,7 +1,7 @@
 /**
- * MYK9-2291: the migration adds two nullable text columns to club_premium_templates with no
- * column-level grant or revoke (the table has table-level grants, so the columns follow their
- * siblings and no anon access is added).
+ * MYK9-2291: the migration adds two nullable text columns to club_premium_templates and restates
+ * only the table-level grants. The effective ACLs are asserted by the behavioral SQL test
+ * supabase/tests/myk9_2291_club_template_asca_facts_test.sql (runs in CI).
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -26,8 +26,12 @@ describe('20261120232100_myk9_2291_club_template_asca_facts.sql', () => {
     }
   );
 
-  it('adds no grant or revoke, and touches no other table', () => {
-    expect(flat).not.toMatch(/GRANT |REVOKE /);
+  it('restates the table-level grants only: authenticated CRUD, no anon, no column ACLs', () => {
+    expect(flat).toContain(
+      'GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.club_premium_templates TO authenticated;'
+    );
+    expect(flat).toContain('REVOKE ALL ON TABLE public.club_premium_templates FROM anon;');
+    expect(flat).not.toMatch(/GRANT [^;]*\([^)]*\)/);
     expect(flat.match(/ALTER TABLE [\w.]+/g)).toEqual([
       'ALTER TABLE public.club_premium_templates',
     ]);

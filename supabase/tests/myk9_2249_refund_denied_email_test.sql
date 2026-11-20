@@ -132,7 +132,9 @@ begin
    where step_type = 'refund_denied' and recipient_person_id = '00000000-0000-0000-0000-000002249021';
   if v_job.status <> 'held' or not v_job.auto_send or v_job.recipient_email <> 'ada-2249@example.test'
      or v_job.entry_changes <> jsonb_build_array(jsonb_build_object(
-          'kind', 'refund_denied', 'entry_id', '00000000-0000-0000-0000-000002249041')) then
+          'kind', 'refund_denied', 'entry_id', '00000000-0000-0000-0000-000002249041',
+          'decided_at', (select refund_decided_at from public.entries
+                          where id = '00000000-0000-0000-0000-000002249041'))) then
     raise exception 'FAIL A the job is wrong: %', row_to_json(v_job);
   end if;
   raise notice 'PASS A a denial with a reason queues one held job each for the owner and the handler';

@@ -13,13 +13,7 @@ import {
   type LifecycleEmailSupabaseClient,
   type QueryResult,
 } from './lifecycle-email-shared.ts';
-import {
-  classLabel,
-  clean,
-  first,
-  type ClassRow,
-  type DogRow,
-} from './lifecycle-email-entryChanged.ts';
+import { clean, first, type ClassRow, type DogRow } from './lifecycle-email-entryChanged.ts';
 
 export interface RenderedRefundDeniedEmail {
   subject: string;
@@ -34,6 +28,10 @@ interface EntryRow {
   class_id: string | null;
   refund_decision: string | null;
   refund_decision_reason: string | null;
+  refund_decided_at: string | null;
+  refund_amount: number | null;
+  refunded_at: string | null;
+  payment_status: string | null;
   handler_id: string | null;
   deleted_at: string | null;
   dogs: DogRow | DogRow[] | null;
@@ -64,16 +62,16 @@ export async function planRefundDeniedEmail(args: {
     .single()) as QueryResult<{ entry_changes: unknown }>;
   if (jobRead.error || !jobRead.data) throw new Error('Failed to load the entries');
   const events = Array.isArray(jobRead.data.entry_changes) ? jobRead.data.entry_changes : [];
-  const entryId = events
-    .map(event => event as { kind?: unknown; entry_id?: unknown })
-    .find(event => event?.kind === 'refund_denied' && typeof event.entry_id === 'string')
-    ?.entry_id as string | undefined;
+  const recorded = events
+    .map(event => event as { kind?: unknown; entry_id?: unknown; decided_at?: unknown })
+    .find(event => event?.kind === 'refund_denied' && typeof event.entry_id === 'string');
+  const entryId = recorded?.entry_id as string | undefined;
   if (!entryId) return { kind: 'skip' };
 
   const entryRead = (await supabase
     .from('entries')
     .select(
-      'id, class_id, refund_decision, refund_decision_reason, handler_id, deleted_at, dogs(name, call_name, owner_id, deleted_at)'
+      'id, class_id, refund_decision, refund_decision_reason, refund_decided_at, refund_amount, refunded_at, payment_status, handler_id, deleted_at, dogs(name, call_name, owner_id, deleted_at)'
     )
     .eq('show_id', args.showId)
     .eq('id', entryId)) as QueryResult<EntryRow[]>;
@@ -88,6 +86,20 @@ export async function planRefundDeniedEmail(args: {
   }
   const reason = clean(entry.refund_decision_reason);
   if (entry.refund_decision !== 'denied' || !reason) return { kind: 'skip' };
+  // The job names the denial that queued it: a re-denial after a reinstatement is a different
+  // one, and has its own job. A job with no recorded denial time is not one this code queued.
+  const queuedFor = Date.parse(String(recorded?.decided_at ?? ''));
+  if (!Number.isFinite(queuedFor) || queuedFor !== Date.parse(entry.refund_decided_at ?? '')) {
+    return { kind: 'skip' };
+  }
+  // A refund issued after the denial (the secretary revisited it) makes "no refund" untrue.
+  if (
+    (entry.refund_amount ?? 0) > 0 ||
+    entry.refunded_at ||
+    clean(entry.payment_status).toLowerCase() === 'refunded'
+  ) {
+    return { kind: 'skip' };
+  }
 
   let label = 'your class';
   if (entry.class_id) {
@@ -99,7 +111,7 @@ export async function planRefundDeniedEmail(args: {
       .eq('id', entry.class_id)) as QueryResult<ClassRow[]>;
     if (classRead.error) throw new Error('Failed to load classes');
     const row = (classRead.data ?? [])[0];
-    if (row) label = classLabel(row);
+    if (row) label = classNameOnly(row);
   }
   return {
     kind: 'send',
@@ -107,6 +119,15 @@ export async function planRefundDeniedEmail(args: {
     classLabel: label,
     reason,
   };
+}
+
+/** The class name alone: this email names no date (MYK9-2249), so not classLabel's trial date. */
+function classNameOnly(row: ClassRow): string {
+  return (
+    clean(row.name) ||
+    [clean(row.element), clean(row.level), clean(row.section)].filter(Boolean).join(' ') ||
+    'your class'
+  );
 }
 
 function firstName(recipientName: string | null): string {

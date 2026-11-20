@@ -29,6 +29,10 @@ function entry(overrides: Row = {}): Row {
     entry_status: 'scratched',
     refund_decision: 'denied',
     refund_decision_reason: 'The refund deadline had passed.',
+    refund_decided_at: '2026-11-20T10:00:00.000Z',
+    refund_amount: null,
+    refunded_at: null,
+    payment_status: 'paid',
     handler_id: null,
     deleted_at: null,
     dogs: dog,
@@ -46,7 +50,9 @@ function tables(
     show_lifecycle_email_jobs: [
       autoJob({
         step_type: 'refund_denied',
-        entry_changes: [{ kind: 'refund_denied', entry_id: 'entry-1' }],
+        entry_changes: [
+          { kind: 'refund_denied', entry_id: 'entry-1', decided_at: '2026-11-20T10:00:00+00:00' },
+        ],
         idempotency_key: 'k-refund-denied',
         status: 'held',
         ...jobOverrides,
@@ -78,9 +84,10 @@ describe('drainAutoEmailJobs for refund_denied (MYK9-2249)', () => {
     const sent = sentBody(fetch);
     expect(sent.to).toBe('jamie@example.com');
     expect(sent.subject).toBe('Refund decision at Spring Scent Trial');
-    expect(sent.html).toContain(
-      'No refund for Vesper in Novice Interior (Saturday Trial, Saturday, November 21, 2026).'
-    );
+    expect(sent.html).toContain('No refund for Vesper in Novice Interior.');
+    // No date and no trial: the owner's wording names neither.
+    expect(sent.html).not.toContain('November');
+    expect(sent.html).not.toContain('Saturday');
     expect(sent.html).toContain('The refund deadline had passed.');
     expect(sent.html).not.toMatch(/\$\d/);
     expect(fixture.tables.show_lifecycle_email_jobs[0]).toMatchObject({ status: 'sent' });
@@ -139,6 +146,13 @@ describe('drainAutoEmailJobs for refund_denied (MYK9-2249)', () => {
       { refund_decision: null, refund_decision_reason: null },
     ],
     ['a deleted entry', { deleted_at: '2026-11-20T00:00:00Z' }],
+    ['a refund issued since (amount booked)', { refund_amount: 30 }],
+    ['a refund issued since (refund date booked)', { refunded_at: '2026-11-20T11:00:00Z' }],
+    ['a refund issued since (payment refunded)', { payment_status: 'refunded' }],
+    [
+      'a denial since replaced by a later one (reinstated, then denied again)',
+      { refund_decided_at: '2026-11-20T12:00:00.000Z', refund_decision_reason: 'Second reason.' },
+    ],
   ])('sends nothing for %s', async (_label, overrides) => {
     const fixture = makeAutoSendSupabase(tables('published', [entry(overrides)]));
     const { fetch, promise } = drain(fixture);

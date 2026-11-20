@@ -142,4 +142,18 @@ describe('PullReconciliationActions', () => {
     expect(screen.queryByLabelText('Why is there no refund?')).not.toBeInTheDocument();
     expect(denyPullRefundDecision).not.toHaveBeenCalled();
   });
+
+  it('shows a saved denial read-only instead of offering to save another reason', () => {
+    render(
+      <PullReconciliationActions
+        entry={makeEntry({ refundDecision: 'denied' })}
+        onOpenRefund={vi.fn()}
+        onResolved={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('Refund denied')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Deny refund' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Save denial' })).not.toBeInTheDocument();
+  });
 });

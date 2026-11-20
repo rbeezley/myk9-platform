@@ -81,19 +81,26 @@ export function PullReconciliationActions({
       >
         Issue refund
       </Button>
-      <Button
-        type="button"
-        size="sm"
-        variant={selected === 'denied' ? 'secondary' : 'outline'}
-        className="min-h-11"
-        aria-pressed={selected === 'denied'}
-        aria-expanded={isAskingReason}
-        disabled={isDenying}
-        onClick={() => setIsAskingReason(open => !open)}
-      >
-        {isDenying ? 'Saving…' : 'Deny refund'}
-      </Button>
-      {isAskingReason && (
+      {entry.refundDecision === 'denied' ? (
+        // MYK9-2249: a saved denial keeps its reason and email; saving another would do nothing.
+        <Badge variant="secondary" className="min-h-11 px-3">
+          Refund denied
+        </Badge>
+      ) : (
+        <Button
+          type="button"
+          size="sm"
+          variant={selected === 'denied' ? 'secondary' : 'outline'}
+          className="min-h-11"
+          aria-pressed={selected === 'denied'}
+          aria-expanded={isAskingReason}
+          disabled={isDenying}
+          onClick={() => setIsAskingReason(open => !open)}
+        >
+          {isDenying ? 'Saving…' : 'Deny refund'}
+        </Button>
+      )}
+      {isAskingReason && entry.refundDecision !== 'denied' && (
         // MYK9-2249: the reason is required; the owner and handler are emailed it.
         <div className="flex w-full flex-col gap-2">
           <label htmlFor={`deny-reason-${entry.id}`} className="text-sm font-medium">

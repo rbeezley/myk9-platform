@@ -21,10 +21,10 @@
 --   4. Both step_type CHECKs and ensure_show_lifecycle_email_steps gain 'refund_denied'. Every
 --      step type on main is listed (copied from 20261120053700).
 --   5. queue_refund_denied_email: held jobs for the sender to release (deploy rule: db push, then
---      `supabase functions deploy send-lifecycle-email --no-verify-jwt`; until then they wait).
+--      `supabase functions deploy send-lifecycle-email --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt`; until then they wait).
 --      A denial is allowed on a COMPLETED show too: refunds are decided after closeout.
 --
--- Deploy order: db push, then `supabase functions deploy send-lifecycle-email` (see above).
+-- Deploy order: db push, then `supabase functions deploy send-lifecycle-email --project-ref sojmvhhwsjxmfistvzbe` (see above).
 -- Rollback: drop the 3-argument function and queue_refund_denied_email; delete refund_denied jobs
 -- and steps; restore the eleven-value step_type CHECKs and ensure_show_lifecycle_email_steps from
 -- 20261120053700; restore restrict_entry_refund_decision_columns from 20261117152900; drop the
@@ -217,7 +217,7 @@ SELECT public.ensure_show_lifecycle_email_steps(s.id) FROM public.shows s;
 -- The denial of p_entry_id was just recorded. One held job per recipient: the dog's owner and the
 -- entry's handler (one job when they are the same person), never p_caller_auth_id's own person
 -- (the person who denied). The job stores ids only; the sender renders the dog, the class and
--- the reason from the entry at send time. Not callable by an API role.
+-- the reason from the entry at send time, only while the denial named in the job still stands. Not callable by an API role.
 CREATE OR REPLACE FUNCTION public.queue_refund_denied_email(
   p_entry_id uuid,
   p_caller_auth_id uuid
@@ -233,10 +233,11 @@ DECLARE
   v_status text;
   v_owner_id uuid;
   v_handler_id uuid;
+  v_decided_at timestamptz;
   v_step_id uuid;
 BEGIN
-  SELECT e.show_id, sh.name, sh.status, d.owner_id, e.handler_id
-    INTO v_show_id, v_show_name, v_status, v_owner_id, v_handler_id
+  SELECT e.show_id, sh.name, sh.status, d.owner_id, e.handler_id, e.refund_decided_at
+    INTO v_show_id, v_show_name, v_status, v_owner_id, v_handler_id, v_decided_at
     FROM public.entries e
     JOIN public.dogs d ON d.id = e.dog_id
     JOIN public.shows sh ON sh.id = e.show_id AND sh.deleted_at IS NULL
@@ -281,7 +282,11 @@ BEGIN
       || ':' || gen_random_uuid()::text,
     now(),
     true,
-    jsonb_build_array(jsonb_build_object('kind', 'refund_denied', 'entry_id', p_entry_id))
+    -- decided_at ties the job to THIS denial: a reinstated and re-denied entry has a new one,
+    -- and the sender skips a job whose denial is no longer the current one.
+    jsonb_build_array(jsonb_build_object(
+      'kind', 'refund_denied', 'entry_id', p_entry_id, 'decided_at', v_decided_at
+    ))
   FROM public.people p
   WHERE nullif(btrim(coalesce(p.email, '')), '') IS NOT NULL
     AND p.deleted_at IS NULL

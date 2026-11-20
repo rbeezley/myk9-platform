@@ -13,9 +13,9 @@ function StepScene({ id, lead }: { id: SceneId | undefined; lead: DeviceId }) {
   return scene ? <TimelineScene scene={scene} lead={lead} /> : null;
 }
 
-function Screenshot({ shot, side }: { shot: Shot; side: 'main' | 'meanwhile' }) {
+function Screenshot({ shot }: { shot: Shot }) {
   return (
-    <div className="lc-shot" data-shape={shot.shape} data-side={side}>
+    <div className="lc-shot" data-shape={shot.shape}>
       <img
         src={shot.src}
         alt={shot.alt}
@@ -71,7 +71,7 @@ export function TimelineStep({
         {step.scoresheetDemo && <ScoresheetDemo />}
         {step.nightBefore && <NightBeforeCard active={revealed} />}
         {step.shot && !step.explainer && !step.scoresheetDemo && !step.nightBefore && (
-          <Screenshot shot={step.shot} side="main" />
+          <Screenshot shot={step.shot} />
         )}
       </div>
       <div className="lc-rail" aria-hidden="true">
@@ -92,7 +92,6 @@ export function TimelineStep({
           <span className="sr-only">{meanwhileLabel}: </span>
           {step.meanwhile}
         </p>
-        {step.meanwhileShot && <Screenshot shot={step.meanwhileShot} side="meanwhile" />}
         <StepScene id={step.meanwhileScene} lead={sceneLead} />
       </div>
     </div>

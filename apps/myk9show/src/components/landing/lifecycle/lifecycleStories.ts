@@ -31,10 +31,9 @@ export type StoryStep = {
   nightBefore?: true; // club before show day: the night-before checklist (D11)
   /** An animated scene of real captures, on this side of the step (MYK9-1894). */
   scene?: SceneId;
-  /** The same, on the meanwhile side, in place of a still. */
+  /** The same, on the meanwhile side. The meanwhile side carries a sentence or a scene, never a still (MYK9-2295). */
   meanwhileScene?: SceneId;
   meanwhile: string;
-  meanwhileShot: Shot | null;
   peak?: true;
 };
 
@@ -215,7 +214,6 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
       body: 'Classes, levels and qualifying rules for AKC, UKC and ASCA are built in. Start from last year’s show and change what is new.',
       shot: SHOTS['s-02'],
       meanwhile: 'Exhibitors can find your show and read the premium list as soon as you publish.',
-      meanwhileShot: SHOTS['e-01'],
     },
     {
       id: 'entries',
@@ -223,7 +221,6 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
       body: 'Entries arrive in one list, already checked against class limits. Nothing to re-type.',
       shot: SHOTS['s-07'],
       meanwhile: 'Exhibitors enter online in a few minutes, with their dogs saved.',
-      meanwhileShot: SHOTS['e-02'],
     },
     {
       id: 'before',
@@ -232,7 +229,6 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
       shot: SHOTS['s-12'],
       nightBefore: true,
       meanwhile: 'Exhibitors see their armband number and their classes.',
-      meanwhileShot: SHOTS['e-12'],
     },
     {
       id: 'showday',
@@ -244,7 +240,6 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
       scoresheetDemo: true,
       meanwhile:
         'Exhibitors follow their classes from their phones, and check in where you allow it.',
-      meanwhileShot: SHOTS['e-13'],
     },
     {
       id: 'results',
@@ -252,7 +247,6 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
       body: 'Placements are worked out from the scores. You choose when results go public.',
       shot: SHOTS['s-20'],
       meanwhile: 'Each exhibitor sees their dog’s placement the moment you release it.',
-      meanwhileShot: SHOTS['e-17'],
     },
     {
       id: 'after',
@@ -260,7 +254,6 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
       body: 'Every result is already recorded. Nothing to re-key.',
       shot: null,
       meanwhile: 'Every Q stays on each dog’s record, show after show.',
-      meanwhileShot: SHOTS['e-16'],
     },
   ],
   exhibitor: [
@@ -270,7 +263,6 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
       body: 'Browse upcoming scent work shows by registry and date. Open any show to see what the club has published.',
       shot: SHOTS['e-01'],
       meanwhile: 'The club sets up the show, with AKC, UKC or ASCA rules already built in.',
-      meanwhileShot: SHOTS['s-02'],
     },
     {
       id: 'entries',
@@ -279,7 +271,6 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
       shot: SHOTS['e-02'],
       explainer: EXHIBITOR_ENTRIES,
       meanwhile: 'Entries arrive in one list, already checked against class limits.',
-      meanwhileShot: SHOTS['s-07'],
     },
     {
       id: 'before',
@@ -287,7 +278,6 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
       body: 'See your armband number and the classes your dog is entered in.',
       shot: SHOTS['e-12'],
       meanwhile: 'Running orders, check-in sheets and armbands come straight from the entries.',
-      meanwhileShot: SHOTS['s-12'],
     },
     {
       id: 'showday',
@@ -297,7 +287,6 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
       shot: SHOTS['e-13'],
       explainer: EXHIBITOR_SHOW_DAY,
       meanwhile: 'Judges score at the ring on a phone or tablet, even with no signal at all.',
-      meanwhileShot: null,
       meanwhileScene: 'showday-ring',
     },
     {
@@ -307,7 +296,6 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
       shot: SHOTS['e-17'],
       meanwhile:
         'Placements are worked out from the scores, and the club chooses when to release them.',
-      meanwhileShot: SHOTS['s-20'],
     },
     {
       id: 'after',
@@ -315,7 +303,6 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
       body: 'Qualifying runs stay on your dog’s record, show after show.',
       shot: SHOTS['e-16'],
       meanwhile: 'The results are already recorded, with nothing to re-type.',
-      meanwhileShot: null,
     },
   ],
 };

@@ -361,9 +361,11 @@ for (const vp of VIEWPORTS) {
       expect(result.failures, `minimum ratio observed ${result.min.toFixed(2)}`).toEqual([]);
     });
 
-    // 15, not 14, while the animated scenes sit beside the stills they will replace (owner,
-    // 2026-11-17, MYK9-1894): the ring scene adds about one phone screen. Bring this back to
-    // 14 when Phase 2 of docs/plan-landing-animated-timeline.md removes the two-column stills.
+    // 15 (owner, 2026-11-17, MYK9-1894): the ring scene added about one phone screen. MYK9-2295
+    // dropped the meanwhile screenshots, which took the club page from 14.90 to 12.91 screens and
+    // the exhibitor page from 14.02 to 13.31 at 390x844 (measured 2026-11-19). The limit stays 15,
+    // not 14: that room is what the Entries open scene (MYK9-2296) needs, and the owner chose to
+    // drop the stills instead of raising the limit (2026-11-19).
     test('page length is 8 to 15 screens on phone', async ({ page }) => {
       test.skip(vp.name !== 'phone');
       await openLanding(page);

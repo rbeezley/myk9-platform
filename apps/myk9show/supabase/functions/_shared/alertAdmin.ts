@@ -88,7 +88,12 @@ export async function alertAdmin(
     insert: () => insertOperatorAlert(subject, html, opts),
     sendEmail: () =>
       sendAlertEmailWith(
-        { apiKey: resendApiKey, to: alertEmail, post: sendResendEmailWithRetry, log: console.log },
+        {
+          apiKey: resendApiKey,
+          to: alertEmail,
+          post: init => sendResendEmailWithRetry(init),
+          log: console.log,
+        },
         subject,
         html,
         opts.subjectPrefix ?? DEFAULT_ALERT_SUBJECT_PREFIX

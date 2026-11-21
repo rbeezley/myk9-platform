@@ -122,7 +122,7 @@ SMTP values (Resend):
 > `site_url` to localhost, wipe the redirect allowlist, and likely disable Google
 > sign-in **and the Resend email hook itself**. Also never put live Resend SMTP in
 > `config.toml` — it drives local `supabase start`, which should capture mail in
-> inbucket, not send real email.
+> Mailpit (the `[local_smtp]` section), not send real email.
 
 The Management API patches **only** the fields you send, leaving OAuth, redirects,
 hooks, and `site_url` untouched:

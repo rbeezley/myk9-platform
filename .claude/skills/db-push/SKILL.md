@@ -27,7 +27,7 @@ open a while will have gone stale — re-check before pushing.
 ```bash
 git fetch origin main
 git ls-tree -r --name-only origin/main -- supabase/migrations | tail -5
-supabase migration list   # what the linked DB has actually applied
+supabase migration list --remote   # what the linked DB has actually applied
 
 # Neither of the above sees an unmerged branch that already took your version.
 # Ask GitHub for the files, not git: a PR head may not be fetched locally, and a
@@ -155,13 +155,13 @@ Run this from the worktree linked to Supabase — **not** the main repo, and
 never from an unmerged branch.
 
 ```bash
-source supabase/.env && supabase db push --password "$SUPABASE_DB_PASSWORD"
+source supabase/.env && supabase db push --remote --yes --password "$SUPABASE_DB_PASSWORD"
 ```
 
 If you get "out of order" errors, add `--include-all`:
 
 ```bash
-source supabase/.env && supabase db push --password "$SUPABASE_DB_PASSWORD" --include-all
+source supabase/.env && supabase db push --remote --yes --password "$SUPABASE_DB_PASSWORD" --include-all
 ```
 
 ### Step 3: Verify against the applied database
@@ -170,7 +170,7 @@ The CLI lists what it applied. That is not proof the migration did what it meant
 to — verify grants against the **database**, never against the migration text.
 
 ```bash
-supabase migration list   # remote now matches supabase/migrations/
+supabase migration list --remote   # remote now matches supabase/migrations/
 ```
 
 For a migration that created a table or changed access, run all three ACL checks

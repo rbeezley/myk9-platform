@@ -132,8 +132,8 @@ function readDeployedFunctions(): string[] {
 
   const projectRef = process.env.SUPABASE_PROJECT_REF;
   const args = projectRef
-    ? ['functions', 'list', '--project-ref', projectRef]
-    : ['functions', 'list'];
+    ? ['functions', 'list', `--remote=${projectRef}`]
+    : ['functions', 'list', '--remote'];
   const output = execFileSync('supabase', args, {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],

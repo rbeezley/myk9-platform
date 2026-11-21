@@ -95,7 +95,7 @@ if [[ -z "$GENERATED" ]]; then
   ' "$tmp/committed.layout.ts" | paste -sd, -)"
   [[ -n "$schemas" ]] || not_a_verdict "no schema headers found in $COMMITTED"
   GENERATED="$tmp/generated.ts"
-  if ! supabase gen types typescript --db-url "$url" --schema "$schemas" > "$GENERATED" 2> "$tmp/gen.err"; then
+  if ! supabase gen types typescript --remote="$url" --schema "$schemas" > "$GENERATED" 2> "$tmp/gen.err"; then
     sed 's#://[^@]*@#://<redacted>@#g' "$tmp/gen.err" >&2 || true
     not_a_verdict "supabase gen types failed (see the step log)"
   fi

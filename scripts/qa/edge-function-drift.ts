@@ -296,16 +296,7 @@ export const supabaseDownloader: Downloader = (name, workdir) => {
   try {
     execFileSync(
       'supabase',
-      [
-        'functions',
-        'download',
-        name,
-        '--project-ref',
-        PROJECT_REF,
-        '--use-api',
-        '--workdir',
-        workdir,
-      ],
+      ['functions', 'download', name, `--remote=${PROJECT_REF}`, '--use-api', '--workdir', workdir],
       { cwd: workdir, stdio: ['ignore', 'pipe', 'pipe'] }
     );
     return true;
@@ -449,15 +440,11 @@ export async function runCli(
     json =
       i >= 0 && argv[i + 1]
         ? readFileSync(argv[i + 1]!, 'utf8')
-        : execFileSync(
-            'supabase',
-            ['functions', 'list', '--project-ref', PROJECT_REF, '-o', 'json'],
-            {
-              cwd: root,
-              encoding: 'utf8',
-              stdio: ['ignore', 'pipe', 'pipe'],
-            }
-          );
+        : execFileSync('supabase', ['functions', 'list', `--remote=${PROJECT_REF}`, '-o', 'json'], {
+            cwd: root,
+            encoding: 'utf8',
+            stdio: ['ignore', 'pipe', 'pipe'],
+          });
   } catch (err) {
     console.error(
       `edge-function-drift: could not read the deployed list — ${(err as Error).message}`

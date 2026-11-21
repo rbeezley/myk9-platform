@@ -12,7 +12,8 @@ import { describe, expect, it } from 'vitest';
  * `--project-ref` deploys to whatever that file (or the local link) names, and
  * untracking `.temp/*` silently changes the target. Two checks:
  *   1. every runnable `supabase functions deploy <name>` in tracked files
- *      carries `--project-ref sojmvhhwsjxmfistvzbe` in the same statement;
+ *      carries `--project-ref sojmvhhwsjxmfistvzbe` (CLI 2.x) or
+ *      `--remote=sojmvhhwsjxmfistvzbe` (CLI 3.x) in the same statement;
  *   2. `apps/myk9show/supabase/.temp/project-ref` stays tracked and correct.
  *
  * "Runnable" means a function-name token follows `deploy`. Prose such as
@@ -108,7 +109,7 @@ function deployTarget(args: string): string | undefined {
 
 export function findViolations(source: string, known: ReadonlySet<string>): Violation[] {
   const deploy = /supabase(?:@\S+)?\s+functions\s+deploy\b/g;
-  const flag = new RegExp(`--project-ref[ =]${PROJECT_REF}(?![a-z0-9])`);
+  const flag = new RegExp(`--(?:project-ref|remote)[ =]${PROJECT_REF}(?![a-z0-9])`);
   const violations: Violation[] = [];
   for (const { line, text } of statements(source)) {
     for (const m of text.matchAll(deploy)) {
@@ -161,6 +162,13 @@ describe('functions deploy --project-ref guard (known answers)', () => {
     const bad = 'supabase functions deploy a-b c-d \\\n  --workdir apps/myk9show';
     expect(findViolations(ok, known)).toEqual([]);
     expect(findViolations(bad, known)).toEqual([{ line: 1, text: expect.any(String) }]);
+  });
+
+  it('accepts the CLI 3.x --remote=<ref> form', () => {
+    expect(
+      findViolations(`supabase functions deploy a-b --remote=${PROJECT_REF} --yes`, known)
+    ).toEqual([]);
+    expect(findViolations('supabase functions deploy a-b --remote --yes', known)).toHaveLength(1);
   });
 
   it('rejects a wrong or longer project ref', () => {

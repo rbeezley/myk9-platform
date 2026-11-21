@@ -20,7 +20,7 @@ describe('planted-bugs-sql workflow (MYK9-1659)', () => {
 
   it('pins the Supabase CLI and never uses latest', () => {
     expect(workflow).toContain('supabase/setup-cli@v3');
-    expect(workflow).toContain('version: 2.122.0 # exact pin, never latest; see MYK9-1662');
+    expect(workflow).toContain('version: 3.2.0 # exact pin, never latest; see MYK9-1662');
     expect(workflow).not.toMatch(/version:\s*latest/);
   });
 

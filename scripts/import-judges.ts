@@ -11,7 +11,7 @@
  *
  * When ready to ship:
  *   npx tsx scripts/import-judges.ts > supabase/migrations/NNN_seed_akc_ukc_judges.sql
- *   supabase db push --password "$SUPABASE_DB_PASSWORD"
+ *   supabase db push --remote --password "$SUPABASE_DB_PASSWORD"
  *
  * Schema notes (post migration 070):
  *   - judge_number lives on judge_qualifications (one per org), NOT on people

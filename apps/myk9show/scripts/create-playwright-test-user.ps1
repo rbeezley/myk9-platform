@@ -36,6 +36,7 @@ if (-not $ProjectRef) {
 # Create the user using Supabase CLI
 Write-Host "👤 Creating auth user..." -ForegroundColor Cyan
 
+# NOTE: `supabase auth users create` does not exist in CLI 3.2.0 (no `auth` subcommand); this step is unverified.
 $createUserCommand = @"
 supabase auth users create $Email --password $Password --project-ref $ProjectRef
 "@
@@ -51,7 +52,7 @@ try {
 # Run the migration to create the profile
 Write-Host "📊 Applying migration for user profile..." -ForegroundColor Cyan
 try {
-    supabase db push
+    supabase db push --remote
     Write-Host "✅ Migration applied successfully" -ForegroundColor Green
 } catch {
     Write-Host "⚠️  Migration might have already been applied" -ForegroundColor Yellow

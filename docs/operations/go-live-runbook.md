@@ -91,7 +91,7 @@ tracked elsewhere; this list is the gate inventory, not the tracker.
       `updated_at` = `2026-07-04 19:44:05 UTC`.
 - [x] **0.3 Verify withdrawal-policy migrations** — DONE 2026-07-04.
       `20260625200000` and `20260626000000` are already applied remotely. Owner: Agent.
-      _Verify:_ `supabase db push --dry-run` reported the remote database is up to date;
+      _Verify:_ `supabase db push --remote --dry-run` reported the remote database is up to date;
       `supabase migration list --remote` shows both migrations applied locally and remotely.
 - [x] **0.4 Edge-function drift audit + repo-ahead batch deploy** — DONE 2026-07-13. Re-ran the drift check from
       [`edge-function-deploy-drift-2026-06-23.md`](edge-function-deploy-drift-2026-06-23.md)
@@ -1281,7 +1281,7 @@ migration. Do not edit an applied migration in place.
       staging evidence; the protected Release Production workflow succeeds; the production
       URL serves the release SHA.
 - [ ] **5.2** Migration parity: `supabase migration list --remote` — local and remote agree;
-      `supabase db push --dry-run` reports nothing pending. (Merge is not deploy — verify, don't
+      `supabase db push --remote --dry-run` reports nothing pending. (Merge is not deploy — verify, don't
       assume.)
 - [ ] **5.3** Edge-function parity: `supabase functions list` — every function's `updated_at` is
       at/after its last code change; no deployed-ahead drift.

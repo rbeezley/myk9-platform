@@ -154,6 +154,8 @@ This will prompt for the database password. The password is in `supabase/.env` a
 Run this from the worktree linked to Supabase — **not** the main repo, and
 never from an unmerged branch.
 
+CLI 3.x refuses a hosted push without `--yes`; add it only after the owner has confirmed this push, and read the CLI's listed migrations before you run it.
+
 ```bash
 source supabase/.env && supabase db push --remote --yes --password "$SUPABASE_DB_PASSWORD"
 ```

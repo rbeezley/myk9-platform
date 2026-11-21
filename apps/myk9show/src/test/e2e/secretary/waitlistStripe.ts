@@ -180,53 +180,116 @@ async function checkoutLocator(
   if (found) return found;
   throw new Error(
     `No Stripe Checkout element for ${label} at ${originAndPath(page.url())}. ` +
-      `Frames seen: ${describeFrames(page)}`
+      `Frames seen: ${describeFrames(page)}. Textboxes in the Email frame: ${await describeTextboxes(page)}`
   );
 }
 
-const byId =
-  (id: string): CheckoutTarget =>
-  root =>
-    root.locator(id);
+/** Labels, names and ids (never values) of the textboxes in the frame holding Email; max 20. */
+async function describeTextboxes(page: Page): Promise<string> {
+  try {
+    for (const root of [page, ...page.frames().filter(frame => frame !== page.mainFrame())]) {
+      if ((await boundedCount(EMAIL(root))) === 0) continue;
+      const labels = await root
+        .getByRole('textbox')
+        .evaluateAll(els =>
+          els.map(
+            el =>
+              el.getAttribute('aria-label') ||
+              el.getAttribute('name') ||
+              el.id ||
+              el.getAttribute('placeholder') ||
+              '(unnamed)'
+          )
+        );
+      return JSON.stringify(labels.slice(0, 20));
+    }
+    return '(no frame holds an Email field)';
+  } catch {
+    return '(could not read)';
+  }
+}
+
+/** Each field is its old id or its accessible name; Stripe's Payment Element has no ids. */
+const EMAIL: CheckoutTarget = root =>
+  root
+    .locator('#email')
+    .or(root.getByRole('textbox', { name: /^email$/i }))
+    .first();
+const CARD_NUMBER: CheckoutTarget = root =>
+  root
+    .locator('#cardNumber')
+    .or(root.getByRole('textbox', { name: /card number/i }))
+    .first();
+const CARD_EXPIRY: CheckoutTarget = root =>
+  root
+    .locator('#cardExpiry')
+    .or(root.getByRole('textbox', { name: /expir|MM \/ YY/i }))
+    .first();
+const CARD_CVC: CheckoutTarget = root =>
+  root
+    .locator('#cardCvc')
+    .or(root.getByRole('textbox', { name: /security code|cvc/i }))
+    .first();
+const BILLING_NAME: CheckoutTarget = root =>
+  root
+    .locator('#billingName')
+    .or(root.getByRole('textbox', { name: /name on card|cardholder|full name/i }))
+    .first();
+const BILLING_ZIP: CheckoutTarget = root =>
+  root
+    .locator('#billingPostalCode')
+    .or(root.getByRole('textbox', { name: /zip|postal/i }))
+    .first();
+const SAVE_WITH_LINK: CheckoutTarget = root =>
+  root
+    .locator('#enableStripePass')
+    .or(root.getByRole('checkbox', { name: /save my info|securely save/i }))
+    .first();
 const CARD_NAME = /^(pay with )?card$/i;
+
+/** An optional field: filled only when found within the wait and visible; otherwise skipped. */
+async function fillIfShown(
+  page: Page,
+  target: CheckoutTarget,
+  value: string,
+  timeoutMs: number
+): Promise<void> {
+  const field = await findInCheckout(page, target, timeoutMs);
+  if (field && (await field.isVisible().catch(() => false))) await field.fill(value);
+}
 
 /** Pays the hosted Checkout page the browser is on, then waits for Stripe's success redirect. */
 export async function payOnStripeCheckout(page: Page): Promise<string> {
   await page.waitForURL(/^https:\/\/checkout\.stripe\.com\//, { timeout: 30_000 });
-  const email = await checkoutLocator(page, '#email', byId('#email'));
+  const email = await checkoutLocator(page, 'the Email field', EMAIL);
   await expect(email).toBeVisible({ timeout: 30_000 });
   await email.fill(`waitlist-journey-${Date.now()}@example.com`);
 
   // With dynamic payment methods the card form sits behind an accordion item. Its trigger is a
   // visually hidden button named "Pay with card" (older layouts: "Card"), so the click is
   // dispatched to it rather than aimed at a point; the event bubbles to the visible row.
-  const cardNow = await findInCheckout(page, byId('#cardNumber'), 1_000);
+  const cardNow = await findInCheckout(page, CARD_NUMBER, 1_000);
   if (!cardNow || !(await cardNow.isVisible())) {
     const trigger = await checkoutLocator(page, 'the card option', root =>
-      root.getByRole('button', { name: CARD_NAME }).or(root.getByRole('radio', { name: CARD_NAME }))
+      root
+        .getByRole('button', { name: CARD_NAME })
+        .or(root.getByRole('radio', { name: CARD_NAME }))
+        .first()
     );
     await trigger.dispatchEvent('click');
   }
-  const cardNumber = await checkoutLocator(page, '#cardNumber', byId('#cardNumber'), 15_000);
+  const cardNumber = await checkoutLocator(page, 'the card number field', CARD_NUMBER, 15_000);
   await expect(cardNumber).toBeVisible({ timeout: 15_000 });
 
   await cardNumber.fill(TEST_CARD.number);
-  await (await checkoutLocator(page, '#cardExpiry', byId('#cardExpiry'))).fill(TEST_CARD.expiry);
-  await (await checkoutLocator(page, '#cardCvc', byId('#cardCvc'))).fill(TEST_CARD.cvc);
-  await (
-    await checkoutLocator(page, '#billingName', byId('#billingName'))
-  ).fill('Waitlist Journey');
-  // The postal code appears once the country settles; a session without one skips it.
-  const zip = await findInCheckout(page, byId('#billingPostalCode'), 5_000);
-  const zipShown =
-    zip !== null &&
-    (await zip.waitFor({ state: 'visible', timeout: 5_000 }).then(
-      () => true,
-      () => false
-    ));
-  if (zipShown) await zip.fill(TEST_CARD.zip);
+  await (await checkoutLocator(page, 'the card expiry field', CARD_EXPIRY)).fill(TEST_CARD.expiry);
+  await (await checkoutLocator(page, 'the card security code field', CARD_CVC)).fill(TEST_CARD.cvc);
+  // The Payment Element may not ask for a cardholder name; the postal code appears once the
+  // country settles, and a session without one skips it.
+  await fillIfShown(page, BILLING_NAME, 'Waitlist Journey', 3_000);
+  await fillIfShown(page, BILLING_ZIP, TEST_CARD.zip, 5_000);
   // Link's "save my info" would ask for a phone number; this payer saves nothing.
-  const saveWithLink = await findInCheckout(page, byId('#enableStripePass'), 1_000);
+  const saveWithLink = await findInCheckout(page, SAVE_WITH_LINK, 1_000);
   if (saveWithLink && (await saveWithLink.isVisible()) && (await saveWithLink.isChecked())) {
     await saveWithLink.uncheck();
   }

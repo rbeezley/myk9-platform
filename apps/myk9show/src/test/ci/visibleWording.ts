@@ -73,7 +73,6 @@ const OFFLINE_EXEMPT_PATHS = [
   // Developer analytics, feature-flag and deployment tooling: no screen renders these strings.
   'services/analytics/',
   'services/deployment/',
-  'hooks/useCDN.ts',
   // Not mounted by any screen (no importers outside tests); delete rather than reword.
   'components/common/SyncStatusIndicator.tsx',
   'hooks/useBackgroundSync.ts',

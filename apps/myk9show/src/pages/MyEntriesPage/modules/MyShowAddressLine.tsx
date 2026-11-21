@@ -13,7 +13,6 @@ import { buildVenueMapsUrls } from '@/utils/venueMaps';
 export const MyShowAddressLine: React.FC<{ street: string }> = ({ street }) => (
   <p className="myk9-entries-show-meta">
     <span>{street}</span>
-    <span aria-hidden="true">·</span>
     <a
       href={buildVenueMapsUrls(street).directionsUrl}
       target="_blank"

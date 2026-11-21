@@ -11,7 +11,7 @@ import { DESK_CAMERA_WIDTH, ENTRIES_SCENE, PHONE_WINDOW_HEIGHT } from '../scenes
 import regions from '../scenes/entriesRegions.json';
 
 vi.mock('../useTimelineProgress', () => ({
-  useTimelineProgress: () => ({ reached: 4, isRevealed: () => true }),
+  useTimelineProgress: () => ({ isRevealed: () => true }),
 }));
 
 const publicDir = resolve(process.cwd(), 'public');
@@ -253,7 +253,7 @@ describe('the Entries open scene on the page', () => {
   it('replaces the club’s still, with the desk leading', () => {
     const { container } = render(<LifecycleTimeline audience="club" onAudienceChange={vi.fn()} />);
     const step = entriesStep(container);
-    const scene = step.querySelector('.lc-main .tl-scene');
+    const scene = step.querySelector('.lc-scene[data-side="main"] .tl-scene');
     expect(scene).not.toBeNull();
     expect(scene).toHaveAttribute('data-lead', 'desk');
     expect(scene).not.toHaveAttribute('data-solo');
@@ -266,7 +266,7 @@ describe('the Entries open scene on the page', () => {
       <LifecycleTimeline audience="exhibitor" onAudienceChange={vi.fn()} />
     );
     const step = entriesStep(container);
-    const scene = step.querySelector('.lc-main .tl-scene');
+    const scene = step.querySelector('.lc-scene[data-side="main"] .tl-scene');
     expect(scene).not.toBeNull();
     expect(scene).toHaveAttribute('data-lead', 'phone');
     expect(step.querySelectorAll('.lc-shot, figure')).toHaveLength(0);

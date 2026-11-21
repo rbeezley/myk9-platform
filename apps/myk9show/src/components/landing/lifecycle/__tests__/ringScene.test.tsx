@@ -10,7 +10,7 @@ import { RING_SCENE, RING_WINDOW_HEIGHT } from '../scenes/ringScene';
 import regions from '../scenes/ringRegions.json';
 
 vi.mock('../useTimelineProgress', () => ({
-  useTimelineProgress: () => ({ reached: 4, isRevealed: () => true }),
+  useTimelineProgress: () => ({ isRevealed: () => true }),
 }));
 
 const publicDir = resolve(process.cwd(), 'public');
@@ -161,16 +161,17 @@ describe('the ring scene', () => {
 
 describe('the ring scene on the page', () => {
   const sceneIn = (container: HTMLElement, side: string) =>
-    container.querySelector(`#showday .${side} .tl-scene`);
+    container.querySelector(`#showday .lc-scene[data-side="${side}"] .tl-scene`);
 
-  it('plays on the club’s show-day step, above the practice scoresheet', () => {
+  it('plays on the club’s show-day step, as a band under the practice scoresheet', () => {
     const { container } = render(<LifecycleTimeline audience="club" onAudienceChange={vi.fn()} />);
-    const scene = sceneIn(container, 'lc-main');
+    const scene = sceneIn(container, 'main');
     expect(scene).not.toBeNull();
     expect(scene).toHaveAttribute('data-solo', 'true');
     const demo = container.querySelector('#showday .lc-demo');
     expect(demo).not.toBeNull();
-    expect(scene!.compareDocumentPosition(demo!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(demo!.compareDocumentPosition(scene!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(demo!.closest('.lc-main')).not.toBeNull();
     // The Entries open scene plays on the step above it and the Results scene on the step below;
     // the ring scene is the one that is solo.
     expect(container.querySelectorAll('.tl-scene')).toHaveLength(3);
@@ -194,7 +195,7 @@ describe('the ring scene on the page', () => {
     const { container } = render(
       <LifecycleTimeline audience="exhibitor" onAudienceChange={vi.fn()} />
     );
-    expect(sceneIn(container, 'lc-meanwhile')).not.toBeNull();
+    expect(sceneIn(container, 'meanwhile')).not.toBeNull();
     // Plus the Entries open and Results scenes, each on its own step's main side.
     expect(container.querySelectorAll('.tl-scene')).toHaveLength(3);
     const showday = STORIES.exhibitor.find(s => s.id === 'showday')!;

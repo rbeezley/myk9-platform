@@ -9,7 +9,8 @@
 /* The last step ends the section: the next section's own top padding is the only gap, so
    the "Built by the team" heading is reached in one scroll of step 6. */
 .landing-v2 .lc-row[data-last='true'] .lc-main,
-.landing-v2 .lc-row[data-last='true'] .lc-meanwhile {
+.landing-v2 .lc-row[data-last='true'] .lc-meanwhile,
+.landing-v2 .lc-row[data-last='true'] .lc-scene {
   padding-bottom: 0;
 }
 .landing-v2 .lc-head {
@@ -60,11 +61,12 @@
   outline-offset: 2px;
 }
 
-/* Three-column timeline: main | rail | meanwhile. Phones: rail on the left, columns stack. */
+/* Two-column timeline: main | meanwhile, and a scene as a full-width band under both, so the
+   scene's own grid (lines left, devices right) has the room it needs. Phones: one column. */
 .landing-v2 .lc-labels,
 .landing-v2 .lc-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) 96px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
 }
 .landing-v2 .lc-labels {
   margin-bottom: 1.5rem;
@@ -83,6 +85,11 @@
   flex-direction: column;
   gap: 0.875rem;
   padding: 0.375rem 0 2.5rem 1.5rem;
+}
+.landing-v2 .lc-scene {
+  grid-column: 1 / -1;
+  min-width: 0;
+  padding-bottom: 2.5rem;
 }
 .landing-v2 .lc-step-title {
   font-family: 'Playfair Display', serif;
@@ -113,18 +120,18 @@
   color: var(--terracotta-600);
 }
 
-/* Peak: show day on a white panel with the most room. */
-.landing-v2 .lc-row[data-peak='true'] .lc-main {
+/* Peak: show day on a white panel with the most room. The panel wraps the whole row, so a
+   scene band stays inside the card. */
+.landing-v2 .lc-row[data-peak='true'] {
   padding: 2.5rem;
-  margin: 2.5rem 1.5rem 6rem 0;
+  margin: 2.5rem 0 6rem;
   background: #fff;
   border: 1px solid #e8e2d4;
   border-radius: 24px;
   box-shadow: 0 40px 80px -48px rgb(60 40 20 / 0.45);
 }
-.landing-v2 .lc-row[data-peak='true'] .lc-meanwhile {
-  padding-top: 5rem;
-  padding-bottom: 6rem;
+.landing-v2 .lc-row[data-peak='true'] .lc-scene {
+  padding-bottom: 0;
 }
 .landing-v2 .lc-row[data-peak='true'] .lc-step-title {
   font-size: clamp(2rem, 4vw, 3rem);
@@ -152,81 +159,21 @@
   max-width: 220px;
 }
 
-/* Rail: dot fills when reached; the line below it fills when the NEXT step is reached. */
-.landing-v2 .lc-rail {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-.landing-v2 .lc-dot {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  width: 44px;
-  height: 44px;
-  border-radius: 999px;
-  border: 2px solid #b8ae9c;
-  background: #fff;
-  color: var(--ink-900);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  transform: scale(0.92);
-  transition:
-    background-color 260ms ease,
-    color 260ms ease,
-    border-color 260ms ease,
-    transform 260ms cubic-bezier(0.23, 1, 0.32, 1);
-}
-.landing-v2 .lc-dot[data-reached='true'] {
-  background: var(--terracotta-600);
-  border-color: var(--terracotta-600);
-  color: #fff;
-  transform: scale(1);
-}
-.landing-v2 .lc-row[data-peak='true'] .lc-dot {
-  margin-top: 2.5rem;
-}
-.landing-v2 .lc-dot-wrap {
-  position: relative;
-  display: flex;
-  justify-content: center;
-}
-/* The line between dots: a plain track that fills top-down once the NEXT step is reached,
-   and empties when the reader scrolls back up. */
-.landing-v2 .lc-line {
-  position: relative;
-  flex: 1 1 auto;
-  width: 3px;
-  margin-top: 6px;
-  border-radius: 999px;
-  background: #ddd3c1;
-  overflow: hidden;
-}
-.landing-v2 .lc-line-fill {
-  position: absolute;
-  inset: 0;
-  background: var(--terracotta-600);
-  transform: scaleY(0);
-  transform-origin: top;
-  transition: transform 700ms cubic-bezier(0.45, 0.05, 0.25, 1);
-}
-.landing-v2 .lc-line[data-filled='true'] .lc-line-fill {
-  transform: scaleY(1);
-}
-
 /* Reveal once: content rises 20px and fades in; meanwhile follows 140ms later. */
 .landing-v2 .lc-main,
-.landing-v2 .lc-meanwhile {
+.landing-v2 .lc-meanwhile,
+.landing-v2 .lc-scene {
   transition:
     opacity 500ms ease,
     transform 500ms cubic-bezier(0.23, 1, 0.32, 1);
 }
-.landing-v2 .lc-meanwhile {
+.landing-v2 .lc-meanwhile,
+.landing-v2 .lc-scene {
   transition-delay: 140ms;
 }
 .landing-v2 .lc-row[data-revealed='false'] .lc-main,
-.landing-v2 .lc-row[data-revealed='false'] .lc-meanwhile {
+.landing-v2 .lc-row[data-revealed='false'] .lc-meanwhile,
+.landing-v2 .lc-row[data-revealed='false'] .lc-scene {
   opacity: 0;
   transform: translateY(20px);
 }
@@ -330,44 +277,43 @@
   outline-offset: 2px;
 }
 
-/* Phones: rail on the left, main then meanwhile stacked on the right. */
+/* Phones: one column. Main text, its scene, then the meanwhile text and its scene. */
 @container lc-timeline (max-width: 767px) {
   .landing-v2 .lc-labels {
     display: none;
   }
   .landing-v2 .lc-row {
-    grid-template-columns: 56px minmax(0, 1fr);
-  }
-  .landing-v2 .lc-rail {
-    grid-column: 1;
-    grid-row: 1 / span 2;
+    grid-template-columns: minmax(0, 1fr);
   }
   .landing-v2 .lc-main {
-    grid-column: 2;
+    grid-row: 1;
     padding: 0 0 1rem;
   }
-  .landing-v2 .lc-meanwhile {
-    grid-column: 2;
-    padding: 0 0 2.5rem;
+  .landing-v2 .lc-scene[data-side='main'] {
+    grid-row: 2;
+    padding-bottom: 1rem;
   }
-  .landing-v2 .lc-row[data-peak='true'] .lc-main {
+  .landing-v2 .lc-meanwhile {
+    grid-row: 3;
+    padding: 0 0 1rem;
+  }
+  .landing-v2 .lc-scene[data-side='meanwhile'] {
+    grid-row: 4;
+    padding-bottom: 1.5rem;
+  }
+  .landing-v2 .lc-row[data-peak='true'] {
     margin: 1rem 0 1.5rem;
     padding: clamp(0.875rem, 4vw, 1.5rem);
   }
   .landing-v2 .lc-row[data-peak='true'] .lc-meanwhile {
-    padding-top: 0;
-    padding-bottom: 3rem;
-  }
-  .landing-v2 .lc-row[data-peak='true'] .lc-dot {
-    margin-top: 1rem;
+    padding-bottom: 0;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .landing-v2 .lc-dot,
-  .landing-v2 .lc-line-fill,
   .landing-v2 .lc-main,
   .landing-v2 .lc-meanwhile,
+  .landing-v2 .lc-scene,
   .landing-v2 .lc-explainer-box,
   .landing-v2 .lc-explainer-dim,
   .landing-v2 .lc-switch button {

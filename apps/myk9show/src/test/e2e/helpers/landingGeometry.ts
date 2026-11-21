@@ -2,7 +2,7 @@ import { expect, type Page } from '@playwright/test';
 
 /**
  * Every in-flow element on the landing page fits inside its parent's content box and the
- * screen. Absolutely positioned decorations and the timeline rail are exempt; a parent that
+ * screen. Absolutely positioned decorations are exempt; a parent that
  * clips (overflow other than visible) owns its own overflow. Shared by the guest and
  * signed-in landing specs.
  */
@@ -12,7 +12,7 @@ export async function expectNoLandingSpills(page: Page, context: string) {
     const vw = document.documentElement.clientWidth;
     let checked = 0;
     for (const el of document.querySelectorAll<HTMLElement>('.landing-v2 *')) {
-      if (el.closest('svg, .lc-rail')) continue;
+      if (el.closest('svg')) continue;
       const cs = getComputedStyle(el);
       if (cs.display === 'none' || cs.position === 'absolute' || cs.position === 'fixed') continue;
       const r = el.getBoundingClientRect();

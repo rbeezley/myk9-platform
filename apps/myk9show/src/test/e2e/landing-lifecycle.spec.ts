@@ -11,40 +11,24 @@ const VIEWPORTS = [
 async function openLanding(page: Page) {
   await page.goto('/');
   await expect(page.locator('#top h1')).toBeVisible({ timeout: 30000 });
-  await expect(page.locator('#showday-dot')).toBeAttached({ timeout: 30000 });
+  await expect(page.locator('#showday')).toBeAttached({ timeout: 30000 });
 }
 
-const reachedDots = (page: Page) =>
-  page.evaluate(
-    ids => ids.map(id => document.getElementById(`${id}-dot`)?.getAttribute('data-reached')),
-    STEPS
-  );
-
-// Read down the page the way a person does: short instant steps, so every dot passes through
-// the viewport. (The site sets `scroll-behavior: smooth`, which would race the assertions.)
-// Lazy images above the dot keep shifting layout, so the target is re-read on every step.
-async function scrollDotToMiddle(page: Page, id: string, at = 0.4) {
+// Read down the page the way a person does: short instant steps. (The site sets
+// `scroll-behavior: smooth`, which would race the assertions.) Lazy images above the step keep
+// shifting layout, so the target is re-read on every step.
+async function scrollStepToMiddle(page: Page, id: string, at = 0.4) {
   for (let step = 0; step < 80; step += 1) {
     const delta = await page.evaluate(
       ([stepId, frac]) => {
-        const dot = document.getElementById(`${stepId}-dot`)!;
-        return dot.getBoundingClientRect().top - window.innerHeight * frac;
+        const row = document.getElementById(stepId)!;
+        return row.getBoundingClientRect().top - window.innerHeight * frac;
       },
       [id, at] as const
     );
     if (Math.abs(delta) < 2 && step > 0) break;
     const move = Math.sign(delta) * Math.min(Math.abs(delta), 300);
     await page.evaluate(m => window.scrollBy({ top: m, behavior: 'instant' }), move);
-    await page.waitForTimeout(40);
-  }
-  await page.waitForTimeout(250);
-}
-
-async function scrollToTop(page: Page) {
-  for (let step = 0; step < 80; step += 1) {
-    const y = await page.evaluate(() => window.scrollY);
-    if (y <= 0) break;
-    await page.evaluate(() => window.scrollBy({ top: -300, behavior: 'instant' }));
     await page.waitForTimeout(40);
   }
   await page.waitForTimeout(250);
@@ -99,47 +83,55 @@ for (const vp of VIEWPORTS) {
       expect(report.tiny).toEqual([]);
     });
 
-    test('dots follow the reader both ways; content stays revealed', async ({ page }) => {
+    test('no numbered rail, dots or connecting line anywhere in the timeline', async ({ page }) => {
       await openLanding(page);
-      // Below the viewport's middle a dot is not reached yet; this is what pins the 50% line.
-      await scrollDotToMiddle(page, 'showday', 0.7);
-      expect(await reachedDots(page)).toEqual(['true', 'true', 'true', 'false', 'false', 'false']);
-      await scrollDotToMiddle(page, 'showday');
-      expect(await reachedDots(page)).toEqual(['true', 'true', 'true', 'true', 'false', 'false']);
-      await scrollToTop(page);
-      expect(await reachedDots(page)).toEqual(Array(6).fill('false'));
-      const revealed = await page.evaluate(() =>
-        document.getElementById('showday')!.getAttribute('data-revealed')
-      );
-      expect(revealed).toBe('true');
+      expect(await page.locator('.lc-rail, .lc-dot, .lc-line, [id$="-dot"]').count()).toBe(0);
+      await scrollStepToMiddle(page, 'showday');
+      await expect(page.locator('#showday')).toHaveAttribute('data-revealed', 'true');
     });
 
-    test('an instant jump past several dots still counts them, both ways', async ({ page }) => {
+    test('each scene sits beside its numbered lines on wide screens, below them on phones', async ({
+      page,
+    }) => {
       await openLanding(page);
-      const jump = (to: 'showday' | 'top') =>
-        page.evaluate(target => {
-          const top =
-            target === 'top'
-              ? 0
-              : document.getElementById(`${target}-dot`)!.getBoundingClientRect().top +
-                window.scrollY -
-                window.innerHeight * 0.4;
-          window.scrollTo({ top, behavior: 'instant' });
-        }, to);
-      // The text above the show-day dot wraps by its font (the Entries open scene's five lines
-      // are most of it), so the jump is measured once the fonts are in, not before they shift it.
-      await page.evaluate(() => document.fonts.ready);
-      await jump('showday');
-      await expect
-        .poll(() => reachedDots(page))
-        .toEqual(['true', 'true', 'true', 'true', 'false', 'false']);
-      await jump('top');
-      await expect.poll(() => reachedDots(page)).toEqual(Array(6).fill('false'));
+      const scenes = page.locator('.lc-row .tl-scene');
+      const count = await scenes.count();
+      expect(count).toBeGreaterThanOrEqual(3);
+      for (let i = 0; i < count; i += 1) {
+        const geo = await scenes.nth(i).evaluate(el => {
+          const words = el.querySelector('.tl-scene-words')!.getBoundingClientRect();
+          const stage = el.querySelector('.tl-scene-stage')!.getBoundingClientRect();
+          return {
+            sceneWidth: el.getBoundingClientRect().width,
+            wordsRight: words.right,
+            wordsBottom: words.bottom,
+            wordsTop: words.top,
+            stageLeft: stage.left,
+            stageTop: stage.top,
+            stageBottom: stage.bottom,
+          };
+        });
+        if (vp.name === 'desktop') {
+          expect(geo.sceneWidth, `scene ${i} is wide enough for its own grid`).toBeGreaterThan(700);
+          expect(geo.wordsRight, `scene ${i}: lines left of devices`).toBeLessThanOrEqual(
+            geo.stageLeft
+          );
+          expect(geo.wordsTop, `scene ${i}: lines overlap the devices vertically`).toBeLessThan(
+            geo.stageBottom
+          );
+        } else {
+          expect(geo.wordsBottom, `scene ${i}: lines above devices`).toBeLessThanOrEqual(
+            geo.stageTop + 1
+          );
+        }
+      }
     });
 
-    test('switching audience keeps progress and swaps the story', async ({ page }) => {
+    test('switching audience keeps the reader at the step and swaps the story', async ({
+      page,
+    }) => {
       await openLanding(page);
-      await scrollDotToMiddle(page, 'showday');
+      await scrollStepToMiddle(page, 'showday');
       // A programmatic click: Playwright's own click would scroll the switch into view, and
       // the reader would no longer be at show day.
       await page
@@ -147,17 +139,8 @@ for (const vp of VIEWPORTS) {
         .evaluate(el => (el as HTMLElement).click());
       await expect(page.locator('#entries h3')).toHaveText('Enter in a few minutes');
       await page.waitForTimeout(400);
-      // Progress is position, not story: after the swap each dot is reached exactly when it
-      // sits in the top half of the viewport (or above it), and the reader keeps some progress.
-      const { reached, expected } = await page.evaluate(ids => {
-        const dots = ids.map(id => document.getElementById(`${id}-dot`)!);
-        return {
-          reached: dots.map(d => d.getAttribute('data-reached')),
-          expected: dots.map(d => String(d.getBoundingClientRect().top < window.innerHeight * 0.5)),
-        };
-      }, STEPS);
-      expect(reached).toEqual(expected);
-      expect(reached.filter(r => r === 'true').length).toBeGreaterThanOrEqual(3);
+      const top = await page.locator('#showday').evaluate(el => el.getBoundingClientRect().top);
+      expect(top).toBeLessThan(vp.height);
     });
 
     test('practice scoresheet queues scores offline and syncs them', async ({ page }) => {
@@ -179,23 +162,6 @@ for (const vp of VIEWPORTS) {
       await expect(peak.getByText('No signal · 2 waiting')).toBeVisible();
       await sw.click();
       await expect(peak.getByText('All sent')).toBeVisible({ timeout: 4000 });
-    });
-
-    test('the line fills down to the reached step and empties going back', async ({
-      page,
-    }, testInfo) => {
-      await openLanding(page);
-      // The line under show day leads to Results; it fills once Results is reached.
-      const line = page.locator('#showday .lc-line');
-      await expect(line).toHaveAttribute('data-filled', 'false');
-      await scrollDotToMiddle(page, 'results');
-      await expect(line).toHaveAttribute('data-filled', 'true');
-      await expect(page.locator('#results .lc-line')).toHaveAttribute('data-filled', 'false');
-      // Evidence for review once the 700ms fill has finished.
-      await page.waitForTimeout(900);
-      await page.screenshot({ path: testInfo.outputPath(`line-${vp.name}.png`) });
-      await scrollToTop(page);
-      await expect(line).toHaveAttribute('data-filled', 'false');
     });
 
     test('night-before card ticks green once revealed', async ({ page }) => {
@@ -403,32 +369,17 @@ for (const vp of VIEWPORTS) {
 
 const motionOf = (page: Page) =>
   page.evaluate(() => ({
-    dot: getComputedStyle(document.querySelector('.lc-dot')!).transitionProperty,
-    fill: getComputedStyle(document.querySelector('.lc-line-fill')!).transitionProperty,
+    reveal: getComputedStyle(document.querySelector('.lc-main')!).transitionProperty,
   }));
 
 test.describe('motion with no preference', () => {
   test.use({ viewport: { width: 390, height: 844 } });
   // Positive control for the reduced-motion test below: these elements do animate by default.
-  test('the dots and the progress line have transitions', async ({ page }) => {
+  test('the reveal has a transition', async ({ page }) => {
     await openLanding(page);
-    const { dot, fill } = await motionOf(page);
-    expect(dot).not.toBe('none');
-    expect(fill).not.toBe('none');
+    expect((await motionOf(page)).reveal).not.toBe('none');
   });
 });
-
-for (const width of [390, 1280]) {
-  test(`every step number circle is the same size @ ${width}`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 900 });
-    await openLanding(page);
-    const sizes = await page.$$eval('.lc-dot', dots =>
-      dots.map(d => `${(d as HTMLElement).offsetWidth}x${(d as HTMLElement).offsetHeight}`)
-    );
-    expect(sizes.length, 'steps rendered').toBeGreaterThanOrEqual(STEPS.length);
-    expect(new Set(sizes), `dot sizes: ${sizes.join(', ')}`).toEqual(new Set([sizes[0]]));
-  });
-}
 
 test.describe('reduced motion', () => {
   test.use({ reducedMotion: 'reduce', viewport: { width: 390, height: 844 } });
@@ -443,7 +394,7 @@ test.describe('reduced motion', () => {
     await expect(fig.getByRole('button', { name: 'Play' })).toBeVisible();
     // The app's global reduced-motion rule forces transition-duration to 100ms, so the duration
     // is not the signal; no transition property means nothing animates.
-    expect(await motionOf(page)).toEqual({ dot: 'none', fill: 'none' });
+    expect(await motionOf(page)).toEqual({ reveal: 'none' });
   });
 });
 

@@ -5,12 +5,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import { LifecycleTimeline } from '../LifecycleTimeline';
 import { BANNED_COPY, SCENE_LINES, STORIES } from '../lifecycleStories';
-import { firstFrameOfLine, lastFrameOfLine, unionRegion, windowOnRing } from '../sceneFrames';
-import { RING_SCENE, RING_WINDOW_HEIGHT } from '../scenes/ringScene';
+import { firstFrameOfLine, lastFrameOfLine, wholeScreen } from '../sceneFrames';
+import { RING_SCENE } from '../scenes/ringScene';
 import regions from '../scenes/ringRegions.json';
 
 vi.mock('../useTimelineProgress', () => ({
-  useTimelineProgress: () => ({ reached: 4, isRevealed: () => true }),
+  useTimelineProgress: () => ({ isRevealed: () => true }),
 }));
 
 const publicDir = resolve(process.cwd(), 'public');
@@ -78,65 +78,17 @@ describe('the ring scene', () => {
     expect(card.y + card.h).toBeGreaterThanOrEqual(row.y + row.h + 40);
   });
 
-  it('keeps the stopped time in view on the frame that rings the result', () => {
-    const { timer, result } = regions.shots.result.regions;
-    const view = frames.find(f => f.phone!.shot === 'result')!.phone!;
-    expect(view.ring).toEqual(result);
-    expect(view.camera).toEqual(
-      windowOnRing(space, unionRegion(result, timer), RING_WINDOW_HEIGHT)
-    );
-    expect(timer.y).toBeGreaterThanOrEqual(view.camera.y);
-    expect(timer.y + timer.h).toBeLessThanOrEqual(view.camera.y + view.camera.h);
-    expect(unionRegion({ x: 10, y: 20, w: 30, h: 40 }, { x: 0, y: 50, w: 100, h: 50 })).toEqual({
-      x: 0,
-      y: 20,
-      w: 100,
-      h: 80,
-    });
-  });
-
-  it('places a window by one rule: full width, inside the page, centred on the ring', () => {
-    const page = { width: 390, height: 844 };
-    // In the middle of the page the ring is centred.
-    expect(windowOnRing(page, { x: 34, y: 338, w: 322, h: 189 }, 520)).toEqual({
-      x: 0,
-      y: 173,
-      w: 390,
-      h: 520,
-    });
-    // Near the top or the bottom the window stops at the page's edge.
-    expect(windowOnRing(page, { x: 25, y: 157, w: 188, h: 58 }, 520).y).toBe(0);
-    expect(windowOnRing(page, { x: 16, y: 775, w: 358, h: 54 }, 520).y).toBe(324);
-    // A window taller than the page is the whole page.
-    expect(windowOnRing(page, { x: 0, y: 400, w: 10, h: 10 }, 2000)).toEqual({
-      x: 0,
-      y: 0,
-      w: 390,
-      h: 844,
-    });
-  });
-
-  it('shows every frame at the phone’s full width in a 3:4 window that holds its ring', () => {
-    expect(RING_WINDOW_HEIGHT).toBe(520);
+  it('shows every frame as the phone’s whole screen, with a whole ring on it', () => {
     for (const f of frames) {
       const { camera, ring, shot } = f.phone!;
       expect(phone!.shots[shot], shot).toBeDefined();
       expect(ring, shot).toBeDefined();
-      // No zoom and no hand-picked camera: the window is what the rule gives for the ring, or
-      // on the one frame about two things, for the ring and the stopped timer (tested above).
-      if (shot !== 'result') {
-        expect(camera, shot).toEqual(windowOnRing(space, ring!, RING_WINDOW_HEIGHT));
-      }
-      expect(camera.x, shot).toBe(0);
-      expect(camera.h, shot).toBe(RING_WINDOW_HEIGHT);
-      expect(camera.w, shot).toBe(space.width);
-      expect(camera.y, shot).toBeGreaterThanOrEqual(0);
-      expect(camera.y + camera.h, shot).toBeLessThanOrEqual(space.height);
-      // The whole ring is inside the window, so nothing a line points at is cut off.
+      // No zoom and no crop: the camera is the full 390x844 space.
+      expect(camera, shot).toEqual(wholeScreen(space));
       expect(ring!.x, shot).toBeGreaterThanOrEqual(0);
       expect(ring!.x + ring!.w, shot).toBeLessThanOrEqual(space.width);
-      expect(ring!.y, shot).toBeGreaterThanOrEqual(camera.y);
-      expect(ring!.y + ring!.h, shot).toBeLessThanOrEqual(camera.y + camera.h);
+      expect(ring!.y, shot).toBeGreaterThanOrEqual(0);
+      expect(ring!.y + ring!.h, shot).toBeLessThanOrEqual(space.height);
     }
   });
 
@@ -161,21 +113,22 @@ describe('the ring scene', () => {
 
 describe('the ring scene on the page', () => {
   const sceneIn = (container: HTMLElement, side: string) =>
-    container.querySelector(`#showday .${side} .tl-scene`);
+    container.querySelector(`#showday .lc-scene[data-side="${side}"] .tl-scene`);
 
-  it('plays on the club’s show-day step, above the practice scoresheet', () => {
+  it('plays on the club’s show-day step, as a band under the practice scoresheet', () => {
     const { container } = render(<LifecycleTimeline audience="club" onAudienceChange={vi.fn()} />);
-    const scene = sceneIn(container, 'lc-main');
+    const scene = sceneIn(container, 'main');
     expect(scene).not.toBeNull();
     expect(scene).toHaveAttribute('data-solo', 'true');
     const demo = container.querySelector('#showday .lc-demo');
     expect(demo).not.toBeNull();
-    expect(scene!.compareDocumentPosition(demo!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(demo!.compareDocumentPosition(scene!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(demo!.closest('.lc-main')).not.toBeNull();
     // The Entries open scene plays on the step above it and the Results scene on the step below;
     // the ring scene is the one that is solo.
     expect(container.querySelectorAll('.tl-scene')).toHaveLength(3);
     expect(container.querySelectorAll('.tl-scene[data-solo="true"]')).toHaveLength(1);
-    expect(screen.getByRole('button', { name: /The signal drops/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Signal drops/ })).toBeInTheDocument();
   });
 
   it('names each walkthrough so a screen reader can tell them apart', () => {
@@ -194,7 +147,7 @@ describe('the ring scene on the page', () => {
     const { container } = render(
       <LifecycleTimeline audience="exhibitor" onAudienceChange={vi.fn()} />
     );
-    expect(sceneIn(container, 'lc-meanwhile')).not.toBeNull();
+    expect(sceneIn(container, 'meanwhile')).not.toBeNull();
     // Plus the Entries open and Results scenes, each on its own step's main side.
     expect(container.querySelectorAll('.tl-scene')).toHaveLength(3);
     const showday = STORIES.exhibitor.find(s => s.id === 'showday')!;
@@ -214,7 +167,7 @@ describe('the ring scene on the page', () => {
 
   it('jumps to a line’s capture when the line is pressed', () => {
     const { container } = render(<LifecycleTimeline audience="club" onAudienceChange={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: /The score is read back/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Reads it back/ }));
     expect(container.querySelector('#showday .tl-scene-shot[data-on="true"]')).toHaveAttribute(
       'data-shot',
       'confirm'

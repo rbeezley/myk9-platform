@@ -1,4 +1,5 @@
-/* TimelineScene: two devices in one scene (or one alone), numbered lines beside them. Container queries, not
+/* TimelineScene: a captioned stage. Devices on top (two side by side, or one alone), then one
+   caption, then a tab per line (sceneControls.css). Container queries, not
    viewport queries, so the scene lays itself out wherever it is placed. Tokens fall back to the
    landing palette so the guides site can use the component without landing.css. */
 .tl-scene {
@@ -12,170 +13,43 @@
   --tl-ivory: var(--ivory-100, #f3efe6);
   color: var(--tl-ink);
 }
-.tl-scene-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 4fr) minmax(0, 9fr);
-  gap: clamp(1.5rem, 3.5cqi, 3rem);
-  align-items: start;
-}
-.tl-scene-words {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  min-width: 0;
-}
-.tl-scene-lines {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.tl-scene-line {
-  display: grid;
-  grid-template-columns: 36px minmax(0, 1fr);
-  column-gap: 0.875rem;
-  align-items: center;
-  width: 100%;
-  min-height: 44px;
-  padding: 0.75rem 0;
-  border: 0;
-  border-top: 1px solid var(--tl-line);
-  background: none;
-  font: inherit;
-  text-align: left;
-  color: var(--tl-stone);
-  cursor: pointer;
-}
-.tl-scene-line:focus-visible,
-.tl-scene-btn:focus-visible {
-  outline: 2px solid var(--tl-accent);
-  outline-offset: 2px;
-}
-.tl-scene-line[aria-current='step'] {
-  color: var(--tl-ink);
-}
-.tl-scene-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-  min-width: 0;
-}
-.tl-scene-head {
-  font-size: 1rem;
-  font-weight: 600;
-  line-height: 1.3;
-}
-.tl-scene-text {
-  font-size: 1rem;
-  line-height: 1.4;
-}
-.tl-scene-num {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  font-size: 0.875rem;
-  font-variant-numeric: tabular-nums;
-  transition:
-    background-color 300ms ease,
-    color 300ms ease;
-}
-.tl-scene-num svg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  transform: rotate(-90deg);
-}
-.tl-scene-num circle {
-  fill: none;
-  stroke-width: 2;
-}
-.tl-scene-track {
-  stroke: var(--tl-line);
-}
-.tl-scene-prog {
-  stroke: var(--tl-accent);
-  stroke-linecap: round;
-  stroke-dasharray: 100;
-  transition: stroke-dashoffset 100ms linear;
-}
-.tl-scene-line:not([aria-current='step']) .tl-scene-prog {
-  opacity: 0;
-}
-.tl-scene-line[aria-current='step'] .tl-scene-num {
-  color: var(--tl-accent);
-}
-.tl-scene-tick {
-  display: none;
-  font-style: normal;
-  line-height: 1;
-}
-.tl-scene-line[data-done='true'] .tl-scene-num {
-  background: var(--tl-accent);
-  color: var(--tl-paper);
-}
-.tl-scene-line[data-done='true'] .tl-scene-num svg,
-.tl-scene-line[data-done='true'] .tl-scene-num b {
-  display: none;
-}
-.tl-scene-line[data-done='true'] .tl-scene-tick {
-  display: block;
-}
-.tl-scene-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem;
-  font-size: 0.875rem;
-  color: var(--tl-stone);
-}
-.tl-scene-btn {
-  min-width: 44px;
-  min-height: 44px;
-  padding: 0 1rem;
-  border-radius: 999px;
-  border: 1px solid var(--tl-line);
-  background: var(--tl-paper);
-  font: inherit;
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--tl-ink);
-  cursor: pointer;
-}
-.tl-scene-btn[aria-disabled='true'] {
-  opacity: 0.45;
-  cursor: default;
-}
 
-/* The stage: the lead device takes the wide column, the other the narrow one. */
+/* The stage: the devices side by side, centred; the lead device first. */
 .tl-scene-stage {
-  display: grid;
-  gap: 1.125rem;
-  align-items: end;
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: center;
+  align-items: center;
+  gap: clamp(1.25rem, 3cqi, 2.5rem);
   min-width: 0;
-}
-.tl-scene[data-lead='desk'] .tl-scene-stage {
-  grid-template-columns: minmax(0, 1fr) clamp(10.5rem, 26cqi, 14.5rem);
-}
-.tl-scene[data-lead='phone'] .tl-scene-stage {
-  grid-template-columns: clamp(10.5rem, 26cqi, 14.5rem) minmax(0, 1fr);
 }
 .tl-scene[data-lead='phone'] .tl-scene-device[data-kind='phone'] {
   order: -1;
 }
-/* One device alone: centred and larger. */
-.tl-scene[data-solo='true'] .tl-scene-stage {
-  grid-template-columns: minmax(0, 1fr);
-  justify-items: center;
-}
-.tl-scene[data-solo='true'] .tl-scene-device[data-kind='desk'] {
+.tl-scene-device[data-kind='desk'] {
+  flex: 0 1 40rem;
   width: 100%;
 }
-.tl-scene[data-solo='true'] .tl-scene-device[data-kind='phone'] {
-  width: min(22rem, 100%);
+.tl-scene-device[data-kind='phone'] {
+  flex: none;
+  width: 15.625rem;
 }
+/* Narrow: the devices stack, lead first, and the desk takes the full width. */
+@container tl-scene (max-width: 760px) {
+  .tl-scene-stage {
+    flex-direction: column;
+    align-items: center;
+  }
+  .tl-scene-device[data-kind='desk'] {
+    flex: none;
+  }
+}
+@container tl-scene (max-width: 520px) {
+  .tl-scene-device[data-kind='phone'] {
+    width: 13.75rem;
+  }
+}
+
 .tl-scene-device {
   display: flex;
   flex-direction: column;
@@ -221,12 +95,63 @@
   border-radius: 50%;
   background: var(--tl-line);
 }
+/* The phone: a dark bezel with a thin outer ring and side buttons; the screen inside it has a
+   blank white strip on top that holds the camera pill, so the notch never covers the app. */
 .tl-scene-phone {
+  --tl-bezel: 10px;
+  --tl-phone-radius: 46px;
+  --tl-strip: 2rem;
+  position: relative;
+  padding: var(--tl-bezel);
+  border-radius: var(--tl-phone-radius);
+  background: var(--tl-ink);
+  box-shadow:
+    0 0 0 1.5px rgb(31 27 22 / 0.35),
+    0 18px 40px -22px rgb(61 37 22 / 0.45);
+}
+.tl-scene-side {
+  position: absolute;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--tl-ink);
+}
+.tl-scene-side[data-side='left-top'] {
+  left: -3px;
+  top: 18%;
+  height: 7%;
+}
+.tl-scene-side[data-side='left-bottom'] {
+  left: -3px;
+  top: 28%;
+  height: 7%;
+}
+.tl-scene-side[data-side='right'] {
+  right: -3px;
+  top: 24%;
+  height: 11%;
+}
+.tl-scene-screen {
   overflow: hidden;
-  border: 6px solid var(--tl-ink);
-  border-radius: 26px;
+  border-radius: calc(var(--tl-phone-radius) - var(--tl-bezel));
   background: var(--tl-paper);
-  box-shadow: 0 18px 40px -22px rgb(61 37 22 / 0.45);
+}
+.tl-scene-strip {
+  display: grid;
+  place-items: center;
+  height: var(--tl-strip);
+  background: var(--tl-paper);
+}
+.tl-scene-strip i {
+  width: 22%;
+  height: 40%;
+  border-radius: 999px;
+  background: var(--tl-ink);
+}
+@container tl-scene (max-width: 520px) {
+  .tl-scene-phone {
+    --tl-phone-radius: 42px;
+    --tl-strip: 1.875rem;
+  }
 }
 
 /* A frame clips the captures; the camera moves them behind it. Its shape is the camera’s, set
@@ -272,34 +197,10 @@
   opacity: 1;
 }
 
-/* Narrow: the lines go above the devices, and the two devices stack, lead first. */
-@container tl-scene (max-width: 700px) {
-  .tl-scene-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-@container tl-scene (max-width: 520px) {
-  .tl-scene-stage,
-  .tl-scene[data-lead='desk'] .tl-scene-stage,
-  .tl-scene[data-lead='phone'] .tl-scene-stage {
-    grid-template-columns: minmax(0, 1fr);
-    justify-items: center;
-  }
-  /* Centring stops a grid item stretching, and the desk frame has no width of its own. */
-  .tl-scene-device[data-kind='desk'] {
-    width: 100%;
-  }
-  .tl-scene-device[data-kind='phone'] {
-    width: min(14.5rem, 100%);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .tl-scene .tl-scene-shot,
   .tl-scene-ring,
-  .tl-scene-device > :not(.tl-scene-who),
-  .tl-scene-num,
-  .tl-scene-prog {
+  .tl-scene-device > :not(.tl-scene-who) {
     transition: none;
   }
 }

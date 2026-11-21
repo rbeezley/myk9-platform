@@ -1,23 +1,28 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from '@/features/_shared/hooks/useReducedMotion';
 import { SceneDevice } from './SceneDevice';
-import { SceneLines } from './SceneLines';
+import { SceneCaption } from './SceneCaption';
+import { SceneStoryboard } from './SceneStoryboard';
+import { SceneArrow, SceneTabs } from './SceneTabs';
 import { initialSceneState, reduceScene } from './sceneState';
 import { sceneDevices } from './sceneFrames';
 import type { SceneAction, SceneState } from './sceneState';
 import type { DeviceId, SceneMode, TimelineSceneData } from './sceneFrames';
 import './timelineScene.css';
+import './sceneControls.css';
 
 const TICK_MS = 100;
 
-// One scene: the secretary's screen and the exhibitor's phone side by side (or one device
-// alone, shown larger), real captures that zoom to the part each numbered line is about, with a
-// ring on the control in question. Autoplay plays itself (only while on screen and the tab is
-// visible) and loops; step-through moves only when the reader presses Next or Back, one numbered
-// line per press. Takes data as props: no auth, router,
-// replication or app state. Its one app import is the shared reduced-motion hook.
-// Motion here shows what the other audience is doing at the same moment. Pause, jump and
-// reduced motion keep it WCAG 2.2.2 safe, and nothing hijacks scroll (docs/plan-landing-animated-timeline.md).
+// One scene as a captioned stage: the secretary's screen and the exhibitor's phone side by side
+// (stacked, lead first, on a narrow container) or one device alone, real captures that zoom to the
+// part each numbered line is about, with a ring on the control in question. Under the devices one
+// caption says the current line; under it a tab per line, with Back and Next beside the caption.
+// Autoplay plays itself (only while on screen and the tab is visible) and loops; step-through moves
+// only when the reader presses Next or Back, one numbered line per press. Takes data as props: no
+// auth, router, replication or app state. Its one app import is the shared reduced-motion hook.
+// INTENT: motion here shows what the other audience is doing at the same moment. Pause, tabs
+// (jump) and reduced motion keep it WCAG 2.2.2 safe: reduced motion draws every line at once as a
+// storyboard with nothing moving, and nothing hijacks scroll (docs/plan-landing-animated-timeline.md).
 export function TimelineScene({
   scene,
   lead,
@@ -40,7 +45,10 @@ export function TimelineScene({
     setSeen({ frames, mode, reducedMotion });
     setState(initialSceneState({ frames, mode, reducedMotion }));
   }
-  const [inView, setInView] = useState(false);
+  // Without IntersectionObserver the scene counts as on screen, so Play still plays.
+  const [inView, setInView] = useState(() => typeof IntersectionObserver === 'undefined');
+  // What the live region says: set only when the reader moves to a line, never by autoplay.
+  const [spoken, setSpoken] = useState('');
   const [pageVisible, setPageVisible] = useState(
     () => typeof document === 'undefined' || document.visibilityState !== 'hidden'
   );
@@ -83,72 +91,70 @@ export function TimelineScene({
   const atEnd = line === frames[frames.length - 1]!.line;
   const devices = sceneDevices(scene);
   const solo = devices.length === 1;
-  const paused = !state.playing && !stepping && !reducedMotion;
+  const current = lines[line];
+
+  const say = (n: number) => {
+    const l = lines[n];
+    if (l) setSpoken(`Line ${n + 1} of ${lines.length}. ${l.head}. ${l.text}`);
+  };
+  // A press on Back or Next takes the reader's hands to the scene: autoplay pauses where it lands.
+  const step = (type: 'next' | 'back') => {
+    dispatch({ type });
+    if (!stepping) dispatch({ type: 'pause' });
+    say(type === 'next' ? line + 1 : line - 1);
+  };
+
+  const root = {
+    ref,
+    className: 'tl-scene',
+    'data-lead': lead,
+    'data-solo': solo ? 'true' : undefined,
+    'aria-label': scene.name,
+  } as const;
+
+  if (reducedMotion) {
+    return (
+      <section {...root}>
+        <SceneStoryboard scene={scene} />
+      </section>
+    );
+  }
 
   return (
-    <section
-      ref={ref}
-      className="tl-scene"
-      data-lead={lead}
-      data-mode={mode}
-      data-solo={solo ? 'true' : undefined}
-      aria-label={scene.name}
-    >
-      <div className="tl-scene-grid">
-        <div className="tl-scene-words">
-          <SceneLines
-            lines={lines}
-            frames={frames}
-            frame={frame}
-            elapsed={state.elapsed}
-            timed={!stepping}
-            onJump={n => dispatch({ type: 'jump', line: n })}
-          />
-          <div className="tl-scene-controls">
-            {stepping ? (
-              <>
-                <button
-                  type="button"
-                  className="tl-scene-btn"
-                  aria-disabled={atStart}
-                  onClick={() => dispatch({ type: 'back' })}
-                >
-                  Back
-                </button>
-                <button
-                  type="button"
-                  className="tl-scene-btn"
-                  aria-disabled={atEnd}
-                  onClick={() => dispatch({ type: 'next' })}
-                >
-                  Next
-                </button>
-              </>
-            ) : reducedMotion ? null : (
-              <button
-                type="button"
-                className="tl-scene-btn"
-                onClick={() => dispatch({ type: state.playing ? 'pause' : 'play' })}
-              >
-                {state.playing ? 'Pause' : 'Play'}
-              </button>
-            )}
-            <span className="tl-scene-status" role="status" aria-live="polite">
-              {stepping || paused
-                ? `${stepping ? 'Step' : 'Paused on line'} ${line + 1} of ${lines.length}`
-                : ''}
-            </span>
-          </div>
-        </div>
-        <div className="tl-scene-stage">
-          {devices.map(kind => {
-            const data = scene[kind];
-            const view = f[kind];
-            if (!data || !view) return null;
-            const dimmed = !solo && f.subject !== 'both' && f.subject !== kind;
-            return <SceneDevice key={kind} kind={kind} data={data} view={view} dimmed={dimmed} />;
-          })}
-        </div>
+    <section {...root}>
+      <div className="tl-scene-stage">
+        {devices.map(kind => {
+          const data = scene[kind];
+          const view = f[kind];
+          if (!data || !view) return null;
+          const dimmed = !solo && f.subject !== 'both' && f.subject !== kind;
+          return <SceneDevice key={kind} kind={kind} data={data} view={view} dimmed={dimmed} />;
+        })}
+      </div>
+      <div className="tl-scene-panel">
+        {current && <SceneCaption line={current} index={line} total={lines.length} />}
+        <p className="tl-scene-sr" role="status">
+          {spoken}
+        </p>
+        <SceneArrow dir="prev" disabled={atStart} onPress={() => !atStart && step('back')} />
+        <SceneArrow dir="next" disabled={atEnd} onPress={() => !atEnd && step('next')} />
+        <SceneTabs
+          lines={lines}
+          current={line}
+          onJump={n => {
+            dispatch({ type: 'jump', line: n });
+            say(n);
+          }}
+        />
+        {!stepping && (
+          <button
+            type="button"
+            className="tl-scene-btn"
+            onClick={() => dispatch({ type: state.playing ? 'pause' : 'play' })}
+          >
+            {state.playing ? 'Pause' : 'Play'}
+          </button>
+        )}
       </div>
     </section>
   );

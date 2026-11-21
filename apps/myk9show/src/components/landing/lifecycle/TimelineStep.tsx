@@ -30,27 +30,29 @@ function Screenshot({ shot }: { shot: Shot }) {
 
 export function TimelineStep({
   step,
-  number,
   lead,
   sceneLead,
   meanwhileLabel,
-  reached,
-  lineFilled,
   revealed,
   isLast,
 }: {
   step: StoryStep;
-  number: number;
   lead: string;
   /** The device that leads a two-device scene: the desk for clubs, the phone for exhibitors. */
   sceneLead: DeviceId;
   meanwhileLabel: string;
-  reached: boolean;
-  /** The line down to the next step fills once the reader reaches that step. */
-  lineFilled: boolean;
   revealed: boolean;
   isLast: boolean;
 }) {
+  const sceneId = step.scene ?? step.meanwhileScene;
+  // One scene per row: a full-width band under the two text columns on a wide screen. It sits in
+  // the DOM right after the text of the side it belongs to (data-side), so a screen reader and a
+  // phone's single column both meet it in reading order.
+  const scene = sceneId && (
+    <div className="lc-scene" data-side={step.scene ? 'main' : 'meanwhile'}>
+      <StepScene id={sceneId} lead={sceneLead} />
+    </div>
+  );
   return (
     <div
       id={step.id}
@@ -67,31 +69,18 @@ export function TimelineStep({
           // key by image: a new screenshot starts its explainer from step 1, unpaused.
           <ScreenshotExplainer key={step.shot.src} shot={step.shot} steps={step.explainer} />
         )}
-        <StepScene id={step.scene} lead={sceneLead} />
         {step.scoresheetDemo && <ScoresheetDemo />}
         {step.nightBefore && <NightBeforeCard active={revealed} />}
         {step.shot && !step.explainer && <Screenshot shot={step.shot} />}
       </div>
-      <div className="lc-rail" aria-hidden="true">
-        <span className="lc-dot-wrap">
-          <span id={`${step.id}-dot`} className="lc-dot" data-reached={reached ? 'true' : 'false'}>
-            {number}
-          </span>
-        </span>
-        {!isLast && (
-          // A plain line to the next step, filled as the reader scrolls and emptied going back.
-          <span className="lc-line" data-filled={lineFilled ? 'true' : 'false'}>
-            <span className="lc-line-fill" />
-          </span>
-        )}
-      </div>
+      {step.scene && scene}
       <div className="lc-meanwhile">
         <p className="lc-meanwhile-text">
           <span className="sr-only">{meanwhileLabel}: </span>
           {step.meanwhile}
         </p>
-        <StepScene id={step.meanwhileScene} lead={sceneLead} />
       </div>
+      {!step.scene && scene}
     </div>
   );
 }

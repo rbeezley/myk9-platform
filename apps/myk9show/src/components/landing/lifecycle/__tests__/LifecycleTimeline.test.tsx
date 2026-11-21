@@ -12,7 +12,7 @@ function LifecycleTimeline() {
 }
 
 vi.mock('../useTimelineProgress', () => ({
-  useTimelineProgress: () => ({ reached: 2, isRevealed: () => true }),
+  useTimelineProgress: () => ({ isRevealed: () => true }),
 }));
 
 const titles = () => screen.getAllByRole('heading', { level: 3 }).map(h => h.textContent);
@@ -48,22 +48,13 @@ describe('LifecycleTimeline', () => {
   });
 
   it('switching audience keeps the same row nodes, so progress observers stay attached', () => {
-    const { container } = render(<LifecycleTimeline />);
+    render(<LifecycleTimeline />);
     const showday = document.getElementById('showday');
     const before = document.getElementById('before');
     fireEvent.click(screen.getByRole('button', { name: 'I’m entering a show' }));
     expect(document.getElementById('showday')).toBe(showday);
     expect(document.getElementById('before')).toBe(before);
     expect(document.body.contains(showday)).toBe(true);
-    expect(container.querySelectorAll('.lc-line')).toHaveLength(5);
-  });
-
-  it('fills dots up to the reached step only', () => {
-    render(<LifecycleTimeline />);
-    const reached = STORIES.club.map(s =>
-      document.getElementById(`${s.id}-dot`)!.getAttribute('data-reached')
-    );
-    expect(reached).toEqual(['true', 'true', 'false', 'false', 'false', 'false']);
   });
 
   it('marks show day as the peak with its lead line and the signal switch', () => {
@@ -91,15 +82,28 @@ describe('LifecycleTimeline', () => {
     );
   });
 
-  // A plain line joins each pair of steps; it fills only once the next step is reached
-  // (the progress mock reports step 2 reached, so only the 1 -> 2 line is filled).
-  it('draws a line between every pair of steps, filled up to the reached step', () => {
+  it('has no numbered rail, dots or connecting line', () => {
     const { container } = render(<LifecycleTimeline />);
-    const filled = [...container.querySelectorAll('.lc-line')].map(l =>
-      l.getAttribute('data-filled')
-    );
-    expect(filled).toEqual(['true', 'false', 'false', 'false', 'false']);
-    expect(container.querySelector('svg.lc-trail, .lc-alert')).toBeNull();
+    expect(container.querySelectorAll('.lc-rail, .lc-dot, .lc-line, [id$="-dot"]')).toHaveLength(0);
+  });
+
+  // Reading order: a scene comes right after the text of the side it belongs to, so a screen
+  // reader and a phone's single column meet it next to the words it illustrates.
+  it('renders a step scene once, right after the text of the side it follows', () => {
+    const { container } = render(<LifecycleTimeline />);
+    const sceneRows = container.querySelectorAll('.lc-row .lc-scene');
+    expect(sceneRows.length).toBeGreaterThan(0);
+    for (const slot of sceneRows) {
+      expect(slot.querySelectorAll('.tl-scene')).toHaveLength(1);
+      const side = slot.getAttribute('data-side');
+      expect(slot.previousElementSibling).toHaveClass(side === 'main' ? 'lc-main' : 'lc-meanwhile');
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'I’m entering a show' }));
+    const showday = document.getElementById('showday')!;
+    const slot = showday.querySelector('.lc-scene')!;
+    expect(showday.querySelectorAll('.tl-scene')).toHaveLength(1);
+    expect(slot).toHaveAttribute('data-side', 'meanwhile');
+    expect(slot.parentElement).toBe(showday);
   });
 
   // D11

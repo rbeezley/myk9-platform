@@ -70,9 +70,8 @@ const OFFLINE_EXEMPT_PATHS = [
   'hooks/useNavigationPerformance.ts',
   // Lock errors thrown to callers that catch and log them.
   'services/cacheClearGate.ts',
-  // Developer analytics, feature-flag and deployment tooling: no screen renders these strings.
+  // Developer analytics tooling: no screen renders these strings.
   'services/analytics/',
-  'services/deployment/',
   // Not mounted by any screen (no importers outside tests); delete rather than reword.
   'components/common/SyncStatusIndicator.tsx',
   'hooks/useBackgroundSync.ts',

@@ -30,7 +30,7 @@ Where the snapshot lives, weighed:
 
 Recommended if built: **Stripe's line items.** They are what the payer was actually charged, the payer cannot write them, and the payment-link path already fulfils this way. A server-side row is the fallback if the owner wants the snapshot readable without Stripe.
 
-Fulfilment then checks, in order: `sessionMatchesCart` (unchanged); the fresh `amount_total` equals the sum of line items; every cart line has exactly one line item with a positive amount; the service-fee line equals `calculatePlatformFeeCents(subtotal, stamped rates)`. `lineAmounts` for `begin_cart_fulfillment` (`:1346-1351`) come from the line items. A refusal still happens, through the same unfulfilled-charge path, when: the line items cannot be read or a cart line has none (snapshot missing), the amounts do not add up to what Stripe captured, or the cart lines and line items do not match one to one. Nothing changes what a payer is charged, and refunds stay manual: a refusal only queues a request for a site admin (CLAUDE.md: refunds are never automatic).
+Fulfilment then checks, in order: `sessionMatchesCart` (unchanged); the fresh `amount_total` equals the sum of line items; every cart line has exactly one line item with a positive amount; the service-fee line equals `calculatePlatformFeeCents(subtotal, stamped rates)`. `lineAmounts` for `begin_cart_fulfillment` (`:1346-1351`) come from the line items. A refusal still happens, through the same unfulfilled-charge path, when a successful read shows a cart line with no line item (snapshot missing; a failed read is retried instead, constraint 3), the amounts do not add up to what Stripe captured, or the cart lines and line items do not match one to one. Nothing changes what a payer is charged, and refunds stay manual: a refusal only queues a request for a site admin (CLAUDE.md: refunds are never automatic).
 
 ## Do nothing?
 
@@ -39,7 +39,7 @@ Fulfilment then checks, in order: `sessionMatchesCart` (unchanged); the fresh `a
 - The window is about 31 minutes per checkout. The likelier trigger is a secretary editing a fee during an open entry period, not a deploy.
 - Launch relevance: low. It touches the most-reviewed money path (round-15 tamper defence) for a rare case with a safe failure.
 
-**Recommendation: do nothing now.** Keep MYK9-2036 open at priority 4. Build the Stripe-line-item shape when either trigger appears: the first class gets its own fee, or a fee-rule change is about to ship. Before launch, one cheap check is worth doing on its own: confirm online entry closes before the show-day midnight, so the day-of tier cannot flip under an open checkout.
+**Recommendation: do nothing now.** Keep MYK9-2036 open at priority 4. Build the Stripe-line-item shape when either trigger appears: the first class gets its own fee, or a fee-rule change is about to ship. Before launch, one cheap check is worth doing on its own: measure whether a charge made before the tier change can be verified after it (constraint 6), since the webhook prices with its own clock.
 
 ## Constraints from review (Codex, PR #4308, 2026-11-21)
 
@@ -50,7 +50,7 @@ If this is built, the shape above must also do all of these:
 3. **A failed Stripe read is not a missing snapshot.** A timeout or rate limit on `listLineItems` leaves the cart unclaimed so the webhook redelivers; only a successful read with wrong contents goes to the unfulfilled-charge path. Test: first read fails, redelivery fulfils, no refund request.
 4. **Compare each stored line fee with its snapshot line**, not stored fee against stored subtotal, so an owner editing both together (the $40 case) is refused, without consulting the current pricing rule.
 5. **A cart-specific reader over the raw expanded line items.** `readEntryPaymentLineItemFees` keys on `entry_id`, overwrites duplicates and drops unkeyed lines (the service fee), so it cannot prove one-to-one. The new reader also checks the service-fee line is absent when the computed fee is zero.
-6. **Midnight exposure is decided by session expiry, not entry close.** `stripe-checkout` checks the close date when the page opens but holds the session 31 minutes (`cartSpotHoldUntilEpoch`), so a page opened before midnight on the last pre-entry day can be paid after the tier change. Measure that window before deciding to defer.
+6. **Midnight exposure is decided at verification time, not entry close.** `stripe-webhook` prices with its own current time (`index.ts:1243`), so a charge can be refused when the session is paid after the tier change (`stripe-checkout` holds it 31 minutes, `cartSpotHoldUntilEpoch`) and also when a charge paid before midnight is delivered or retried after it. Measure both before deciding to defer.
 
 ## Testing phase
 
@@ -58,6 +58,7 @@ All in `apps/myk9show/supabase/functions` vitest, driving the webhook's pure ver
 
 1. **Rule A, then rule B.** Price a cart under rule A (show fee $25), build line items at $25, then change the inputs to rule B (class fee $30) before verification. Expect: fulfilled, `lineAmounts` = $25 a line, no `paid_amount_mismatch`.
 2. **Tamper.** Same session, but the owner edits `entry_fee_cents` and `subtotal_cents` in lockstep to $40. Expect: refused (`sessionMatchesCart` or line items disagree with the cart), queued as unfulfilled, nothing fulfilled at $40.
-3. **Missing snapshot.** Line items unreadable, or a cart line with no line item. Expect: refused through the unfulfilled-charge path.
+3. **Missing snapshot.** A successful read with a cart line that has no line item. Expect: refused through the unfulfilled-charge path.
+   3a. **Stripe read fails.** The first `listLineItems` call times out. Expect at the webhook boundary: a retryable (non-2xx) response, the cart unclaimed, no refund request; the redelivery fulfils.
 4. **Captured amount differs** from the line-item sum or the service fee differs from the stamped rate. Expect: refused.
 5. Existing suites stay green: `sessionCartGuard`, `unfulfilledChargeRefund`, `cartItemPricing`, `entryPaymentLineItems`.

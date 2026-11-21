@@ -78,6 +78,8 @@ const row = (id: string, classId: string) => ({
   handler_id: null,
   jump_height: null,
   special_requests: null,
+  created_at: '2026-09-15T00:00:00.000Z',
+  junior_fee_declared: false,
 });
 
 const seedCart = () =>
@@ -97,8 +99,7 @@ const seedCart = () =>
       items: [row('item-a', 'class-1'), row('item-b', 'class-2')],
     },
     error: null,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any);
+  });
 
 describe('cartStore.removeItem — the local list commits before the totals write', () => {
   beforeEach(() => {

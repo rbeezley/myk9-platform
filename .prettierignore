@@ -13,8 +13,6 @@ packages/supabase/src/types/database.types.ts
 docs/archive
 docs/design
 openspec/changes/archive
-myk9q-analysis.json
-mockup-dashboard.html
 # Multi-line SQL inside a Markdown table cell: Prettier is not idempotent on it
 # (each pass indents the cell deeper), so the file is left as written.
 docs/operations/go-live-runbook.md

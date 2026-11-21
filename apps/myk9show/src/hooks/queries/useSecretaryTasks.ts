@@ -1,33 +1,31 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase as supabaseClient } from '@/services/database/supabaseClient';
+import { supabase } from '@/services/database/supabaseClient';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import type { Tables, TablesInsert, TablesUpdate } from '@/types/supabase';
 import type {
   SecretaryTask,
   CreateTaskInput,
   UpdateTaskInput,
 } from '@/pages/secretary/SecretaryDashboardPage/types';
 
-// secretary_tasks is not yet in generated Supabase types — cast to bypass until migration is reflected
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const supabase = supabaseClient as any;
-
 const TASKS_KEY = 'secretary-tasks';
 
-function toTask(row: Record<string, unknown>): SecretaryTask {
-  return {
-    id: row.id as string,
-    clubId: row.club_id as string,
-    showId: row.show_id as string | null,
-    title: row.title as string,
-    ...(row.description != null && { description: row.description as string }),
-    status: row.status as 'todo' | 'done',
-    ...(row.priority != null && { priority: row.priority as SecretaryTask['priority'] }),
-    ...(row.due_date != null && { dueDate: row.due_date as string }),
-    ...(row.assignee_id != null && { assigneeId: row.assignee_id as string }),
-    createdBy: row.created_by as string,
-    createdAt: row.created_at as string,
-    updatedAt: row.updated_at as string,
-  } as SecretaryTask;
+function toTask(row: Tables<'secretary_tasks'>): SecretaryTask {
+  const task: SecretaryTask = {
+    id: row.id,
+    clubId: row.club_id,
+    showId: row.show_id,
+    title: row.title,
+    status: row.status as SecretaryTask['status'],
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+  if (row.description != null) task.description = row.description;
+  if (row.priority != null) task.priority = row.priority as NonNullable<SecretaryTask['priority']>;
+  if (row.due_date != null) task.dueDate = row.due_date;
+  if (row.assignee_id != null) task.assigneeId = row.assignee_id;
+  return task;
 }
 
 export function useSecretaryTasks(showIdFilter?: string) {
@@ -61,21 +59,22 @@ export function useCreateTask() {
   return useMutation({
     mutationFn: async (input: CreateTaskInput) => {
       if (!personId) throw new Error('Not authenticated');
+      const payload: TablesInsert<'secretary_tasks'> = {
+        club_id: input.clubId,
+        show_id: input.showId ?? null,
+        title: input.title,
+        priority: input.priority ?? null,
+        due_date: input.dueDate ?? null,
+        assignee_id: input.assigneeId ?? null,
+        created_by: personId,
+      };
       const { data, error } = await supabase
         .from('secretary_tasks')
-        .insert({
-          club_id: input.clubId,
-          show_id: input.showId ?? null,
-          title: input.title,
-          priority: input.priority ?? null,
-          due_date: input.dueDate ?? null,
-          assignee_id: input.assigneeId ?? null,
-          created_by: personId,
-        })
+        .insert(payload)
         .select()
         .single();
       if (error) throw error;
-      return toTask(data as Record<string, unknown>);
+      return toTask(data);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: [TASKS_KEY] }),
   });
@@ -85,17 +84,14 @@ export function useUpdateTask() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, update }: { id: string; update: UpdateTaskInput }) => {
-      const { error } = await supabase
-        .from('secretary_tasks')
-        .update({
-          ...(update.title !== undefined && { title: update.title }),
-          ...(update.status !== undefined && { status: update.status }),
-          ...(update.priority !== undefined && { priority: update.priority }),
-          ...(update.dueDate !== undefined && { due_date: update.dueDate }),
-          ...(update.assigneeId !== undefined && { assignee_id: update.assigneeId }),
-          ...(update.showId !== undefined && { show_id: update.showId }),
-        })
-        .eq('id', id);
+      const payload: TablesUpdate<'secretary_tasks'> = {};
+      if (update.title !== undefined) payload.title = update.title;
+      if (update.status !== undefined) payload.status = update.status;
+      if (update.priority !== undefined) payload.priority = update.priority;
+      if (update.dueDate !== undefined) payload.due_date = update.dueDate;
+      if (update.assigneeId !== undefined) payload.assignee_id = update.assigneeId;
+      if (update.showId !== undefined) payload.show_id = update.showId;
+      const { error } = await supabase.from('secretary_tasks').update(payload).eq('id', id);
       if (error) throw error;
     },
     onMutate: async ({ id, update }) => {

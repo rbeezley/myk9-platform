@@ -3,18 +3,12 @@
  *
  * Cascade: class.self_checkin_enabled ?? trial.self_checkin_enabled ?? show.self_checkin_enabled ?? true
  * Now reads from show_visibility_settings / trial_visibility_overrides / class_visibility_overrides tables.
- *
- * Note: these tables are added by migration 007 and are not yet in the
- * generated Supabase types, so we use `untypedSupabase` to bypass codegen.
  */
 import { useMemo } from 'react';
 import { createSelfCheckinBatchLoader } from './selfCheckinBatch';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { resolveCheckinCascade } from '@myk9/secretary';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- bypass generated types for tables not yet in codegen
-const untypedSupabase = supabase as any;
 
 interface SelfCheckinResult {
   /** Whether self-check-in is enabled for this class */
@@ -50,21 +44,21 @@ async function fetchSelfCheckinEnabled(classId: string): Promise<boolean> {
   if (!classRow) throw new Error('Could not find the class self-check-in settings.');
 
   const trialId = classRow.trial_id;
-  const showId = (classRow.trials as { show_id: string }).show_id;
+  const showId = classRow.trials.show_id;
 
   // Fetch all three levels in parallel
   const [showResult, trialResult, classResult] = await Promise.all([
-    untypedSupabase
+    supabase
       .from('show_visibility_settings')
       .select('self_checkin_enabled')
       .eq('show_id', showId)
       .maybeSingle(),
-    untypedSupabase
+    supabase
       .from('trial_visibility_overrides')
       .select('self_checkin_enabled')
       .eq('trial_id', trialId)
       .maybeSingle(),
-    untypedSupabase
+    supabase
       .from('class_visibility_overrides')
       .select('self_checkin_enabled')
       .eq('class_id', classId)
@@ -74,15 +68,9 @@ async function fetchSelfCheckinEnabled(classId: string): Promise<boolean> {
   const settingsError = [showResult.error, trialResult.error, classResult.error].find(Boolean);
   if (settingsError) throw settingsError;
 
-  const showCheckin =
-    (showResult.data as { self_checkin_enabled: boolean | null } | null)?.self_checkin_enabled ??
-    null;
-  const trialCheckin =
-    (trialResult.data as { self_checkin_enabled: boolean | null } | null)?.self_checkin_enabled ??
-    null;
-  const classCheckin =
-    (classResult.data as { self_checkin_enabled: boolean | null } | null)?.self_checkin_enabled ??
-    null;
+  const showCheckin = showResult.data?.self_checkin_enabled ?? null;
+  const trialCheckin = trialResult.data?.self_checkin_enabled ?? null;
+  const classCheckin = classResult.data?.self_checkin_enabled ?? null;
 
   return resolveCheckinCascade(showCheckin, trialCheckin, classCheckin);
 }

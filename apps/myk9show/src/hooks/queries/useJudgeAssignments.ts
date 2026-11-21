@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase as supabaseClient } from '@/services/database/supabaseClient';
+import { supabase } from '@/services/database/supabaseClient';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { queryKeys } from '@/lib/queryClient';
 import { withReplicationFallback } from '@/services/database/_shared/replication-fallback';
@@ -18,9 +18,6 @@ import {
 import { zonedWallTimeToInstant, type JudgeClass } from '@/pages/judgeStatsUtils';
 import { decorateWithShowTrialLabels } from './judgeShowTrialLabels';
 import { buildJudgeEntryCountsByClass, type JudgeEntryCounts } from './judgeEntryCounts';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const supabase = supabaseClient as any;
 
 const DEFAULT_TIMEZONE = 'America/New_York';
 
@@ -223,9 +220,7 @@ async function fetchFromPostgrest(personId: string): Promise<JudgeClass[]> {
   if (error) throw error;
 
   return sortBySchedule(
-    ((rows ?? []) as JudgeAssignmentRow[])
-      .map(mapAssignmentRowToJudgeClass)
-      .filter((c): c is JudgeClass => c !== null)
+    (rows ?? []).map(mapAssignmentRowToJudgeClass).filter((c): c is JudgeClass => c !== null)
   );
 }
 

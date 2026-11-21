@@ -1,15 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
+import type { Tables } from '@/types/supabase';
 
-interface OrganizationAgreement {
-  organization: string;
-  agreement_text: string;
-}
-
-// Bypass generated types for table added in migration 122 (not yet in codegen)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const untypedSupabase = supabase as any;
+type OrganizationAgreement = Pick<
+  Tables<'organization_agreements'>,
+  'organization' | 'agreement_text'
+>;
 
 export const useOrganizationAgreement = (organization: string) => {
   return useQuery({
@@ -21,7 +18,7 @@ export const useOrganizationAgreement = (organization: string) => {
     // A missing row is now `null`: there is no agreement to present, which is a
     // configuration fact, not an error.
     queryFn: async (): Promise<OrganizationAgreement | null> => {
-      const { data, error } = await untypedSupabase
+      const { data, error } = await supabase
         .from('organization_agreements')
         .select('organization, agreement_text')
         .eq('organization', organization)

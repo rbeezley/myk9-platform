@@ -1,4 +1,5 @@
 import { usePendingEntryCopy } from '@/features/_shared/landing/PendingEntryCopyContext';
+import { HeadlineRosterStatus } from './HeadlineRosterStatus';
 import { TO_BE_ANNOUNCED_LABEL } from '@/lib/format/fallbackLabels';
 import type { EntryPendingReason } from '@/utils/entryStatusUtils';
 import { formatEntryLimit } from '@/features/_shared/landing/entryLimit';
@@ -327,7 +328,6 @@ function Roster({
   canEnterOnline: boolean;
   entryClosed: boolean;
 }) {
-  const pending = usePendingEntryCopy();
   const hasLimit = typeof data.entryLimit === 'number' && data.entryLimit > 0;
   const pct = entryCapacityPercent(data.entryCount, data.entryLimit);
 
@@ -384,15 +384,10 @@ function Roster({
                 <tr>
                   <th>Status</th>
                   <td>
-                    {canEnterOnline ? (
-                      <>
-                        <span className="accent">Open</span> · accepting entries
-                      </>
-                    ) : entryClosed ? (
-                      'Closed'
-                    ) : (
-                      pending.nav
-                    )}
+                    <HeadlineRosterStatus
+                      canEnterOnline={canEnterOnline}
+                      entryClosed={entryClosed}
+                    />
                   </td>
                 </tr>
                 <tr>

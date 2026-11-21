@@ -427,7 +427,7 @@ for (const vp of VIEWPORTS) {
 
     // The peak row's padding rules once beat the phone gap rules, so the show-day text sat flush
     // against the scene. Measured between the content, not the padded boxes that hold it.
-    test('on a phone, show day keeps a gap between its scene and the text beside it', async ({
+    test('on a phone, show day keeps a gap between its words and its scene', async ({
       page,
     }) => {
       test.skip(vp.name !== 'phone');
@@ -439,7 +439,7 @@ for (const vp of VIEWPORTS) {
           const text = row.querySelector('.lc-meanwhile-text')!.getBoundingClientRect();
           return text.top >= scene.bottom ? text.top - scene.bottom : scene.top - text.bottom;
         });
-      expect(await gap(), 'club: scene above the meanwhile text').toBeGreaterThanOrEqual(10);
+      expect(await gap(), 'club: meanwhile text above the scene').toBeGreaterThanOrEqual(10);
       await page.getByRole('button', { name: 'I’m entering a show' }).click();
       await expect(page.locator('#entries h3')).toHaveText('Enter in a few minutes');
       expect(await gap(), 'exhibitor: meanwhile text above the scene').toBeGreaterThanOrEqual(10);

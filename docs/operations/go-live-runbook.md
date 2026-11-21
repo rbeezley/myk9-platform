@@ -901,9 +901,99 @@ recorded.
       account-scoped (`checkout.session.completed`, `customer.subscription.*`, `invoice.*`,
       `charge.refunded`) and connected-accounts-scoped (`account.updated`,
       `account.application.deauthorized`). Each has its own `whsec_…` secret.
+- [ ] **3.2a** **Payout freeze and drain gate (MYK9-2305; owner decision 2026-11-20: checklist
+      only, no cross-mode detection code).** The payout run lists Stripe transfers in the
+      current key's mode only, so an empty list under a new key reads as "nothing sent". The
+      only protection is that no payout row is unresolved when the key changes. Do all of this
+      before 3.3, and again before any rotate-back (Rollback appendix):
+      1. **Freeze.** Stop the nightly run and any hand-fired `cron-process-payouts` call:
+         ```sql
+         select jobid, active from cron.job where jobname = 'nightly-show-payouts';
+         select cron.alter_job(<jobid>, active := false);
+         ```
+         Then wait at least 10 minutes after the last run's `start_time`
+         (`select status, start_time, end_time from cron.job_run_details where jobid = <jobid> order by start_time desc limit 3;`)
+         so an in-flight run finishes. Nobody calls the function by hand until step 5.
+      2. **Drain: this must return zero rows** (read-only). It lists every payout row the run
+         still has to settle: anything `processing`, anything queued or held on a live show, and
+         a failed attempt on a show with no later payout row. Rows on `draft`/`cancelled` shows
+         are skipped by the run and so are not listed, except `processing`, which the run still
+         recovers on any show:
+         ```sql
+         select sp.id, sp.show_id, s.name, s.status as show_status, sp.status,
+                sp.amount_cents, sp.failure_reason, sp.updated_at
+         from public.show_payouts sp
+         join public.shows s on s.id = sp.show_id
+         where sp.status = 'processing'
+            or (s.status not in ('draft', 'cancelled')
+                and (sp.status in ('pending', 'awaiting_approval', 'approved', 'held')
+                     or (sp.status = 'failed'
+                         and not exists (select 1 from public.show_payouts later
+                                         where later.show_id = sp.show_id
+                                           and later.status <> 'failed'))))
+         order by sp.updated_at;
+         ```
+         "Drained" means this query returned zero rows after the freeze, not that the last run
+         looked quiet. To drain: unfreeze, let the nightly run settle them under the current
+         (test) key, freeze again, re-run the query. Rows that never settle: see 4 below.
+      3. **Sandbox entry money: this must return zero rows** (read-only). After cutover the
+         payout run counts every online-paid entry without checking the mode it was paid in, so
+         sandbox fees on a rehearsal show would be paid from the live balance. A show gets no
+         payout row until three days after it ends, so the drain query cannot see it; this one does. It
+         runs before the switch, when every online-paid entry is sandbox money, and covers every
+         show whether or not it is due yet (same predicate as `calculateShowPayoutCents`):
+         ```sql
+         select s.id, s.name, s.status, s.end_date,
+                count(*) as entries,
+                sum(greatest(0, round(coalesce(e.entry_fee, 0) * 100)
+                                 - round(coalesce(e.refund_amount, 0) * 100)))::bigint as payable_cents
+         from public.entries e
+         join public.shows s on s.id = e.show_id
+         where e.payment_method = 'online'
+           and e.payment_status in ('paid', 'refunded')
+           and s.status not in ('draft', 'cancelled')
+         group by s.id, s.name, s.status, s.end_date
+         having sum(greatest(0, round(coalesce(e.entry_fee, 0) * 100)
+                               - round(coalesce(e.refund_amount, 0) * 100))) > 0
+         order by s.end_date;
+         ```
+         For each show listed: a rehearsal or test show is set to **Cancelled** in the app
+         (show status control). Both the payout run and this query skip cancelled shows, so its
+         sandbox money is never paid from the live balance. Re-run until empty. A show that is
+         not a rehearsal (real exhibitors paid it in sandbox) is not touched here: file a
+         `needs:decision` Linear issue and do not cut over.
+      4. **Rows the nightly run can never settle.** If the drain query keeps returning a row after a
+         drained run, it is one of these. Do not edit `show_payouts` by hand, and never record a
+         transfer or flip a status yourself.
+         - A **pending/awaiting_approval/held** row for a rehearsal show, or one whose club only
+           has a sandbox Connect account (it can never receive a transfer): cancel the show as in
+           step 3, then re-run the drain query.
+         - A **failed** row with no later payout row whose entries have since been fully
+           refunded: the run computes $0, skips it, and the row stays listed. Confirm in the
+           Stripe test-mode dashboard (Connect → Transfers, search transfer group = the show id)
+           that no live transfer exists for the show, then cancel the show if it is a rehearsal
+           show; for a real show file a `needs:decision` issue with the row id.
+         - Anything else, or any `processing` row that stays: stop, file a `needs:operator`
+           issue with the row id and the run's alert email, and do not cut over.
+         Also run this (read-only); it must return zero rows or 3.4 will fail on a foreign key
+         (`show_payouts.club_stripe_account_id` has no cascade). A row here is completed
+         sandbox payout history, which this runbook does not authorize editing: file a
+         `needs:decision` issue:
+         ```sql
+         select sp.id, sp.show_id, sp.status, a.club_id
+         from public.show_payouts sp
+         join public.club_stripe_accounts a on a.id = sp.club_stripe_account_id
+         where a.livemode = false;
+         ```
+      5. **Switch, then unfreeze.** Do 3.3 and 3.3a with the cron still frozen, then
+         `select cron.alter_job(<jobid>, active := true);`. Verify with
+         `select active from cron.job where jobname = 'nightly-show-payouts';` returning `true`.
 - [ ] **3.3** Rotate edge-fn secrets: `supabase secrets set STRIPE_SECRET_KEY=sk_live_…` and
-      `STRIPE_WEBHOOK_SECRET=whsec_<live account-scoped>`.
-      _Rollback:_ rotate both back to the `sk_test_`/test `whsec_` values.
+      `STRIPE_WEBHOOK_SECRET=whsec_<live account-scoped>`. Do this only with the 3.2a freeze in
+      place and its queries clean; unfreeze (3.2a step 5) only after 3.3a.
+      _Rollback:_ rotate both back to the `sk_test_`/test `whsec_` values, after repeating the
+      3.2a freeze and drain (a live payout still unresolved when the key goes back is invisible
+      to the test key).
 - [ ] **3.3a** **Flip `platform_settings.stripe_livemode` to `true` in the SAME change window as
       3.3** (MYK9-579). Every Stripe edge function derives its own livemode from
       `STRIPE_SECRET_KEY`; this column is the separate value `enforce_show_publish_gate()` (a DB
@@ -1225,7 +1315,7 @@ stops the bleeding.
 | Release pipeline itself broken                                                            | Set `STAGING_RELEASE_ENABLED=false`; pause the protected production environment; do not restore Git auto-deploy from `main` as a bypass.                                                                                                     | ~10 min                               |
 | Bad migration                                                                             | Never edit an applied migration. Write a new reverting migration and `supabase db push` it. For corrupted data, use [nightly backup recovery](nightly-backup-recovery.md); only clone creation and limited score repair have been rehearsed. | Incident-dependent; full RTO unproven |
 | Edge function regression                                                                  | Redeploy the prior version from the last-good commit (`git show <sha>:… > tmp` then deploy), per the drift runbook.                                                                                                                          | ~10 min                               |
-| Stripe live cutover failing (webhooks erroring, checkout broken)                          | Rotate `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET` back to test values and disable the live payment surfaces; announce a payments pause. Do NOT purge live customer rows.                                                                    | ~10 min                               |
+| Stripe live cutover failing (webhooks erroring, checkout broken)                          | **Freeze the payout cron and drain `show_payouts` first (3.2a steps 1 and 2).** Then rotate `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET` back to test values and disable the live payment surfaces; announce a payments pause. Do NOT purge live customer rows. | ~10 min                               |
 | Payout misfire                                                                            | Payouts are Manual-schedule + cron-gated: unset the Vault `payout_cron_secret` to hard-stop the cron, reconcile via `/admin/payouts` + `show_payouts.failure_reason`.                                                                        | ~5 min                                |
 | Auth email broken                                                                         | Restore the auth-config backup JSON (SMTP + rate limit) and/or redeploy prior `send-auth-email` + prior hook secret in one window.                                                                                                           | ~10 min                               |
 

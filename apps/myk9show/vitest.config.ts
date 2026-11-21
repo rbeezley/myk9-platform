@@ -195,7 +195,6 @@ export default defineConfig({
       'npm:stripe@17.7.0': path.resolve(__dirname, 'src/test/mocks/npmStripe.ts'),
       // Stub packages that are not installed but imported by source files under test.
       // Tests that need real behavior mock these via vi.mock() in the test file.
-      pako: path.resolve(__dirname, 'src/test/mocks/pako.ts'),
       'virtual:pwa-register': path.resolve(__dirname, 'src/test/mocks/virtual-pwa-register.ts'),
     },
   },

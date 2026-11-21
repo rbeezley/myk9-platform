@@ -29,7 +29,7 @@ import { box, holdWebSockets, proveSocketHold, type Box } from './captureKit';
  *
  * Takes the landing page's "Entries open" scene from the running app: the exhibitor's phone
  * (390x844 at 2x) and the secretary's desktop (1440x900), from the exhibitor's dogs and
- * classes to the secretary accepting the form (docs/plan-landing-animated-timeline.md
+ * classes to the secretary accepting the form (docs/archive/plan-landing-animated-timeline.md
  * § "The 'Entries open' scene", MYK9-2296). It is the ring capture's sibling and keeps all of
  * its guarantees:
  *   - the backend is the job's own Supabase stack on this machine, seeded from the repo's

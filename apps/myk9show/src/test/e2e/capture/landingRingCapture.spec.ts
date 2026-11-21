@@ -20,7 +20,7 @@ import { box, holdWebSockets, proveSocketHold, type Box } from './captureKit';
  *
  * Takes the landing page's "Show day, at the ring" scene from the running app: the judge's
  * phone, from the ring's classes to a score that sends itself when the signal returns
- * (docs/plan-landing-animated-timeline.md § "Capturing the screens", MYK9-2181).
+ * (docs/archive/plan-landing-animated-timeline.md § "Capturing the screens", MYK9-2181).
  *
  * It is safe by where it runs, and refuses to start anywhere else:
  *   - the backend is the job's own Supabase stack on this machine, seeded from the repo's

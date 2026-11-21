@@ -4,7 +4,7 @@
 // page in Home.test.tsx. Design reference: canvas version D (docs/plan-landing-lifecycle.md).
 
 export type Audience = 'club' | 'exhibitor';
-export type StepId = 'setup' | 'entries' | 'before' | 'showday' | 'results' | 'after';
+export type StepId = 'setup' | 'entries' | 'before' | 'showday' | 'results';
 export type ShotShape = 'phone' | 'desktop';
 export type Shot = {
   /** `stills/` holds the captures of the Landing capture workflow; `stages/` the one hand-taken still left. */
@@ -124,7 +124,7 @@ const EXHIBITOR_SHOW_DAY: readonly ExplainerStep[] = [
   { x: 5, y: 87, w: 90, h: 12.5, caption: 'Each dog’s classes for the day' },
 ];
 
-// Scene lines for the animated timeline (docs/plan-landing-animated-timeline.md, MYK9-1894).
+// Scene lines for the animated timeline (docs/archive/plan-landing-animated-timeline.md, MYK9-1894).
 // A line is a short heading plus one plain sentence, written to the club: "you" is the show
 // secretary (owner, 2026-11-16). Every claim has a KEEP row in
 // docs/qa/landing-lifecycle-evidence.md. The words describe the screen; the capture shows it.
@@ -284,14 +284,8 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
       body: 'Placements are worked out from the scores. You choose when results go public.',
       shot: null,
       scene: 'results',
-      meanwhile: 'Each exhibitor sees their dog’s placement the moment you release it.',
-    },
-    {
-      id: 'after',
-      title: 'After the show',
-      body: 'Every result is already recorded. Nothing to re-key.',
-      shot: null,
-      meanwhile: 'Every Q stays on each dog’s record, show after show.',
+      meanwhile:
+        'Each exhibitor sees their dog’s placement the moment you release it, and every Q stays on the dog’s record.',
     },
   ],
   exhibitor: [
@@ -330,18 +324,11 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
     {
       id: 'results',
       title: 'There’s your placement',
-      body: 'Your dog’s placement shows up as soon as the club releases results.',
-      shot: null,
+      body: 'Your dog’s placement shows up as soon as the club releases results, and every Q stays on your dog’s record, show after show.',
+      shot: SHOTS['exhibitor-past-results'],
       scene: 'results',
       meanwhile:
         'Placements are worked out from the scores, and the club chooses when to release them.',
-    },
-    {
-      id: 'after',
-      title: 'Every Q on your dog’s record',
-      body: 'Qualifying runs stay on your dog’s record, show after show.',
-      shot: SHOTS['exhibitor-past-results'],
-      meanwhile: 'The results are already recorded, with nothing to re-type.',
     },
   ],
 };

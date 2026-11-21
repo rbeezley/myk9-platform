@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { expectHeaderFits, expectNoLandingSpills } from './helpers/landingGeometry';
 
-const STEPS = ['setup', 'entries', 'before', 'showday', 'results', 'after'];
+const STEPS = ['setup', 'entries', 'before', 'showday', 'results'];
 const VIEWPORTS = [
   { name: 'phone', width: 390, height: 844 },
   { name: 'desktop', width: 1440, height: 900 },

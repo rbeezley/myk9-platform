@@ -5,7 +5,7 @@ import { DESK_CAMERA_WIDTH } from './entriesScene';
 import regions from './resultsRegions.json';
 
 // "Results": the secretary's desktop and the exhibitor's phone, from the Results tab listing a
-// finished class to the exhibitor opening the result card (docs/plan-landing-animated-timeline.md).
+// finished class to the exhibitor opening the result card (docs/archive/plan-landing-animated-timeline.md).
 // Both stories play it, on the same four lines; the club leads with the desk and the exhibitor
 // with the phone (TimelineStep). The images and every region below come from the capture spec
 // (src/test/e2e/capture/landingSceneResultsCapture.spec.ts), which reads the running app on the

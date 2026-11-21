@@ -33,8 +33,8 @@ describe('STORIES', () => {
     expect(DEFAULT_AUDIENCE).toBe('club');
   });
 
-  it('tells the same six steps, in the same order, for both audiences', () => {
-    const ids = ['setup', 'entries', 'before', 'showday', 'results', 'after'];
+  it('tells the same five steps, in the same order, for both audiences', () => {
+    const ids = ['setup', 'entries', 'before', 'showday', 'results'];
     for (const a of AUDIENCES) expect(STORIES[a].map(s => s.id)).toEqual(ids);
   });
 
@@ -65,9 +65,10 @@ describe('STORIES', () => {
     }
   });
 
-  // MYK9-2309: the steps that are not scenes keep one still each, captured by the Landing capture
-  // workflow at twice the size the page draws it. Nothing else carries a screenshot.
-  it('keeps one captured still on each step that is not a scene, and no other screenshot', () => {
+  // MYK9-2309: the stills are captured by the Landing capture workflow at twice the size the page
+  // draws them. MYK9-2334: the exhibitor's dog record moved into Results, beside the words and
+  // above the Results scene. Nothing else carries a screenshot.
+  it('keeps the captured stills on the steps that own them, and no other screenshot', () => {
     const stills = (a: Audience) =>
       Object.fromEntries(STORIES[a].map(s => [s.id, s.shot?.src.replace('/landing/', '') ?? null]));
     expect(stills('club')).toEqual({
@@ -76,15 +77,13 @@ describe('STORIES', () => {
       before: null,
       showday: null,
       results: null,
-      after: null,
     });
     expect(stills('exhibitor')).toEqual({
       setup: 'stills/exhibitor-find-a-show.png',
       entries: null,
       before: 'stills/exhibitor-my-entries.png',
       showday: 'stages/e-13.png',
-      results: null,
-      after: 'stills/exhibitor-past-results.png',
+      results: 'stills/exhibitor-past-results.png',
     });
   });
 

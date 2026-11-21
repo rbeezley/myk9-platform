@@ -1,6 +1,8 @@
 # Landing page: animated real-screen timeline, trust bar, pricing and FAQ (MYK9-1894)
 
-> **Status:** Active
+> **Status:** Complete
+>
+> **Closed 2026-11-21.** Every phase shipped under MYK9-1894. The owner then folded "After the show" into Results (MYK9-2334), so the timeline has five steps, not six.
 >
 > **Hold:** do not capture a scene until the owner says its screens are settled. The scenes are captures of product screens, so capturing while those screens are still changing means capturing twice.
 >

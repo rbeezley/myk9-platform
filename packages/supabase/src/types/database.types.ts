@@ -16179,9 +16179,7 @@ export type Database = {
         Returns: undefined
       }
       set_entry_refund_decision: {
-        Args:
-          | { p_decision: string; p_entry_id: string }
-          | { p_decision: string; p_entry_id: string; p_reason: string }
+        Args: { p_decision: string; p_entry_id: string; p_reason: string }
         Returns: undefined
       }
       set_judge_day_capacity: {

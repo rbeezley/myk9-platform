@@ -6,9 +6,18 @@ import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { PullReconciliationActions } from '../PullReconciliationActions';
 
 const denyPullRefundDecision = vi.fn().mockResolvedValue(undefined);
-vi.mock('@/features/payments/denyPullRefundDecision', () => ({
+vi.mock('@/features/payments/denyPullRefundDecision', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/payments/denyPullRefundDecision')>()),
   denyPullRefundDecision: (...args: unknown[]) => denyPullRefundDecision(...args),
 }));
+
+const toastError = vi.hoisted(() => vi.fn());
+vi.mock('sonner', () => ({
+  toast: { success: vi.fn(), error: toastError },
+}));
+
+const refreshApp = vi.hoisted(() => vi.fn());
+vi.mock('@/services/pwa/refreshApp', () => ({ refreshApp }));
 
 function makeEntry(overrides: Partial<EntryManagementEntry> = {}): EntryManagementEntry {
   return {
@@ -39,6 +48,55 @@ function makeEntry(overrides: Partial<EntryManagementEntry> = {}): EntryManageme
 describe('PullReconciliationActions', () => {
   beforeEach(() => {
     denyPullRefundDecision.mockReset().mockResolvedValue(undefined);
+    toastError.mockReset();
+    refreshApp.mockReset();
+  });
+
+  async function saveDenial() {
+    const onResolved = vi.fn();
+    const { user } = render(
+      <PullReconciliationActions
+        entry={makeEntry()}
+        onOpenRefund={vi.fn()}
+        onResolved={onResolved}
+      />
+    );
+    await user.click(screen.getByRole('button', { name: 'Deny refund' }));
+    await user.type(screen.getByLabelText('Why is there no refund?'), 'Past the deadline.');
+    await user.click(screen.getByRole('button', { name: 'Save denial' }));
+    await waitFor(() => expect(toastError).toHaveBeenCalledTimes(1));
+    return onResolved;
+  }
+
+  // MYK9-2293: the server no longer has the signature this tab was built against. The secretary is
+  // told to restart, and offered it, instead of a "try again" that would fail the same way.
+  it('asks for a restart when the refund decision function this tab calls is gone', async () => {
+    denyPullRefundDecision.mockRejectedValue({
+      code: 'PGRST202',
+      message:
+        // The shape PostgREST returns for any signature the schema no longer has.
+        'Could not find the function public.set_entry_refund_decision(p_decision, p_entry_id) in the schema cache',
+    });
+
+    const onResolved = await saveDenial();
+
+    expect(toastError).toHaveBeenCalledWith(
+      'This refund decision could not be saved because myK9Show was updated. Restart the app, then deny the refund again.',
+      { action: { label: 'Restart the app', onClick: expect.any(Function) } }
+    );
+    expect(onResolved).not.toHaveBeenCalled();
+    const [, options] = toastError.mock.calls[0] as [string, { action: { onClick: () => void } }];
+    options.action.onClick();
+    expect(refreshApp).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the plain retry message for any other failure', async () => {
+    denyPullRefundDecision.mockRejectedValue({ code: '42501', message: 'not authorized' });
+
+    await saveDenial();
+
+    expect(toastError).toHaveBeenCalledWith("We couldn't save that refund decision. Try again.");
+    expect(refreshApp).not.toHaveBeenCalled();
   });
 
   it('suggests refund before close and denial after close', () => {

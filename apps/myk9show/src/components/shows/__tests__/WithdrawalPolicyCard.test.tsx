@@ -216,6 +216,46 @@ describe('WithdrawalPolicyCard', () => {
     });
   });
 
+  it('MONEY: show scope writes exactly the five show columns', async () => {
+    render(<WithdrawalPolicyCard scope="show" entityId="show-1" />);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save policy' })).toBeEnabled());
+
+    fireEvent.change(screen.getByLabelText('Full-refund cutoff date'), {
+      target: { value: '2026-06-01' },
+    });
+    fireEvent.change(screen.getByLabelText('Amount kept (USD)'), { target: { value: '10' } });
+    fireEvent.change(screen.getByLabelText(/notes/i), { target: { value: ' Vet note ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save policy' }));
+
+    await waitFor(() => {
+      expect(mockUpdate).toHaveBeenCalledWith({
+        withdrawal_cutoff_date: '2026-06-01',
+        withdrawal_retention_type: 'flat',
+        withdrawal_retention_value: 1000,
+        withdrawal_policy_notes: 'Vet note',
+        withdrawal_policy_text: null,
+      });
+    });
+  });
+
+  it('MONEY: club scope writes exactly the four default_withdrawal columns', async () => {
+    mockSingle.mockResolvedValue({ data: clubRow(), error: null });
+    render(<WithdrawalPolicyCard scope="club" entityId="club-9" />);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save policy' })).toBeEnabled());
+
+    fireEvent.change(screen.getByLabelText('Amount kept (USD)'), { target: { value: '7.50' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save policy' }));
+
+    await waitFor(() => {
+      expect(mockUpdate).toHaveBeenCalledWith({
+        default_withdrawal_retention_type: 'flat',
+        default_withdrawal_retention_value: 750,
+        default_withdrawal_policy_notes: null,
+        default_withdrawal_policy_text: null,
+      });
+    });
+  });
+
   it('saves the cutoff date and nulls an empty one', async () => {
     render(<WithdrawalPolicyCard scope="show" entityId="show-1" />);
     await waitFor(() => screen.getByLabelText('Full-refund cutoff date'));

@@ -77,8 +77,7 @@ export function WithdrawalPolicyCard({ scope, entityId }: WithdrawalPolicyCardPr
   const inheritance = data?.inheritance ?? null;
 
   const mutation = useMutation({
-    mutationFn: (next: FormState) =>
-      savePolicy(scope, entityId, buildPayload(scope, next, inheritance)),
+    mutationFn: (next: FormState) => savePolicy(entityId, buildPayload(scope, next, inheritance)),
     onSuccess: () => {
       isDirty.current = false;
       // Every reader of the policy: this card, the About summary, the checkout disclosure

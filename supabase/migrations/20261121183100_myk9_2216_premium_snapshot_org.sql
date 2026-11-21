@@ -62,7 +62,9 @@ BEGIN
   END IF;
 
   -- MYK9-2216: the snapshot must have been built for the organization the show has now.
-  IF p_experience_content->>'org' IS DISTINCT FROM v_show_organization THEN
+  -- An unstamped snapshot is refused even on a show with no organization.
+  IF p_experience_content->>'org' IS NULL
+     OR p_experience_content->>'org' IS DISTINCT FROM v_show_organization THEN
     RAISE EXCEPTION 'Premium organization mismatch: Regenerate the premium for the new organization before publishing.';
   END IF;
 

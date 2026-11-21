@@ -51,14 +51,25 @@ function itemFor(
         label: line.label,
       };
     case 'flagged-pulls':
-      // MYK9-2145: listed only while a flag waits; the secretary confirms or clears it at the
-      // Check-in desk. Not a removal and not a refund to decide until confirmed.
-      if (line.open !== true) return null;
+      // MYK9-2145: listed while a flag waits; the secretary confirms or clears it at the Check-in
+      // desk. Not a removal and not a refund to decide until confirmed. MYK9-2180: a read that did
+      // not succeed says so (never a stale count), and no flags at all is not listed.
+      if (line.open === false) return null;
+      if (line.open === null) {
+        return {
+          key: line.key,
+          state: 'unknown',
+          opensClassList: false,
+          href: null,
+          label: line.label,
+        };
+      }
       return {
         key: line.key,
         state: 'open',
         opensClassList: false,
-        href: getCheckInDeskHref({ showId }),
+        // MYK9-2180: the desk only when it can resolve one; else the list under the line does.
+        href: line.deskLink === false ? null : getCheckInDeskHref({ showId }),
         label: line.label,
       };
     case 'unreleased':

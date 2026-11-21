@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
+import { NO_FLAGS } from '@/features/show-closeout/flaggedPullsTestUtils';
 import { CloseOutShowAction } from '../CloseOutShowAction';
 
 const updateShowMock = vi.hoisted(() => vi.fn());
@@ -35,6 +36,7 @@ const baseProps = {
   entries: [],
   incidents: { reportableCount: 0, urgentCount: 0 },
   submissions: [{ status: 'sent' }],
+  flaggedPulls: NO_FLAGS,
 };
 
 describe('CloseOutShowAction', () => {

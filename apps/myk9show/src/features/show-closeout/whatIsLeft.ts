@@ -31,7 +31,8 @@ import type { ResultsClassPhase } from '@/features/results-tab/resultsNextAction
 import { matchesResultsStatusFilter } from '@/features/results-tab/resultsNextAction';
 import type { ResultsStatusFilterId } from '@/features/results-tab/resultsNextAction';
 import { coveredUntil, newestSubmissionAt } from './submissionTimes';
-import { buildCloseConcerns, flaggedPullText, type CloseConcern } from './closeConcerns';
+import { buildCloseConcerns, flaggedPullsLine, type CloseConcern } from './closeConcerns';
+import type { FlaggedPullsRead } from './flaggedPulls';
 import { isCancelledStatus, needsCascade, normalizeCloseoutStatus } from './closeoutStatus';
 
 const SUBMITTED_STATUSES = new Set(['sent', 'submitted']);
@@ -92,6 +93,13 @@ export interface WhatIsLeftInput {
    * `undefined` = this caller does not look: the line reports unknown.
    */
   handlerClashes?: { count: number; classIds: readonly string[] } | undefined;
+  /**
+   * Unconfirmed check-in pull flags, from `useCloseoutFlaggedPulls` (MYK9-2180): the one read the
+   * Finish list and the close step share. `undefined` = this caller does not look: no line.
+   */
+  flaggedPulls?:
+    | (Pick<FlaggedPullsRead, 'status'> & { dogCount?: number; deskResolvable?: boolean })
+    | undefined;
 }
 
 /**
@@ -141,6 +149,11 @@ export interface WhatIsLeftLine {
   closeConcern?: string;
   /** An app-sent results file only; absent when nothing was sent or the caller does not look. */
   sentFileCheck?: SentFileCheck;
+  /**
+   * A flagged-pulls line only: the Check-in desk can resolve at least one of its flags, so the line
+   * links there (MYK9-2180). False when every flag is listed on the close-out screen itself.
+   */
+  deskLink?: boolean;
 }
 
 export interface WhatIsLeft {
@@ -421,18 +434,9 @@ export function calculateWhatIsLeft(input: WhatIsLeftInput): WhatIsLeft {
       ? 'Saved refund decisions could not be loaded, so the refunds still to decide are unknown.'
       : `${refundCount} paid ${refundCount === 1 ? 'entry' : 'entries'} (${describeEntryRemovals(reconciliation.refundReviewRemovals)}) ${refundCount === 1 ? 'needs' : 'need'} refund review.`,
   });
-  // MYK9-2145: a check-in flag the Check-in desk has not confirmed. Not a removal and not a refund
-  // to decide (docs/INTENT.md, Withdraw vs Pull), but the close step names it.
-  const flaggedCount = reconciliation.flaggedPullDogCount;
-  lines.push({
-    key: 'flagged-pulls',
-    kind: 'flagged-pulls',
-    label: flaggedPullText(flaggedCount),
-    count: flaggedCount,
-    classIds: [],
-    open: flaggedCount > 0,
-    closeConcern: flaggedPullText(flaggedCount),
-  });
+  // MYK9-2145 / MYK9-2180: unconfirmed check-in pull flags, from the caller's shared read.
+  const flaggedLine = flaggedPullsLine(input.flaggedPulls);
+  if (flaggedLine) lines.push(flaggedLine);
   const incidentCount = input.incidents?.reportableCount ?? 0;
   lines.push({
     key: 'incidents',

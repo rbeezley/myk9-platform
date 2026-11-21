@@ -218,7 +218,13 @@ export async function payOnStripeCheckout(page: Page): Promise<string> {
   ).fill('Waitlist Journey');
   // The postal code appears once the country settles; a session without one skips it.
   const zip = await findInCheckout(page, byId('#billingPostalCode'), 5_000);
-  if (zip) await zip.fill(TEST_CARD.zip);
+  const zipShown =
+    zip !== null &&
+    (await zip.waitFor({ state: 'visible', timeout: 5_000 }).then(
+      () => true,
+      () => false
+    ));
+  if (zipShown) await zip.fill(TEST_CARD.zip);
   // Link's "save my info" would ask for a phone number; this payer saves nothing.
   const saveWithLink = await findInCheckout(page, byId('#enableStripePass'), 1_000);
   if (saveWithLink && (await saveWithLink.isVisible()) && (await saveWithLink.isChecked())) {

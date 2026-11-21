@@ -6,6 +6,7 @@
  * offline mutation queue, and the policy text (MYK9-1976) follows them.
  */
 import { supabase } from '@/lib/supabase';
+import type { TablesUpdate } from '@/types/supabase';
 import type { RegistryId } from '@/features/registries';
 import { registryFromTrials } from '@/features/payments/useEffectiveWithdrawalPolicy';
 import {
@@ -199,38 +200,52 @@ export function inheritedText(
   };
 }
 
+/** The columns a save writes, typed per scope so each table only receives its own columns. */
+export type PolicyPayload =
+  | { scope: 'club'; update: TablesUpdate<'clubs'> }
+  | { scope: 'show'; update: TablesUpdate<'shows'> };
+
 export function buildPayload(
   scope: Scope,
   form: FormState,
   inheritance: PolicyInheritance | null
-): Record<string, unknown> {
-  const cols = COLUMNS[scope];
+): PolicyPayload {
   const storedValue = inputToStored(form.retentionType, form.retentionInput);
   const ownText = form.textCustom ? normalizeWithdrawalPolicyText(form.text) : null;
   // A text identical to what it would inherit is not the club's own words: store NULL so it
   // keeps following the fields (or the club) instead of freezing today's wording.
   const text =
     ownText !== null && ownText === inheritedText(scope, form, inheritance).text ? null : ownText;
+  // Retention type/value only mean something together; null them as a pair.
+  const retentionType = storedValue === null ? null : form.retentionType;
+  const notes = form.notes.trim() || null;
+  if (scope === 'club') {
+    return {
+      scope,
+      update: {
+        default_withdrawal_retention_type: retentionType,
+        default_withdrawal_retention_value: storedValue,
+        default_withdrawal_policy_notes: notes,
+        default_withdrawal_policy_text: text,
+      },
+    };
+  }
   return {
-    ...(cols.cutoff ? { [cols.cutoff]: form.cutoffDate || null } : {}),
-    // Retention type/value only mean something together; null them as a pair.
-    [cols.type]: storedValue === null ? null : form.retentionType,
-    [cols.value]: storedValue,
-    [cols.notes]: form.notes.trim() || null,
-    [cols.text]: text,
+    scope,
+    update: {
+      withdrawal_cutoff_date: form.cutoffDate || null,
+      withdrawal_retention_type: retentionType,
+      withdrawal_retention_value: storedValue,
+      withdrawal_policy_notes: notes,
+      withdrawal_policy_text: text,
+    },
   };
 }
 
-export async function savePolicy(
-  scope: Scope,
-  entityId: string,
-  payload: Record<string, unknown>
-): Promise<void> {
-  const cols = COLUMNS[scope];
-  const { error } = await supabase
-    .from(cols.table)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .update(payload as any)
-    .eq('id', entityId);
+export async function savePolicy(entityId: string, payload: PolicyPayload): Promise<void> {
+  const { error } =
+    payload.scope === 'club'
+      ? await supabase.from('clubs').update(payload.update).eq('id', entityId)
+      : await supabase.from('shows').update(payload.update).eq('id', entityId);
   if (error) throw error;
 }

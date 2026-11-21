@@ -149,9 +149,10 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
   // Judge and time sit on their own line: both are optional and the judge's
   // name can be long, while the date stays on one line (never "TBD").
   const runOrder = runOrderText(state.kind, cls.runOrder);
-  const detail = [judgeName ? `Judge ${judgeName}` : null, formatStartTime(cls.startTime ?? null)]
-    .filter((part): part is string => Boolean(part))
-    .join(' · ');
+  const detailParts = [
+    judgeName ? `Judge ${judgeName}` : null,
+    formatStartTime(cls.startTime ?? null),
+  ].filter((part): part is string => Boolean(part));
 
   // All five terms live in `leaveClassRow.ts` so the rule is drivable without a
   // render. Deliberately NOT gated on the entry-close deadline — see that
@@ -183,9 +184,17 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
       <span className="myk9-entries-class-name text-foreground">{cls.name}</span>
       <span className="myk9-entries-class-when">
         {classWhen}
-        {(detail || runOrder) && (
+        {(detailParts.length > 0 || runOrder) && (
           <span className="myk9-entries-class-when-detail">
-            {detail && <span className="block">{detail}</span>}
+            {detailParts.length > 0 && (
+              // Parts wrap as units with a gap and no separator glyph, so no line
+              // can start or end on a dangling "·".
+              <span className="flex flex-wrap gap-x-3">
+                {detailParts.map(part => (
+                  <span key={part}>{part}</span>
+                ))}
+              </span>
+            )}
             {/* Its own line, one unit: "Running order" never wraps away from its number,
                 and no separator is left to dangle at a line end. */}
             {runOrder && (

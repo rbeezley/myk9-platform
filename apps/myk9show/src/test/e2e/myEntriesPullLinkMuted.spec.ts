@@ -68,10 +68,11 @@ for (const viewport of VIEWPORTS) {
       const s = getComputedStyle(el);
       return { color: s.color, decoration: s.textDecorationLine };
     });
-    const mutedColor = await page.evaluate(() => {
+    // The probe sits in the row's own context so it resolves the colour the row sees.
+    const mutedColor = await rowState.evaluate(el => {
       const probe = document.createElement('span');
       probe.className = 'text-muted-foreground';
-      document.body.appendChild(probe);
+      (el.parentElement ?? document.body).appendChild(probe);
       const color = getComputedStyle(probe).color;
       probe.remove();
       return color;
@@ -123,6 +124,37 @@ test('phone 390px: class row running order is one line, no dangling separator, R
     expect(trimmed.endsWith('·'), `actions line ends with a separator: "${trimmed}"`).toBe(false);
   }
 
+  const details = await page
+    .locator('.myk9-entries-class-when-detail')
+    .evaluateAll(els =>
+      els.flatMap(el => Array.from(el.children).map(child => child.textContent ?? ''))
+    );
+  for (const text of details) {
+    const trimmed = text.trim();
+    expect(trimmed.startsWith('·'), `detail line starts with a separator: "${trimmed}"`).toBe(
+      false
+    );
+    expect(trimmed.endsWith('·'), `detail line ends with a separator: "${trimmed}"`).toBe(false);
+  }
+
+  // The show "..." menu sits on the heading row, not below it.
+  const headers = page.locator('.myk9-entries-show-header');
+  const headerCount = await headers.count();
+  expect(headerCount).toBeGreaterThan(0);
+  for (let i = 0; i < headerCount; i++) {
+    const { centre, top, bottom } = await headers.nth(i).evaluate(el => {
+      const heading = el.querySelector('h3')!.getBoundingClientRect();
+      const trigger = el.querySelector('[aria-label^="Actions for"]')!.getBoundingClientRect();
+      return {
+        centre: trigger.top + trigger.height / 2,
+        top: heading.top,
+        bottom: heading.bottom,
+      };
+    });
+    expect(centre, 'show actions trigger sits above the heading row').toBeGreaterThanOrEqual(top);
+    expect(centre, 'show actions trigger sits below the heading row').toBeLessThanOrEqual(bottom);
+  }
+
   const runningOrders = page.locator('[data-testid="class-row-running-order"]');
   const count = await runningOrders.count();
   if (count === 0) {
@@ -138,8 +170,18 @@ test('phone 390px: class row running order is one line, no dangling separator, R
   }
   for (let i = 0; i < count; i++) {
     const row = runningOrders.nth(i);
-    const rects = await row.evaluate(el => el.getClientRects().length);
-    expect(rects, 'running order wraps onto more than one line').toBe(1);
+    const { right, limit } = await row.evaluate(el => {
+      const container =
+        el.closest('.myk9-entries-class-when') ?? el.closest('.myk9-entries-class-row');
+      return {
+        right: el.getBoundingClientRect().right,
+        limit: Math.min(
+          (container?.getBoundingClientRect().right ?? Infinity) + 1,
+          window.innerWidth
+        ),
+      };
+    });
+    expect(right, 'running order overflows its row or the viewport').toBeLessThanOrEqual(limit);
     const { height, lineHeight } = await row.evaluate(el => {
       const lh = parseFloat(getComputedStyle(el).lineHeight);
       return { height: el.getBoundingClientRect().height, lineHeight: lh };

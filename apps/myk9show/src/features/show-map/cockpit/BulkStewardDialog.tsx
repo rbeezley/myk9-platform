@@ -74,7 +74,6 @@ export function BulkStewardDialog({
   const saving = assignMany.isPending;
 
   const close = (next: boolean) => {
-    if (!next && saving) return;
     if (!next) {
       setVolunteerId(null);
       setSearch('');
@@ -199,7 +198,7 @@ export function BulkStewardDialog({
         )}
 
         <DialogFooter>
-          <Button type="button" variant="outline" disabled={saving} onClick={() => close(false)}>
+          <Button type="button" variant="outline" onClick={() => close(false)}>
             Cancel
           </Button>
           <Button

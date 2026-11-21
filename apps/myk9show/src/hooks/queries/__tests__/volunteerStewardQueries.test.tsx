@@ -201,7 +201,8 @@ describe('useAddVolunteerAndAssign, when a write fails', () => {
   it('adds the walk-up once and says they were added when only the job failed', async () => {
     const error = vi.spyOn(notifications, 'error');
     const { volunteerInsert } = mockWrites(new Error('denied'));
-    const { wrapper } = setup();
+    const { queryClient, wrapper } = setup();
+    queryClient.setQueryData(queryKeys.volunteerClassAssignments(SHOW_ID), []);
     const { result } = renderHook(() => useAddVolunteerAndAssign(SHOW_ID), { wrapper });
     act(() => {
       result.current.mutate({ name: 'Pat Lee', classId: 'class-1', roleName: 'Timer' });
@@ -211,6 +212,8 @@ describe('useAddVolunteerAndAssign, when a write fails', () => {
     expect(error).toHaveBeenCalledWith(
       "Pat Lee was added to the volunteer list, but we couldn't give them the job. Try again."
     );
+    // No chip is left showing a job the database does not have.
+    expect(queryClient.getQueryData(queryKeys.volunteerClassAssignments(SHOW_ID))).toEqual([]);
   });
 
   it('shows the walk-up and the job at once, and takes both back when the add fails', async () => {

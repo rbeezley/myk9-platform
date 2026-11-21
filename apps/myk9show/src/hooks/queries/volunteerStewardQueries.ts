@@ -58,10 +58,9 @@ export function useAddVolunteerAndAssign(showId: string) {
     onMutate: async input => {
       await queryClient.cancelQueries({ queryKey: volunteersKey });
       await queryClient.cancelQueries({ queryKey: assignmentsKey });
-      const previousVolunteers = queryClient.getQueryData<Volunteer[]>(volunteersKey);
-      const previousAssignments = queryClient.getQueryData<ClassAssignment[]>(assignmentsKey);
       const now = new Date().toISOString();
       const volunteerId = `${OPTIMISTIC_ID_PREFIX}${crypto.randomUUID()}`;
+      const assignmentId = `${OPTIMISTIC_ID_PREFIX}${crypto.randomUUID()}`;
       queryClient.setQueryData<Volunteer[]>(volunteersKey, old => [
         ...(old ?? []),
         {
@@ -79,7 +78,7 @@ export function useAddVolunteerAndAssign(showId: string) {
       queryClient.setQueryData<ClassAssignment[]>(assignmentsKey, old => [
         ...(old ?? []),
         {
-          id: `${OPTIMISTIC_ID_PREFIX}${crypto.randomUUID()}`,
+          id: assignmentId,
           volunteerId,
           classId: input.classId,
           roleName: input.roleName,
@@ -89,17 +88,24 @@ export function useAddVolunteerAndAssign(showId: string) {
           volunteerName: input.name,
         },
       ]);
-      return { previousVolunteers, previousAssignments };
+      return { volunteerId, assignmentId };
     },
+    // Each failure takes back only its own rows, so another add still in flight keeps its chip.
     onError: (error, _input, context) => {
+      if (context) {
+        queryClient.setQueryData<ClassAssignment[]>(assignmentsKey, old =>
+          old?.filter(a => a.id !== context.assignmentId)
+        );
+      }
       if (error instanceof AssignAfterAddError) {
         // The volunteer row exists; the refetch below shows it without the job.
         notifications.error(addedButNotAssigned(error.volunteerName));
         return;
       }
       if (context) {
-        queryClient.setQueryData(volunteersKey, context.previousVolunteers);
-        queryClient.setQueryData(assignmentsKey, context.previousAssignments);
+        queryClient.setQueryData<Volunteer[]>(volunteersKey, old =>
+          old?.filter(v => v.id !== context.volunteerId)
+        );
       }
       notifications.error(VOLUNTEER_COPY.addAndAssignFailed);
     },
@@ -142,6 +148,8 @@ export function useAssignToClasses(showId: string) {
   const qk = queryKeys.volunteerClassAssignments(showId);
   return useMutation({
     retry: false,
+    // Offline, fail at once with the error toast rather than wait unseen for a connection.
+    networkMode: 'always',
     mutationFn: async (input: AssignToClassesInput) => {
       const existing = queryClient.getQueryData<ClassAssignment[]>(qk) ?? [];
       const classIds = classesNeedingAssignment(

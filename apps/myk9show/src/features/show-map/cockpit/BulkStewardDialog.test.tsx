@@ -130,10 +130,16 @@ describe('BulkStewardDialog (MYK9-2328)', () => {
     expect(screen.queryByRole('button', { name: 'Pat Lee' })).not.toBeInTheDocument();
   });
 
-  it('cannot be cancelled while the assignment is saving', () => {
+  it('cannot assign twice while the assignment is saving, but can still be closed', async () => {
     pending.current = true;
-    render(<BulkStewardDialog showId="show-1" classes={classes} open onOpenChange={vi.fn()} />);
-    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
+    const onOpenChange = vi.fn();
+    const { user } = render(
+      <BulkStewardDialog showId="show-1" classes={classes} open onOpenChange={onOpenChange} />
+    );
+    await user.click(screen.getByRole('button', { name: 'Tom Kennedy' }));
+    expect(screen.getByRole('button', { name: 'Assign to 3 classes' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
   it('closes and confirms when the assignment saves', async () => {

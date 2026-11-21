@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { render, screen, waitFor } from '@/test/utils/testUtils';
+import { render, screen, waitFor, within } from '@/test/utils/testUtils';
 
 const { getClassById, updateClass } = vi.hoisted(() => ({
   getClassById: vi.fn(),
@@ -51,6 +51,18 @@ describe('Show Desk scoring controls (MYK9-1971)', () => {
     await user.click(screen.getByRole('button', { name: 'Scores on paper' }));
     await waitFor(() => expect(updateClass).toHaveBeenCalledWith('c1', { scoresOnPaper: true }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('lets both choice buttons wrap on a narrow phone and keeps the 44px target (MYK9-2318)', () => {
+    render(
+      <ClassScoringSwitch classId="c1" className="N" scoresOnPaper={null} showUsesDeviceScoring />
+    );
+    const group = screen.getByRole('group');
+    const buttons = within(group).getAllByRole('button');
+    expect(buttons).toHaveLength(2);
+    for (const button of buttons) {
+      expect(button).toHaveClass('h-auto', 'min-h-11', 'whitespace-normal', 'text-left');
+    }
   });
 
   it('marks a class with its own choice without the usual-way note', () => {

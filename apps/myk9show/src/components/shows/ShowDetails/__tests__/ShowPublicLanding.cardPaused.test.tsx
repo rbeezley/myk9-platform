@@ -133,6 +133,18 @@ describe('ShowPublicLanding card entries (MYK9-2192)', () => {
     expect(screen.queryByText(/service fee when you pay online/)).not.toBeInTheDocument();
   });
 
+  it('hides the online service fee note while the answer is loading or failed', async () => {
+    rpc.mockReturnValue(new Promise(() => undefined));
+    const pending = renderLanding(openShow(true));
+    expect(screen.getByTestId('reason')).toHaveTextContent('card_entries_checking');
+    expect(screen.queryByText(/service fee when you pay online/)).not.toBeInTheDocument();
+    pending.unmount();
+    rpc.mockResolvedValue({ data: null, error: new Error('x') });
+    renderLanding(openShow(true));
+    await screen.findByText('online_setting_unknown');
+    expect(screen.queryByText(/service fee when you pay online/)).not.toBeInTheDocument();
+  });
+
   it('keeps the online service fee note when card entries are open', async () => {
     rpc.mockResolvedValue({ data: [], error: null });
     renderLanding(openShow(true));

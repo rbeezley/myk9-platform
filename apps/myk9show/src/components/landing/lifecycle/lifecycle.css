@@ -282,24 +282,27 @@
   .landing-v2 .lc-labels {
     display: none;
   }
+  /* 0.75rem between the parts of a step, and the row's own 0.75rem on top of that between steps,
+     so a step reads as one group without adding to the page's length. */
   .landing-v2 .lc-row {
     grid-template-columns: minmax(0, 1fr);
+    padding-bottom: 0.75rem;
   }
   .landing-v2 .lc-main {
     grid-row: 1;
-    padding: 0 0 1rem;
+    padding: 0 0 0.75rem;
   }
   .landing-v2 .lc-scene[data-side='main'] {
     grid-row: 2;
-    padding-bottom: 1rem;
+    padding-bottom: 0.75rem;
   }
   .landing-v2 .lc-meanwhile {
     grid-row: 3;
-    padding: 0 0 1rem;
+    padding: 0 0 0.75rem;
   }
   .landing-v2 .lc-scene[data-side='meanwhile'] {
     grid-row: 4;
-    padding-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
   }
   .landing-v2 .lc-row[data-peak='true'] {
     margin: 1rem 0 1.5rem;
@@ -313,10 +316,10 @@
      sits below it, so each keeps its gap. */
   .landing-v2 .lc-row[data-peak='true'] .lc-scene[data-side='main'],
   .landing-v2 .lc-row[data-last='true'] .lc-scene[data-side='main'] {
-    padding-bottom: 1rem;
+    padding-bottom: 0.75rem;
   }
   .landing-v2 .lc-row[data-peak='true'] .lc-meanwhile:has(+ .lc-scene[data-side='meanwhile']) {
-    padding-bottom: 1rem;
+    padding-bottom: 0.75rem;
   }
 }
 

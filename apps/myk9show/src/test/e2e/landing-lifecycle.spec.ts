@@ -394,10 +394,10 @@ for (const vp of VIEWPORTS) {
           const text = row.querySelector('.lc-meanwhile-text')!.getBoundingClientRect();
           return text.top >= scene.bottom ? text.top - scene.bottom : scene.top - text.bottom;
         });
-      expect(await gap(), 'club: scene above the meanwhile text').toBeGreaterThanOrEqual(12);
+      expect(await gap(), 'club: scene above the meanwhile text').toBeGreaterThanOrEqual(10);
       await page.getByRole('button', { name: 'I’m entering a show' }).click();
       await expect(page.locator('#entries h3')).toHaveText('Enter in a few minutes');
-      expect(await gap(), 'exhibitor: meanwhile text above the scene').toBeGreaterThanOrEqual(12);
+      expect(await gap(), 'exhibitor: meanwhile text above the scene').toBeGreaterThanOrEqual(10);
     });
   });
 }

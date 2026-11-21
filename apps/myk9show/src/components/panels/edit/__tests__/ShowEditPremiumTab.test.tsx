@@ -642,7 +642,51 @@ describe('ShowEditPremiumTab unsaved organization (MYK9-2213)', () => {
     renderTab('UKC', 'AKC');
     expect(premiumEditorProps.at(-1)).toMatchObject({
       regenerateBlockedReason:
-        'Save the show first. Regenerate builds from the saved organization (AKC).',
+        'The organization changed. Save the show, then regenerate the premium for UKC before publishing.',
+    });
+  });
+
+  describe('with a published premium (MYK9-2216)', () => {
+    const published = buildExperienceSnapshot({
+      premium: {
+        org: 'AKC',
+        style: 'monogram',
+        show: { startDate: '2026-05-01' },
+        trials: [],
+        narratives: { showHours: 'AKC hours.', trialInformation: 'AKC info.' },
+        supplemental: {
+          vetClinic: null,
+          accommodations: [],
+          coverImageUrl: null,
+          hospitalityNotes: null,
+          awardsDescription: null,
+          additionalNotes: null,
+        },
+      },
+      premiumPath: 'show-1/artifact-1.pdf',
+      premiumUrl: 'https://trusted.example/premium-published/show-1/artifact-1.pdf',
+    });
+    const renderPublished = (showOrg: 'AKC' | 'UKC') =>
+      render(
+        <ShowEditPremiumTab
+          data={{ ...baseData, organization: showOrg, experiencePublishedContent: published }}
+          clubId="c1"
+          showOrg={showOrg}
+          savedOrganization="AKC"
+          isActive
+          handleCheckboxChange={vi.fn(() => vi.fn())}
+          handleValueChange={vi.fn(() => vi.fn())}
+        />
+      );
+
+    it('carries no old premium text over to a changed organization', () => {
+      renderPublished('UKC');
+      expect(premiumEditorProps.at(-1)?.initialPremium).toBeUndefined();
+    });
+
+    it('keeps the published premium when the organization is unchanged', () => {
+      renderPublished('AKC');
+      expect(premiumEditorProps.at(-1)?.initialPremium).toBeDefined();
     });
   });
 

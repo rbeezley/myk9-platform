@@ -45,12 +45,18 @@ export function TimelineStep({
   isLast: boolean;
 }) {
   const sceneId = step.scene ?? step.meanwhileScene;
-  // One scene per row: a full-width band under the two text columns on a wide screen. It sits in
-  // the DOM right after the text of the side it belongs to (data-side), so a screen reader and a
-  // phone's single column both meet it in reading order.
-  const scene = sceneId && (
-    <div className="lc-scene" data-side={step.scene ? 'main' : 'meanwhile'}>
-      <StepScene id={sceneId} lead={sceneLead} />
+  // One column of words per step: the step's text, then one line on what the other side sees.
+  // On a wide screen the step's still or demo sits beside the words, and a scene is a full-width
+  // band below both. The DOM order is the reading order, so a phone's single column matches it.
+  const media = (step.shot || step.scoresheetDemo || step.nightBefore) && (
+    <div className="lc-media">
+      {step.shot && step.explainer && (
+        // key by image: a new screenshot starts its explainer from step 1, unpaused.
+        <ScreenshotExplainer key={step.shot.src} shot={step.shot} steps={step.explainer} />
+      )}
+      {step.scoresheetDemo && <ScoresheetDemo />}
+      {step.nightBefore && <NightBeforeCard active={revealed} />}
+      {step.shot && !step.explainer && <Screenshot shot={step.shot} />}
     </div>
   );
   return (
@@ -59,28 +65,27 @@ export function TimelineStep({
       className="lc-row"
       data-peak={step.peak ? 'true' : undefined}
       data-last={isLast ? 'true' : undefined}
+      data-media={media ? 'true' : undefined}
+      data-scene={sceneId ? 'true' : undefined}
       data-revealed={revealed ? 'true' : 'false'}
     >
       <div className="lc-main">
         {step.peak && <p className="lc-lead">{lead}</p>}
         <h3 className="lc-step-title">{step.title}</h3>
         <p className="lc-step-body">{step.body}</p>
-        {step.shot && step.explainer && (
-          // key by image: a new screenshot starts its explainer from step 1, unpaused.
-          <ScreenshotExplainer key={step.shot.src} shot={step.shot} steps={step.explainer} />
-        )}
-        {step.scoresheetDemo && <ScoresheetDemo />}
-        {step.nightBefore && <NightBeforeCard active={revealed} />}
-        {step.shot && !step.explainer && <Screenshot shot={step.shot} />}
-      </div>
-      {step.scene && scene}
-      <div className="lc-meanwhile">
         <p className="lc-meanwhile-text">
-          <span className="sr-only">{meanwhileLabel}: </span>
+          <span className="lc-meanwhile-label">{meanwhileLabel}: </span>
           {step.meanwhile}
         </p>
       </div>
-      {!step.scene && scene}
+      {media}
+      {sceneId && (
+        // data-side says whose part of the story the scene shows: this step's own (main) or the
+        // other side's (meanwhile).
+        <div className="lc-scene" data-side={step.scene ? 'main' : 'meanwhile'}>
+          <StepScene id={sceneId} lead={sceneLead} />
+        </div>
+      )}
     </div>
   );
 }

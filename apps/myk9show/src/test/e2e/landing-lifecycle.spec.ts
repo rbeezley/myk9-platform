@@ -142,6 +142,51 @@ for (const vp of VIEWPORTS) {
       }
     });
 
+    // MYK9-2327: each step once had a "meanwhile" column holding one sentence beside a column up
+    // to 980px tall. Now the words are one column, a still or demo sits beside them, and a scene
+    // is a band below. Neither side of a step's first row may be mostly empty.
+    test('on a wide screen no step leaves one side mostly empty', async ({ page }) => {
+      test.skip(vp.name !== 'desktop');
+      await openLanding(page);
+      for (const audience of ['I’m running a show', 'I’m entering a show']) {
+        await page.getByRole('button', { name: audience }).click();
+        await scrollToBottom(page);
+        const rows = await page.evaluate(() =>
+          [...document.querySelectorAll<HTMLElement>('.lc-row')].map(row => {
+            const main = row.querySelector('.lc-main')!.getBoundingClientRect();
+            const media = row.querySelector('.lc-media')?.getBoundingClientRect();
+            const scene = row.querySelector('.lc-scene')?.getBoundingClientRect();
+            return {
+              id: row.id,
+              main: { left: main.left, right: main.right, top: main.top, h: main.height },
+              media: media && { left: media.left, top: media.top, h: media.height },
+              sceneTop: scene?.top,
+              mainBottom: main.bottom,
+              mediaBottom: media?.bottom,
+            };
+          })
+        );
+        expect(rows.map(r => r.id)).toEqual(STEPS);
+        for (const r of rows) {
+          if (r.media) {
+            expect(r.media.left, `${audience} ${r.id}: media beside the words`).toBeGreaterThan(
+              r.main.right - 1
+            );
+            // The shorter side is at least a quarter of the taller one: no 900px-high blank.
+            const ratio = Math.min(r.main.h, r.media.h) / Math.max(r.main.h, r.media.h);
+            expect(ratio, `${audience} ${r.id}: sides balanced`).toBeGreaterThan(0.25);
+          }
+          if (r.sceneTop !== undefined) {
+            const above = Math.max(r.mainBottom, r.mediaBottom ?? r.mainBottom);
+            expect(
+              r.sceneTop - above,
+              `${audience} ${r.id}: scene below the words, with a gap`
+            ).toBeGreaterThanOrEqual(16);
+          }
+        }
+      }
+    });
+
     test('switching audience keeps the reader at the step and swaps the story', async ({
       page,
     }) => {
@@ -382,9 +427,7 @@ for (const vp of VIEWPORTS) {
 
     // The peak row's padding rules once beat the phone gap rules, so the show-day text sat flush
     // against the scene. Measured between the content, not the padded boxes that hold it.
-    test('on a phone, show day keeps a gap between its scene and the text beside it', async ({
-      page,
-    }) => {
+    test('on a phone, show day keeps a gap between its words and its scene', async ({ page }) => {
       test.skip(vp.name !== 'phone');
       await openLanding(page);
       const gap = () =>
@@ -394,11 +437,11 @@ for (const vp of VIEWPORTS) {
           const text = row.querySelector('.lc-meanwhile-text')!.getBoundingClientRect();
           return text.top >= scene.bottom ? text.top - scene.bottom : scene.top - text.bottom;
         });
-      expect(await gap(), 'club: scene above the meanwhile text').toBeGreaterThanOrEqual(10);
+      expect(await gap(), 'club: meanwhile text above the scene').toBeGreaterThanOrEqual(10);
       await page.getByRole('button', { name: 'I’m entering a show' }).click();
       await expect(page.locator('#entries h3')).toHaveText('Enter in a few minutes');
       expect(await gap(), 'exhibitor: meanwhile text above the scene').toBeGreaterThanOrEqual(10);
-      // The last step ends the section: nothing under its text but the next section's padding.
+      // The last step ends the section: nothing under its last part but the next section’s padding.
       const lastRow = page.locator('.lc-row[data-last="true"]');
       await lastRow.scrollIntoViewIfNeeded();
       await expect(lastRow).toHaveAttribute('data-revealed', 'true');
@@ -408,8 +451,8 @@ for (const vp of VIEWPORTS) {
           page.evaluate(() => {
             const rows = document.querySelectorAll('.lc-row');
             const last = rows[rows.length - 1]!;
-            const text = last.querySelector('.lc-meanwhile-text')!.getBoundingClientRect();
-            return last.getBoundingClientRect().bottom - text.bottom;
+            const end = Math.max(...[...last.children].map(c => c.getBoundingClientRect().bottom));
+            return last.getBoundingClientRect().bottom - end;
           })
         )
         .toBeCloseTo(0, 0);
@@ -470,6 +513,48 @@ test.describe('reduced motion', () => {
     // is not the signal; no transition property means nothing animates.
     expect(await motionOf(page)).toEqual({ reveal: 'none' });
   });
+});
+
+// MYK9-2327 review: at a tablet held upright, two columns would leave a still or demo about
+// 300px. Between 768 and 960 the still or demo goes under the words, at full width, and every
+// stacked part keeps a real gap from the one above it (the last step once had none).
+test('on a tablet held upright, a still or demo sits under the words at full width', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 820, height: 1180 });
+  await openLanding(page);
+  for (const audience of ['I’m running a show', 'I’m entering a show']) {
+    await page.getByRole('button', { name: audience }).click();
+    await scrollToBottom(page);
+    const report = await page.evaluate(() => ({
+      scrollWidth: document.documentElement.scrollWidth,
+      rows: [...document.querySelectorAll<HTMLElement>('.lc-row[data-media="true"]')].map(row => {
+        const main = row.querySelector('.lc-main')!.getBoundingClientRect();
+        const media = row.querySelector('.lc-media')!.getBoundingClientRect();
+        const scene = row.querySelector('.lc-scene')?.getBoundingClientRect();
+        return {
+          id: row.id,
+          wordsToMedia: media.top - main.bottom,
+          mediaWidth: media.width,
+          mainWidth: main.width,
+          mediaToScene: scene ? scene.top - media.bottom : null,
+        };
+      }),
+    }));
+    expect(report.scrollWidth, `${audience}: no sideways scroll`).toBeLessThanOrEqual(820);
+    expect(report.rows.length).toBeGreaterThan(0);
+    for (const r of report.rows) {
+      expect(r.wordsToMedia, `${audience} ${r.id}: media under the words`).toBeGreaterThanOrEqual(
+        16
+      );
+      expect(r.mediaWidth, `${audience} ${r.id}: media full width`).toBeCloseTo(r.mainWidth, 0);
+      if (r.mediaToScene !== null) {
+        expect(r.mediaToScene, `${audience} ${r.id}: scene under the media`).toBeGreaterThanOrEqual(
+          16
+        );
+      }
+    }
+  }
 });
 
 // Wide screens put the photo beside the copy in a tall frame (both dogs whole, not a short

@@ -47,7 +47,7 @@ for (const width of [390, 1280]) {
           const stills = [...document.querySelectorAll<HTMLImageElement>('.lc-shot img')].map(
             img => {
               const box = img.getBoundingClientRect();
-              const column = img.closest('.lc-main')!.getBoundingClientRect();
+              const column = img.closest('.lc-media')!.getBoundingClientRect();
               return {
                 shape: img.closest('.lc-shot')!.getAttribute('data-shape') as 'phone' | 'desktop',
                 src: img.getAttribute('src'),

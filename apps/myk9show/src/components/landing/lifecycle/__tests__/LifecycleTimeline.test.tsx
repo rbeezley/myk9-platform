@@ -27,13 +27,18 @@ describe('LifecycleTimeline', () => {
     );
   });
 
-  it('gives every meanwhile line a screen-reader-only label', () => {
+  it('gives every meanwhile line its visible label, under the step’s own text', () => {
     const { container } = render(<LifecycleTimeline />);
     const texts = [...container.querySelectorAll('.lc-meanwhile-text')];
     expect(texts).toHaveLength(STORIES.club.length);
     for (const t of texts) {
-      expect(t.querySelector('.sr-only')).toHaveTextContent('Meanwhile, your exhibitors:');
+      expect(t.querySelector('.lc-meanwhile-label')).toHaveTextContent(
+        'Meanwhile, your exhibitors:'
+      );
+      expect(t.parentElement).toHaveClass('lc-main');
+      expect(t.previousElementSibling).toHaveClass('lc-step-body');
     }
+    expect(container.querySelector('.lc-labels')).toBeNull();
   });
 
   it('switches every step to the exhibitor story', () => {
@@ -44,7 +49,8 @@ describe('LifecycleTimeline', () => {
       'aria-pressed',
       'true'
     );
-    expect(screen.getByText('Meanwhile, the club')).toBeInTheDocument();
+    const labels = [...document.querySelectorAll('.lc-meanwhile-label')].map(l => l.textContent);
+    expect(labels).toEqual(STORIES.exhibitor.map(() => 'Meanwhile, the club: '));
   });
 
   it('switching audience keeps the same row nodes, so progress observers stay attached', () => {
@@ -87,16 +93,25 @@ describe('LifecycleTimeline', () => {
     expect(container.querySelectorAll('.lc-rail, .lc-dot, .lc-line, [id$="-dot"]')).toHaveLength(0);
   });
 
-  // Reading order: a scene comes right after the text of the side it belongs to, so a screen
-  // reader and a phone's single column meet it next to the words it illustrates.
-  it('renders a step scene once, right after the text of the side it follows', () => {
+  // Reading order: the words (the step's text, then the meanwhile line), then the step's still
+  // or demo, then its scene, so a screen reader and a phone's single column meet them in order.
+  it('renders each step as its words, then its still or demo, then its scene', () => {
     const { container } = render(<LifecycleTimeline />);
+    for (const row of container.querySelectorAll('.lc-row')) {
+      const parts = [...row.children].map(c => c.className);
+      expect(parts[0]).toBe('lc-main');
+      expect(parts.slice(1).every(p => p === 'lc-media' || p === 'lc-scene')).toBe(true);
+      expect(parts.filter(p => p === 'lc-media').length).toBeLessThanOrEqual(1);
+      expect(row.hasAttribute('data-media')).toBe(parts.includes('lc-media'));
+      if (parts.includes('lc-media') && parts.includes('lc-scene')) {
+        expect(parts.indexOf('lc-media')).toBeLessThan(parts.indexOf('lc-scene'));
+      }
+    }
     const sceneRows = container.querySelectorAll('.lc-row .lc-scene');
     expect(sceneRows.length).toBeGreaterThan(0);
     for (const slot of sceneRows) {
       expect(slot.querySelectorAll('.tl-scene')).toHaveLength(1);
-      const side = slot.getAttribute('data-side');
-      expect(slot.previousElementSibling).toHaveClass(side === 'main' ? 'lc-main' : 'lc-meanwhile');
+      expect(slot.nextElementSibling).toBeNull();
     }
     fireEvent.click(screen.getByRole('button', { name: 'I’m entering a show' }));
     const showday = document.getElementById('showday')!;

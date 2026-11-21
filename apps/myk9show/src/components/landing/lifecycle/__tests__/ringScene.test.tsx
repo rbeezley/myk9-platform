@@ -123,7 +123,7 @@ describe('the ring scene on the page', () => {
     const demo = container.querySelector('#showday .lc-demo');
     expect(demo).not.toBeNull();
     expect(demo!.compareDocumentPosition(scene!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(demo!.closest('.lc-main')).not.toBeNull();
+    expect(demo!.closest('.lc-media')).not.toBeNull();
     // The Entries open scene plays on the step above it and the Results scene on the step below;
     // the ring scene is the one that is solo.
     expect(container.querySelectorAll('.tl-scene')).toHaveLength(3);
@@ -159,8 +159,17 @@ describe('the ring scene on the page', () => {
       const { container, unmount } = render(
         <LifecycleTimeline audience={audience} onAudienceChange={vi.fn()} />
       );
-      expect(container.querySelectorAll('.lc-meanwhile')).toHaveLength(6);
-      expect(container.querySelectorAll('.lc-meanwhile img:not(.tl-scene img)')).toHaveLength(0);
+      expect(container.querySelectorAll('.lc-meanwhile-text')).toHaveLength(6);
+      // A still lives only in the step's one media slot (its own side), never beside the
+      // meanwhile line; scene captures live inside their scene.
+      for (const row of container.querySelectorAll('.lc-row')) {
+        for (const img of row.querySelectorAll('img, .lc-shot')) {
+          expect(img.closest('.lc-media, .tl-scene')).not.toBeNull();
+        }
+        expect(row.querySelectorAll('.lc-media')).toHaveLength(
+          row.hasAttribute('data-media') ? 1 : 0
+        );
+      }
       unmount();
     }
   });

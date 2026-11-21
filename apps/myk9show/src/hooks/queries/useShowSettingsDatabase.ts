@@ -4,15 +4,13 @@
  * React Query hooks for fetching visibility and check-in settings
  * from show_visibility_settings, trial_visibility_overrides,
  * and class_visibility_overrides tables.
- *
- * Note: these tables are added by migration 007 and are not yet in the
- * generated Supabase types, so we use `untypedSupabase` to bypass codegen.
  */
 import { useMemo } from 'react';
 import { useQuery, useQueries } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { cacheStrategies } from '@/lib/queryClient';
 import { markUnreachableIfTransportFailure } from '@/lib/serverReachability';
+import type { Tables } from '@/types/supabase';
 import {
   resolvePreset,
   type VisibilitySettings,
@@ -20,9 +18,6 @@ import {
   type VisibilityTiming,
   type VisibilityPreset,
 } from '@myk9/secretary';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- bypass generated types for tables not yet in codegen
-const untypedSupabase = supabase as any;
 
 // Query key factory
 export const settingsQueryKeys = {
@@ -34,34 +29,8 @@ export const settingsQueryKeys = {
   classOverrides: (showId: string) => [...settingsQueryKeys.all, 'classOverrides', showId] as const,
 };
 
-/** DB row shape for show_visibility_settings */
-interface ShowSettingsRow {
-  show_id: string;
-  preset: string | null;
-  placement_timing: string;
-  qualification_timing: string;
-  time_timing: string;
-  faults_timing: string;
-  self_checkin_enabled: boolean;
-  /** MYK9-969; absent until migration 20261004152300 is applied. */
-  results_private?: boolean | null;
-  updated_by: string | null;
-  updated_at: string;
-}
-
-/** DB row shape for trial/class overrides */
-interface OverrideRow {
-  trial_id?: string;
-  class_id?: string;
-  preset: string | null;
-  placement_timing: string | null;
-  qualification_timing: string | null;
-  time_timing: string | null;
-  faults_timing: string | null;
-  self_checkin_enabled: boolean | null;
-  updated_by: string | null;
-  updated_at: string;
-}
+type ShowSettingsRow = Tables<'show_visibility_settings'>;
+type OverrideRow = Tables<'trial_visibility_overrides'> | Tables<'class_visibility_overrides'>;
 
 /** Map DB column names (_timing suffix) to shared type field names (short) */
 function rowToVisibilitySettings(row: ShowSettingsRow): VisibilitySettings {
@@ -145,7 +114,7 @@ function throwIfReadFailed(result: { error?: unknown; status?: number | null }):
 }
 
 async function fetchShowSettings(showId: string): Promise<ShowSettings> {
-  const result = await untypedSupabase
+  const result = await supabase
     .from('show_visibility_settings')
     .select('*')
     .eq('show_id', showId)
@@ -157,11 +126,10 @@ async function fetchShowSettings(showId: string): Promise<ShowSettings> {
     return getDefaultShowSettings();
   }
 
-  const row = data as ShowSettingsRow;
   return {
-    visibility: rowToVisibilitySettings(row),
-    selfCheckinEnabled: row.self_checkin_enabled,
-    resultsPrivate: row.results_private === true,
+    visibility: rowToVisibilitySettings(data),
+    selfCheckinEnabled: data.self_checkin_enabled,
+    resultsPrivate: data.results_private === true,
     hasExplicitSettings: true,
   };
 }
@@ -210,7 +178,7 @@ async function fetchTrialOverrides(showId: string): Promise<TrialOverrideEntry[]
   if (!trials?.length) return [];
 
   const trialIds = trials.map(t => t.id);
-  const overridesResult = await untypedSupabase
+  const overridesResult = await supabase
     .from('trial_visibility_overrides')
     .select('*')
     .in('trial_id', trialIds);
@@ -218,8 +186,8 @@ async function fetchTrialOverrides(showId: string): Promise<TrialOverrideEntry[]
   const { data: overrides } = overridesResult;
   if (!overrides) return [];
 
-  return (overrides as OverrideRow[]).map(row => ({
-    trialId: row.trial_id!,
+  return overrides.map(row => ({
+    trialId: row.trial_id,
     override: rowToOverride(row),
     selfCheckinEnabled: row.self_checkin_enabled,
   }));
@@ -254,7 +222,7 @@ async function fetchClassOverrides(showId: string): Promise<ClassOverrideEntry[]
   if (!classes?.length) return [];
 
   const classIds = classes.map(c => c.id);
-  const overridesResult = await untypedSupabase
+  const overridesResult = await supabase
     .from('class_visibility_overrides')
     .select('*')
     .in('class_id', classIds);
@@ -264,9 +232,9 @@ async function fetchClassOverrides(showId: string): Promise<ClassOverrideEntry[]
 
   const classTrialMap = new Map(classes.map(c => [c.id, c.trial_id]));
 
-  return (overrides as OverrideRow[]).map(row => ({
-    classId: row.class_id!,
-    trialId: classTrialMap.get(row.class_id!) ?? '',
+  return overrides.map(row => ({
+    classId: row.class_id,
+    trialId: classTrialMap.get(row.class_id) ?? '',
     override: rowToOverride(row),
     selfCheckinEnabled: row.self_checkin_enabled,
   }));

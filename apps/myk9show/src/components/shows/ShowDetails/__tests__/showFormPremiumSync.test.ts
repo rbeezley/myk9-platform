@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { generatedPremium } from '@/features/premium/__tests__/fixtures/generatedPremium';
 import { premiumOrganizationMismatch } from '../showFormPremiumSync';
 
-describe('premiumOrganizationMismatch (MYK9-2213)', () => {
-  it('names both organizations when the draft was built for another one', () => {
+describe('premiumOrganizationMismatch (MYK9-2216)', () => {
+  it('refuses a premium built for another organization', () => {
     expect(premiumOrganizationMismatch(generatedPremium(), 'UKC')).toBe(
-      'The premium was built for AKC. Open Premium and Regenerate it for UKC, then publish.'
+      'Regenerate the premium for the new organization before publishing.'
     );
   });
 

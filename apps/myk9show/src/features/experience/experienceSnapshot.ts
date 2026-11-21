@@ -6,6 +6,12 @@ import {
 import type { GeneratedPremium, PremiumSupplemental } from '@/types/premium-types';
 
 export interface ShowExperienceSnapshot {
+  /**
+   * MYK9-2216: the organization the premium was built for. The publish RPC refuses a snapshot
+   * whose org differs from the show's. Absent on a snapshot published before it, which the editor
+   * treats as built for another organization.
+   */
+  org?: string;
   style: ShowStyle;
   generatedAt: string;
   narratives: GeneratedPremium['narratives'];
@@ -42,13 +48,14 @@ export function buildExperienceSnapshot({
   premiumUrl,
   publishedAt,
 }: {
-  premium: Pick<GeneratedPremium, 'style' | 'narratives' | 'supplemental'> &
+  premium: Pick<GeneratedPremium, 'org' | 'style' | 'narratives' | 'supplemental'> &
     PremiumRecordingFeeDocument;
   premiumPath: string | null;
   premiumUrl: string;
   publishedAt?: string;
 }): ShowExperienceSnapshot {
   return {
+    org: premium.org,
     style: premium.style,
     generatedAt: publishedAt ?? '',
     narratives: premium.narratives,

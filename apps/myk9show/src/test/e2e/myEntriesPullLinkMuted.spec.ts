@@ -10,8 +10,8 @@ import { signInAsExhibitor } from './helpers/testUsers';
  * so this reads the computed style in a real browser.
  *
  * Exhibitor-authed and read-only: it opens My Shows and never taps a control.
- * The reference grey is the row's own "·" separator (`text-muted-foreground`),
- * so no colour literal can drift from the theme token.
+ * The reference grey is a throwaway `text-muted-foreground` probe, so no colour literal
+ * can drift from the theme token.
  */
 const VIEWPORTS = [
   { name: 'phone 390px', width: 390, height: 844 },
@@ -63,13 +63,19 @@ for (const viewport of VIEWPORTS) {
     const rowState = link.locator(
       'xpath=ancestor::span[contains(@class,"myk9-entries-class-state")]'
     );
-    const separator = link.locator('xpath=preceding-sibling::span[1]');
 
     const linkStyle = await link.evaluate(el => {
       const s = getComputedStyle(el);
       return { color: s.color, decoration: s.textDecorationLine };
     });
-    const mutedColor = await separator.evaluate(el => getComputedStyle(el).color);
+    const mutedColor = await page.evaluate(() => {
+      const probe = document.createElement('span');
+      probe.className = 'text-muted-foreground';
+      document.body.appendChild(probe);
+      const color = getComputedStyle(probe).color;
+      probe.remove();
+      return color;
+    });
     const brandColor = await brandLinkColor(page, rowState);
 
     expect(linkStyle.color).toBe(mutedColor);

@@ -148,11 +148,8 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
   ].filter((part): part is string => Boolean(part));
   // Judge and time sit on their own line: both are optional and the judge's
   // name can be long, while the date stays on one line (never "TBD").
-  const detail = [
-    judgeName ? `Judge ${judgeName}` : null,
-    formatStartTime(cls.startTime ?? null),
-    runOrderText(state.kind, cls.runOrder),
-  ]
+  const runOrder = runOrderText(state.kind, cls.runOrder);
+  const detail = [judgeName ? `Judge ${judgeName}` : null, formatStartTime(cls.startTime ?? null)]
     .filter((part): part is string => Boolean(part))
     .join(' · ');
 
@@ -186,7 +183,18 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
       <span className="myk9-entries-class-name text-foreground">{cls.name}</span>
       <span className="myk9-entries-class-when">
         {classWhen}
-        {detail && <span className="myk9-entries-class-when-detail">{detail}</span>}
+        {(detail || runOrder) && (
+          <span className="myk9-entries-class-when-detail">
+            {detail && <span className="block">{detail}</span>}
+            {/* Its own line, one unit: "Running order" never wraps away from its number,
+                and no separator is left to dangle at a line end. */}
+            {runOrder && (
+              <span className="block whitespace-nowrap" data-testid="class-row-running-order">
+                {runOrder}
+              </span>
+            )}
+          </span>
+        )}
       </span>
       <span className="myk9-entries-class-state">
         {state.kind === 'result' && renderResult()}
@@ -197,9 +205,6 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
         )}
         {CHANGEABLE.has(state.kind) && order && (
           <>
-            <span aria-hidden="true" className="text-muted-foreground">
-              ·
-            </span>
             <button
               type="button"
               onClick={() => onOpenCheckIn(order, cls)}
@@ -265,10 +270,6 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
         {/* MYK9-2137: the same read-only Requirements view Ringside's class card opens. */}
         {cls.classId && !cls.unresolved && (
           <>
-            {/* First child of the row means nothing precedes it: no dangling dot. */}
-            <span aria-hidden="true" className="text-muted-foreground first:hidden">
-              ·
-            </span>
             <button
               type="button"
               onClick={() => setRequirementsOpen(true)}
@@ -276,15 +277,12 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
               aria-haspopup="dialog"
               className={LINK_CLASS}
             >
-              requirements
+              Requirements
             </button>
           </>
         )}
         {canLeave && (
           <>
-            <span aria-hidden="true" className="text-muted-foreground">
-              ·
-            </span>
             <button
               type="button"
               onClick={() => onLeaveClass(cls, classWhen)}

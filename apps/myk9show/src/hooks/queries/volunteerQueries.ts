@@ -326,6 +326,9 @@ export function useAssignToClass(showId: string) {
   const queryClient = useQueryClient();
   const qk = queryKeys.volunteerClassAssignments(showId);
   return useMutation({
+    // MYK9-2328: offline, fail at once so the chip is put back and the toast says so, rather than
+    // show a change that waits unseen for a connection.
+    networkMode: 'always',
     mutationFn: async (input: AssignToClassInput) => {
       const { data, error } = await supabase
         .from('volunteer_class_assignments')
@@ -371,6 +374,9 @@ export function useUnassignFromClass(showId: string) {
   const queryClient = useQueryClient();
   const qk = queryKeys.volunteerClassAssignments(showId);
   return useMutation({
+    // MYK9-2328: offline, fail at once so the chip is put back and the toast says so, rather than
+    // show a change that waits unseen for a connection.
+    networkMode: 'always',
     mutationFn: async (assignmentId: string) => {
       const { error } = await supabase
         .from('volunteer_class_assignments')

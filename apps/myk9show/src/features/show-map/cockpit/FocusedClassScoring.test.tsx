@@ -62,6 +62,9 @@ describe('Show Desk scoring controls (MYK9-1971)', () => {
     expect(buttons).toHaveLength(2);
     for (const button of buttons) {
       expect(button).toHaveClass('h-auto', 'min-h-11', 'whitespace-normal', 'text-left');
+      // The merge really replaced the shared Button's fixed height and no-wrap.
+      expect(button).not.toHaveClass('h-11');
+      expect(button).not.toHaveClass('whitespace-nowrap');
     }
   });
 

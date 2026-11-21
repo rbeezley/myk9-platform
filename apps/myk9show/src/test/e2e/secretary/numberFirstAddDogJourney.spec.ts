@@ -177,23 +177,22 @@ test.describe('Number-first Add Dog: a held entry is listed, kept off Show Desk 
       await clickClearOfStickyChrome(page, chip);
       await expect(page.getByText(/1 selected/).first()).toBeVisible();
 
+      // The owner handles this dog, so Next skips Handlers and lands on Payment (MYK9-2020).
       await page.getByRole('button', { name: /next/i }).click();
-      await page.waitForSelector('text=Handlers', { timeout: 15_000 });
-      await page.getByRole('button', { name: /next/i }).click();
-      await page.waitForSelector('text=Payment Information', { timeout: 15_000 });
-      await page.getByRole('button', { name: /Secretary Payment \(Already Received\)/i }).click();
-      // Money received at the desk names its method (MYK9-677): without it the save is
-      // refused with "Choose whether the payment was received as cash or check".
-      const cash = page
-        .getByRole('group', { name: 'Received as' })
-        .getByRole('button', { name: 'Cash', exact: true });
-      await cash.click();
-      await expect(cash).toHaveAttribute('aria-pressed', 'true');
+      await expect(page.getByRole('heading', { name: 'Payment Information' })).toBeVisible({
+        timeout: 15_000,
+      });
+      // Money received at the desk names its method (MYK9-677); the desk's one set of
+      // payment choices names it on the card itself (MYK9-2020).
+      await page
+        .getByRole('group', { name: 'Paid with the entry' })
+        .getByRole('button', { name: /^Cash received/ })
+        .click();
       await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-      // #entry-agreement is a hidden native input; its label toggles it.
-      const agreement = page.locator('label[for="entry-agreement"]');
+      // check(), not a click: the tick may already be set, and a click would clear it.
+      const agreement = page.getByRole('checkbox', { name: /entry agreement above/ });
       await expect(agreement).toBeVisible({ timeout: 10_000 });
-      await agreement.click();
+      await agreement.check();
       const submit = page.getByRole('button', { name: /^Submit entry$/ });
       await expect(submit).toBeEnabled();
       await submit.click();

@@ -101,7 +101,7 @@ const SHOTS = {
   ),
   'exhibitor-my-entries': phoneStill(
     'exhibitor-my-entries',
-    'My Entries: the Heartland Scent Work Classic heading with In 45 days, Mon to Tue, Jan 4 to 5, Paid, Entries close Dec 28, 2026 and its address with a Directions link, then Willow’s card, Armband 100, marked Accepted, with Interior Advanced and Container Novice A on Mon, Jan 4, each noting Check in on the day'
+    'My Entries: the Heartland Scent Work Classic heading with its address and a Directions link, then Willow’s card, Armband 100, marked Accepted, with Interior Advanced and Container Novice A, each noting Check in on the day'
   ),
   'exhibitor-past-results': phoneStill(
     'exhibitor-past-results',

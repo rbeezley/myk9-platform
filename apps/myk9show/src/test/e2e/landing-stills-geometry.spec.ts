@@ -96,34 +96,56 @@ for (const width of [390, 1280]) {
       });
     }
 
-    test('the devices of a scene stack on the phone, and sit inside the page on a laptop', async ({
-      page,
-    }) => {
-      await openLanding(page);
-      const scenes = await page.evaluate(() =>
-        [...document.querySelectorAll('.tl-scene')].map(scene => {
-          const devices = [...scene.querySelectorAll('.tl-scene-device')].map(device => {
-            const box = device.getBoundingClientRect();
-            return { top: box.top, bottom: box.bottom, left: box.left, right: box.right };
-          });
-          return { devices, viewport: document.documentElement.clientWidth };
-        })
-      );
-      expect(scenes.length, 'scenes on the page').toBeGreaterThan(0);
-      const twoDevice = scenes.filter(scene => scene.devices.length === 2);
-      expect(twoDevice.length, 'two-device scenes on the page').toBeGreaterThan(0);
-      for (const { devices, viewport } of twoDevice) {
-        const [first, second] = devices as [(typeof devices)[0], (typeof devices)[0]];
-        if (width <= 480) {
-          expect(second.top, 'the second device is under the first').toBeGreaterThanOrEqual(
-            first.bottom - 1
-          );
+    for (const audience of ['club', 'exhibitor'] as const) {
+      test(`${audience} story: the devices of a scene stack on the phone, lead first, and sit inside the page`, async ({
+        page,
+      }) => {
+        await openLanding(page);
+        if (audience === 'exhibitor') {
+          await page.getByRole('button', { name: 'I’m entering a show' }).click();
+          await expect(page.locator('#entries h3')).toHaveText('Enter in a few minutes');
         }
-        for (const device of devices) {
-          expect(device.left).toBeGreaterThanOrEqual(0);
-          expect(device.right).toBeLessThanOrEqual(viewport);
+        const scenes = await page.evaluate(() =>
+          [...document.querySelectorAll('.tl-scene')].map(scene => {
+            const devices = [...scene.querySelectorAll('.tl-scene-device')].map(device => {
+              const box = device.getBoundingClientRect();
+              return {
+                kind: device.getAttribute('data-kind'),
+                top: box.top,
+                bottom: box.bottom,
+                left: box.left,
+                right: box.right,
+              };
+            });
+            return {
+              lead: scene.getAttribute('data-lead'),
+              devices,
+              viewport: document.documentElement.clientWidth,
+            };
+          })
+        );
+        expect(scenes.length, 'scenes on the page').toBeGreaterThan(0);
+        const twoDevice = scenes.filter(scene => scene.devices.length === 2);
+        expect(twoDevice.length, 'two-device scenes on the page').toBeGreaterThan(0);
+        // The club leads with the desk and the exhibitor with the phone.
+        const lead = audience === 'club' ? 'desk' : 'phone';
+        for (const { devices, viewport, lead: sceneLead } of twoDevice) {
+          expect(sceneLead).toBe(lead);
+          // Found by what each device is, not by where it sits in the markup.
+          const first = devices.find(device => device.kind === lead);
+          const second = devices.find(device => device.kind !== lead);
+          if (!first || !second) throw new Error(`a ${lead}-led scene has no ${lead} device`);
+          if (width <= 480) {
+            expect(second.top, 'the lead device is above the other').toBeGreaterThanOrEqual(
+              first.bottom - 1
+            );
+          }
+          for (const device of devices) {
+            expect(device.left).toBeGreaterThanOrEqual(0);
+            expect(device.right).toBeLessThanOrEqual(viewport);
+          }
         }
-      }
-    });
+      });
+    }
   });
 }

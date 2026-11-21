@@ -311,6 +311,12 @@ test('captures the four stills from the secretary’s desktop, the exhibitor’s
         ...FIND_SIZE,
       };
       expectInside('the entered show’s card', card, findWindow);
+      await expect(page.getByText('Entry Submitted').first()).toBeVisible();
+      expectInside(
+        'the entered show’s status',
+        await textBox(page.getByText('Entry Submitted').first()),
+        findWindow
+      );
       const second = page.getByRole('link', { name: /Heartland ASCA Scent Detection Trial/ });
       // The card's link carries no text of its own; its name and its status badge are what the alt names.
       expectInside(

@@ -89,6 +89,20 @@ describe('ShowPublicLanding card entries (MYK9-2192)', () => {
     expect(screen.queryByRole('note', { name: 'Card payments paused' })).not.toBeInTheDocument();
   });
 
+  it('does not ask about card entries for a show with no classes yet', () => {
+    rpc.mockResolvedValue({ data: ['show-1'], error: null });
+    render(
+      <ShowPublicLanding
+        show={openShow(true)}
+        landingTrials={[]}
+        hasEntryClassInventory={false}
+        entryPendingReason={undefined}
+      />
+    );
+    expect(rpc).not.toHaveBeenCalled();
+    expect(screen.queryByRole('note', { name: 'Card payments paused' })).not.toBeInTheDocument();
+  });
+
   it('withholds Enter when the request fails', async () => {
     rpc.mockResolvedValue({ data: null, error: new Error('x') });
     renderLanding(openShow(true));

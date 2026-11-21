@@ -110,7 +110,9 @@ export function ShowPublicLanding({
   const cardLanding = cardEntriesLanding(
     useShowCardEntriesPaused(
       show,
-      entryStatusNow === 'accepting' || entryStatusNow === 'closing_soon'
+      // A show with no classes yet says so instead; there is nothing to pay for.
+      hasEntryClassInventory !== false &&
+        (entryStatusNow === 'accepting' || entryStatusNow === 'closing_soon')
     ),
     show
   );

@@ -52,6 +52,19 @@ describe('useShowCardEntriesPaused', () => {
     await waitFor(() => expect(result.current).toBe('unknown'));
   });
 
+  it('keeps the last answer when a later refetch fails', async () => {
+    rpc.mockResolvedValueOnce({ data: ['s1'], error: null });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const local = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    const { result } = renderHook(() => useShowCardEntriesPaused(cardOnly), { wrapper: local });
+    await waitFor(() => expect(result.current).toBe('paused'));
+    rpc.mockResolvedValueOnce({ data: null, error: new Error('flaky') });
+    await client.refetchQueries({ queryKey: ['show-card-entries-paused', 's1'] });
+    expect(result.current).toBe('paused');
+  });
+
   it('is unknown while offline', () => {
     onlineManager.setOnline(false);
     const { result } = renderHook(() => useShowCardEntriesPaused(cardOnly), { wrapper });

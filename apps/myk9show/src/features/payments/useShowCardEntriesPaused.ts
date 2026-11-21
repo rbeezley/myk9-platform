@@ -53,12 +53,11 @@ export function useShowCardEntriesPaused(
     retry: false,
   });
   if (!asked) return 'open';
+  // A failed background refetch keeps the last answer; only a show never answered is unknown.
+  if (query.data !== undefined) return query.data ? 'paused' : 'open';
   if (query.isError) return 'unknown';
-  if (query.data === undefined) {
-    // Offline: the request is parked, not in flight, so it will not answer soon.
-    return query.fetchStatus === 'paused' ? 'unknown' : 'loading';
-  }
-  return query.data ? 'paused' : 'open';
+  // Offline: the request is parked, not in flight, so it will not answer soon.
+  return query.fetchStatus === 'paused' ? 'unknown' : 'loading';
 }
 
 export type CardEntriesLanding = {

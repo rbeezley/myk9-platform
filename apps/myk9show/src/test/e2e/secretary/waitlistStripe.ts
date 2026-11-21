@@ -255,7 +255,12 @@ async function fillIfShown(
   timeoutMs: number
 ): Promise<void> {
   const field = await findInCheckout(page, target, timeoutMs);
-  if (field && (await field.isVisible().catch(() => false))) await field.fill(value);
+  if (!field) return;
+  const shown = await field.waitFor({ state: 'visible', timeout: timeoutMs }).then(
+    () => true,
+    () => false
+  );
+  if (shown) await field.fill(value);
 }
 
 /** Pays the hosted Checkout page the browser is on, then waits for Stripe's success redirect. */

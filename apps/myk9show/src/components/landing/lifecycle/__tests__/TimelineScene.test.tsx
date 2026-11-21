@@ -24,7 +24,9 @@ const setReducedMotion = (reduce: boolean) =>
       }) as MediaQueryList
   );
 
-const lines = () => within(screen.getByRole('list')).getAllByRole('button');
+const lines = () =>
+  within(screen.getByRole('group', { name: 'Lines in this scene' })).getAllByRole('button');
+const caption = () => screen.getByRole('status');
 const currentLine = () => lines().findIndex(b => b.getAttribute('aria-current') === 'step');
 const shotOn = (kind: 'desk' | 'phone') =>
   document
@@ -51,15 +53,34 @@ describe('TimelineScene', () => {
     vi.restoreAllMocks();
   });
 
-  it('is complete at rest: the first frame shows both devices and every real line', () => {
+  it('is complete at rest: both devices, the first line in the caption, one tab per line', () => {
     render(<TimelineScene scene={scene} lead="desk" />);
     expect(lines().map(b => b.textContent)).toEqual(
-      SCENE_LINES.entries.map((l, i) => `${i + 1}\u2713${l.head}${l.text}`)
+      SCENE_LINES.entries.map((l, i) => `${i + 1}${l.short}`)
     );
     expect(currentLine()).toBe(0);
     expect(shotOn('desk')).toBe('before');
     expect(shotOn('phone')).toBe('dogs');
     expect(screen.getAllByRole('img')).toHaveLength(2);
+  });
+
+  it('puts the current line’s heading and sentence in one live caption under the devices', () => {
+    render(<TimelineScene scene={scene} lead="desk" />);
+    const live = caption();
+    // Quiet while the scene plays itself; it speaks once the reader takes over.
+    expect(live).toHaveAttribute('aria-live', 'off');
+    fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
+    expect(caption()).toHaveAttribute('aria-live', 'polite');
+    expect(live).toHaveTextContent(SCENE_LINES.entries[0]!.head);
+    expect(live).toHaveTextContent(SCENE_LINES.entries[0]!.text);
+    expect(live).toHaveTextContent('Line 1 of 5');
+    expect(
+      document.querySelector('.tl-scene-stage')!.compareDocumentPosition(live) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    fireEvent.click(lines()[2]!);
+    expect(caption()).toHaveTextContent(SCENE_LINES.entries[2]!.head);
+    expect(caption()).not.toHaveTextContent(SCENE_LINES.entries[0]!.head);
   });
 
   it("aims each device's camera and ring at the frame, in percentages", () => {
@@ -116,30 +137,32 @@ describe('TimelineScene', () => {
     expect(currentLine()).toBe(1);
   });
 
-  it('pauses, announces where it paused, and plays again', async () => {
+  it('pauses, holds the line, and plays again', () => {
     render(<TimelineScene scene={scene} lead="desk" />);
     show();
     fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
     advance(30000);
     expect(currentLine()).toBe(0);
-    expect(screen.getByRole('status')).toHaveTextContent('Paused on line 1 of 5');
+    expect(caption()).toHaveTextContent(SCENE_LINES.entries[0]!.head);
     fireEvent.click(screen.getByRole('button', { name: 'Play' }));
     advance(4000);
     expect(currentLine()).toBe(1);
   });
 
-  it('jumps to a line when its number is pressed, and the circles reflect it', () => {
+  it('jumps to a line when its tab is pressed, and the chips show past, current and future', () => {
     render(<TimelineScene scene={scene} lead="desk" />);
     show();
     fireEvent.click(lines()[3]!);
     expect(currentLine()).toBe(3);
+    expect(lines()[3]).toHaveAttribute('aria-current', 'step');
     expect(shotOn('desk')).toBe('review');
-    expect(lines().map(b => b.getAttribute('data-done'))).toEqual([
-      'true',
-      'true',
-      'true',
-      'false',
-      'false',
+    expect(caption()).toHaveTextContent(SCENE_LINES.entries[3]!.head);
+    expect(lines().map(b => b.getAttribute('data-state'))).toEqual([
+      'past',
+      'past',
+      'past',
+      'current',
+      'future',
     ]);
     // Still playing from there.
     advance(4200);
@@ -153,12 +176,30 @@ describe('TimelineScene', () => {
     expect(currentLine()).toBe(0);
   });
 
-  it('draws the current circle as time passes', () => {
+  it('moves one line with the arrows, and pauses autoplay where it lands', () => {
     render(<TimelineScene scene={scene} lead="desk" />);
     show();
-    advance(2000);
-    const prog = lines()[0]!.querySelector<SVGCircleElement>('.tl-scene-prog')!;
-    expect(prog.style.strokeDashoffset).toBe('50');
+    const next = screen.getByRole('button', { name: 'Next line' });
+    const prev = screen.getByRole('button', { name: 'Previous line' });
+    expect(prev).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(next);
+    expect(currentLine()).toBe(1);
+    advance(30000);
+    expect(currentLine()).toBe(1);
+    expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument();
+    fireEvent.click(prev);
+    expect(currentLine()).toBe(0);
+  });
+
+  it('stops ticking when paused: no timer is left running', () => {
+    const setIntervalSpy = vi.spyOn(window, 'setInterval');
+    const clearIntervalSpy = vi.spyOn(window, 'clearInterval');
+    render(<TimelineScene scene={scene} lead="desk" />);
+    show();
+    expect(setIntervalSpy).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
+    expect(clearIntervalSpy).toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it('is operable from the keyboard', async () => {
@@ -166,6 +207,10 @@ describe('TimelineScene', () => {
     const user = userEvent.setup();
     render(<TimelineScene scene={scene} lead="desk" />);
     show();
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Previous line' })).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Next line' })).toHaveFocus();
     await user.tab();
     expect(lines()[0]).toHaveFocus();
     await user.tab();
@@ -202,23 +247,53 @@ describe('TimelineScene', () => {
       setReducedMotion(true);
     });
 
-    it('shows the finished frame, offers no Pause, and does not move', () => {
+    it('draws a storyboard: one card per line, each on its last frame, nothing to operate', () => {
+      const setIntervalSpy = vi.spyOn(window, 'setInterval');
       render(<TimelineScene scene={scene} lead="desk" />);
       show();
       advance(60000);
-      expect(currentLine()).toBe(4);
-      expect(shotOn('desk')).toBe('accepted');
-      expect(shotOn('phone')).toBe('accepted');
-      expect(screen.queryByRole('button', { name: /Pause|Play/ })).not.toBeInTheDocument();
+      const cards = document.querySelectorAll('.tl-scene-card');
+      expect(cards).toHaveLength(5);
+      expect([...cards].map(c => c.querySelector('.tl-scene-head')?.textContent)).toEqual(
+        SCENE_LINES.entries.map(l => l.head)
+      );
+      // Each card is a close-up of the device its line is about: line 1 the phone, line 4 the
+      // desk, the last line both.
+      const kinds = (i: number) =>
+        [...cards[i]!.querySelectorAll('.tl-scene-frame')].map(f => f.getAttribute('data-kind'));
+      expect(kinds(0)).toEqual(['phone']);
+      expect(kinds(3)).toEqual(['desk']);
+      expect(kinds(4)).toEqual(['desk', 'phone']);
+      expect(
+        cards[4]!.querySelector('.tl-scene-frame[data-kind="desk"] [data-on="true"]')
+      ).toHaveAttribute('data-shot', 'accepted');
+      expect(cards[0]!.querySelectorAll('.tl-scene-ring[data-on="true"]')).toHaveLength(1);
+      expect(cards[0]!.querySelectorAll('img')).toHaveLength(1);
+      // No tabs, arrows, Play or Pause, and no timer.
+      expect(screen.queryByRole('group')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button')).not.toBeInTheDocument();
+      expect(setIntervalSpy).not.toHaveBeenCalled();
+      expect(vi.getTimerCount()).toBe(0);
     });
 
-    it("shows the line's last frame when a line is pressed", () => {
+    it('keeps the scene’s name for assistive technology', () => {
       render(<TimelineScene scene={scene} lead="desk" />);
-      fireEvent.click(lines()[2]!);
-      expect(currentLine()).toBe(2);
-      expect(shotOn('phone')).toBe('pending');
-      advance(60000);
-      expect(currentLine()).toBe(2);
+      expect(screen.getByRole('region', { name: 'Entries walkthrough' })).toBeInTheDocument();
+    });
+
+    it('shows one device per card when the scene has only one', () => {
+      const phoneOnly: TimelineSceneData = {
+        id: scene.id,
+        name: scene.name,
+        lines: scene.lines,
+        frames: scene.frames,
+        phone: scene.phone,
+      };
+      render(<TimelineScene scene={phoneOnly} lead="phone" />);
+      for (const card of document.querySelectorAll('.tl-scene-card')) {
+        expect(card.querySelectorAll('.tl-scene-frame[data-kind="phone"]')).toHaveLength(1);
+        expect(card.querySelectorAll('.tl-scene-frame[data-kind="desk"]')).toHaveLength(0);
+      }
     });
   });
 
@@ -229,14 +304,14 @@ describe('TimelineScene', () => {
       advance(120000);
       expect(currentLine()).toBe(0);
       expect(screen.queryByRole('button', { name: /Pause|Play/ })).not.toBeInTheDocument();
-      expect(screen.getByRole('status')).toHaveTextContent('Step 1 of 5');
+      expect(caption()).toHaveTextContent('Line 1 of 5');
     });
 
     it('moves one numbered line with Next and Back, and stops at the ends', () => {
       render(<TimelineScene scene={scene} lead="desk" mode="step" />);
       show();
-      const next = screen.getByRole('button', { name: 'Next' });
-      const back = screen.getByRole('button', { name: 'Back' });
+      const next = screen.getByRole('button', { name: 'Next line' });
+      const back = screen.getByRole('button', { name: 'Previous line' });
       expect(back).toHaveAttribute('aria-disabled', 'true');
       fireEvent.click(back);
       expect(currentLine()).toBe(0);
@@ -249,14 +324,14 @@ describe('TimelineScene', () => {
       for (let i = 0; i < 10; i++) fireEvent.click(next);
       expect(currentLine()).toBe(4);
       expect(next).toHaveAttribute('aria-disabled', 'true');
-      expect(screen.getByRole('status')).toHaveTextContent('Step 5 of 5');
+      expect(caption()).toHaveTextContent('Line 5 of 5');
     });
 
     it('plays a line with several frames through to its end, then waits', () => {
       render(<TimelineScene scene={scene} lead="desk" mode="step" />);
       show();
       fireEvent.click(lines()[3]!);
-      fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Next line' }));
       // Line 5 owns two frames: the form under review, then accepted.
       expect(currentLine()).toBe(4);
       expect(shotOn('desk')).toBe('review');
@@ -266,7 +341,7 @@ describe('TimelineScene', () => {
       expect(currentLine()).toBe(4);
       expect(shotOn('desk')).toBe('accepted');
       // Back replays the line before from its start.
-      fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Previous line' }));
       expect(currentLine()).toBe(3);
       expect(shotOn('desk')).toBe('review');
     });
@@ -279,17 +354,11 @@ describe('TimelineScene', () => {
       expect(currentLine()).toBe(2);
     });
 
-    it("shows the reduced-motion reader each line's finished frame, with no play-through", () => {
+    it('gives the reduced-motion reader the storyboard, with no arrows to press', () => {
       setReducedMotion(true);
       render(<TimelineScene scene={scene} lead="desk" mode="step" />);
-      show();
-      expect(currentLine()).toBe(0);
-      fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-      expect(currentLine()).toBe(1);
-      fireEvent.click(lines()[3]!);
-      fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-      expect(currentLine()).toBe(4);
-      expect(shotOn('desk')).toBe('accepted');
+      expect(document.querySelectorAll('.tl-scene-card')).toHaveLength(5);
+      expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
   });
 

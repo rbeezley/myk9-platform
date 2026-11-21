@@ -14,7 +14,7 @@ const STILLS = { club: 1, exhibitor: 3 } as const;
 async function openLanding(page: Page) {
   await page.goto('/');
   await expect(page.locator('#top h1')).toBeVisible({ timeout: 30000 });
-  await expect(page.locator('#showday-dot')).toBeAttached({ timeout: 30000 });
+  await expect(page.locator('#showday')).toBeAttached({ timeout: 30000 });
 }
 
 async function loadEveryStill(page: Page) {

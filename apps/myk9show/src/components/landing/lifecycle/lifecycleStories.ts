@@ -129,91 +129,115 @@ const EXHIBITOR_SHOW_DAY: readonly ExplainerStep[] = [
 // secretary (owner, 2026-11-16). Every claim has a KEEP row in
 // docs/qa/landing-lifecycle-evidence.md. The words describe the screen; the capture shows it.
 export type SceneId = 'entries' | 'showday-ring' | 'showday-desk' | 'results';
-export type SceneLine = { head: string; text: string };
+export type SceneLine = {
+  head: string;
+  text: string;
+  /** The tab's label: a few words, so five tabs fit in a row. */
+  short: string;
+};
 
 export const SCENE_LINES: Record<SceneId, readonly SceneLine[]> = {
   entries: [
     {
       head: 'An exhibitor enters online',
       text: 'They pick a dog and their classes. A full class says so, and they can only join its waiting list if you allow one.',
+      short: 'Enters online',
     },
     {
       head: 'They pay as they enter',
       text: 'They pay by card at a secure checkout, or by check or cash at the show if you turn those on.',
+      short: 'Pays as they enter',
     },
     {
       head: 'They can see where it stands',
       text: 'Their entry reads Pending review until you decide.',
+      short: 'Sees Pending review',
     },
     {
       head: 'The form arrives in your list',
       text: 'It is marked Needs review, with the payment shown beside it.',
+      short: 'Arrives in your list',
     },
     {
       head: 'You open it and accept',
       text: 'One button. Their entry changes to Accepted and they get an email.',
+      short: 'You accept',
     },
   ],
   'showday-ring': [
     {
       head: 'The judge opens the ring’s classes',
       text: 'Each class shows how many dogs are scored.',
+      short: 'Opens the classes',
     },
     {
       head: 'The signal drops',
       text: 'The screen says changes are saved on this device, and the run order stays.',
+      short: 'Signal drops',
     },
     {
       head: 'The judge times and scores the run',
       text: 'Start, Stop, then Qualified, NQ, Absent, Excused or DQ.',
+      short: 'Times and scores',
     },
     {
       head: 'The score is read back before it saves',
       text: 'The judge checks the dog, the result and the time, then confirms.',
+      short: 'Reads it back',
     },
     {
       head: 'The signal returns',
       text: 'The saved score sends itself, and the screen says Scores sent.',
+      short: 'Signal returns',
     },
   ],
   'showday-desk': [
     {
       head: 'Your day is on one page',
       text: 'Each class says where it stands, like 3 of 5 not checked in.',
+      short: 'Day on one page',
     },
     {
       head: 'Check in at the desk',
       text: 'Find an exhibitor by name, dog or armband and check in each dog.',
+      short: 'Check in',
     },
     {
       head: 'Watch the classes run',
       text: 'A running class shows how many dogs are scored and who is in the ring.',
+      short: 'Watch classes run',
     },
     {
       head: 'No tablets? Type in the paper scores',
       text: 'The dogs are listed in run order. Pick the result, type the time, save and move on.',
+      short: 'Type paper scores',
     },
     {
       head: 'Mark the class complete',
       text: 'It asks first if paper scores are missing, then takes you to Results.',
+      short: 'Mark complete',
     },
   ],
   results: [
     {
       head: 'A finished class is waiting for you',
       text: 'The Results tab lists it with what to do next: check the scores.',
+      short: 'Class finished',
     },
     {
       head: 'The placements are worked out',
       text: 'Open the class to see them, ranked from the scores.',
+      short: 'Placements worked out',
     },
     {
       head: 'You release the results',
       text: 'One press. The class reads Released and exhibitors can see their scores.',
+      short: 'You release',
     },
     {
       head: 'The exhibitor sees it on their phone',
       text: 'My Entries shows New result on the dog’s class, and it opens the result card.',
+      short: 'Exhibitor sees it',
     },
   ],
 };

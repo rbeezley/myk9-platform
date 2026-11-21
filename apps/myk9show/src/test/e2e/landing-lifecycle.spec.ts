@@ -90,7 +90,7 @@ for (const vp of VIEWPORTS) {
       await expect(page.locator('#showday')).toHaveAttribute('data-revealed', 'true');
     });
 
-    test('each scene sits beside its numbered lines on wide screens, below them on phones', async ({
+    test('each scene is a captioned stage: devices on top, the caption under them, then the tabs', async ({
       page,
     }) => {
       await openLanding(page);
@@ -99,31 +99,46 @@ for (const vp of VIEWPORTS) {
       expect(count).toBeGreaterThanOrEqual(3);
       for (let i = 0; i < count; i += 1) {
         const geo = await scenes.nth(i).evaluate(el => {
-          const words = el.querySelector('.tl-scene-words')!.getBoundingClientRect();
-          const stage = el.querySelector('.tl-scene-stage')!.getBoundingClientRect();
+          const box = (sel: string) => el.querySelector(sel)!.getBoundingClientRect();
+          const stage = box('.tl-scene-stage');
+          const caption = box('.tl-scene-caption');
+          const tabs = box('.tl-scene-tabs');
           return {
-            sceneWidth: el.getBoundingClientRect().width,
-            wordsRight: words.right,
-            wordsBottom: words.bottom,
-            wordsTop: words.top,
-            stageLeft: stage.left,
-            stageTop: stage.top,
             stageBottom: stage.bottom,
+            captionTop: caption.top,
+            tabsTop: tabs.top,
+            captionBottom: caption.bottom,
+            tabs: el.querySelectorAll('.tl-scene-tab').length,
+            lines: el.querySelectorAll('.tl-scene-tab[aria-current="step"]').length,
           };
         });
-        if (vp.name === 'desktop') {
-          expect(geo.sceneWidth, `scene ${i} is wide enough for its own grid`).toBeGreaterThan(700);
-          expect(geo.wordsRight, `scene ${i}: lines left of devices`).toBeLessThanOrEqual(
-            geo.stageLeft
+        expect(geo.captionTop, `scene ${i}: caption is below the devices`).toBeGreaterThanOrEqual(
+          geo.stageBottom
+        );
+        expect(geo.tabsTop, `scene ${i}: tabs are below the caption`).toBeGreaterThanOrEqual(
+          geo.captionBottom - 1
+        );
+        expect(geo.tabs, `scene ${i}: one tab per line`).toBeGreaterThanOrEqual(4);
+        expect(geo.lines, `scene ${i}: exactly one current line`).toBe(1);
+      }
+    });
+
+    test('on a wide screen the two devices sit side by side; on a phone they stack', async ({
+      page,
+    }) => {
+      await openLanding(page);
+      const sides = await page.locator('.lc-row .tl-scene:not([data-solo])').evaluateAll(els =>
+        els.map(el => {
+          const [a, b] = [...el.querySelectorAll('.tl-scene-device')].map(d =>
+            d.getBoundingClientRect()
           );
-          expect(geo.wordsTop, `scene ${i}: lines overlap the devices vertically`).toBeLessThan(
-            geo.stageBottom
-          );
-        } else {
-          expect(geo.wordsBottom, `scene ${i}: lines above devices`).toBeLessThanOrEqual(
-            geo.stageTop + 1
-          );
-        }
+          return { sideBySide: b!.left >= a!.right - 1, stacked: b!.top >= a!.bottom - 1 };
+        })
+      );
+      expect(sides.length).toBeGreaterThan(0);
+      for (const side of sides) {
+        if (vp.name === 'desktop') expect(side.sideBySide).toBe(true);
+        else expect(side.stacked).toBe(true);
       }
     });
 
@@ -383,6 +398,26 @@ test.describe('motion with no preference', () => {
 
 test.describe('reduced motion', () => {
   test.use({ reducedMotion: 'reduce', viewport: { width: 390, height: 844 } });
+  // The storyboard draws every line of every scene at once, so it is the longest the page gets.
+  test('page length stays 8 to 16 screens, as a storyboard with no tabs or Play', async ({
+    page,
+  }) => {
+    await openLanding(page);
+    for (const audience of ['club', 'exhibitor'] as const) {
+      if (audience === 'exhibitor') {
+        await page.getByRole('button', { name: 'I’m entering a show' }).click();
+        await expect(page.locator('#entries h3')).toHaveText('Enter in a few minutes');
+      }
+      expect(await page.locator('.lc-row .tl-scene-card').count()).toBeGreaterThan(10);
+      expect(await page.locator('.lc-row .tl-scene-tab, .lc-row .tl-scene-arrow').count()).toBe(0);
+      const screens = await page.evaluate(
+        () => document.documentElement.scrollHeight / window.innerHeight
+      );
+      expect(screens, `${audience} page`).toBeGreaterThanOrEqual(8);
+      expect(screens, `${audience} page`).toBeLessThanOrEqual(16);
+    }
+  });
+
   test('everything is revealed, explainers start paused, nothing animates', async ({ page }) => {
     await openLanding(page);
     for (const id of STEPS) {

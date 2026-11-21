@@ -1,5 +1,5 @@
 import { SCENE_LINES } from '../lifecycleStories';
-import { windowOnRing, zoomOnRing } from '../sceneFrames';
+import { wholeScreen, zoomOnRing } from '../sceneFrames';
 import type { DeviceView, Region, SceneFrame, SceneShot, TimelineSceneData } from '../sceneFrames';
 import regions from './entriesRegions.json';
 
@@ -13,11 +13,6 @@ import regions from './entriesRegions.json';
 
 const PHONE_SPACE = regions.phone.space;
 const DESK_SPACE = regions.desk.space;
-/**
- * The phone's window is 3:4, like the ring scene's: a whole phone in the frame would make the
- * landing page too long on a phone (the page-length limit in landing-lifecycle.spec.ts).
- */
-export const PHONE_WINDOW_HEIGHT = Math.round((PHONE_SPACE.width * 4) / 3);
 /**
  * How much of the secretary's 1440px screen one camera holds. The page draws the desk about 343
  * wide on a phone, so this is the widest that still reads there; a ring wider than it widens
@@ -64,7 +59,7 @@ const deskShot = (name: DeskShot): SceneShot => ({
 
 const phoneView = (shot: PhoneShot, ring: Region): DeviceView => ({
   shot,
-  camera: windowOnRing(PHONE_SPACE, ring, PHONE_WINDOW_HEIGHT),
+  camera: wholeScreen(PHONE_SPACE),
   ring,
 });
 const deskView = (shot: DeskShot, ring: Region, alsoShow?: Region): DeviceView => ({

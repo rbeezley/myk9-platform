@@ -1,7 +1,7 @@
 import { SCENE_LINES } from '../lifecycleStories';
-import { windowOnRing, zoomOnRing } from '../sceneFrames';
+import { wholeScreen, zoomOnRing } from '../sceneFrames';
 import type { DeviceView, Region, SceneFrame, SceneShot, TimelineSceneData } from '../sceneFrames';
-import { DESK_CAMERA_WIDTH, PHONE_WINDOW_HEIGHT } from './entriesScene';
+import { DESK_CAMERA_WIDTH } from './entriesScene';
 import regions from './resultsRegions.json';
 
 // "Results": the secretary's desktop and the exhibitor's phone, from the Results tab listing a
@@ -53,7 +53,7 @@ const deskShot = (name: DeskShot): SceneShot => ({
 
 const phoneView = (shot: PhoneShot, ring: Region): DeviceView => ({
   shot,
-  camera: windowOnRing(PHONE_SPACE, ring, PHONE_WINDOW_HEIGHT),
+  camera: wholeScreen(PHONE_SPACE),
   ring,
 });
 const deskView = (shot: DeskShot, ring: Region, alsoShow?: Region): DeviceView => ({
@@ -64,14 +64,14 @@ const deskView = (shot: DeskShot, ring: Region, alsoShow?: Region): DeviceView =
 /** The same view with no ring: how a device rests while the other one is the subject. */
 const resting = ({ shot, camera }: DeviceView): DeviceView => ({ shot, camera });
 
-const { before, new: phoneNew, card } = PHONE_SHOTS;
+const { new: phoneNew, card } = PHONE_SHOTS;
 const { list, class: deskClass, release, released } = DESK_SHOTS;
 
 // The exhibitor's phone before the release: the dog's class on My Entries, where the result will
 // arrive. It rests there while the secretary works.
 const phoneBefore: DeviceView = {
   shot: 'before',
-  camera: windowOnRing(PHONE_SPACE, before.regions.row, PHONE_WINDOW_HEIGHT),
+  camera: wholeScreen(PHONE_SPACE),
 };
 
 const deskList = deskView('list', list.regions.action, list.regions.row);

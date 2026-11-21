@@ -4,10 +4,10 @@ import { describe, expect, it } from 'vitest';
 import {
   firstFrameOfLine,
   lastFrameOfLine,
-  lineProgress,
   ringStyle,
   sceneDevices,
   shotStyle,
+  wholeScreen,
 } from '../sceneFrames';
 import { STAND_IN_ENTRIES_SCENE } from './sceneStandIn';
 
@@ -75,8 +75,10 @@ describe('line to frame mapping', () => {
 });
 
 // docs/INTENT.md, "Readable font sizes": 16px for anything read as content, 14px the floor.
-describe('timelineScene.css type sizes', () => {
-  const css = readFileSync(resolve(__dirname, '../timelineScene.css'), 'utf8');
+describe('timelineScene.css and sceneControls.css type sizes', () => {
+  const css = ['../timelineScene.css', '../sceneControls.css']
+    .map(file => readFileSync(resolve(__dirname, file), 'utf8'))
+    .join('\n');
   const sizeOf = (selector: string) => {
     const rule = css.split('}').find(block => block.trim().startsWith(`${selector} {`));
     return Number(/font-size:\s*([\d.]+)rem/.exec(rule ?? '')?.[1]);
@@ -91,10 +93,10 @@ describe('timelineScene.css type sizes', () => {
     }
   });
 
-  it('sets the lines and the buttons at 16px or more', () => {
-    for (const selector of ['.tl-scene-head', '.tl-scene-text', '.tl-scene-btn']) {
-      expect(sizeOf(selector), selector).toBeGreaterThanOrEqual(1);
-    }
+  it('sets the caption at 18px or more, and the heading and Play button at 16px or more', () => {
+    expect(sizeOf('.tl-scene-text')).toBeGreaterThanOrEqual(1.125);
+    expect(sizeOf('.tl-scene-head')).toBeGreaterThanOrEqual(2);
+    expect(sizeOf('.tl-scene-btn')).toBeGreaterThanOrEqual(1);
   });
 });
 
@@ -107,21 +109,8 @@ describe('sceneDevices', () => {
   });
 });
 
-describe('lineProgress', () => {
-  it('counts earlier lines as done and later lines as not started', () => {
-    expect(lineProgress(frames, 0, 2, 0, true)).toBe(1);
-    expect(lineProgress(frames, 3, 2, 0, true)).toBe(0);
-  });
-
-  it('measures time across the frames a line owns', () => {
-    // Line 4 owns 3400ms then 4600ms: 8000ms in all.
-    expect(lineProgress(frames, 4, 4, 0, true)).toBe(0);
-    expect(lineProgress(frames, 4, 4, 2000, true)).toBe(0.25);
-    expect(lineProgress(frames, 4, 5, 0, true)).toBe(3400 / 8000);
-  });
-
-  it('measures frames when nothing is timed (step-through)', () => {
-    expect(lineProgress(frames, 4, 4, 0, false)).toBe(0.5);
-    expect(lineProgress(frames, 4, 5, 0, false)).toBe(1);
+describe('wholeScreen', () => {
+  it('is the full captured page, never cropped or zoomed', () => {
+    expect(wholeScreen({ width: 390, height: 844 })).toEqual({ x: 0, y: 0, w: 390, h: 844 });
   });
 });

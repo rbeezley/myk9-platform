@@ -5,9 +5,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import { LifecycleTimeline } from '../LifecycleTimeline';
 import { BANNED_COPY, SCENE_LINES, STORIES } from '../lifecycleStories';
-import { lastFrameOfLine, windowOnRing, zoomOnRing } from '../sceneFrames';
+import { lastFrameOfLine, wholeScreen, zoomOnRing } from '../sceneFrames';
 import type { DeviceView, Region } from '../sceneFrames';
-import { DESK_CAMERA_WIDTH, ENTRIES_SCENE, PHONE_WINDOW_HEIGHT } from '../scenes/entriesScene';
+import { DESK_CAMERA_WIDTH, ENTRIES_SCENE } from '../scenes/entriesScene';
 import regions from '../scenes/entriesRegions.json';
 
 vi.mock('../useTimelineProgress', () => ({
@@ -87,16 +87,9 @@ describe('the Entries open scene', () => {
     }
   });
 
-  it('shows the phone in a 3:4 window and the desk in a 5:3 camera, each placed by one rule', () => {
-    expect(PHONE_WINDOW_HEIGHT).toBe(520);
+  it('shows the whole phone screen and the desk in a 5:3 camera placed on its ring', () => {
     for (const f of frames) {
-      const { camera, ring } = f.phone!;
-      expect(camera.x).toBe(0);
-      expect(camera.w).toBe(phoneSpace.width);
-      expect(camera.h).toBe(PHONE_WINDOW_HEIGHT);
-      expect(camera.y).toBeGreaterThanOrEqual(0);
-      expect(camera.y + camera.h).toBeLessThanOrEqual(phoneSpace.height);
-      if (ring) expect(camera).toEqual(windowOnRing(phoneSpace, ring, PHONE_WINDOW_HEIGHT));
+      expect(f.phone!.camera).toEqual(wholeScreen(phoneSpace));
     }
     for (const f of frames) {
       const { camera } = f.desk!;
@@ -247,6 +240,29 @@ describe('zoomOnRing', () => {
   });
 });
 
+const shotsOf = (card: Element) =>
+  Object.fromEntries(
+    [...card.querySelectorAll('.tl-scene-frame')].map(frame => [
+      frame.getAttribute('data-kind'),
+      frame.querySelector('.tl-scene-shot[data-on="true"]')?.getAttribute('data-shot'),
+    ])
+  );
+
+const reduceMotion = () =>
+  vi.spyOn(window, 'matchMedia').mockImplementation(
+    query =>
+      ({
+        matches: query.includes('reduce'),
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }) as MediaQueryList
+  );
+
 describe('the Entries open scene on the page', () => {
   const entriesStep = (container: HTMLElement) => container.querySelector('#entries')!;
 
@@ -278,21 +294,23 @@ describe('the Entries open scene on the page', () => {
       const { container, unmount } = render(
         <LifecycleTimeline audience={audience} onAudienceChange={vi.fn()} />
       );
-      const list = within(entriesStep(container) as HTMLElement).getByRole('list');
-      const text = within(list)
+      const group = within(entriesStep(container) as HTMLElement).getByRole('group', {
+        name: 'Lines in this scene',
+      });
+      const text = within(group)
         .getAllByRole('button')
         .map(button => button.textContent);
       unmount();
       return text;
     };
     const club = linesIn('club');
-    expect(club).toHaveLength(5);
+    expect(club).toEqual(SCENE_LINES.entries.map((line, i) => `${i + 1}${line.short}`));
     expect(linesIn('exhibitor')).toEqual(club);
   });
 
   it('jumps to a line’s capture when the line is pressed', () => {
     const { container } = render(<LifecycleTimeline audience="club" onAudienceChange={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: /They can see where it stands/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Sees Pending review/ }));
     const on = (kind: string) =>
       entriesStep(container)
         .querySelector(`.tl-scene-frame[data-kind="${kind}"] .tl-scene-shot[data-on="true"]`)
@@ -301,33 +319,19 @@ describe('the Entries open scene on the page', () => {
     expect(on('desk')).toBe('before');
   });
 
-  it('rests each line on the frame its heading names under reduced motion', () => {
-    vi.spyOn(window, 'matchMedia').mockImplementation(
-      query =>
-        ({
-          matches: query.includes('reduce'),
-          media: query,
-          onchange: null,
-          addListener: vi.fn(),
-          removeListener: vi.fn(),
-          addEventListener: vi.fn(),
-          removeEventListener: vi.fn(),
-          dispatchEvent: vi.fn(),
-        }) as MediaQueryList
-    );
+  it('draws one storyboard card per line under reduced motion, on the frame its heading names', () => {
+    reduceMotion();
     const { container } = render(<LifecycleTimeline audience="club" onAudienceChange={vi.fn()} />);
-    const on = (kind: string) =>
-      entriesStep(container)
-        .querySelector(`.tl-scene-frame[data-kind="${kind}"] .tl-scene-shot[data-on="true"]`)
-        ?.getAttribute('data-shot');
-    const rest = (name: RegExp) => {
-      fireEvent.click(within(entriesStep(container) as HTMLElement).getByRole('button', { name }));
-      return [on('desk'), on('phone')];
-    };
-    expect(rest(/An exhibitor enters online/)).toEqual(['before', 'classes']);
-    expect(rest(/They pay as they enter/)).toEqual(['before', 'payment']);
-    expect(rest(/They can see where it stands/)).toEqual(['before', 'pending']);
-    expect(rest(/The form arrives in your list/)).toEqual(['list', 'pending']);
-    expect(rest(/You open it and accept/)).toEqual(['accepted', 'accepted']);
+    const step = entriesStep(container);
+    expect(within(step as HTMLElement).queryByRole('group')).toBeNull();
+    const cards = [...step.querySelectorAll('.tl-scene-card')];
+    // Each card shows the device its line is about; the last line is about both.
+    expect(cards.map(card => shotsOf(card))).toEqual([
+      { phone: 'classes' },
+      { phone: 'payment' },
+      { phone: 'pending' },
+      { desk: 'list' },
+      { desk: 'accepted', phone: 'accepted' },
+    ]);
   });
 });

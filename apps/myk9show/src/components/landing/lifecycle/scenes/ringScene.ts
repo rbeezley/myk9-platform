@@ -1,5 +1,5 @@
 import { SCENE_LINES } from '../lifecycleStories';
-import { unionRegion, windowOnRing } from '../sceneFrames';
+import { wholeScreen } from '../sceneFrames';
 import type { Region, SceneFrame, SceneShot, TimelineSceneData } from '../sceneFrames';
 import regions from './ringRegions.json';
 
@@ -10,13 +10,6 @@ import regions from './ringRegions.json';
 // is a region the script measured.
 
 const SPACE = regions.space;
-/**
- * The frame is 3:4, the shape it had when the screen was a tablet, so the scene is no taller
- * on the page than it was (the phone page-length limit in landing-lifecycle.spec.ts). A phone
- * is taller than that, so each frame is a window on it.
- */
-export const RING_WINDOW_HEIGHT = Math.round((SPACE.width * 4) / 3);
-
 type ShotName = keyof typeof regions.shots;
 
 const ALT: Record<ShotName, string> = {
@@ -43,20 +36,9 @@ const shot = (name: ShotName): SceneShot => ({
 
 const SHOT_NAMES = Object.keys(regions.shots) as ShotName[];
 
-/**
- * One capture with the part its line is about ringed, in the window that rule gives. `alsoShow`
- * is a second measured region the window must also hold, when the line is about two things.
- */
-function frame(
-  line: number,
-  ms: number,
-  name: ShotName,
-  ring: Region,
-  alsoShow?: Region
-): SceneFrame {
-  const subject = alsoShow ? unionRegion(ring, alsoShow) : ring;
-  const camera = windowOnRing(SPACE, subject, RING_WINDOW_HEIGHT);
-  return { line, ms, subject: 'phone', phone: { shot: name, camera, ring } };
+/** One capture on the whole phone screen, with the part its line is about ringed. */
+function frame(line: number, ms: number, name: ShotName, ring: Region): SceneFrame {
+  return { line, ms, subject: 'phone', phone: { shot: name, camera: wholeScreen(SPACE), ring } };
 }
 
 const { classes, offline, sheet, running, result, confirm, saved, sent } = regions.shots;
@@ -70,9 +52,8 @@ export const RING_SCENE: TimelineSceneData = {
     space: SPACE,
     shots: Object.fromEntries(SHOT_NAMES.map(name => [name, shot(name)])),
   },
-  // Every frame is the phone at its full width with a ring on what its line says, and the
-  // window follows the ring (windowOnRing): no camera is picked by hand. There is no zoom: the
-  // screen is captured 390 wide, which reads at the 235 the page draws it on a phone.
+  // Every frame is the whole phone screen with a ring on what its line says. There is no zoom
+  // and no crop: the screen is captured 390 wide, which reads at the 220 to 250 the page draws it.
   // A line rests on its last frame under reduced motion, so each line ends on the frame its
   // heading names: the read-back closes line 4, and the saved list opens line 5.
   frames: [
@@ -80,8 +61,7 @@ export const RING_SCENE: TimelineSceneData = {
     frame(1, 4200, 'offline', offline.regions.status),
     frame(2, 2400, 'sheet', sheet.regions.start),
     frame(2, 2600, 'running', running.regions.time),
-    // The line is about the time and the result, so the window holds the stopped timer too.
-    frame(2, 3200, 'result', result.regions.result, result.regions.timer),
+    frame(2, 3200, 'result', result.regions.result),
     frame(3, 3600, 'confirm', confirm.regions.dialog),
     // Saved on the device and not sent yet, the same line once it is sent, then the message
     // that says it went.

@@ -15,6 +15,7 @@ import type { RowAction } from '@/components/ui/RowActionMenu';
 
 import { judgeLockReason } from './focusedClassJudgeModel';
 import { BulkStewardDialog } from './BulkStewardDialog';
+import { bulkStewardTargets } from './bulkStewardModel';
 import type { ScheduleClassSelection } from './useScheduleClassSelection';
 import type {
   SecretaryCockpitClass,
@@ -110,6 +111,9 @@ export function ScheduleBulkBar({
     locked: isJudgeLocked(source),
   }));
   const openCount = judgeTargets.filter(cls => !cls.locked).length;
+  const { targets: stewardTargets, label: stewardLabel } = bulkStewardTargets(
+    picked.map(({ source }) => source)
+  );
   const busy = bulkBusy || judge.busy;
 
   const assign = (judgeId: string) => void judge.assign(judgeTargets, judgeId);
@@ -156,14 +160,14 @@ export function ScheduleBulkBar({
           <BulkBarButton
             onClick={() => setStewardOpen(true)}
             icon={<Users className="h-4 w-4" aria-hidden="true" />}
-            disabled={busy || picked.length === 0}
+            disabled={busy || stewardTargets.length === 0}
           >
-            Assign steward
+            {stewardLabel}
           </BulkBarButton>
           {stewardOpen && (
             <BulkStewardDialog
               showId={showId}
-              classes={picked.map(({ source }) => ({ id: source.id, name: source.name }))}
+              classes={stewardTargets}
               open
               onOpenChange={setStewardOpen}
             />

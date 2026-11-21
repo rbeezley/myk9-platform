@@ -225,9 +225,12 @@ export function SecretaryCockpit({
               className={model.focusedClass.name}
             />
           ),
-          stewardControl: (
-            <FocusedClassStewards showId={snapshot.showId} classId={sourceClass.id} />
-          ),
+          // A cancelled class has no ring to staff (MYK9-2328).
+          ...(sourceClass.lifecycle !== 'cancelled' && {
+            stewardControl: (
+              <FocusedClassStewards showId={snapshot.showId} classId={sourceClass.id} />
+            ),
+          }),
         })}
       {...(canManageShow &&
         trial && {

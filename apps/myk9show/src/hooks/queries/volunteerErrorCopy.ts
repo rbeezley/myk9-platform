@@ -16,3 +16,8 @@ export const VOLUNTEER_COPY = {
   bulkAssignFailed:
     "We couldn't assign this steward to the classes. Nothing was changed. Try again.",
 } as const;
+
+/** MYK9-2328: the walk-up was added to the list, but the job was not given. */
+export function addedButNotAssigned(name: string): string {
+  return `${name} was added to the volunteer list, but we couldn't give them the job. Try again.`;
+}

@@ -35,6 +35,7 @@ function ready(assignments: ClassAssignment[], conflictMap = new Map<string, Set
   for (const a of assignments) byClass.set(a.classId, [...(byClass.get(a.classId) ?? []), a]);
   stewards.current = {
     status: 'ready',
+    conflictsStatus: 'ready',
     volunteers: [volunteer('vol-1', 'Sarah Miller', 'p-1'), volunteer('vol-2', 'Tom Kennedy')],
     assignments,
     assignmentsByClass: byClass,
@@ -90,7 +91,7 @@ describe('FocusedClassStewards (MYK9-2328)', () => {
   });
 
   it('says why the list is missing when it cannot load', () => {
-    stewards.current = { status: 'error', conflictMap: new Map() };
+    stewards.current = { status: 'unavailable', conflictMap: new Map() };
     render(<FocusedClassStewards showId="show-1" classId="class-1" />);
     expect(
       screen.getByText("We couldn't load the stewards. Try again when you're back online.")

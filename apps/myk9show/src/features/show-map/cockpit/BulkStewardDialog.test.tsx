@@ -1,16 +1,17 @@
 import { render, screen } from '@/test/utils/testUtils';
 import type { ClassAssignment, Volunteer } from '@/types/volunteer';
 import { BulkStewardDialog } from './BulkStewardDialog';
-import { bulkStewardSummary } from './bulkStewardModel';
+import { bulkStewardSummary, bulkStewardTargets } from './bulkStewardModel';
 
 const stewards = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
 const mutate = vi.hoisted(() => vi.fn());
+const pending = vi.hoisted(() => ({ current: false }));
 vi.mock('@/hooks/queries/useClassStewards', () => ({
   useClassStewards: () => stewards.current,
 }));
 vi.mock('@/hooks/queries/volunteerStewardQueries', async importOriginal => ({
   ...(await importOriginal<typeof import('@/hooks/queries/volunteerStewardQueries')>()),
-  useAssignToClasses: () => ({ mutate, isPending: false }),
+  useAssignToClasses: () => ({ mutate, isPending: pending.current }),
 }));
 
 const volunteer = (id: string, name: string): Volunteer => ({
@@ -42,8 +43,10 @@ const classes = [
 
 beforeEach(() => {
   mutate.mockReset();
+  pending.current = false;
   stewards.current = {
     status: 'ready',
+    conflictsStatus: 'ready',
     volunteers: [volunteer('vol-1', 'Sarah Miller'), volunteer('vol-2', 'Tom Kennedy')],
     assignments: [existing],
     conflictMap: new Map([['vol-1', new Set(['class-2'])]]),
@@ -96,6 +99,55 @@ describe('BulkStewardDialog (MYK9-2328)', () => {
       '/secretary/volunteers?showId=show-1'
     );
   });
+
+  it('holds Assign until the handler check is back', async () => {
+    stewards.current = { ...stewards.current, conflictsStatus: 'loading' };
+    const { user } = render(
+      <BulkStewardDialog showId="show-1" classes={classes} open onOpenChange={vi.fn()} />
+    );
+    await user.click(screen.getByRole('button', { name: 'Tom Kennedy' }));
+    expect(screen.getByText('Checking entries…')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Assign to 3 classes' })).toBeDisabled();
+  });
+
+  it('says so when the handler check could not run', async () => {
+    stewards.current = { ...stewards.current, conflictsStatus: 'unavailable' };
+    const { user } = render(
+      <BulkStewardDialog showId="show-1" classes={classes} open onOpenChange={vi.fn()} />
+    );
+    await user.click(screen.getByRole('button', { name: 'Tom Kennedy' }));
+    expect(
+      screen.getByText("We couldn't check whether Tom Kennedy handles a dog in these classes.")
+    ).toBeInTheDocument();
+  });
+
+  it('does not offer a walk-up still being added', () => {
+    stewards.current = {
+      ...stewards.current,
+      volunteers: [volunteer('vol-1', 'Sarah Miller'), volunteer('optimistic-x', 'Pat Lee')],
+    };
+    render(<BulkStewardDialog showId="show-1" classes={classes} open onOpenChange={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: 'Pat Lee' })).not.toBeInTheDocument();
+  });
+
+  it('cannot be cancelled while the assignment is saving', () => {
+    pending.current = true;
+    render(<BulkStewardDialog showId="show-1" classes={classes} open onOpenChange={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
+  });
+
+  it('closes and confirms when the assignment saves', async () => {
+    const onOpenChange = vi.fn();
+    mutate.mockImplementation((_input, opts: { onSuccess: (n: number) => void }) =>
+      opts.onSuccess(3)
+    );
+    const { user } = render(
+      <BulkStewardDialog showId="show-1" classes={classes} open onOpenChange={onOpenChange} />
+    );
+    await user.click(screen.getByRole('button', { name: 'Tom Kennedy' }));
+    await user.click(screen.getByRole('button', { name: 'Assign to 3 classes' }));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
 });
 
 describe('bulkStewardSummary', () => {
@@ -113,5 +165,23 @@ describe('bulkStewardSummary', () => {
         conflictClassIds: new Set(),
       }).confirmLabel
     ).toBe('Assign to 1 class');
+  });
+});
+
+describe('bulkStewardTargets', () => {
+  it('leaves out a cancelled class and says how many remain', () => {
+    expect(
+      bulkStewardTargets([
+        { id: 'class-1', name: 'Container Novice A', lifecycle: 'not-started' },
+        { id: 'class-2', name: 'Interior Novice A', lifecycle: 'cancelled' },
+      ])
+    ).toEqual({
+      targets: [{ id: 'class-1', name: 'Container Novice A' }],
+      label: 'Assign steward (1 of 2)',
+    });
+  });
+
+  it('reads plainly when every ticked class can be staffed', () => {
+    expect(bulkStewardTargets(classes).label).toBe('Assign steward');
   });
 });

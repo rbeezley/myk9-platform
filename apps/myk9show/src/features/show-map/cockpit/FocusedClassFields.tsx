@@ -180,11 +180,6 @@ export function FocusedClassFields({
       </Field>
       {judgeControl && <Field label="Judge">{judgeControl}</Field>}
       {scoringControl && <Field label={SCORING_COPY.fieldLabel}>{scoringControl}</Field>}
-      {stewardControl && (
-        <Field label="Stewards" className="min-w-0 basis-full">
-          {stewardControl}
-        </Field>
-      )}
       <Field label="Expected start">
         <ExpectedStartField
           focused={focused}
@@ -208,6 +203,11 @@ export function FocusedClassFields({
           <span className="font-medium">{timing}</span>
         )}
       </Field>
+      {stewardControl && (
+        <Field label="Stewards" className="min-w-0 basis-full">
+          {stewardControl}
+        </Field>
+      )}
     </dl>
   );
 }

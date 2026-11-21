@@ -13,7 +13,6 @@ interface ClassVolunteerCardProps {
   conflictMap: Map<string, Set<string>>;
   onAssign: (volunteerId: string, classId: string, roleName: string) => void;
   onUnassign: (assignmentId: string) => void;
-  onAddAndAssign?: ((name: string, classId: string, roleName: string) => void) | undefined;
 }
 
 export function ClassVolunteerCard({
@@ -25,7 +24,6 @@ export function ClassVolunteerCard({
   conflictMap,
   onAssign,
   onUnassign,
-  onAddAndAssign,
 }: ClassVolunteerCardProps) {
   const conflictIds = useMemo(() => classConflictIds(conflictMap, classId), [conflictMap, classId]);
 
@@ -43,7 +41,6 @@ export function ClassVolunteerCard({
           conflictIds={conflictIds}
           onAssign={onAssign}
           onUnassign={onUnassign}
-          onAddAndAssign={onAddAndAssign}
         />
       </CardContent>
     </Card>

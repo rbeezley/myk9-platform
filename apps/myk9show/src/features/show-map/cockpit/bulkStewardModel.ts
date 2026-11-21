@@ -32,3 +32,22 @@ export function bulkStewardSummary({
       .map(cls => cls.name),
   };
 }
+
+/**
+ * The classes Assign steward acts on, and its button label. A cancelled class has no ring to
+ * staff, so it is left out, and the label says how many of the ticked classes remain.
+ */
+export function bulkStewardTargets(
+  picked: ReadonlyArray<{ id: string; name: string; lifecycle?: string | null }>
+): { targets: Array<{ id: string; name: string }>; label: string } {
+  const targets = picked
+    .filter(cls => cls.lifecycle !== 'cancelled')
+    .map(cls => ({ id: cls.id, name: cls.name }));
+  return {
+    targets,
+    label:
+      targets.length === picked.length
+        ? 'Assign steward'
+        : `Assign steward (${targets.length} of ${picked.length})`,
+  };
+}

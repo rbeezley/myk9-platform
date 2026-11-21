@@ -15,6 +15,7 @@ import { notifications } from '@/lib/notifications';
 import { RING_ROLES, type RingRole } from '@/types/volunteer';
 import { useClassStewards } from '@/hooks/queries/useClassStewards';
 import {
+  OPTIMISTIC_ID_PREFIX,
   classesNeedingAssignment,
   useAssignToClasses,
 } from '@/hooks/queries/volunteerStewardQueries';
@@ -50,11 +51,12 @@ export function BulkStewardDialog({
   const [volunteerId, setVolunteerId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
+  // A walk-up still being added has no row to assign yet.
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return q
-      ? stewards.volunteers.filter(v => v.name.toLowerCase().includes(q))
-      : stewards.volunteers;
+    return stewards.volunteers.filter(
+      v => !v.id.startsWith(OPTIMISTIC_ID_PREFIX) && (!q || v.name.toLowerCase().includes(q))
+    );
   }, [stewards.volunteers, search]);
   const chosen = stewards.volunteers.find(v => v.id === volunteerId) ?? null;
   const classIds = classes.map(cls => cls.id);
@@ -67,7 +69,12 @@ export function BulkStewardDialog({
     conflictClassIds: chosen ? (stewards.conflictMap.get(chosen.id) ?? NO_CLASSES) : NO_CLASSES,
   });
 
+  // The handler warning must be known before the secretary assigns.
+  const checkingConflicts = chosen !== null && stewards.conflictsStatus === 'loading';
+  const saving = assignMany.isPending;
+
   const close = (next: boolean) => {
+    if (!next && saving) return;
     if (!next) {
       setVolunteerId(null);
       setSearch('');
@@ -82,9 +89,11 @@ export function BulkStewardDialog({
       {
         onSuccess: count => {
           notifications.success(
-            `${chosen.name} is ${role} for ${count} ${count === 1 ? 'class' : 'classes'}.`
+            count === 0
+              ? `${chosen.name} already had this job in those classes.`
+              : `${chosen.name} is ${role} for ${count} ${count === 1 ? 'class' : 'classes'}.`
           );
-          close(false);
+          onOpenChange(false);
         },
       }
     );
@@ -170,6 +179,14 @@ export function BulkStewardDialog({
             {chosen && summary.alreadyCount > 0 && (
               <p className="text-sm text-muted-foreground">{summary.alreadyText}</p>
             )}
+            {checkingConflicts && (
+              <p className="text-sm text-muted-foreground">Checking entries…</p>
+            )}
+            {chosen && stewards.conflictsStatus === 'unavailable' && (
+              <p className="text-sm text-muted-foreground">
+                We couldn&apos;t check whether {chosen.name} handles a dog in these classes.
+              </p>
+            )}
             {chosen && summary.conflictNames.length > 0 && (
               <p className="flex gap-2 text-sm text-warning">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
@@ -182,13 +199,13 @@ export function BulkStewardDialog({
         )}
 
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => close(false)}>
+          <Button type="button" variant="outline" disabled={saving} onClick={() => close(false)}>
             Cancel
           </Button>
           <Button
             type="button"
             onClick={confirm}
-            disabled={!chosen || toAssign.length === 0 || assignMany.isPending}
+            disabled={!chosen || toAssign.length === 0 || checkingConflicts || saving}
           >
             {summary.confirmLabel}
           </Button>

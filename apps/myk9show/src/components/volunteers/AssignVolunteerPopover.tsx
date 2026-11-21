@@ -4,6 +4,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { Volunteer } from '@/types/volunteer';
+import { OPTIMISTIC_ID_PREFIX } from '@/hooks/queries/volunteerStewardQueries';
 
 interface AssignVolunteerPopoverProps {
   volunteers: Volunteer[];
@@ -55,7 +56,7 @@ export function AssignVolunteerPopover({
     const excludeSet = new Set(excludeIds);
     const q = search.toLowerCase();
     return volunteers
-      .filter(v => !excludeSet.has(v.id))
+      .filter(v => !excludeSet.has(v.id) && !v.id.startsWith(OPTIMISTIC_ID_PREFIX))
       .filter(v => !search || v.name.toLowerCase().includes(q));
   }, [volunteers, excludeIds, search]);
 
@@ -88,7 +89,7 @@ export function AssignVolunteerPopover({
           variant="ghost"
           size="sm"
           aria-label={roleLabel ? `Assign ${roleLabel}` : 'Assign volunteer'}
-          className="h-6 px-1.5"
+          className="h-11 min-w-11 px-2"
         >
           <Plus className="h-3.5 w-3.5" />
         </Button>

@@ -689,7 +689,7 @@ describe('ShowEditPremiumTab unsaved organization (MYK9-2213)', () => {
       expect(premiumEditorProps.at(-1)?.initialPremium).toBeUndefined();
     });
 
-    it('does not reuse a snapshot published before it recorded an organization', () => {
+    it('offline, does not reuse a snapshot published before it recorded an organization', () => {
       const legacy = structuredClone(published);
       delete legacy.org;
       render(
@@ -704,10 +704,36 @@ describe('ShowEditPremiumTab unsaved organization (MYK9-2213)', () => {
         />
       );
       expect(premiumEditorProps.at(-1)?.initialPremium).toBeUndefined();
-      expect(screen.getByText(/not built for AKC/)).toBeInTheDocument();
     });
 
-    it('does not reuse a snapshot built for another saved organization', () => {
+    it('online, seeds from the server facts, not a snapshot built for another organization', () => {
+      premiumFactsMock = {
+        data: {
+          ...published,
+          org: 'UKC',
+          narratives: { showHours: 'UKC hours.', trialInformation: 'UKC info.' },
+        },
+        isLoading: false,
+      };
+      render(
+        <ShowEditPremiumTab
+          data={{ ...baseData, organization: 'UKC', experiencePublishedContent: published }}
+          clubId="c1"
+          showOrg="UKC"
+          savedOrganization="UKC"
+          isActive
+          handleCheckboxChange={vi.fn(() => vi.fn())}
+          handleValueChange={vi.fn(() => vi.fn())}
+        />
+      );
+      expect(premiumEditorProps.at(-1)?.initialPremium).toMatchObject({
+        org: 'UKC',
+        templateId: null,
+        narratives: { showHours: 'UKC hours.', trialInformation: 'UKC info.' },
+      });
+    });
+
+    it('offline, does not reuse a snapshot built for another saved organization', () => {
       render(
         <ShowEditPremiumTab
           data={{

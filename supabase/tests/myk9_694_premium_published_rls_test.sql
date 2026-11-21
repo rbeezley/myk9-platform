@@ -385,13 +385,15 @@ BEGIN
     PERFORM public.publish_premium_artifact(
       own_show, previous_path, versioned_url, first_version, 'heritage',
       jsonb_build_object(
+        'org', 'AKC',
         'metadata', jsonb_build_object('retryIntent', 'changed intent'),
         'outputs', jsonb_build_object('premiumUrl', 'changed intent')
       )
     );
     denied := false;
   EXCEPTION WHEN OTHERS THEN
-    denied := true;
+    -- MYK9-2216: the snapshot carries the matching org, so the refusal must be the intent check.
+    denied := SQLERRM LIKE 'Premium publication version is already committed to a different intent%';
   END;
   IF NOT denied OR (SELECT experience_published_content->'metadata'->>'retryIntent' FROM public.shows WHERE id = own_show) IS NOT NULL THEN
     RAISE EXCEPTION 'FAIL same-version retry changed or accepted a different content snapshot';

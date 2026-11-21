@@ -17,7 +17,7 @@ const sql = readFileSync(
 const flat = sql.replace(/\s+/g, ' ');
 
 describe('20261120202300_myk9_2054_own_premium_unpublish.sql', () => {
-  it('retires uses_landing_page without dropping it (older builds may still send it)', () => {
+  it('retires uses_landing_page without dropping it (MYK9-2281 drops it in a later migration)', () => {
     expect(flat).not.toContain('DROP COLUMN IF EXISTS uses_landing_page');
     expect(flat).toContain('COMMENT ON COLUMN public.shows.uses_landing_page');
   });

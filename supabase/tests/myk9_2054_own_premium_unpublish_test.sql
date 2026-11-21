@@ -60,12 +60,12 @@ INSERT INTO storage.objects (bucket_id, name, owner_id, metadata) VALUES
 -- and neither RPC touches entries ("changes no entry").
 DO $$
 BEGIN
-  -- Kept for queued writes from older builds (unused since MYK9-2054; dropped in a later release).
-  IF NOT EXISTS (
+  -- Dropped by MYK9-2281 (kept only until older builds were gone).
+  IF EXISTS (
     SELECT 1 FROM information_schema.columns
      WHERE table_schema = 'public' AND table_name = 'shows' AND column_name = 'uses_landing_page'
   ) THEN
-    RAISE EXCEPTION 'FAIL shows.uses_landing_page must stay until older builds are gone';
+    RAISE EXCEPTION 'FAIL shows.uses_landing_page should be dropped (MYK9-2281)';
   END IF;
   IF NOT has_column_privilege('anon', 'public.shows', 'own_premium_link', 'SELECT') THEN
     RAISE EXCEPTION 'FAIL anon cannot read shows.own_premium_link';

@@ -74,7 +74,8 @@ describe('PullReconciliationActions', () => {
     denyPullRefundDecision.mockRejectedValue({
       code: 'PGRST202',
       message:
-        'Could not find the function public.set_entry_refund_decision(p_decision, p_entry_id, p_reason) in the schema cache',
+        // The shape PostgREST returns for any signature the schema no longer has.
+        'Could not find the function public.set_entry_refund_decision(p_decision, p_entry_id) in the schema cache',
     });
 
     const onResolved = await saveDenial();

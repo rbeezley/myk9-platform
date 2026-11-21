@@ -8,6 +8,12 @@
 -- not saved and it shows its own "couldn't save" error; nothing is written. A tab on a current
 -- bundle reads that error as "restart the app" (isRefundDecisionRpcMissing).
 --
+-- Old tabs are gated by the refresh prompt every bundle already carries: @myk9/pwa-update polls
+-- registration.update() every 10 minutes (DEFAULT_POLL_INTERVAL_MS) and shows the update prompt
+-- once a new build is live, deferring only while a sensitive route is open. Two Deploy myK9Show
+-- releases carrying the three-argument client (#4234) went out before this drop, so an open tab
+-- has been offered the update. Pre-launch, no secretary has a real tab open.
+--
 -- The three-argument version, its body and its grants are untouched. Nothing here moves money.
 
 DROP FUNCTION IF EXISTS public.set_entry_refund_decision(uuid, text);

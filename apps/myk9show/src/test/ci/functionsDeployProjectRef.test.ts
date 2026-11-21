@@ -100,6 +100,9 @@ function deployTarget(args: string): string | undefined {
     if (/^(;|&&|\|\|?|#)/.test(token)) return undefined;
     if (token.startsWith('-')) {
       if (VALUE_FLAGS.has(token)) i++;
+      // `--remote <ref>` (space form): skip the ref so the function name is still
+      // found, and the flag check below then reports the unsupported spelling.
+      else if (token === '--remote' && tokens[i + 1] && !tokens[i + 1].startsWith('-')) i++;
       continue;
     }
     return token;
@@ -173,6 +176,12 @@ describe('functions deploy --project-ref guard (known answers)', () => {
     expect(
       findViolations(`supabase functions deploy a-b --remote ${PROJECT_REF} --yes`, known)
     ).toHaveLength(1);
+    expect(
+      findViolations(`supabase functions deploy --remote ${PROJECT_REF} a-b --yes`, known)
+    ).toHaveLength(1);
+    expect(
+      findViolations(`supabase functions deploy --remote=${PROJECT_REF} a-b --yes`, known)
+    ).toEqual([]);
   });
 
   it('rejects a wrong or longer project ref', () => {

@@ -87,13 +87,16 @@ describe('LifecycleTimeline', () => {
     expect(container.querySelectorAll('.lc-rail, .lc-dot, .lc-line, [id$="-dot"]')).toHaveLength(0);
   });
 
-  it('renders a step scene once, after both text columns, tagged with the side it follows', () => {
+  // Reading order: a scene comes right after the text of the side it belongs to, so a screen
+  // reader and a phone's single column meet it next to the words it illustrates.
+  it('renders a step scene once, right after the text of the side it follows', () => {
     const { container } = render(<LifecycleTimeline />);
     const sceneRows = container.querySelectorAll('.lc-row .lc-scene');
     expect(sceneRows.length).toBeGreaterThan(0);
     for (const slot of sceneRows) {
       expect(slot.querySelectorAll('.tl-scene')).toHaveLength(1);
-      expect(slot.parentElement!.lastElementChild).toBe(slot);
+      const side = slot.getAttribute('data-side');
+      expect(slot.previousElementSibling).toHaveClass(side === 'main' ? 'lc-main' : 'lc-meanwhile');
     }
     fireEvent.click(screen.getByRole('button', { name: 'I’m entering a show' }));
     const showday = document.getElementById('showday')!;

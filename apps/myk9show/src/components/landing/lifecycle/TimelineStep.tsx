@@ -45,6 +45,14 @@ export function TimelineStep({
   isLast: boolean;
 }) {
   const sceneId = step.scene ?? step.meanwhileScene;
+  // One scene per row: a full-width band under the two text columns on a wide screen. It sits in
+  // the DOM right after the text of the side it belongs to (data-side), so a screen reader and a
+  // phone's single column both meet it in reading order.
+  const scene = sceneId && (
+    <div className="lc-scene" data-side={step.scene ? 'main' : 'meanwhile'}>
+      <StepScene id={sceneId} lead={sceneLead} />
+    </div>
+  );
   return (
     <div
       id={step.id}
@@ -65,19 +73,14 @@ export function TimelineStep({
         {step.nightBefore && <NightBeforeCard active={revealed} />}
         {step.shot && !step.explainer && <Screenshot shot={step.shot} />}
       </div>
+      {step.scene && scene}
       <div className="lc-meanwhile">
         <p className="lc-meanwhile-text">
           <span className="sr-only">{meanwhileLabel}: </span>
           {step.meanwhile}
         </p>
       </div>
-      {sceneId && (
-        // One scene per row, a full-width band under the two text columns. On a phone it
-        // follows the text of the side it belongs to (data-side).
-        <div className="lc-scene" data-side={step.scene ? 'main' : 'meanwhile'}>
-          <StepScene id={sceneId} lead={sceneLead} />
-        </div>
-      )}
+      {!step.scene && scene}
     </div>
   );
 }

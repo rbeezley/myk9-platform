@@ -399,13 +399,20 @@ for (const vp of VIEWPORTS) {
       await expect(page.locator('#entries h3')).toHaveText('Enter in a few minutes');
       expect(await gap(), 'exhibitor: meanwhile text above the scene').toBeGreaterThanOrEqual(10);
       // The last step ends the section: nothing under its text but the next section's padding.
-      const under = await page.evaluate(() => {
-        const rows = document.querySelectorAll('.lc-row');
-        const last = rows[rows.length - 1]!;
-        const text = last.querySelector('.lc-meanwhile-text')!.getBoundingClientRect();
-        return last.getBoundingClientRect().bottom - text.bottom;
-      });
-      expect(under).toBeLessThanOrEqual(1);
+      const lastRow = page.locator('.lc-row[data-last="true"]');
+      await lastRow.scrollIntoViewIfNeeded();
+      await expect(lastRow).toHaveAttribute('data-revealed', 'true');
+      // Measured both ways once the reveal settles, so a leftover transform cannot pass it.
+      await expect
+        .poll(() =>
+          page.evaluate(() => {
+            const rows = document.querySelectorAll('.lc-row');
+            const last = rows[rows.length - 1]!;
+            const text = last.querySelector('.lc-meanwhile-text')!.getBoundingClientRect();
+            return last.getBoundingClientRect().bottom - text.bottom;
+          })
+        )
+        .toBeCloseTo(0, 0);
     });
   });
 }

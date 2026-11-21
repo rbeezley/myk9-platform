@@ -46,19 +46,19 @@ export const STAND_IN_ENTRIES_SCENE: TimelineSceneData = {
     space: { width: 1200, height: 750 },
     shots: {
       before: {
-        src: '/landing/stages/s-02.png',
+        src: '/landing/stills/club-create-show.png',
         alt: 'STAND-IN: secretary screen before the entry arrives',
         width: 1200,
         height: 750,
       },
       review: {
-        src: '/landing/stages/s-12.png',
+        src: '/landing/stills/exhibitor-find-a-show.png',
         alt: 'STAND-IN: secretary screen with the form marked Needs review',
         width: 1200,
         height: 750,
       },
       accepted: {
-        src: '/landing/stages/e-01.png',
+        src: '/landing/stills/club-create-show.png',
         alt: 'STAND-IN: secretary screen after Accept',
         width: 1200,
         height: 750,
@@ -70,7 +70,7 @@ export const STAND_IN_ENTRIES_SCENE: TimelineSceneData = {
     space: { width: 390, height: 844 },
     shots: {
       dogs: {
-        src: '/landing/stages/e-12.png',
+        src: '/landing/stills/exhibitor-my-entries.png',
         alt: 'STAND-IN: exhibitor choosing a dog',
         width: 390,
         height: 844,
@@ -82,7 +82,7 @@ export const STAND_IN_ENTRIES_SCENE: TimelineSceneData = {
         height: 844,
       },
       accepted: {
-        src: '/landing/stages/e-16.png',
+        src: '/landing/stills/exhibitor-past-results.png',
         alt: 'STAND-IN: exhibitor entry accepted',
         width: 390,
         height: 844,

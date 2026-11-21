@@ -16261,6 +16261,7 @@ export type Database = {
         Returns: boolean
       }
       show_publish_blockers: { Args: { p_show_id: string }; Returns: Json }
+      shows_card_entries_paused: { Args: { p_show_ids: string[] }; Returns: string[] }
       sign_in_email_drift: { Args: never; Returns: Json }
       soft_delete_class: {
         Args: { p_class_id: string; p_override?: boolean; p_reason?: string }

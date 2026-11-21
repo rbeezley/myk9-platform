@@ -168,9 +168,8 @@ test('phone 390px: class row running order is one line, no dangling separator, R
     });
     return;
   }
-  for (let i = 0; i < count; i++) {
-    const row = runningOrders.nth(i);
-    const { right, limit } = await row.evaluate(el => {
+  const measures = await runningOrders.evaluateAll(els =>
+    els.map(el => {
       const container =
         el.closest('.myk9-entries-class-when') ?? el.closest('.myk9-entries-class-row');
       return {
@@ -179,17 +178,21 @@ test('phone 390px: class row running order is one line, no dangling separator, R
           (container?.getBoundingClientRect().right ?? Infinity) + 1,
           window.innerWidth
         ),
+        height: el.getBoundingClientRect().height,
+        lineHeight: parseFloat(getComputedStyle(el).lineHeight),
       };
-    });
-    expect(right, 'running order overflows its row or the viewport').toBeLessThanOrEqual(limit);
-    const { height, lineHeight } = await row.evaluate(el => {
-      const lh = parseFloat(getComputedStyle(el).lineHeight);
-      return { height: el.getBoundingClientRect().height, lineHeight: lh };
-    });
+    })
+  );
+  measures.forEach(({ right, limit, height, lineHeight }, i) => {
+    expect(right, `running order ${i} overflows its row or the viewport`).toBeLessThanOrEqual(
+      limit
+    );
     if (Number.isFinite(lineHeight)) {
-      expect(height).toBeLessThanOrEqual(lineHeight + 1);
+      expect(height, `running order ${i} wraps onto more than one line`).toBeLessThanOrEqual(
+        lineHeight + 1
+      );
     }
-  }
+  });
 });
 
 /**

@@ -177,9 +177,11 @@ for (const vp of VIEWPORTS) {
             expect(ratio, `${audience} ${r.id}: sides balanced`).toBeGreaterThan(0.25);
           }
           if (r.sceneTop !== undefined) {
-            expect(r.sceneTop, `${audience} ${r.id}: scene below the words`).toBeGreaterThanOrEqual(
-              Math.max(r.mainBottom, r.mediaBottom ?? r.mainBottom) - 1
-            );
+            const above = Math.max(r.mainBottom, r.mediaBottom ?? r.mainBottom);
+            expect(
+              r.sceneTop - above,
+              `${audience} ${r.id}: scene below the words, with a gap`
+            ).toBeGreaterThanOrEqual(16);
           }
         }
       }
@@ -515,10 +517,9 @@ test.describe('reduced motion', () => {
   });
 });
 
-// Wide screens put the photo beside the copy in a tall frame (both dogs whole, not a short
-// band cropped to their faces); narrower screens keep the full-width band above the copy.
 // MYK9-2327 review: at a tablet held upright, two columns would leave a still or demo about
-// 300px. Between 768 and 960 the still or demo goes under the words, at full width.
+// 300px. Between 768 and 960 the still or demo goes under the words, at full width, and every
+// stacked part keeps a real gap from the one above it (the last step once had none).
 test('on a tablet held upright, a still or demo sits under the words at full width', async ({
   page,
 }) => {
@@ -535,23 +536,31 @@ test('on a tablet held upright, a still or demo sits under the words at full wid
         const scene = row.querySelector('.lc-scene')?.getBoundingClientRect();
         return {
           id: row.id,
-          belowWords: media.top >= main.bottom - 1,
+          wordsToMedia: media.top - main.bottom,
           mediaWidth: media.width,
           mainWidth: main.width,
-          sceneBelow: scene ? scene.top >= media.bottom - 1 : true,
+          mediaToScene: scene ? scene.top - media.bottom : null,
         };
       }),
     }));
     expect(report.scrollWidth, `${audience}: no sideways scroll`).toBeLessThanOrEqual(820);
     expect(report.rows.length).toBeGreaterThan(0);
     for (const r of report.rows) {
-      expect(r.belowWords, `${audience} ${r.id}: media under the words`).toBe(true);
+      expect(r.wordsToMedia, `${audience} ${r.id}: media under the words`).toBeGreaterThanOrEqual(
+        16
+      );
       expect(r.mediaWidth, `${audience} ${r.id}: media full width`).toBeCloseTo(r.mainWidth, 0);
-      expect(r.sceneBelow, `${audience} ${r.id}: scene under the media`).toBe(true);
+      if (r.mediaToScene !== null) {
+        expect(r.mediaToScene, `${audience} ${r.id}: scene under the media`).toBeGreaterThanOrEqual(
+          16
+        );
+      }
     }
   }
 });
 
+// Wide screens put the photo beside the copy in a tall frame (both dogs whole, not a short
+// band cropped to their faces); narrower screens keep the full-width band above the copy.
 test('hero: photo beside the copy on wide screens, band above it below 1100px', async ({
   page,
 }, testInfo) => {

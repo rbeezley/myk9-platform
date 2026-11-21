@@ -58,11 +58,7 @@ export const SceneDevice = memo(function SceneDevice({
     </div>
   );
   return (
-    <div
-      className="tl-scene-device"
-      data-kind={kind}
-      data-dim={dimmed ? 'true' : 'false'}
-    >
+    <div className="tl-scene-device" data-kind={kind} data-dim={dimmed ? 'true' : 'false'}>
       {!compact && <span className="tl-scene-who">{data.label}</span>}
       {kind === 'desk' ? (
         <div className="tl-scene-desk">

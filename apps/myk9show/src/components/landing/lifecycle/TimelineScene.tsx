@@ -138,10 +138,14 @@ export function TimelineScene({
         </p>
         <SceneArrow dir="prev" disabled={atStart} onPress={() => !atStart && step('back')} />
         <SceneArrow dir="next" disabled={atEnd} onPress={() => !atEnd && step('next')} />
-        <SceneTabs lines={lines} current={line} onJump={n => {
+        <SceneTabs
+          lines={lines}
+          current={line}
+          onJump={n => {
             dispatch({ type: 'jump', line: n });
             say(n);
-          }} />
+          }}
+        />
         {!stepping && (
           <button
             type="button"

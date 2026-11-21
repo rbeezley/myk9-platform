@@ -5,11 +5,7 @@ import { supabase } from '@/services/database/supabaseClient';
 import { queryKeys } from '@/lib/queryClient';
 import { notifications } from '@/lib/notifications';
 import type { ClassAssignment } from '@/types/volunteer';
-import {
-  classesNeedingAssignment,
-  useAddVolunteerAndAssign,
-  useAssignToClasses,
-} from '../volunteerStewardQueries';
+import { classesNeedingAssignment, useAssignToClasses } from '../volunteerStewardQueries';
 
 const SHOW_ID = 'show-1';
 
@@ -59,6 +55,7 @@ describe('useAssignToClasses', () => {
   });
 
   it('inserts one row per class still needing the job, in one write', async () => {
+    const success = vi.spyOn(notifications, 'success');
     const select = vi.fn().mockResolvedValue({ data: [{ id: 'n-1' }, { id: 'n-2' }], error: null });
     const upsert = vi.fn().mockReturnValue({ select });
     vi.mocked(supabase.from).mockReturnValue({ upsert } as never);
@@ -72,6 +69,7 @@ describe('useAssignToClasses', () => {
     await act(async () => {
       count = await result.current.mutateAsync({
         volunteerId: 'vol-1',
+        volunteerName: 'Sarah Miller',
         roleName: 'Table Steward',
         classIds: ['class-1', 'class-2', 'class-3'],
       });
@@ -88,9 +86,12 @@ describe('useAssignToClasses', () => {
       { onConflict: 'volunteer_id,class_id,role_name', ignoreDuplicates: true }
     );
     expect(count).toBe(2);
+    // The hook, not the dialog, confirms, so a dialog closed mid-save still gets the toast.
+    expect(success).toHaveBeenCalledWith('Sarah Miller is Table Steward for 2 classes.');
   });
 
   it('writes nothing when every class already has them in this job', async () => {
+    vi.spyOn(notifications, 'success');
     const upsert = vi.fn();
     vi.mocked(supabase.from).mockReturnValue({ upsert } as never);
     const { queryClient, wrapper } = setup();
@@ -102,11 +103,15 @@ describe('useAssignToClasses', () => {
     await act(async () => {
       await result.current.mutateAsync({
         volunteerId: 'vol-1',
+        volunteerName: 'Sarah Miller',
         roleName: 'Table Steward',
         classIds: ['class-1'],
       });
     });
     expect(upsert).not.toHaveBeenCalled();
+    expect(notifications.success).toHaveBeenCalledWith(
+      'Sarah Miller already had this job in those classes.'
+    );
   });
 
   it('says nothing was changed when the write fails', async () => {
@@ -118,7 +123,12 @@ describe('useAssignToClasses', () => {
     const { wrapper } = setup();
     const { result } = renderHook(() => useAssignToClasses(SHOW_ID), { wrapper });
     act(() => {
-      result.current.mutate({ volunteerId: 'vol-1', roleName: 'Timer', classIds: ['class-1'] });
+      result.current.mutate({
+        volunteerId: 'vol-1',
+        volunteerName: 'Sarah Miller',
+        roleName: 'Timer',
+        classIds: ['class-1'],
+      });
     });
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(error).toHaveBeenCalledWith(
@@ -126,128 +136,5 @@ describe('useAssignToClasses', () => {
     );
     // No retry: a lost response would otherwise send the batch twice.
     expect(upsert).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe('useAddVolunteerAndAssign', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('adds the name as a walk-up on this show, then gives the new volunteer the job', async () => {
-    const volunteerInsert = vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        single: vi.fn().mockResolvedValue({ data: { id: 'vol-new' }, error: null }),
-      }),
-    });
-    const assignInsert = vi.fn().mockResolvedValue({ error: null });
-    vi.mocked(supabase.from).mockImplementation(
-      (table: string) =>
-        ({
-          insert: table === 'volunteers' ? volunteerInsert : assignInsert,
-        }) as never
-    );
-    const { queryClient, wrapper } = setup();
-    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
-
-    const { result } = renderHook(() => useAddVolunteerAndAssign(SHOW_ID), { wrapper });
-    await act(async () => {
-      await result.current.mutateAsync({
-        name: 'Pat Lee',
-        classId: 'class-1',
-        roleName: 'Gate Steward',
-      });
-    });
-
-    expect(volunteerInsert).toHaveBeenCalledWith({
-      name: 'Pat Lee',
-      show_id: SHOW_ID,
-      phone: null,
-      notes: null,
-      person_id: null,
-    });
-    expect(assignInsert).toHaveBeenCalledWith({
-      volunteer_id: 'vol-new',
-      class_id: 'class-1',
-      role_name: 'Gate Steward',
-    });
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.volunteers(SHOW_ID) });
-    expect(invalidate).toHaveBeenCalledWith({
-      queryKey: queryKeys.volunteerClassAssignments(SHOW_ID),
-    });
-  });
-});
-
-describe('useAddVolunteerAndAssign, when a write fails', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  function mockWrites(
-    assignError: Error | null,
-    addResult: Promise<unknown> = Promise.resolve({ data: { id: 'vol-new' }, error: null })
-  ) {
-    const volunteerInsert = vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnValue({ single: vi.fn().mockReturnValue(addResult) }),
-    });
-    const assignInsert = vi.fn().mockResolvedValue({ error: assignError });
-    vi.mocked(supabase.from).mockImplementation(
-      (table: string) =>
-        ({ insert: table === 'volunteers' ? volunteerInsert : assignInsert }) as never
-    );
-    return { volunteerInsert, assignInsert };
-  }
-
-  it('adds the walk-up once and says they were added when only the job failed', async () => {
-    const error = vi.spyOn(notifications, 'error');
-    const { volunteerInsert } = mockWrites(new Error('denied'));
-    const { queryClient, wrapper } = setup();
-    queryClient.setQueryData(queryKeys.volunteerClassAssignments(SHOW_ID), []);
-    const { result } = renderHook(() => useAddVolunteerAndAssign(SHOW_ID), { wrapper });
-    act(() => {
-      result.current.mutate({ name: 'Pat Lee', classId: 'class-1', roleName: 'Timer' });
-    });
-    await waitFor(() => expect(result.current.isError).toBe(true));
-    expect(volunteerInsert).toHaveBeenCalledTimes(1);
-    expect(error).toHaveBeenCalledWith(
-      "Pat Lee was added to the volunteer list, but we couldn't give them the job. Try again."
-    );
-    // No chip is left showing a job the database does not have.
-    expect(queryClient.getQueryData(queryKeys.volunteerClassAssignments(SHOW_ID))).toEqual([]);
-  });
-
-  it('shows the walk-up and the job at once, and takes both back when the add fails', async () => {
-    const error = vi.spyOn(notifications, 'error');
-    let failAdd: (value: unknown) => void = () => {};
-    mockWrites(
-      null,
-      new Promise(resolve => {
-        failAdd = resolve;
-      })
-    );
-    const { queryClient, wrapper } = setup();
-    queryClient.setQueryData(queryKeys.volunteers(SHOW_ID), []);
-    queryClient.setQueryData(queryKeys.volunteerClassAssignments(SHOW_ID), []);
-    const { result } = renderHook(() => useAddVolunteerAndAssign(SHOW_ID), { wrapper });
-
-    act(() => {
-      result.current.mutate({ name: 'Pat Lee', classId: 'class-1', roleName: 'Timer' });
-    });
-    await waitFor(() =>
-      expect(queryClient.getQueryData<{ name: string }[]>(queryKeys.volunteers(SHOW_ID))).toEqual([
-        expect.objectContaining({ name: 'Pat Lee' }),
-      ])
-    );
-    expect(
-      queryClient.getQueryData<ClassAssignment[]>(queryKeys.volunteerClassAssignments(SHOW_ID))
-    ).toEqual([expect.objectContaining({ volunteerName: 'Pat Lee', roleName: 'Timer' })]);
-
-    act(() => failAdd({ data: null, error: new Error('offline') }));
-    await waitFor(() => expect(result.current.isError).toBe(true));
-    expect(queryClient.getQueryData(queryKeys.volunteers(SHOW_ID))).toEqual([]);
-    expect(queryClient.getQueryData(queryKeys.volunteerClassAssignments(SHOW_ID))).toEqual([]);
-    expect(error).toHaveBeenCalledWith(
-      "We couldn't add this volunteer and give them the job. Try again."
-    );
   });
 });

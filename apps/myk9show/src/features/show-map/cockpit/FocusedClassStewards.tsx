@@ -37,6 +37,19 @@ export function FocusedClassStewards({ showId, classId }: { showId: string; clas
     );
   }
 
+  // Volunteers are added on the Volunteers page; the panel only picks from that list.
+  if (stewards.volunteers.length === 0) {
+    return (
+      <p className="text-xs text-muted-foreground">
+        No volunteers yet.{' '}
+        <Link to={volunteersPagePath(showId)} className="underline underline-offset-4">
+          Add them on the Volunteers page
+        </Link>
+        .
+      </p>
+    );
+  }
+
   const assignments = stewards.assignmentsByClass.get(classId) ?? [];
   return (
     <div className="space-y-1.5">
@@ -48,7 +61,6 @@ export function FocusedClassStewards({ showId, classId }: { showId: string; clas
         conflictIds={conflictIds}
         onAssign={stewards.onAssign}
         onUnassign={stewards.onUnassign}
-        onAddAndAssign={stewards.onAddAndAssign}
       />
       {volunteersLink}
     </div>

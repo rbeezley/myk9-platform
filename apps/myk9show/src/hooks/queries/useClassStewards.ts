@@ -7,7 +7,7 @@ import {
   useAssignToClass,
   useUnassignFromClass,
 } from './volunteerQueries';
-import { OPTIMISTIC_ID_PREFIX, useAddVolunteerAndAssign } from './volunteerStewardQueries';
+import { OPTIMISTIC_ID_PREFIX } from './volunteerStewardQueries';
 
 const EMPTY_VOLUNTEERS: Volunteer[] = [];
 const EMPTY_ASSIGNMENTS: ClassAssignment[] = [];
@@ -52,7 +52,6 @@ export function useClassStewards(showId: string) {
   const conflictMap = conflictsQuery.data ?? EMPTY_CONFLICTS;
   const assign = useAssignToClass(showId);
   const unassign = useUnassignFromClass(showId);
-  const addAndAssign = useAddVolunteerAndAssign(showId);
 
   const status = combine(loadStatus(volunteersQuery), loadStatus(assignmentsQuery));
   // The conflicts read runs only when a volunteer is linked to a person; with none it never
@@ -86,7 +85,5 @@ export function useClassStewards(showId: string) {
     onUnassign: (assignmentId: string) => {
       if (!assignmentId.startsWith(OPTIMISTIC_ID_PREFIX)) unassign.mutate(assignmentId);
     },
-    onAddAndAssign: (name: string, classId: string, roleName: string) =>
-      addAndAssign.mutate({ name, classId, roleName }),
   };
 }

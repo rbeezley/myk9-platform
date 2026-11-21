@@ -64,6 +64,7 @@ describe('BulkStewardDialog (MYK9-2328)', () => {
     expect(mutate).toHaveBeenCalledWith(
       {
         volunteerId: 'vol-2',
+        volunteerName: 'Tom Kennedy',
         roleName: 'Gate Steward',
         classIds: ['class-1', 'class-2', 'class-3'],
       },
@@ -121,15 +122,6 @@ describe('BulkStewardDialog (MYK9-2328)', () => {
     ).toBeInTheDocument();
   });
 
-  it('does not offer a walk-up still being added', () => {
-    stewards.current = {
-      ...stewards.current,
-      volunteers: [volunteer('vol-1', 'Sarah Miller'), volunteer('optimistic-x', 'Pat Lee')],
-    };
-    render(<BulkStewardDialog showId="show-1" classes={classes} open onOpenChange={vi.fn()} />);
-    expect(screen.queryByRole('button', { name: 'Pat Lee' })).not.toBeInTheDocument();
-  });
-
   it('cannot assign twice while the assignment is saving, but can still be closed', async () => {
     pending.current = true;
     const onOpenChange = vi.fn();
@@ -144,9 +136,7 @@ describe('BulkStewardDialog (MYK9-2328)', () => {
 
   it('closes and confirms when the assignment saves', async () => {
     const onOpenChange = vi.fn();
-    mutate.mockImplementation((_input, opts: { onSuccess: (n: number) => void }) =>
-      opts.onSuccess(3)
-    );
+    mutate.mockImplementation((_input, opts: { onSuccess: () => void }) => opts.onSuccess());
     const { user } = render(
       <BulkStewardDialog showId="show-1" classes={classes} open onOpenChange={onOpenChange} />
     );

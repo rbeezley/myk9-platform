@@ -12,8 +12,6 @@ interface ClassRingRolesProps {
   conflictIds: Set<string>;
   onAssign: (volunteerId: string, classId: string, roleName: string) => void;
   onUnassign: (assignmentId: string) => void;
-  /** Adds a typed name to the show's volunteer list and gives them this job (MYK9-2328). */
-  onAddAndAssign?: ((name: string, classId: string, roleName: string) => void) | undefined;
 }
 
 /**
@@ -28,7 +26,6 @@ export function ClassRingRoles({
   conflictIds,
   onAssign,
   onUnassign,
-  onAddAndAssign,
 }: ClassRingRolesProps) {
   return (
     <div className="space-y-1.5">
@@ -54,9 +51,6 @@ export function ClassRingRoles({
                 conflictIds={conflictIds}
                 roleLabel={role}
                 onAssign={volId => onAssign(volId, classId, role)}
-                {...(onAddAndAssign && {
-                  onAddNew: (name: string) => onAddAndAssign(name, classId, role),
-                })}
               />
             </div>
           </div>

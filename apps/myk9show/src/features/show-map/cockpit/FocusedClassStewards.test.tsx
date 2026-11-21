@@ -42,7 +42,6 @@ function ready(assignments: ClassAssignment[], conflictMap = new Map<string, Set
     conflictMap,
     onAssign: vi.fn(),
     onUnassign: vi.fn(),
-    onAddAndAssign: vi.fn(),
   };
 }
 
@@ -88,6 +87,17 @@ describe('FocusedClassStewards (MYK9-2328)', () => {
     ready([assignment({})], new Map([['vol-1', new Set(['class-1'])]]));
     render(<FocusedClassStewards showId="show-1" classId="class-1" />);
     expect(screen.getByTestId('volunteer-chip').querySelector('[title*="onflict"]')).not.toBeNull();
+  });
+
+  it('sends the secretary to the Volunteers page when the show has no volunteers', () => {
+    ready([]);
+    stewards.current = { ...stewards.current, volunteers: [] };
+    render(<FocusedClassStewards showId="show-1" classId="class-1" />);
+    expect(screen.getByRole('link', { name: 'Add them on the Volunteers page' })).toHaveAttribute(
+      'href',
+      '/secretary/volunteers?showId=show-1'
+    );
+    expect(screen.queryByRole('button', { name: /^Assign/ })).not.toBeInTheDocument();
   });
 
   it('says why the list is missing when it cannot load', () => {

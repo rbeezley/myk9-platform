@@ -11,11 +11,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { notifications } from '@/lib/notifications';
 import { RING_ROLES, type RingRole } from '@/types/volunteer';
 import { useClassStewards } from '@/hooks/queries/useClassStewards';
 import {
-  OPTIMISTIC_ID_PREFIX,
   classesNeedingAssignment,
   useAssignToClasses,
 } from '@/hooks/queries/volunteerStewardQueries';
@@ -51,12 +49,9 @@ export function BulkStewardDialog({
   const [volunteerId, setVolunteerId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
-  // A walk-up still being added has no row to assign yet.
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return stewards.volunteers.filter(
-      v => !v.id.startsWith(OPTIMISTIC_ID_PREFIX) && (!q || v.name.toLowerCase().includes(q))
-    );
+    return stewards.volunteers.filter(v => !q || v.name.toLowerCase().includes(q));
   }, [stewards.volunteers, search]);
   const chosen = stewards.volunteers.find(v => v.id === volunteerId) ?? null;
   const classIds = classes.map(cls => cls.id);
@@ -84,17 +79,8 @@ export function BulkStewardDialog({
   const confirm = () => {
     if (!chosen || toAssign.length === 0) return;
     assignMany.mutate(
-      { volunteerId: chosen.id, roleName: role, classIds },
-      {
-        onSuccess: count => {
-          notifications.success(
-            count === 0
-              ? `${chosen.name} already had this job in those classes.`
-              : `${chosen.name} is ${role} for ${count} ${count === 1 ? 'class' : 'classes'}.`
-          );
-          onOpenChange(false);
-        },
-      }
+      { volunteerId: chosen.id, volunteerName: chosen.name, roleName: role, classIds },
+      { onSuccess: () => onOpenChange(false) }
     );
   };
 

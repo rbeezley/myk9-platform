@@ -4,7 +4,6 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { Volunteer } from '@/types/volunteer';
-import { OPTIMISTIC_ID_PREFIX } from '@/hooks/queries/volunteerStewardQueries';
 
 interface AssignVolunteerPopoverProps {
   volunteers: Volunteer[];
@@ -13,27 +12,15 @@ interface AssignVolunteerPopoverProps {
   onAssign: (volunteerId: string) => void;
   /** The job being filled ("Table Steward"); names the trigger for a screen reader. */
   roleLabel?: string | undefined;
-  /**
-   * MYK9-2328: offers to add the typed name to the show's volunteer list (as a walk-up) and give
-   * them this job, so the picker works where Add Volunteer is not on screen.
-   */
-  onAddNew?: ((name: string) => void) | undefined;
 }
 
 /**
  * Why the picker is empty (MYK9-1726). Volunteers come only from the show's list, filled by
  * Add Volunteer at the top of the Volunteers page, so an empty list points there.
  */
-function emptyMessage(
-  volunteers: Volunteer[],
-  excludeIds: string[],
-  search: string,
-  canAddNew: boolean
-): string {
+function emptyMessage(volunteers: Volunteer[], excludeIds: string[], search: string): string {
   if (volunteers.length === 0)
-    return canAddNew
-      ? 'No volunteers yet. Type a name to add one.'
-      : 'No volunteers yet. Add people with Add Volunteer at the top of this page.';
+    return 'No volunteers yet. Add people with Add Volunteer at the top of this page.';
   const excluded = new Set(excludeIds);
   if (volunteers.every(v => excluded.has(v.id))) {
     return 'All your volunteers already have this job.';
@@ -47,7 +34,6 @@ export function AssignVolunteerPopover({
   conflictIds,
   onAssign,
   roleLabel,
-  onAddNew,
 }: AssignVolunteerPopoverProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -56,30 +42,14 @@ export function AssignVolunteerPopover({
     const excludeSet = new Set(excludeIds);
     const q = search.toLowerCase();
     return volunteers
-      .filter(v => !excludeSet.has(v.id) && !v.id.startsWith(OPTIMISTIC_ID_PREFIX))
+      .filter(v => !excludeSet.has(v.id))
       .filter(v => !search || v.name.toLowerCase().includes(q));
   }, [volunteers, excludeIds, search]);
 
-  // A typed name that is not already on the list can be added (MYK9-2328).
-  const typedName = search.trim();
-  const canAddTyped =
-    onAddNew !== undefined &&
-    typedName.length > 0 &&
-    !volunteers.some(v => v.name.trim().toLowerCase() === typedName.toLowerCase());
-
-  function close() {
-    setOpen(false);
-    setSearch('');
-  }
-
   function handleSelect(volunteerId: string) {
     onAssign(volunteerId);
-    close();
-  }
-
-  function handleAddNew() {
-    onAddNew?.(typedName);
-    close();
+    setOpen(false);
+    setSearch('');
   }
 
   return (
@@ -102,9 +72,9 @@ export function AssignVolunteerPopover({
           className="mb-2 h-8 text-sm"
         />
         <div className="max-h-48 overflow-y-auto">
-          {filtered.length === 0 && !canAddTyped && (
+          {filtered.length === 0 && (
             <p className="px-1 py-2 text-center text-sm text-muted-foreground">
-              {emptyMessage(volunteers, excludeIds, search, onAddNew !== undefined)}
+              {emptyMessage(volunteers, excludeIds, search)}
             </p>
           )}
           {filtered.map(vol => (
@@ -126,17 +96,6 @@ export function AssignVolunteerPopover({
               )}
             </button>
           ))}
-          {canAddTyped && (
-            <button
-              type="button"
-              data-testid="volunteer-add-new"
-              onClick={handleAddNew}
-              className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent"
-            >
-              <Plus className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-              <span className="truncate">Add &ldquo;{typedName}&rdquo; as a volunteer</span>
-            </button>
-          )}
         </div>
       </PopoverContent>
     </Popover>

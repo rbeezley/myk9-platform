@@ -111,6 +111,7 @@ export function GazetteLandingPage({
           trialStartDate={data.trialStartDate}
           trialEndDate={data.trialEndDate}
           timezone={data.timezone}
+          canEnterOnline={canEnterOnline}
         />
 
         <ParticularsSection

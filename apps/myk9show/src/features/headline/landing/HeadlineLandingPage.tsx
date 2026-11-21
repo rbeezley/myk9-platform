@@ -318,7 +318,16 @@ function Particulars({ data }: { data: HeritageLandingData }) {
   );
 }
 
-function Roster({ data }: { data: HeritageLandingData }) {
+function Roster({
+  data,
+  canEnterOnline,
+  entryClosed,
+}: {
+  data: HeritageLandingData;
+  canEnterOnline: boolean;
+  entryClosed: boolean;
+}) {
+  const pending = usePendingEntryCopy();
   const hasLimit = typeof data.entryLimit === 'number' && data.entryLimit > 0;
   const pct = entryCapacityPercent(data.entryCount, data.entryLimit);
 
@@ -375,7 +384,15 @@ function Roster({ data }: { data: HeritageLandingData }) {
                 <tr>
                   <th>Status</th>
                   <td>
-                    <span className="accent">Open</span> · accepting entries
+                    {canEnterOnline ? (
+                      <>
+                        <span className="accent">Open</span> · accepting entries
+                      </>
+                    ) : entryClosed ? (
+                      'Closed'
+                    ) : (
+                      pending.nav
+                    )}
                   </td>
                 </tr>
                 <tr>
@@ -461,7 +478,7 @@ export function HeadlineLandingPage({
         <RecordingFeeSection statement={data.recordingFee} className="hd-section" />
         <ScoutingStatementSection statement={data.scoutingStatement} className="hd-section" />
         <PremiumDownloadSection show={show} className="hd-section" />
-        <Roster data={data} />
+        <Roster data={data} canEnterOnline={canEnterOnline} entryClosed={entryClosed} />
         <ScheduleAndPlan data={data} />
         <Officers data={data} />
         <OfferedClassesSection show={show} className="hd-section" />

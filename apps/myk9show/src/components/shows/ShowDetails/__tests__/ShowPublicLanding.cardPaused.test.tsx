@@ -17,6 +17,10 @@ vi.mock('@/lib/supabase', async importOriginal => {
     ),
   };
 });
+vi.mock('@/features/payments/ServiceFeeNote', () => ({
+  useServiceFeeLabel: () => '7%',
+  ServiceFeeNote: () => <span>Plus a 7% service fee when you pay online.</span>,
+}));
 vi.mock('@/features/heritage/landing/HeritageLandingPage', () => ({
   HeritageLandingPage: ({ entryPendingReason }: { entryPendingReason?: string }) => {
     const copy = usePendingEntryCopy();
@@ -101,6 +105,39 @@ describe('ShowPublicLanding card entries (MYK9-2192)', () => {
     );
     expect(rpc).not.toHaveBeenCalled();
     expect(screen.queryByRole('note', { name: 'Card payments paused' })).not.toBeInTheDocument();
+  });
+
+  it('asks, and withholds Enter, when the inventory is unresolved even if the row lists no classes', () => {
+    rpc.mockReturnValue(new Promise(() => undefined));
+    const show = { ...openShow(true), trials: [{ id: 't1', classes: [] }] } as unknown as Show;
+    render(
+      <ShowPublicLanding
+        show={show}
+        landingTrials={[]}
+        hasEntryClassInventory={null}
+        entryPendingReason={undefined}
+      />
+    );
+    expect(rpc).toHaveBeenCalled();
+    expect(screen.getByTestId('reason')).toHaveTextContent('card_entries_checking');
+  });
+
+  it('hides the online service fee note while card entries are paused, card-only or not', async () => {
+    rpc.mockResolvedValue({ data: ['show-1'], error: null });
+    const first = renderLanding(openShow(false));
+    await screen.findByText('Card entries are paused. Contact the secretary.');
+    expect(screen.queryByText(/service fee when you pay online/)).not.toBeInTheDocument();
+    first.unmount();
+    renderLanding(openShow(true));
+    await screen.findByText('Card payments are paused. Pay by check or cash.');
+    expect(screen.queryByText(/service fee when you pay online/)).not.toBeInTheDocument();
+  });
+
+  it('keeps the online service fee note when card entries are open', async () => {
+    rpc.mockResolvedValue({ data: [], error: null });
+    renderLanding(openShow(true));
+    await screen.findByText('enter-open');
+    expect(screen.getByText(/service fee when you pay online/)).toBeInTheDocument();
   });
 
   it('withholds Enter when the request fails', async () => {

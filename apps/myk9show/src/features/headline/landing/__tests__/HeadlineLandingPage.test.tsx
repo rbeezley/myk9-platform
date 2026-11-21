@@ -4,7 +4,7 @@ import { render } from '@/test/utils/testUtils';
 import { HeadlineLandingPage } from '../HeadlineLandingPage';
 import { mockViewportWidth } from '@/test/utils/mockViewportWidth';
 import { PendingEntryCopyProvider } from '@/features/_shared/landing/PendingEntryCopyContext';
-import { NO_CLASSES_COPY } from '@/features/_shared/landing/pendingEntryCopy';
+import { CARD_PAUSED_COPY, NO_CLASSES_COPY } from '@/features/_shared/landing/pendingEntryCopy';
 import { ShowHasHappenedContext } from '@/features/_shared/landing/lateEntryContactContext';
 
 const landingDataState = vi.hoisted(() => ({
@@ -244,7 +244,7 @@ describe('HeadlineLandingPage', () => {
     expect(wizardLinks).toHaveLength(0);
 
     // Fallback copy is shown instead.
-    expect(screen.getByText('Classes pending')).toBeTruthy();
+    expect(screen.getAllByText('Classes pending')).toHaveLength(2);
     expect(
       screen.getByText('Entries are not available yet because no classes are assigned yet.')
     ).toBeTruthy();
@@ -368,5 +368,22 @@ describe('HeadlineLandingPage - final section says why entry is unavailable once
         'The secretary still needs to assign classes before online entry is available.'
       )
     ).toHaveLength(1);
+  });
+});
+
+describe('HeadlineLandingPage — card entries paused (MYK9-2192)', () => {
+  it('makes no open-entries claim when card entries are paused', () => {
+    render(
+      <PendingEntryCopyProvider value={CARD_PAUSED_COPY}>
+        <HeadlineLandingPage
+          show={{ id: 'show-1', name: 'x' } as never}
+          trial={null}
+          allTrials={[]}
+          hasEntryClassInventory
+          entryPendingReason="card_entries_paused"
+        />
+      </PendingEntryCopyProvider>
+    );
+    expect(screen.queryByText(/accepting entries/)).not.toBeInTheDocument();
   });
 });

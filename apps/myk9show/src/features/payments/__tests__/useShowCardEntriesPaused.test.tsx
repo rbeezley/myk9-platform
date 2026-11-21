@@ -52,17 +52,41 @@ describe('useShowCardEntriesPaused', () => {
     await waitFor(() => expect(result.current).toBe('unknown'));
   });
 
-  it('keeps the last answer when a later refetch fails', async () => {
-    rpc.mockResolvedValueOnce({ data: ['s1'], error: null });
+  it('is unknown when a later refetch fails after an open answer', async () => {
+    rpc.mockResolvedValueOnce({ data: [], error: null });
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const local = ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={client}>{children}</QueryClientProvider>
     );
     const { result } = renderHook(() => useShowCardEntriesPaused(cardOnly), { wrapper: local });
-    await waitFor(() => expect(result.current).toBe('paused'));
+    await waitFor(() => expect(result.current).toBe('open'));
     rpc.mockResolvedValueOnce({ data: null, error: new Error('flaky') });
     await client.refetchQueries({ queryKey: ['show-card-entries-paused', 's1'] });
-    expect(result.current).toBe('paused');
+    await waitFor(() => expect(result.current).toBe('unknown'));
+  });
+
+  it('never reads an answer cached from an earlier visit as open before this visit reads', async () => {
+    rpc.mockResolvedValueOnce({ data: [], error: null });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const local = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    const first = renderHook(() => useShowCardEntriesPaused(cardOnly), { wrapper: local });
+    await waitFor(() => expect(first.result.current).toBe('open'));
+    first.unmount();
+
+    rpc.mockResolvedValueOnce({ data: null, error: new Error('offline-ish') });
+    const seen: string[] = [];
+    const second = renderHook(
+      () => {
+        const state = useShowCardEntriesPaused(cardOnly);
+        seen.push(state);
+        return state;
+      },
+      { wrapper: local }
+    );
+    await waitFor(() => expect(second.result.current).toBe('unknown'));
+    expect(seen).not.toContain('open');
   });
 
   it('is unknown while offline', () => {

@@ -1,5 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import {
+  GUEST_READ_QUERY_OPTIONS,
+  resolveGuestRead,
+  useQueryOnlineStatus,
+} from '@/hooks/guestServerRead';
 import { isPublicShowStatus } from './onlineEntryGate';
 
 /**
@@ -25,12 +30,11 @@ export function takesCheckOrCash(show: PaymentMethodShow | null | undefined): bo
   return (show?.acceptCheckPayments ?? true) || (show?.acceptCashPayments ?? true);
 }
 
-const STALE_MS = 60 * 1000;
-
 /**
  * Whether this one show's card entries are paused (shows_card_entries_paused, the answer an
  * anonymous caller may read and the same predicate checkout's refusal rests on). Online-only:
- * a failed or offline read is `unknown`, not `open`. A show that is not public is never asked
+ * a failed or offline read is `unknown`, not `open`, and an answer cached from an earlier visit
+ * never counts: only a read that completed since THIS mount does (guestServerRead.ts). A show that is not public is never asked
  * about and reads `open` (nothing to pause).
  */
 export function useShowCardEntriesPaused(
@@ -39,6 +43,7 @@ export function useShowCardEntriesPaused(
 ): ShowCardEntriesState {
   const showId = show.id;
   const asked = enabled && showId !== undefined && isPublicShowStatus(show.status);
+  const isOnline = useQueryOnlineStatus();
   const query = useQuery({
     queryKey: ['show-card-entries-paused', showId],
     queryFn: async () => {
@@ -49,15 +54,14 @@ export function useShowCardEntriesPaused(
       return (data ?? []).includes(showId as string);
     },
     enabled: asked,
-    staleTime: STALE_MS,
+    ...GUEST_READ_QUERY_OPTIONS,
     retry: false,
   });
   if (!asked) return 'open';
-  // A failed background refetch keeps the last answer; only a show never answered is unknown.
-  if (query.data !== undefined) return query.data ? 'paused' : 'open';
-  if (query.isError) return 'unknown';
-  // Offline: the request is parked, not in flight, so it will not answer soon.
-  return query.fetchStatus === 'paused' ? 'unknown' : 'loading';
+  const read = resolveGuestRead(query, isOnline);
+  if (read.kind === 'loading') return 'loading';
+  if (read.kind !== 'ready') return 'unknown';
+  return read.data ? 'paused' : 'open';
 }
 
 export type CardEntriesLanding = {

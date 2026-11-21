@@ -106,16 +106,16 @@ export function ShowPublicLanding({
   // MYK9-2192: the server's answer on card entries (anon-readable), so this page and the
   // checkout refusal cannot disagree. Enter waits for it; it never reads loading as open.
   // Asked only while Enter could be offered: a closed or finished show has nothing to pause.
-  const entryStatusNow = getEntryStatus(show).status;
-  const cardLanding = cardEntriesLanding(
-    useShowCardEntriesPaused(
-      show,
-      // A show with no classes yet says so instead; there is nothing to pay for.
-      hasEntryClassInventory !== false &&
-        (entryStatusNow === 'accepting' || entryStatusNow === 'closing_soon')
-    ),
-    show
+  // The inventory is the landing's own (null while unresolved counts as "could be offered"),
+  // the same input the styled landing gates Enter on, so skipping the ask never enables Enter.
+  const entryStatusNow = getEntryStatus(show, false, {
+    hasEntryClassInventory: hasEntryClassInventory !== false,
+  }).status;
+  const cardState = useShowCardEntriesPaused(
+    show,
+    entryStatusNow === 'accepting' || entryStatusNow === 'closing_soon'
   );
+  const cardLanding = cardEntriesLanding(cardState, show);
 
   // Public visitors render the last published experience. Managers in Preview
   // intentionally render the current draft instead; changing the draft must
@@ -263,7 +263,7 @@ export function ShowPublicLanding({
           met on its third step. Every landing style prints its own fee rows,
           so the one line lives here, above all of them, and only where an
           exhibitor could still enter online and the live rate is read. */}
-      {showServiceFee && (
+      {showServiceFee && cardState !== 'paused' && (
         <div
           className="border-b border-border bg-muted px-4 py-3 text-sm text-foreground sm:px-6"
           role="note"

@@ -8,9 +8,9 @@
 }
 /* The last step ends the section: the next section's own top padding is the only gap, so
    the "Built by the team" heading is reached in one scroll of step 6. */
-.landing-v2 .lc-row[data-last='true'] .lc-main,
-.landing-v2 .lc-row[data-last='true'] .lc-media,
-.landing-v2 .lc-row[data-last='true'] .lc-scene {
+.landing-v2 .lc-row[data-last='true'] .lc-scene,
+.landing-v2 .lc-row[data-last='true']:not([data-scene]) .lc-main,
+.landing-v2 .lc-row[data-last='true']:not([data-scene]) .lc-media {
   padding-bottom: 0;
 }
 .landing-v2 .lc-head {
@@ -90,6 +90,21 @@
   grid-column: 1 / -1;
   min-width: 0;
   padding-bottom: 2.5rem;
+}
+/* Mid widths (a tablet held upright, a half-width window): two columns would leave the demos
+   and the explainer about 300px. The still or demo goes under the words instead, above any
+   scene. */
+@container lc-timeline (min-width: 768px) and (max-width: 959px) {
+  .landing-v2 .lc-row[data-media='true'] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .landing-v2 .lc-media {
+    grid-row: 2;
+    grid-column: 1;
+  }
+  .landing-v2 .lc-scene {
+    grid-row: 3;
+  }
 }
 .landing-v2 .lc-step-title {
   font-family: 'Playfair Display', serif;

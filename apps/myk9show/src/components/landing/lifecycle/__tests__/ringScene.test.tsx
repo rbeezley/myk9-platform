@@ -160,7 +160,16 @@ describe('the ring scene on the page', () => {
         <LifecycleTimeline audience={audience} onAudienceChange={vi.fn()} />
       );
       expect(container.querySelectorAll('.lc-meanwhile-text')).toHaveLength(6);
-      expect(container.querySelectorAll('.lc-main img')).toHaveLength(0);
+      // A still lives only in the step's one media slot (its own side), never beside the
+      // meanwhile line; scene captures live inside their scene.
+      for (const row of container.querySelectorAll('.lc-row')) {
+        for (const img of row.querySelectorAll('img, .lc-shot')) {
+          expect(img.closest('.lc-media, .tl-scene')).not.toBeNull();
+        }
+        expect(row.querySelectorAll('.lc-media')).toHaveLength(
+          row.hasAttribute('data-media') ? 1 : 0
+        );
+      }
       unmount();
     }
   });

@@ -66,6 +66,7 @@ export function TimelineStep({
       data-peak={step.peak ? 'true' : undefined}
       data-last={isLast ? 'true' : undefined}
       data-media={media ? 'true' : undefined}
+      data-scene={sceneId ? 'true' : undefined}
       data-revealed={revealed ? 'true' : 'false'}
     >
       <div className="lc-main">

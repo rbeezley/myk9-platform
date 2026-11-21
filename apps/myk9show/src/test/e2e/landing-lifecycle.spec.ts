@@ -451,8 +451,8 @@ for (const vp of VIEWPORTS) {
           page.evaluate(() => {
             const rows = document.querySelectorAll('.lc-row');
             const last = rows[rows.length - 1]!;
-            const end = last.lastElementChild!.getBoundingClientRect();
-            return last.getBoundingClientRect().bottom - end.bottom;
+            const end = Math.max(...[...last.children].map(c => c.getBoundingClientRect().bottom));
+            return last.getBoundingClientRect().bottom - end;
           })
         )
         .toBeCloseTo(0, 0);
@@ -517,6 +517,41 @@ test.describe('reduced motion', () => {
 
 // Wide screens put the photo beside the copy in a tall frame (both dogs whole, not a short
 // band cropped to their faces); narrower screens keep the full-width band above the copy.
+// MYK9-2327 review: at a tablet held upright, two columns would leave a still or demo about
+// 300px. Between 768 and 960 the still or demo goes under the words, at full width.
+test('on a tablet held upright, a still or demo sits under the words at full width', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 820, height: 1180 });
+  await openLanding(page);
+  for (const audience of ['I’m running a show', 'I’m entering a show']) {
+    await page.getByRole('button', { name: audience }).click();
+    await scrollToBottom(page);
+    const report = await page.evaluate(() => ({
+      scrollWidth: document.documentElement.scrollWidth,
+      rows: [...document.querySelectorAll<HTMLElement>('.lc-row[data-media="true"]')].map(row => {
+        const main = row.querySelector('.lc-main')!.getBoundingClientRect();
+        const media = row.querySelector('.lc-media')!.getBoundingClientRect();
+        const scene = row.querySelector('.lc-scene')?.getBoundingClientRect();
+        return {
+          id: row.id,
+          belowWords: media.top >= main.bottom - 1,
+          mediaWidth: media.width,
+          mainWidth: main.width,
+          sceneBelow: scene ? scene.top >= media.bottom - 1 : true,
+        };
+      }),
+    }));
+    expect(report.scrollWidth, `${audience}: no sideways scroll`).toBeLessThanOrEqual(820);
+    expect(report.rows.length).toBeGreaterThan(0);
+    for (const r of report.rows) {
+      expect(r.belowWords, `${audience} ${r.id}: media under the words`).toBe(true);
+      expect(r.mediaWidth, `${audience} ${r.id}: media full width`).toBeCloseTo(r.mainWidth, 0);
+      expect(r.sceneBelow, `${audience} ${r.id}: scene under the media`).toBe(true);
+    }
+  }
+});
+
 test('hero: photo beside the copy on wide screens, band above it below 1100px', async ({
   page,
 }, testInfo) => {

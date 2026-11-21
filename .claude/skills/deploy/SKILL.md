@@ -30,7 +30,7 @@ Exit 0: proceed, then leave the record the standing-approvals table names on the
 
 ## Deploying edge functions
 
-CLI 3.x (MYK9-1664): hosted targets need `--remote` (`--project-ref` and `--linked` are deprecated; `functions deploy`, `db push` and `migration list` default to local or refuse without it), and any command that changes a hosted project fails unattended without `--yes`. Pass `--yes` only after the owner confirmation this skill already requires.
+CLI 3.x (MYK9-1664): `functions deploy`, `list` and `download` are remote-only and default to the linked project, so pass `--remote=<ref>` (the deprecated `--project-ref` still works) to name the target explicitly; write it with `=`, because `--remote <ref>` fails with `TargetRemoteAmbiguousError`. `db push`, `migration list` and `gen types` default to the local stack and need `--remote`. Any command that changes a hosted project fails unattended without `--yes`. Pass `--yes` only after the owner confirmation this skill already requires.
 
 ```bash
 # Root-level functions live in supabase/functions/

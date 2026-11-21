@@ -16,10 +16,17 @@ export function parseSupabaseFunctionList(output: string): string[] {
   if (!trimmed) return [];
 
   try {
-    const parsed = JSON.parse(trimmed);
-    if (Array.isArray(parsed)) {
+    const parsed: unknown = JSON.parse(trimmed);
+    const entries = Array.isArray(parsed)
+      ? parsed
+      : parsed &&
+          typeof parsed === 'object' &&
+          Array.isArray((parsed as { functions?: unknown }).functions)
+        ? (parsed as { functions: unknown[] }).functions
+        : null;
+    if (entries) {
       return uniqueInOrder(
-        parsed.flatMap(entry => {
+        entries.flatMap(entry => {
           if (!entry || typeof entry !== 'object') return [];
           const record = entry as Record<string, unknown>;
           const name = record.slug ?? record.name;
@@ -117,6 +124,11 @@ function uniqueInOrder(items: string[]): string[] {
   return [...new Set(items)];
 }
 
+/** CLI 3.x: `functions list` is remote-only; `-o json` keeps the output parseable. */
+export function functionListArgs(projectRef: string | undefined): string[] {
+  return ['functions', 'list', projectRef ? `--remote=${projectRef}` : '--remote', '-o', 'json'];
+}
+
 function readDeployedFunctions(): string[] {
   const outputPathArg = process.argv.find(arg => arg.startsWith('--cli-output='));
   if (outputPathArg) {
@@ -130,11 +142,7 @@ function readDeployedFunctions(): string[] {
     return parseSupabaseFunctionList(readFileSync(outputPath, 'utf8'));
   }
 
-  const projectRef = process.env.SUPABASE_PROJECT_REF;
-  const args = projectRef
-    ? ['functions', 'list', `--remote=${projectRef}`]
-    : ['functions', 'list', '--remote'];
-  const output = execFileSync('supabase', args, {
+  const output = execFileSync('supabase', functionListArgs(process.env.SUPABASE_PROJECT_REF), {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
   });

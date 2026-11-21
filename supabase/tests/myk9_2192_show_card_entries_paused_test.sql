@@ -1,5 +1,5 @@
 -- MYK9-2192: public.shows_card_entries_paused(p_show_ids)
--- (20261121174500_myk9_2192_show_card_entries_paused.sql).
+-- (20261121204900_myk9_2192_show_card_entries_paused.sql).
 --
 --   0. Wiring: anon and authenticated may execute it; PUBLIC may not.
 --   1. A published show whose club has no payout account: true, for anon.

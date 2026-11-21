@@ -191,3 +191,46 @@ test('phone 390px: class row running order is one line, no dangling separator, R
     }
   }
 });
+
+/**
+ * MYK9-2325: the same dangling-separator fix as MYK9-2314, on the "Show day is
+ * here" banner and the show header lines. At 390px no line of either may start
+ * or end on a "·"; with no glyph left in either, none can, so the check is that
+ * neither holds one.
+ */
+test('phone 390px: show header and show-day banner have no separator glyphs', async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await signInAsExhibitor(page, '/exhibitor/entries');
+  await page.goto('/exhibitor/entries', { waitUntil: 'networkidle' });
+  await expect(page.getByRole('heading', { name: 'My Shows', level: 1 })).toBeVisible({
+    timeout: 15_000,
+  });
+
+  const metas = page.locator('.myk9-entries-show-meta');
+  expect(await metas.count(), 'seeded exhibitor needs a show header').toBeGreaterThan(0);
+  const metaTexts = await metas.allTextContents();
+  for (const text of metaTexts) {
+    expect(text.includes('·'), `show header meta holds a separator glyph: "${text}"`).toBe(false);
+  }
+
+  const banner = page.locator(
+    'section[aria-label="Show today"], section[aria-label="Shows today"]'
+  );
+  if ((await banner.count()) === 0) {
+    test.info().annotations.push({
+      type: 'skipped-assertion',
+      description: 'No show-day banner for the seeded exhibitor today; banner check not exercised.',
+    });
+    return;
+  }
+  // The show's own name may hold a "·" (the seeded fixture's does), so check the separator spans
+  // and the facts line, not the whole banner text.
+  const glyphs = await banner.first().locator('span[aria-hidden="true"]').allTextContents();
+  expect(
+    glyphs.filter(t => t.trim() === '·'),
+    'banner separator spans'
+  ).toEqual([]);
+  const facts = (await banner.first().locator('p').allTextContents()).join(' ');
+  expect(facts.includes('·'), `banner facts line holds a separator glyph: "${facts}"`).toBe(false);
+});

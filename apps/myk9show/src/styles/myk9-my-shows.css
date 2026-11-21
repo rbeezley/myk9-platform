@@ -87,7 +87,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  /* No "·" separators between the facts: a wrapped line would start or end on one. */
+  gap: 4px 16px;
   margin: 0;
   font-size: 0.875rem;
   color: var(--muted-foreground);

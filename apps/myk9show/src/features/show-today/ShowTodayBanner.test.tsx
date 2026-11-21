@@ -70,6 +70,8 @@ describe('ShowTodayBanner', () => {
     // fill in dark mode, under the 4.5:1 AA floor for body text.
     expect(screen.getByText('First class 8:30 AM').parentElement).toHaveClass('text-foreground');
     expect(screen.getByText('1 entry')).toBeInTheDocument();
+    // MYK9-2325: a glyph separator dangles at a wrapped line end; spacing is a gap.
+    expect(banner.textContent).not.toContain('·');
 
     fireEvent.click(screen.getByRole('button', { name: /go to show day/i }));
 

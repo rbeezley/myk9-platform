@@ -89,6 +89,14 @@ describe('My Shows card facts', () => {
     expect(fetchShowsJudgeNameParts).toHaveBeenCalledWith(['show-1']);
   });
 
+  it('puts no separator glyph in the show header lines (MYK9-2325)', async () => {
+    const { container } = renderRows([showRow()]);
+    await screen.findByText('Heartland Scent Work Classic');
+    const metas = container.querySelectorAll('.myk9-entries-show-meta');
+    expect(metas.length).toBeGreaterThan(0);
+    for (const meta of metas) expect(meta.textContent).not.toContain('·');
+  });
+
   it('renders no judge text for a class whose judge is unknown', async () => {
     vi.mocked(fetchShowsJudgeNameParts).mockResolvedValue(new Map([['show-1', new Map()]]));
     renderRows([showRow()]);

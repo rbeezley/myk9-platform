@@ -196,11 +196,9 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
           </h3>
           <p className="myk9-entries-show-meta">
             {countdown && <span className="font-semibold text-foreground">{countdown}</span>}
-            {countdown && dateRange && <span aria-hidden="true">·</span>}
             {dateRange && <span>{dateRange}</span>}
             {placeLabel && !street && (
               <>
-                <span aria-hidden="true">·</span>
                 {directionsUrl ? (
                   <a
                     href={directionsUrl}
@@ -218,7 +216,6 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
             )}
             {money.kind === 'settled' && (
               <>
-                <span aria-hidden="true">·</span>
                 <span className="inline-flex items-center gap-1">
                   <Check className="h-3.5 w-3.5" aria-hidden="true" />
                   Paid
@@ -227,19 +224,16 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
             )}
             {money.kind === 'pay-at-show' && (
               <>
-                <span aria-hidden="true">·</span>
                 <span>Pay at show</span>
               </>
             )}
             {editableOrders.length > 0 && group.entryCloseDate && (
               <>
-                <span aria-hidden="true">·</span>
                 <span>Entries close {formatShortCalendarDate(group.entryCloseDate)}</span>
               </>
             )}
             {needsPostDeadlineHelp && (
               <>
-                <span aria-hidden="true">·</span>
                 <span>Entries closed</span>
               </>
             )}

@@ -665,7 +665,7 @@ describe('ShowEditPremiumTab unsaved organization (MYK9-2213)', () => {
           coverImageUrl: null,
           hospitalityNotes: null,
           awardsDescription: null,
-          additionalNotes: null,
+          additionalNotes: 'AKC notes.',
         },
       },
       premiumPath: 'show-1/artifact-1.pdf',
@@ -712,6 +712,7 @@ describe('ShowEditPremiumTab unsaved organization (MYK9-2213)', () => {
           ...published,
           org: 'UKC',
           narratives: { showHours: 'UKC hours.', trialInformation: 'UKC info.' },
+          supplemental: { ...published.supplemental, additionalNotes: 'UKC notes.' },
         },
         isLoading: false,
       };
@@ -730,6 +731,7 @@ describe('ShowEditPremiumTab unsaved organization (MYK9-2213)', () => {
         org: 'UKC',
         templateId: null,
         narratives: { showHours: 'UKC hours.', trialInformation: 'UKC info.' },
+        supplemental: { additionalNotes: 'UKC notes.' },
       });
     });
 

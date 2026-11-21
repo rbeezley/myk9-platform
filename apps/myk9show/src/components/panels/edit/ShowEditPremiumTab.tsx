@@ -98,7 +98,11 @@ export function ShowEditPremiumTab({
       return {
         ...applyEditorCopyToPremium(serverFacts, {
           style: data.style || 'monogram',
-          supplemental: publishedContent.supplemental,
+          // MYK9-2216: a snapshot built for another organization carries nothing over.
+          supplemental:
+            publishedContent.org === showOrg
+              ? publishedContent.supplemental
+              : serverFacts.supplemental,
           // The server's narratives already keep a non-blank published edit and fill a blank or
           // legacy-placeholder section, and drop text built for another organization (MYK9-2216);
           // the local snapshot is only the offline fallback below.

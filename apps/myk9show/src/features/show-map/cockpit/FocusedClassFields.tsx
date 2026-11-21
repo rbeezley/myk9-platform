@@ -22,9 +22,17 @@ import type {
   SecretaryCockpitTrial,
 } from './secretaryCockpitTypes';
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({
+  label,
+  children,
+  className,
+}: {
+  label: string;
+  children: ReactNode;
+  className?: string;
+}) {
   return (
-    <div className="min-w-0">
+    <div className={className ?? 'min-w-0'}>
       <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd className="min-w-0 text-sm">{children}</dd>
     </div>
@@ -147,6 +155,7 @@ export function FocusedClassFields({
   canManageShow,
   judgeControl,
   scoringControl,
+  stewardControl,
   onEditActualStart,
 }: {
   focused: FocusedClassModel;
@@ -156,6 +165,8 @@ export function FocusedClassFields({
   canManageShow: boolean;
   judgeControl?: ReactNode;
   scoringControl?: ReactNode;
+  /** The class's ring jobs from the volunteer list (MYK9-2328). Managers only. */
+  stewardControl?: ReactNode;
   onEditActualStart: () => void;
 }) {
   const timing = actualTimingText(focused, sourceClass.lifecycle, timeZone);
@@ -169,6 +180,11 @@ export function FocusedClassFields({
       </Field>
       {judgeControl && <Field label="Judge">{judgeControl}</Field>}
       {scoringControl && <Field label={SCORING_COPY.fieldLabel}>{scoringControl}</Field>}
+      {stewardControl && (
+        <Field label="Stewards" className="min-w-0 basis-full">
+          {stewardControl}
+        </Field>
+      )}
       <Field label="Expected start">
         <ExpectedStartField
           focused={focused}

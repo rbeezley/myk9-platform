@@ -18,6 +18,7 @@ import {
   useAssignToGeneralDuty,
   useUnassignFromGeneralDuty,
 } from '@/hooks/queries/volunteerQueries';
+import { useAddVolunteerAndAssign } from '@/hooks/queries/volunteerStewardQueries';
 import { VolunteerPool } from '@/components/volunteers/VolunteerPool';
 import { VolunteerDialog } from '@/components/volunteers/VolunteerDialog';
 import { ClassVolunteerCard } from '@/components/volunteers/ClassVolunteerCard';
@@ -80,6 +81,7 @@ export default function VolunteerSchedulingPage() {
   const deleteVolunteer = useDeleteVolunteer();
   const assignToClass = useAssignToClass(activeShowId);
   const unassignFromClass = useUnassignFromClass(activeShowId);
+  const addAndAssign = useAddVolunteerAndAssign(activeShowId);
   const assignToGeneralDuty = useAssignToGeneralDuty(activeShowId);
   const unassignFromGeneralDuty = useUnassignFromGeneralDuty(activeShowId);
 
@@ -296,6 +298,9 @@ export default function VolunteerSchedulingPage() {
                       assignToClass.mutate({ volunteerId: volId, classId, roleName })
                     }
                     onUnassign={id => unassignFromClass.mutate(id)}
+                    onAddAndAssign={(name, classId, roleName) =>
+                      addAndAssign.mutate({ name, classId, roleName })
+                    }
                   />
                 ))}
               </div>

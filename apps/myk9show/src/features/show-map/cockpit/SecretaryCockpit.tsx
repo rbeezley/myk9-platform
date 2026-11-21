@@ -27,6 +27,7 @@ import { SecretaryCockpitFocusedClass } from './SecretaryCockpitFocusedClass';
 import { useFocusedClassSetupActions } from './FocusedClassSetupActions';
 import { useClassJudgeAssignment } from '@/components/classes/useClassJudgeAssignment';
 import { FocusedClassJudge } from './FocusedClassJudge';
+import { FocusedClassStewards } from './FocusedClassStewards';
 import { FocusedClassJudgeScoring, FocusedClassScoringField } from './FocusedClassScoringControls';
 import { judgeLockReason } from './focusedClassJudgeModel';
 import { CockpitResultsHandoff } from './CockpitResultsHandoff';
@@ -223,6 +224,9 @@ export function SecretaryCockpit({
               sourceClass={sourceClass}
               className={model.focusedClass.name}
             />
+          ),
+          stewardControl: (
+            <FocusedClassStewards showId={snapshot.showId} classId={sourceClass.id} />
           ),
         })}
       {...(canManageShow &&

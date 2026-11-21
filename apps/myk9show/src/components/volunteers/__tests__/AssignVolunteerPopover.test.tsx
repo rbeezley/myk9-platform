@@ -146,4 +146,38 @@ describe('AssignVolunteerPopover', () => {
     const walkUpLabels = screen.getAllByText(/walk-up/);
     expect(walkUpLabels.length).toBe(2);
   });
+
+  describe('adding a typed name (MYK9-2328)', () => {
+    it('names the job on the trigger', () => {
+      render(<AssignVolunteerPopover {...defaultProps} roleLabel="Gate Steward" />);
+      expect(screen.getByRole('button', { name: 'Assign Gate Steward' })).toBeInTheDocument();
+    });
+
+    it('offers to add a name that is not on the list, and passes it trimmed', async () => {
+      const onAddNew = vi.fn();
+      const { user } = render(<AssignVolunteerPopover {...defaultProps} onAddNew={onAddNew} />);
+      await user.click(screen.getByRole('button', { name: /assign/i }));
+      await user.type(screen.getByPlaceholderText(/search/i), '  Pat Lee ');
+      expect(screen.queryByText(/No volunteers match/)).not.toBeInTheDocument();
+      await user.click(screen.getByTestId('volunteer-add-new'));
+      expect(onAddNew).toHaveBeenCalledWith('Pat Lee');
+      expect(defaultProps.onAssign).not.toHaveBeenCalled();
+    });
+
+    it('does not offer to add a name already on the list, whatever its case', async () => {
+      const { user } = render(<AssignVolunteerPopover {...defaultProps} onAddNew={vi.fn()} />);
+      await user.click(screen.getByRole('button', { name: /assign/i }));
+      await user.type(screen.getByPlaceholderText(/search/i), 'sarah miller');
+      expect(screen.queryByTestId('volunteer-add-new')).not.toBeInTheDocument();
+      expect(screen.getByText('Sarah Miller')).toBeInTheDocument();
+    });
+
+    it('tells an empty list to type a name instead of pointing at Add Volunteer', async () => {
+      const { user } = render(
+        <AssignVolunteerPopover {...defaultProps} volunteers={[]} onAddNew={vi.fn()} />
+      );
+      await user.click(screen.getByRole('button', { name: /assign/i }));
+      expect(screen.getByText('No volunteers yet. Type a name to add one.')).toBeInTheDocument();
+    });
+  });
 });

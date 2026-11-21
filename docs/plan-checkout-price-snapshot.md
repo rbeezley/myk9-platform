@@ -41,6 +41,17 @@ Fulfilment then checks, in order: `sessionMatchesCart` (unchanged); the fresh `a
 
 **Recommendation: do nothing now.** Keep MYK9-2036 open at priority 4. Build the Stripe-line-item shape when either trigger appears: the first class gets its own fee, or a fee-rule change is about to ship. Before launch, one cheap check is worth doing on its own: confirm online entry closes before the show-day midnight, so the day-of tier cannot flip under an open checkout.
 
+## Constraints from review (Codex, PR #4308, 2026-11-21)
+
+If this is built, the shape above must also do all of these:
+
+1. **Bind each price to the entry it was sold for.** A cart line's class or junior-fee declaration can change after checkout starts while its `cart_item_id` stays the same. Snapshot the price-determining entry details with the price and verify them when the cart is claimed (or fulfil from the snapshot). Test: same cart-item id and amount, different entry details, is refused.
+2. **Sessions opened before the rollout keep today's check.** Version new sessions; an unversioned session (including one `resolveCheckoutSession` hands back) is verified the old way, never refused as "snapshot missing".
+3. **A failed Stripe read is not a missing snapshot.** A timeout or rate limit on `listLineItems` leaves the cart unclaimed so the webhook redelivers; only a successful read with wrong contents goes to the unfulfilled-charge path. Test: first read fails, redelivery fulfils, no refund request.
+4. **Compare each stored line fee with its snapshot line**, not stored fee against stored subtotal, so an owner editing both together (the $40 case) is refused, without consulting the current pricing rule.
+5. **A cart-specific reader over the raw expanded line items.** `readEntryPaymentLineItemFees` keys on `entry_id`, overwrites duplicates and drops unkeyed lines (the service fee), so it cannot prove one-to-one. The new reader also checks the service-fee line is absent when the computed fee is zero.
+6. **Midnight exposure is decided by session expiry, not entry close.** `stripe-checkout` checks the close date when the page opens but holds the session 31 minutes (`cartSpotHoldUntilEpoch`), so a page opened before midnight on the last pre-entry day can be paid after the tier change. Measure that window before deciding to defer.
+
 ## Testing phase
 
 All in `apps/myk9show/supabase/functions` vitest, driving the webhook's pure verification helper with injected Stripe line items:

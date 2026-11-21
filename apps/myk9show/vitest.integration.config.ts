@@ -16,7 +16,6 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
-      pako: path.resolve(__dirname, 'src/test/mocks/pako.ts'),
     },
   },
 });

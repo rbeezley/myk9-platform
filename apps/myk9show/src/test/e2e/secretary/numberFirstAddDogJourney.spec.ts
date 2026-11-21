@@ -184,12 +184,14 @@ test.describe('Number-first Add Dog: a held entry is listed, kept off Show Desk 
       });
       // Money received at the desk names its method (MYK9-677); the desk's one set of
       // payment choices names it on the card itself (MYK9-2020).
-      await page
+      const cash = page
         .getByRole('group', { name: 'Paid with the entry' })
-        .getByRole('button', { name: /^Cash received/ })
-        .click();
+        .getByRole('button', { name: /^Cash received/ });
+      await cash.click();
+      await expect(cash).toHaveAttribute('aria-pressed', 'true');
       await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-      // check(), not a click: the tick may already be set, and a click would clear it.
+      // check(), not a click: on a desk entry the tick can arrive already set (the 2026-11-16
+      // run's snapshot showed it checked), and a click would clear it.
       const agreement = page.getByRole('checkbox', { name: /entry agreement above/ });
       await expect(agreement).toBeVisible({ timeout: 10_000 });
       await agreement.check();

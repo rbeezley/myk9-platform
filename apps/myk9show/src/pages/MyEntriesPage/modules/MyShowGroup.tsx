@@ -188,7 +188,7 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
   return (
     <section aria-labelledby={`show-${group.key}`}>
       <div className="myk9-entries-show-header">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           {/* h3: the page's h1 is "My Shows" and the list sits under the "All
               entries" h2, so a show is the third level. */}
           <h3 id={`show-${group.key}`} className="myk9-entries-show-title">
@@ -254,7 +254,7 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
             below (a status banner keeps its own verb), Dismiss stays on the
             strip it dismisses, and leaving a class is a row verb on the class
             it acts on. */}
-        <div className="myk9-entries-show-actions">
+        <div className="myk9-entries-show-actions shrink-0">
           <MyShowActionsMenu
             showId={group.showId}
             showName={group.showName}

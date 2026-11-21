@@ -1,4 +1,4 @@
-import type { EntryPendingReason } from '@/utils/entryStatusUtils';
+import { getEntryStatus, type EntryPendingReason } from '@/utils/entryStatusUtils';
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { onlineManager } from '@tanstack/react-query';
 import { getShowStyle, getTrialTimezone } from '@/features/registries';
@@ -11,6 +11,10 @@ import { ShowStyleSaveError } from '@/features/premium/showStylePersistence';
 import { StaleShowNotice } from './StaleShowNotice';
 import { ServiceFeeNote, useServiceFeeLabel } from '@/features/payments/ServiceFeeNote';
 import { acceptsOnlineEntries } from '@/features/payments/onlineEntryGate';
+import {
+  cardEntriesLanding,
+  useShowCardEntriesPaused,
+} from '@/features/payments/useShowCardEntriesPaused';
 import { PendingEntryCopyProvider } from '@/features/_shared/landing/PendingEntryCopyContext';
 import { pendingEntryCopy } from '@/features/_shared/landing/pendingEntryCopy';
 import { ShowResultsSection } from '@/features/_shared/landing/ShowResultsSection';
@@ -99,6 +103,22 @@ export function ShowPublicLanding({
   // Unknown (a stale cached row) is never online-capable: no Enter CTA until known.
   const onlineEntriesOpen = acceptsOnlineEntries(show);
   const showServiceFee = useServiceFeeLabel(show) !== null;
+  // MYK9-2192: the server's answer on card entries (anon-readable), so this page and the
+  // checkout refusal cannot disagree. Enter waits for it; it never reads loading as open.
+  // Asked only while Enter could be offered: a closed or finished show has nothing to pause.
+  // The inventory is the landing's own (null while unresolved counts as "could be offered"),
+  // the same input the styled landing gates Enter on, so skipping the ask never enables Enter.
+  const entryStatusNow = getEntryStatus(show, false, {
+    hasEntryClassInventory: hasEntryClassInventory !== false,
+  }).status;
+  const cardState = useShowCardEntriesPaused(
+    show,
+    entryStatusNow === 'accepting' || entryStatusNow === 'closing_soon'
+  );
+  // MYK9-2192, one rule: anything that only makes sense when a card can be taken (the online
+  // service fee) shows only on this visit's confirmed "open" answer, never while loading or unknown.
+  const cardsConfirmedOpen = cardState === 'open';
+  const cardLanding = cardEntriesLanding(cardState, show);
 
   // Public visitors render the last published experience. Managers in Preview
   // intentionally render the current draft instead; changing the draft must
@@ -178,7 +198,8 @@ export function ShowPublicLanding({
   // Built once here, not per style page: a style's countdown re-renders every second, and the
   // copy (a date formatted in the trial's zone) only changes with these inputs.
   const effectivePendingReason =
-    entryPendingReason ?? (onlineEntriesOpen ? undefined : 'online_setting_unknown');
+    entryPendingReason ??
+    (onlineEntriesOpen ? cardLanding.pendingReason : 'online_setting_unknown');
   const trialTimezone = getTrialTimezone(landingTrials[0] ?? null);
   // The copy follows `entryPendingReason`, which the page re-derives when the opening
   // boundary passes (useEntryOpenBoundaryTick), so the copy, the reason and the Enter action
@@ -245,13 +266,22 @@ export function ShowPublicLanding({
           met on its third step. Every landing style prints its own fee rows,
           so the one line lives here, above all of them, and only where an
           exhibitor could still enter online and the live rate is read. */}
-      {showServiceFee && (
+      {showServiceFee && cardsConfirmedOpen && (
         <div
           className="border-b border-border bg-muted px-4 py-3 text-sm text-foreground sm:px-6"
           role="note"
           aria-label="Service fee"
         >
           <ServiceFeeNote show={show} />
+        </div>
+      )}
+      {cardLanding.note && (
+        <div
+          className="border-b border-border bg-muted px-4 py-3 text-sm text-foreground sm:px-6"
+          role="note"
+          aria-label="Card payments paused"
+        >
+          {cardLanding.note}
         </div>
       )}
       <LateEntryContactContext.Provider value={lateEntryContact}>

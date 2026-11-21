@@ -45,7 +45,10 @@ export function TimelineScene({
     setSeen({ frames, mode, reducedMotion });
     setState(initialSceneState({ frames, mode, reducedMotion }));
   }
-  const [inView, setInView] = useState(false);
+  // Without IntersectionObserver the scene counts as on screen, so Play still plays.
+  const [inView, setInView] = useState(() => typeof IntersectionObserver === 'undefined');
+  // What the live region says: set only when the reader moves to a line, never by autoplay.
+  const [spoken, setSpoken] = useState('');
   const [pageVisible, setPageVisible] = useState(
     () => typeof document === 'undefined' || document.visibilityState !== 'hidden'
   );
@@ -90,10 +93,15 @@ export function TimelineScene({
   const solo = devices.length === 1;
   const current = lines[line];
 
+  const say = (n: number) => {
+    const l = lines[n];
+    if (l) setSpoken(`Line ${n + 1} of ${lines.length}. ${l.head}. ${l.text}`);
+  };
   // A press on Back or Next takes the reader's hands to the scene: autoplay pauses where it lands.
   const step = (type: 'next' | 'back') => {
     dispatch({ type });
     if (!stepping) dispatch({ type: 'pause' });
+    say(type === 'next' ? line + 1 : line - 1);
   };
 
   const root = {
@@ -124,17 +132,16 @@ export function TimelineScene({
         })}
       </div>
       <div className="tl-scene-panel">
-        {current && (
-          <SceneCaption
-            line={current}
-            index={line}
-            total={lines.length}
-            announce={!state.playing}
-          />
-        )}
+        {current && <SceneCaption line={current} index={line} total={lines.length} />}
+        <p className="tl-scene-sr" role="status">
+          {spoken}
+        </p>
         <SceneArrow dir="prev" disabled={atStart} onPress={() => !atStart && step('back')} />
         <SceneArrow dir="next" disabled={atEnd} onPress={() => !atEnd && step('next')} />
-        <SceneTabs lines={lines} current={line} onJump={n => dispatch({ type: 'jump', line: n })} />
+        <SceneTabs lines={lines} current={line} onJump={n => {
+            dispatch({ type: 'jump', line: n });
+            say(n);
+          }} />
         {!stepping && (
           <button
             type="button"

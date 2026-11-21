@@ -379,6 +379,26 @@ for (const vp of VIEWPORTS) {
       expect(screens).toBeGreaterThanOrEqual(8);
       expect(screens).toBeLessThanOrEqual(16);
     });
+
+    // The peak row's padding rules once beat the phone gap rules, so the show-day text sat flush
+    // against the scene. Measured between the content, not the padded boxes that hold it.
+    test('on a phone, show day keeps a gap between its scene and the text beside it', async ({
+      page,
+    }) => {
+      test.skip(vp.name !== 'phone');
+      await openLanding(page);
+      const gap = () =>
+        page.evaluate(() => {
+          const row = document.querySelector('.lc-row[data-peak="true"]')!;
+          const scene = row.querySelector('.tl-scene')!.getBoundingClientRect();
+          const text = row.querySelector('.lc-meanwhile-text')!.getBoundingClientRect();
+          return text.top >= scene.bottom ? text.top - scene.bottom : scene.top - text.bottom;
+        });
+      expect(await gap(), 'club: scene above the meanwhile text').toBeGreaterThanOrEqual(12);
+      await page.getByRole('button', { name: 'I’m entering a show' }).click();
+      await expect(page.locator('#entries h3')).toHaveText('Enter in a few minutes');
+      expect(await gap(), 'exhibitor: meanwhile text above the scene').toBeGreaterThanOrEqual(12);
+    });
   });
 }
 
@@ -409,7 +429,11 @@ test.describe('reduced motion', () => {
         await expect(page.locator('#entries h3')).toHaveText('Enter in a few minutes');
       }
       expect(await page.locator('.lc-row .tl-scene-card').count()).toBeGreaterThan(10);
-      expect(await page.locator('.lc-row .tl-scene-tab, .lc-row .tl-scene-arrow').count()).toBe(0);
+      expect(
+        await page
+          .locator('.lc-row .tl-scene-tab, .lc-row .tl-scene-arrow, .lc-row .tl-scene-btn')
+          .count()
+      ).toBe(0);
       const screens = await page.evaluate(
         () => document.documentElement.scrollHeight / window.innerHeight
       );

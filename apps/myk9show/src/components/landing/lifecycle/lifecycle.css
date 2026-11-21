@@ -308,6 +308,16 @@
   .landing-v2 .lc-row[data-peak='true'] .lc-meanwhile {
     padding-bottom: 0;
   }
+  /* The peak and last rows zero the scene's bottom padding, which is right where the scene ends
+     the row. On a phone a main-side scene sits above the meanwhile text, and a meanwhile scene
+     sits below it, so each keeps its gap. */
+  .landing-v2 .lc-row[data-peak='true'] .lc-scene[data-side='main'],
+  .landing-v2 .lc-row[data-last='true'] .lc-scene[data-side='main'] {
+    padding-bottom: 1rem;
+  }
+  .landing-v2 .lc-row[data-peak='true'] .lc-meanwhile:has(+ .lc-scene[data-side='meanwhile']) {
+    padding-bottom: 1rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

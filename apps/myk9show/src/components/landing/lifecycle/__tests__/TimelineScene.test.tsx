@@ -26,7 +26,8 @@ const setReducedMotion = (reduce: boolean) =>
 
 const lines = () =>
   within(screen.getByRole('group', { name: 'Lines in this scene' })).getAllByRole('button');
-const caption = () => screen.getByRole('status');
+const caption = () => document.querySelector<HTMLElement>('.tl-scene-caption')!;
+const spoken = () => screen.getByRole('status');
 const currentLine = () => lines().findIndex(b => b.getAttribute('aria-current') === 'step');
 const shotOn = (kind: 'desk' | 'phone') =>
   document
@@ -64,13 +65,30 @@ describe('TimelineScene', () => {
     expect(screen.getAllByRole('img')).toHaveLength(2);
   });
 
-  it('puts the current line’s heading and sentence in one live caption under the devices', () => {
+  it('announces a line only when the reader moves to it, never while it plays itself', () => {
+    render(<TimelineScene scene={scene} lead="desk" />);
+    expect(spoken()).toHaveTextContent('');
+    show();
+    advance(20_000);
+    expect(spoken()).toHaveTextContent('');
+    fireEvent.click(lines()[0]!);
+    expect(spoken()).toHaveTextContent(`Line 1 of 5. ${SCENE_LINES.entries[0]!.head}.`);
+    fireEvent.click(screen.getByRole('button', { name: 'Next line' }));
+    expect(spoken()).toHaveTextContent(
+      `Line 2 of 5. ${SCENE_LINES.entries[1]!.head}. ${SCENE_LINES.entries[1]!.text}`
+    );
+  });
+
+  it('plays without IntersectionObserver, counting the scene as on screen', () => {
+    vi.stubGlobal('IntersectionObserver', undefined);
+    render(<TimelineScene scene={scene} lead="desk" />);
+    advance(20_000);
+    expect(currentLine()).toBeGreaterThan(0);
+  });
+
+  it('puts the current line’s heading and sentence in one caption under the devices', () => {
     render(<TimelineScene scene={scene} lead="desk" />);
     const live = caption();
-    // Quiet while the scene plays itself; it speaks once the reader takes over.
-    expect(live).toHaveAttribute('aria-live', 'off');
-    fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
-    expect(caption()).toHaveAttribute('aria-live', 'polite');
     expect(live).toHaveTextContent(SCENE_LINES.entries[0]!.head);
     expect(live).toHaveTextContent(SCENE_LINES.entries[0]!.text);
     expect(live).toHaveTextContent('Line 1 of 5');

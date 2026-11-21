@@ -72,6 +72,7 @@ function isChunkLoadFailure(error: unknown, message: string): boolean {
 
 function classifyMessage(message: string): PremiumPublishFailureCode {
   const normalized = message.toLowerCase();
+  if (/premium organization mismatch/.test(normalized)) return 'organization-changed';
   return /only supported for akc(, ukc and asca| and ukc)|organization.*(required|missing|invalid)|organization.*null/.test(
     normalized
   )
@@ -187,7 +188,7 @@ export function premiumPublishFailureMessage(error: PremiumPublishError): string
     case 'show-rejected':
       return 'myK9Show refused a change to this show, so the premium list wasn\'t published. On the "We couldn\'t save" notice, choose Try again or Discard, then publish again.';
     case 'organization-changed':
-      return "This show's organization changed since the premium was built. Open Premium and Regenerate it for the current organization, then publish.";
+      return 'Regenerate the premium for the new organization before publishing.';
     case 'app-updated':
       return APP_UPDATED_MESSAGE;
     case 'officials-phone':

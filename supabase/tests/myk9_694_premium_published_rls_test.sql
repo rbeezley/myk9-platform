@@ -107,7 +107,7 @@ DECLARE
   first_version bigint;
   second_version bigint;
   previous_path text;
-  original_snapshot CONSTANT jsonb := jsonb_build_object('outputs', jsonb_build_object('premiumUrl', 'pending'));
+  original_snapshot CONSTANT jsonb := jsonb_build_object('org', 'AKC', 'outputs', jsonb_build_object('premiumUrl', 'pending'));
   update_statement text;
   insert_case record;
 BEGIN
@@ -238,7 +238,7 @@ BEGIN
     versioned_url,
     first_version,
     'heritage',
-    jsonb_build_object('outputs', jsonb_build_object('premiumUrl', 'pending'))
+    jsonb_build_object('org', 'AKC', 'outputs', jsonb_build_object('premiumUrl', 'pending'))
   );
   IF result->>'premiumPath' <> own_show::text || '/' || artifact || '.pdf' THEN
     RAISE EXCEPTION 'FAIL atomic publication did not return the committed path: %', result;
@@ -404,7 +404,7 @@ BEGIN
       'https://attacker.example/forged.pdf',
       first_version,
       'monogram',
-      '{}'::jsonb
+      jsonb_build_object('org', 'AKC')
     );
     denied := false;
   EXCEPTION WHEN OTHERS THEN
@@ -421,7 +421,7 @@ BEGIN
       versioned_url,
       first_version,
       'monogram',
-      '{}'::jsonb
+      jsonb_build_object('org', 'AKC')
     );
     denied := false;
   EXCEPTION WHEN OTHERS THEN
@@ -445,7 +445,7 @@ BEGIN
       'https://sojmvhhwsjxmfistvzbe.supabase.co/storage/v1/object/public/premium-published/' || own_show::text || '/' || bad_artifact || '.pdf',
       second_version,
       'monogram',
-      '{}'::jsonb
+      jsonb_build_object('org', 'AKC')
     );
     denied := false;
   EXCEPTION WHEN OTHERS THEN
@@ -468,7 +468,7 @@ BEGIN
       'https://sojmvhhwsjxmfistvzbe.supabase.co/storage/v1/object/public/premium-published/' || own_show::text || '/' || oversized_artifact || '.pdf',
       second_version,
       'monogram',
-      '{}'::jsonb
+      jsonb_build_object('org', 'AKC')
     );
     denied := false;
   EXCEPTION WHEN OTHERS THEN
@@ -492,7 +492,7 @@ BEGIN
       'https://sojmvhhwsjxmfistvzbe.supabase.co/storage/v1/object/public/premium-published/' || own_show::text || '/' || second_artifact || '.pdf',
       first_version,
       'monogram',
-      '{}'::jsonb
+      jsonb_build_object('org', 'AKC')
     );
     denied := false;
   EXCEPTION WHEN OTHERS THEN
@@ -512,7 +512,7 @@ BEGIN
       versioned_url,
       first_version,
       'heritage',
-      '{}'::jsonb
+      jsonb_build_object('org', 'AKC')
     );
     RAISE EXCEPTION 'FAIL manager committed another show''s staged artifact';
   EXCEPTION WHEN OTHERS THEN
@@ -556,7 +556,7 @@ BEGIN
       'https://sojmvhhwsjxmfistvzbe.supabase.co/storage/v1/object/public/premium-published/' || other_show::text || '/' || artifact || '.pdf',
       first_version,
       'heritage',
-      '{}'::jsonb
+      jsonb_build_object('org', 'AKC')
     );
     RAISE EXCEPTION 'FAIL club A admin committed a publication on club B''s show';
   EXCEPTION WHEN OTHERS THEN
@@ -604,7 +604,7 @@ BEGIN
     'https://sojmvhhwsjxmfistvzbe.supabase.co/storage/v1/object/public/premium-published/' || own_show::text || '/' || second_artifact || '.pdf',
     second_version,
     'heritage',
-    '{}'::jsonb
+    jsonb_build_object('org', 'AKC')
   );
   IF NOT EXISTS (
     SELECT 1 FROM public.shows
@@ -645,7 +645,7 @@ BEGIN
     'https://sojmvhhwsjxmfistvzbe.supabase.co/storage/v1/object/public/premium-published/' || secretary_show::text || '/' || secretary_artifact || '.pdf',
     first_version,
     'heritage',
-    '{}'::jsonb
+    jsonb_build_object('org', 'AKC')
   );
 
   RAISE NOTICE 'PASS MYK9-694 private versioned staging, exact retries, manager/secretary auth, atomic commit, and failure preservation';

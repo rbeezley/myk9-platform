@@ -684,6 +684,43 @@ describe('ShowEditPremiumTab unsaved organization (MYK9-2213)', () => {
       expect(premiumEditorProps.at(-1)?.initialPremium).toBeUndefined();
     });
 
+    it('does not reuse a snapshot published before it recorded an organization', () => {
+      const legacy = structuredClone(published);
+      delete legacy.org;
+      render(
+        <ShowEditPremiumTab
+          data={{ ...baseData, organization: 'AKC', experiencePublishedContent: legacy }}
+          clubId="c1"
+          showOrg="AKC"
+          savedOrganization="AKC"
+          isActive
+          handleCheckboxChange={vi.fn(() => vi.fn())}
+          handleValueChange={vi.fn(() => vi.fn())}
+        />
+      );
+      expect(premiumEditorProps.at(-1)?.initialPremium).toBeUndefined();
+      expect(screen.getByText(/not built for AKC/)).toBeInTheDocument();
+    });
+
+    it('does not reuse a snapshot built for another saved organization', () => {
+      render(
+        <ShowEditPremiumTab
+          data={{
+            ...baseData,
+            organization: 'UKC',
+            experiencePublishedContent: published,
+          }}
+          clubId="c1"
+          showOrg="UKC"
+          savedOrganization="UKC"
+          isActive
+          handleCheckboxChange={vi.fn(() => vi.fn())}
+          handleValueChange={vi.fn(() => vi.fn())}
+        />
+      );
+      expect(premiumEditorProps.at(-1)?.initialPremium).toBeUndefined();
+    });
+
     it('keeps the published premium when the organization is unchanged', () => {
       renderPublished('AKC');
       expect(premiumEditorProps.at(-1)?.initialPremium).toBeDefined();

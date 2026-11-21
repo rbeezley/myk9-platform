@@ -91,8 +91,13 @@ export function ShowEditPremiumTab({
   const organizationChanged = Boolean(
     showOrg && savedOrganization && savedOrganization !== showOrg
   );
+  // MYK9-2216: a snapshot published before it recorded its organization, or built for another
+  // one, is not reused; the secretary regenerates.
+  const publishedForOtherOrganization = Boolean(
+    publishedContent && showOrg && publishedContent.org !== showOrg
+  );
   const initialPremium = useMemo(() => {
-    if (factsLoading || organizationChanged) return undefined;
+    if (factsLoading || organizationChanged || publishedForOtherOrganization) return undefined;
     if (serverFacts && publishedContent && serverFacts.org === showOrg) {
       // templateId null: a published show's cover edits never write to the club's shared template.
       return {
@@ -127,6 +132,7 @@ export function ShowEditPremiumTab({
     serverFacts,
     factsLoading,
     organizationChanged,
+    publishedForOtherOrganization,
     showId,
     queryClient,
   ]);
@@ -211,7 +217,15 @@ export function ShowEditPremiumTab({
             landing page, entry form, and confirmation email.
           </p>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {publishedForOtherOrganization && !organizationChanged && (
+            <Alert>
+              <AlertDescription>
+                The published premium was not built for {showOrg}. Regenerate it for {showOrg}{' '}
+                before publishing; the old text is not reused.
+              </AlertDescription>
+            </Alert>
+          )}
           {hasShowId ? (
             <PremiumContentEditor
               showId={data.id as string}

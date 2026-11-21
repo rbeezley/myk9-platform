@@ -1,10 +1,10 @@
 {
   "version": 1,
-  "updatedAt": "2026-11-18T20:27:52.250Z",
+  "updatedAt": "2026-11-21T00:54:49.448Z",
   "metrics": {
     "oversizedSourceFiles": 114,
-    "anyCasts": 16,
-    "todoMarkers": 16,
+    "anyCasts": 3,
+    "todoMarkers": 15,
     "directSupabaseCoreBypasses": 3
   }
 }

@@ -11,7 +11,6 @@ export interface EmailLogEntry {
 
 /**
  * Fetches email delivery status for a set of registration IDs.
- * The email_log table is created by migration but may not yet be in generated types.
  */
 export function useEmailStatus(registrationIds: string[]) {
   return useQuery({
@@ -19,11 +18,7 @@ export function useEmailStatus(registrationIds: string[]) {
     queryFn: async () => {
       if (registrationIds.length === 0) return {};
 
-      // TODO: Remove `as any` cast after regenerating Supabase types (run `supabase gen types`)
-      // email_log table exists in DB but not yet in generated Supabase types.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const client = supabase as any;
-      const { data, error } = await client
+      const { data, error } = await supabase
         .from('email_log')
         .select('id, related_id, status, error_message, created_at')
         .in('related_id', registrationIds)
@@ -34,9 +29,16 @@ export function useEmailStatus(registrationIds: string[]) {
 
       // Group by related_id, take most recent
       const statusMap: Record<string, EmailLogEntry> = {};
-      for (const row of (data as EmailLogEntry[]) || []) {
-        if (!statusMap[row.related_id]) {
-          statusMap[row.related_id] = row;
+      for (const row of data ?? []) {
+        if (row.related_id && !statusMap[row.related_id]) {
+          const entry: EmailLogEntry = {
+            id: row.id,
+            related_id: row.related_id,
+            status: row.status,
+            created_at: row.created_at,
+          };
+          if (row.error_message != null) entry.error_message = row.error_message;
+          statusMap[row.related_id] = entry;
         }
       }
       return statusMap;

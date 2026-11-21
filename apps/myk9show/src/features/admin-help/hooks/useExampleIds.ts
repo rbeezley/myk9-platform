@@ -1,19 +1,34 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import type { Tables } from '@/types/supabase';
 import type { ExampleIds } from '../types';
 
-async function firstRow<T extends Record<string, unknown>>(
-  table: string,
-  columns: string
-): Promise<T | null> {
+type IdOnlyTable = 'shows' | 'dogs' | 'clubs' | 'roles' | 'entries';
+
+async function firstId(table: IdOnlyTable): Promise<{ id: string } | null> {
+  const { data, error } = await supabase.from(table).select('id').limit(1).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+async function firstTrial(): Promise<Pick<Tables<'trials'>, 'id' | 'show_id'> | null> {
   const { data, error } = await supabase
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic table name; typed Supabase client can't infer a union of table literals at runtime
-    .from(table as any)
-    .select(columns)
+    .from('trials')
+    .select('id, show_id')
     .limit(1)
     .maybeSingle();
   if (error) throw error;
-  return (data as T | null) ?? null;
+  return data;
+}
+
+async function firstClass(): Promise<Pick<Tables<'classes'>, 'id' | 'trial_id'> | null> {
+  const { data, error } = await supabase
+    .from('classes')
+    .select('id, trial_id')
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
 }
 
 export function useExampleIds(): UseQueryResult<ExampleIds, Error> {
@@ -24,13 +39,13 @@ export function useExampleIds(): UseQueryResult<ExampleIds, Error> {
       // classes.show_id does not exist — classes link to shows via trial_id (see migration 164)
       // organization_templates table is not yet built (post-fall deliverable) — skip gracefully
       const [show, trial, classRow, dog, club, role, entry] = await Promise.all([
-        firstRow<{ id: string }>('shows', 'id'),
-        firstRow<{ id: string; show_id: string }>('trials', 'id, show_id'),
-        firstRow<{ id: string; trial_id: string }>('classes', 'id, trial_id'),
-        firstRow<{ id: string }>('dogs', 'id'),
-        firstRow<{ id: string }>('clubs', 'id'),
-        firstRow<{ id: string }>('roles', 'id'),
-        firstRow<{ id: string }>('entries', 'id'),
+        firstId('shows'),
+        firstTrial(),
+        firstClass(),
+        firstId('dogs'),
+        firstId('clubs'),
+        firstId('roles'),
+        firstId('entries'),
       ]);
 
       const result: ExampleIds = {};

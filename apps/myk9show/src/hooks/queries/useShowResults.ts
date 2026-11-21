@@ -37,8 +37,7 @@ async function fetchShowResults(showId: string): Promise<ClassResult[]> {
   // released yields no rows at all (MYK9-466, MYK9-552), and within a released
   // class a withheld placement arrives NULL and is filtered out by the placement
   // range below.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = (await (supabase as any)
+  const { data, error } = await supabase
     .from('view_public_entry_results')
     .select(
       'class_id, class_name, class_element, class_level, class_results_released_at, trial_id, dog_id, handler, dog_call_name, dog_breed, armband, final_placement'
@@ -49,7 +48,7 @@ async function fetchShowResults(showId: string): Promise<ClassResult[]> {
     .lte('final_placement', 4)
     .order('class_element')
     .order('class_level')
-    .order('final_placement')) as { data: Record<string, unknown>[] | null; error: Error | null };
+    .order('final_placement');
 
   if (error) throw error;
   if (!data || data.length === 0) return [];
@@ -58,16 +57,17 @@ async function fetchShowResults(showId: string): Promise<ClassResult[]> {
   const classMap = new Map<string, ClassResult>();
 
   for (const row of data) {
-    const classId = row.class_id as string;
+    if (!row.class_id) continue;
+    const classId = row.class_id;
     if (!classMap.has(classId)) {
       classMap.set(classId, {
         classId,
-        className: (row.class_name as string) || 'Unknown Class',
-        element: (row.class_element as string) || '',
-        level: (row.class_level as string) || '',
+        className: row.class_name || 'Unknown Class',
+        element: row.class_element || '',
+        level: row.class_level || '',
         section: null,
-        trialId: (row.trial_id as string) || '',
-        resultsReleasedAt: (row.class_results_released_at as string) ?? null,
+        trialId: row.trial_id || '',
+        resultsReleasedAt: row.class_results_released_at ?? null,
         placements: [],
       });
     }
@@ -77,10 +77,10 @@ async function fetchShowResults(showId: string): Promise<ClassResult[]> {
     cls.placements.push({
       placement: row.final_placement as 1 | 2 | 3 | 4,
       // A private entry has no handler to name; "Unknown" would read as a gap.
-      handlerName: (row.handler as string) || (isPrivate ? '' : 'Unknown'),
-      dogName: (row.dog_call_name as string) || 'Unknown',
-      breed: (row.dog_breed as string) || '',
-      armband: row.armband as string | null,
+      handlerName: row.handler || (isPrivate ? '' : 'Unknown'),
+      dogName: row.dog_call_name || 'Unknown',
+      breed: row.dog_breed || '',
+      armband: row.armband,
       isPrivate,
     });
   }

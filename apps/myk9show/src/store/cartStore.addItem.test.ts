@@ -103,8 +103,7 @@ const seedCart = () =>
       items: [],
     },
     error: null,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any);
+  });
 
 describe('cartStore.addItem — duplicate tolerance (MYK9-530)', () => {
   beforeEach(() => {

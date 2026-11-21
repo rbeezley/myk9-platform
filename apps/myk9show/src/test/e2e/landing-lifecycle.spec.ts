@@ -427,9 +427,7 @@ for (const vp of VIEWPORTS) {
 
     // The peak row's padding rules once beat the phone gap rules, so the show-day text sat flush
     // against the scene. Measured between the content, not the padded boxes that hold it.
-    test('on a phone, show day keeps a gap between its words and its scene', async ({
-      page,
-    }) => {
+    test('on a phone, show day keeps a gap between its words and its scene', async ({ page }) => {
       test.skip(vp.name !== 'phone');
       await openLanding(page);
       const gap = () =>

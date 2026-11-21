@@ -196,6 +196,7 @@ describe('ShowEditPremiumTab', () => {
           style: 'poster',
           clubName: 'Test Club',
           experiencePublishedContent: {
+            org: 'AKC',
             style: 'fieldGuide',
             generatedAt: '2026-05-09T14:00:00.000Z',
             narratives: {
@@ -249,6 +250,7 @@ describe('ShowEditPremiumTab', () => {
 
   describe('online, the preview starts from the server facts (MYK9-2244)', () => {
     const published = {
+      org: 'AKC',
       style: 'fieldGuide',
       generatedAt: '2026-05-09T14:00:00.000Z',
       narratives: { showHours: 'Edited hours.', trialInformation: 'Edited info.' },
@@ -356,7 +358,7 @@ describe('ShowEditPremiumTab', () => {
       ).trials[0]?.judges;
     const renderOffline = (queryClient: QueryClient) => {
       publishedExperienceContentMock = buildExperienceSnapshot({
-        premium: baseGeneratedPremium(),
+        premium: { ...baseGeneratedPremium(), org: 'ASCA' },
         premiumPath: null,
         premiumUrl: '',
       });
@@ -414,6 +416,7 @@ describe('ShowEditPremiumTab', () => {
       stewards: [],
     };
     publishedExperienceContentMock = {
+      org: 'AKC',
       style: 'fieldGuide',
       generatedAt: '2026-05-09T14:00:00.000Z',
       narratives: { showHours: 'h', trialInformation: 't' },
@@ -446,6 +449,7 @@ describe('ShowEditPremiumTab', () => {
 
   it('seeds shared content from the fetched published snapshot when replication has not cached it', () => {
     publishedExperienceContentMock = {
+      org: 'AKC',
       style: 'fieldGuide',
       generatedAt: '2026-05-09T14:00:00.000Z',
       narratives: {
@@ -528,7 +532,8 @@ describe('republishing an edited premium without Regenerate keeps the recording 
       organization: showOrg,
       startDate: NEW_YEAR_SHOW.startDate,
       endDate: newYear,
-      experiencePublishedContent: PUBLISHED,
+      // Built for the organization under test, so the editor seeds from it (MYK9-2216).
+      experiencePublishedContent: { ...PUBLISHED, org: showOrg },
       trials,
     };
     render(

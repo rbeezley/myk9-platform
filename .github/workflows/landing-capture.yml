@@ -1,5 +1,5 @@
 # Landing capture — takes the landing page's timeline screenshots from the running app
-# (docs/archive/plan-landing-animated-timeline.md § "Capturing the screens", MYK9-2181).
+# (docs/plan-landing-animated-timeline.md § "Capturing the screens", MYK9-2181).
 #
 # A capture signs a seeded account in and walks the app. It is safe by where it runs:
 #   - the backend is this job's own Supabase stack, seeded from the repository's demo seed

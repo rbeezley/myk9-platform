@@ -195,8 +195,8 @@ test('phone 390px: class row running order is one line, no dangling separator, R
 /**
  * MYK9-2325: the same dangling-separator fix as MYK9-2314, on the "Show day is
  * here" banner and the show header lines. At 390px no line of either may start
- * or end on a "·". Each wrapped line is found by grouping child boxes by their
- * top edge, so a glyph that ends or starts a visual line is caught.
+ * or end on a "·"; with no glyph left in either, none can, so the check is that
+ * neither holds one.
  */
 test('phone 390px: show header and show-day banner have no separator glyphs', async ({ page }) => {
   test.setTimeout(120_000);
@@ -224,12 +224,13 @@ test('phone 390px: show header and show-day banner have no separator glyphs', as
     });
     return;
   }
-  const bannerText = (await banner.first().innerText()).split('\n');
-  for (const line of bannerText) {
-    const trimmed = line.trim();
-    expect(trimmed.startsWith('·'), `banner line starts with a separator: "${trimmed}"`).toBe(
-      false
-    );
-    expect(trimmed.endsWith('·'), `banner line ends with a separator: "${trimmed}"`).toBe(false);
-  }
+  // The show's own name may hold a "·" (the seeded fixture's does), so check the separator spans
+  // and the facts line, not the whole banner text.
+  const glyphs = await banner.first().locator('span[aria-hidden="true"]').allTextContents();
+  expect(
+    glyphs.filter(t => t.trim() === '·'),
+    'banner separator spans'
+  ).toEqual([]);
+  const facts = (await banner.first().locator('p').allTextContents()).join(' ');
+  expect(facts.includes('·'), `banner facts line holds a separator glyph: "${facts}"`).toBe(false);
 });

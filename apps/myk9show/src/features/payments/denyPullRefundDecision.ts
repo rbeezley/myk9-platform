@@ -13,3 +13,17 @@ export async function denyPullRefundDecision(entryId: string, reason: string): P
 
   if (error) throw error;
 }
+
+export const REFUND_DECISION_APP_UPDATED_MESSAGE =
+  'This refund decision could not be saved because myK9Show was updated. Restart the app, then deny the refund again.';
+
+/**
+ * MYK9-2293: the server no longer has the `set_entry_refund_decision` signature this bundle calls
+ * (PostgREST PGRST202, or Postgres 42883 on a direct call). That is a tab built before a schema
+ * change, not a data problem: nothing was saved, and only a restart onto the new build helps.
+ */
+export function isRefundDecisionRpcMissing(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const code = (error as { code?: unknown }).code;
+  return code === 'PGRST202' || code === '42883';
+}

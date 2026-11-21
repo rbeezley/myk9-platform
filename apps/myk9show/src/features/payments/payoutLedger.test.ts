@@ -229,6 +229,22 @@ describe('buildLedgerRows', () => {
 
     expect(rows.find(row => row.showId === 's1')?.unresolvedRefundDecisionCount).toBe(1);
   });
+
+  it('treats an entry the club paid back directly as decided (MYK9-2303)', () => {
+    const entriesByShow = new Map<string, LedgerEntryRow[]>([
+      [
+        's1',
+        [
+          entry({ entry_status: 'scratched' }),
+          entry({ entry_status: 'scratched', club_refunded_amount: 10 }),
+        ],
+      ],
+    ]);
+
+    const rows = buildLedgerRows(shows, entriesByShow, new Map());
+
+    expect(rows.find(row => row.showId === 's1')?.unresolvedRefundDecisionCount).toBe(1);
+  });
 });
 
 describe('summarizeLedger', () => {

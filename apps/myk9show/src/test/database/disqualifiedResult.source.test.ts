@@ -139,9 +139,9 @@ describe('result_text on every results view reads DQ for a disqualified entry', 
     // from the 1011 body, MYK9-1326 rebuilt it again without promo_code_id,
     // MYK9-1369 hoisted is_show_exhibitor out of the per-row lateral, and
     // MYK9-1473 appended placement_tie/placement_tiebreak, MYK9-1476 added the
-    // caller access epoch and MYK9-1637 appended card_paid and MYK9-1757 appended check_in_pulled_by and MYK9-2068 appended area5_time_seconds/element_time_seconds, so the DQ arm below
+    // caller access epoch and MYK9-1637 appended card_paid and MYK9-1757 appended check_in_pulled_by and MYK9-2068 appended area5_time_seconds/element_time_seconds and MYK9-2303 appended club_refunded_amount, so the DQ arm below
     // must survive every rebuild.
-    expect(view.file).toBe('20261116041700_myk9_2068_element_and_area5_time.sql');
+    expect(view.file).toBe('20261121093700_myk9_2303_club_settled_refunds.sql');
     expect(view.body).toContain('AS awaiting_registration_number');
     expect(view.body).toContain(
       "(access.can_view_scores OR vis.qualification_visible) AND e.is_scored = true AND e.result_status = 'disqualified' THEN 'DQ'"

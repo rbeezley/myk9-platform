@@ -2594,6 +2594,7 @@ export type Database = {
           class_change_requested_at: string | null
           class_change_target_class_id: string | null
           class_id: string | null
+          club_refunded_amount: number
           comped: boolean | null
           comped_reason: string | null
           confirmation_claimed_until: string | null
@@ -2711,6 +2712,7 @@ export type Database = {
           class_change_requested_at?: string | null
           class_change_target_class_id?: string | null
           class_id?: string | null
+          club_refunded_amount?: number
           comped?: boolean | null
           comped_reason?: string | null
           confirmation_claimed_until?: string | null
@@ -2828,6 +2830,7 @@ export type Database = {
           class_change_requested_at?: string | null
           class_change_target_class_id?: string | null
           class_id?: string | null
+          club_refunded_amount?: number
           comped?: boolean | null
           comped_reason?: string | null
           confirmation_claimed_until?: string | null
@@ -12186,6 +12189,7 @@ export type Database = {
           check_in_status: string | null
           class_element: string | null
           class_id: string | null
+          club_refunded_amount: number | null
           class_level: string | null
           class_name: string | null
           class_results_released_at: string | null
@@ -12510,6 +12514,7 @@ export type Database = {
           check_in_status: string | null
           class_element: string | null
           class_id: string | null
+          club_refunded_amount: number | null
           class_level: string | null
           class_name: string | null
           class_results_released_at: string | null

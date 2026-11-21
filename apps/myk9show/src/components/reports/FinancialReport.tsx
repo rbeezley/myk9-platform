@@ -14,6 +14,9 @@ import {
   type FinancialReportLine,
 } from '@/features/financial';
 
+const CLUB_REFUNDED_LABEL = 'Refunded by the club';
+const clubRefundedCell = (amount: number) => (amount > 0 ? formatFee(amount) : 'None');
+
 export const FinancialReport: React.FC<ReportProps> = ({
   showName,
   organization,
@@ -25,6 +28,9 @@ export const FinancialReport: React.FC<ReportProps> = ({
   const orgTitle = organization
     ? `${organization} ${getRegistrySportName(organization)}`
     : getRegistrySportName(organization);
+
+  // MYK9-2303: the club-paid-back column appears only when this scope has any.
+  const showClubRefunded = totals.summary.clubRefunded > 0;
 
   const exhibitorMap = new Map<string, FinancialReportLine[]>();
   for (const line of totals.lines) {
@@ -69,16 +75,22 @@ export const FinancialReport: React.FC<ReportProps> = ({
 
       {unresolvedWarning}
 
-      <FinancialSummaryTable summary={totals.summary} />
+      <FinancialSummaryTable summary={totals.summary} showClubRefunded={showClubRefunded} />
 
       <BreakdownTable
         title="Payment Method Breakdown"
         rows={totals.paymentBreakdown}
         showOutstanding
+        showClubRefunded={showClubRefunded}
       />
 
       {totals.trialBreakdown.length > 1 && (
-        <BreakdownTable title="Trial Breakdown" rows={totals.trialBreakdown} showOutstanding />
+        <BreakdownTable
+          title="Trial Breakdown"
+          rows={totals.trialBreakdown}
+          showOutstanding
+          showClubRefunded={showClubRefunded}
+        />
       )}
 
       {[...exhibitorMap.entries()].map(([handler, exhibitorEntries]) => {
@@ -97,6 +109,7 @@ export const FinancialReport: React.FC<ReportProps> = ({
                   <th>Gross</th>
                   <th>Discount</th>
                   <th>Refund</th>
+                  {showClubRefunded && <th>{CLUB_REFUNDED_LABEL}</th>}
                   <th>Outstanding</th>
                   <th>Net</th>
                 </tr>
@@ -119,6 +132,7 @@ export const FinancialReport: React.FC<ReportProps> = ({
                     <td>{formatFee(line.gross)}</td>
                     <td>{line.discount > 0 ? formatFee(line.discount) : '—'}</td>
                     <td>{line.refunded > 0 ? formatFee(line.refunded) : '—'}</td>
+                    {showClubRefunded && <td>{clubRefundedCell(line.clubRefunded)}</td>}
                     <td>{line.outstanding > 0 ? formatFee(line.outstanding) : '—'}</td>
                     <td>{formatFee(line.netRetained)}</td>
                   </tr>
@@ -139,7 +153,13 @@ export const FinancialReport: React.FC<ReportProps> = ({
   );
 };
 
-function FinancialSummaryTable({ summary }: { summary: FinancialReportBucket }) {
+function FinancialSummaryTable({
+  summary,
+  showClubRefunded,
+}: {
+  summary: FinancialReportBucket;
+  showClubRefunded: boolean;
+}) {
   return (
     <table className="report-table">
       <thead>
@@ -150,6 +170,7 @@ function FinancialSummaryTable({ summary }: { summary: FinancialReportBucket }) 
           <th>Free entries</th>
           <th>Collected</th>
           <th>Refunded</th>
+          {showClubRefunded && <th>{CLUB_REFUNDED_LABEL}</th>}
           <th>Outstanding</th>
           <th>Net Retained</th>
         </tr>
@@ -162,6 +183,7 @@ function FinancialSummaryTable({ summary }: { summary: FinancialReportBucket }) 
           <td>{formatFee(summary.waived)}</td>
           <td>{formatFee(summary.collected)}</td>
           <td>{formatFee(summary.refunded)}</td>
+          {showClubRefunded && <td>{formatFee(summary.clubRefunded)}</td>}
           <td>{formatFee(summary.outstanding)}</td>
           <td>{formatFee(summary.netRetained)}</td>
         </tr>
@@ -174,10 +196,12 @@ function BreakdownTable({
   title,
   rows,
   showOutstanding = false,
+  showClubRefunded = false,
 }: {
   title: string;
   rows: FinancialReportBucket[];
   showOutstanding?: boolean;
+  showClubRefunded?: boolean;
 }) {
   if (rows.length === 0) return null;
 
@@ -194,6 +218,7 @@ function BreakdownTable({
             <th>Free entries</th>
             <th>Collected</th>
             <th>Refunded</th>
+            {showClubRefunded && <th>{CLUB_REFUNDED_LABEL}</th>}
             {showOutstanding && <th>Outstanding</th>}
             <th>Net</th>
           </tr>
@@ -208,6 +233,7 @@ function BreakdownTable({
               <td>{row.waived > 0 ? formatFee(row.waived) : '—'}</td>
               <td>{formatFee(row.collected)}</td>
               <td>{row.refunded > 0 ? formatFee(row.refunded) : '—'}</td>
+              {showClubRefunded && <td>{clubRefundedCell(row.clubRefunded)}</td>}
               {showOutstanding && <td>{row.outstanding > 0 ? formatFee(row.outstanding) : '—'}</td>}
               <td>{formatFee(row.netRetained)}</td>
             </tr>

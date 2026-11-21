@@ -39,7 +39,11 @@ export function withEntryManagementMoneyRoots(
       : {}),
     ...(root.comped !== undefined ? { comped: root.comped } : {}),
     ...(root.compedReason !== undefined ? { compedReason: root.compedReason } : {}),
+    ...(root.discountAmount !== undefined ? { discountAmount: root.discountAmount } : {}),
     ...(root.refundAmount !== undefined ? { refundAmount: root.refundAmount } : {}),
+    ...(root.clubRefundedAmount !== undefined
+      ? { clubRefundedAmount: root.clubRefundedAmount }
+      : {}),
     ...(root.refundedAt !== undefined ? { refundedAt: root.refundedAt } : {}),
     ...(root.refundDecision !== undefined ? { refundDecision: root.refundDecision } : {}),
     // The enrollment/order facts belong to the root too: it is the row the

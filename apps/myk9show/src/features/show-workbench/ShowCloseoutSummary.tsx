@@ -234,6 +234,14 @@ export function ShowCloseoutSummary({
             marked refunded.
           </p>
         )}
+
+        {/* MYK9-2303: money the club paid back itself after the payout. Not a Stripe refund and
+            not cash-box money, so it sits outside both figures above. */}
+        {recon.clubRefundedAmount > 0 && (
+          <p className="mt-3 text-sm text-muted-foreground">
+            Club paid back directly: {formatCurrency(recon.clubRefundedAmount)}
+          </p>
+        )}
       </div>
 
       {/* Incidents — async; owns its own loading/error/empty states. */}

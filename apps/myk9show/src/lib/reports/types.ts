@@ -55,6 +55,8 @@ export interface ReportEntry {
   cardPaid?: boolean;
   discountAmount?: number;
   refundAmount?: number;
+  /** MYK9-2303: `entries.club_refunded_amount`, what the club paid back directly after the payout. */
+  clubRefundedAmount?: number;
   comped?: boolean;
   /**
    * MYK9-639: set on the DESTINATION of a move-up, pointing at the entry whose

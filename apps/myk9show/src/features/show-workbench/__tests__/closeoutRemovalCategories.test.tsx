@@ -177,3 +177,54 @@ describe('ShowCloseoutSummary labels', () => {
     expect(document.body.textContent).not.toMatch(/\d+ pulled/);
   });
 });
+
+describe('club paid back directly (MYK9-2303)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockListShowIncidentCloseout.mockResolvedValue([]);
+    mockListShowPayments.mockResolvedValue([]);
+  });
+
+  it('sums the club figure apart from the Stripe refund figure', () => {
+    const summary = summarizeShowDayReconciliation(
+      [
+        {
+          id: 'a',
+          entry_fee: 40,
+          entry_status: 'confirmed',
+          payment_status: 'paid',
+          club_refunded_amount: 10,
+        },
+        { id: 'b', entry_fee: 30, entry_status: 'confirmed', payment_status: 'paid' },
+        { id: 'c', entry_fee: 20, entry_status: 'confirmed', club_refunded_amount: '2.50' },
+      ],
+      null
+    );
+    expect(summary.clubRefundedAmount).toBe(12.5);
+    expect(summary.refundedAmount).toBe(0);
+  });
+
+  it('shows the line only when the club paid something back', async () => {
+    const paid: ShowDayReconciliationEntry = {
+      id: 'a',
+      entry_fee: 40,
+      entry_status: 'confirmed',
+      payment_status: 'paid',
+    };
+    const { unmount } = render(
+      <ShowCloseoutSummary showId="show-1" deskWindow={null} entries={[paid]} />
+    );
+    expect(await screen.findByText('All incidents')).toBeInTheDocument();
+    expect(screen.queryByText(/Club paid back directly/)).not.toBeInTheDocument();
+    unmount();
+
+    render(
+      <ShowCloseoutSummary
+        showId="show-1"
+        deskWindow={null}
+        entries={[{ ...paid, club_refunded_amount: 10 }]}
+      />
+    );
+    expect(await screen.findByText('Club paid back directly: $10.00')).toBeInTheDocument();
+  });
+});

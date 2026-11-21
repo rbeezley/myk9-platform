@@ -54,6 +54,9 @@ const entry = {
   showId: 'show-1',
   dogName: 'Rex',
   totalFee: 30,
+  paymentMethod: 'online',
+  paymentStatus: 'paid_online',
+  refundedAt: null,
 } as unknown as EntryManagementEntry;
 
 describe("the club's policy text on every policy surface", () => {

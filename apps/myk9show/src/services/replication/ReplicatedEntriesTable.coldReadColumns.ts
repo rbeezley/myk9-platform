@@ -57,6 +57,7 @@ export const ENTRY_VIEW_MAPPER_COLUMNS = [
   'placement_tiebreak',
   'trial_id',
   'refund_amount',
+  'club_refunded_amount',
   'card_paid',
   'refunded_at',
   'stripe_payment_intent_id',

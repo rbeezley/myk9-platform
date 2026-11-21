@@ -176,6 +176,7 @@ export function mapSecretaryEntryToEntryManagementEntry(
         ]
       : [],
     totalFee: entry.entry_fee || 0,
+    ...(entry.discount_amount ? { discountAmount: entry.discount_amount } : {}),
     paidAmount: getEntryPaidAmount({
       paymentStatus: mapPaymentStatus(entry.payment_status),
       enrollmentPaymentStatus:
@@ -238,6 +239,7 @@ export function mapSecretaryEntryToEntryManagementEntry(
     // Entry-level Stripe payment/refund state (migration 20260609220000)
     paymentMethod: entry.payment_method ?? null,
     refundAmount: entry.refund_amount ?? null,
+    ...(entry.club_refunded_amount ? { clubRefundedAmount: entry.club_refunded_amount } : {}),
     ...(entry.card_paid === true ? { cardPaid: true } : {}),
     refundedAt: entry.refunded_at ?? null,
     stripePaymentIntentId: entry.stripe_payment_intent_id ?? null,

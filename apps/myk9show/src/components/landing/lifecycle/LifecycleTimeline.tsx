@@ -44,10 +44,6 @@ export function LifecycleTimeline({
             ))}
           </div>
         </div>
-        <div className="lc-labels" aria-hidden="true">
-          <span>What you do</span>
-          <span>{MEANWHILE_LABEL[audience]}</span>
-        </div>
         {story.map((step, i) => (
           <TimelineStep
             key={step.id}

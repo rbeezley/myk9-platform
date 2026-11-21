@@ -9,7 +9,7 @@
 /* The last step ends the section: the next section's own top padding is the only gap, so
    the "Built by the team" heading is reached in one scroll of step 6. */
 .landing-v2 .lc-row[data-last='true'] .lc-main,
-.landing-v2 .lc-row[data-last='true'] .lc-meanwhile,
+.landing-v2 .lc-row[data-last='true'] .lc-media,
 .landing-v2 .lc-row[data-last='true'] .lc-scene {
   padding-bottom: 0;
 }
@@ -61,34 +61,29 @@
   outline-offset: 2px;
 }
 
-/* Two-column timeline: main | meanwhile, and a scene as a full-width band under both, so the
-   scene's own grid (lines left, devices right) has the room it needs. Phones: one column. */
-.landing-v2 .lc-labels,
+/* One column of words per step. A still or demo sits beside the words on a wide screen, and a
+   scene is a full-width band under both, so the scene's own grid has the room it needs. Phones
+   stack everything in one column (below). */
 .landing-v2 .lc-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+  column-gap: clamp(2rem, 4vw, 3.5rem);
 }
-.landing-v2 .lc-labels {
-  margin-bottom: 1.5rem;
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--stone-500);
-}
-.landing-v2 .lc-labels span:first-child {
-  color: var(--terracotta-600);
+.landing-v2 .lc-row[data-media='true'] {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 }
 .landing-v2 .lc-main {
   grid-row: 1;
   grid-column: 1;
-  padding: 0 1.5rem 2.5rem 0;
+  align-self: center;
+  padding-bottom: 2.5rem;
 }
-.landing-v2 .lc-meanwhile {
-  display: flex;
-  flex-direction: column;
-  gap: 0.875rem;
-  padding: 0.375rem 0 2.5rem 1.5rem;
+.landing-v2 .lc-media {
   grid-row: 1;
   grid-column: 2;
+  align-self: center;
+  min-width: 0;
+  padding-bottom: 2.5rem;
 }
 .landing-v2 .lc-scene {
   grid-row: 2;
@@ -113,10 +108,16 @@
 }
 .landing-v2 .lc-meanwhile-text {
   margin: 0;
+  max-width: 52ch;
   font-size: 1rem;
   line-height: 1.6;
   color: var(--stone-700);
   font-style: italic;
+}
+.landing-v2 .lc-meanwhile-label {
+  font-style: normal;
+  font-weight: 700;
+  color: var(--stone-500);
 }
 .landing-v2 .lc-lead {
   margin: 0 0 0.75rem;
@@ -164,20 +165,20 @@
   max-width: 220px;
 }
 
-/* Reveal once: content rises 20px and fades in; meanwhile follows 140ms later. */
+/* Reveal once: content rises 20px and fades in; the still, demo or scene follows 140ms later. */
 .landing-v2 .lc-main,
-.landing-v2 .lc-meanwhile,
+.landing-v2 .lc-media,
 .landing-v2 .lc-scene {
   transition:
     opacity 500ms ease,
     transform 500ms cubic-bezier(0.23, 1, 0.32, 1);
 }
-.landing-v2 .lc-meanwhile,
+.landing-v2 .lc-media,
 .landing-v2 .lc-scene {
   transition-delay: 140ms;
 }
 .landing-v2 .lc-row[data-revealed='false'] .lc-main,
-.landing-v2 .lc-row[data-revealed='false'] .lc-meanwhile,
+.landing-v2 .lc-row[data-revealed='false'] .lc-media,
 .landing-v2 .lc-row[data-revealed='false'] .lc-scene {
   opacity: 0;
   transform: translateY(20px);
@@ -282,15 +283,12 @@
   outline-offset: 2px;
 }
 
-/* Phones: one column. Main text, its scene, then the meanwhile text and its scene. */
+/* Phones: one column. The words, then the step's still or demo, then its scene. */
 @container lc-timeline (max-width: 767px) {
-  .landing-v2 .lc-labels {
-    display: none;
-  }
-  /* One column in DOM order, which is reading order: main text, its scene, the meanwhile text,
-     its scene. The row is a flex column, so one gap spaces the parts of a step and only parts
-     that exist get one; the row's own bottom padding spaces the steps. No part carries its own
-     padding or trailing margin here, which is why the peak and last rows need no exceptions. */
+  /* One column in DOM order, which is reading order. The row is a flex column, so one gap spaces
+     the parts of a step and only parts that exist get one; the row's own bottom padding spaces
+     the steps. No part carries its own padding or trailing margin here, which is why the peak
+     and last rows need no exceptions. */
   .landing-v2 .lc-row {
     display: flex;
     flex-direction: column;
@@ -300,9 +298,12 @@
   .landing-v2 .lc-row[data-last='true'] {
     padding-bottom: 0;
   }
+  /* stretch, not the wide screen's center: a centred flex item shrinks to its content, and the
+     demos size themselves from their container, so they would collapse to nothing. */
   .landing-v2 .lc-row > .lc-main,
-  .landing-v2 .lc-row > .lc-meanwhile,
+  .landing-v2 .lc-row > .lc-media,
   .landing-v2 .lc-row > .lc-scene {
+    align-self: stretch;
     min-width: 0;
     padding: 0;
   }
@@ -317,7 +318,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .landing-v2 .lc-main,
-  .landing-v2 .lc-meanwhile,
+  .landing-v2 .lc-media,
   .landing-v2 .lc-scene,
   .landing-v2 .lc-explainer-box,
   .landing-v2 .lc-explainer-dim,

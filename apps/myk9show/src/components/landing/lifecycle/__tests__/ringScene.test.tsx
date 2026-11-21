@@ -123,7 +123,7 @@ describe('the ring scene on the page', () => {
     const demo = container.querySelector('#showday .lc-demo');
     expect(demo).not.toBeNull();
     expect(demo!.compareDocumentPosition(scene!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(demo!.closest('.lc-main')).not.toBeNull();
+    expect(demo!.closest('.lc-media')).not.toBeNull();
     // The Entries open scene plays on the step above it and the Results scene on the step below;
     // the ring scene is the one that is solo.
     expect(container.querySelectorAll('.tl-scene')).toHaveLength(3);
@@ -159,8 +159,8 @@ describe('the ring scene on the page', () => {
       const { container, unmount } = render(
         <LifecycleTimeline audience={audience} onAudienceChange={vi.fn()} />
       );
-      expect(container.querySelectorAll('.lc-meanwhile')).toHaveLength(6);
-      expect(container.querySelectorAll('.lc-meanwhile img:not(.tl-scene img)')).toHaveLength(0);
+      expect(container.querySelectorAll('.lc-meanwhile-text')).toHaveLength(6);
+      expect(container.querySelectorAll('.lc-main img')).toHaveLength(0);
       unmount();
     }
   });

@@ -142,6 +142,49 @@ for (const vp of VIEWPORTS) {
       }
     });
 
+    // MYK9-2327: each step once had a "meanwhile" column holding one sentence beside a column up
+    // to 980px tall. Now the words are one column, a still or demo sits beside them, and a scene
+    // is a band below. Neither side of a step's first row may be mostly empty.
+    test('on a wide screen no step leaves one side mostly empty', async ({ page }) => {
+      test.skip(vp.name !== 'desktop');
+      await openLanding(page);
+      for (const audience of ['I’m running a show', 'I’m entering a show']) {
+        await page.getByRole('button', { name: audience }).click();
+        await scrollToBottom(page);
+        const rows = await page.evaluate(() =>
+          [...document.querySelectorAll<HTMLElement>('.lc-row')].map(row => {
+            const main = row.querySelector('.lc-main')!.getBoundingClientRect();
+            const media = row.querySelector('.lc-media')?.getBoundingClientRect();
+            const scene = row.querySelector('.lc-scene')?.getBoundingClientRect();
+            return {
+              id: row.id,
+              main: { left: main.left, right: main.right, top: main.top, h: main.height },
+              media: media && { left: media.left, top: media.top, h: media.height },
+              sceneTop: scene?.top,
+              mainBottom: main.bottom,
+              mediaBottom: media?.bottom,
+            };
+          })
+        );
+        expect(rows.map(r => r.id)).toEqual(STEPS);
+        for (const r of rows) {
+          if (r.media) {
+            expect(r.media.left, `${audience} ${r.id}: media beside the words`).toBeGreaterThan(
+              r.main.right - 1
+            );
+            // The shorter side is at least a quarter of the taller one: no 900px-high blank.
+            const ratio = Math.min(r.main.h, r.media.h) / Math.max(r.main.h, r.media.h);
+            expect(ratio, `${audience} ${r.id}: sides balanced`).toBeGreaterThan(0.25);
+          }
+          if (r.sceneTop !== undefined) {
+            expect(r.sceneTop, `${audience} ${r.id}: scene below the words`).toBeGreaterThanOrEqual(
+              Math.max(r.mainBottom, r.mediaBottom ?? r.mainBottom) - 1
+            );
+          }
+        }
+      }
+    });
+
     test('switching audience keeps the reader at the step and swaps the story', async ({
       page,
     }) => {
@@ -398,7 +441,7 @@ for (const vp of VIEWPORTS) {
       await page.getByRole('button', { name: 'I’m entering a show' }).click();
       await expect(page.locator('#entries h3')).toHaveText('Enter in a few minutes');
       expect(await gap(), 'exhibitor: meanwhile text above the scene').toBeGreaterThanOrEqual(10);
-      // The last step ends the section: nothing under its text but the next section's padding.
+      // The last step ends the section: nothing under its last part but the next section’s padding.
       const lastRow = page.locator('.lc-row[data-last="true"]');
       await lastRow.scrollIntoViewIfNeeded();
       await expect(lastRow).toHaveAttribute('data-revealed', 'true');
@@ -408,8 +451,8 @@ for (const vp of VIEWPORTS) {
           page.evaluate(() => {
             const rows = document.querySelectorAll('.lc-row');
             const last = rows[rows.length - 1]!;
-            const text = last.querySelector('.lc-meanwhile-text')!.getBoundingClientRect();
-            return last.getBoundingClientRect().bottom - text.bottom;
+            const end = last.lastElementChild!.getBoundingClientRect();
+            return last.getBoundingClientRect().bottom - end.bottom;
           })
         )
         .toBeCloseTo(0, 0);

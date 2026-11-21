@@ -131,8 +131,15 @@ test('the handler name field accepts spaces, hyphens and apostrophes', async ({ 
     .click();
   await page.getByRole('button', { name: /^Next/ }).click();
 
+  // The owner handles this dog, so Next skips Handlers to Payment; the step bar
+  // still opens it (MYK9-2020).
+  await page
+    .getByRole('navigation', { name: 'Wizard progress' })
+    .getByRole('button', { name: /^Handlers/ })
+    .click();
+
   // Handler step: open "Change" on the single entry this walk created.
-  const changeButton = page.getByRole('button', { name: /^Change$/ }).first();
+  const changeButton = page.getByRole('button', { name: /^Change handler for / }).first();
   await expect(changeButton).toBeVisible({ timeout: 15000 });
   await changeButton.click();
 

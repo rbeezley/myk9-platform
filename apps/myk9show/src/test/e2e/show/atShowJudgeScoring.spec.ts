@@ -389,6 +389,10 @@ test.describe('At-show judge scoring authorization', () => {
     const statusDialog = page.getByRole('dialog', { name: 'Change Status' });
     await expect(statusDialog).toBeVisible();
     await statusDialog.getByRole('button', { name: 'Pulled' }).click();
+    // Pull asks once before it writes (MYK9-1749).
+    const confirmPull = page.getByRole('alertdialog', { name: /^Pull .* from .*\?$/ });
+    await expect(confirmPull).toBeVisible();
+    await confirmPull.getByRole('button', { name: 'Pull', exact: true }).click();
 
     await expect
       .poll(() => rpcCalls.some(call => call.p_fields?.check_in_status === 'pulled'), {

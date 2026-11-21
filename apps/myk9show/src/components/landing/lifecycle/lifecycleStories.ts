@@ -281,7 +281,7 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
     {
       id: 'results',
       title: 'Results',
-      body: 'Placements are worked out from the scores. You choose when results go public. Every result is already recorded, with nothing to re-key.',
+      body: 'Placements are worked out from the scores the judges entered, so there is nothing to re-key. You choose when results go public.',
       shot: null,
       scene: 'results',
       meanwhile:

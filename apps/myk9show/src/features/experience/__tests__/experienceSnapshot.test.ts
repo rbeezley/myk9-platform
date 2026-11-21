@@ -27,6 +27,8 @@ describe('experienceSnapshot', () => {
       premiumUrl: 'https://trusted.example/premium-published/show-1/artifact-1.pdf',
     });
 
+    // MYK9-2216: the snapshot records the organization it was built for.
+    expect(snapshot.org).toBe('UKC');
     expect(snapshot.style).toBe('heritage');
     expect(snapshot.outputs.premiumPath).toBe('show-1/artifact-1.pdf');
     expect(snapshot.outputs.premiumUrl).toBe(

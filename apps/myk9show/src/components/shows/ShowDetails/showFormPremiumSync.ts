@@ -1,14 +1,14 @@
 import type { GeneratedPremium } from '@/types/premium-types';
 
 /**
- * MYK9-2213: the premium draft is built for one organization; publishing it after the show's
- * organization changed would post the old organization's text. Returns the sentence to show when
- * they differ, or null. A form without an organization keeps the saved one, so it never differs.
+ * MYK9-2216: changing the sanctioning organization invalidates the stored premium. It cannot be
+ * published until it is regenerated for the new organization, so a premium built for any other
+ * organization is refused here. A form without an organization keeps the saved one.
  */
 export function premiumOrganizationMismatch(
   premium: GeneratedPremium,
   organization: string | null | undefined
 ): string | null {
   if (!organization || organization === premium.org) return null;
-  return `The premium was built for ${premium.org}. Open Premium and Regenerate it for ${organization}, then publish.`;
+  return 'Regenerate the premium for the new organization before publishing.';
 }

@@ -159,7 +159,7 @@ describe('the ring scene on the page', () => {
       const { container, unmount } = render(
         <LifecycleTimeline audience={audience} onAudienceChange={vi.fn()} />
       );
-      expect(container.querySelectorAll('.lc-meanwhile-text')).toHaveLength(6);
+      expect(container.querySelectorAll('.lc-meanwhile-text')).toHaveLength(5);
       // A still lives only in the step's one media slot (its own side), never beside the
       // meanwhile line; scene captures live inside their scene.
       for (const row of container.querySelectorAll('.lc-row')) {

@@ -252,7 +252,9 @@ describe('the Results scene on the page', () => {
     expect(STORIES.club.find(s => s.id === 'results')!.shot).toBeNull();
   });
 
-  it('replaces the exhibitor’s still, with the phone leading', () => {
+  // MYK9-2334: "After the show" folded into Results, so the exhibitor's dog record sits beside
+  // the words and the scene, phone leading, plays below it.
+  it('plays with the phone leading for exhibitors, below the dog-record still', () => {
     const { container } = render(
       <LifecycleTimeline audience="exhibitor" onAudienceChange={vi.fn()} />
     );
@@ -260,8 +262,9 @@ describe('the Results scene on the page', () => {
     const scene = step.querySelector('.lc-scene[data-side="main"] .tl-scene');
     expect(scene).not.toBeNull();
     expect(scene).toHaveAttribute('data-lead', 'phone');
-    expect(step.querySelectorAll('.lc-shot, figure')).toHaveLength(0);
-    expect(STORIES.exhibitor.find(s => s.id === 'results')!.shot).toBeNull();
+    const stills = step.querySelectorAll('.lc-media .lc-shot img');
+    expect(stills).toHaveLength(1);
+    expect(stills[0]).toHaveAttribute('src', '/landing/stills/exhibitor-past-results.png');
   });
 
   it('reads the same four lines in both stories', () => {

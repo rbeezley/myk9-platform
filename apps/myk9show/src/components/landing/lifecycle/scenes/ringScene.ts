@@ -4,7 +4,7 @@ import type { Region, SceneFrame, SceneShot, TimelineSceneData } from '../sceneF
 import regions from './ringRegions.json';
 
 // "Show day, at the ring": the judge's phone alone, from the ring's classes to a score that
-// sends itself when the signal returns (docs/plan-landing-animated-timeline.md).
+// sends itself when the signal returns (docs/archive/plan-landing-animated-timeline.md).
 // The images and every region below come from the capture spec (src/test/e2e/capture), which reads the
 // running app on the seed show of an isolated stack. Nothing here is typed by eye: every ring
 // is a region the script measured.

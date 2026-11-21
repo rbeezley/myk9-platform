@@ -4,7 +4,7 @@ import type { DeviceView, Region, SceneFrame, SceneShot, TimelineSceneData } fro
 import regions from './entriesRegions.json';
 
 // "Entries open": the exhibitor's phone and the secretary's desktop, from the exhibitor picking
-// a dog to the secretary accepting the form (docs/plan-landing-animated-timeline.md). Both
+// a dog to the secretary accepting the form (docs/archive/plan-landing-animated-timeline.md). Both
 // stories play it, on the same five lines; the club leads with the desk and the exhibitor with
 // the phone (TimelineStep). The images and every region below come from the capture spec
 // (src/test/e2e/capture/landingSceneEntriesCapture.spec.ts), which reads the running app on the

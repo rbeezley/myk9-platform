@@ -1,6 +1,6 @@
 # Landing timeline prototype (MYK9-1894)
 
-Reference material for [`docs/plan-landing-animated-timeline.md`](../../plan-landing-animated-timeline.md). Not production code.
+Reference material for [`docs/archive/plan-landing-animated-timeline.md`](../../archive/plan-landing-animated-timeline.md). Not production code.
 
 The approved prototype page for the "Entries open" step is linked from the Linear issue (a private artifact).
 

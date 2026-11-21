@@ -20,7 +20,7 @@ import { holdWebSockets, proveSocketHold } from './captureKit';
 /**
  * Suite category: capture (not a regression test; runs only in the Landing capture workflow).
  *
- * Takes the landing page's four stills from the running app (docs/plan-landing-animated-timeline.md
+ * Takes the landing page's four stills from the running app (docs/archive/plan-landing-animated-timeline.md
  * § Phase 2, MYK9-2309): the steps that are not scenes keep one picture each.
  *   - the club's "Set up the show": the Add Show wizard, first step (the secretary's desktop);
  *   - the exhibitor's "Find a show": Find Shows with the entry status (the exhibitor's desktop);

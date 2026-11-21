@@ -22,7 +22,7 @@ const TICK_MS = 100;
 // auth, router, replication or app state. Its one app import is the shared reduced-motion hook.
 // INTENT: motion here shows what the other audience is doing at the same moment. Pause, tabs
 // (jump) and reduced motion keep it WCAG 2.2.2 safe: reduced motion draws every line at once as a
-// storyboard with nothing moving, and nothing hijacks scroll (docs/plan-landing-animated-timeline.md).
+// storyboard with nothing moving, and nothing hijacks scroll (docs/archive/plan-landing-animated-timeline.md).
 export function TimelineScene({
   scene,
   lead,

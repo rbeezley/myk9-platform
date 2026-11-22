@@ -238,11 +238,18 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
     // people at all — add a `DELETE FROM public.people` later and every
     // enrollment that handler owns, on ANY show, cascades away with the guard
     // blind to it. Only this file can see that the seed gained such a delete.
+    // The one exception (MYK9-836): the club demo show's made-up exhibitor, a people row
+    // with no sign-in and one id (dededede-0000-0000-0836-0000000000e1). It is deleted by
+    // that exact id, after the show, so what cascades is its own entry form in the club
+    // demo range, which the club demo refusals (stripe orders, payment intents) guard.
+    const peopleDeletes = (seed.match(/DELETE\s+FROM\s+public\.people\b[^;]*;/gi) ?? []).map(
+      statement => statement.replace(/\s+/g, ' ')
+    );
     expect(
-      /DELETE\s+FROM\s+public\.people\b/i.test(seed),
-      "the seed now deletes people, but the guard's enrollments arm is scoped by show_id only — " +
-        'enrollments cascade from handler_id too, so that arm must be widened first'
-    ).toBe(false);
+      peopleDeletes,
+      "the seed now deletes people beyond the club demo exhibitor, but the guard's enrollments arm " +
+        'is scoped by show_id only — enrollments cascade from handler_id too, so that arm must be widened first'
+    ).toEqual(["DELETE FROM public.people WHERE id = 'dededede-0000-0000-0836-0000000000e1';"]);
   });
 
   it("lets no entries delete widen past the seed's own ids before the guard", () => {

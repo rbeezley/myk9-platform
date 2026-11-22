@@ -164,7 +164,7 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
     pkgDir: '.',
     script: 'qa:edge-function-drift:test',
     command:
-      'vitest run scripts/qa/edge-function-drift.test.ts scripts/qa/edge-function-imports.test.ts',
+      'vitest run scripts/qa/edge-function-drift.test.ts scripts/qa/edge-function-imports.test.ts scripts/qa/supabase-cli.test.ts',
   },
   {
     pkgDir: '.',

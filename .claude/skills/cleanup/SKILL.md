@@ -100,7 +100,7 @@ git log @{u}..HEAD --oneline 2>/dev/null
 ls supabase/migrations/ | tail -5
 
 # Check which are applied remotely (requires project to be linked)
-source supabase/.env 2>/dev/null && supabase db push --password "$SUPABASE_DB_PASSWORD" --dry-run 2>&1
+source supabase/.env 2>/dev/null && supabase db push --remote --password "$SUPABASE_DB_PASSWORD" --dry-run 2>&1
 ```
 
 - If `--dry-run` is not supported, check the last commit that touched `supabase/migrations/` and compare with the deploy note in the relevant Linear issue (team **MyK9-platform**) or plan document
@@ -159,12 +159,12 @@ Calibration, for a date-mode flag you confirm by hand:
 
 **Before any deploy, confirm the direction by hand**, one function at a time:
 
-1. Download the deploy into a scratch workdir, never into the repo: `supabase functions download <name> --project-ref sojmvhhwsjxmfistvzbe --use-api --workdir "$SCRATCH"`.
+1. Download the deploy into a scratch workdir, never into the repo: `supabase functions download <name> --remote=sojmvhhwsjxmfistvzbe --use-api --workdir "$SCRATCH"`.
 2. Diff each file `--content` named against source: `diff -u "$SCRATCH/supabase/functions/<file>" <source dir>/<file>`.
 3. For each line only the deploy has, `git log -S '<that line>' -- <source dir>` to find it in history. Found and later removed means the repo moved on and the deploy is behind. Not found anywhere means the line exists only in production, which is a **live-only change**.
 4. **Never deploy over a live-only change.** Report it, get the change into the repo first, and deploy only after the repo carries it.
 
-Deploying is a shared-system write: ask each time, never auto-deploy. Once the direction is confirmed and the user agrees, root functions deploy from the repo root. Stripe/cron functions need `--workdir apps/myk9show` and `--project-ref sojmvhhwsjxmfistvzbe` (see the `deploy` skill). Editing a `_shared/*` helper changes every function that imports it, so check those importers too, not just directly-changed function dirs.
+Deploying is a shared-system write: ask each time, never auto-deploy. Once the direction is confirmed and the user agrees, root functions deploy from the repo root. Stripe/cron functions need `--workdir apps/myk9show` and `--remote=sojmvhhwsjxmfistvzbe` (see the `deploy` skill). Editing a `_shared/*` helper changes every function that imports it, so check those importers too, not just directly-changed function dirs.
 
 ## Output Format
 

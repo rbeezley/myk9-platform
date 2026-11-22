@@ -233,7 +233,7 @@ After pushing, check if this commit touched a migration file. If so, remind the 
 
 ```bash
 if git diff HEAD~1 --name-only | grep -q '^supabase/migrations/'; then
-  echo "⚠️  Migration changed — after merge, run: source supabase/.env && supabase db push --password \"\$SUPABASE_DB_PASSWORD\""
+  echo "⚠️  Migration changed — after merge, run: source supabase/.env && supabase db push --remote --password \"\$SUPABASE_DB_PASSWORD\""
 fi
 ```
 

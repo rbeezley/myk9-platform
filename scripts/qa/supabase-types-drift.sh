@@ -12,10 +12,10 @@
 # Usage:
 #   scripts/qa/supabase-types-drift.sh [--committed <file>] [--generated <file>] [--summary <file>]
 #
-# Without --generated it runs `supabase gen types typescript --db-url` against
+# Without --generated it runs `supabase gen types typescript --remote=<url>` against
 # MYK9_MIGRATION_DATABASE_URL, injecting PGPASSWORD when the URL carries no
 # password. The generator needs Docker (it runs the postgres-meta image), so
-# on the development Mac pass --generated with output from `--project-id`.
+# on the development Mac pass --generated with output from `--remote=<ref>`.
 #
 # Exit: 0 no drift · 1 drift (report-only) · 2 could not compare (not a verdict).
 set -euo pipefail
@@ -85,7 +85,7 @@ if [[ -z "$GENERATED" ]]; then
     url="${url/@/:${encoded}@}"
   fi
   # `--db-url` emits every schema (public, graphql_public, storage, …) while the
-  # committed file was generated with `--project-id`, which defaults to public.
+  # committed file was generated with `--remote=<ref>`, which defaults to public.
   # Compare the schemas the committed file declares, or every storage helper
   # reads as "live but not committed" (first run of #2193).
   schemas="$(awk '
@@ -95,7 +95,7 @@ if [[ -z "$GENERATED" ]]; then
   ' "$tmp/committed.layout.ts" | paste -sd, -)"
   [[ -n "$schemas" ]] || not_a_verdict "no schema headers found in $COMMITTED"
   GENERATED="$tmp/generated.ts"
-  if ! supabase gen types typescript --db-url "$url" --schema "$schemas" > "$GENERATED" 2> "$tmp/gen.err"; then
+  if ! supabase gen types typescript --remote="$url" --schema "$schemas" > "$GENERATED" 2> "$tmp/gen.err"; then
     sed 's#://[^@]*@#://<redacted>@#g' "$tmp/gen.err" >&2 || true
     not_a_verdict "supabase gen types failed (see the step log)"
   fi
@@ -105,7 +105,7 @@ fi
 # Drop the whole `__InternalSupabase` block from both sides. It is platform
 # metadata, never schema: `PostgrestVersion` tracks the hosted project's
 # PostgREST and moves on a CLI or platform upgrade. Filtering only the
-# `PostgrestVersion:` line was not enough — `--db-url` has no project context,
+# `PostgrestVersion:` line was not enough — `--remote=<url>` has no project context,
 # so whether the block is emitted at all depends on how the generator was
 # invoked, and its two brace lines then read as schema drift nothing can fix.
 #

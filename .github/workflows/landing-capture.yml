@@ -56,7 +56,7 @@ jobs:
 
       - uses: supabase/setup-cli@v3
         with:
-          version: 2.122.0 # exact pin, never latest; see MYK9-1662
+          version: 3.2.0 # exact pin, never latest; see MYK9-1662
 
       - uses: pnpm/action-setup@v6
 

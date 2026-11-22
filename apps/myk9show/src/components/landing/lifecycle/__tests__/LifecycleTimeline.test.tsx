@@ -12,7 +12,7 @@ function LifecycleTimeline() {
 }
 
 vi.mock('../useTimelineProgress', () => ({
-  useTimelineProgress: () => ({ reached: 2, isRevealed: () => true }),
+  useTimelineProgress: () => ({ isRevealed: () => true }),
 }));
 
 const titles = () => screen.getAllByRole('heading', { level: 3 }).map(h => h.textContent);
@@ -27,13 +27,18 @@ describe('LifecycleTimeline', () => {
     );
   });
 
-  it('gives every meanwhile line a screen-reader-only label', () => {
+  it('gives every meanwhile line its visible label, under the step’s own text', () => {
     const { container } = render(<LifecycleTimeline />);
     const texts = [...container.querySelectorAll('.lc-meanwhile-text')];
     expect(texts).toHaveLength(STORIES.club.length);
     for (const t of texts) {
-      expect(t.querySelector('.sr-only')).toHaveTextContent('Meanwhile, your exhibitors:');
+      expect(t.querySelector('.lc-meanwhile-label')).toHaveTextContent(
+        'Meanwhile, your exhibitors:'
+      );
+      expect(t.parentElement).toHaveClass('lc-main');
+      expect(t.previousElementSibling).toHaveClass('lc-step-body');
     }
+    expect(container.querySelector('.lc-labels')).toBeNull();
   });
 
   it('switches every step to the exhibitor story', () => {
@@ -44,26 +49,18 @@ describe('LifecycleTimeline', () => {
       'aria-pressed',
       'true'
     );
-    expect(screen.getByText('Meanwhile, the club')).toBeInTheDocument();
+    const labels = [...document.querySelectorAll('.lc-meanwhile-label')].map(l => l.textContent);
+    expect(labels).toEqual(STORIES.exhibitor.map(() => 'Meanwhile, the club: '));
   });
 
   it('switching audience keeps the same row nodes, so progress observers stay attached', () => {
-    const { container } = render(<LifecycleTimeline />);
+    render(<LifecycleTimeline />);
     const showday = document.getElementById('showday');
     const before = document.getElementById('before');
     fireEvent.click(screen.getByRole('button', { name: 'I’m entering a show' }));
     expect(document.getElementById('showday')).toBe(showday);
     expect(document.getElementById('before')).toBe(before);
     expect(document.body.contains(showday)).toBe(true);
-    expect(container.querySelectorAll('.lc-line')).toHaveLength(5);
-  });
-
-  it('fills dots up to the reached step only', () => {
-    render(<LifecycleTimeline />);
-    const reached = STORIES.club.map(s =>
-      document.getElementById(`${s.id}-dot`)!.getAttribute('data-reached')
-    );
-    expect(reached).toEqual(['true', 'true', 'false', 'false', 'false', 'false']);
   });
 
   it('marks show day as the peak with its lead line and the signal switch', () => {
@@ -91,15 +88,37 @@ describe('LifecycleTimeline', () => {
     );
   });
 
-  // A plain line joins each pair of steps; it fills only once the next step is reached
-  // (the progress mock reports step 2 reached, so only the 1 -> 2 line is filled).
-  it('draws a line between every pair of steps, filled up to the reached step', () => {
+  it('has no numbered rail, dots or connecting line', () => {
     const { container } = render(<LifecycleTimeline />);
-    const filled = [...container.querySelectorAll('.lc-line')].map(l =>
-      l.getAttribute('data-filled')
-    );
-    expect(filled).toEqual(['true', 'false', 'false', 'false', 'false']);
-    expect(container.querySelector('svg.lc-trail, .lc-alert')).toBeNull();
+    expect(container.querySelectorAll('.lc-rail, .lc-dot, .lc-line, [id$="-dot"]')).toHaveLength(0);
+  });
+
+  // Reading order: the words (the step's text, then the meanwhile line), then the step's still
+  // or demo, then its scene, so a screen reader and a phone's single column meet them in order.
+  it('renders each step as its words, then its still or demo, then its scene', () => {
+    const { container } = render(<LifecycleTimeline />);
+    for (const row of container.querySelectorAll('.lc-row')) {
+      const parts = [...row.children].map(c => c.className);
+      expect(parts[0]).toBe('lc-main');
+      expect(parts.slice(1).every(p => p === 'lc-media' || p === 'lc-scene')).toBe(true);
+      expect(parts.filter(p => p === 'lc-media').length).toBeLessThanOrEqual(1);
+      expect(row.hasAttribute('data-media')).toBe(parts.includes('lc-media'));
+      if (parts.includes('lc-media') && parts.includes('lc-scene')) {
+        expect(parts.indexOf('lc-media')).toBeLessThan(parts.indexOf('lc-scene'));
+      }
+    }
+    const sceneRows = container.querySelectorAll('.lc-row .lc-scene');
+    expect(sceneRows.length).toBeGreaterThan(0);
+    for (const slot of sceneRows) {
+      expect(slot.querySelectorAll('.tl-scene')).toHaveLength(1);
+      expect(slot.nextElementSibling).toBeNull();
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'I’m entering a show' }));
+    const showday = document.getElementById('showday')!;
+    const slot = showday.querySelector('.lc-scene')!;
+    expect(showday.querySelectorAll('.tl-scene')).toHaveLength(1);
+    expect(slot).toHaveAttribute('data-side', 'meanwhile');
+    expect(slot.parentElement).toBe(showday);
   });
 
   // D11

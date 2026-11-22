@@ -91,6 +91,8 @@ async function probe(page: Page) {
       }
       // Show header and tab strip, measured by their own elements whether or not they are sticky:
       // the Show Desk tab's tablist is the strip, and the page's header sits directly above it.
+      // Only sticky elements outside the cockpit grid count: inside it, the rail divider's grip
+      // (sticky at 45vh, MYK9-2142) is part of the desk, not the strip above it (MYK9-2323).
       const tablist = [...document.querySelectorAll<HTMLElement>('[role="tab"]')]
         .find(el => el.textContent?.trim().startsWith('Show Desk'))
         ?.closest<HTMLElement>('[role="tablist"]');
@@ -101,7 +103,7 @@ async function probe(page: Page) {
             el =>
               getComputedStyle(el).position === 'sticky' &&
               getComputedStyle(el).top !== 'auto' &&
-              !block.contains(el) &&
+              !grid.contains(el) &&
               !el.contains(block) &&
               el.getBoundingClientRect().height > 0
           )

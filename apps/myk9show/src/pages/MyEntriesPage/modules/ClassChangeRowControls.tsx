@@ -44,12 +44,6 @@ export interface ClassChangeRowControlsProps {
   onChanged?: (() => void | Promise<void>) | undefined;
 }
 
-const Dot = () => (
-  <span aria-hidden="true" className="text-muted-foreground">
-    ·
-  </span>
-);
-
 export const ClassChangeRowControls: React.FC<ClassChangeRowControlsProps> = ({
   cls,
   dogName,
@@ -122,7 +116,6 @@ export const ClassChangeRowControls: React.FC<ClassChangeRowControlsProps> = ({
     <>
       {waiting && (
         <>
-          <Dot />
           <span className="text-muted-foreground">
             {request?.targetClassName
               ? `Change requested: ${request.targetClassName}. Waiting for the secretary.`
@@ -142,7 +135,6 @@ export const ClassChangeRowControls: React.FC<ClassChangeRowControlsProps> = ({
       )}
       {declined !== null && (
         <>
-          <Dot />
           <span className="text-muted-foreground">
             {declined ? `Class change declined: ${declined}` : 'Class change declined.'}
           </span>
@@ -150,7 +142,6 @@ export const ClassChangeRowControls: React.FC<ClassChangeRowControlsProps> = ({
       )}
       {canChange && !waiting && (
         <>
-          <Dot />
           <button
             type="button"
             onClick={() => setSheetOpen(true)}

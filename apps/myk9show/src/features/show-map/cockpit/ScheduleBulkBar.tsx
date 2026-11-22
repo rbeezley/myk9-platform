@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Users } from 'lucide-react';
 
 import { ClassBulkActionsBar, type ClassBarItem } from '@/components/classes/ClassBulkActionsBar';
 import { UNASSIGNED_JUDGE_VALUE } from '@/components/classes/ClassJudgeSelect';
@@ -9,10 +10,12 @@ import {
   type BulkJudgeClass,
 } from '@/components/classes/useBulkJudgeAssignment';
 import type { AssignedJudgeName } from '@/services/database/judges';
-import { BulkBarActions } from '@/components/list-toolkit';
+import { BulkBarActions, BulkBarButton } from '@/components/list-toolkit';
 import type { RowAction } from '@/components/ui/RowActionMenu';
 
 import { judgeLockReason } from './focusedClassJudgeModel';
+import { BulkStewardDialog } from './BulkStewardDialog';
+import { bulkStewardTargets } from './bulkStewardModel';
 import type { ScheduleClassSelection } from './useScheduleClassSelection';
 import type {
   SecretaryCockpitClass,
@@ -41,6 +44,7 @@ function isJudgeLocked(cls: SecretaryCockpitClass): boolean {
 /**
  * Select classes' bulk bar on the show home's schedule (MYK9-1324): the Setup table's bar
  * (Change status, Delete, Export) plus Assign judge, over the classes ticked in one trial.
+ * Assign steward (MYK9-2328) puts one volunteer in one ring job across them.
  */
 export function ScheduleBulkBar({
   showId,
@@ -74,6 +78,7 @@ export function ScheduleBulkBar({
   });
   const isLockedNow = useCallback((classId: string) => lockedById.current.get(classId) ?? true, []);
   const judge = useBulkJudgeAssignment(showId, judgeNamesFor, isLockedNow);
+  const [stewardOpen, setStewardOpen] = useState(false);
 
   const group = model.trialGroups.find(item => item.trialId === selection.selection.trialId);
   const scheduledById = new Map<string, ScheduledClassModel>(
@@ -106,6 +111,9 @@ export function ScheduleBulkBar({
     locked: isJudgeLocked(source),
   }));
   const openCount = judgeTargets.filter(cls => !cls.locked).length;
+  const { targets: stewardTargets, label: stewardLabel } = bulkStewardTargets(
+    picked.map(({ source }) => source)
+  );
   const busy = bulkBusy || judge.busy;
 
   const assign = (judgeId: string) => void judge.assign(judgeTargets, judgeId);
@@ -143,11 +151,28 @@ export function ScheduleBulkBar({
       onBulkStatusChange={handleBulkStatusChange}
       onClear={selection.clear}
       extraActions={
-        <BulkBarActions
-          actions={judgeActions}
-          menuLabel={judgeLabel}
-          disabled={busy || openCount === 0}
-        />
+        <>
+          <BulkBarActions
+            actions={judgeActions}
+            menuLabel={judgeLabel}
+            disabled={busy || openCount === 0}
+          />
+          <BulkBarButton
+            onClick={() => setStewardOpen(true)}
+            icon={<Users className="h-4 w-4" aria-hidden="true" />}
+            disabled={busy || stewardTargets.length === 0}
+          >
+            {stewardLabel}
+          </BulkBarButton>
+          {stewardOpen && (
+            <BulkStewardDialog
+              showId={showId}
+              classes={stewardTargets}
+              open
+              onOpenChange={setStewardOpen}
+            />
+          )}
+        </>
       }
     />
   );

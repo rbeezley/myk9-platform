@@ -84,32 +84,12 @@ export function ringStyle(ring: Region, camera: Region) {
   };
 }
 
-/** The smallest region that holds both. */
-export function unionRegion(a: Region, b: Region): Region {
-  const x = Math.min(a.x, b.x);
-  const y = Math.min(a.y, b.y);
-  return {
-    x,
-    y,
-    w: Math.max(a.x + a.w, b.x + b.w) - x,
-    h: Math.max(a.y + a.h, b.y + b.h) - y,
-  };
-}
-
 /**
- * A window on a capture: the full width of the page and `height` tall, placed so `subject`
- * (the ring, or the ring and something measured that belongs with it) sits in its middle, and
- * kept inside the page. One rule for every frame of a screen that is taller than the frame it
- * is drawn in. It never zooms, so the words stay the size they were captured.
+ * The camera for a phone: the whole captured screen, never cropped or zoomed. The phone is
+ * drawn in its real shape, and the ring alone marks the part a line is about.
  */
-export function windowOnRing(
-  space: SceneDeviceData['space'],
-  subject: Region,
-  height: number
-): Region {
-  const h = Math.min(height, space.height);
-  const centred = Math.round(subject.y + subject.h / 2 - h / 2);
-  return { x: 0, y: Math.min(Math.max(centred, 0), space.height - h), w: space.width, h };
+export function wholeScreen(space: SceneDeviceData['space']): Region {
+  return { x: 0, y: 0, w: space.width, h: space.height };
 }
 
 /**
@@ -146,29 +126,4 @@ export function firstFrameOfLine(frames: readonly SceneFrame[], line: number): n
 export function lastFrameOfLine(frames: readonly SceneFrame[], line: number): number {
   for (let i = frames.length - 1; i >= 0; i--) if (frames[i]!.line === line) return i;
   return 0;
-}
-
-/**
- * How far through its line a line is, 0 to 1. Lines before the current one are complete.
- * Autoplay measures time; step-through counts the frames reached.
- */
-export function lineProgress(
-  frames: readonly SceneFrame[],
-  line: number,
-  frame: number,
-  elapsedMs: number,
-  timed: boolean
-): number {
-  const current = frames[frame]?.line ?? 0;
-  if (line < current) return 1;
-  if (line > current) return 0;
-  const own = frames.map((f, i) => ({ f, i })).filter(({ f }) => f.line === line);
-  if (timed) {
-    const total = own.reduce((sum, { f }) => sum + f.ms, 0);
-    if (total <= 0) return 1;
-    const before = own.filter(({ i }) => i < frame).reduce((sum, { f }) => sum + f.ms, 0);
-    return Math.min(1, (before + elapsedMs) / total);
-  }
-  const reached = own.filter(({ i }) => i <= frame).length;
-  return reached / own.length;
 }

@@ -12,7 +12,8 @@ import { describe, expect, it } from 'vitest';
  * `--project-ref` deploys to whatever that file (or the local link) names, and
  * untracking `.temp/*` silently changes the target. Two checks:
  *   1. every runnable `supabase functions deploy <name>` in tracked files
- *      carries `--project-ref sojmvhhwsjxmfistvzbe` in the same statement;
+ *      carries `--project-ref sojmvhhwsjxmfistvzbe` (CLI 2.x) or
+ *      `--remote=sojmvhhwsjxmfistvzbe` (CLI 3.x, `=` form only) in the same statement;
  *   2. `apps/myk9show/supabase/.temp/project-ref` stays tracked and correct.
  *
  * "Runnable" means a function-name token follows `deploy`. Prose such as
@@ -99,6 +100,9 @@ function deployTarget(args: string): string | undefined {
     if (/^(;|&&|\|\|?|#)/.test(token)) return undefined;
     if (token.startsWith('-')) {
       if (VALUE_FLAGS.has(token)) i++;
+      // `--remote <ref>` (space form): skip the ref so the function name is still
+      // found, and the flag check below then reports the unsupported spelling.
+      else if (token === '--remote' && tokens[i + 1] && !tokens[i + 1].startsWith('-')) i++;
       continue;
     }
     return token;
@@ -107,8 +111,8 @@ function deployTarget(args: string): string | undefined {
 }
 
 export function findViolations(source: string, known: ReadonlySet<string>): Violation[] {
-  const deploy = /supabase(?:@\S+)?\s+functions\s+deploy\b/g;
-  const flag = new RegExp(`--project-ref[ =]${PROJECT_REF}(?![a-z0-9])`);
+  const deploy = /supabase(?:\.sh|@\S+)?\s+functions\s+deploy\b/g;
+  const flag = new RegExp(`(?:--project-ref[ =]|--remote=)${PROJECT_REF}(?![a-z0-9])`);
   const violations: Violation[] = [];
   for (const { line, text } of statements(source)) {
     for (const m of text.matchAll(deploy)) {
@@ -116,7 +120,7 @@ export function findViolations(source: string, known: ReadonlySet<string>): Viol
       // line needs its own flag, so cut at the next occurrence.
       const rest = text
         .slice(m.index + m[0].length)
-        .split(/supabase(?:@\S+)?\s+functions\s+deploy\b/)[0];
+        .split(/supabase(?:\.sh|@\S+)?\s+functions\s+deploy\b/)[0];
       const name = deployTarget(rest);
       if (!name || !isFunctionName(name, known)) continue;
       if (!flag.test(rest)) violations.push({ line, text: text.trim() });
@@ -163,6 +167,23 @@ describe('functions deploy --project-ref guard (known answers)', () => {
     expect(findViolations(bad, known)).toEqual([{ line: 1, text: expect.any(String) }]);
   });
 
+  it('accepts the CLI 3.x --remote=<ref> form', () => {
+    expect(
+      findViolations(`supabase functions deploy a-b --remote=${PROJECT_REF} --yes`, known)
+    ).toEqual([]);
+    expect(findViolations('supabase functions deploy a-b --remote --yes', known)).toHaveLength(1);
+    // 3.2.0 rejects the space form for deploy (TargetRemoteAmbiguousError).
+    expect(
+      findViolations(`supabase functions deploy a-b --remote ${PROJECT_REF} --yes`, known)
+    ).toHaveLength(1);
+    expect(
+      findViolations(`supabase functions deploy --remote ${PROJECT_REF} a-b --yes`, known)
+    ).toHaveLength(1);
+    expect(
+      findViolations(`supabase functions deploy --remote=${PROJECT_REF} a-b --yes`, known)
+    ).toEqual([]);
+  });
+
   it('rejects a wrong or longer project ref', () => {
     expect(
       findViolations('supabase functions deploy a-b --project-ref otherref', known)
@@ -203,6 +224,10 @@ describe('functions deploy --project-ref guard (known answers)', () => {
   it('matches versioned and wrapped invocations', () => {
     expect(findViolations('npx supabase@2.114.0 functions deploy a-b', known)).toHaveLength(1);
     expect(findViolations('pnpm exec supabase functions deploy a-b', known)).toHaveLength(1);
+    expect(findViolations('bash scripts/supabase.sh functions deploy a-b', known)).toHaveLength(1);
+    expect(
+      findViolations(`bash scripts/supabase.sh functions deploy a-b --remote=${PROJECT_REF}`, known)
+    ).toEqual([]);
     expect(
       findViolations(
         `npx supabase@2.114.0 functions deploy a-b --project-ref ${PROJECT_REF}`,

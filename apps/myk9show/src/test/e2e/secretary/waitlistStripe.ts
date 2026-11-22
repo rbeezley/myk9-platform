@@ -1,5 +1,5 @@
 import { createHmac } from 'node:crypto';
-import { expect, type Page } from '@playwright/test';
+import { expect, type Frame, type Locator, type Page } from '@playwright/test';
 import {
   assertNoSharedWebhookEndpoints,
   WEBHOOK_ENDPOINT_PAGE_LIMIT,
@@ -103,45 +103,208 @@ export async function routeStripeReturnThroughAllowedOrigin(page: Page): Promise
   );
 }
 
+/** Page and Frame share the locator/getByRole API the Checkout steps use. */
+type CheckoutRoot = Page | Frame;
+type CheckoutTarget = (root: CheckoutRoot) => Locator;
+
+const COUNT_BOUND_MS = 2_000;
+
+/** A count() that cannot outlast its bound, e.g. a frame with no execution context. */
+async function boundedCount(locator: Locator): Promise<number> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      locator.count(),
+      new Promise<number>(resolve => {
+        timer = setTimeout(() => resolve(0), COUNT_BOUND_MS);
+      }),
+    ]);
+  } catch {
+    return 0; // frame navigated or detached mid-check; the next pass sees the new state
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Frame origins and names for a failure message; no query, no fragment. */
+function describeFrames(page: Page): string {
+  return page
+    .frames()
+    .map(frame => `[name="${frame.name()}" url=${originAndPath(frame.url())}]`)
+    .join(' ');
+}
+
+function originAndPath(raw: string): string {
+  try {
+    const parsed = new URL(raw);
+    return `${parsed.origin}${parsed.pathname}`;
+  } catch {
+    return raw.split(/[?#]/)[0]; // e.g. about:blank
+  }
+}
+
+/**
+ * Stripe moved the Checkout form into an iframe (MYK9-2317), and can re-render or swap frames
+ * after load. So every step resolves its own locator, fresh: the top page first (older layout),
+ * then each other frame, taking the first where the target is attached. Resolves null when none
+ * has it by the deadline.
+ */
+async function findInCheckout(
+  page: Page,
+  target: CheckoutTarget,
+  timeoutMs: number
+): Promise<Locator | null> {
+  const deadline = Date.now() + timeoutMs;
+  do {
+    const roots: CheckoutRoot[] = [
+      page,
+      ...page.frames().filter(frame => frame !== page.mainFrame()),
+    ];
+    for (const root of roots) {
+      const locator = target(root);
+      if ((await boundedCount(locator)) > 0) return locator;
+    }
+    if (Date.now() < deadline) await page.waitForTimeout(250);
+  } while (Date.now() < deadline);
+  return null;
+}
+
+/** A required step's locator; fails naming what was sought and the frames seen. */
+async function checkoutLocator(
+  page: Page,
+  label: string,
+  target: CheckoutTarget,
+  timeoutMs = 30_000
+): Promise<Locator> {
+  const found = await findInCheckout(page, target, timeoutMs);
+  if (found) return found;
+  throw new Error(
+    `No Stripe Checkout element for ${label} at ${originAndPath(page.url())}. ` +
+      `Frames seen: ${describeFrames(page)}. Textboxes in the Email frame: ${await describeTextboxes(page)}`
+  );
+}
+
+/** Labels, names and ids (never values) of the textboxes in the frame holding Email; max 20. */
+async function describeTextboxes(page: Page): Promise<string> {
+  try {
+    for (const root of [page, ...page.frames().filter(frame => frame !== page.mainFrame())]) {
+      if ((await boundedCount(EMAIL(root))) === 0) continue;
+      const labels = await root
+        .getByRole('textbox')
+        .evaluateAll(els =>
+          els.map(
+            el =>
+              el.getAttribute('aria-label') ||
+              el.getAttribute('name') ||
+              el.id ||
+              el.getAttribute('placeholder') ||
+              '(unnamed)'
+          )
+        );
+      return JSON.stringify(labels.slice(0, 20));
+    }
+    return '(no frame holds an Email field)';
+  } catch {
+    return '(could not read)';
+  }
+}
+
+/** Each field is its old id or its accessible name; Stripe's Payment Element has no ids. */
+const EMAIL: CheckoutTarget = root =>
+  root
+    .locator('#email')
+    .or(root.getByRole('textbox', { name: /^email$/i }))
+    .first();
+const CARD_NUMBER: CheckoutTarget = root =>
+  root
+    .locator('#cardNumber')
+    .or(root.getByRole('textbox', { name: /card number/i }))
+    .first();
+const CARD_EXPIRY: CheckoutTarget = root =>
+  root
+    .locator('#cardExpiry')
+    .or(root.getByRole('textbox', { name: /expir|MM \/ YY/i }))
+    .first();
+const CARD_CVC: CheckoutTarget = root =>
+  root
+    .locator('#cardCvc')
+    .or(root.getByRole('textbox', { name: /security code|cvc/i }))
+    .first();
+const BILLING_NAME: CheckoutTarget = root =>
+  root
+    .locator('#billingName')
+    .or(root.getByRole('textbox', { name: /name on card|cardholder|full name/i }))
+    .first();
+const BILLING_ZIP: CheckoutTarget = root =>
+  root
+    .locator('#billingPostalCode')
+    .or(root.getByRole('textbox', { name: /zip|postal/i }))
+    .first();
+const SAVE_WITH_LINK: CheckoutTarget = root =>
+  root
+    .locator('#enableStripePass')
+    .or(root.getByRole('checkbox', { name: /save my info|securely save/i }))
+    .first();
+const CARD_NAME = /^(pay with )?card$/i;
+
+/** An optional field: filled only when found within the wait and visible; otherwise skipped. */
+async function fillIfShown(
+  page: Page,
+  target: CheckoutTarget,
+  value: string,
+  timeoutMs: number
+): Promise<void> {
+  const field = await findInCheckout(page, target, timeoutMs);
+  if (!field) return;
+  const shown = await field.waitFor({ state: 'visible', timeout: timeoutMs }).then(
+    () => true,
+    () => false
+  );
+  if (shown) await field.fill(value);
+}
+
 /** Pays the hosted Checkout page the browser is on, then waits for Stripe's success redirect. */
 export async function payOnStripeCheckout(page: Page): Promise<string> {
   await page.waitForURL(/^https:\/\/checkout\.stripe\.com\//, { timeout: 30_000 });
-  const email = page.locator('#email');
+  const email = await checkoutLocator(page, 'the Email field', EMAIL);
   await expect(email).toBeVisible({ timeout: 30_000 });
   await email.fill(`waitlist-journey-${Date.now()}@example.com`);
 
   // With dynamic payment methods the card form sits behind an accordion item. Its trigger is a
   // visually hidden button named "Pay with card" (older layouts: "Card"), so the click is
   // dispatched to it rather than aimed at a point; the event bubbles to the visible row.
-  const cardNumber = page.locator('#cardNumber');
-  if (!(await cardNumber.isVisible())) {
-    await page
-      .getByRole('button', { name: /^(pay with )?card$/i })
-      .or(page.getByRole('radio', { name: /^(pay with )?card$/i }))
-      .dispatchEvent('click');
+  const cardNow = await findInCheckout(page, CARD_NUMBER, 1_000);
+  if (!cardNow || !(await cardNow.isVisible())) {
+    const trigger = await checkoutLocator(page, 'the card option', root =>
+      root
+        .getByRole('button', { name: CARD_NAME })
+        .or(root.getByRole('radio', { name: CARD_NAME }))
+        .first()
+    );
+    await trigger.dispatchEvent('click');
   }
+  const cardNumber = await checkoutLocator(page, 'the card number field', CARD_NUMBER, 15_000);
   await expect(cardNumber).toBeVisible({ timeout: 15_000 });
 
   await cardNumber.fill(TEST_CARD.number);
-  await page.locator('#cardExpiry').fill(TEST_CARD.expiry);
-  await page.locator('#cardCvc').fill(TEST_CARD.cvc);
-  await page.locator('#billingName').fill('Waitlist Journey');
-  const zip = page.locator('#billingPostalCode');
-  // The postal code appears once the country settles; a session without one skips it.
-  const zipShown = await zip.waitFor({ state: 'visible', timeout: 5_000 }).then(
-    () => true,
-    () => false
-  );
-  if (zipShown) await zip.fill(TEST_CARD.zip);
+  await (await checkoutLocator(page, 'the card expiry field', CARD_EXPIRY)).fill(TEST_CARD.expiry);
+  await (await checkoutLocator(page, 'the card security code field', CARD_CVC)).fill(TEST_CARD.cvc);
+  // The Payment Element may not ask for a cardholder name; the postal code appears once the
+  // country settles, and a session without one skips it.
+  await fillIfShown(page, BILLING_NAME, 'Waitlist Journey', 3_000);
+  await fillIfShown(page, BILLING_ZIP, TEST_CARD.zip, 5_000);
   // Link's "save my info" would ask for a phone number; this payer saves nothing.
-  const saveWithLink = page.locator('#enableStripePass');
-  if ((await saveWithLink.isVisible()) && (await saveWithLink.isChecked())) {
+  const saveWithLink = await findInCheckout(page, SAVE_WITH_LINK, 1_000);
+  if (saveWithLink && (await saveWithLink.isVisible()) && (await saveWithLink.isChecked())) {
     await saveWithLink.uncheck();
   }
 
   // The submit button reads "Pay" (or "Pay $NN.NN"); "Pay with ..." is a payment-method choice.
   // Deliberately strict: any other label should fail loudly rather than click a guess.
-  await page.getByRole('button', { name: /^Pay(\s+\$[\d,.]+)?$/ }).click();
+  const pay = await checkoutLocator(page, 'the Pay button', root =>
+    root.getByRole('button', { name: /^Pay(\s+\$[\d,.]+)?$/ })
+  );
+  await pay.click();
   await page.waitForURL(url => url.origin === ALLOWED_RETURN_ORIGIN, { timeout: 90_000 });
   const returned = new URL(page.url());
   return `${returned.pathname}${returned.search}`;

@@ -135,7 +135,7 @@ This repository uses remote Supabase and does not use the Supabase local Docker 
 execution therefore restores a read-only schema snapshot from remote Supabase into a disposable
 vanilla PostgreSQL cluster, applies both migrations there, and reruns the catalog invariants.
 Verification also includes migration-version uniqueness, database migration sanity, OpenSpec
-validation, `git diff --check`, and a remote `supabase db push --dry-run`. If the scratch
+validation, `git diff --check`, and a remote `supabase db push --remote --dry-run`. If the scratch
 PostgreSQL cluster cannot start, implementation stops at that failed evidence gate rather than
 treating source inspection as equivalent execution. After approval and push, the same read-only
 inventory queries and Supabase performance advisor will be rerun and their counts added to the
@@ -175,7 +175,7 @@ connectivity is restored.
 5. Restore a read-only remote schema snapshot into a disposable vanilla PostgreSQL cluster and
    apply both migrations there; do not use Supabase local/Docker. Then run focused tests,
    migration sanity/version checks, OpenSpec validation, and a linked-project
-   `supabase db push --dry-run`.
+   `supabase db push --remote --dry-run`.
 6. Obtain explicit approval for the real `supabase db push`.
 7. Push during a quiet window and rerun the catalog inventory plus performance advisor.
 8. If the additive migration must be rolled back, create a new forward migration dropping only

@@ -19,7 +19,7 @@ ERROR:  42883: function public.seed_demo_assert_no_paid_strays() does not exist
 
 before any parent delete. The whole file runs in one transaction, so the
 database is left untouched — but the reseed has not happened either. Check with
-`supabase migration list` from a linked checkout.
+`supabase migration list --remote` from a linked checkout.
 
 ## What a reseed is
 
@@ -117,7 +117,7 @@ select public.seed_demo_show_day_fixture_today();   -- today's ready fixture sho
   idempotent: a second call while a fixture is ready returns
   `"created": false` and inserts nothing.
 - **Precondition:** migration `20261006014300` is on the database
-  (`supabase migration list`). Without it the call fails with `42883 function
+  (`supabase migration list --remote`). Without it the call fails with `42883 function
 ... does not exist` and changes nothing.
 
 ```bash

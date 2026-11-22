@@ -14,7 +14,7 @@ const STILLS = { club: 1, exhibitor: 3 } as const;
 async function openLanding(page: Page) {
   await page.goto('/');
   await expect(page.locator('#top h1')).toBeVisible({ timeout: 30000 });
-  await expect(page.locator('#showday-dot')).toBeAttached({ timeout: 30000 });
+  await expect(page.locator('#showday')).toBeAttached({ timeout: 30000 });
 }
 
 async function loadEveryStill(page: Page) {
@@ -47,7 +47,7 @@ for (const width of [390, 1280]) {
           const stills = [...document.querySelectorAll<HTMLImageElement>('.lc-shot img')].map(
             img => {
               const box = img.getBoundingClientRect();
-              const column = img.closest('.lc-main')!.getBoundingClientRect();
+              const column = img.closest('.lc-media')!.getBoundingClientRect();
               return {
                 shape: img.closest('.lc-shot')!.getAttribute('data-shape') as 'phone' | 'desktop',
                 src: img.getAttribute('src'),

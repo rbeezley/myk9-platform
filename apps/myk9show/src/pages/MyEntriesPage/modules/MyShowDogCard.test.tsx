@@ -400,6 +400,10 @@ describe('MyShowDogCard — the running order once it is posted (MYK9-2138)', ()
     renderRows(rexWith([makeClass({ id: 'later', trialDate: day('2026-10-25'), runOrder: 5 })]));
 
     expect(screen.getByText(/Running order 5/)).toBeInTheDocument();
+    // One unbreakable unit on its own line: at 390px the number never wraps alone.
+    const unit = screen.getByTestId('class-row-running-order');
+    expect(unit).toHaveTextContent('Running order 5');
+    expect(unit).toHaveClass('whitespace-nowrap');
     expect(screen.queryByText(/dogs ahead|next up|in line/i)).not.toBeInTheDocument();
   });
 

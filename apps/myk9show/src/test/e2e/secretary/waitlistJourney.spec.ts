@@ -120,6 +120,11 @@ test.describe('Wait list: join -> offer -> decline -> expire -> mail-in head', (
       await expect(card).toContainText(/Claim by /);
       await expect(card.getByRole('button', { name: 'Complete payment' })).toBeVisible();
       await card.getByRole('button', { name: 'Decline' }).click();
+      // Declining asks before it gives up the place (MYK9-1839).
+      await exhibitor
+        .getByRole('alertdialog', { name: 'Give up this spot?' })
+        .getByRole('button', { name: 'Give up spot' })
+        .click();
       await expect(card).toContainText('You declined this spot.', { timeout: 20_000 });
 
       const willow = await rowFor(admin, DOGS.willow);

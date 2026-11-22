@@ -1,5 +1,5 @@
 import { renderHook, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { supabase } from '@/services/database/supabaseClient';
 import {
@@ -176,6 +176,41 @@ describe('volunteerQueries', () => {
         roleName: 'Timer',
       });
       expect(supabase.from).toHaveBeenCalledWith('volunteer_class_assignments');
+    });
+  });
+
+  describe('offline, a steward change fails at once instead of waiting unseen (MYK9-2328)', () => {
+    afterEach(() => {
+      onlineManager.setOnline(true);
+    });
+
+    it('assigning reports the failure', async () => {
+      onlineManager.setOnline(false);
+      vi.mocked(supabase.from).mockReturnValue({
+        insert: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({ data: null, error: new Error('Failed to fetch') }),
+          }),
+        }),
+      } as never);
+      const { result } = renderHook(() => useAssignToClass(SHOW_ID), { wrapper: createWrapper() });
+      result.current.mutate({ volunteerId: 'v-1', classId: 'c-1', roleName: 'Timer' });
+      await waitFor(() => expect(result.current.isError).toBe(true));
+      expect(result.current.isPaused).toBe(false);
+    });
+
+    it('removing reports the failure', async () => {
+      onlineManager.setOnline(false);
+      vi.mocked(supabase.from).mockReturnValue({
+        delete: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({ error: new Error('Failed to fetch') }),
+        }),
+      } as never);
+      const { result } = renderHook(() => useUnassignFromClass(SHOW_ID), {
+        wrapper: createWrapper(),
+      });
+      result.current.mutate('a-1');
+      await waitFor(() => expect(result.current.isError).toBe(true));
     });
   });
 

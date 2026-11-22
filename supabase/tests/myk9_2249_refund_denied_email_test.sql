@@ -10,7 +10,7 @@
 --   E. a legacy denial (no reason) still validates, and the constraint is validated
 --   F. reinstating a denied no-show clears the decision AND the reason
 --   G. a denial on a COMPLETED show queues; a draft show queues nothing
---   H. denying twice sends no second email; the two-argument version is still installed
+--   H. denying twice sends no second email; the two-argument version is gone (MYK9-2293)
 --   I. the producer is not callable by an API role; both step_type CHECKs accept refund_denied
 --
 -- Fixtures roll back.
@@ -278,10 +278,11 @@ begin
      <> 'Past the refund deadline.' then
     raise exception 'FAIL H the first reason was overwritten';
   end if;
-  if to_regprocedure('public.set_entry_refund_decision(uuid, text)') is null then
-    raise exception 'FAIL H the two-argument version must stay until the follow-up drop';
+  -- MYK9-2293 dropped the two-argument version: no denial can skip the reason and the email.
+  if to_regprocedure('public.set_entry_refund_decision(uuid, text)') is not null then
+    raise exception 'FAIL H the two-argument version is still installed';
   end if;
-  raise notice 'PASS H a second denial sends nothing, and the two-argument version is still installed';
+  raise notice 'PASS H a second denial sends nothing, and the two-argument version is gone';
 end $$;
 
 -- I

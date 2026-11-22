@@ -23,7 +23,7 @@ vi.mock('@/components/landing/lifecycle/ClubOnboarding', () => ({
   ClubOnboarding: () => <section id="get-started" aria-label="Add your club form" />,
 }));
 vi.mock('@/components/landing/lifecycle/useTimelineProgress', () => ({
-  useTimelineProgress: () => ({ reached: 0, isRevealed: () => true }),
+  useTimelineProgress: () => ({ isRevealed: () => true }),
 }));
 
 const linkTexts = (root: Element) =>

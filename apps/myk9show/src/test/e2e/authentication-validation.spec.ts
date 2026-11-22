@@ -131,7 +131,9 @@ test.describe('Phase 2: Authentication Validation', () => {
     // renders this as visible text (not a [role="alert"] element), so assert
     // the copy the auth flow actually shows.
     await expect(page).toHaveURL(/.*sign-in/);
-    await expect(page.getByText(/invalid login credentials/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(/that email or password is not right/i)).toBeVisible({
+      timeout: 5000,
+    });
   });
 
   test('should redirect unauthenticated users to sign-in', async ({ page }) => {

@@ -74,9 +74,9 @@ function main() {
   console.log('📝 Next Steps:');
   console.log('1. Run the migration commands above in order');
   console.log('2. Edit each .sql file with the table schema');
-  console.log('3. Apply with: npx supabase db push');
+  console.log('3. Apply with: npx supabase db push --remote');
   console.log(
-    '4. Generate types: npx supabase gen types typescript --linked > src/types/supabase.ts'
+    '4. Generate types: npx supabase gen types typescript --remote > src/types/supabase.ts'
   );
 }
 

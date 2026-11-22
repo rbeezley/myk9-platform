@@ -12,13 +12,7 @@ test('registration focus remains clear across desktop, history, and narrow layou
   page,
 }) => {
   await signInAsSecretary(page, `/shows/${LIVE_SECRETARY_SHOW_ID}/entries`);
-  await expect(
-    page.getByRole('textbox', {
-      name: 'Search exhibitor, dog, handler, armband, confirmation, class…',
-    })
-  ).toBeVisible({
-    timeout: 30_000,
-  });
+  await expect(page.getByRole('textbox', { name: SEARCH_LABEL })).toBeVisible({ timeout: 30_000 });
 
   await page.setViewportSize({ width: 1440, height: 1000 });
   await expect(page.getByText('Entry form', { exact: true })).toBeVisible();
@@ -48,8 +42,7 @@ test('registration focus remains clear across desktop, history, and narrow layou
 
   await page.context().setOffline(true);
   try {
-    // Below 1024px the search is an icon named after its field; tapping it opens the field.
-    await page.getByRole('button', { name: SEARCH_LABEL }).click();
+    // Finding an entry is this tab's main job: a full field at every width (MYK9-1733).
     await page
       .getByRole('textbox', { name: SEARCH_LABEL })
       .fill(offlineSearchTerm ?? 'registration');
@@ -67,8 +60,7 @@ test('the registration queue keeps every row inside a 768px tablet viewport (MYK
 }) => {
   await page.setViewportSize({ width: 768, height: 1024 });
   await signInAsSecretary(page, `/shows/${LIVE_SECRETARY_SHOW_ID}/entries`);
-  // Below 1024px the search is a 44px icon until tapped.
-  await expect(page.getByRole('button', { name: SEARCH_LABEL })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole('textbox', { name: SEARCH_LABEL })).toBeVisible({ timeout: 30_000 });
 
   const queue = page.getByRole('list', { name: 'Entry form work queue' });
   const rows = queue.getByRole('listitem');
@@ -96,7 +88,7 @@ test('the registration queue keeps every row inside a 768px tablet viewport (MYK
 test('Entry Management does not scroll sideways at 150% zoom on a phone', async ({ page }) => {
   await page.setViewportSize(PHONE_AT_150_PERCENT_ZOOM);
   await signInAsSecretary(page, `/shows/${LIVE_SECRETARY_SHOW_ID}/entries`);
-  await expect(page.getByRole('button', { name: SEARCH_LABEL })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole('textbox', { name: SEARCH_LABEL })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole('button', { name: /^Filter/ })).toBeVisible();
   await expectNoHorizontalScroll(page, 'Entry Management');
 });
@@ -113,7 +105,9 @@ for (const viewport of [
   }) => {
     await page.setViewportSize(viewport);
     await signInAsSecretary(page, `/shows/${LIVE_SECRETARY_SHOW_ID}/entries`);
-    await expect(page.getByRole('button', { name: SEARCH_LABEL })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole('textbox', { name: SEARCH_LABEL })).toBeVisible({
+      timeout: 30_000,
+    });
 
     const pagination = page.getByRole('navigation', { name: 'Entry form pagination' });
     for (const name of ['Previous', 'Next']) {

@@ -18,8 +18,12 @@ export const TRIAL_ID = 'dededede-0000-0000-0000-000000000022';
  * run-sheet absence check a positive control on the same page.
  */
 export const CLASS_ID = 'dec1a55e-0000-0000-0000-000000000035';
-/** `seed-demo.sql` section 6: Maple's seeded entry in the class above (status submitted). */
-export const SEEDED_RUN_SHEET_DOG = 'Maple';
+/**
+ * `seed-demo.sql` section 6: Scout's seeded entry in the class above (move-up requested, paid). Not
+ * Maple: her entry is still awaiting approval (submitted), and Show Desk lists pending entries only
+ * through the "N pending" link (MYK9-1782), so she never renders in the entries table.
+ */
+export const SEEDED_RUN_SHEET_DOG = 'Scout';
 /**
  * `seed-demo.sql` section 5: Cooper, owned by secretary@myk9t.com. Its AKC registration number is
  * minted by the seed (`'SR' || upper(substr(md5(dog_id || 'AKC'), 1, 8))`), so the spec reads it

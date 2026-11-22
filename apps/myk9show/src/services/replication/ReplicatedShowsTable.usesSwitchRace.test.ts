@@ -36,7 +36,6 @@ const serverShow = (extra: Record<string, unknown> = {}) => ({
   uses_device_scoring: true,
   uses_paper_packet: true,
   uses_volunteers: true,
-  uses_landing_page: false,
   publishes_own_premium: false,
   ...extra,
 });
@@ -167,7 +166,7 @@ describe('ReplicatedShowsTable overlapping switch flips (MYK9-1919)', () => {
     expect(uploads).toHaveLength(1);
     expect(uploads[0]!.serverVersion).toBe(4);
     expect(uploads[0]!.data).toMatchObject({ uses_device_scoring: false });
-    for (const column of ['uses_paper_packet', 'uses_volunteers', 'uses_landing_page', 'name']) {
+    for (const column of ['uses_paper_packet', 'uses_volunteers', 'name']) {
       expect(uploads[0]!.data).not.toHaveProperty(column);
     }
     expect((await row())!.data).toMatchObject({ usesPaperPacket: false, name: 'Renamed' });

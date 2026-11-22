@@ -10,15 +10,19 @@
 #   2. MYK9-546 / MYK9-2247: each host's canonical homepage `/` (what visitors
 #      get) must name the entry chunk the build stamped in build-entry.txt.
 #      The stamps must agree across hosts and each homepage must match its
-#      host's stamp, so a cached old homepage on both cannot pass. A deployment without the stamp fails: rebuild_live=true.
+#      host's stamp, so a cached old homepage on both cannot pass. When this job
+#      published, they must also equal the published stamp (MYK9-2306).
+#      A deployment without the stamp fails: rebuild_live=true.
 #
 #   COMMIT_SHA     required, full 40-char SHA production must serve
 #   DOMAIN_URL     default https://myk9show.com
 #   ALIAS_URL      default https://myk9-platform-myk9show.vercel.app
+#   EXPECTED_ENTRY_FILE  set only when this job published: the built build-entry.txt
 #   VERIFY_TRIES   attempts per check (default 6)
 #   VERIFY_SLEEP   seconds between attempts (default 10)
 #
-# Appends a line to $GITHUB_STEP_SUMMARY when set; exits 1 on any mismatch.
+# Appends a line to $GITHUB_STEP_SUMMARY when set; exits 1 on any mismatch,
+# 2 when a stamp or homepage could not be read (transport error, not a stale build).
 set -euo pipefail
 
 commit_sha="${COMMIT_SHA:-}"
@@ -32,14 +36,44 @@ pause="${VERIFY_SLEEP:-10}"
   exit 1
 }
 
-# Read the whole page before matching: `curl | grep | head` can SIGPIPE curl,
-# which pipefail turns into a failed step.
-# Output from a failed or timed-out transfer (curl exits non-zero after
-# printing part of the body) is discarded, never parsed.
-entry() {
-  local html
-  html="$(curl --fail --silent --show-error --location --max-time 20 "$1")" || return 0
-  grep -oE 'src="/assets/[^"]*index-[A-Za-z0-9_-]+\.js"' <<<"$html" | sort -u || true
+# Fetches one URL and classifies the answer, so a stamp read and a homepage read
+# share one rule. Sets PAGE_BODY and PAGE_STATE: ok (HTTP 2xx), missing (HTTP
+# 404 or 410) or transport (anything else: timeout, DNS or connection failure,
+# 5xx, and 4xx such as 401, 403 or 429, which are read failures, not absence). Output from a
+# failed or timed-out transfer is discarded, never parsed. The whole page is
+# read before matching: `curl | grep | head` can SIGPIPE curl, which pipefail
+# turns into a failed step.
+PAGE_BODY=""
+PAGE_STATE=""
+PAGE_CODE=""
+fetch_page() {
+  local out code
+  PAGE_BODY=""
+  PAGE_STATE="transport"
+  PAGE_CODE=""
+  out="$(curl --silent --location --max-time 20 --write-out $'\n%{http_code}' "$1" 2>/dev/null)" || return 0
+  code="${out##*$'\n'}"
+  PAGE_CODE="$code"
+  if [[ "$code" =~ ^2[0-9][0-9]$ ]]; then
+    PAGE_BODY="${out%$'\n'*}"
+    PAGE_STATE="ok"
+  elif [[ "$code" == 404 || "$code" == 410 ]]; then
+    PAGE_STATE="missing"
+  fi
+}
+
+# Reads a host's canonical homepage. Sets HOME_ENTRY (its entry chunk script
+# tag, or "") and HOME_STATE (ok, missing or transport).
+HOME_ENTRY=""
+HOME_STATE=""
+HOME_CODE=""
+read_home() {
+  fetch_page "$1"
+  HOME_STATE="$PAGE_STATE"
+  HOME_CODE="$PAGE_CODE"
+  HOME_ENTRY=""
+  [[ "$PAGE_STATE" == ok ]] || return 0
+  HOME_ENTRY="$(grep -oE 'src="/assets/[^"]*index-[A-Za-z0-9_-]+\.js"' <<<"$PAGE_BODY" | sort -u || true)"
 }
 
 served_sha() {
@@ -48,10 +82,26 @@ served_sha() {
   tr -d '[:space:]' <<<"$body"
 }
 
-served_stamp() {
+# Reads a host's build-entry.txt. Sets STAMP (the well-formed stamp, or "") and
+# STAMP_STATE: ok, missing (HTTP 4xx, or a body that is not a complete entry
+# chunk such as the SPA catch-all's index.html) or transport (timeout, DNS or
+# connection failure, 5xx). Only `missing` means the deployment lacks the stamp.
+STAMP=""
+STAMP_STATE=""
+STAMP_CODE=""
+read_stamp() {
   local body
-  body="$(curl --fail --silent --location --max-time 20 "$1/build-entry.txt?v=$commit_sha-$(date +%s)-$2" 2>/dev/null)" || return 0
-  tr -d '[:space:]' <<<"$body"
+  fetch_page "$1/build-entry.txt?v=$commit_sha-$(date +%s)-$2"
+  STAMP=""
+  STAMP_STATE="$PAGE_STATE"
+  STAMP_CODE="$PAGE_CODE"
+  [[ "$PAGE_STATE" == ok ]] || return 0
+  body="$(tr -d '[:space:]' <<<"$PAGE_BODY")"
+  if [[ "$body" =~ $entry_re ]]; then
+    STAMP="$body"
+  else
+    STAMP_STATE="missing"
+  fi
 }
 
 for host in "$domain" "$alias_url"; do
@@ -68,33 +118,78 @@ for host in "$domain" "$alias_url"; do
   }
 done
 
-# MYK9-2247: the stamp, written at build time next to build-sha.txt, names the
-# entry chunk the build produced. Only what the hosts serve is compared: both
-# stamps must be well-formed (the SPA catch-all can answer a missing stamp with
-# index.html, HTTP 200, so only a complete entry chunk counts), equal to each
-# other, and each canonical homepage must serve exactly its host's stamp. A stale
-# stamp or homepage is retried like any propagation delay, never failed at first
-# sight, and no locally built expectation is involved (a rerun job rebuilds with
-# a different hash than what is live).
+# MYK9-2247 / MYK9-2306: the stamp, written at build time next to build-sha.txt,
+# names the entry chunk the build produced. Both stamps must be well-formed (the
+# SPA catch-all can answer a missing stamp with index.html, HTTP 200, so only a
+# complete entry chunk counts), equal to each other, and each canonical homepage
+# must serve exactly its host's stamp. A stale stamp or homepage is retried like
+# any propagation delay, never failed at first sight.
+#
+# The one rule for what the live entry chunk is compared against (owner,
+# 2026-11-22): EXPECTED_ENTRY_FILE, set by the workflow ONLY when this job
+# actually published, names the published artifact's stamp, and every host's
+# stamp and homepage must equal it. That catches a same-commit rebuild_live
+# deploy while both hosts still serve the old build (their stamps and homepages
+# agree with each other, but not with what was just published). When this job did
+# not publish it is unset and only the hosts' stamps are compared with what they
+# serve: a rerun job rebuilds with a different hash than what is live, so a
+# locally built entry is never an expectation then.
 entry_re='^src="/assets/[^"]*index-[A-Za-z0-9_-]+\.js"$'
+expected=""
+if [[ -n "${EXPECTED_ENTRY_FILE:-}" ]]; then
+  expected="$(tr -d '[:space:]' 2>/dev/null <"$EXPECTED_ENTRY_FILE" || true)"
+  [[ "$expected" =~ $entry_re ]] || {
+    echo "EXPECTED_ENTRY_FILE '$EXPECTED_ENTRY_FILE' does not hold one complete entry chunk stamp" >&2
+    exit 1
+  }
+fi
 stamp_d=""
 stamp_a=""
+state_d=""
+state_a=""
 home_d=""
 home_a=""
+hstate_d=""
+hstate_a=""
+code_d=""
+code_a=""
+hcode_d=""
+hcode_a=""
 for ((attempt = 1; attempt <= tries; attempt += 1)); do
-  stamp_d="$(served_stamp "$domain" "$attempt")"
-  stamp_a="$(served_stamp "$alias_url" "$attempt")"
-  [[ "$stamp_d" =~ $entry_re ]] || stamp_d=""
-  [[ "$stamp_a" =~ $entry_re ]] || stamp_a=""
-  home_d="$(entry "$domain/")"
-  home_a="$(entry "$alias_url/")"
-  if [[ -n "$stamp_d" && "$stamp_d" == "$stamp_a" && "$home_d" == "$stamp_d" && "$home_a" == "$stamp_d" ]]; then
+  read_stamp "$domain" "$attempt"
+  stamp_d="$STAMP"
+  state_d="$STAMP_STATE"
+  code_d="$STAMP_CODE"
+  read_stamp "$alias_url" "$attempt"
+  stamp_a="$STAMP"
+  state_a="$STAMP_STATE"
+  code_a="$STAMP_CODE"
+  read_home "$domain/"
+  home_d="$HOME_ENTRY"
+  hstate_d="$HOME_STATE"
+  hcode_d="$HOME_CODE"
+  read_home "$alias_url/"
+  home_a="$HOME_ENTRY"
+  hstate_a="$HOME_STATE"
+  hcode_a="$HOME_CODE"
+  if [[ -n "$stamp_d" && "$stamp_d" == "$stamp_a" && "$home_d" == "$stamp_d" && "$home_a" == "$stamp_d" && (-z "$expected" || "$stamp_d" == "$expected") ]]; then
     break
   fi
-  echo "attempt $attempt: $domain stamp=$stamp_d homepage=$home_d; $alias_url stamp=$stamp_a homepage=$home_a"
+  echo "attempt $attempt: $domain stamp=$stamp_d($state_d) homepage=$home_d; $alias_url stamp=$stamp_a($state_a) homepage=$home_a${expected:+; published=$expected}"
   if ((attempt < tries)); then sleep "$pause"; fi
 done
 
+# A stamp or homepage that could not be read at all says nothing about the
+# deployment: retry verify, do not republish (Vercel's daily deploy quota).
+for pair in "$domain/build-entry.txt|$state_d|$code_d" "$alias_url/build-entry.txt|$state_a|$code_a" "$domain/|$hstate_d|$hcode_d" "$alias_url/|$hstate_a|$hcode_a"; do
+  IFS='|' read -r pair_url pair_state pair_code <<<"$pair"
+  [[ "$pair_state" != transport ]] || {
+    reason="timeout/connection failure"
+    [[ "$pair_code" =~ ^[1-5][0-9][0-9]$ ]] && reason="HTTP $pair_code or timeout/connection failure"
+    echo "$pair_url could not be read ($reason). This is a transport error, not a stale build: wait a few minutes and rerun the job; republishing once is safe." >&2
+    exit 2
+  }
+done
 for pair in "$domain|$stamp_d" "$alias_url|$stamp_a"; do
   [[ -n "${pair#*|}" ]] || {
     echo "${pair%%|*} has no build-entry.txt stamp, so its homepage cannot be checked against the build. This deployment predates the stamp: rerun with rebuild_live=true to rebuild and republish it." >&2
@@ -103,6 +198,10 @@ for pair in "$domain|$stamp_d" "$alias_url|$stamp_a"; do
 done
 [[ "$stamp_d" == "$stamp_a" && "$home_d" == "$stamp_d" && "$home_a" == "$stamp_d" ]] || {
   echo "entry chunk mismatch: $domain stamp '$stamp_d' homepage '$home_d'; $alias_url stamp '$stamp_a' homepage '$home_a'. The hosts do not serve one build, or a stale homepage is still being served. Rerun with rebuild_live=true to republish." >&2
+  exit 1
+}
+[[ -z "$expected" || "$stamp_d" == "$expected" ]] || {
+  echo "entry chunk mismatch: both hosts serve '$stamp_d' but this job published '$expected': the hosts still serve the previous build. Rerun the job." >&2
   exit 1
 }
 public="$stamp_d"

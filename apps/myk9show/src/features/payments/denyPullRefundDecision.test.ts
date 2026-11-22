@@ -6,7 +6,7 @@ vi.mock('@/lib/supabase', () => ({
   supabase: { rpc },
 }));
 
-import { denyPullRefundDecision } from './denyPullRefundDecision';
+import { denyPullRefundDecision, isRefundDecisionRpcMissing } from './denyPullRefundDecision';
 
 describe('denyPullRefundDecision', () => {
   beforeEach(() => {
@@ -43,5 +43,22 @@ describe('denyPullRefundDecision', () => {
     rpc.mockResolvedValue({ error });
 
     await expect(denyPullRefundDecision('entry-1', 'Late')).rejects.toBe(error);
+  });
+});
+
+// MYK9-2293: a missing signature means this tab predates a schema change; the caller asks for a restart.
+describe('isRefundDecisionRpcMissing', () => {
+  it('reads a missing function from PostgREST or Postgres as a stale tab', () => {
+    expect(isRefundDecisionRpcMissing({ code: 'PGRST202', message: 'schema cache' })).toBe(true);
+    expect(isRefundDecisionRpcMissing({ code: '42883', message: 'function does not exist' })).toBe(
+      true
+    );
+  });
+
+  it('leaves every other failure alone', () => {
+    expect(isRefundDecisionRpcMissing({ code: '42501', message: 'not authorized' })).toBe(false);
+    expect(isRefundDecisionRpcMissing({ code: '22023', message: 'needs a reason' })).toBe(false);
+    expect(isRefundDecisionRpcMissing(new Error('network'))).toBe(false);
+    expect(isRefundDecisionRpcMissing(null)).toBe(false);
   });
 });

@@ -80,9 +80,21 @@ describe('My Shows card facts', () => {
   it('shows the judge on each class and a time only where one is set', async () => {
     renderRows([showRow()]);
 
-    expect(await screen.findByText('Judge Dana Whitlock · 9:00 AM')).toBeInTheDocument();
+    const judgePart = await screen.findByText('Judge Dana Whitlock');
+    expect(judgePart).toBeInTheDocument();
+    expect(judgePart.parentElement).toHaveTextContent('Judge Dana Whitlock9:00 AM');
+    expect(within(judgePart.parentElement as HTMLElement).getByText('9:00 AM')).toBeInTheDocument();
+    expect(judgePart.parentElement).not.toHaveTextContent('·');
     expect(screen.getByText('Judge Lee Okafor')).toBeInTheDocument();
     expect(fetchShowsJudgeNameParts).toHaveBeenCalledWith(['show-1']);
+  });
+
+  it('puts no separator glyph in the show header lines (MYK9-2325)', async () => {
+    const { container } = renderRows([showRow()]);
+    await screen.findByText('Heartland Scent Work Classic');
+    const metas = container.querySelectorAll('.myk9-entries-show-meta');
+    expect(metas.length).toBeGreaterThan(0);
+    for (const meta of metas) expect(meta.textContent).not.toContain('·');
   });
 
   it('renders no judge text for a class whose judge is unknown', async () => {

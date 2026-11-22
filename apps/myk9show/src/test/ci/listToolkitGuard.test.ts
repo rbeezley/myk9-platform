@@ -52,6 +52,10 @@ const EXEMPT_IMPORTERS: Record<string, string> = {};
  * A new file, or a changed count, fails until someone decides which it is.
  */
 const ARIA_PRESSED_DECLARED: Record<string, { count: number; reason: string }> = {
+  'features/show-map/cockpit/BulkStewardDialog.tsx': {
+    count: 2,
+    reason: 'job and volunteer choice in the Assign steward dialog (MYK9-2328), not a filter',
+  },
   'features/show-map/cockpit/CockpitScheduleRow.tsx': {
     count: 1,
     reason: 'focus toggle on a schedule row, not a filter',

@@ -61,9 +61,12 @@
 
 .myk9-entries-show-header {
   display: flex;
-  flex-wrap: wrap;
+  /* No wrap: the show's Actions trigger stays on the heading row, never alone on
+     the line below it, where on a phone it reads as belonging to nothing. The
+     title column (min-w-0) gives way instead. */
+  flex-wrap: nowrap;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 16px;
   padding: 8px 0 4px;
 }
@@ -84,7 +87,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  /* No "·" separators between the facts: a wrapped line would start or end on one. */
+  gap: 4px 16px;
   margin: 0;
   font-size: 0.875rem;
   color: var(--muted-foreground);
@@ -211,7 +215,8 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
+  /* No "·" separators between the verbs: a wrapped line would start or end on one. */
+  gap: 4px 16px;
   font-size: 0.875rem;
 }
 

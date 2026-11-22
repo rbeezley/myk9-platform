@@ -22,7 +22,7 @@ import { box, holdWebSockets, proveSocketHold, type Box } from './captureKit';
  *
  * Takes the landing page's "Results" scene from the running app: the secretary's desktop
  * (1440x900) from the Results tab listing a finished class to its release, and the exhibitor's
- * phone (390x844 at 2x) from My Entries to the result card (docs/plan-landing-animated-timeline.md
+ * phone (390x844 at 2x) from My Entries to the result card (docs/archive/plan-landing-animated-timeline.md
  * § "The 'Results' scene", MYK9-2308). It is the Entries open capture's sibling and keeps all of
  * its guarantees:
  *   - the backend is the job's own Supabase stack on this machine, seeded from the repo's

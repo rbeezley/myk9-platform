@@ -5,15 +5,15 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import { LifecycleTimeline } from '../LifecycleTimeline';
 import { BANNED_COPY, SCENE_LINES, STORIES } from '../lifecycleStories';
-import { lastFrameOfLine, windowOnRing, zoomOnRing } from '../sceneFrames';
+import { lastFrameOfLine, wholeScreen, zoomOnRing } from '../sceneFrames';
 import type { DeviceView, Region } from '../sceneFrames';
-import { DESK_CAMERA_WIDTH, PHONE_WINDOW_HEIGHT } from '../scenes/entriesScene';
+import { DESK_CAMERA_WIDTH } from '../scenes/entriesScene';
 import { RESULTS_SCENE } from '../scenes/resultsScene';
 import { SCENES } from '../scenes';
 import regions from '../scenes/resultsRegions.json';
 
 vi.mock('../useTimelineProgress', () => ({
-  useTimelineProgress: () => ({ reached: 4, isRevealed: () => true }),
+  useTimelineProgress: () => ({ isRevealed: () => true }),
 }));
 
 const publicDir = resolve(process.cwd(), 'public');
@@ -92,16 +92,9 @@ describe('the Results scene', () => {
     }
   });
 
-  it('shows the phone in the Entries scene’s 3:4 window and the desk in its 5:3 camera, each placed by one rule', () => {
-    expect(PHONE_WINDOW_HEIGHT).toBe(520);
+  it('shows the whole phone screen and the desk in a 5:3 camera placed on its ring', () => {
     for (const f of frames) {
-      const { camera, ring } = f.phone!;
-      expect(camera.x).toBe(0);
-      expect(camera.w).toBe(phoneSpace.width);
-      expect(camera.h).toBe(PHONE_WINDOW_HEIGHT);
-      expect(camera.y).toBeGreaterThanOrEqual(0);
-      expect(camera.y + camera.h).toBeLessThanOrEqual(phoneSpace.height);
-      if (ring) expect(camera).toEqual(windowOnRing(phoneSpace, ring, PHONE_WINDOW_HEIGHT));
+      expect(f.phone!.camera).toEqual(wholeScreen(phoneSpace));
     }
     for (const f of frames) {
       const { camera, ring } = f.desk!;
@@ -222,13 +215,36 @@ describe('the Results scene', () => {
   });
 });
 
+const shotsOf = (card: Element) =>
+  Object.fromEntries(
+    [...card.querySelectorAll('.tl-scene-frame')].map(frame => [
+      frame.getAttribute('data-kind'),
+      frame.querySelector('.tl-scene-shot[data-on="true"]')?.getAttribute('data-shot'),
+    ])
+  );
+
+const reduceMotion = () =>
+  vi.spyOn(window, 'matchMedia').mockImplementation(
+    query =>
+      ({
+        matches: query.includes('reduce'),
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }) as MediaQueryList
+  );
+
 describe('the Results scene on the page', () => {
   const resultsStep = (container: HTMLElement) => container.querySelector('#results')!;
 
   it('replaces the club’s still, with the desk leading', () => {
     const { container } = render(<LifecycleTimeline audience="club" onAudienceChange={vi.fn()} />);
     const step = resultsStep(container);
-    const scene = step.querySelector('.lc-main .tl-scene');
+    const scene = step.querySelector('.lc-scene[data-side="main"] .tl-scene');
     expect(scene).not.toBeNull();
     expect(scene).toHaveAttribute('data-lead', 'desk');
     expect(scene).not.toHaveAttribute('data-solo');
@@ -236,16 +252,19 @@ describe('the Results scene on the page', () => {
     expect(STORIES.club.find(s => s.id === 'results')!.shot).toBeNull();
   });
 
-  it('replaces the exhibitor’s still, with the phone leading', () => {
+  // MYK9-2334: "After the show" folded into Results, so the exhibitor's dog record sits beside
+  // the words and the scene, phone leading, plays below it.
+  it('plays with the phone leading for exhibitors, below the dog-record still', () => {
     const { container } = render(
       <LifecycleTimeline audience="exhibitor" onAudienceChange={vi.fn()} />
     );
     const step = resultsStep(container);
-    const scene = step.querySelector('.lc-main .tl-scene');
+    const scene = step.querySelector('.lc-scene[data-side="main"] .tl-scene');
     expect(scene).not.toBeNull();
     expect(scene).toHaveAttribute('data-lead', 'phone');
-    expect(step.querySelectorAll('.lc-shot, figure')).toHaveLength(0);
-    expect(STORIES.exhibitor.find(s => s.id === 'results')!.shot).toBeNull();
+    const stills = step.querySelectorAll('.lc-media .lc-shot img');
+    expect(stills).toHaveLength(1);
+    expect(stills[0]).toHaveAttribute('src', '/landing/stills/exhibitor-past-results.png');
   });
 
   it('reads the same four lines in both stories', () => {
@@ -253,21 +272,23 @@ describe('the Results scene on the page', () => {
       const { container, unmount } = render(
         <LifecycleTimeline audience={audience} onAudienceChange={vi.fn()} />
       );
-      const list = within(resultsStep(container) as HTMLElement).getByRole('list');
-      const text = within(list)
+      const group = within(resultsStep(container) as HTMLElement).getByRole('group', {
+        name: 'Lines in this scene',
+      });
+      const text = within(group)
         .getAllByRole('button')
         .map(button => button.textContent);
       unmount();
       return text;
     };
     const club = linesIn('club');
-    expect(club).toHaveLength(4);
+    expect(club).toEqual(SCENE_LINES.results.map((line, i) => `${i + 1}${line.short}`));
     expect(linesIn('exhibitor')).toEqual(club);
   });
 
   it('jumps to a line’s capture when the line is pressed', () => {
     const { container } = render(<LifecycleTimeline audience="club" onAudienceChange={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: /The placements are worked out/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Placements worked out/ }));
     const on = (kind: string) =>
       resultsStep(container)
         .querySelector(`.tl-scene-frame[data-kind="${kind}"] .tl-scene-shot[data-on="true"]`)
@@ -276,32 +297,18 @@ describe('the Results scene on the page', () => {
     expect(on('phone')).toBe('before');
   });
 
-  it('rests each line on the frame its heading names under reduced motion', () => {
-    vi.spyOn(window, 'matchMedia').mockImplementation(
-      query =>
-        ({
-          matches: query.includes('reduce'),
-          media: query,
-          onchange: null,
-          addListener: vi.fn(),
-          removeListener: vi.fn(),
-          addEventListener: vi.fn(),
-          removeEventListener: vi.fn(),
-          dispatchEvent: vi.fn(),
-        }) as MediaQueryList
-    );
+  it('draws one storyboard card per line under reduced motion, on the frame its heading names', () => {
+    reduceMotion();
     const { container } = render(<LifecycleTimeline audience="club" onAudienceChange={vi.fn()} />);
-    const on = (kind: string) =>
-      resultsStep(container)
-        .querySelector(`.tl-scene-frame[data-kind="${kind}"] .tl-scene-shot[data-on="true"]`)
-        ?.getAttribute('data-shot');
-    const rest = (name: RegExp) => {
-      fireEvent.click(within(resultsStep(container) as HTMLElement).getByRole('button', { name }));
-      return [on('desk'), on('phone')];
-    };
-    expect(rest(/A finished class is waiting for you/)).toEqual(['list', 'before']);
-    expect(rest(/The placements are worked out/)).toEqual(['class', 'before']);
-    expect(rest(/You release the results/)).toEqual(['released', 'before']);
-    expect(rest(/The exhibitor sees it on their phone/)).toEqual(['released', 'card']);
+    const step = resultsStep(container);
+    expect(within(step as HTMLElement).queryByRole('group')).toBeNull();
+    const cards = [...step.querySelectorAll('.tl-scene-card')];
+    // Each card shows the device its line is about: the secretary's three lines, then the phone.
+    expect(cards.map(card => shotsOf(card))).toEqual([
+      { desk: 'list' },
+      { desk: 'class' },
+      { desk: 'released' },
+      { phone: 'card' },
+    ]);
   });
 });

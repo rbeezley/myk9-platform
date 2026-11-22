@@ -45,7 +45,8 @@ export function isPrimaryKeyDuplicateError(
  * Columns the app no longer writes, per table. A mutation queued by an older client (an offline
  * show creation, or a tab not yet reloaded after a deploy) still carries them, and PostgREST
  * would reject the whole write once the column is dropped. Stripped before sending so the rest of the
- * write still lands. MYK9-2054: shows.uses_landing_page.
+ * write still lands. MYK9-2054 retired shows.uses_landing_page; MYK9-2281 dropped the column, and the
+ * entry stays to strip it from writes queued by an older tab.
  */
 const RETIRED_COLUMNS: Readonly<Record<string, readonly string[]>> = {
   shows: ['uses_landing_page'],

@@ -169,7 +169,9 @@ jobs:
           printf '%s\n' "$COMMIT_SHA" >.vercel/output/static/build-sha.txt
           # MYK9-2247: also stamp the entry chunk the build produced, in the
           # same form verify-production.sh reads off a live homepage.
-          entry="$(grep -oE 'src="/assets/[^"]*index-[A-Za-z0-9_-]+\.js"' .vercel/output/static/index.html | sort -u)"
+          # `|| true`: a no-match grep must reach the diagnostic below, not
+          # exit the step under pipefail.
+          entry="$({ grep -oE 'src="/assets/[^"]*index-[A-Za-z0-9_-]+\.js"' .vercel/output/static/index.html || true; } | sort -u)"
           [[ -n "$entry" && "$entry" != *$'\n'* ]] || { echo "expected exactly one entry chunk in the built index.html, got: '$entry'" >&2; exit 1; }
           printf '%s\n' "$entry" >.vercel/output/static/build-entry.txt
 
@@ -240,5 +242,8 @@ jobs:
       - name: Verify production serves this commit
         env:
           COMMIT_SHA: ${{ needs.preflight.outputs.commit_sha }}
-          # Present only when this run built; then it is the one expectation.
+          # MYK9-2306: set ONLY when this job published (steps.deploy succeeded):
+          # then the live entry chunk must be the one it published. Unset, verify
+          # compares the hosts' stamps with what they serve (no local expectation).
+          EXPECTED_ENTRY_FILE: ${{ steps.deploy.outcome == 'success' && format('{0}/.vercel/output/static/build-entry.txt', github.workspace) || '' }}
         run: bash "$RUNNER_TEMP/verify-production.sh"

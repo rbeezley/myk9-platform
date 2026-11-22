@@ -352,7 +352,8 @@ END $$;
 -- ---------------------------------------------------------------------------
 -- Club demo show refusals (MYK9-836, see the clear further down). Before any delete.
 DO $$
-DECLARE v_orders integer; v_intents integer; v_elsewhere integer;
+DECLARE v_orders integer; v_intents integer; v_elsewhere integer; v_person integer := 0;
+  v_fk record; v_n integer;
 BEGIN
   SELECT count(*) INTO v_orders
   FROM public.stripe_orders
@@ -371,6 +372,41 @@ BEGIN
     AND dog_id <  'dededede-0000-0000-0837-000000000000'::uuid
     AND NOT (show_id >= 'dededede-0000-0000-0836-000000000000'::uuid
              AND show_id <  'dededede-0000-0000-0837-000000000000'::uuid);
+  -- The demo exhibitor (dededede-0000-0000-0836-0000000000e1) used anywhere outside the club demo
+  -- range: an enrollment, an entry as handler or a dog on another show, or any other row that
+  -- deleting the person would cascade or block. The tables the seed itself clears are checked by
+  -- range; every other foreign key to people(id) is counted by the column, found in the catalog.
+  SELECT
+    (SELECT count(*) FROM public.enrollments
+      WHERE handler_id = 'dededede-0000-0000-0836-0000000000e1'
+        AND NOT (show_id >= 'dededede-0000-0000-0836-000000000000'::uuid
+                 AND show_id <  'dededede-0000-0000-0837-000000000000'::uuid))
+  + (SELECT count(*) FROM public.entries
+      WHERE handler_id = 'dededede-0000-0000-0836-0000000000e1'
+        AND NOT (show_id >= 'dededede-0000-0000-0836-000000000000'::uuid
+                 AND show_id <  'dededede-0000-0000-0837-000000000000'::uuid))
+  + (SELECT count(*) FROM public.dogs
+      WHERE 'dededede-0000-0000-0836-0000000000e1' IN (owner_id, co_owner_id, breeder_id)
+        AND NOT (id >= 'dededede-0000-0000-0836-000000000000'::uuid
+                 AND id <  'dededede-0000-0000-0837-000000000000'::uuid))
+  INTO v_person;
+  FOR v_fk IN
+    SELECT c.conrelid::regclass AS tbl, a.attname AS col
+    FROM pg_constraint c
+    JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = c.conkey[1]
+    WHERE c.confrelid = 'public.people'::regclass AND c.contype = 'f'
+      AND array_length(c.conkey, 1) = 1
+      AND c.conrelid::regclass::text NOT IN (
+        'enrollments', 'entries', 'dogs', 'entry_cart_items', 'waitlist_entries',
+        'exhibitor_profiles')
+  LOOP
+    EXECUTE format('SELECT count(*) FROM %s WHERE %I = %L', v_fk.tbl, v_fk.col,
+                   'dededede-0000-0000-0836-0000000000e1') INTO v_n;
+    v_person := v_person + v_n;
+  END LOOP;
+  IF v_person > 0 THEN
+    RAISE EXCEPTION 'seed-demo: the demo exhibitor was used at another show (% row(s) outside the club demo show); remove that deliberately, then rerun (MYK9-836)', v_person;
+  END IF;
   IF v_orders > 0 OR v_intents > 0 THEN
     RAISE EXCEPTION 'seed-demo: the club demo show (...0836-*) holds card money (% Stripe order(s), % entr(ies) with a payment intent); refusing to delete it. Remove it deliberately, then rerun (MYK9-836)', v_orders, v_intents;
   END IF;
@@ -923,6 +959,8 @@ DELETE FROM public.shows WHERE id IN (
 --   1. a Stripe order (stripe_orders) on the show or on one of its entry forms;
 --   2. an entry in the range with a Stripe payment intent;
 --   3. an entry for one of the six demo dogs on a show OUTSIDE the range.
+--   4. the demo exhibitor used outside the range (an enrollment, an entry as handler, a dog,
+--      or any other row that deleting the person would cascade or block).
 -- Each is real card money or a real registration, so a person removes it deliberately
 -- and reruns. (The checks sit at the top, in "Club demo show refusals" below the section 0
 -- header, because the canonical show's own wipe would otherwise delete an entry for a demo

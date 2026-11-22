@@ -156,7 +156,7 @@ describe('seed-demo club demo show (MYK9-836)', () => {
     expect(refusalAt).toBeGreaterThan(section0Start);
     // Before the first delete of section 0, so the canonical show wipe cannot hide an entry.
     expect(rawSeed.indexOf('DELETE FROM public.', section0Start)).toBeGreaterThan(refusalAt);
-    expect(refusals.match(/RAISE EXCEPTION/g)).toHaveLength(2);
+    expect(refusals.match(/RAISE EXCEPTION/g)).toHaveLength(3);
     // 1. a Stripe order on the show or on one of its entry forms
     expect(refusals).toMatch(
       /FROM public\.stripe_orders\s+WHERE \(show_id >= [^;]*OR \(enrollment_id >= [^;]*;/
@@ -169,6 +169,18 @@ describe('seed-demo club demo show (MYK9-836)', () => {
     expect(refusals).toMatch(
       /FROM public\.entries\s+WHERE dog_id >= [^;]*AND NOT \(show_id >= [^;]*\);/
     );
+    // 4. the demo exhibitor used outside the range: enrollment, entry as handler, dog, and every
+    // other foreign key to people(id) counted from the catalog
+    expect(refusals).toMatch(
+      /FROM public\.enrollments\s+WHERE handler_id = 'dededede-0000-0000-0836-0000000000e1'\s+AND NOT \(show_id >= [^;]*\)\)/
+    );
+    expect(refusals).toMatch(
+      /FROM public\.entries\s+WHERE handler_id = 'dededede-0000-0000-0836-0000000000e1'\s+AND NOT \(show_id >= [^;]*\)\)/
+    );
+    expect(refusals).toContain("confrelid = 'public.people'::regclass");
+    expect(refusals).toContain('IF v_person > 0');
+    expect(refusals).toContain('the demo exhibitor was used at another show');
+    expect(refusals).toContain('remove that deliberately, then rerun');
     expect(refusals).toContain('IF v_orders > 0 OR v_intents > 0');
     expect(refusals).toContain('holds card money');
     expect(refusals).toContain('a demo dog was entered at another show');

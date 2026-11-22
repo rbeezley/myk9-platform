@@ -2903,12 +2903,13 @@ BEGIN
     RETURN;
   END IF;
 
-  -- Step 2: earlier demo shows leave the public and current lists. Status only.
+  -- Step 2: earlier demo shows leave the public and current lists. Status only. "Earlier"
+  -- is read from the immutable date stamp in the id (YYYYMMDD after the 0836 group), never
+  -- from start_date, which a secretary may edit (a show moved to today is still earlier).
   UPDATE public.shows
   SET status = 'draft'
   WHERE id >= 'dededede-0000-0000-0836-000000000000'::uuid
-    AND id <  'dededede-0000-0000-0837-000000000000'::uuid
-    AND start_date < v_midnight
+    AND id <  ('dededede-0000-0000-0836-' || v_day || '0000')::uuid
     AND status = 'published';
 
   INSERT INTO public.shows (
@@ -3017,6 +3018,7 @@ BEGIN
     d.breed,
     'Active',
     reg.registry = 'AKC'
+      AND NOT EXISTS (SELECT 1 FROM public.dog_registrations p WHERE p.dog_id = d.id AND p.is_primary)
   FROM public.dogs d
   CROSS JOIN (VALUES
     ('AKC',  'AKC (American Kennel Club)',                 'SR'),
@@ -3024,7 +3026,11 @@ BEGIN
     ('ASCA', 'ASCA (Australian Shepherd Club of America)', 'E')
   ) AS reg(registry, organization, prefix)
   WHERE d.id = ANY (v_dog)
-    AND NOT EXISTS (SELECT 1 FROM public.dog_registrations r WHERE r.dog_id = d.id)
+    AND NOT EXISTS (
+      SELECT 1 FROM public.dog_registrations r
+      WHERE r.dog_id = d.id
+        AND public.normalize_dog_registration_organization(r.organization)
+          = public.normalize_dog_registration_organization(reg.organization))
   ON CONFLICT DO NOTHING;
 
   -- Entries: Nova, Poppy, Rusty in Container Novice A; Tucker, Hazel, Bear, Poppy in
@@ -3189,7 +3195,35 @@ UPDATE public.shows
 -- the seed's 'dededede-' id namespace plus today's show-day fixture, so it must
 -- run after section 19. The function (migration 20261022034100, MYK9-1309) is
 -- exercised by supabase/tests/myk9_1309_seed_fixture_functions_test.sql.
-SELECT public.seed_demo_assert_date_coherence();
+-- Earlier club demo shows (MYK9-836, ids dededede-0000-0000-0836-<YYYYMMDD>0010 before today's
+-- stamp) are preserved history, like the show-day fixture's earlier shows. The function lives in
+-- a migration and counts them as seed-owned, so a secretary who moved yesterday's demo to today
+-- would trip its duplicate name + start date check and roll back the whole reseed. Its duplicate
+-- check is its LAST check, so a failure of that one kind is re-judged here: it is forgiven
+-- only when every duplicate pair involves an earlier club demo show; any other pair re-raises.
+DO $$
+DECLARE
+  v_today_floor uuid := ('dededede-0000-0000-0836-' || to_char((now() AT TIME ZONE 'America/Chicago')::date, 'YYYYMMDD') || '0000')::uuid;
+BEGIN
+  PERFORM public.seed_demo_assert_date_coherence();
+EXCEPTION WHEN raise_exception THEN
+  IF SQLERRM NOT LIKE '%share the name%' OR EXISTS (
+    SELECT 1
+    FROM public.shows a
+    JOIN public.shows b ON b.id > a.id AND b.name = a.name AND b.start_date = a.start_date AND b.deleted_at IS NULL
+    WHERE a.deleted_at IS NULL
+      AND a.id >= 'dededede-0000-0000-0000-000000000000'::uuid AND a.id <= 'dededede-ffff-ffff-ffff-ffffffffffff'::uuid
+      AND b.id >= 'dededede-0000-0000-0000-000000000000'::uuid AND b.id <= 'dededede-ffff-ffff-ffff-ffffffffffff'::uuid
+      AND NOT (a.id >= 'dededede-0000-0000-0836-000000000000'::uuid AND a.id < v_today_floor)
+      AND NOT (b.id >= 'dededede-0000-0000-0836-000000000000'::uuid AND b.id < v_today_floor)
+      AND NOT (a.id >= 'dededede-0000-0000-0731-000000000000'::uuid AND a.id < 'dededede-0000-0000-0732-000000000000'::uuid)
+      AND NOT (b.id >= 'dededede-0000-0000-0731-000000000000'::uuid AND b.id < 'dededede-0000-0000-0732-000000000000'::uuid)
+      AND a.id <> 'dededede-0000-0000-0000-000000000014'::uuid AND b.id <> 'dededede-0000-0000-0000-000000000014'::uuid
+  ) THEN
+    RAISE;
+  END IF;
+  RAISE WARNING 'seed-demo: an earlier club demo show shares the name and start date of today''s (it was rescheduled); kept as history (MYK9-836)';
+END $$;
 
 COMMIT;
 

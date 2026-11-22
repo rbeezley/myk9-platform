@@ -32,7 +32,7 @@ const section = stripSqlComments(
   slice(
     rawSeed,
     'DECLARE\n  v_d date := (now() AT TIME ZONE',
-    'SELECT public.seed_demo_assert_date_coherence();'
+    'PERFORM public.seed_demo_assert_date_coherence();'
   )
 );
 // The whole section 20 DO block, from its opening to the postcondition's end.
@@ -60,7 +60,7 @@ describe('seed-demo club demo show (MYK9-836)', () => {
     const unpublish = updates.filter(u => /UPDATE\s+public\.shows\b/i.test(u));
     expect(unpublish).toHaveLength(1);
     expect(unpublish[0].replace(/\s+/g, ' ')).toBe(
-      "UPDATE public.shows SET status = 'draft' WHERE id >= 'dededede-0000-0000-0836-000000000000'::uuid AND id < 'dededede-0000-0000-0837-000000000000'::uuid AND start_date < v_midnight AND status = 'published';"
+      "UPDATE public.shows SET status = 'draft' WHERE id >= 'dededede-0000-0000-0836-000000000000'::uuid AND id < ('dededede-0000-0000-0836-' || v_day || '0000')::uuid AND status = 'published';"
     );
     for (const update of updates.filter(u => !/UPDATE\s+public\.shows\b/i.test(u))) {
       expect(update, 'an update that is not keyed to today ids').toMatch(
@@ -68,6 +68,17 @@ describe('seed-demo club demo show (MYK9-836)', () => {
       );
     }
     expect(block).not.toMatch(/UPDATE\s+public\.(people|dogs|dog_registrations)\b/i);
+  });
+
+  it('retires earlier demo shows by id stamp, never start_date, and forgives only their duplicates', () => {
+    const unpublish = block.match(/UPDATE\s+public\.shows[\s\S]*?;/i)?.[0] ?? '';
+    expect(unpublish).not.toMatch(/start_date/);
+    expect(unpublish).toContain("v_day || '0000'");
+    const tail = seed.slice(seed.lastIndexOf('seed_demo_assert_date_coherence()'));
+    expect(tail).toContain('EXCEPTION WHEN raise_exception');
+    expect(tail).toContain("NOT LIKE '%share the name%'");
+    expect(tail).toContain('RAISE;');
+    expect(tail).toContain('v_today_floor');
   });
 
   it('creates the person and the dogs once, ON CONFLICT (id) DO NOTHING', () => {
@@ -87,15 +98,16 @@ describe('seed-demo club demo show (MYK9-836)', () => {
     expect(new Set(dogIds).size).toBe(6);
     expect(dogs).toContain('JOIN public.people p ON p.id = v_person');
     expect(dogs).toMatch(/ON CONFLICT \(id\) DO NOTHING;\s*$/);
-    // Registrations are added only to a dog that has none.
+    // A registration is added per registry when the dog lacks that one, never overwriting.
     const registrations = slice(
       block,
       'INSERT INTO public.dog_registrations',
       'INSERT INTO public.entries'
     );
-    expect(registrations).toContain(
-      'NOT EXISTS (SELECT 1 FROM public.dog_registrations r WHERE r.dog_id = d.id)'
+    expect(registrations.replace(/\s+/g, ' ')).toContain(
+      'WHERE r.dog_id = d.id AND public.normalize_dog_registration_organization(r.organization) = public.normalize_dog_registration_organization(reg.organization))'
     );
+    expect(registrations).not.toContain('r.dog_id = d.id)');
     expect(registrations).toContain('ON CONFLICT DO NOTHING;');
     // The demo accounts' dogs are not referenced; the only account is the judge.
     expect(block).not.toMatch(/dededede-0000-0000-0000-00000000004[1-6]/);
@@ -254,7 +266,7 @@ describe('seed-demo club demo show (MYK9-836)', () => {
     expect(at).toBeGreaterThan(
       rawSeed.indexOf('SELECT public.seed_demo_restore_show_day_fixture();')
     );
-    expect(at).toBeLessThan(rawSeed.indexOf('SELECT public.seed_demo_assert_date_coherence();'));
+    expect(at).toBeLessThan(rawSeed.indexOf('PERFORM public.seed_demo_assert_date_coherence();'));
   });
 
   it('keeps the capture clear to localhost databases and to the whole club demo range', () => {

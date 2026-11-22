@@ -106,8 +106,9 @@ jobs:
           MYK9_PLAYWRIGHT_REGRESSION_TARGET: isolated
 
       # The seed also builds the club demo show (MYK9-836), which no capture shows. It is cleared
-      # here, once, before any capture spec runs, so Find Shows, the secretary's shows, the second
-      # demo exhibitor's dogs and entries, results and ringside read as they did before it existed.
+      # here, once, before any capture spec runs, so Find Shows, the secretary's shows, results and
+      # ringside read as they did before it existed. (Its dogs and entries belong to Dana Whitcomb,
+      # a person with no sign-in, so this clear is about the screens, not the second exhibitor's account.)
       - name: Clear the club demo show from the capture's database
         run: |
           case "$SUPABASE_DB_URL" in

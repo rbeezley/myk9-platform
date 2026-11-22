@@ -45,6 +45,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { outOfTreeImports } from './edge-function-imports.ts';
+import { runSupabase } from './supabase-cli.ts';
 
 export const PROJECT_REF = 'sojmvhhwsjxmfistvzbe';
 export const FUNCTION_DIRS = ['supabase/functions', 'apps/myk9show/supabase/functions'] as const;
@@ -294,10 +295,9 @@ export type Downloader = (name: string, workdir: string) => boolean;
 
 export const supabaseDownloader: Downloader = (name, workdir) => {
   try {
-    execFileSync(
-      'supabase',
+    runSupabase(
       ['functions', 'download', name, `--remote=${PROJECT_REF}`, '--use-api', '--workdir', workdir],
-      { cwd: workdir, stdio: ['ignore', 'pipe', 'pipe'] }
+      { cwd: workdir }
     );
     return true;
   } catch {
@@ -440,10 +440,9 @@ export async function runCli(
     json =
       i >= 0 && argv[i + 1]
         ? readFileSync(argv[i + 1]!, 'utf8')
-        : execFileSync('supabase', ['functions', 'list', `--remote=${PROJECT_REF}`, '-o', 'json'], {
+        : runSupabase(['functions', 'list', `--remote=${PROJECT_REF}`, '-o', 'json'], {
             cwd: root,
-            encoding: 'utf8',
-            stdio: ['ignore', 'pipe', 'pipe'],
+            root,
           });
   } catch (err) {
     console.error(

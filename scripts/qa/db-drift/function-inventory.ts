@@ -1,7 +1,8 @@
-import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+
+import { runSupabase } from '../supabase-cli.ts';
 
 const DEFAULT_FUNCTION_DIRS = ['supabase/functions', 'apps/myk9show/supabase/functions'];
 
@@ -142,10 +143,7 @@ function readDeployedFunctions(): string[] {
     return parseSupabaseFunctionList(readFileSync(outputPath, 'utf8'));
   }
 
-  const output = execFileSync('supabase', functionListArgs(process.env.SUPABASE_PROJECT_REF), {
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
+  const output = runSupabase(functionListArgs(process.env.SUPABASE_PROJECT_REF));
 
   return parseSupabaseFunctionList(output);
 }

@@ -32,12 +32,14 @@ Exit 0: proceed, then leave the record the standing-approvals table names on the
 
 CLI 3.x (MYK9-1664): `functions deploy`, `list` and `download` are remote-only and default to the linked project, so pass `--remote=<ref>` (the deprecated `--project-ref` still works) to name the target explicitly; write it with `=`, because `--remote <ref>` fails with `TargetRemoteAmbiguousError`. `db push`, `migration list` and `gen types` default to the local stack and need `--remote`. Any command that changes a hosted project fails unattended without `--yes`. Pass `--yes` only after the owner confirmation this skill already requires.
 
+Run the CLI as `bash scripts/supabase.sh <args>`, never bare `supabase`. On the Mac, bare `supabase` is Homebrew's 2.x, which rejects `--remote=`; the wrapper runs the repo's pinned 3.x and exports `SUPABASE_ACCESS_TOKEN` from `~/.supabase/access-token`, without which 3.x hangs on every `functions` command.
+
 ```bash
 # Root-level functions live in supabase/functions/
-supabase functions deploy <name> --remote=sojmvhhwsjxmfistvzbe --yes --no-verify-jwt
+bash scripts/supabase.sh functions deploy <name> --remote=sojmvhhwsjxmfistvzbe --yes --no-verify-jwt
 
 # Stripe functions live in apps/myk9show/supabase/functions/ — deploy with workdir
-supabase functions deploy <name> --workdir apps/myk9show --remote=sojmvhhwsjxmfistvzbe --yes --no-verify-jwt
+bash scripts/supabase.sh functions deploy <name> --workdir apps/myk9show --remote=sojmvhhwsjxmfistvzbe --yes --no-verify-jwt
 ```
 
 Fail-closed secret couplings: several functions require Vault/edge secrets to match on both ends — `payout_cron_secret` (nightly-show-payouts), `cron_secret`/`CRON_SECRET` (waitlist-offer-expiration), webhook secrets for trigger-push. If a function 401s after deploy, check secret parity before touching code.
@@ -50,8 +52,8 @@ Consider dispatching the `migration-auditor` agent on any new migration file bef
 
 ## Verify (after any deploy)
 
-1. `supabase migration list --remote` — remote matches local.
-2. Functions: hit the function or check `supabase functions list --remote=sojmvhhwsjxmfistvzbe` shows the new version; watch logs via the Supabase MCP `get_logs`.
+1. `bash scripts/supabase.sh migration list --remote` — remote matches local.
+2. Functions: hit the function or check `bash scripts/supabase.sh functions list --remote=sojmvhhwsjxmfistvzbe` shows the new version; watch logs via the Supabase MCP `get_logs`.
 3. Frontend: nothing deploys on merge. With the user's go-ahead or under standing approvals (tripwire exit 0), deploy the commit the work needs, pinned: once `main`'s CI on it is green (`gh run list --branch main --workflow CI --event push --status success --commit <sha>` lists a run), run `gh workflow run deploy-myk9show.yml -f commit_sha=<sha>`. Unpinned, the run takes the newest green `main` commit, which silently leaves out a merge whose CI is still queued (run 44556303982 shipped `8a2284d72` without #4162). The job refuses a commit that does not contain what myk9show.com serves (a rollback: another deploy got there first; pin a newer commit, and use Vercel's Instant Rollback for a deliberate one), and reports a commit both production hosts already serve as nothing to deploy; every run, published or not, ends with the same check that both hosts serve one bundle built from that commit (add `-f rebuild_live=true` to rebuild it after a Vercel setting change; a rollback is still refused). A newer dispatch cancels an older one still pending, so check the run you started finished and did not just disappear. Wait for it with `gh run watch <id> --interval 60 --exit-status` started with `run_in_background: true` (a foreground watch is refused, MYK9-1481). Always pass `--interval 60`: the default polls every 3 seconds, about 1,200 GitHub API calls an hour, and one such watch drained the account's shared 5,000-an-hour limit on 2026-11-16, stalling every session's merges and watchers. Then read the run's `Deploying <sha>` / `Picked by` lines and the `Live:` / `Nothing to deploy` lines after them, and the summary for the entry chunk myk9show.com serves; confirm the deployed commit contains the merge you shipped (`git merge-base --is-ancestor <merge> <deployed>`) before handing it to the owner, and comment on each `MYK9-<n>` issue whose commits it shipped.
 4. Run `get_advisors` after schema changes to catch new RLS/security warnings.
 

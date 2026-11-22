@@ -27,7 +27,7 @@ open a while will have gone stale — re-check before pushing.
 ```bash
 git fetch origin main
 git ls-tree -r --name-only origin/main -- supabase/migrations | tail -5
-supabase migration list --remote   # what the linked DB has actually applied
+bash scripts/supabase.sh migration list --remote   # what the linked DB has actually applied
 
 # Neither of the above sees an unmerged branch that already took your version.
 # Ask GitHub for the files, not git: a PR head may not be fetched locally, and a
@@ -144,7 +144,7 @@ Expected: `sojmvhhwsjxmfistvzbe`
 If missing or wrong, re-link:
 
 ```bash
-supabase link --project-ref sojmvhhwsjxmfistvzbe
+bash scripts/supabase.sh link --project-ref sojmvhhwsjxmfistvzbe
 ```
 
 This will prompt for the database password. The password is in `supabase/.env` as `SUPABASE_DB_PASSWORD`. If the password in `.env` doesn't work during linking, ask the user to reset it in the Supabase dashboard (Project Settings > Database > Database password) and update `supabase/.env`.
@@ -157,13 +157,13 @@ never from an unmerged branch.
 CLI 3.x refuses a hosted push without `--yes`; add it only after the owner has confirmed this push, and read the CLI's listed migrations before you run it.
 
 ```bash
-source supabase/.env && supabase db push --remote --yes --password "$SUPABASE_DB_PASSWORD"
+source supabase/.env && bash scripts/supabase.sh db push --remote --yes --password "$SUPABASE_DB_PASSWORD"
 ```
 
 If you get "out of order" errors, add `--include-all`:
 
 ```bash
-source supabase/.env && supabase db push --remote --yes --password "$SUPABASE_DB_PASSWORD" --include-all
+source supabase/.env && bash scripts/supabase.sh db push --remote --yes --password "$SUPABASE_DB_PASSWORD" --include-all
 ```
 
 ### Step 3: Verify against the applied database
@@ -172,7 +172,7 @@ The CLI lists what it applied. That is not proof the migration did what it meant
 to — verify grants against the **database**, never against the migration text.
 
 ```bash
-supabase migration list --remote   # remote now matches supabase/migrations/
+bash scripts/supabase.sh migration list --remote   # remote now matches supabase/migrations/
 ```
 
 For a migration that created a table or changed access, run all three ACL checks
@@ -258,6 +258,7 @@ behind `any`; fix it, never suppress it.
 
 ## Important Notes
 
+- **CLI:** run `bash scripts/supabase.sh`, never bare `supabase` (Homebrew's 2.x on the Mac, no `--remote`). The wrapper runs the pinned 3.x and supplies the login token 3.x otherwise hangs reading.
 - **Password location:** `supabase/.env` (NOT root `.env`), variable `SUPABASE_DB_PASSWORD`
 - **Always source the env file** — never hardcode or type the password
 - **IPv4 only:** User's network requires the session pooler endpoint, not direct connection

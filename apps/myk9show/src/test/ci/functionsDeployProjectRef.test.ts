@@ -111,7 +111,7 @@ function deployTarget(args: string): string | undefined {
 }
 
 export function findViolations(source: string, known: ReadonlySet<string>): Violation[] {
-  const deploy = /supabase(?:@\S+)?\s+functions\s+deploy\b/g;
+  const deploy = /supabase(?:\.sh|@\S+)?\s+functions\s+deploy\b/g;
   const flag = new RegExp(`(?:--project-ref[ =]|--remote=)${PROJECT_REF}(?![a-z0-9])`);
   const violations: Violation[] = [];
   for (const { line, text } of statements(source)) {
@@ -120,7 +120,7 @@ export function findViolations(source: string, known: ReadonlySet<string>): Viol
       // line needs its own flag, so cut at the next occurrence.
       const rest = text
         .slice(m.index + m[0].length)
-        .split(/supabase(?:@\S+)?\s+functions\s+deploy\b/)[0];
+        .split(/supabase(?:\.sh|@\S+)?\s+functions\s+deploy\b/)[0];
       const name = deployTarget(rest);
       if (!name || !isFunctionName(name, known)) continue;
       if (!flag.test(rest)) violations.push({ line, text: text.trim() });
@@ -224,6 +224,10 @@ describe('functions deploy --project-ref guard (known answers)', () => {
   it('matches versioned and wrapped invocations', () => {
     expect(findViolations('npx supabase@2.114.0 functions deploy a-b', known)).toHaveLength(1);
     expect(findViolations('pnpm exec supabase functions deploy a-b', known)).toHaveLength(1);
+    expect(findViolations('bash scripts/supabase.sh functions deploy a-b', known)).toHaveLength(1);
+    expect(
+      findViolations(`bash scripts/supabase.sh functions deploy a-b --remote=${PROJECT_REF}`, known)
+    ).toEqual([]);
     expect(
       findViolations(
         `npx supabase@2.114.0 functions deploy a-b --project-ref ${PROJECT_REF}`,

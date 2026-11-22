@@ -87,7 +87,7 @@
     "qa:inflight:test": "vitest run scripts/qa/inflight.test.ts scripts/qa/gh-pages.test.ts scripts/qa/closed-prs-cache.test.ts",
     "qa:readonly-walk:test": "vitest run scripts/qa/readonly-walk.test.ts scripts/qa/readonly-walk-local.test.ts scripts/qa/readonly-walk-answers.test.ts",
     "qa:edge-function-drift": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/edge-function-drift.ts",
-    "qa:edge-function-drift:test": "vitest run scripts/qa/edge-function-drift.test.ts scripts/qa/edge-function-imports.test.ts",
+    "qa:edge-function-drift:test": "vitest run scripts/qa/edge-function-drift.test.ts scripts/qa/edge-function-imports.test.ts scripts/qa/supabase-cli.test.ts",
     "qa:worktree-liveness": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/worktree-liveness.ts",
     "qa:worktree-liveness:test": "vitest run scripts/qa/worktree-liveness.test.ts",
     "qa:primary-checkout:test": "vitest run scripts/qa/primary-checkout.test.ts scripts/bootstrap-worktree.test.ts scripts/qa/push-hold.test.ts scripts/qa/push-main-docs-only.test.ts scripts/qa/push-squash-base.test.ts",

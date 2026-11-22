@@ -36,14 +36,38 @@ pause="${VERIFY_SLEEP:-10}"
   exit 1
 }
 
-# Read the whole page before matching: `curl | grep | head` can SIGPIPE curl,
-# which pipefail turns into a failed step.
-# Output from a failed or timed-out transfer (curl exits non-zero after
-# printing part of the body) is discarded, never parsed.
-entry() {
-  local html
-  html="$(curl --fail --silent --show-error --location --max-time 20 "$1")" || return 0
-  grep -oE 'src="/assets/[^"]*index-[A-Za-z0-9_-]+\.js"' <<<"$html" | sort -u || true
+# Fetches one URL and classifies the answer, so a stamp read and a homepage read
+# share one rule. Sets PAGE_BODY and PAGE_STATE: ok (HTTP 2xx), missing (HTTP
+# 4xx) or transport (timeout, DNS or connection failure, 5xx). Output from a
+# failed or timed-out transfer is discarded, never parsed. The whole page is
+# read before matching: `curl | grep | head` can SIGPIPE curl, which pipefail
+# turns into a failed step.
+PAGE_BODY=""
+PAGE_STATE=""
+fetch_page() {
+  local out code
+  PAGE_BODY=""
+  PAGE_STATE="transport"
+  out="$(curl --silent --location --max-time 20 --write-out $'\n%{http_code}' "$1" 2>/dev/null)" || return 0
+  code="${out##*$'\n'}"
+  if [[ "$code" =~ ^2[0-9][0-9]$ ]]; then
+    PAGE_BODY="${out%$'\n'*}"
+    PAGE_STATE="ok"
+  elif [[ "$code" =~ ^4[0-9][0-9]$ ]]; then
+    PAGE_STATE="missing"
+  fi
+}
+
+# Reads a host's canonical homepage. Sets HOME_ENTRY (its entry chunk script
+# tag, or "") and HOME_STATE (ok, missing or transport).
+HOME_ENTRY=""
+HOME_STATE=""
+read_home() {
+  fetch_page "$1"
+  HOME_STATE="$PAGE_STATE"
+  HOME_ENTRY=""
+  [[ "$PAGE_STATE" == ok ]] || return 0
+  HOME_ENTRY="$(grep -oE 'src="/assets/[^"]*index-[A-Za-z0-9_-]+\.js"' <<<"$PAGE_BODY" | sort -u || true)"
 }
 
 served_sha() {
@@ -59,21 +83,15 @@ served_sha() {
 STAMP=""
 STAMP_STATE=""
 read_stamp() {
-  local out code body
+  local body
+  fetch_page "$1/build-entry.txt?v=$commit_sha-$(date +%s)-$2"
   STAMP=""
-  STAMP_STATE="transport"
-  out="$(curl --silent --location --max-time 20 --write-out $'\n%{http_code}' "$1/build-entry.txt?v=$commit_sha-$(date +%s)-$2" 2>/dev/null)" || return 0
-  code="${out##*$'\n'}"
-  body="${out%$'\n'*}"
-  if [[ "$code" =~ ^2[0-9][0-9]$ ]]; then
-    body="$(tr -d '[:space:]' <<<"$body")"
-    if [[ "$body" =~ $entry_re ]]; then
-      STAMP="$body"
-      STAMP_STATE="ok"
-    else
-      STAMP_STATE="missing"
-    fi
-  elif [[ "$code" =~ ^4[0-9][0-9]$ ]]; then
+  STAMP_STATE="$PAGE_STATE"
+  [[ "$PAGE_STATE" == ok ]] || return 0
+  body="$(tr -d '[:space:]' <<<"$PAGE_BODY")"
+  if [[ "$body" =~ $entry_re ]]; then
+    STAMP="$body"
+  else
     STAMP_STATE="missing"
   fi
 }
@@ -111,7 +129,7 @@ done
 entry_re='^src="/assets/[^"]*index-[A-Za-z0-9_-]+\.js"$'
 expected=""
 if [[ -n "${EXPECTED_ENTRY_FILE:-}" ]]; then
-  expected="$(tr -d '[:space:]' <"$EXPECTED_ENTRY_FILE" 2>/dev/null || true)"
+  expected="$(tr -d '[:space:]' 2>/dev/null <"$EXPECTED_ENTRY_FILE" || true)"
   [[ "$expected" =~ $entry_re ]] || {
     echo "EXPECTED_ENTRY_FILE '$EXPECTED_ENTRY_FILE' does not hold one complete entry chunk stamp" >&2
     exit 1
@@ -123,6 +141,8 @@ state_d=""
 state_a=""
 home_d=""
 home_a=""
+hstate_d=""
+hstate_a=""
 for ((attempt = 1; attempt <= tries; attempt += 1)); do
   read_stamp "$domain" "$attempt"
   stamp_d="$STAMP"
@@ -130,8 +150,12 @@ for ((attempt = 1; attempt <= tries; attempt += 1)); do
   read_stamp "$alias_url" "$attempt"
   stamp_a="$STAMP"
   state_a="$STAMP_STATE"
-  home_d="$(entry "$domain/")"
-  home_a="$(entry "$alias_url/")"
+  read_home "$domain/"
+  home_d="$HOME_ENTRY"
+  hstate_d="$HOME_STATE"
+  read_home "$alias_url/"
+  home_a="$HOME_ENTRY"
+  hstate_a="$HOME_STATE"
   if [[ -n "$stamp_d" && "$stamp_d" == "$stamp_a" && "$home_d" == "$stamp_d" && "$home_a" == "$stamp_d" && (-z "$expected" || "$stamp_d" == "$expected") ]]; then
     break
   fi
@@ -139,11 +163,11 @@ for ((attempt = 1; attempt <= tries; attempt += 1)); do
   if ((attempt < tries)); then sleep "$pause"; fi
 done
 
-# A stamp that could not be read at all says nothing about the deployment:
-# retry verify, do not republish (Vercel's daily deploy quota).
-for pair in "$domain|$state_d" "$alias_url|$state_a"; do
+# A stamp or homepage that could not be read at all says nothing about the
+# deployment: retry verify, do not republish (Vercel's daily deploy quota).
+for pair in "$domain/build-entry.txt|$state_d" "$alias_url/build-entry.txt|$state_a" "$domain/|$hstate_d" "$alias_url/|$hstate_a"; do
   [[ "${pair#*|}" != transport ]] || {
-    echo "${pair%%|*}/build-entry.txt could not be read (timeout, connection failure or HTTP 5xx). This is a transport error, not a stale build: rerun the verify step; do not rebuild or republish." >&2
+    echo "${pair%%|*} could not be read (timeout, connection failure or HTTP 5xx). This is a transport error, not a stale build: rerun the verify step; do not rebuild or republish." >&2
     exit 2
   }
 done

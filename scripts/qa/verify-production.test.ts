@@ -132,8 +132,8 @@ describe('verify-production.sh', { timeout: 30_000 }, () => {
 
   it('never accepts output from a transfer that timed out partway', () => {
     const homepage = run(healthy(), SHA, [`${DOMAIN}/`]);
-    expect(homepage.status).toBe(1);
-    expect(homepage.stderr).toContain('entry chunk mismatch');
+    expect(homepage.status).toBe(2);
+    expect(homepage.stderr).toContain('transport error');
     const sha = run(healthy(), SHA, [`${ALIAS}/build-sha.txt`]);
     expect(sha.status).toBe(1);
     expect(sha.stderr).toContain(`${ALIAS} serves commit ''`);
@@ -239,6 +239,20 @@ describe('verify-production.sh', { timeout: 30_000 }, () => {
 
   it('reports a timed-out stamp as a transport error, not a rebuild', () => {
     const r = run(healthy(), SHA, [`${ALIAS}/build-entry.txt`]);
+    expect(r.status).toBe(2);
+    expect(r.stderr).toContain('transport error');
+    expect(r.stderr).not.toContain('rebuild_live=true');
+  });
+
+  it('reports a 5xx homepage as a transport error, not a rebuild', () => {
+    const r = run(healthy(), SHA, [], {}, { codes: { [`${DOMAIN}/`]: 503 } });
+    expect(r.status).toBe(2);
+    expect(r.stderr).toContain('transport error');
+    expect(r.stderr).not.toContain('rebuild_live=true');
+  });
+
+  it('reports a timed-out homepage as a transport error, not a rebuild', () => {
+    const r = run(healthy(), SHA, [`${ALIAS}/`]);
     expect(r.status).toBe(2);
     expect(r.stderr).toContain('transport error');
     expect(r.stderr).not.toContain('rebuild_live=true');

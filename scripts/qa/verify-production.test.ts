@@ -33,7 +33,7 @@ function run(
   commitSha = SHA,
   stalled: string[] = [],
   sequences: Record<string, string[]> = {},
-  opts: { expected?: string; expectedEnv?: string; codes?: Record<string, number> } = {}
+  opts: { expected?: string; codes?: Record<string, number> } = {}
 ): { status: number | null; stdout: string; stderr: string; summary: string; urls: string[] } {
   const bin = mkdtempSync(join(tmpdir(), 'verify-prod-'));
   dirs.push(bin);
@@ -81,7 +81,6 @@ function run(
       GITHUB_STEP_SUMMARY: summary,
       COMMIT_SHA: commitSha,
       ...(opts.expected !== undefined ? { EXPECTED_ENTRY_FILE: expectedFile } : {}),
-      ...(opts.expectedEnv !== undefined ? { EXPECTED_ENTRY: opts.expectedEnv } : {}),
       VERIFY_TRIES: '2',
       VERIFY_SLEEP: '0',
     },
@@ -274,29 +273,19 @@ describe('verify-production.sh', { timeout: 30_000 }, () => {
     expect(r.stderr).toContain('rebuild_live=true');
   });
 
-  it('prints a runnable verify-only command on a transport error', () => {
-    const r = run(
-      healthy(),
-      SHA,
-      [],
-      {},
-      { codes: { [`${DOMAIN}/`]: 503 }, expectedEnv: entry('ABC') }
-    );
+  it('names the HTTP status in a transport error and keeps the job-rerun advice', () => {
+    const r = run(healthy(), SHA, [], {}, { codes: { [`${ALIAS}/`]: 403 } });
     expect(r.status).toBe(2);
     expect(r.stderr).toContain(
-      `COMMIT_SHA=${SHA} EXPECTED_ENTRY='${entry('ABC')}' bash scripts/qa/verify-production.sh`
+      `${ALIAS}/ could not be read (HTTP 403 or timeout/connection failure)`
     );
-    expect(r.stderr).toContain('Do NOT rerun the deploy job');
+    expect(r.stderr).toContain('republishing once is safe');
   });
 
-  it('accepts EXPECTED_ENTRY like EXPECTED_ENTRY_FILE', () => {
-    expect(run(healthy(), SHA, [], {}, { expectedEnv: entry('ABC') }).status).toBe(0);
-    const r = run(healthy(), SHA, [], {}, { expectedEnv: entry('NEW') });
+  it('tells a published-mismatch to rerun the job', () => {
+    const r = run(healthy(), SHA, [], {}, { expected: entry('NEW') });
     expect(r.status).toBe(1);
-    expect(r.stderr).toContain(
-      `COMMIT_SHA=${SHA} EXPECTED_ENTRY='${entry('NEW')}' bash scripts/qa/verify-production.sh`
-    );
-    expect(r.stderr).toContain('Do NOT rerun the deploy job');
+    expect(r.stderr).toContain('Rerun the job.');
   });
 
   it('does not take SPA fallback HTML for a stamp', () => {

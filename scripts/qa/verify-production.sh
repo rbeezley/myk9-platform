@@ -18,13 +18,11 @@
 #   DOMAIN_URL     default https://myk9show.com
 #   ALIAS_URL      default https://myk9-platform-myk9show.vercel.app
 #   EXPECTED_ENTRY_FILE  set only when this job published: the built build-entry.txt
-#   EXPECTED_ENTRY       the same stamp as a literal string, for a verify-only run
-#                        from a checkout (EXPECTED_ENTRY_FILE wins if both are set)
 #   VERIFY_TRIES   attempts per check (default 6)
 #   VERIFY_SLEEP   seconds between attempts (default 10)
 #
 # Appends a line to $GITHUB_STEP_SUMMARY when set; exits 1 on any mismatch,
-# 2 when a stamp could not be read (transport error: retry, never republish).
+# 2 when a stamp or homepage could not be read (transport error, not a stale build).
 set -euo pipefail
 
 commit_sha="${COMMIT_SHA:-}"
@@ -47,12 +45,15 @@ pause="${VERIFY_SLEEP:-10}"
 # turns into a failed step.
 PAGE_BODY=""
 PAGE_STATE=""
+PAGE_CODE=""
 fetch_page() {
   local out code
   PAGE_BODY=""
   PAGE_STATE="transport"
+  PAGE_CODE=""
   out="$(curl --silent --location --max-time 20 --write-out $'\n%{http_code}' "$1" 2>/dev/null)" || return 0
   code="${out##*$'\n'}"
+  PAGE_CODE="$code"
   if [[ "$code" =~ ^2[0-9][0-9]$ ]]; then
     PAGE_BODY="${out%$'\n'*}"
     PAGE_STATE="ok"
@@ -65,9 +66,11 @@ fetch_page() {
 # tag, or "") and HOME_STATE (ok, missing or transport).
 HOME_ENTRY=""
 HOME_STATE=""
+HOME_CODE=""
 read_home() {
   fetch_page "$1"
   HOME_STATE="$PAGE_STATE"
+  HOME_CODE="$PAGE_CODE"
   HOME_ENTRY=""
   [[ "$PAGE_STATE" == ok ]] || return 0
   HOME_ENTRY="$(grep -oE 'src="/assets/[^"]*index-[A-Za-z0-9_-]+\.js"' <<<"$PAGE_BODY" | sort -u || true)"
@@ -85,11 +88,13 @@ served_sha() {
 # connection failure, 5xx). Only `missing` means the deployment lacks the stamp.
 STAMP=""
 STAMP_STATE=""
+STAMP_CODE=""
 read_stamp() {
   local body
   fetch_page "$1/build-entry.txt?v=$commit_sha-$(date +%s)-$2"
   STAMP=""
   STAMP_STATE="$PAGE_STATE"
+  STAMP_CODE="$PAGE_CODE"
   [[ "$PAGE_STATE" == ok ]] || return 0
   body="$(tr -d '[:space:]' <<<"$PAGE_BODY")"
   if [[ "$body" =~ $entry_re ]]; then
@@ -137,18 +142,7 @@ if [[ -n "${EXPECTED_ENTRY_FILE:-}" ]]; then
     echo "EXPECTED_ENTRY_FILE '$EXPECTED_ENTRY_FILE' does not hold one complete entry chunk stamp" >&2
     exit 1
   }
-elif [[ -n "${EXPECTED_ENTRY:-}" ]]; then
-  expected="$(tr -d '[:space:]' <<<"$EXPECTED_ENTRY")"
-  [[ "$expected" =~ $entry_re ]] || {
-    echo "EXPECTED_ENTRY '$EXPECTED_ENTRY' is not one complete entry chunk stamp" >&2
-    exit 1
-  }
 fi
-# A GitHub Actions rerun repeats the whole job (rebuild_live=true publishes
-# again), so recovery is this script alone, pinned to the original commit and,
-# when this job published, its stamp. The stamp holds double quotes, so it is
-# single-quoted (entry_re admits no single quote).
-verify_cmd="COMMIT_SHA=$commit_sha ${expected:+EXPECTED_ENTRY='$expected' }bash scripts/qa/verify-production.sh"
 stamp_d=""
 stamp_a=""
 state_d=""
@@ -157,19 +151,27 @@ home_d=""
 home_a=""
 hstate_d=""
 hstate_a=""
+code_d=""
+code_a=""
+hcode_d=""
+hcode_a=""
 for ((attempt = 1; attempt <= tries; attempt += 1)); do
   read_stamp "$domain" "$attempt"
   stamp_d="$STAMP"
   state_d="$STAMP_STATE"
+  code_d="$STAMP_CODE"
   read_stamp "$alias_url" "$attempt"
   stamp_a="$STAMP"
   state_a="$STAMP_STATE"
+  code_a="$STAMP_CODE"
   read_home "$domain/"
   home_d="$HOME_ENTRY"
   hstate_d="$HOME_STATE"
+  hcode_d="$HOME_CODE"
   read_home "$alias_url/"
   home_a="$HOME_ENTRY"
   hstate_a="$HOME_STATE"
+  hcode_a="$HOME_CODE"
   if [[ -n "$stamp_d" && "$stamp_d" == "$stamp_a" && "$home_d" == "$stamp_d" && "$home_a" == "$stamp_d" && (-z "$expected" || "$stamp_d" == "$expected") ]]; then
     break
   fi
@@ -179,9 +181,12 @@ done
 
 # A stamp or homepage that could not be read at all says nothing about the
 # deployment: retry verify, do not republish (Vercel's daily deploy quota).
-for pair in "$domain/build-entry.txt|$state_d" "$alias_url/build-entry.txt|$state_a" "$domain/|$hstate_d" "$alias_url/|$hstate_a"; do
-  [[ "${pair#*|}" != transport ]] || {
-    echo "${pair%%|*} could not be read (timeout, connection failure or HTTP 5xx). This is a transport error, not a stale build. Do NOT rerun the deploy job or republish. From a local checkout run: $verify_cmd" >&2
+for pair in "$domain/build-entry.txt|$state_d|$code_d" "$alias_url/build-entry.txt|$state_a|$code_a" "$domain/|$hstate_d|$hcode_d" "$alias_url/|$hstate_a|$hcode_a"; do
+  IFS='|' read -r pair_url pair_state pair_code <<<"$pair"
+  [[ "$pair_state" != transport ]] || {
+    reason="timeout/connection failure"
+    [[ "$pair_code" =~ ^[1-5][0-9][0-9]$ ]] && reason="HTTP $pair_code or timeout/connection failure"
+    echo "$pair_url could not be read ($reason). This is a transport error, not a stale build: wait a few minutes and rerun the job; republishing once is safe." >&2
     exit 2
   }
 done
@@ -196,7 +201,7 @@ done
   exit 1
 }
 [[ -z "$expected" || "$stamp_d" == "$expected" ]] || {
-  echo "entry chunk mismatch: both hosts serve '$stamp_d' but this job published '$expected'. The hosts still serve the previous build. Do NOT rerun the deploy job (it would publish again). From a local checkout run: $verify_cmd . If it keeps failing, rerun with rebuild_live=true." >&2
+  echo "entry chunk mismatch: both hosts serve '$stamp_d' but this job published '$expected': the hosts still serve the previous build. Rerun the job." >&2
   exit 1
 }
 public="$stamp_d"

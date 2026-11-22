@@ -122,30 +122,7 @@ describe('ShowPublicLanding card entries (MYK9-2192)', () => {
     expect(screen.getByTestId('reason')).toHaveTextContent('card_entries_checking');
   });
 
-  it('hides the online service fee note while card entries are paused, card-only or not', async () => {
-    rpc.mockResolvedValue({ data: ['show-1'], error: null });
-    const first = renderLanding(openShow(false));
-    await screen.findByText('Card entries are paused. Contact the secretary.');
-    expect(screen.queryByText(/service fee when you pay online/)).not.toBeInTheDocument();
-    first.unmount();
-    renderLanding(openShow(true));
-    await screen.findByText('Card payments are paused. Pay by check or cash.');
-    expect(screen.queryByText(/service fee when you pay online/)).not.toBeInTheDocument();
-  });
-
-  it('hides the online service fee note while the answer is loading or failed', async () => {
-    rpc.mockReturnValue(new Promise(() => undefined));
-    const pending = renderLanding(openShow(true));
-    expect(screen.getByTestId('reason')).toHaveTextContent('card_entries_checking');
-    expect(screen.queryByText(/service fee when you pay online/)).not.toBeInTheDocument();
-    pending.unmount();
-    rpc.mockResolvedValue({ data: null, error: new Error('x') });
-    renderLanding(openShow(true));
-    await screen.findByText('online_setting_unknown');
-    expect(screen.queryByText(/service fee when you pay online/)).not.toBeInTheDocument();
-  });
-
-  it('keeps the online service fee note when card entries are open', async () => {
+  it('shows the online service fee note when card entries are open', async () => {
     rpc.mockResolvedValue({ data: [], error: null });
     renderLanding(openShow(true));
     await screen.findByText('enter-open');

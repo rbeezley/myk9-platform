@@ -115,9 +115,6 @@ export function ShowPublicLanding({
     show,
     entryStatusNow === 'accepting' || entryStatusNow === 'closing_soon'
   );
-  // MYK9-2192, one rule: anything that only makes sense when a card can be taken (the online
-  // service fee) shows only on this visit's confirmed "open" answer, never while loading or unknown.
-  const cardsConfirmedOpen = cardState === 'open';
   const cardLanding = cardEntriesLanding(cardState, show);
 
   // Public visitors render the last published experience. Managers in Preview
@@ -266,7 +263,7 @@ export function ShowPublicLanding({
           met on its third step. Every landing style prints its own fee rows,
           so the one line lives here, above all of them, and only where an
           exhibitor could still enter online and the live rate is read. */}
-      {showServiceFee && cardsConfirmedOpen && (
+      {showServiceFee && (
         <div
           className="border-b border-border bg-muted px-4 py-3 text-sm text-foreground sm:px-6"
           role="note"

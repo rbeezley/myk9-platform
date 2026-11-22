@@ -881,18 +881,28 @@ DELETE FROM public.shows WHERE id IN (
 -- purpose: that guard names its show ids in a migration, and this range is not in
 -- it. Its place is taken by the guard below, which refuses card money.
 --
--- The demo is a desk-paid show, so a cash or check payment a demo recorded may
--- go with a reseed (that is the walk: record a payment, show it, reseed).
--- Anything that came through Stripe is a person's money and refuses the reseed:
--- an order on the show, a payment intent or a refund on an entry. Remove those
--- deliberately, then rerun.
+-- Recorded money is removed only by a reviewed operator step, never cascaded: a
+-- cash or check payment recorded during a demo (show_payments, whose foreign keys
+-- are ON DELETE RESTRICT) refuses the reseed, and so does anything that came
+-- through Stripe (an order on the show or an enrollment, a payment intent or a
+-- refund on an entry). Remove or void it deliberately, then rerun.
 DO $$
-DECLARE v_orders integer; v_card integer;
+DECLARE v_orders integer; v_card integer; v_payments integer;
 BEGIN
   SELECT count(*) INTO v_orders
   FROM public.stripe_orders
-  WHERE show_id >= 'dededede-0000-0000-0836-000000000000'::uuid
-    AND show_id <  'dededede-0000-0000-0837-000000000000'::uuid;
+  WHERE (show_id >= 'dededede-0000-0000-0836-000000000000'::uuid
+         AND show_id <  'dededede-0000-0000-0837-000000000000'::uuid)
+     OR (enrollment_id >= 'dededede-0000-0000-0836-000000000000'::uuid
+         AND enrollment_id <  'dededede-0000-0000-0837-000000000000'::uuid);
+  SELECT count(*) INTO v_payments
+  FROM public.show_payments
+  WHERE (show_id >= 'dededede-0000-0000-0836-000000000000'::uuid
+         AND show_id <  'dededede-0000-0000-0837-000000000000'::uuid)
+     OR (enrollment_id >= 'dededede-0000-0000-0836-000000000000'::uuid
+         AND enrollment_id <  'dededede-0000-0000-0837-000000000000'::uuid)
+     OR (entry_id >= 'dededede-0000-0000-0836-000000000000'::uuid
+         AND entry_id <  'dededede-0000-0000-0837-000000000000'::uuid);
   SELECT count(*) INTO v_card
   FROM public.entries
   WHERE show_id >= 'dededede-0000-0000-0836-000000000000'::uuid
@@ -900,8 +910,8 @@ BEGIN
     AND (stripe_payment_intent_id IS NOT NULL
          OR refunded_at IS NOT NULL
          OR payment_status = 'refunded');
-  IF v_orders + v_card > 0 THEN
-    RAISE EXCEPTION 'seed-demo: the club demo show (...0836-*) holds card money (% Stripe order(s), % card or refunded entr(ies)); refusing to delete it. Remove it deliberately, then rerun (MYK9-836)', v_orders, v_card;
+  IF v_orders + v_card + v_payments > 0 THEN
+    RAISE EXCEPTION 'seed-demo: the club demo show (...0836-*) holds recorded money (% Stripe order(s), % card or refunded entr(ies), % recorded cash or check payment(s)); refusing to delete it. Remove or void the recorded payment deliberately, then rerun (MYK9-836)', v_orders, v_card, v_payments;
   END IF;
   IF EXISTS (
     SELECT 1 FROM public.trial_packet_snapshots
@@ -3058,23 +3068,23 @@ UPDATE public.entries SET
   is_scored = true, result_status = 'qualified', check_in_status = 'completed',
   entry_status = 'completed', search_time_seconds = 41.30, total_faults = 0,
   total_score = 100, final_placement = 2,
-  scoring_completed_at = (((SELECT d FROM club_demo_day)::timestamp + INTERVAL '09:08:00') AT TIME ZONE 'America/Chicago')
+  scoring_completed_at = LEAST(now() - INTERVAL '40 minutes', ((SELECT d FROM club_demo_day)::timestamp + INTERVAL '09:08:00') AT TIME ZONE 'America/Chicago')
 WHERE id = 'dededede-0000-0000-0836-000000000052';  -- Willow
 UPDATE public.entries SET
   is_scored = true, result_status = 'qualified', check_in_status = 'completed',
   entry_status = 'completed', search_time_seconds = 36.80, total_faults = 0,
   total_score = 100, final_placement = 1,
-  scoring_completed_at = (((SELECT d FROM club_demo_day)::timestamp + INTERVAL '09:14:00') AT TIME ZONE 'America/Chicago')
+  scoring_completed_at = LEAST(now() - INTERVAL '30 minutes', ((SELECT d FROM club_demo_day)::timestamp + INTERVAL '09:14:00') AT TIME ZONE 'America/Chicago')
 WHERE id = 'dededede-0000-0000-0836-000000000051';  -- Maple
 UPDATE public.entries SET
   is_scored = true, result_status = 'qualified', check_in_status = 'completed',
   entry_status = 'completed', search_time_seconds = 44.10, total_faults = 0,
   total_score = 100, final_placement = 3,
-  scoring_completed_at = (((SELECT d FROM club_demo_day)::timestamp + INTERVAL '09:20:00') AT TIME ZONE 'America/Chicago')
+  scoring_completed_at = LEAST(now() - INTERVAL '20 minutes', ((SELECT d FROM club_demo_day)::timestamp + INTERVAL '09:20:00') AT TIME ZONE 'America/Chicago')
 WHERE id = 'dededede-0000-0000-0836-000000000053';  -- Cooper
 UPDATE public.classes SET
   status = 'completed', is_scoring_finalized = true, scored_count = 3,
-  results_released_at = (((SELECT d FROM club_demo_day)::timestamp + INTERVAL '09:30:00') AT TIME ZONE 'America/Chicago')
+  results_released_at = LEAST(now() - INTERVAL '10 minutes', ((SELECT d FROM club_demo_day)::timestamp + INTERVAL '09:30:00') AT TIME ZONE 'America/Chicago')
 WHERE id = 'dec1a55e-0000-0000-0836-000000000031';
 
 -- Interior Advanced: half scored. Ranger and Juniper have run; Scout (at the gate) and
@@ -3085,15 +3095,17 @@ UPDATE public.entries SET
   is_scored = true, result_status = 'qualified', check_in_status = 'completed',
   entry_status = 'completed', search_time_seconds = 52.10, total_faults = 0,
   total_score = 100,
-  scoring_completed_at = (((SELECT d FROM club_demo_day)::timestamp + INTERVAL '10:42:00') AT TIME ZONE 'America/Chicago')
+  scoring_completed_at = LEAST(now() - INTERVAL '8 minutes', ((SELECT d FROM club_demo_day)::timestamp + INTERVAL '10:42:00') AT TIME ZONE 'America/Chicago')
 WHERE id = 'dededede-0000-0000-0836-000000000054';  -- Ranger
 UPDATE public.entries SET
   is_scored = true, result_status = 'qualified', check_in_status = 'completed',
   entry_status = 'completed', search_time_seconds = 58.60, total_faults = 0,
   total_score = 100,
-  scoring_completed_at = (((SELECT d FROM club_demo_day)::timestamp + INTERVAL '10:49:00') AT TIME ZONE 'America/Chicago')
+  scoring_completed_at = LEAST(now() - INTERVAL '5 minutes', ((SELECT d FROM club_demo_day)::timestamp + INTERVAL '10:49:00') AT TIME ZONE 'America/Chicago')
 WHERE id = 'dededede-0000-0000-0836-000000000055';  -- Juniper
 
+-- Stamps are capped at the reseed time (a morning reseed must not hold future
+-- timestamps), by distinct offsets so the order still holds.
 -- Postcondition: the shapes the demo walks through, and no money anywhere.
 DO $$
 DECLARE

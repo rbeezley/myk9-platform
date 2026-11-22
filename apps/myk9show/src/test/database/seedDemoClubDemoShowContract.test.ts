@@ -123,11 +123,35 @@ describe('seed-demo club demo show (MYK9-836)', () => {
     expect(cleanup).toContain(HIGH);
     expect(cleanup).toContain('stripe_payment_intent_id IS NOT NULL');
     expect(cleanup).toContain('FROM public.stripe_orders');
+    // Recorded money refuses the reseed, by show, enrollment and entry.
+    const payments = cleanup.slice(
+      cleanup.indexOf('FROM public.show_payments'),
+      cleanup.indexOf('FROM public.entries')
+    );
+    for (const column of ['show_id', 'enrollment_id', 'entry_id']) {
+      expect(payments).toContain(`(${column} >= ${LOW}`);
+      expect(payments).toContain(`${column} <  ${HIGH}`);
+    }
+    expect(cleanup).toMatch(
+      /enrollment_id >= [^;]*FROM public\.show_payments|FROM public\.stripe_orders[^;]*enrollment_id >=/
+    );
+    expect(cleanup).toContain('v_orders + v_card + v_payments > 0');
+    expect(cleanup).toContain('Remove or void the recorded payment deliberately');
     expect(cleanup.indexOf('RAISE EXCEPTION')).toBeLessThan(order[0]);
     // Runs after the paid-stray guard, which does not name this range.
     expect(seed.indexOf('DO $$\nDECLARE v_orders integer')).toBeGreaterThan(
       seed.indexOf('SELECT public.seed_demo_assert_no_paid_strays();')
     );
+  });
+
+  it('never stamps a time later than the reseed', () => {
+    const stamps = [
+      ...section.matchAll(/(?:scoring_completed_at|results_released_at) = ([^\n]*)/g),
+    ];
+    expect(stamps).toHaveLength(6);
+    for (const stamp of stamps) {
+      expect(stamp[1]).toMatch(/^LEAST\(now\(\) - INTERVAL '\d+ minutes', /);
+    }
   });
 
   it('runs after section 19 and before the closing date-coherence check', () => {

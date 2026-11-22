@@ -47,14 +47,21 @@ Week`, which has a trial dated today for seven days after the reseed
    **Club demo show (MYK9-836)** — the reseed also adds `Club demo show`, the
    prepared show for the live club demo, signed in as the demo secretary (and
    the demo judge for ringside): one trial dated TODAY in America/Chicago, nine
-   owing entries on one entry form (nothing paid, no Stripe). The show has its
-   own six dogs, owned by the second demo exhibitor (exhibitor2@), so it adds no
-   entry or result to the six demo dogs the landing stills and clips read (the
-   next reseed deletes and recreates them), one class finished and released, one half scored, one still to run.
-   Its date is the reseed day, so reseed (or rerun the seed) the morning of a
-   demo; the show-day restore below does not move it. A cash or
-   check payment recorded during a demo is cleared by the next reseed; card
-   money on the demo show refuses it until it is removed deliberately.
+   owing entries on one entry form (nothing paid, no Stripe), one class
+   finished and released, one half scored, one still to run. Its six dogs are
+   owned by a made-up exhibitor, Dana Whitcomb (one `people` row, an
+   example.com email, no sign-in), so no demo account gains an entry or result
+   and the dogs the landing stills and clips read are untouched. Its date is
+   the reseed day, so reseed (or rerun the seed) the morning of a demo; the
+   show-day restore below does not move it.
+   **What the reseed clears:** everything in the club demo id range
+   (`dededede-0000-0000-0836-*`, classes `dec1a55e-0000-0000-0836-*`), including
+   cash or check payments and desk refunds recorded during a demo, an entry
+   form marked paid online by hand, and the demo exhibitor and dogs.
+   **What refuses it** (the reseed stops before deleting anything): a Stripe
+   order on the show or its entry forms, an entry in the range with a Stripe
+   payment intent, or an entry for one of the six demo dogs at another show.
+   Remove that deliberately, then rerun.
 3. **Load fixture (opt-in)** — only for a load rehearsal or a 63-entry PDF
    calibration, run `supabase/seed-load-fixture.sql` AFTER step 2 against the
    same URL (MYK9-558). It adds the 63 load dogs and 504 entries on the demo

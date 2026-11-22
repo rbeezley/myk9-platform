@@ -9,7 +9,7 @@
 --   `Show-day fixture · <Mon D>` that is always running today (section 19,
 --   MYK9-731), the `Club demo show` for the live club demo (section 20,
 --   MYK9-836: a trial dated the reseed day, 9 owing entries on its own six dogs
---   owned by exhibitor2@, one class finished and released, one half scored), 6 dogs, 13 hand-authored entries
+--   owned by a made-up exhibitor with no account, one class finished and released, one half scored), 6 dogs, 13 hand-authored entries
 --   on the demo show) that preserves the golden paths. Every staging e2e spec and
 --   scheduled walk that needs a specific row points at this lean set;
 --   seedDemoStagingConsumersContract.test.ts pins that. It also includes complete show officials and
@@ -79,7 +79,12 @@
 --   at all. See section 2.
 --
 -- WHAT THIS IS NOT
---   It does NOT create people and does NOT touch auth.users. The 11 protected
+--   It does NOT create people and does NOT touch auth.users, with ONE exception:
+--   the club demo show (section 20) brings a made-up exhibitor, one public.people
+--   row (dededede-0000-0000-0836-0000000000e1, an example.com email, NO auth.users row, so
+--   it cannot sign in), because that show's six dogs need an owner and no real
+--   account may own them (the landing stills and the club deck read exhibitor@'s dogs).
+--   Section 0 deletes that person with the show. The 11 protected
 --   accounts survive the wipe; this seed references them by email lookup
 --   (subquery on public.people) so the fixed UUIDs below never collide with
 --   real account ids. Dogs/entries are attached to:
@@ -196,7 +201,7 @@ END $$;
 --   load club    a1090000-0000-0000-0013-*
 --   MYK9-836 club demo show: everything in dededede-0000-0000-0836-* (show ...010,
 --   trial ...021, entries ...05{1..9}, form ...070, armbands ...00a{1..6},
---   dogs ...00d{1..6} (owner exhibitor2@myk9t.com),
+--   dogs ...00d{1..6} and their owner, the made-up exhibitor person ...0e1,
 --   judge_assign ...00b{1..3}) and classes dec1a55e-0000-0000-0836-0000000000{31..33}
 --   judge_assign dededede-0000-0000-0000-0000000000b{1..5} (e2e-judge), class-level
 --   passcode     dededede-0000-0000-0000-00000000008{1,2}
@@ -345,6 +350,34 @@ END $$;
 -- ---------------------------------------------------------------------------
 -- 0. Idempotency: remove prior seed rows (children first, FK-safe)
 -- ---------------------------------------------------------------------------
+-- Club demo show refusals (MYK9-836, see the clear further down). Before any delete.
+DO $$
+DECLARE v_orders integer; v_intents integer; v_elsewhere integer;
+BEGIN
+  SELECT count(*) INTO v_orders
+  FROM public.stripe_orders
+  WHERE (show_id >= 'dededede-0000-0000-0836-000000000000'::uuid
+         AND show_id <  'dededede-0000-0000-0837-000000000000'::uuid)
+     OR (enrollment_id >= 'dededede-0000-0000-0836-000000000000'::uuid
+         AND enrollment_id <  'dededede-0000-0000-0837-000000000000'::uuid);
+  SELECT count(*) INTO v_intents
+  FROM public.entries
+  WHERE show_id >= 'dededede-0000-0000-0836-000000000000'::uuid
+    AND show_id <  'dededede-0000-0000-0837-000000000000'::uuid
+    AND stripe_payment_intent_id IS NOT NULL;
+  SELECT count(*) INTO v_elsewhere
+  FROM public.entries
+  WHERE dog_id >= 'dededede-0000-0000-0836-000000000000'::uuid
+    AND dog_id <  'dededede-0000-0000-0837-000000000000'::uuid
+    AND NOT (show_id >= 'dededede-0000-0000-0836-000000000000'::uuid
+             AND show_id <  'dededede-0000-0000-0837-000000000000'::uuid);
+  IF v_orders > 0 OR v_intents > 0 THEN
+    RAISE EXCEPTION 'seed-demo: the club demo show (...0836-*) holds card money (% Stripe order(s), % entr(ies) with a payment intent); refusing to delete it. Remove it deliberately, then rerun (MYK9-836)', v_orders, v_intents;
+  END IF;
+  IF v_elsewhere > 0 THEN
+    RAISE EXCEPTION 'seed-demo: a demo dog was entered at another show (% entr(ies) for the club demo dogs outside the club demo show); remove that entry deliberately, then rerun (MYK9-836)', v_elsewhere;
+  END IF;
+END $$;
 -- The load-secretary accounts are optional and provisioned separately by
 -- setup-e2e-test-users.ts, so a missing row is a safe no-op here. When one is
 -- present, keep its roster identity aligned with the canonical fixture on every
@@ -876,40 +909,27 @@ DELETE FROM public.shows WHERE id IN (
 );
 
 -- MYK9-836 club demo show (section 20): one show of its own in the id range
--- dededede-0000-0000-0836-* (classes dec1a55e-0000-0000-0836-*), cleared here
--- children first and scoped to exactly that range. It brings six dogs of its own
--- (ids dededede-0000-0000-0836-0000000000d{1..6}, owned by exhibitor2@myk9t.com) and
--- touches none of the six hand-authored demo dogs, so what exhibitor@ and secretary@
--- see as exhibitors is unchanged. Its dogs are deleted here, after its entries and
--- armbands (their registrations go with them by cascade). Runs after the paid-stray
--- guard on purpose: that guard names its show ids in a migration, and this range is
--- not in it. Its place is taken by the guard below, which refuses card money.
+-- dededede-0000-0000-0836-* (classes dec1a55e-0000-0000-0836-*), plus one made-up
+-- exhibitor person (dededede-0000-0000-0836-0000000000e1) who owns and handles its six dogs.
 --
--- Card money is never cascaded: anything that came through Stripe (an order on the
--- show or an enrollment, a payment intent or a refund on an entry) refuses the
--- reseed. A cash or check payment recorded at the desk during a demo is not card
--- money (show_payments only holds method cash or check, refunds included as
--- negative rows) and is cleared here, before the entries and enrollments it
--- references (its foreign keys are ON DELETE RESTRICT), scoped to this range.
+-- WHAT A RESEED CLEARS. Everything in that range, children first: desk payments
+-- (show_payments, cash or check, refunds included), cart and waitlist rows, entries,
+-- armbands, entry forms, judge assignments, classes, trials, visibility, the show,
+-- the six dogs, and the demo exhibitor. A payment a demo walk recorded at the desk, or
+-- an entry form marked paid online by hand, is demo data and goes with the show.
+--
+-- WHAT REFUSES A RESEED (checked at the very top of section 0, before ANY delete, so a
+-- refusal rolls the whole seed back and changes nothing):
+--   1. a Stripe order (stripe_orders) on the show or on one of its entry forms;
+--   2. an entry in the range with a Stripe payment intent;
+--   3. an entry for one of the six demo dogs on a show OUTSIDE the range.
+-- Each is real card money or a real registration, so a person removes it deliberately
+-- and reruns. (The checks sit at the top, in "Club demo show refusals" below the section 0
+-- header, because the canonical show's own wipe would otherwise delete an entry for a demo
+-- dog on the Heartland show before it could be seen. The paid-stray guard names its show
+-- ids in a migration and does not cover this range.)
 DO $$
-DECLARE v_orders integer; v_card integer;
 BEGIN
-  SELECT count(*) INTO v_orders
-  FROM public.stripe_orders
-  WHERE (show_id >= 'dededede-0000-0000-0836-000000000000'::uuid
-         AND show_id <  'dededede-0000-0000-0837-000000000000'::uuid)
-     OR (enrollment_id >= 'dededede-0000-0000-0836-000000000000'::uuid
-         AND enrollment_id <  'dededede-0000-0000-0837-000000000000'::uuid);
-  SELECT count(*) INTO v_card
-  FROM public.entries
-  WHERE show_id >= 'dededede-0000-0000-0836-000000000000'::uuid
-    AND show_id <  'dededede-0000-0000-0837-000000000000'::uuid
-    AND (stripe_payment_intent_id IS NOT NULL
-         OR refunded_at IS NOT NULL
-         OR payment_status = 'refunded');
-  IF v_orders + v_card > 0 THEN
-    RAISE EXCEPTION 'seed-demo: the club demo show (...0836-*) holds card money (% Stripe order(s), % card or refunded entr(ies)); refusing to delete it. Remove it deliberately, then rerun (MYK9-836)', v_orders, v_card;
-  END IF;
   IF EXISTS (
     SELECT 1 FROM public.trial_packet_snapshots
     WHERE show_id >= 'dededede-0000-0000-0836-000000000000'::uuid
@@ -925,26 +945,24 @@ WHERE (show_id >= 'dededede-0000-0000-0836-000000000000'::uuid
        AND enrollment_id <  'dededede-0000-0000-0837-000000000000'::uuid)
    OR (entry_id >= 'dededede-0000-0000-0836-000000000000'::uuid
        AND entry_id <  'dededede-0000-0000-0837-000000000000'::uuid);
+-- Cart and waitlist rows: by class, by dog (NO ACTION on dogs) or by the demo
+-- exhibitor (handler_id is NO ACTION on people).
 DELETE FROM public.entry_cart_items
-WHERE class_id >= 'dec1a55e-0000-0000-0836-000000000000'::uuid
-  AND class_id <  'dec1a55e-0000-0000-0837-000000000000'::uuid;
+WHERE (class_id >= 'dec1a55e-0000-0000-0836-000000000000'::uuid
+       AND class_id <  'dec1a55e-0000-0000-0837-000000000000'::uuid)
+   OR (dog_id >= 'dededede-0000-0000-0836-000000000000'::uuid
+       AND dog_id <  'dededede-0000-0000-0837-000000000000'::uuid)
+   OR handler_id = 'dededede-0000-0000-0836-0000000000e1';
+DELETE FROM public.waitlist_entries
+WHERE (dog_id >= 'dededede-0000-0000-0836-000000000000'::uuid
+       AND dog_id <  'dededede-0000-0000-0837-000000000000'::uuid)
+   OR handler_id = 'dededede-0000-0000-0836-0000000000e1';
 DELETE FROM public.entries
 WHERE show_id >= 'dededede-0000-0000-0836-000000000000'::uuid
   AND show_id <  'dededede-0000-0000-0837-000000000000'::uuid;
 DELETE FROM public.armbands
 WHERE show_id >= 'dededede-0000-0000-0836-000000000000'::uuid
   AND show_id <  'dededede-0000-0000-0837-000000000000'::uuid;
--- waitlist_entries.dog_id and entry_cart_items.dog_id are NO ACTION, so a join or
--- cart row a walk made for one of the club demo dogs is cleared before the dogs.
-DELETE FROM public.waitlist_entries
-WHERE dog_id >= 'dededede-0000-0000-0836-000000000000'::uuid
-  AND dog_id <  'dededede-0000-0000-0837-000000000000'::uuid;
-DELETE FROM public.entry_cart_items
-WHERE dog_id >= 'dededede-0000-0000-0836-000000000000'::uuid
-  AND dog_id <  'dededede-0000-0000-0837-000000000000'::uuid;
-DELETE FROM public.dogs
-WHERE id >= 'dededede-0000-0000-0836-000000000000'::uuid
-  AND id <  'dededede-0000-0000-0837-000000000000'::uuid;
 DELETE FROM public.enrollments
 WHERE show_id >= 'dededede-0000-0000-0836-000000000000'::uuid
   AND show_id <  'dededede-0000-0000-0837-000000000000'::uuid;
@@ -963,6 +981,15 @@ WHERE show_id >= 'dededede-0000-0000-0836-000000000000'::uuid
 DELETE FROM public.shows
 WHERE id >= 'dededede-0000-0000-0836-000000000000'::uuid
   AND id <  'dededede-0000-0000-0837-000000000000'::uuid;
+DELETE FROM public.dogs
+WHERE id >= 'dededede-0000-0000-0836-000000000000'::uuid
+  AND id <  'dededede-0000-0000-0837-000000000000'::uuid;
+-- The demo exhibitor last: nothing else in the range references it. A default
+-- handler pointing at it (NO ACTION) is released first.
+UPDATE public.exhibitor_profiles SET default_handler_id = NULL
+WHERE default_handler_id = 'dededede-0000-0000-0836-0000000000e1';
+DELETE FROM public.people
+WHERE id = 'dededede-0000-0000-0836-0000000000e1';
 -- Email delivery history fixtures (section 18). email_log.show_id is
 -- ON DELETE SET NULL, so those rows would SURVIVE the show delete below with a
 -- nulled scope and accumulate one orphan set per reseed — they have to be
@@ -2908,7 +2935,8 @@ END $$;
 -- one trial dated TODAY in its own timezone (America/Chicago, read from now() like
 -- section 19, so the date is the reseed day: reseed on the morning of a demo).
 -- Entries closed three days ago. Nine entries from six dogs of its own (Poppy, Tucker,
--- Hazel, Bear, Nova, Rusty, owned and handled by exhibitor2@, Riley Parker), three classes:
+-- Hazel, Bear, Nova, Rusty, owned and handled by a made-up exhibitor, Dana Whitcomb,
+-- who has no account), three classes:
 --   Container Novice   09:00  finished: 3 of 3 scored, finalized, results released,
 --                             explicit placements (the section 8 recipe)
 --   Interior Advanced  10:30  in progress: 2 of 4 scored, no placements (placement
@@ -2917,12 +2945,13 @@ END $$;
 -- The judge fixture judges all three classes at class level (section 11 explains why).
 --
 -- MONEY. Nothing is invented. Every entry is owing: payment_status 'pending', on one
--- entry form (Riley Parker's), pending with nothing received, so the demo can record a cash or check payment on
+-- entry form (Dana Whitcomb's), pending with nothing received, so the demo can record a cash or check payment on
 -- it. No Stripe id, no order, no paid_amount (MYK9-2190's rule, section 9b).
 --
--- WHY ITS OWN DOGS. The landing stills and the club deck's clips read exhibitor@'s
--- six dogs (My Entries card counts, Past Results), so this show must add no entry or
--- result to any of them or to secretary@'s. Section 0 deletes the dogs with the range.
+-- WHY ITS OWN DOGS AND OWNER. The landing stills and the club deck's clips read
+-- exhibitor@'s six dogs (My Entries card counts, Past Results), so this show must add no
+-- entry or result to any of them or to secretary@'s, and no demo account owns these dogs.
+-- Section 0 deletes the dogs and the person with the range.
 --
 -- WHY A SEPARATE SHOW. The show-day fixture is built by a migration function and
 -- the e2e walks key on it; the Heartland show's counts and states are pinned by
@@ -3002,6 +3031,15 @@ VALUES
    'Exterior Excellent', 'Excellent', 'Exterior', NULL,
    30.00, 'upcoming', 180, 2, 1, false, 'single', false, 3, '13:00'::time, 1);
 
+-- The show's made-up exhibitor: one people row, no auth.users row, so nobody can sign in
+-- as it. The address is complete because an AKC entry needs an owner address (MYK9-1010).
+INSERT INTO public.people (id, first_name, last_name, email, street_address, city, state, zip_code)
+VALUES (
+  'dededede-0000-0000-0836-0000000000e1',
+  'Dana', 'Whitcomb', 'dana.whitcomb@example.com',
+  '108 Demo Lane', 'Demoville', 'KS', '99999'
+);
+
 -- The show's own dogs. Inserted plainly (section 0 deleted the range), each with the
 -- registrations entries_require_dog_registration needs, the section 5 pattern.
 INSERT INTO public.dogs (id, name, call_name, breed, sex, date_of_birth, color, status, owner_id, version)
@@ -3014,7 +3052,7 @@ FROM (VALUES
   ('dededede-0000-0000-0836-0000000000d5', 'Nova',   'Siberian Husky',    'female', '2021-10-11', 'Gray & White'),
   ('dededede-0000-0000-0836-0000000000d6', 'Rusty',  'Cocker Spaniel',    'male',   '2023-03-07', 'Red')
 ) AS v(id, name, breed, sex, dob, color)
-JOIN public.people p ON lower(p.email) = 'exhibitor2@myk9t.com';
+JOIN public.people p ON p.id = 'dededede-0000-0000-0836-0000000000e1';
 
 INSERT INTO public.dog_registrations (
   dog_id, organization, registration_number, registered_name, breed, status, is_primary
@@ -3049,22 +3087,21 @@ SELECT v.id::uuid, v.dog_id::uuid, v.class_id::uuid,
        h.id, h.display_name, 'confirmed', 'pending', 30.00, v.armband, v.run_order, false,
        v.check_in_status, 1
 FROM (VALUES
-  ('dededede-0000-0000-0836-000000000051', 'dededede-0000-0000-0836-0000000000d5', 'dec1a55e-0000-0000-0836-000000000031', 'exhibitor2@myk9t.com', '305', 2, 'no-status'),
-  ('dededede-0000-0000-0836-000000000052', 'dededede-0000-0000-0836-0000000000d1', 'dec1a55e-0000-0000-0836-000000000031', 'exhibitor2@myk9t.com', '301', 1, 'no-status'),
-  ('dededede-0000-0000-0836-000000000053', 'dededede-0000-0000-0836-0000000000d6', 'dec1a55e-0000-0000-0836-000000000031', 'exhibitor2@myk9t.com', '306', 3, 'no-status'),
-  ('dededede-0000-0000-0836-000000000054', 'dededede-0000-0000-0836-0000000000d2', 'dec1a55e-0000-0000-0836-000000000032', 'exhibitor2@myk9t.com', '302', 1, 'no-status'),
-  ('dededede-0000-0000-0836-000000000055', 'dededede-0000-0000-0836-0000000000d3', 'dec1a55e-0000-0000-0836-000000000032', 'exhibitor2@myk9t.com', '303', 2, 'no-status'),
-  ('dededede-0000-0000-0836-000000000056', 'dededede-0000-0000-0836-0000000000d4', 'dec1a55e-0000-0000-0836-000000000032', 'exhibitor2@myk9t.com', '304', 3, 'at-gate'),
-  ('dededede-0000-0000-0836-000000000057', 'dededede-0000-0000-0836-0000000000d1', 'dec1a55e-0000-0000-0836-000000000032', 'exhibitor2@myk9t.com', '301', 4, 'checked-in'),
-  ('dededede-0000-0000-0836-000000000058', 'dededede-0000-0000-0836-0000000000d4', 'dec1a55e-0000-0000-0836-000000000033', 'exhibitor2@myk9t.com', '304', 1, 'checked-in'),
-  ('dededede-0000-0000-0836-000000000059', 'dededede-0000-0000-0836-0000000000d6', 'dec1a55e-0000-0000-0836-000000000033', 'exhibitor2@myk9t.com', '306', 2, 'checked-in')
-) AS v(id, dog_id, class_id, handler_email, armband, run_order, check_in_status)
+  ('dededede-0000-0000-0836-000000000051', 'dededede-0000-0000-0836-0000000000d5', 'dec1a55e-0000-0000-0836-000000000031', 'dededede-0000-0000-0836-0000000000e1', '305', 2, 'no-status'),
+  ('dededede-0000-0000-0836-000000000052', 'dededede-0000-0000-0836-0000000000d1', 'dec1a55e-0000-0000-0836-000000000031', 'dededede-0000-0000-0836-0000000000e1', '301', 1, 'no-status'),
+  ('dededede-0000-0000-0836-000000000053', 'dededede-0000-0000-0836-0000000000d6', 'dec1a55e-0000-0000-0836-000000000031', 'dededede-0000-0000-0836-0000000000e1', '306', 3, 'no-status'),
+  ('dededede-0000-0000-0836-000000000054', 'dededede-0000-0000-0836-0000000000d2', 'dec1a55e-0000-0000-0836-000000000032', 'dededede-0000-0000-0836-0000000000e1', '302', 1, 'no-status'),
+  ('dededede-0000-0000-0836-000000000055', 'dededede-0000-0000-0836-0000000000d3', 'dec1a55e-0000-0000-0836-000000000032', 'dededede-0000-0000-0836-0000000000e1', '303', 2, 'no-status'),
+  ('dededede-0000-0000-0836-000000000056', 'dededede-0000-0000-0836-0000000000d4', 'dec1a55e-0000-0000-0836-000000000032', 'dededede-0000-0000-0836-0000000000e1', '304', 3, 'at-gate'),
+  ('dededede-0000-0000-0836-000000000057', 'dededede-0000-0000-0836-0000000000d1', 'dec1a55e-0000-0000-0836-000000000032', 'dededede-0000-0000-0836-0000000000e1', '301', 4, 'checked-in'),
+  ('dededede-0000-0000-0836-000000000058', 'dededede-0000-0000-0836-0000000000d4', 'dec1a55e-0000-0000-0836-000000000033', 'dededede-0000-0000-0836-0000000000e1', '304', 1, 'checked-in'),
+  ('dededede-0000-0000-0836-000000000059', 'dededede-0000-0000-0836-0000000000d6', 'dec1a55e-0000-0000-0836-000000000033', 'dededede-0000-0000-0836-0000000000e1', '306', 2, 'checked-in')
+) AS v(id, dog_id, class_id, handler_id, armband, run_order, check_in_status)
 JOIN (
-  SELECT p.id, lower(p.email) AS email,
-         'Riley Parker' AS display_name
+  SELECT p.id, p.first_name || ' ' || p.last_name AS display_name
   FROM public.people p
-  WHERE lower(p.email) = 'exhibitor2@myk9t.com'
-) AS h ON h.email = v.handler_email;
+  WHERE p.id = 'dededede-0000-0000-0836-0000000000e1'
+) AS h ON h.id = v.handler_id::uuid;
 
 INSERT INTO public.armbands (id, show_id, dog_id, armband_number, is_available, assigned_at, version)
 VALUES
@@ -3080,9 +3117,9 @@ VALUES
 INSERT INTO public.enrollments (id, show_id, handler_id, payment_status)
 SELECT v.id::uuid, 'dededede-0000-0000-0836-000000000010', p.id, 'pending'
 FROM (VALUES
-  ('dededede-0000-0000-0836-000000000070', 'exhibitor2@myk9t.com')
-) AS v(id, email)
-JOIN public.people p ON lower(p.email) = v.email;
+  ('dededede-0000-0000-0836-000000000070', 'dededede-0000-0000-0836-0000000000e1')
+) AS v(id, handler_id)
+JOIN public.people p ON p.id = v.handler_id::uuid;
 UPDATE public.entries
 SET registration_id = 'dededede-0000-0000-0836-000000000070'
 WHERE show_id = 'dededede-0000-0000-0836-000000000010';

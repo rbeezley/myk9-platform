@@ -25,7 +25,7 @@ UPDATE public.shows
 SET name = 'Prairie Scent Work Trial'
 WHERE name LIKE 'Show-day fixture%';
 
--- The second demo exhibitor (no entries anywhere), under a name and address a club would see.
+-- The second demo exhibitor (no entries anywhere: the club demo show's six dogs and entries, which seed-demo.sql gives her, are cleared by landingClubDemoClear.sql before any capture), under a name and address a club would see.
 -- (A guard trigger refuses a contact address that differs from the sign-in one; the walk signs
 -- in with the sign-in address and everything on screen reads the contact one.)
 SET LOCAL session_replication_role = replica;

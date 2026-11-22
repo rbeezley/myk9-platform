@@ -54,7 +54,8 @@ const PHONE = { width: 390, height: 844 };
 const PHONE_SCALE = 2;
 const DESK = { width: 1440, height: 900 };
 const DESK_SCALE = 1;
-// The second demo exhibitor has no entries anywhere; landingEntriesSetup.sql gives her two dogs and
+// The second demo exhibitor has no entries anywhere (the workflow clears the club demo show the seed
+// gives her, landingClubDemoClear.sql); landingEntriesSetup.sql gives her two dogs and
 // one form at the show (the job's own database, before the walk). Piper is the dog the walk
 // enters; Tessa is already in the full class, so for Piper it reads Full. Her card on My Entries
 // reads Pending review before the walk and Accepted after it.

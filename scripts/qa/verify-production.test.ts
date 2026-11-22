@@ -32,7 +32,8 @@ function run(
   served: Record<string, string>,
   commitSha = SHA,
   stalled: string[] = [],
-  sequences: Record<string, string[]> = {}
+  sequences: Record<string, string[]> = {},
+  opts: { expected?: string; codes?: Record<string, number> } = {}
 ): { status: number | null; stdout: string; stderr: string; summary: string; urls: string[] } {
   const bin = mkdtempSync(join(tmpdir(), 'verify-prod-'));
   dirs.push(bin);
@@ -42,6 +43,10 @@ function run(
     bodies.forEach((body, i) =>
       writeFileSync(join(bin, `${encodeURIComponent(url)}.${i + 1}`), body)
     );
+  for (const [url, code] of Object.entries(opts.codes ?? {}))
+    writeFileSync(join(bin, `${encodeURIComponent(url)}.code`), String(code));
+  const expectedFile = join(bin, 'expected.txt');
+  if (opts.expected !== undefined) writeFileSync(expectedFile, `${opts.expected}\n`);
   for (const url of stalled) writeFileSync(join(bin, `${encodeURIComponent(url)}.stall`), '');
   const log = join(bin, 'requested.txt');
   writeFileSync(log, '');
@@ -55,9 +60,12 @@ function run(
       `f="${bin}/$(node -e 'process.stdout.write(encodeURIComponent(process.argv[1]))' "$base")"`,
       'n=0; [ -f "$f.count" ] && n=$(cat "$f.count"); n=$((n + 1)); echo "$n" >"$f.count"',
       '[ -f "$f.$n" ] && f="$f.$n"',
-      '[ -f "$f" ] || { echo "curl: (22) The requested URL returned error: 404" >&2; exit 22; }',
-      'cat "$f"',
+      'code=200; [ -f "$f" ] || code=404; [ -f "$f.code" ] && code=$(cat "$f.code")',
+      'wo=0; for a in "$@"; do [ "$a" = --write-out ] && wo=1; done',
+      '[ "$wo" = 0 ] && [ "$code" -ge 400 ] && { echo "curl: (22) The requested URL returned error: $code" >&2; exit 22; }',
+      '[ -f "$f" ] && cat "$f"',
       '[ -f "$f.stall" ] && { echo "curl: (28) Operation timed out" >&2; exit 28; }',
+      '[ "$wo" = 1 ] && printf "\\n%s" "$code"',
       'exit 0',
       '',
     ].join('\n')
@@ -72,6 +80,7 @@ function run(
       HOME: process.env.HOME,
       GITHUB_STEP_SUMMARY: summary,
       COMMIT_SHA: commitSha,
+      ...(opts.expected !== undefined ? { EXPECTED_ENTRY_FILE: expectedFile } : {}),
       VERIFY_TRIES: '2',
       VERIFY_SLEEP: '0',
     },
@@ -123,8 +132,8 @@ describe('verify-production.sh', { timeout: 30_000 }, () => {
 
   it('never accepts output from a transfer that timed out partway', () => {
     const homepage = run(healthy(), SHA, [`${DOMAIN}/`]);
-    expect(homepage.status).toBe(1);
-    expect(homepage.stderr).toContain('entry chunk mismatch');
+    expect(homepage.status).toBe(2);
+    expect(homepage.stderr).toContain('transport error');
     const sha = run(healthy(), SHA, [`${ALIAS}/build-sha.txt`]);
     expect(sha.status).toBe(1);
     expect(sha.stderr).toContain(`${ALIAS} serves commit ''`);
@@ -158,7 +167,7 @@ describe('verify-production.sh', { timeout: 30_000 }, () => {
     expect(r.stderr).toContain('rebuild_live=true');
   });
 
-  it('fails when each homepage matches its own stamp but the stamps differ', () => {
+  it('fails when each host matches its own stamp but the hosts differ', () => {
     const r = run({
       ...healthy(),
       [`${ALIAS}/`]: page('OLD'),
@@ -167,15 +176,6 @@ describe('verify-production.sh', { timeout: 30_000 }, () => {
     expect(r.status).toBe(1);
     expect(r.stderr).toContain('entry chunk mismatch');
     expect(r.stderr).toContain('rebuild_live=true');
-  });
-
-  it('fails when each host matches its own stamp but the hosts differ', () => {
-    const r = run({
-      ...healthy(),
-      [`${ALIAS}/`]: page('OLD'),
-      [`${ALIAS}/build-entry.txt`]: `${entry('OLD')}\n`,
-    });
-    expect(r.status).toBe(1);
     expect(r.stderr).toContain(`stamp '${entry('ABC')}' homepage '${entry('ABC')}'`);
     expect(r.stderr).toContain(`stamp '${entry('OLD')}' homepage '${entry('OLD')}'`);
   });
@@ -188,51 +188,104 @@ describe('verify-production.sh', { timeout: 30_000 }, () => {
     expect(r.summary).toContain('index-ABC.js');
   });
 
-  it('retries a well-formed old stamp until the host switches to the expected build', () => {
-    // A counter-backed curl: the domain's stamp is the old build once, then the new one.
-    const bin = mkdtempSync(join(tmpdir(), 'verify-prod-'));
-    dirs.push(bin);
-    const stampUrl = `${DOMAIN}/build-entry.txt`;
-    const body: Record<string, string> = {
-      [`${DOMAIN}/`]: page('ABC'),
-      [`${ALIAS}/`]: page('ABC'),
-      [`${DOMAIN}/build-sha.txt`]: SHA,
-      [`${ALIAS}/build-sha.txt`]: SHA,
-      [stampUrl]: entry('ABC'),
-      [`${ALIAS}/build-entry.txt`]: entry('ABC'),
-    };
-    for (const [url, text] of Object.entries(body))
-      writeFileSync(join(bin, encodeURIComponent(url)), text);
-    writeFileSync(join(bin, `${encodeURIComponent(stampUrl)}.first`), entry('OLD'));
-    const counter = join(bin, 'count');
-    writeFileSync(
-      join(bin, 'curl'),
-      [
-        '#!/usr/bin/env bash',
-        'url="${@: -1}"',
-        'base="${url%%\\?*}"',
-        `f="${bin}/$(node -e 'process.stdout.write(encodeURIComponent(process.argv[1]))' "$base")"`,
-        '[ -f "$f" ] || exit 22',
-        `if [ -f "$f.first" ] && [ ! -f "${counter}" ]; then touch "${counter}"; cat "$f.first"; exit 0; fi`,
-        'cat "$f"',
-        '',
-      ].join('\n')
-    );
-    chmodSync(join(bin, 'curl'), 0o755);
-    const expectedFile = join(bin, 'expected.txt');
-    writeFileSync(expectedFile, entry('ABC'));
-    const r = spawnSync('bash', [SCRIPT], {
-      encoding: 'utf8',
-      env: {
-        PATH: `${bin}:${process.env.PATH}`,
-        HOME: process.env.HOME,
-        COMMIT_SHA: SHA,
-        EXPECTED_ENTRY_FILE: expectedFile,
-        VERIFY_TRIES: '3',
-        VERIFY_SLEEP: '0',
-      },
-    });
+  const published = entry('NEW');
+  const hostsServe = (chunk: string): Record<string, string> => ({
+    ...healthy(),
+    [`${DOMAIN}/`]: page(chunk),
+    [`${ALIAS}/`]: page(chunk),
+    [`${DOMAIN}/build-entry.txt`]: `${entry(chunk)}\n`,
+    [`${ALIAS}/build-entry.txt`]: `${entry(chunk)}\n`,
+  });
+
+  it('fails a same-commit rebuild when both hosts still serve the old bundle and the job published', () => {
+    const r = run(hostsServe('OLD'), SHA, [], {}, { expected: published });
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain(`published '${entry('NEW')}'`);
+    expect(r.stderr).toContain(`serve '${entry('OLD')}'`);
+  });
+
+  it('passes the same old-bundle hosts when the job did not publish', () => {
+    expect(run(hostsServe('OLD')).status).toBe(0);
+  });
+
+  it('passes when the published bundle is live on both hosts', () => {
+    const r = run(hostsServe('NEW'), SHA, [], {}, { expected: published });
     expect(r.status).toBe(0);
+    expect(r.summary).toContain('index-NEW.js');
+  });
+
+  it('retries until the published bundle goes live', () => {
+    const r = run(
+      hostsServe('NEW'),
+      SHA,
+      [],
+      {
+        [`${DOMAIN}/`]: [page('OLD'), page('NEW')],
+        [`${DOMAIN}/build-entry.txt`]: [`${entry('OLD')}\n`, `${entry('NEW')}\n`],
+        [`${ALIAS}/`]: [page('OLD'), page('NEW')],
+        [`${ALIAS}/build-entry.txt`]: [`${entry('OLD')}\n`, `${entry('NEW')}\n`],
+      },
+      { expected: published }
+    );
+    expect(r.status).toBe(0);
+  });
+
+  it('reports a 5xx stamp as a transport error, not a rebuild', () => {
+    const r = run(healthy(), SHA, [], {}, { codes: { [`${DOMAIN}/build-entry.txt`]: 503 } });
+    expect(r.status).toBe(2);
+    expect(r.stderr).toContain('transport error');
+    expect(r.stderr).not.toContain('rebuild_live=true');
+  });
+
+  it('reports a timed-out stamp as a transport error, not a rebuild', () => {
+    const r = run(healthy(), SHA, [`${ALIAS}/build-entry.txt`]);
+    expect(r.status).toBe(2);
+    expect(r.stderr).toContain('transport error');
+    expect(r.stderr).not.toContain('rebuild_live=true');
+  });
+
+  it('reports a 5xx homepage as a transport error, not a rebuild', () => {
+    const r = run(healthy(), SHA, [], {}, { codes: { [`${DOMAIN}/`]: 503 } });
+    expect(r.status).toBe(2);
+    expect(r.stderr).toContain('transport error');
+    expect(r.stderr).not.toContain('rebuild_live=true');
+  });
+
+  it('reports a timed-out homepage as a transport error, not a rebuild', () => {
+    const r = run(healthy(), SHA, [`${ALIAS}/`]);
+    expect(r.status).toBe(2);
+    expect(r.stderr).toContain('transport error');
+    expect(r.stderr).not.toContain('rebuild_live=true');
+  });
+
+  it('treats a 429 stamp and a 403 homepage as read failures, not a missing stamp', () => {
+    const stamp = run(healthy(), SHA, [], {}, { codes: { [`${DOMAIN}/build-entry.txt`]: 429 } });
+    expect(stamp.status).toBe(2);
+    expect(stamp.stderr).not.toContain('rebuild_live=true');
+    const home = run(healthy(), SHA, [], {}, { codes: { [`${ALIAS}/`]: 403 } });
+    expect(home.status).toBe(2);
+    expect(home.stderr).not.toContain('rebuild_live=true');
+  });
+
+  it('still reports a 404 stamp as a deployment that predates the stamp', () => {
+    const r = run(healthy(), SHA, [], {}, { codes: { [`${DOMAIN}/build-entry.txt`]: 404 } });
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain('rebuild_live=true');
+  });
+
+  it('names the HTTP status in a transport error and keeps the job-rerun advice', () => {
+    const r = run(healthy(), SHA, [], {}, { codes: { [`${ALIAS}/`]: 403 } });
+    expect(r.status).toBe(2);
+    expect(r.stderr).toContain(
+      `${ALIAS}/ could not be read (HTTP 403 or timeout/connection failure)`
+    );
+    expect(r.stderr).toContain('republishing once is safe');
+  });
+
+  it('tells a published-mismatch to rerun the job', () => {
+    const r = run(healthy(), SHA, [], {}, { expected: entry('NEW') });
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain('Rerun the job.');
   });
 
   it('does not take SPA fallback HTML for a stamp', () => {

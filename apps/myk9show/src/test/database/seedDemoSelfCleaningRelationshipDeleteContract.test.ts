@@ -284,7 +284,15 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
     // forget the guard, and its paid entries cascade away silently. The
     // behavioural tests cannot see this — they exercise the ids the guard
     // already names, not the ids the seed grew since.
-    const covered = (literal: string) => guardFunctionSource.includes(`'${literal}'`);
+    // The MYK9-836 club demo show range is the one id-space the guard does not name: it
+    // carries no money by construction and has its own card-money refusal in section 0
+    // (seedDemoClubDemoShowContract.test.ts pins both), because naming it needs a migration.
+    const CLUB_DEMO_SHOW_BOUNDS = [
+      'dededede-0000-0000-0836-000000000000',
+      'dededede-0000-0000-0837-000000000000',
+    ];
+    const covered = (literal: string) =>
+      guardFunctionSource.includes(`'${literal}'`) || CLUB_DEMO_SHOW_BOUNDS.includes(literal);
 
     for (const parent of ['shows', 'dogs']) {
       for (const del of statements(new RegExp(`DELETE FROM public\\.${parent}\\b[^;]*;`, 'g'))) {

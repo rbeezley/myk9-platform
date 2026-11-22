@@ -44,6 +44,14 @@ Week`, which has a trial dated today for seven days after the reseed
    restore in
    [Show-day fixture restore](#show-day-fixture-restore-between-reseeds) below
    rather than a full reseed.
+   **Club demo show (MYK9-836)** — the reseed also adds `Club demo show`, the
+   prepared show for the live club demo, signed in as the demo secretary (and
+   the demo judge for ringside): one trial dated TODAY in America/Chicago, nine
+   owing entries from the six demo dogs on two entry forms (nothing paid, no
+   Stripe), one class finished and released, one half scored, one still to run.
+   Its date is the reseed day, so reseed (or rerun the seed) the morning of a
+   demo; the show-day restore below does not move it. A cash or check payment a
+   demo records goes with the next reseed; card money on it refuses the reseed.
 3. **Load fixture (opt-in)** — only for a load rehearsal or a 63-entry PDF
    calibration, run `supabase/seed-load-fixture.sql` AFTER step 2 against the
    same URL (MYK9-558). It adds the 63 load dogs and 504 entries on the demo

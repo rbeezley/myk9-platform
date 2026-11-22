@@ -287,6 +287,7 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
     // The MYK9-836 club demo show range is the one id-space the guard does not name: it
     // carries no money by construction and has its own card-money refusal in section 0
     // (seedDemoClubDemoShowContract.test.ts pins both), because naming it needs a migration.
+    // The same literals bound the club demo show's own dogs delete (...0836-0000000000d{1..6}).
     const CLUB_DEMO_SHOW_BOUNDS = [
       'dededede-0000-0000-0836-000000000000',
       'dededede-0000-0000-0837-000000000000',
@@ -331,9 +332,10 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
       waitlistDeletes.length,
       'no waitlist_entries delete found — the MYK9-490 self-cleaning fix was removed'
     ).toBeGreaterThanOrEqual(2);
-    // Only the myk9_109 load-dog range is deleted; the six hand-authored demo
-    // dogs are reset in place since MYK9-126 (seedDemoDogsResetInPlaceContract).
-    expect(dogsDeletes.length).toBe(1);
+    // Two ranges are deleted: the myk9_109 load dogs and the MYK9-836 club demo show's
+    // own dogs. The six hand-authored demo dogs are reset in place since MYK9-126
+    // (seedDemoDogsResetInPlaceContract).
+    expect(dogsDeletes.length).toBe(2);
 
     // Both waitlist_entries.dog_id and entry_cart_items.dog_id are NO ACTION.
     // For each dogs delete, EVERY guard that shares one of its literal ids (an

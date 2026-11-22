@@ -47,8 +47,10 @@ Week`, which has a trial dated today for seven days after the reseed
    **Club demo show (MYK9-836)** — the reseed also adds `Club demo show`, the
    prepared show for the live club demo, signed in as the demo secretary (and
    the demo judge for ringside): one trial dated TODAY in America/Chicago, nine
-   owing entries from the six demo dogs on two entry forms (nothing paid, no
-   Stripe), one class finished and released, one half scored, one still to run.
+   owing entries on one entry form (nothing paid, no Stripe). The show has its
+   own six dogs, owned by the second demo exhibitor (exhibitor2@), so it adds no
+   entry or result to the six demo dogs the landing stills and clips read (the
+   next reseed deletes and recreates them), one class finished and released, one half scored, one still to run.
    Its date is the reseed day, so reseed (or rerun the seed) the morning of a
    demo; the show-day restore below does not move it. A cash or
    check payment recorded during a demo is cleared by the next reseed; card

@@ -46,7 +46,7 @@ describe('seed-demo club demo show (MYK9-836)', () => {
     expect(section).toContain("'America/Chicago', 1");
   });
 
-  it('seeds nine owing entries on two entry forms, with no money', () => {
+  it('seeds nine owing entries on one entry form, with no money', () => {
     const entries = section.slice(
       section.indexOf('INSERT INTO public.entries'),
       section.indexOf('INSERT INTO public.armbands')
@@ -59,7 +59,6 @@ describe('seed-demo club demo show (MYK9-836)', () => {
       section.indexOf('UPDATE public.entries')
     );
     expect(forms).toContain('dededede-0000-0000-0836-000000000070');
-    expect(forms).toContain('dededede-0000-0000-0836-000000000071');
     const code = section
       .slice(0, section.indexOf('DO $$\nDECLARE\n  v_entries'))
       .replace(/\n/g, ' ');
@@ -67,12 +66,49 @@ describe('seed-demo club demo show (MYK9-836)', () => {
     expect(code.match(/INSERT INTO public\.stripe_orders/g)).toBeNull();
   });
 
-  it('reuses the six demo dogs and adds none', () => {
-    expect(section).not.toMatch(/INSERT INTO public\.dogs/);
-    const dogIds = new Set(
-      [...section.matchAll(/'(dededede-0000-0000-0000-0000000000(4[1-6]))'/g)].map(m => m[1])
+  it('gives the show six dogs of its own, owned by exhibitor2@, and touches none of the six demo dogs', () => {
+    const dogs = section.slice(
+      section.indexOf('INSERT INTO public.dogs'),
+      section.indexOf('INSERT INTO public.dog_registrations')
     );
-    expect(dogIds.size).toBeGreaterThanOrEqual(5);
+    const dogIds = [...dogs.matchAll(/'(dededede-0000-0000-0836-0000000000d\d)'/g)].map(m => m[1]);
+    expect(dogIds).toHaveLength(6);
+    expect(new Set(dogIds).size).toBe(6);
+    expect(dogs).toContain("lower(p.email) = 'exhibitor2@myk9t.com'");
+    // The registrations entries_require_dog_registration needs, for these dogs only.
+    const registrations = section.slice(section.indexOf('INSERT INTO public.dog_registrations'));
+    expect(registrations).toContain("WHERE d.id >= 'dededede-0000-0000-0836-000000000000'::uuid");
+    // Every entry and armband uses one of them, handled by the same owner.
+    const entries = section.slice(
+      section.indexOf('INSERT INTO public.entries'),
+      section.indexOf('INSERT INTO public.enrollments')
+    );
+    expect(entries.match(/'dededede-0000-0000-0836-0000000000d\d'/g)).toHaveLength(9 + 6);
+    expect(entries).toContain("lower(p.email) = 'exhibitor2@myk9t.com'");
+    expect(entries).not.toMatch(/exhibitor@myk9t|secretary@myk9t/);
+    // None of the six hand-authored demo dogs (...041 to ...046) appears anywhere in section 20.
+    expect(section).not.toMatch(/dededede-0000-0000-0000-00000000004[1-6]/);
+    expect(section).not.toMatch(/dededede-0000-0000-0836-000000000071/);
+  });
+
+  it('deletes its own dogs, after its entries and armbands, scoped to the range', () => {
+    const entriesAt = cleanup.indexOf('DELETE FROM public.entries');
+    const armbandsAt = cleanup.indexOf('DELETE FROM public.armbands');
+    const dogsAt = cleanup.indexOf('DELETE FROM public.dogs');
+    expect(dogsAt).toBeGreaterThan(entriesAt);
+    expect(dogsAt).toBeGreaterThan(armbandsAt);
+    const del = cleanup.slice(dogsAt, cleanup.indexOf(';', dogsAt));
+    expect(del).toContain(`id >= ${LOW}`);
+    expect(del).toContain(`id <  ${HIGH}`);
+    // The two NO ACTION children are cleared by dog id first.
+    for (const table of ['waitlist_entries', 'entry_cart_items']) {
+      const at = cleanup.indexOf(`DELETE FROM public.${table}\nWHERE dog_id >= ${LOW}`);
+      expect(at).toBeGreaterThan(-1);
+      expect(at).toBeLessThan(dogsAt);
+    }
+    expect(cleanup.indexOf('DELETE FROM public.dogs')).toBeLessThan(
+      cleanup.indexOf('DELETE FROM public.enrollments')
+    );
   });
 
   it('finishes one class like section 8 and leaves another half scored with no placements', () => {

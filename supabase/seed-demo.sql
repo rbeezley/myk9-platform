@@ -8,8 +8,8 @@
 --   as a cross-club class target (section 4c), the show-day fixture
 --   `Show-day fixture · <Mon D>` that is always running today (section 19,
 --   MYK9-731), the `Club demo show` for the live club demo (section 20,
---   MYK9-836: a trial dated the reseed day, 9 owing entries, one class
---   finished and released, one half scored), 6 dogs, 13 hand-authored entries
+--   MYK9-836: a trial dated the reseed day, 9 owing entries on its own six dogs
+--   owned by exhibitor2@, one class finished and released, one half scored), 6 dogs, 13 hand-authored entries
 --   on the demo show) that preserves the golden paths. Every staging e2e spec and
 --   scheduled walk that needs a specific row points at this lean set;
 --   seedDemoStagingConsumersContract.test.ts pins that. It also includes complete show officials and
@@ -195,7 +195,8 @@ END $$;
 --   load trial   a1090000-0000-0000-0011-*   load class   a1090000-0000-0000-0012-*
 --   load club    a1090000-0000-0000-0013-*
 --   MYK9-836 club demo show: everything in dededede-0000-0000-0836-* (show ...010,
---   trial ...021, entries ...05{1..9}, forms ...07{0,1}, armbands ...00a{1..6},
+--   trial ...021, entries ...05{1..9}, form ...070, armbands ...00a{1..6},
+--   dogs ...00d{1..6} (owner exhibitor2@myk9t.com),
 --   judge_assign ...00b{1..3}) and classes dec1a55e-0000-0000-0836-0000000000{31..33}
 --   judge_assign dededede-0000-0000-0000-0000000000b{1..5} (e2e-judge), class-level
 --   passcode     dededede-0000-0000-0000-00000000008{1,2}
@@ -876,10 +877,13 @@ DELETE FROM public.shows WHERE id IN (
 
 -- MYK9-836 club demo show (section 20): one show of its own in the id range
 -- dededede-0000-0000-0836-* (classes dec1a55e-0000-0000-0836-*), cleared here
--- children first and scoped to exactly that range. It reuses the six demo dogs
--- and never creates one, so no dog is deleted. Runs after the paid-stray guard on
--- purpose: that guard names its show ids in a migration, and this range is not in
--- it. Its place is taken by the guard below, which refuses card money.
+-- children first and scoped to exactly that range. It brings six dogs of its own
+-- (ids dededede-0000-0000-0836-0000000000d{1..6}, owned by exhibitor2@myk9t.com) and
+-- touches none of the six hand-authored demo dogs, so what exhibitor@ and secretary@
+-- see as exhibitors is unchanged. Its dogs are deleted here, after its entries and
+-- armbands (their registrations go with them by cascade). Runs after the paid-stray
+-- guard on purpose: that guard names its show ids in a migration, and this range is
+-- not in it. Its place is taken by the guard below, which refuses card money.
 --
 -- Card money is never cascaded: anything that came through Stripe (an order on the
 -- show or an enrollment, a payment intent or a refund on an entry) refuses the
@@ -930,6 +934,17 @@ WHERE show_id >= 'dededede-0000-0000-0836-000000000000'::uuid
 DELETE FROM public.armbands
 WHERE show_id >= 'dededede-0000-0000-0836-000000000000'::uuid
   AND show_id <  'dededede-0000-0000-0837-000000000000'::uuid;
+-- waitlist_entries.dog_id and entry_cart_items.dog_id are NO ACTION, so a join or
+-- cart row a walk made for one of the club demo dogs is cleared before the dogs.
+DELETE FROM public.waitlist_entries
+WHERE dog_id >= 'dededede-0000-0000-0836-000000000000'::uuid
+  AND dog_id <  'dededede-0000-0000-0837-000000000000'::uuid;
+DELETE FROM public.entry_cart_items
+WHERE dog_id >= 'dededede-0000-0000-0836-000000000000'::uuid
+  AND dog_id <  'dededede-0000-0000-0837-000000000000'::uuid;
+DELETE FROM public.dogs
+WHERE id >= 'dededede-0000-0000-0836-000000000000'::uuid
+  AND id <  'dededede-0000-0000-0837-000000000000'::uuid;
 DELETE FROM public.enrollments
 WHERE show_id >= 'dededede-0000-0000-0836-000000000000'::uuid
   AND show_id <  'dededede-0000-0000-0837-000000000000'::uuid;
@@ -2892,7 +2907,8 @@ END $$;
 -- WHAT. `Club demo show`, AKC, under the Heartland club the demo secretary runs,
 -- one trial dated TODAY in its own timezone (America/Chicago, read from now() like
 -- section 19, so the date is the reseed day: reseed on the morning of a demo).
--- Entries closed three days ago. Nine entries from the six demo dogs, three classes:
+-- Entries closed three days ago. Nine entries from six dogs of its own (Poppy, Tucker,
+-- Hazel, Bear, Nova, Rusty, owned and handled by exhibitor2@, Riley Parker), three classes:
 --   Container Novice   09:00  finished: 3 of 3 scored, finalized, results released,
 --                             explicit placements (the section 8 recipe)
 --   Interior Advanced  10:30  in progress: 2 of 4 scored, no placements (placement
@@ -2901,9 +2917,12 @@ END $$;
 -- The judge fixture judges all three classes at class level (section 11 explains why).
 --
 -- MONEY. Nothing is invented. Every entry is owing: payment_status 'pending', on one
--- entry form per exhibitor (the exhibitor's, the secretary's for Cooper), each form
--- pending with nothing received, so the demo can record a cash or check payment on
+-- entry form (Riley Parker's), pending with nothing received, so the demo can record a cash or check payment on
 -- it. No Stripe id, no order, no paid_amount (MYK9-2190's rule, section 9b).
+--
+-- WHY ITS OWN DOGS. The landing stills and the club deck's clips read exhibitor@'s
+-- six dogs (My Entries card counts, Past Results), so this show must add no entry or
+-- result to any of them or to secretary@'s. Section 0 deletes the dogs with the range.
 --
 -- WHY A SEPARATE SHOW. The show-day fixture is built by a migration function and
 -- the e2e walks key on it; the Heartland show's counts and states are pinned by
@@ -2983,9 +3002,43 @@ VALUES
    'Exterior Excellent', 'Excellent', 'Exterior', NULL,
    30.00, 'upcoming', 180, 2, 1, false, 'single', false, 3, '13:00'::time, 1);
 
--- Entries: Maple, Willow, Cooper in Container Novice; Ranger, Juniper, Scout, Willow in
--- Interior Advanced; Scout, Cooper in Exterior Excellent. A dog keeps one armband
--- for the show (300 + its order below), Willow's in both of her classes.
+-- The show's own dogs. Inserted plainly (section 0 deleted the range), each with the
+-- registrations entries_require_dog_registration needs, the section 5 pattern.
+INSERT INTO public.dogs (id, name, call_name, breed, sex, date_of_birth, color, status, owner_id, version)
+SELECT v.id::uuid, v.name, v.name, v.breed, v.sex, v.dob::date, v.color, 'active', p.id, 1
+FROM (VALUES
+  ('dededede-0000-0000-0836-0000000000d1', 'Poppy',  'Standard Poodle',   'female', '2021-04-18', 'Apricot'),
+  ('dededede-0000-0000-0836-0000000000d2', 'Tucker', 'Vizsla',            'male',   '2020-08-09', 'Rust'),
+  ('dededede-0000-0000-0836-0000000000d3', 'Hazel',  'Brittany',          'female', '2022-02-25', 'Orange & White'),
+  ('dededede-0000-0000-0836-0000000000d4', 'Bear',   'Bernese Mountain Dog', 'male', '2019-12-03', 'Tricolor'),
+  ('dededede-0000-0000-0836-0000000000d5', 'Nova',   'Siberian Husky',    'female', '2021-10-11', 'Gray & White'),
+  ('dededede-0000-0000-0836-0000000000d6', 'Rusty',  'Cocker Spaniel',    'male',   '2023-03-07', 'Red')
+) AS v(id, name, breed, sex, dob, color)
+JOIN public.people p ON lower(p.email) = 'exhibitor2@myk9t.com';
+
+INSERT INTO public.dog_registrations (
+  dog_id, organization, registration_number, registered_name, breed, status, is_primary
+)
+SELECT
+  d.id,
+  reg.organization,
+  reg.prefix || upper(substr(md5(d.id::text || reg.registry), 1, 8)),
+  d.name,
+  d.breed,
+  'Active',
+  reg.registry = 'AKC'
+FROM public.dogs d
+CROSS JOIN (VALUES
+  ('AKC',  'AKC (American Kennel Club)',                 'SR'),
+  ('UKC',  'UKC (United Kennel Club)',                   'P'),
+  ('ASCA', 'ASCA (Australian Shepherd Club of America)', 'E')
+) AS reg(registry, organization, prefix)
+WHERE d.id >= 'dededede-0000-0000-0836-000000000000'::uuid
+  AND d.id <  'dededede-0000-0000-0837-000000000000'::uuid;
+
+-- Entries: Nova, Poppy, Rusty in Container Novice; Tucker, Hazel, Bear, Poppy in
+-- Interior Advanced; Bear, Rusty in Exterior Excellent. A dog keeps one armband
+-- for the show (300 + its order below), Poppy's in both of her classes.
 INSERT INTO public.entries (
   id, dog_id, class_id, show_id, trial_id, handler_id, handler,
   entry_status, payment_status, entry_fee, armband, run_order, move_up_requested,
@@ -2996,54 +3049,43 @@ SELECT v.id::uuid, v.dog_id::uuid, v.class_id::uuid,
        h.id, h.display_name, 'confirmed', 'pending', 30.00, v.armband, v.run_order, false,
        v.check_in_status, 1
 FROM (VALUES
-  ('dededede-0000-0000-0836-000000000051', 'dededede-0000-0000-0000-000000000045', 'dec1a55e-0000-0000-0836-000000000031', 'exhibitor@myk9t.com', '305', 2, 'no-status'),
-  ('dededede-0000-0000-0836-000000000052', 'dededede-0000-0000-0000-000000000041', 'dec1a55e-0000-0000-0836-000000000031', 'exhibitor@myk9t.com', '301', 1, 'no-status'),
-  ('dededede-0000-0000-0836-000000000053', 'dededede-0000-0000-0000-000000000046', 'dec1a55e-0000-0000-0836-000000000031', 'secretary@myk9t.com', '306', 3, 'no-status'),
-  ('dededede-0000-0000-0836-000000000054', 'dededede-0000-0000-0000-000000000042', 'dec1a55e-0000-0000-0836-000000000032', 'exhibitor@myk9t.com', '302', 1, 'no-status'),
-  ('dededede-0000-0000-0836-000000000055', 'dededede-0000-0000-0000-000000000043', 'dec1a55e-0000-0000-0836-000000000032', 'exhibitor@myk9t.com', '303', 2, 'no-status'),
-  ('dededede-0000-0000-0836-000000000056', 'dededede-0000-0000-0000-000000000044', 'dec1a55e-0000-0000-0836-000000000032', 'exhibitor@myk9t.com', '304', 3, 'at-gate'),
-  ('dededede-0000-0000-0836-000000000057', 'dededede-0000-0000-0000-000000000041', 'dec1a55e-0000-0000-0836-000000000032', 'exhibitor@myk9t.com', '301', 4, 'checked-in'),
-  ('dededede-0000-0000-0836-000000000058', 'dededede-0000-0000-0000-000000000044', 'dec1a55e-0000-0000-0836-000000000033', 'exhibitor@myk9t.com', '304', 1, 'checked-in'),
-  ('dededede-0000-0000-0836-000000000059', 'dededede-0000-0000-0000-000000000046', 'dec1a55e-0000-0000-0836-000000000033', 'secretary@myk9t.com', '306', 2, 'checked-in')
+  ('dededede-0000-0000-0836-000000000051', 'dededede-0000-0000-0836-0000000000d5', 'dec1a55e-0000-0000-0836-000000000031', 'exhibitor2@myk9t.com', '305', 2, 'no-status'),
+  ('dededede-0000-0000-0836-000000000052', 'dededede-0000-0000-0836-0000000000d1', 'dec1a55e-0000-0000-0836-000000000031', 'exhibitor2@myk9t.com', '301', 1, 'no-status'),
+  ('dededede-0000-0000-0836-000000000053', 'dededede-0000-0000-0836-0000000000d6', 'dec1a55e-0000-0000-0836-000000000031', 'exhibitor2@myk9t.com', '306', 3, 'no-status'),
+  ('dededede-0000-0000-0836-000000000054', 'dededede-0000-0000-0836-0000000000d2', 'dec1a55e-0000-0000-0836-000000000032', 'exhibitor2@myk9t.com', '302', 1, 'no-status'),
+  ('dededede-0000-0000-0836-000000000055', 'dededede-0000-0000-0836-0000000000d3', 'dec1a55e-0000-0000-0836-000000000032', 'exhibitor2@myk9t.com', '303', 2, 'no-status'),
+  ('dededede-0000-0000-0836-000000000056', 'dededede-0000-0000-0836-0000000000d4', 'dec1a55e-0000-0000-0836-000000000032', 'exhibitor2@myk9t.com', '304', 3, 'at-gate'),
+  ('dededede-0000-0000-0836-000000000057', 'dededede-0000-0000-0836-0000000000d1', 'dec1a55e-0000-0000-0836-000000000032', 'exhibitor2@myk9t.com', '301', 4, 'checked-in'),
+  ('dededede-0000-0000-0836-000000000058', 'dededede-0000-0000-0836-0000000000d4', 'dec1a55e-0000-0000-0836-000000000033', 'exhibitor2@myk9t.com', '304', 1, 'checked-in'),
+  ('dededede-0000-0000-0836-000000000059', 'dededede-0000-0000-0836-0000000000d6', 'dec1a55e-0000-0000-0836-000000000033', 'exhibitor2@myk9t.com', '306', 2, 'checked-in')
 ) AS v(id, dog_id, class_id, handler_email, armband, run_order, check_in_status)
 JOIN (
   SELECT p.id, lower(p.email) AS email,
-         CASE lower(p.email) WHEN 'exhibitor@myk9t.com' THEN 'Casey Morgan' ELSE 'Jordan Ellis' END AS display_name
+         'Riley Parker' AS display_name
   FROM public.people p
-  WHERE lower(p.email) IN ('exhibitor@myk9t.com', 'secretary@myk9t.com')
+  WHERE lower(p.email) = 'exhibitor2@myk9t.com'
 ) AS h ON h.email = v.handler_email;
 
 INSERT INTO public.armbands (id, show_id, dog_id, armband_number, is_available, assigned_at, version)
 VALUES
-  ('dededede-0000-0000-0836-0000000000a1', 'dededede-0000-0000-0836-000000000010', 'dededede-0000-0000-0000-000000000041', '301', false, (((SELECT d FROM club_demo_day) - 3)::timestamp AT TIME ZONE 'UTC'), 1),
-  ('dededede-0000-0000-0836-0000000000a2', 'dededede-0000-0000-0836-000000000010', 'dededede-0000-0000-0000-000000000042', '302', false, (((SELECT d FROM club_demo_day) - 3)::timestamp AT TIME ZONE 'UTC'), 1),
-  ('dededede-0000-0000-0836-0000000000a3', 'dededede-0000-0000-0836-000000000010', 'dededede-0000-0000-0000-000000000043', '303', false, (((SELECT d FROM club_demo_day) - 3)::timestamp AT TIME ZONE 'UTC'), 1),
-  ('dededede-0000-0000-0836-0000000000a4', 'dededede-0000-0000-0836-000000000010', 'dededede-0000-0000-0000-000000000044', '304', false, (((SELECT d FROM club_demo_day) - 3)::timestamp AT TIME ZONE 'UTC'), 1),
-  ('dededede-0000-0000-0836-0000000000a5', 'dededede-0000-0000-0836-000000000010', 'dededede-0000-0000-0000-000000000045', '305', false, (((SELECT d FROM club_demo_day) - 3)::timestamp AT TIME ZONE 'UTC'), 1),
-  ('dededede-0000-0000-0836-0000000000a6', 'dededede-0000-0000-0836-000000000010', 'dededede-0000-0000-0000-000000000046', '306', false, (((SELECT d FROM club_demo_day) - 3)::timestamp AT TIME ZONE 'UTC'), 1);
+  ('dededede-0000-0000-0836-0000000000a1', 'dededede-0000-0000-0836-000000000010', 'dededede-0000-0000-0836-0000000000d1', '301', false, (((SELECT d FROM club_demo_day) - 3)::timestamp AT TIME ZONE 'UTC'), 1),
+  ('dededede-0000-0000-0836-0000000000a2', 'dededede-0000-0000-0836-000000000010', 'dededede-0000-0000-0836-0000000000d2', '302', false, (((SELECT d FROM club_demo_day) - 3)::timestamp AT TIME ZONE 'UTC'), 1),
+  ('dededede-0000-0000-0836-0000000000a3', 'dededede-0000-0000-0836-000000000010', 'dededede-0000-0000-0836-0000000000d3', '303', false, (((SELECT d FROM club_demo_day) - 3)::timestamp AT TIME ZONE 'UTC'), 1),
+  ('dededede-0000-0000-0836-0000000000a4', 'dededede-0000-0000-0836-000000000010', 'dededede-0000-0000-0836-0000000000d4', '304', false, (((SELECT d FROM club_demo_day) - 3)::timestamp AT TIME ZONE 'UTC'), 1),
+  ('dededede-0000-0000-0836-0000000000a5', 'dededede-0000-0000-0836-000000000010', 'dededede-0000-0000-0836-0000000000d5', '305', false, (((SELECT d FROM club_demo_day) - 3)::timestamp AT TIME ZONE 'UTC'), 1),
+  ('dededede-0000-0000-0836-0000000000a6', 'dededede-0000-0000-0836-000000000010', 'dededede-0000-0000-0836-0000000000d6', '306', false, (((SELECT d FROM club_demo_day) - 3)::timestamp AT TIME ZONE 'UTC'), 1);
 
--- Entry forms (MYK9-2190, section 9b): one per exhibitor per show, pending, nothing
--- received. The nine entries are owing, so each form owes what its entries cost.
+-- Entry form (MYK9-2190, section 9b): one per exhibitor per show, pending, nothing
+-- received. The nine entries are owing, so the form owes what its entries cost.
 INSERT INTO public.enrollments (id, show_id, handler_id, payment_status)
 SELECT v.id::uuid, 'dededede-0000-0000-0836-000000000010', p.id, 'pending'
 FROM (VALUES
-  ('dededede-0000-0000-0836-000000000070', 'exhibitor@myk9t.com'),
-  ('dededede-0000-0000-0836-000000000071', 'secretary@myk9t.com')
+  ('dededede-0000-0000-0836-000000000070', 'exhibitor2@myk9t.com')
 ) AS v(id, email)
 JOIN public.people p ON lower(p.email) = v.email;
 UPDATE public.entries
 SET registration_id = 'dededede-0000-0000-0836-000000000070'
-WHERE id IN (
-  'dededede-0000-0000-0836-000000000051', 'dededede-0000-0000-0836-000000000052',
-  'dededede-0000-0000-0836-000000000054', 'dededede-0000-0000-0836-000000000055',
-  'dededede-0000-0000-0836-000000000056', 'dededede-0000-0000-0836-000000000057',
-  'dededede-0000-0000-0836-000000000058'
-);
-UPDATE public.entries
-SET registration_id = 'dededede-0000-0000-0836-000000000071'
-WHERE id IN (
-  'dededede-0000-0000-0836-000000000053', 'dededede-0000-0000-0836-000000000059'
-);
+WHERE show_id = 'dededede-0000-0000-0836-000000000010';
 
 -- Judge fixture on all three classes, at class level. The passcode a judge
 -- assignment mints is the section 12 machinery; nothing here pins a value.
@@ -3064,33 +3106,33 @@ JOIN public.people p ON lower(p.email) = 'judge@myk9t.com';
 -- Container Novice: scored and finalized like section 8. The placement trigger is
 -- AFTER UPDATE only, so it places on the last update below and never on the
 -- inserts above; final_placement is set explicitly to the values it computes (all
--- three qualify with 0 faults, so fastest time first): Maple 36.80s -> 1, Willow
--- 41.30s -> 2, Cooper 44.10s -> 3.
+-- three qualify with 0 faults, so fastest time first): Nova 36.80s -> 1, Poppy
+-- 41.30s -> 2, Rusty 44.10s -> 3.
 UPDATE public.entries SET
   is_scored = true, result_status = 'qualified', check_in_status = 'completed',
   entry_status = 'completed', search_time_seconds = 41.30, total_faults = 0,
   total_score = 100, final_placement = 2,
   scoring_completed_at = LEAST(now() - INTERVAL '40 minutes', ((SELECT d FROM club_demo_day)::timestamp + INTERVAL '09:08:00') AT TIME ZONE 'America/Chicago')
-WHERE id = 'dededede-0000-0000-0836-000000000052';  -- Willow
+WHERE id = 'dededede-0000-0000-0836-000000000052';  -- Poppy
 UPDATE public.entries SET
   is_scored = true, result_status = 'qualified', check_in_status = 'completed',
   entry_status = 'completed', search_time_seconds = 36.80, total_faults = 0,
   total_score = 100, final_placement = 1,
   scoring_completed_at = LEAST(now() - INTERVAL '30 minutes', ((SELECT d FROM club_demo_day)::timestamp + INTERVAL '09:14:00') AT TIME ZONE 'America/Chicago')
-WHERE id = 'dededede-0000-0000-0836-000000000051';  -- Maple
+WHERE id = 'dededede-0000-0000-0836-000000000051';  -- Nova
 UPDATE public.entries SET
   is_scored = true, result_status = 'qualified', check_in_status = 'completed',
   entry_status = 'completed', search_time_seconds = 44.10, total_faults = 0,
   total_score = 100, final_placement = 3,
   scoring_completed_at = LEAST(now() - INTERVAL '20 minutes', ((SELECT d FROM club_demo_day)::timestamp + INTERVAL '09:20:00') AT TIME ZONE 'America/Chicago')
-WHERE id = 'dededede-0000-0000-0836-000000000053';  -- Cooper
+WHERE id = 'dededede-0000-0000-0836-000000000053';  -- Rusty
 UPDATE public.classes SET
   status = 'completed', is_scoring_finalized = true, scored_count = 3,
   results_released_at = LEAST(now() - INTERVAL '10 minutes', ((SELECT d FROM club_demo_day)::timestamp + INTERVAL '09:30:00') AT TIME ZONE 'America/Chicago')
 WHERE id = 'dec1a55e-0000-0000-0836-000000000031';
 
--- Interior Advanced: half scored. Ranger and Juniper have run; Scout (at the gate) and
--- Willow (checked in) have not. No final_placement: placement is only computed
+-- Interior Advanced: half scored. Tucker and Hazel have run; Bear (at the gate) and
+-- Poppy (checked in) have not. No final_placement: placement is only computed
 -- when every dog is accounted for, and the entry trigger clears it until then. The
 -- trigger also derives the class's in-progress status and scored_count of 2.
 UPDATE public.entries SET
@@ -3098,13 +3140,13 @@ UPDATE public.entries SET
   entry_status = 'completed', search_time_seconds = 52.10, total_faults = 0,
   total_score = 100,
   scoring_completed_at = LEAST(now() - INTERVAL '8 minutes', ((SELECT d FROM club_demo_day)::timestamp + INTERVAL '10:42:00') AT TIME ZONE 'America/Chicago')
-WHERE id = 'dededede-0000-0000-0836-000000000054';  -- Ranger
+WHERE id = 'dededede-0000-0000-0836-000000000054';  -- Tucker
 UPDATE public.entries SET
   is_scored = true, result_status = 'qualified', check_in_status = 'completed',
   entry_status = 'completed', search_time_seconds = 58.60, total_faults = 0,
   total_score = 100,
   scoring_completed_at = LEAST(now() - INTERVAL '5 minutes', ((SELECT d FROM club_demo_day)::timestamp + INTERVAL '10:49:00') AT TIME ZONE 'America/Chicago')
-WHERE id = 'dededede-0000-0000-0836-000000000055';  -- Juniper
+WHERE id = 'dededede-0000-0000-0836-000000000055';  -- Hazel
 
 -- Postcondition: the shapes the demo walks through, and no money anywhere.
 DO $$

@@ -18,6 +18,8 @@
 #   DOMAIN_URL     default https://myk9show.com
 #   ALIAS_URL      default https://myk9-platform-myk9show.vercel.app
 #   EXPECTED_ENTRY_FILE  set only when this job published: the built build-entry.txt
+#   EXPECTED_ENTRY       the same stamp as a literal string, for a verify-only run
+#                        from a checkout (EXPECTED_ENTRY_FILE wins if both are set)
 #   VERIFY_TRIES   attempts per check (default 6)
 #   VERIFY_SLEEP   seconds between attempts (default 10)
 #
@@ -38,7 +40,8 @@ pause="${VERIFY_SLEEP:-10}"
 
 # Fetches one URL and classifies the answer, so a stamp read and a homepage read
 # share one rule. Sets PAGE_BODY and PAGE_STATE: ok (HTTP 2xx), missing (HTTP
-# 4xx) or transport (timeout, DNS or connection failure, 5xx). Output from a
+# 404 or 410) or transport (anything else: timeout, DNS or connection failure,
+# 5xx, and 4xx such as 401, 403 or 429, which are read failures, not absence). Output from a
 # failed or timed-out transfer is discarded, never parsed. The whole page is
 # read before matching: `curl | grep | head` can SIGPIPE curl, which pipefail
 # turns into a failed step.
@@ -53,7 +56,7 @@ fetch_page() {
   if [[ "$code" =~ ^2[0-9][0-9]$ ]]; then
     PAGE_BODY="${out%$'\n'*}"
     PAGE_STATE="ok"
-  elif [[ "$code" =~ ^4[0-9][0-9]$ ]]; then
+  elif [[ "$code" == 404 || "$code" == 410 ]]; then
     PAGE_STATE="missing"
   fi
 }
@@ -134,7 +137,18 @@ if [[ -n "${EXPECTED_ENTRY_FILE:-}" ]]; then
     echo "EXPECTED_ENTRY_FILE '$EXPECTED_ENTRY_FILE' does not hold one complete entry chunk stamp" >&2
     exit 1
   }
+elif [[ -n "${EXPECTED_ENTRY:-}" ]]; then
+  expected="$(tr -d '[:space:]' <<<"$EXPECTED_ENTRY")"
+  [[ "$expected" =~ $entry_re ]] || {
+    echo "EXPECTED_ENTRY '$EXPECTED_ENTRY' is not one complete entry chunk stamp" >&2
+    exit 1
+  }
 fi
+# A GitHub Actions rerun repeats the whole job (rebuild_live=true publishes
+# again), so recovery is this script alone, pinned to the original commit and,
+# when this job published, its stamp. The stamp holds double quotes, so it is
+# single-quoted (entry_re admits no single quote).
+verify_cmd="COMMIT_SHA=$commit_sha ${expected:+EXPECTED_ENTRY='$expected' }bash scripts/qa/verify-production.sh"
 stamp_d=""
 stamp_a=""
 state_d=""
@@ -167,7 +181,7 @@ done
 # deployment: retry verify, do not republish (Vercel's daily deploy quota).
 for pair in "$domain/build-entry.txt|$state_d" "$alias_url/build-entry.txt|$state_a" "$domain/|$hstate_d" "$alias_url/|$hstate_a"; do
   [[ "${pair#*|}" != transport ]] || {
-    echo "${pair%%|*} could not be read (timeout, connection failure or HTTP 5xx). This is a transport error, not a stale build: rerun the verify step; do not rebuild or republish." >&2
+    echo "${pair%%|*} could not be read (timeout, connection failure or HTTP 5xx). This is a transport error, not a stale build. Do NOT rerun the deploy job or republish. From a local checkout run: $verify_cmd" >&2
     exit 2
   }
 done
@@ -182,7 +196,7 @@ done
   exit 1
 }
 [[ -z "$expected" || "$stamp_d" == "$expected" ]] || {
-  echo "entry chunk mismatch: both hosts serve '$stamp_d' but this job published '$expected'. The hosts still serve the previous build. Rerun the verify step, or rerun with rebuild_live=true if it persists." >&2
+  echo "entry chunk mismatch: both hosts serve '$stamp_d' but this job published '$expected'. The hosts still serve the previous build. Do NOT rerun the deploy job (it would publish again). From a local checkout run: $verify_cmd . If it keeps failing, rerun with rebuild_live=true." >&2
   exit 1
 }
 public="$stamp_d"

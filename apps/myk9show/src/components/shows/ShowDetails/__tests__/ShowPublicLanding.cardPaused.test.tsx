@@ -1,6 +1,7 @@
 import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { usePendingEntryCopy } from '@/features/_shared/landing/PendingEntryCopyContext';
 import { ShowPublicLanding } from '../ShowPublicLanding';
 import type { Show } from '@/types/show-types';
@@ -22,10 +23,19 @@ vi.mock('@/features/payments/ServiceFeeNote', () => ({
   ServiceFeeNote: () => <span>Plus a 7% service fee when you pay online.</span>,
 }));
 vi.mock('@/features/heritage/landing/HeritageLandingPage', () => ({
-  HeritageLandingPage: ({ entryPendingReason }: { entryPendingReason?: string }) => {
+  HeritageLandingPage: ({
+    entryPendingReason,
+    show,
+  }: {
+    entryPendingReason?: string;
+    show: { entryCloseDate?: string };
+  }) => {
     const copy = usePendingEntryCopy();
+    // The real landings gate Enter on the same countdown and the pending reason.
+    const closed = useCountdown(show.entryCloseDate ?? null, 'America/New_York').closed;
     return (
       <div>
+        {!closed && !entryPendingReason && <button type="button">Enter</button>}
         <span data-testid="reason">{entryPendingReason ?? 'enter-open'}</span>
         <span data-testid="copy">{copy.sentence}</span>
       </div>
@@ -127,6 +137,36 @@ describe('ShowPublicLanding card entries (MYK9-2192)', () => {
     renderLanding(openShow(true));
     await screen.findByText('enter-open');
     expect(screen.getByText(/service fee when you pay online/)).toBeInTheDocument();
+  });
+
+  describe('a timed close (12:00 UTC)', () => {
+    const timed = (): Show =>
+      ({ ...openShow(true), entryCloseDate: '2026-06-10T12:00:00+00:00' }) as Show;
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('shows no card note and no Enter just after the close', () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-06-10T12:00:01Z'));
+      rpc.mockResolvedValue({ data: ['show-1'], error: null });
+      renderLanding(timed());
+      expect(rpc).not.toHaveBeenCalled();
+      expect(screen.queryByRole('note', { name: 'Card payments paused' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Enter' })).not.toBeInTheDocument();
+    });
+
+    it('behaves as open just before the close', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-06-10T11:59:00Z'));
+      rpc.mockResolvedValue({ data: ['show-1'], error: null });
+      renderLanding(timed());
+      expect(
+        await screen.findByText('Card payments are paused. Pay by check or cash.')
+      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Enter' })).toBeInTheDocument();
+    });
   });
 
   it('withholds Enter when the request fails', async () => {

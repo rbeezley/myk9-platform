@@ -157,6 +157,11 @@ export const AUDIT_READ_ONLY_RPCS: ReadonlySet<string> = new Set([
   // total read "Pending" and Pay stayed disabled (MYK9-757).
   'get_show_class_judge_day_availability',
   // 20260830240000_show_officials_separates_label_from_permission.sql
+  // 20261121204900_myk9_2192_show_card_entries_paused.sql — STABLE, SETOF uuid; the public
+  // show page's card-entries-paused answer (useShowCardEntriesPaused). Blocked, Enter reads
+  // "checking" or unknown and the landing never offers it.
+  'shows_card_entries_paused',
+  // 20260830240000_show_officials_separates_label_from_permission.sql
   'get_show_class_hide_counts',
   // 20260912211500_get_show_judges_for_public_surfaces.sql — a pure read of
   // judge_assignments. MYK9-545 round 3: the guard's new abort log printed this

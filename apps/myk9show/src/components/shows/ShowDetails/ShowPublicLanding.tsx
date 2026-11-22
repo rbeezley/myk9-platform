@@ -2,6 +2,7 @@ import { getEntryStatus, type EntryPendingReason } from '@/utils/entryStatusUtil
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { onlineManager } from '@tanstack/react-query';
 import { getShowStyle, getTrialTimezone } from '@/features/registries';
+import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { STYLED_LANDING_BY_STYLE } from '@/features/_shared/styledLandingRegistry';
 import type { ShowStyle } from '@/features/registries';
 import { PremiumStyleSelector } from '@/components/panels/edit/PremiumStyleSelector';
@@ -111,9 +112,17 @@ export function ShowPublicLanding({
   const entryStatusNow = getEntryStatus(show, false, {
     hasEntryClassInventory: hasEntryClassInventory !== false,
   }).status;
+  // The close instant is decided once, by the countdown the styled landings' Enter button also
+  // reads (a non-midnight cutoff is honored), so the card ask, the paused note and Enter cannot
+  // disagree after a timed close. getEntryStatus only has day granularity.
+  const trialTimezone = getTrialTimezone(landingTrials[0] ?? null);
+  const entryClosed = useCountdown(
+    landingTrials[0]?.entryCloseDate ?? show.entryCloseDate ?? null,
+    trialTimezone
+  ).closed;
   const cardState = useShowCardEntriesPaused(
     show,
-    entryStatusNow === 'accepting' || entryStatusNow === 'closing_soon'
+    !entryClosed && (entryStatusNow === 'accepting' || entryStatusNow === 'closing_soon')
   );
   const cardLanding = cardEntriesLanding(cardState, show);
 
@@ -197,7 +206,6 @@ export function ShowPublicLanding({
   const effectivePendingReason =
     entryPendingReason ??
     (onlineEntriesOpen ? cardLanding.pendingReason : 'online_setting_unknown');
-  const trialTimezone = getTrialTimezone(landingTrials[0] ?? null);
   // The copy follows `entryPendingReason`, which the page re-derives when the opening
   // boundary passes (useEntryOpenBoundaryTick), so the copy, the reason and the Enter action
   // change together.

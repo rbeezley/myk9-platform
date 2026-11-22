@@ -50,9 +50,9 @@ Week`, which has a trial dated today for seven days after the reseed
    owing entries from the six demo dogs on two entry forms (nothing paid, no
    Stripe), one class finished and released, one half scored, one still to run.
    Its date is the reseed day, so reseed (or rerun the seed) the morning of a
-   demo; the show-day restore below does not move it. A payment
-   recorded during a demo (cash, check or card) refuses the next reseed until it
-   is removed or voided deliberately.
+   demo; the show-day restore below does not move it. A cash or
+   check payment recorded during a demo is cleared by the next reseed; card
+   money on the demo show refuses it until it is removed deliberately.
 3. **Load fixture (opt-in)** — only for a load rehearsal or a 63-entry PDF
    calibration, run `supabase/seed-load-fixture.sql` AFTER step 2 against the
    same URL (MYK9-558). It adds the 63 load dogs and 504 entries on the demo

@@ -123,20 +123,34 @@ describe('seed-demo club demo show (MYK9-836)', () => {
     expect(cleanup).toContain(HIGH);
     expect(cleanup).toContain('stripe_payment_intent_id IS NOT NULL');
     expect(cleanup).toContain('FROM public.stripe_orders');
-    // Recorded money refuses the reseed, by show, enrollment and entry.
-    const payments = cleanup.slice(
-      cleanup.indexOf('FROM public.show_payments'),
-      cleanup.indexOf('FROM public.entries')
-    );
-    for (const column of ['show_id', 'enrollment_id', 'entry_id']) {
-      expect(payments).toContain(`(${column} >= ${LOW}`);
-      expect(payments).toContain(`${column} <  ${HIGH}`);
-    }
+    // Card money refuses the reseed; the text never mentions voiding.
     expect(cleanup).toMatch(
-      /enrollment_id >= [^;]*FROM public\.show_payments|FROM public\.stripe_orders[^;]*enrollment_id >=/
+      /FROM public\.stripe_orders\s+WHERE \(show_id >= [^;]*OR \(enrollment_id >= [^;]*;/
     );
-    expect(cleanup).toContain('v_orders + v_card + v_payments > 0');
-    expect(cleanup).toContain('Remove or void the recorded payment deliberately');
+    expect(cleanup).toContain('v_orders + v_card > 0');
+    expect(cleanup).toContain('holds card money');
+    expect(cleanup).not.toMatch(/void/i);
+    expect(cleanup).not.toContain('v_payments');
+    // A cash or check payment recorded in a demo is cleared, range-scoped by show,
+    // enrollment and entry, before the entries and enrollments it references.
+    const clear = cleanup.slice(
+      cleanup.indexOf('DELETE FROM public.show_payments'),
+      cleanup.indexOf('DELETE FROM public.entry_cart_items')
+    );
+    expect(clear).not.toBe('');
+    for (const column of ['show_id', 'enrollment_id', 'entry_id']) {
+      expect(clear).toContain(`(${column} >= ${LOW}`);
+      expect(clear).toContain(`${column} <  ${HIGH}`);
+    }
+    expect(cleanup.indexOf('DELETE FROM public.show_payments')).toBeGreaterThan(
+      cleanup.indexOf('END $;')
+    );
+    expect(cleanup.indexOf('DELETE FROM public.show_payments')).toBeLessThan(
+      cleanup.indexOf('DELETE FROM public.entries')
+    );
+    expect(cleanup.indexOf('DELETE FROM public.show_payments')).toBeLessThan(
+      cleanup.indexOf('DELETE FROM public.enrollments')
+    );
     expect(cleanup.indexOf('RAISE EXCEPTION')).toBeLessThan(order[0]);
     // Runs after the paid-stray guard, which does not name this range.
     expect(seed.indexOf('DO $$\nDECLARE v_orders integer')).toBeGreaterThan(

@@ -881,13 +881,14 @@ DELETE FROM public.shows WHERE id IN (
 -- purpose: that guard names its show ids in a migration, and this range is not in
 -- it. Its place is taken by the guard below, which refuses card money.
 --
--- Recorded money is removed only by a reviewed operator step, never cascaded: a
--- cash or check payment recorded during a demo (show_payments, whose foreign keys
--- are ON DELETE RESTRICT) refuses the reseed, and so does anything that came
--- through Stripe (an order on the show or an enrollment, a payment intent or a
--- refund on an entry). Remove or void it deliberately, then rerun.
+-- Card money is never cascaded: anything that came through Stripe (an order on the
+-- show or an enrollment, a payment intent or a refund on an entry) refuses the
+-- reseed. A cash or check payment recorded at the desk during a demo is not card
+-- money (show_payments only holds method cash or check, refunds included as
+-- negative rows) and is cleared here, before the entries and enrollments it
+-- references (its foreign keys are ON DELETE RESTRICT), scoped to this range.
 DO $$
-DECLARE v_orders integer; v_card integer; v_payments integer;
+DECLARE v_orders integer; v_card integer;
 BEGIN
   SELECT count(*) INTO v_orders
   FROM public.stripe_orders
@@ -895,14 +896,6 @@ BEGIN
          AND show_id <  'dededede-0000-0000-0837-000000000000'::uuid)
      OR (enrollment_id >= 'dededede-0000-0000-0836-000000000000'::uuid
          AND enrollment_id <  'dededede-0000-0000-0837-000000000000'::uuid);
-  SELECT count(*) INTO v_payments
-  FROM public.show_payments
-  WHERE (show_id >= 'dededede-0000-0000-0836-000000000000'::uuid
-         AND show_id <  'dededede-0000-0000-0837-000000000000'::uuid)
-     OR (enrollment_id >= 'dededede-0000-0000-0836-000000000000'::uuid
-         AND enrollment_id <  'dededede-0000-0000-0837-000000000000'::uuid)
-     OR (entry_id >= 'dededede-0000-0000-0836-000000000000'::uuid
-         AND entry_id <  'dededede-0000-0000-0837-000000000000'::uuid);
   SELECT count(*) INTO v_card
   FROM public.entries
   WHERE show_id >= 'dededede-0000-0000-0836-000000000000'::uuid
@@ -910,8 +903,8 @@ BEGIN
     AND (stripe_payment_intent_id IS NOT NULL
          OR refunded_at IS NOT NULL
          OR payment_status = 'refunded');
-  IF v_orders + v_card + v_payments > 0 THEN
-    RAISE EXCEPTION 'seed-demo: the club demo show (...0836-*) holds recorded money (% Stripe order(s), % card or refunded entr(ies), % recorded cash or check payment(s)); refusing to delete it. Remove or void the recorded payment deliberately, then rerun (MYK9-836)', v_orders, v_card, v_payments;
+  IF v_orders + v_card > 0 THEN
+    RAISE EXCEPTION 'seed-demo: the club demo show (...0836-*) holds card money (% Stripe order(s), % card or refunded entr(ies)); refusing to delete it. Remove it deliberately, then rerun (MYK9-836)', v_orders, v_card;
   END IF;
   IF EXISTS (
     SELECT 1 FROM public.trial_packet_snapshots
@@ -921,6 +914,13 @@ BEGIN
     RAISE EXCEPTION 'seed-demo preflight: remove club demo show trial packet objects through the Storage API before reseeding';
   END IF;
 END $$;
+DELETE FROM public.show_payments
+WHERE (show_id >= 'dededede-0000-0000-0836-000000000000'::uuid
+       AND show_id <  'dededede-0000-0000-0837-000000000000'::uuid)
+   OR (enrollment_id >= 'dededede-0000-0000-0836-000000000000'::uuid
+       AND enrollment_id <  'dededede-0000-0000-0837-000000000000'::uuid)
+   OR (entry_id >= 'dededede-0000-0000-0836-000000000000'::uuid
+       AND entry_id <  'dededede-0000-0000-0837-000000000000'::uuid);
 DELETE FROM public.entry_cart_items
 WHERE class_id >= 'dec1a55e-0000-0000-0836-000000000000'::uuid
   AND class_id <  'dec1a55e-0000-0000-0837-000000000000'::uuid;
@@ -3059,6 +3059,8 @@ FROM (VALUES
 ) AS v(id, class_id)
 JOIN public.people p ON lower(p.email) = 'judge@myk9t.com';
 
+-- Stamps are capped at the reseed time (a morning reseed must not hold future
+-- timestamps), by distinct offsets so the order still holds.
 -- Container Novice: scored and finalized like section 8. The placement trigger is
 -- AFTER UPDATE only, so it places on the last update below and never on the
 -- inserts above; final_placement is set explicitly to the values it computes (all
@@ -3104,8 +3106,6 @@ UPDATE public.entries SET
   scoring_completed_at = LEAST(now() - INTERVAL '5 minutes', ((SELECT d FROM club_demo_day)::timestamp + INTERVAL '10:49:00') AT TIME ZONE 'America/Chicago')
 WHERE id = 'dededede-0000-0000-0836-000000000055';  -- Juniper
 
--- Stamps are capped at the reseed time (a morning reseed must not hold future
--- timestamps), by distinct offsets so the order still holds.
 -- Postcondition: the shapes the demo walks through, and no money anywhere.
 DO $$
 DECLARE

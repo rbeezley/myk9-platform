@@ -1,13 +1,15 @@
 -- Landing capture: the club demo show (MYK9-836) is not part of any capture.
--- seed-demo.sql section 20 builds a published club demo show dated today, with six dogs owned by
--- a made-up exhibitor (Dana Whitcomb, a people row with no sign-in). The landing stills and scenes
--- are of the Heartland demo and show-day fixtures, so this clears the whole club demo range before
--- the first capture spec runs: it would otherwise list on Find Shows, in the secretary's shows, in
--- results and ringside. Run once by the workflow, after the seed and before the capture starts,
--- against the job's own database. It clears exactly what seed-demo.sql section 0 clears
--- (dededede-0000-0000-0836-*, dec1a55e-0000-0000-0836-*), children first, the exhibitor last.
--- Unlike the reseed it has no refusals: the job's database is throwaway. Idempotent.
--- Nothing here is a product change.
+-- seed-demo.sql section 20 is INSERT-ONLY: each reseed day adds a published club demo show dated
+-- that day (ids dededede-0000-0000-0836-<YYYYMMDD>00NN, classes dec1a55e-0000-0000-0836-*) and
+-- creates, once, a made-up exhibitor (Dana Whitcomb, a people row with no sign-in, ...0836-0000000000e1)
+-- and her six dogs (...0836-0000000000d{1..6}). The landing stills and scenes are of the Heartland demo
+-- and show-day fixtures, so this clears every club demo show with its children, then the dogs and the
+-- person, before the first capture spec runs: they would otherwise list on Find Shows, in the
+-- secretary's shows, in results and ringside. Run once by the workflow, after the seed and before the
+-- capture starts, against the job's own throwaway database ONLY (the workflow refuses any URL that is
+-- not this machine's stack). The seed itself never deletes any of this, on staging or anywhere else;
+-- this file is the one place that does, and it must never be pointed at a shared database.
+-- It has no refusals: the job's database is throwaway. Idempotent. Nothing here is a product change.
 
 BEGIN;
 DELETE FROM public.show_payments

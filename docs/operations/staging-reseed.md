@@ -54,14 +54,19 @@ Week`, which has a trial dated today for seven days after the reseed
    and the dogs the landing stills and clips read are untouched. Its date is
    the reseed day, so reseed (or rerun the seed) the morning of a demo; the
    show-day restore below does not move it.
-   **What the reseed clears:** everything in the club demo id range
-   (`dededede-0000-0000-0836-*`, classes `dec1a55e-0000-0000-0836-*`), including
-   cash or check payments and desk refunds recorded during a demo, an entry
-   form marked paid online by hand, and the demo exhibitor and dogs.
-   **What refuses it** (the reseed stops before deleting anything): a Stripe
-   order on the show or its entry forms, an entry in the range with a Stripe
-   payment intent, or an entry for one of the six demo dogs at another show.
-   Remove that deliberately, then rerun.
+   **What a reseed does with it:** it only adds. If today's demo show already
+   exists the reseed does nothing for it (twice in a day is a no-op). Otherwise
+   it adds today's show (ids derived from the date, `dededede-0000-0000-0836-<YYYYMMDD>00NN`,
+   classes `dec1a55e-0000-0000-0836-<YYYYMMDD>00NN`), and sets every earlier
+   demo show that is still published to draft, so it leaves Find Shows, the
+   public page and the secretary's current and upcoming shows (it stays in the
+   database and in the secretary's Drafts). Dana and her six dogs are created
+   once and never changed. **Nothing on a demo show is ever cleared by the
+   seed:** a cash or check payment, a desk refund, an entry form marked paid, a
+   waitlist row, a cart or an entry at another show stays exactly as recorded,
+   and the reseed has no refusal for any of it. Only the throwaway capture job
+   (`landingClubDemoClear.sql`, localhost databases only) deletes the club demo
+   range.
 3. **Load fixture (opt-in)** — only for a load rehearsal or a 63-entry PDF
    calibration, run `supabase/seed-load-fixture.sql` AFTER step 2 against the
    same URL (MYK9-558). It adds the 63 load dogs and 504 entries on the demo

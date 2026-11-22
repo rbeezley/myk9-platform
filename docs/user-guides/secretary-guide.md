@@ -143,7 +143,7 @@ The header **Actions** button holds the rest. On **Entry Forms** it lists:
 
 ![The Actions menu open on Entry Forms, with the Entry lists group](../screenshots/S-23.png)
 
-Click a form to open it. At the top is the exhibitor's name and a **⋯** menu beside it. Add entry for, Email exhibitor… and Add private note… appear only on mail-in (paper) forms. A form from an online checkout lacks them; use the header **Actions → Add entry** instead, and the **$ due** card below has no Cash… or Check… buttons either (online payments follow Stripe).
+Click a form to open it. At the top is the exhibitor's name and a **⋯** menu beside it. Add entry for, Email exhibitor… and Add private note… appear only on mail-in (paper) forms. A form from an online checkout lacks them; use the header **Actions → Add entry** instead. The **$ due** card below is different: an online entry that will pay by check or cash at the show has **Cash…** and **Check…** on it, the same as a mail-in form.
 
 - **Add entry for** the exhibitor opens the entry flow already on them (card 5).
 - **Email exhibitor…** opens the message composer addressed to that one exhibitor, so you can write to them about this form.
@@ -152,9 +152,9 @@ Click a form to open it. At the top is the exhibitor's name and a **⋯** menu b
 
 Under it, **To finish this form** lists only what is left, one card each, with the button that does it:
 
-- **N entries need review**: **Accept** or **Reject**.
+- **N entries need review**: **Accept** or **Reject**. Accept gives the dog an armband number. The accepted form leaves the **Needs review** view and the next form on the list opens. A message, "Updated all N items", shows with **Undo**.
 - **N entries are missing information**: use **Edit entry** on the entry's menu.
-- **$ due** (mail-in forms): **Cash…**, **Check…**, or the more options (**Partial Payment…**, **Paid in Full: Online**).
+- **$ due**: **Cash…**, **Check…**, or the more options (**Partial Payment…**, **Paid in Full: Online**).
 - **A dog has no armband**: **Assign**.
 - **A dog needs a registration number**: **Add number**.
 - **On a show day, N runs to check in**: **Check in all** (card 18).
@@ -163,7 +163,7 @@ When nothing is left it collapses to a green **All set.** line saying what was d
 
 ## 5 · Add a mail-in entry
 
-**Actions → Add entry** (the top-bar Actions button, on any page of the show). Or open the exhibitor's form on **Entry Forms** and choose **Add entry for** them from its **⋯** menu. Pick the dog and handler (or create them), choose classes, and record payment. The same flow enters your own dog: search for it like any other.
+**Actions → Add entry** (the top-bar Actions button, on any page of the show). Or open the exhibitor's form on **Entry Forms** and choose **Add entry for** them from its **⋯** menu. Pick the dog and handler (or create them), choose classes, and record payment. The same flow enters your own dog: search for it like any other. The **Handlers** step is skipped when the owner is the handler of every dog. A mail-in entry you key in for someone else is saved already accepted, with an armband number, so it does not wait in **Needs review**.
 
 > This works **after entries close** — you're the trial secretary, so the deadline doesn't block you.
 

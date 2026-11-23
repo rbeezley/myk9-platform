@@ -28,7 +28,7 @@ Gate review for taking myK9Show from pre-launch to real users. Work through ever
 ## 4. Data hygiene
 
 - [ ] Decide fate of demo/seed data (`seed-demo.sql` shows, clubs, dogs) in production DB.
-- [ ] `supabase migration list --remote` — remote exactly matches `supabase/migrations/`.
+- [ ] `bash scripts/supabase.sh migration list --remote` — remote exactly matches `supabase/migrations/`.
 - [ ] Crons verified live: nightly-show-payouts, waitlist-offer-expiration, branch janitor (Vault secrets match).
 
 ## 5. Product gates

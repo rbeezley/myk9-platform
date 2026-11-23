@@ -40,7 +40,7 @@
 - [x] 4.3 Run strict OpenSpec validation, `git diff --check`, and the relevant repository
       lint/type checks required by changed TypeScript test code.
 - [x] 4.4 Link the worktree to project `sojmvhhwsjxmfistvzbe` if needed and run
-      `supabase db push --remote --dry-run`; record the exact pending migrations without applying them.
+      `bash scripts/supabase.sh db push --remote --dry-run`; record the exact pending migrations without applying them.
       Passed 2026-07-28: the dry run reported only `20260728140000_add_foreign_key_indexes.sql`
       and `20260728141000_drop_duplicate_indexes.sql`. No migration was applied.
 - [x] 4.5 Complete OpenSpec implementation verification and resolve every critical/high finding.

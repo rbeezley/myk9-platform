@@ -288,6 +288,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_1975_junior_fee_limit_test.sql"
   "$TEST_DIR/myk9_1931_class_fee_wins_test.sql"
   "$TEST_DIR/golden_replay_trial_27835_test.sql"
+  "$TEST_DIR/schema_security_invariants_test.sql"
 )
 
 # MYK9-1659: optional file arguments run ONLY those registered tests, against the

@@ -77,17 +77,15 @@ export class MutationUploadRunner {
 
   /**
    * An upload was requested while the owner already has one in flight. If this
-   * runner's pass is running, flag a rerun for its `finally`; otherwise the pass
-   * is still waiting on the lock (or just ended), so re-request through the
-   * owner instead of starting a pass the owner's guards cannot see.
+   * runner's pass is running, flag a rerun for its `finally` and return true.
+   * Otherwise the pass is still waiting on the lock (or just ended): return
+   * false so the owner follows up once its tracked upload settles.
    */
-  noteOverlappingUpload(): void {
-    if (this.isUploading) {
-      this.uploadRequestedWhileRunning = true;
-      this.logger.log('[MutationManager] Upload already in progress, skipping');
-      return;
-    }
-    this.scheduleUpload();
+  noteOverlappingUpload(): boolean {
+    if (!this.isUploading) return false;
+    this.uploadRequestedWhileRunning = true;
+    this.logger.log('[MutationManager] Upload already in progress, skipping');
+    return true;
   }
 
   scheduleUpload(uploadPendingMutations = () => this.requestUpload()): void {

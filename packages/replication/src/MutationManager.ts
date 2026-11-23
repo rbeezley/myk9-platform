@@ -49,6 +49,7 @@ export class MutationManager {
   /** Prevent startup/reconnect restore from racing an active queue flush. */
   private restoreInFlight: Promise<void> | null = null;
   private uploadInFlight: Promise<SyncResult[]> | null = null;
+  private overlapFollowUpPending = false;
   /** Signal the in-flight upload started with, so a new call can tell it is winding down. */
   private uploadInFlightSignal: AbortSignal | undefined;
   private readonly identity: MutationIdentity;
@@ -584,7 +585,23 @@ export class MutationManager {
   }
 
   private requestOverlappingUpload(): void {
-    this.uploadRunner.noteOverlappingUpload();
+    if (this.uploadRunner.noteOverlappingUpload()) return;
+    // The runner pass has not started (waiting on the cross-tab lock) or just
+    // ended. Record the overlap once and follow up when the tracked upload
+    // settles, rather than polling the lock.
+    if (this.overlapFollowUpPending) return;
+    const tracked = this.uploadInFlight;
+    if (!tracked) {
+      this.scheduleUpload();
+      return;
+    }
+    this.overlapFollowUpPending = true;
+    void tracked
+      .catch(() => undefined)
+      .then(() => {
+        this.overlapFollowUpPending = false;
+        this.scheduleUpload();
+      });
   }
 
   /**

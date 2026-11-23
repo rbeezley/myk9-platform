@@ -169,6 +169,39 @@ describe('MutationManager upload coordination (MYK9-2345)', () => {
     }
   });
 
+  it('overlapping requests coalesce into one follow-up without polling', async () => {
+    await mockDb.put(REPLICATION_STORES.PENDING_MUTATIONS, makeMutation());
+    let releaseRpc!: () => void;
+    const rpcGate = new Promise<void>(resolve => {
+      releaseRpc = resolve;
+    });
+    const rpc = vi.fn(async () => {
+      await rpcGate;
+      return { data: 8, error: null };
+    });
+    const manager = createManager(rpc);
+    const scheduleSpy = vi.spyOn(
+      (manager as unknown as { uploadRunner: { scheduleUpload: () => void } }).uploadRunner,
+      'scheduleUpload'
+    );
+    try {
+      const first = manager.uploadPendingMutations();
+      await waitFor(() => rpc.mock.calls.length === 1);
+      await manager.uploadPendingMutations();
+      await manager.uploadPendingMutations();
+      await new Promise(resolve => setTimeout(resolve, 350));
+      expect(scheduleSpy).not.toHaveBeenCalled();
+
+      releaseRpc();
+      await first;
+      await waitFor(() => scheduleSpy.mock.calls.length > 0);
+      await new Promise(resolve => setTimeout(resolve, 50));
+      expect(scheduleSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      manager.destroy();
+    }
+  });
+
   describe('permanent failure move', () => {
     it('moves a permanently failed mutation to the failed store and clears pending', async () => {
       const rpc = vi.fn(async () => ({

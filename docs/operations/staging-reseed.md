@@ -44,6 +44,29 @@ Week`, which has a trial dated today for seven days after the reseed
    restore in
    [Show-day fixture restore](#show-day-fixture-restore-between-reseeds) below
    rather than a full reseed.
+   **Club demo show (MYK9-836)** — the reseed also adds `Club demo show`, the
+   prepared show for the live club demo, signed in as the demo secretary (and
+   the demo judge for ringside): one trial dated TODAY in America/Chicago, nine
+   owing entries on one entry form (nothing paid, no Stripe), one class
+   finished and released, one half scored, one still to run. Its six dogs are
+   owned by a made-up exhibitor, Dana Whitcomb (one `people` row, an
+   example.com email, no sign-in), so no demo account gains an entry or result
+   and the dogs the landing stills and clips read are untouched. Its date is
+   the reseed day, so reseed (or rerun the seed) the morning of a demo; the
+   show-day restore below does not move it.
+   **What a reseed does with it:** it only adds. If today's demo show already
+   exists the reseed does nothing for it (twice in a day is a no-op). Otherwise
+   it adds today's show (ids derived from the date, `dededede-0000-0000-0836-<YYYYMMDD>00NN`,
+   classes `dec1a55e-0000-0000-0836-<YYYYMMDD>00NN`), and sets every earlier
+   demo show that is still published to draft, so it leaves Find Shows, the
+   public page and the secretary's current and upcoming shows (it stays in the
+   database and in the secretary's Drafts). Dana and her six dogs are created
+   once and never changed. **Nothing on a demo show is ever cleared by the
+   seed:** a cash or check payment, a desk refund, an entry form marked paid, a
+   waitlist row, a cart or an entry at another show stays exactly as recorded,
+   and the reseed has no refusal for any of it. Only the throwaway capture job
+   (`landingClubDemoClear.sql`, localhost databases only) deletes the club demo
+   range.
 3. **Load fixture (opt-in)** — only for a load rehearsal or a 63-entry PDF
    calibration, run `supabase/seed-load-fixture.sql` AFTER step 2 against the
    same URL (MYK9-558). It adds the 63 load dogs and 504 entries on the demo

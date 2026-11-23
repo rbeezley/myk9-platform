@@ -49,6 +49,9 @@ export class MutationManager {
   /** Prevent startup/reconnect restore from racing an active queue flush. */
   private restoreInFlight: Promise<void> | null = null;
   private uploadInFlight: Promise<SyncResult[]> | null = null;
+  private overlapFollowUpPending = false;
+  /** Bumped by destroy() so a deferred overlap follow-up cannot fire on a disposed manager. */
+  private overlapFollowUpEpoch = 0;
   /** Signal the in-flight upload started with, so a new call can tell it is winding down. */
   private uploadInFlightSignal: AbortSignal | undefined;
   private readonly identity: MutationIdentity;
@@ -94,7 +97,8 @@ export class MutationManager {
       (tableName, rowId) => this.rowRefetchers.request(tableName, rowId),
       this.writtenOverlays,
       this.inFlightWrites,
-      options.checkConnectivity
+      options.checkConnectivity,
+      () => this.uploadPendingMutations()
     );
   }
 
@@ -583,9 +587,25 @@ export class MutationManager {
   }
 
   private requestOverlappingUpload(): void {
-    void this.uploadRunner.uploadPendingMutations().catch(error => {
-      this.logger.error('[MutationManager] Overlapping upload request failed:', error);
-    });
+    if (this.uploadRunner.noteOverlappingUpload()) return;
+    // The runner pass has not started (waiting on the cross-tab lock) or just
+    // ended. Record the overlap once and follow up when the tracked upload
+    // settles, rather than polling the lock.
+    if (this.overlapFollowUpPending) return;
+    const tracked = this.uploadInFlight;
+    if (!tracked) {
+      this.scheduleUpload();
+      return;
+    }
+    this.overlapFollowUpPending = true;
+    const epoch = this.overlapFollowUpEpoch;
+    void tracked
+      .catch(() => undefined)
+      .then(() => {
+        if (epoch !== this.overlapFollowUpEpoch) return;
+        this.overlapFollowUpPending = false;
+        this.scheduleUpload();
+      });
   }
 
   /**
@@ -715,6 +735,8 @@ export class MutationManager {
    * Call when disposing of the MutationManager instance.
    */
   destroy(): void {
+    this.overlapFollowUpEpoch++;
+    this.overlapFollowUpPending = false;
     this.uploadRunner.destroy();
     this.logger.log('[MutationManager] Destroyed');
   }

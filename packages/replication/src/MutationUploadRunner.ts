@@ -2,6 +2,7 @@ import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import type { Logger } from './dependencies';
 import { sendAndAcknowledge } from './mutation-send-and-ack';
 import { ContainmentError, OccRejectionError } from './mutation-occ';
+import { moveMutationToFailed } from './mutation-failed-move';
 import { handleOccRejection } from './mutation-occ-rejection';
 import { UploadLock } from './upload-lock';
 import { sortMutationsByDependencies } from './mutation-ordering';
@@ -61,10 +62,35 @@ export class MutationUploadRunner {
     private readonly requestRowRefetch?: (tableName: string, rowId: string) => unknown,
     private readonly writtenOverlays?: WrittenFieldOverlayRegistry,
     private readonly inFlightWrites?: InFlightWriteRegistry,
-    private readonly checkConnectivity?: () => Promise<boolean>
-  ) {}
+    private readonly checkConnectivity?: () => Promise<boolean>,
+    /**
+     * The owner's upload entry point. Every self-triggered upload (debounce,
+     * backoff retry, follow-up) goes through it so the owner's in-flight and
+     * restore guards are honoured; defaults to this runner's own pass.
+     */
+    requestUpload?: () => Promise<SyncResult[]>
+  ) {
+    this.requestUpload = requestUpload ?? (() => this.uploadPendingMutations());
+  }
 
-  scheduleUpload(uploadPendingMutations = () => this.uploadPendingMutations()): void {
+  private readonly requestUpload: () => Promise<SyncResult[]>;
+
+  /**
+   * An upload was requested while the owner already has one in flight. If this
+   * runner's pass is running, flag a rerun for its `finally`; otherwise the pass
+   * is still waiting on the lock (or just ended), so re-request through the
+   * owner instead of starting a pass the owner's guards cannot see.
+   */
+  noteOverlappingUpload(): void {
+    if (this.isUploading) {
+      this.uploadRequestedWhileRunning = true;
+      this.logger.log('[MutationManager] Upload already in progress, skipping');
+      return;
+    }
+    this.scheduleUpload();
+  }
+
+  scheduleUpload(uploadPendingMutations = () => this.requestUpload()): void {
     if (this.uploadDebounceTimer) {
       clearTimeout(this.uploadDebounceTimer);
     }
@@ -114,7 +140,7 @@ export class MutationUploadRunner {
         return;
       }
 
-      this.uploadPendingMutations().catch(err => {
+      this.requestUpload().catch(err => {
         this.logger.error('[MutationManager] Backoff retry upload failed:', err);
       });
     }, delay);
@@ -431,8 +457,7 @@ export class MutationUploadRunner {
             // them in the failed_mutations store. Deleting them outright would
             // silently destroy offline work (e.g. ringside scores blocked by an
             // RLS/auth failure) with nothing for the user to review or retry.
-            await db.put(REPLICATION_STORES.FAILED_MUTATIONS, failure.mutation);
-            await db.delete(REPLICATION_STORES.PENDING_MUTATIONS, queuedMutation.id);
+            await moveMutationToFailed(db, failure.mutation);
           } else {
             blockedDependencyIds.add(queuedMutation.id);
             this.logger.warn(

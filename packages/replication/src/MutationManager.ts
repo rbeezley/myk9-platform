@@ -94,7 +94,8 @@ export class MutationManager {
       (tableName, rowId) => this.rowRefetchers.request(tableName, rowId),
       this.writtenOverlays,
       this.inFlightWrites,
-      options.checkConnectivity
+      options.checkConnectivity,
+      () => this.uploadPendingMutations()
     );
   }
 
@@ -583,9 +584,7 @@ export class MutationManager {
   }
 
   private requestOverlappingUpload(): void {
-    void this.uploadRunner.uploadPendingMutations().catch(error => {
-      this.logger.error('[MutationManager] Overlapping upload request failed:', error);
-    });
+    this.uploadRunner.noteOverlappingUpload();
   }
 
   /**

@@ -12,8 +12,14 @@ import { isPublicShowStatus } from './onlineEntryGate';
  * it never says why, and never names Stripe, the club's bank account or its money.
  */
 export const CARD_ENTRIES_PAUSED_MESSAGE = 'Card entries are paused. Contact the secretary.';
-export const CARD_PAYMENTS_PAUSED_PAY_OTHER_MESSAGE =
-  'Card payments are paused. Pay by check or cash.';
+
+/** The paused line names only the methods this show takes: never offer cash to a check-only show. */
+function payOtherMessage(show: PaymentMethodShow): string {
+  const check = show.acceptCheckPayments ?? true;
+  const cash = show.acceptCashPayments ?? true;
+  const methods = check && cash ? 'check or cash' : check ? 'check' : 'cash';
+  return `Card payments are paused. Pay by ${methods}.`;
+}
 
 /** `loading` and `unknown` are their own states: neither ever reads as "not paused". */
 export type ShowCardEntriesState = 'loading' | 'paused' | 'open' | 'unknown';
@@ -93,6 +99,6 @@ export function cardEntriesLanding(
     case 'paused':
       return cardOnly
         ? { pendingReason: 'card_entries_paused', note: null }
-        : { pendingReason: undefined, note: CARD_PAYMENTS_PAUSED_PAY_OTHER_MESSAGE };
+        : { pendingReason: undefined, note: payOtherMessage(show) };
   }
 }

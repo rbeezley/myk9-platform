@@ -256,6 +256,22 @@ describe('postgrestGetSecretaryEntriesForShow', () => {
     expect([...stamps].sort()).toEqual(stamps);
   });
 
+  it('orders stamps in one second by instant, not by their trimmed text', async () => {
+    fakeSecretaryDb({
+      view: () => ({
+        data: [
+          { id: 'entry-b', show_id: 'show-1', created_at: '2026-06-01T00:00:00.5+00:00' },
+          { id: 'entry-a', show_id: 'show-1', created_at: '2026-06-01T00:00:00+00:00' },
+        ],
+        error: null,
+      }),
+    });
+
+    const { data } = await postgrestGetSecretaryEntriesForShow('show-1', Date.now(), 'test');
+
+    expect(data.map(entry => entry.id)).toEqual(['entry-a', 'entry-b']);
+  });
+
   it('throws when a later page fails, never returning a truncated roster', async () => {
     const rows = Array.from({ length: 1500 }, (_, index) => ({
       id: `entry-${String(index).padStart(5, '0')}`,

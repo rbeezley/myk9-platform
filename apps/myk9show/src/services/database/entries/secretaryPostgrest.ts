@@ -132,7 +132,10 @@ function compareCreatedAtAscending(a: Record<string, unknown>, b: Record<string,
   if (aAt !== bAt) {
     if (aAt === null) return 1;
     if (bAt === null) return -1;
-    return aAt.localeCompare(bAt);
+    // Date.parse, as compareNewestFirst does: Postgres trims trailing zeros, so the strings of two
+    // stamps in one second need not sort as their instants do.
+    const byInstant = Date.parse(aAt) - Date.parse(bAt);
+    if (byInstant !== 0) return byInstant;
   }
   return String(a.id).localeCompare(String(b.id));
 }

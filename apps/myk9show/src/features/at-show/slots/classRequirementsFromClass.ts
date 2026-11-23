@@ -68,3 +68,32 @@ export function setMaxTimeText(cls: ReplicatedClass | null, perArea: boolean): s
   if (areas === 1) return label(shown[0]);
   return shown.map((t, i) => `Area ${i + 1} ${label(t)}`).join(' · ');
 }
+
+export interface ClassTimeDisplay {
+  /** What the card and the header both show: the saved time, the rule's fixed time, or "Not set". */
+  value: string;
+  /** True only when the judge or secretary saved a time (the "set at" note belongs to that). */
+  saved: boolean;
+  /** The rule's allowed range, only while the class is Not set and its rule gives a range. */
+  range: string | null;
+}
+
+/**
+ * The one time a class runs with (MYK9-2362): the saved time wins, then a rule that fixes the
+ * time, otherwise "Not set" with the rule's allowed range. The Requirements card and the
+ * Show Desk header both read this, so they cannot disagree.
+ */
+export function classTimeDisplay(
+  cls: ReplicatedClass | null,
+  perArea: boolean,
+  registry: string
+): ClassTimeDisplay {
+  const savedText = setMaxTimeText(cls, perArea);
+  if (savedText !== 'Not set') return { value: savedText, saved: true, range: null };
+  const rule = cls ? classRequirementsFromClass(cls, registry) : null;
+  if (rule?.time_type === 'fixed' && rule.time_limit_text) {
+    return { value: rule.time_limit_text, saved: false, range: null };
+  }
+  const range = rule?.time_type === 'range' && rule.time_limit_text ? rule.time_limit_text : null;
+  return { value: 'Not set', saved: false, range };
+}

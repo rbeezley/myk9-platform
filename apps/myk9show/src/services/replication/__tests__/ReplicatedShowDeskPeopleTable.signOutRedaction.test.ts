@@ -108,7 +108,10 @@ describe('sign-out strip of desk people with no session (MYK9-2356)', () => {
     await addSent('bad');
     await addSent('good');
     user = null;
-    const db = await table.init();
+    const internals = table as unknown as {
+      init: () => ReturnType<typeof databaseManager.getDatabase>;
+    };
+    const db = await internals.init();
     let calls = 0;
     const flaky = new Proxy(db, {
       get(target, prop) {
@@ -123,7 +126,7 @@ describe('sign-out strip of desk people with no session (MYK9-2356)', () => {
         return typeof value === 'function' ? value.bind(target) : value;
       },
     });
-    vi.spyOn(table, 'init').mockResolvedValue(flaky);
+    vi.spyOn(internals, 'init').mockResolvedValue(flaky);
 
     await expect(table.redactSentContacts()).resolves.toBeUndefined();
 

@@ -54,6 +54,8 @@ export interface ResultsEntryRow {
   qualified: boolean;
   /** Search time as M:SS.hh, or an empty string when none was recorded. */
   timeLabel: string;
+  /** UKC dual-timer element time as M:SS.hh, or an empty string when none was recorded. */
+  elementTimeLabel: string;
   faults: number | null;
   scored: boolean;
   /** Points at nationals, the ranking key there (`points_earned`). */
@@ -232,6 +234,9 @@ function toEntryRow(entry: SecretaryEntry): ResultsEntryRow {
     resultLabel: qualification ? (DISPLAY_LABELS[qualification] ?? qualification) : 'Pending',
     qualified: entry.result_status === 'qualified',
     timeLabel: entry.search_time_seconds ? dbSecondsToInputFormat(entry.search_time_seconds) : '',
+    elementTimeLabel: entry.element_time_seconds
+      ? dbSecondsToInputFormat(entry.element_time_seconds)
+      : '',
     faults: entry.total_faults ?? null,
     scored: entry.is_scored === true,
     pointsEarned: entry.points_earned ?? null,

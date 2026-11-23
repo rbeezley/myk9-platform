@@ -24,6 +24,7 @@ function entry(armband: string, overrides: Partial<Entry> = {}): Entry {
     resultLabel: 'Q',
     qualified: true,
     timeLabel: '0:40.00',
+    elementTimeLabel: '',
     faults: 0,
     scored: true,
     pointsEarned: null,
@@ -159,6 +160,7 @@ describe('paginateReviewLines', () => {
     handlerName: '',
     result: '',
     time: '',
+    elementTime: '',
     faults: '',
     correctionNote,
   });
@@ -174,5 +176,25 @@ describe('paginateReviewLines', () => {
 
     const withNote = [line('n', 'note'), ...full.slice(0, REVIEW_PAGE_CAPACITY - 1)];
     expect(paginateReviewLines(withNote)).toHaveLength(2);
+  });
+});
+
+describe('buildJudgeReviews element time', () => {
+  const build = (entries: Entry[]) =>
+    buildJudgeReviews({
+      rows: [row('1', 'Pat Donovan', { entries })],
+      entryInfo: [],
+      correctionsByEntryId: new Map(),
+    })[0]!.classes[0]!;
+
+  it('carries the element time and flags the class when any run has one', () => {
+    const item = build([entry('1', { elementTimeLabel: '0:12.50' }), entry('2')]);
+
+    expect(item.showElementTime).toBe(true);
+    expect(item.pages[0]!.lines.map(line => line.elementTime)).toEqual(['0:12.50', '']);
+  });
+
+  it('leaves the class unflagged when no run has an element time', () => {
+    expect(build([entry('1'), entry('2')]).showElementTime).toBe(false);
   });
 });

@@ -271,7 +271,9 @@ describe('supabase-types-drift.sh', () => {
     expect(stdout).toContain('**No drift.**');
     const argv = readFileSync(calls, 'utf8').split('\n');
     expect(argv.slice(0, 3)).toEqual(['gen', 'types', 'typescript']);
-    expect(argv).toContain('postgresql://postgres.ref:p%40ss%20word@pooler.example:5432/postgres');
+    expect(argv).toContain(
+      '--remote=postgresql://postgres.ref:p%40ss%20word@pooler.example:5432/postgres'
+    );
     expect(argv[argv.indexOf('--schema') + 1]).toBe('public');
   });
 

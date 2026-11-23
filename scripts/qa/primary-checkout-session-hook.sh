@@ -8,7 +8,7 @@
 # pull with "Your local changes would be overwritten by merge". The hook ran at
 # every session start for 5 days and threw the message away each time, while 105
 # commits piled up on origin/main. The damage surfaced later as false
-# `supabase db push --dry-run` drift, stale node_modules and stale package dist.
+# `supabase db push --remote --dry-run` drift, stale node_modules and stale package dist.
 #
 # A hook that cannot fail is not a guard. This one never blocks a session (it
 # always exits 0) but it reports into the transcript, and it distinguishes
@@ -108,7 +108,7 @@ fi
 report="${report}
 
 Until this is cleared the primary checkout falls further behind origin/main,
-which produces false supabase db push --dry-run drift, stale node_modules, and
+which produces false supabase db push --remote --dry-run drift, stale node_modules, and
 stale package dist. Agent worktrees are unaffected."
 
 # jq -Rs handles the JSON escaping. Without jq, fall back to PLAIN STDOUT: a

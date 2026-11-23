@@ -71,6 +71,21 @@ describe('premium publish error contract', () => {
     ).toBe(true);
   });
 
+  it('maps the publish RPC organization refusal to the Regenerate message (MYK9-2216)', () => {
+    const error = classifyPremiumPublishError(
+      {
+        message:
+          'Premium organization mismatch: Regenerate the premium for the new organization before publishing.',
+      },
+      'experience-snapshot'
+    );
+
+    expect(error.code).toBe('organization-changed');
+    expect(premiumPublishFailureMessage(error)).toBe(
+      'Regenerate the premium for the new organization before publishing.'
+    );
+  });
+
   it('turns a missing organization response into specific correction guidance', () => {
     const error = classifyPremiumPublishError(
       new Error('Premium generation is only supported for AKC and UKC shows (got: null)'),

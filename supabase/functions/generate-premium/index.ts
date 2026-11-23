@@ -170,7 +170,7 @@ handle<GeneratePremiumPayload>(
     // Step 9: the narratives are built from the show's facts, with no model call (MYK9-2055). A
     // section a secretary already published keeps its text, edits included.
     const narratives = resolvePremiumNarratives(
-      publishedNarratives(show.experience_published_content),
+      publishedNarratives(show.experience_published_content, showOrg),
       buildPremiumNarratives(show)
     );
 

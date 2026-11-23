@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import {
   diffFunctionInventory,
   listRepoFunctions,
+  functionListArgs,
   parseSupabaseFunctionList,
 } from './function-inventory';
 
@@ -39,6 +40,26 @@ describe('parseSupabaseFunctionList', () => {
     `;
 
     expect(parseSupabaseFunctionList(output)).toEqual(['send-email', 'stripe-webhook']);
+  });
+});
+
+describe('functionListArgs and the JSON object form (MYK9-1664)', () => {
+  it('asks for JSON output with and without a project ref', () => {
+    expect(functionListArgs('abcdefghijklmnopqrst')).toEqual([
+      'functions',
+      'list',
+      '--remote=abcdefghijklmnopqrst',
+      '-o',
+      'json',
+    ]);
+    expect(functionListArgs(undefined)).toEqual(['functions', 'list', '--remote', '-o', 'json']);
+  });
+
+  it('parses an object with a functions array', () => {
+    const output = JSON.stringify({
+      functions: [{ slug: 'send-email' }, { name: 'validate-passcode' }],
+    });
+    expect(parseSupabaseFunctionList(output)).toEqual(['send-email', 'validate-passcode']);
   });
 });
 

@@ -7,6 +7,12 @@ import { describeEntryRemovals } from '@/features/payments/pullReconciliation';
 import { getCheckInDeskHref } from '@/components/entries/management/checkInDesk/checkInDeskRoutes';
 import { flaggedPullText } from '@/features/show-closeout/closeConcerns';
 import {
+  FLAGGED_PULLS_FAILED_TEXT,
+  FLAGGED_PULLS_LOADING_TEXT,
+} from '@/features/show-closeout/flaggedPulls';
+import type { CloseoutFlaggedPulls } from '@/features/show-closeout/useCloseoutFlaggedPulls';
+import { FlaggedPullsOffDesk } from '@/features/show-closeout/FlaggedPullsOffDesk';
+import {
   listShowIncidentCloseout,
   showIncidentCloseoutQueryKey,
 } from '@/services/database/show-incidents';
@@ -25,12 +31,19 @@ interface ShowCloseoutSummaryProps {
   entries: ShowDayReconciliationEntry[];
   /** When the show ran: payments and entries within it are counted (MYK9-677). */
   deskWindow: DeskCollectionWindow | null;
+  /** The close step's one flag read, shared with the close action and the Finish list (MYK9-2180). */
+  flaggedPulls: CloseoutFlaggedPulls;
 }
 
 const STAT_LABEL_CLASS = 'text-xs font-medium uppercase text-muted-foreground';
 const STAT_VALUE_CLASS = 'text-xl font-semibold';
 
-export function ShowCloseoutSummary({ showId, entries, deskWindow }: ShowCloseoutSummaryProps) {
+export function ShowCloseoutSummary({
+  showId,
+  entries,
+  deskWindow,
+  flaggedPulls,
+}: ShowCloseoutSummaryProps) {
   // Cash and check money is read from the payments ledger (MYK9-677), online
   // like the incident read below; see services/database/show-payments.ts.
   const paymentsQuery = useQuery({
@@ -79,7 +92,12 @@ export function ShowCloseoutSummary({ showId, entries, deskWindow }: ShowCloseou
     reconNeedsReview,
     removals: recon.removals,
     refundReviewCount: recon.refundReviewCount,
-    flaggedPullDogCount: recon.flaggedPullDogCount,
+    flaggedPullDogCount:
+      flaggedPulls.status === 'read'
+        ? flaggedPulls.dogCount
+        : flaggedPulls.status === 'failed'
+          ? null
+          : undefined,
     hasEntries: recon.totalEntryCount > 0,
     incidents: incidentState,
   });
@@ -184,18 +202,30 @@ export function ShowCloseoutSummary({ showId, entries, deskWindow }: ShowCloseou
         )}
 
         {/* MYK9-2145: a flag stays a flag until the secretary confirms it at the Check-in desk
-            (docs/INTENT.md, Withdraw vs Pull), so it is not counted as a removal above. */}
-        {recon.flaggedPullDogCount > 0 && (
-          <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-            <span>{flaggedPullText(recon.flaggedPullDogCount)}</span>
-            <Link
-              to={getCheckInDeskHref({ showId })}
-              className="inline-flex min-h-11 items-center gap-1 font-medium underline-offset-4 hover:underline"
-            >
-              Open the Check-in desk
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </Link>
-          </p>
+            (docs/INTENT.md, Withdraw vs Pull), so it is not counted as a removal above. MYK9-2180:
+            a read that did not succeed says so, never a count from older rows. */}
+        {flaggedPulls.status === 'read' && flaggedPulls.dogCount > 0 && (
+          <div className="mt-3">
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+              <span>{flaggedPullText(flaggedPulls.dogCount)}</span>
+              {flaggedPulls.deskResolvable && (
+                <Link
+                  to={getCheckInDeskHref({ showId })}
+                  className="inline-flex min-h-11 items-center gap-1 font-medium underline-offset-4 hover:underline"
+                >
+                  Open the Check-in desk
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
+              )}
+            </p>
+            <FlaggedPullsOffDesk flags={flaggedPulls} />
+          </div>
+        )}
+        {flaggedPulls.status === 'failed' && (
+          <p className="mt-3 text-sm text-destructive">{FLAGGED_PULLS_FAILED_TEXT}</p>
+        )}
+        {flaggedPulls.status === 'loading' && (
+          <p className="mt-3 text-sm text-muted-foreground">{FLAGGED_PULLS_LOADING_TEXT}</p>
         )}
 
         {recon.refundedCount > 0 && (

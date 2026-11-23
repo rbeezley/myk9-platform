@@ -5,6 +5,7 @@ import { act, screen, waitFor, within } from '@testing-library/react';
 import { SENT_FILE_TEXT } from '@/features/show-closeout/submissionTimes';
 import type { SyncableTrial } from '@/store/trial-store-types';
 import { render } from '@/test/utils/testUtils';
+import { NO_FLAGS } from '@/features/show-closeout/flaggedPullsTestUtils';
 import type { ResultsClassRow } from './buildResultsClassRows';
 import { ResultsFinishRow } from './ResultsFinishRow';
 
@@ -62,7 +63,14 @@ const COULD_NOT_CHECK = SENT_FILE_TEXT.unknown;
 
 function renderRow() {
   return render(
-    <ResultsFinishRow showId="show-1" trials={trials} rows={ROWS} entries={[]} entriesTrusted />
+    <ResultsFinishRow
+      showId="show-1"
+      trials={trials}
+      rows={ROWS}
+      entries={[]}
+      entriesTrusted
+      flaggedPulls={NO_FLAGS}
+    />
   );
 }
 
@@ -168,6 +176,7 @@ describe('ResultsFinishRow results deadline', () => {
         rows={ROWS}
         entries={[]}
         entriesTrusted
+        flaggedPulls={NO_FLAGS}
       />
     );
 
@@ -201,6 +210,7 @@ describe('ResultsFinishRow results deadline', () => {
         rows={ROWS}
         entries={[]}
         entriesTrusted
+        flaggedPulls={NO_FLAGS}
       />
     );
     await screen.findByRole('link', { name: new RegExp(CHANGED_LINE) });

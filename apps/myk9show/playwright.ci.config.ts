@@ -26,12 +26,14 @@ assertPlaywrightRunAllowed('playwright.ci.config.ts', shellEnv, {
 // (captureStartProblem in src/test/e2e/helpers/landingCapture.ts).
 const isLandingCapture = process.env.PLAYWRIGHT_LANDING_CAPTURE === 'true';
 // The ring capture runs first (the names sort so): it scores a dog in the same database, and
-// the Entries open capture enters in a class it does not read. The Results capture runs last: its
-// setup starts the show over, whatever the two before it left.
+// the Entries open capture enters in a class it does not read. The Results capture starts the show
+// over, whatever the two before it left; the stills capture runs after all three and starts it over
+// again, for what its four pictures show (MYK9-2309).
 const LANDING_CAPTURE_SPECS = [
   '**/capture/landingRingCapture.spec.ts',
   '**/capture/landingSceneEntriesCapture.spec.ts',
   '**/capture/landingSceneResultsCapture.spec.ts',
+  '**/capture/landingStillsCapture.spec.ts',
 ];
 const isA11ySmoke = process.env.PLAYWRIGHT_A11Y === 'true';
 const isRegression =
@@ -286,6 +288,8 @@ const PR_SMOKE_SPECS = [
   '**/landing-lifecycle.spec.ts',
   // MYK9-1285: anonymous home page, step 6 of the story reaches the next heading at 1280 and 375.
   '**/landing-timeline-end.spec.ts',
+  // MYK9-2309: the captured stills and the two-device scenes fit the page at 390 and 1280. Anonymous, no database.
+  '**/landing-stills-geometry.spec.ts',
   '**/theme-light-until-chosen.spec.ts',
   '**/uat/secretary/qa-regression-proof.spec.ts',
   '**/uat/secretary/critical-path.spec.ts',

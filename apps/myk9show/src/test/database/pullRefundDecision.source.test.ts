@@ -24,6 +24,17 @@ const behaviour = readFileSync(
   'utf8'
 );
 
+// MYK9-2249 added the reasoned three-argument RPC; MYK9-2293 dropped the two-argument one, so the
+// grants that ship are the three-argument version's.
+const reasoned = readFileSync(
+  resolve(migrationsDir, '20261120223700_myk9_2249_refund_denied_email.sql'),
+  'utf8'
+);
+const twoArgDrop = readFileSync(
+  resolve(migrationsDir, '20261121193700_myk9_2293_drop_two_arg_refund_decision.sql'),
+  'utf8'
+);
+
 describe('pull refund decision persistence', () => {
   it('stores a constrained decision and its audit metadata on entries', () => {
     expect(shape).toContain('refund_decision');
@@ -58,11 +69,14 @@ describe('pull refund decision persistence', () => {
   });
 
   it('exposes only the guarded RPC to authenticated users', () => {
-    expect(behaviour).toContain(
-      'REVOKE EXECUTE ON FUNCTION public.set_entry_refund_decision(uuid, text) FROM PUBLIC, anon'
+    expect(reasoned).toContain(
+      'REVOKE EXECUTE ON FUNCTION public.set_entry_refund_decision(uuid, text, text) FROM PUBLIC, anon'
     );
-    expect(behaviour).toContain(
-      'GRANT EXECUTE ON FUNCTION public.set_entry_refund_decision(uuid, text)'
+    expect(reasoned).toContain(
+      'GRANT EXECUTE ON FUNCTION public.set_entry_refund_decision(uuid, text, text)'
+    );
+    expect(twoArgDrop).toContain(
+      'DROP FUNCTION IF EXISTS public.set_entry_refund_decision(uuid, text);'
     );
     // The INSERT arm of the column guard is unchanged and still lives with the
     // trigger's original CREATE.

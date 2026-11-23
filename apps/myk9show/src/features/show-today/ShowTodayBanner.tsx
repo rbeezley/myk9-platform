@@ -61,9 +61,6 @@ export function ShowTodayBanner() {
                 >
                   Show day is here
                 </span>
-                <span aria-hidden="true" className="text-muted-foreground">
-                  ·
-                </span>
                 <span
                   className={`min-w-0 break-words text-lg font-semibold leading-tight ${bannerTitleClassName}`}
                 >
@@ -75,10 +72,11 @@ export function ShowTodayBanner() {
                 It is also the wrong weight for the content — on show day the
                 first class time is primary information, and PRODUCT.md asks for
                 high-contrast primary content for people reading outdoors. */}
-              <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-foreground">
-                <Clock size={14} />
-                <span>First class {formatClassTime(singleItem.earliestClassTime)}</span>
-                <span aria-hidden="true">·</span>
+              <p className="mt-0.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-foreground">
+                <span className="inline-flex items-center gap-2">
+                  <Clock size={14} />
+                  First class {formatClassTime(singleItem.earliestClassTime)}
+                </span>
                 <span>
                   {singleItem.entryCount} {pluralize(singleItem.entryCount, 'entry', 'entries')}
                 </span>

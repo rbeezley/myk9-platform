@@ -33,8 +33,8 @@ describe('STORIES', () => {
     expect(DEFAULT_AUDIENCE).toBe('club');
   });
 
-  it('tells the same six steps, in the same order, for both audiences', () => {
-    const ids = ['setup', 'entries', 'before', 'showday', 'results', 'after'];
+  it('tells the same five steps, in the same order, for both audiences', () => {
+    const ids = ['setup', 'entries', 'before', 'showday', 'results'];
     for (const a of AUDIENCES) expect(STORIES[a].map(s => s.id)).toEqual(ids);
   });
 
@@ -61,6 +61,47 @@ describe('STORIES', () => {
         expect(existsSync(file), shot.src).toBe(true);
         expect(statSync(file).size, shot.src).toBeLessThanOrEqual(250 * 1024);
         expect(shot.alt.length, shot.src).toBeGreaterThan(10);
+      }
+    }
+  });
+
+  // MYK9-2309: the stills are captured by the Landing capture workflow at twice the size the page
+  // draws them. MYK9-2334: the exhibitor's dog record moved into Results, beside the words and
+  // above the Results scene. Nothing else carries a screenshot.
+  it('keeps the captured stills on the steps that own them, and no other screenshot', () => {
+    const stills = (a: Audience) =>
+      Object.fromEntries(STORIES[a].map(s => [s.id, s.shot?.src.replace('/landing/', '') ?? null]));
+    expect(stills('club')).toEqual({
+      setup: 'stills/club-create-show.png',
+      entries: null,
+      before: null,
+      showday: null,
+      results: null,
+    });
+    expect(stills('exhibitor')).toEqual({
+      setup: 'stills/exhibitor-find-a-show.png',
+      entries: null,
+      before: 'stills/exhibitor-my-entries.png',
+      showday: 'stages/e-13.png',
+      results: 'stills/exhibitor-past-results.png',
+    });
+  });
+
+  it('draws each still from a capture of exactly twice its declared size', () => {
+    const pngSize = (file: string) => {
+      const header = readFileSync(file).subarray(16, 24);
+      return { width: header.readUInt32BE(0), height: header.readUInt32BE(4) };
+    };
+    for (const a of AUDIENCES) {
+      for (const shot of STORIES[a].flatMap(shotsOf)) {
+        if (!shot.src.startsWith('/landing/stills/')) continue;
+        expect(pngSize(resolve(publicDir, `.${shot.src}`)), shot.src).toEqual({
+          width: shot.width * 2,
+          height: shot.height * 2,
+        });
+        // A phone still is the screen's full width; a desktop still is a window of it.
+        if (shot.shape === 'phone') expect(shot.width, shot.src).toBe(390);
+        else expect(shot.width, shot.src).toBeLessThanOrEqual(680);
       }
     }
   });
@@ -98,7 +139,7 @@ describe('STORIES', () => {
       ...Object.values(MEANWHILE_LABEL),
     ];
     const sceneCopy = Object.values(SCENE_LINES).flatMap(lines =>
-      lines.flatMap(line => [line.head, line.text])
+      lines.flatMap(line => [line.head, line.text, line.short])
     );
     const all = [...labels, ...sceneCopy, ...AUDIENCES.flatMap(a => STORIES[a].flatMap(copyOf))];
     for (const text of all) for (const re of BANNED_COPY) expect(text).not.toMatch(re);
@@ -124,6 +165,25 @@ describe('STORIES', () => {
         }
       }
     }
+  });
+
+  it('gives every line a short tab label, a few words and not a repeat of another', () => {
+    const seen = new Set<string>();
+    for (const [scene, lines] of Object.entries(SCENE_LINES)) {
+      for (const { short } of lines) {
+        expect(short.trim().length, scene).toBeGreaterThan(0);
+        // Five tabs fit in a row on a wide container.
+        expect(short.length, short).toBeLessThanOrEqual(24);
+        expect(seen.has(short), short).toBe(false);
+        seen.add(short);
+      }
+    }
+    expect(SCENE_LINES.results.map(l => l.short)).toEqual([
+      'Class finished',
+      'Placements worked out',
+      'You release',
+      'Exhibitor sees it',
+    ]);
   });
 
   it('ships a real share image and light hero variants', () => {

@@ -112,7 +112,7 @@ describe('seed-demo date coherence (MYK9-1281)', () => {
   // supabase/tests/myk9_1309_seed_fixture_functions_test.sql (MYK9-1309). The
   // source text can only pin WHERE the seed calls them.
   const call = (fn: string): number => {
-    const matches = [...seed.matchAll(new RegExp(`SELECT public\\.${fn}\\(\\);`, 'g'))];
+    const matches = [...seed.matchAll(new RegExp(`(?:SELECT|PERFORM) public\\.${fn}\\(\\);`, 'g'))];
     expect(matches, `${fn}() must be called exactly once`).toHaveLength(1);
     return matches[0].index!;
   };
@@ -129,8 +129,11 @@ describe('seed-demo date coherence (MYK9-1281)', () => {
 
   it('ends by calling the date-coherence assert function', () => {
     const tail = seed.slice(call('seed_demo_assert_date_coherence'));
-    expect(tail.replace(/\s+/g, ' ').trim()).toBe(
-      'SELECT public.seed_demo_assert_date_coherence(); COMMIT;'
+    // MYK9-836: wrapped so a rescheduled earlier club demo show's duplicate is forgiven.
+    const flat = tail.replace(/\s+/g, ' ').trim();
+    expect(flat.startsWith('PERFORM public.seed_demo_assert_date_coherence(); EXCEPTION')).toBe(
+      true
     );
+    expect(flat.endsWith('END $$; COMMIT;')).toBe(true);
   });
 });

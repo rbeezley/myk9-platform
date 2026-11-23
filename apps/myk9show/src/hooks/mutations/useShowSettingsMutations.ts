@@ -2,19 +2,14 @@
  * Show Settings Mutation Hooks
  *
  * React Query mutations for upserting visibility and check-in settings.
- *
- * Note: these tables are added by migration 007 and are not yet in the
- * generated Supabase types, so we use `untypedSupabase` to bypass codegen.
  */
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { useAuth } from '@/hooks/useAuth';
 import { markUnreachableIfTransportFailure, timeoutSignal } from '@/lib/serverReachability';
+import type { TablesInsert } from '@/types/supabase';
 import type { VisibilityPreset, VisibilityTiming } from '@myk9/secretary';
 import { settingsQueryKeys, type ShowSettings } from '../queries/useShowSettingsDatabase';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- bypass generated types for tables not yet in codegen
-const untypedSupabase = supabase as any;
 
 interface SettingsRequestResult {
   error: unknown;
@@ -82,13 +77,16 @@ interface ShowResultsPrivacyUpdate {
  */
 async function upsertShowSettingsColumns(
   showId: string,
-  columns: Record<string, unknown>,
+  columns: Omit<TablesInsert<'show_visibility_settings'>, 'show_id' | 'updated_by'>,
   userId: string | null
 ): Promise<void> {
+  const payload: TablesInsert<'show_visibility_settings'> = {
+    show_id: showId,
+    ...columns,
+    updated_by: userId,
+  };
   await runSettingsWrite(
-    untypedSupabase
-      .from('show_visibility_settings')
-      .upsert({ show_id: showId, ...columns, updated_by: userId }, { onConflict: 'show_id' })
+    supabase.from('show_visibility_settings').upsert(payload, { onConflict: 'show_id' })
   );
 }
 
@@ -143,32 +141,45 @@ const VISIBILITY_NULL_COLUMNS = {
   faults_timing: null,
 } as const;
 
+interface ResetPayloadBaseParams {
+  entityId: string;
+  facet: ResetFacet;
+  userId: string | null;
+  timestamp: string;
+}
+
 /**
  * Build the upsert payload for a reset. Pure so the column set per facet can be
  * pinned by an assertion-first test — an accidental `self_checkin_enabled: null`
  * in a visibility reset would silently re-couple the two facets.
  */
-export function buildResetPayload(params: {
-  level: 'trial' | 'class';
-  entityId: string;
-  facet: ResetFacet;
-  userId: string | null;
-  timestamp: string;
-}): Record<string, unknown> {
+export function buildResetPayload(
+  params: ResetPayloadBaseParams & { level: 'trial' }
+): TablesInsert<'trial_visibility_overrides'>;
+export function buildResetPayload(
+  params: ResetPayloadBaseParams & { level: 'class' }
+): TablesInsert<'class_visibility_overrides'>;
+export function buildResetPayload(
+  params: ResetPayloadBaseParams & { level: 'trial' | 'class' }
+): TablesInsert<'trial_visibility_overrides'> | TablesInsert<'class_visibility_overrides'>;
+export function buildResetPayload(
+  params: ResetPayloadBaseParams & { level: 'trial' | 'class' }
+): TablesInsert<'trial_visibility_overrides'> | TablesInsert<'class_visibility_overrides'> {
   const { level, entityId, facet, userId, timestamp } = params;
-  const idColumn = level === 'trial' ? 'trial_id' : 'class_id';
-  const payload: Record<string, unknown> = {
-    [idColumn]: entityId,
+  const shared: Omit<TablesInsert<'trial_visibility_overrides'>, 'trial_id'> = {
     updated_by: userId,
     updated_at: timestamp,
   };
   if (facet === 'all' || facet === 'visibility') {
-    Object.assign(payload, VISIBILITY_NULL_COLUMNS);
+    Object.assign(shared, VISIBILITY_NULL_COLUMNS);
   }
   if (facet === 'all' || facet === 'checkin') {
-    payload.self_checkin_enabled = null;
+    shared.self_checkin_enabled = null;
   }
-  return payload;
+  if (level === 'trial') {
+    return { trial_id: entityId, ...shared };
+  }
+  return { class_id: entityId, ...shared };
 }
 
 export function useUpdateShowVisibility() {
@@ -178,7 +189,7 @@ export function useUpdateShowVisibility() {
   return useMutation({
     mutationFn: async (update: ShowVisibilityUpdate) => {
       await runSettingsWrite(
-        untypedSupabase.from('show_visibility_settings').upsert({
+        supabase.from('show_visibility_settings').upsert({
           show_id: update.showId,
           preset: update.preset,
           placement_timing: update.placementTiming,
@@ -304,19 +315,20 @@ export function useUpdateTrialOverride() {
 
   return useMutation({
     mutationFn: async (update: TrialOverrideUpdate) => {
-      await runSettingsWrite(
-        untypedSupabase.from('trial_visibility_overrides').upsert({
-          trial_id: update.trialId,
-          preset: update.preset,
-          placement_timing: update.placementTiming,
-          qualification_timing: update.qualificationTiming,
-          time_timing: update.timeTiming,
-          faults_timing: update.faultsTiming,
-          self_checkin_enabled: update.selfCheckinEnabled,
-          updated_by: user?.id ?? null,
-          updated_at: new Date().toISOString(),
-        })
-      );
+      const payload: TablesInsert<'trial_visibility_overrides'> = {
+        trial_id: update.trialId,
+        updated_by: user?.id ?? null,
+        updated_at: new Date().toISOString(),
+      };
+      if (update.preset !== undefined) payload.preset = update.preset;
+      if (update.placementTiming !== undefined) payload.placement_timing = update.placementTiming;
+      if (update.qualificationTiming !== undefined)
+        payload.qualification_timing = update.qualificationTiming;
+      if (update.timeTiming !== undefined) payload.time_timing = update.timeTiming;
+      if (update.faultsTiming !== undefined) payload.faults_timing = update.faultsTiming;
+      if (update.selfCheckinEnabled !== undefined)
+        payload.self_checkin_enabled = update.selfCheckinEnabled;
+      await runSettingsWrite(supabase.from('trial_visibility_overrides').upsert(payload));
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: settingsQueryKeys.trials(variables.showId) });
@@ -336,19 +348,20 @@ export function useUpdateClassOverride() {
 
   return useMutation({
     mutationFn: async (update: ClassOverrideUpdate) => {
-      await runSettingsWrite(
-        untypedSupabase.from('class_visibility_overrides').upsert({
-          class_id: update.classId,
-          preset: update.preset,
-          placement_timing: update.placementTiming,
-          qualification_timing: update.qualificationTiming,
-          time_timing: update.timeTiming,
-          faults_timing: update.faultsTiming,
-          self_checkin_enabled: update.selfCheckinEnabled,
-          updated_by: user?.id ?? null,
-          updated_at: new Date().toISOString(),
-        })
-      );
+      const payload: TablesInsert<'class_visibility_overrides'> = {
+        class_id: update.classId,
+        updated_by: user?.id ?? null,
+        updated_at: new Date().toISOString(),
+      };
+      if (update.preset !== undefined) payload.preset = update.preset;
+      if (update.placementTiming !== undefined) payload.placement_timing = update.placementTiming;
+      if (update.qualificationTiming !== undefined)
+        payload.qualification_timing = update.qualificationTiming;
+      if (update.timeTiming !== undefined) payload.time_timing = update.timeTiming;
+      if (update.faultsTiming !== undefined) payload.faults_timing = update.faultsTiming;
+      if (update.selfCheckinEnabled !== undefined)
+        payload.self_checkin_enabled = update.selfCheckinEnabled;
+      await runSettingsWrite(supabase.from('class_visibility_overrides').upsert(payload));
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
@@ -380,7 +393,7 @@ export function useBulkUpdateClassOverrides() {
   return useMutation({
     mutationFn: async (update: BulkClassOverrideUpdate) => {
       if (update.classIds.length === 0) return;
-      const sharedFields: Record<string, unknown> = {
+      const sharedFields: Omit<TablesInsert<'class_visibility_overrides'>, 'class_id'> = {
         updated_by: user?.id ?? null,
         updated_at: new Date().toISOString(),
       };
@@ -394,11 +407,11 @@ export function useBulkUpdateClassOverrides() {
       if (update.selfCheckinEnabled !== undefined)
         sharedFields.self_checkin_enabled = update.selfCheckinEnabled;
 
-      const rows = update.classIds.map(classId => ({
+      const rows: TablesInsert<'class_visibility_overrides'>[] = update.classIds.map(classId => ({
         class_id: classId,
         ...sharedFields,
       }));
-      await runSettingsWrite(untypedSupabase.from('class_visibility_overrides').upsert(rows));
+      await runSettingsWrite(supabase.from('class_visibility_overrides').upsert(rows));
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
@@ -423,16 +436,28 @@ export function useResetOverride() {
 
   return useMutation({
     mutationFn: async (reset: OverrideReset) => {
-      const table =
-        reset.level === 'trial' ? 'trial_visibility_overrides' : 'class_visibility_overrides';
+      const facet = reset.facet ?? 'all';
+      const userId = user?.id ?? null;
+      const timestamp = new Date().toISOString();
+      if (reset.level === 'trial') {
+        const payload = buildResetPayload({
+          level: 'trial',
+          entityId: reset.entityId,
+          facet,
+          userId,
+          timestamp,
+        });
+        await runSettingsWrite(supabase.from('trial_visibility_overrides').upsert(payload));
+        return;
+      }
       const payload = buildResetPayload({
-        level: reset.level,
+        level: 'class',
         entityId: reset.entityId,
-        facet: reset.facet ?? 'all',
-        userId: user?.id ?? null,
-        timestamp: new Date().toISOString(),
+        facet,
+        userId,
+        timestamp,
       });
-      await runSettingsWrite(untypedSupabase.from(table).upsert(payload));
+      await runSettingsWrite(supabase.from('class_visibility_overrides').upsert(payload));
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: settingsQueryKeys.trials(variables.showId) });

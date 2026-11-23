@@ -10,4 +10,7 @@ export const VOLUNTEER_COPY = {
   unassignClassFailed: "We couldn't take this volunteer off the class. Try again.",
   assignDutyFailed: "We couldn't assign this volunteer to the duty. Try again.",
   unassignDutyFailed: "We couldn't take this volunteer off the duty. Try again.",
+  /** MYK9-2328: Select classes' Assign steward, over several classes. */
+  bulkAssignFailed:
+    "We couldn't assign this steward to the classes. Nothing was changed. Try again.",
 } as const;

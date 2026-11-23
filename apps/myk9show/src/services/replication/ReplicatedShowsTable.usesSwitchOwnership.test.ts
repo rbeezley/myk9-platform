@@ -36,7 +36,6 @@ const serverShow = (extra: Record<string, unknown> = {}) => ({
   uses_device_scoring: true,
   uses_paper_packet: false,
   uses_volunteers: false,
-  uses_landing_page: false,
   publishes_own_premium: false,
   ...extra,
 });

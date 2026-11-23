@@ -13,6 +13,9 @@ import {
   type JudgeScoringModel,
 } from './classScoringModel';
 
+/** Long labels ("... (the show's usual way)") wrap on a 375px phone; min-h-11 keeps the 44px target. */
+const SCORING_BUTTON_CLASS = 'h-auto min-h-11 whitespace-normal text-left';
+
 /** Two one-tap choices, the current one pressed. Both are 44px targets. */
 function ScoringChoice({
   label,
@@ -38,7 +41,7 @@ function ScoringChoice({
         variant={paper ? 'default' : 'outline'}
         aria-pressed={paper}
         disabled={busy}
-        className="min-h-11"
+        className={SCORING_BUTTON_CLASS}
         onClick={() => onChoose(true)}
       >
         {SCORING_COPY.paper}
@@ -49,7 +52,7 @@ function ScoringChoice({
         variant={phone ? 'default' : 'outline'}
         aria-pressed={phone}
         disabled={busy}
-        className="min-h-11"
+        className={SCORING_BUTTON_CLASS}
         onClick={() => onChoose(false)}
       >
         {SCORING_COPY.phone}

@@ -22,7 +22,7 @@ export function LifecycleTimeline({
   audience: Audience;
   onAudienceChange: (audience: Audience) => void;
 }) {
-  const { reached, isRevealed } = useTimelineProgress(STEP_IDS);
+  const { isRevealed } = useTimelineProgress(STEP_IDS);
   const story = STORIES[audience];
   return (
     <section id="how-it-works" className="lc" aria-labelledby="lc-title">
@@ -44,21 +44,13 @@ export function LifecycleTimeline({
             ))}
           </div>
         </div>
-        <div className="lc-labels" aria-hidden="true">
-          <span>What you do</span>
-          <span />
-          <span>{MEANWHILE_LABEL[audience]}</span>
-        </div>
         {story.map((step, i) => (
           <TimelineStep
             key={step.id}
             step={step}
-            number={i + 1}
             lead={PEAK_LEAD[audience]}
             sceneLead={audience === 'club' ? 'desk' : 'phone'}
             meanwhileLabel={MEANWHILE_LABEL[audience]}
-            reached={reached >= i + 1}
-            lineFilled={reached >= i + 2}
             revealed={isRevealed(step.id)}
             isLast={i === story.length - 1}
           />

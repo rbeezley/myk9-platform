@@ -1,5 +1,9 @@
 import { isCompletedStatus, needsCascade } from '@/features/show-closeout/closeoutStatus';
-import { calculateWhatIsLeft, type ScoreChangeRead } from '@/features/show-closeout/whatIsLeft';
+import {
+  calculateWhatIsLeft,
+  type ScoreChangeRead,
+  type WhatIsLeftInput,
+} from '@/features/show-closeout/whatIsLeft';
 import type { CloseConcern } from '@/features/show-closeout/closeConcerns';
 import type { ShowDayReconciliationEntry } from './showDayReconciliationSummary';
 import type { ShowIncidentSummary } from './showIncidents';
@@ -45,6 +49,8 @@ export interface CloseoutReadinessInput {
   submissions: readonly ResultSubmissionSummary[] | null;
   /** What the score history says since the results file went (MYK9-2078). Absent: not checked. */
   scoreChanges?: ScoreChangeRead | undefined;
+  /** Unconfirmed pull flags, from `useCloseoutFlaggedPulls` (MYK9-2180). Absent: not listed. */
+  flaggedPulls?: WhatIsLeftInput['flaggedPulls'];
 }
 
 export interface CloseoutReadiness {
@@ -81,6 +87,7 @@ export function buildCloseoutReadiness(input: CloseoutReadinessInput): CloseoutR
     incidents: input.incidents,
     submissions: input.submissions,
     scoreChanges: input.scoreChanges,
+    flaggedPulls: input.flaggedPulls,
   });
   return {
     concerns: [...left.concerns],

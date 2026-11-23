@@ -18,6 +18,7 @@ import { replicatedShowDeskPeopleTable } from '@/services/replication/Replicated
 import {
   DUPLICATE_CHECK_SAVED_ONLY,
   DUPLICATE_CHECK_UNAVAILABLE,
+  serverMatchKey,
   useServerPersonMatches,
 } from './useServerPersonMatches';
 
@@ -98,7 +99,7 @@ export const CreatePersonForm: React.FC<CreatePersonFormProps> = ({
   const [identityKey, setIdentityKey] = useState('');
   const [typed, setTyped] = useState<Partial<PersonRecord> | null>(null);
   // A device that never loaded the directory cannot check it: ask the server (MYK9-2257).
-  const { serverPeople, serverFailed, check } = useServerPersonMatches(open, typed);
+  const { serverPeople, serverFailed, check, settled } = useServerPersonMatches(open, typed);
 
   // Loaded once the form opens: the duplicate check reads the whole roster.
   React.useEffect(() => {
@@ -161,7 +162,10 @@ export const CreatePersonForm: React.FC<CreatePersonFormProps> = ({
     // without a failure toast.
     // The saved directory may be empty on this device; the server answers when it can.
     // "Add anyway" was already chosen for this person: do not wait on the lookup again.
-    const fresh = people.length === 0 && allowedKey !== keyOf(data) ? await check(data) : null;
+    // An answer already settled for this email and last name is reused, not asked again.
+    const needsLookup = people.length === 0 && allowedKey !== keyOf(data);
+    const reusable = settled && settled.key === serverMatchKey(data) ? settled : null;
+    const fresh = needsLookup ? (reusable ?? (await check(data))) : null;
     if (holdForDuplicate(data, fresh?.people)) throw new PanelSaveHandledError();
     setDuplicates({ candidates: [], key: '' });
 

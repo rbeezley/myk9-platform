@@ -4,8 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
-import { denyPullRefundDecision } from '@/features/payments/denyPullRefundDecision';
+import {
+  REFUND_DECISION_APP_UPDATED_MESSAGE,
+  denyPullRefundDecision,
+  isRefundDecisionRpcMissing,
+} from '@/features/payments/denyPullRefundDecision';
 import { getSuggestedPullRefundDecision } from '@/features/payments/pullReconciliation';
+import { refreshApp } from '@/services/pwa/refreshApp';
 import { isStripeRefundable } from './refundEligibility';
 
 interface PullReconciliationActionsProps {
@@ -62,7 +67,13 @@ export function PullReconciliationActions({
       await denyPullRefundDecision(entry.id, reason);
       toast.success('Refund denied');
       onResolved();
-    } catch {
+    } catch (error) {
+      if (isRefundDecisionRpcMissing(error)) {
+        toast.error(REFUND_DECISION_APP_UPDATED_MESSAGE, {
+          action: { label: 'Restart the app', onClick: () => void refreshApp() },
+        });
+        return;
+      }
       toast.error("We couldn't save that refund decision. Try again.");
     } finally {
       setIsDenying(false);

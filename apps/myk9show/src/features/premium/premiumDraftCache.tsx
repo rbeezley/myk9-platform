@@ -24,12 +24,17 @@ export interface PremiumDraftCache {
   loadedKey: string | null;
 }
 
-/** The cached draft for this show, or null when there is none to restore. */
+/**
+ * The cached draft for this show, or null when there is none to restore. A draft written for
+ * another organization is not restored (MYK9-2216): changing the organization invalidates it.
+ */
 export function cachedDraftFor(
   cache: PremiumDraftCache | undefined,
-  showId: string
+  showId: string,
+  org: GeneratedPremium['org'] | null
 ): PremiumEditorDraft | null {
-  return cache?.draft?.showId === showId ? cache.draft : null;
+  const draft = cache?.draft;
+  return draft?.showId === showId && draft.original.org === org ? draft : null;
 }
 
 export function storeDraft(cache: PremiumDraftCache, draft: PremiumEditorDraft): void {

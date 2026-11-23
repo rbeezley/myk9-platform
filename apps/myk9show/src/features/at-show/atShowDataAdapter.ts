@@ -129,7 +129,8 @@ export async function syncAtShowChangeSignals(
     ),
   ];
   if (classIdsRequiringLocalReset.length > 0) {
-    await replicatedClassesTable.batchDelete(classIdsRequiringLocalReset);
+    // Dirty rows or rows with queued writes are kept: the full sync below reconciles them.
+    await replicatedClassesTable.deleteRowsIfClean(classIdsRequiringLocalReset);
   }
   if (relevant.some(signal => !signal.classIds || signal.classIds.length === 0)) {
     await syncAtShowData(showId);

@@ -56,7 +56,7 @@ jobs:
 
       - uses: supabase/setup-cli@v3
         with:
-          version: 2.122.0 # exact pin, never latest; see MYK9-1662
+          version: 3.2.0 # exact pin, never latest; see MYK9-1662
 
       - uses: pnpm/action-setup@v6
 
@@ -104,6 +104,18 @@ jobs:
         env:
           MYK9_PLAYWRIGHT_REGRESSION_ENABLED: 'true'
           MYK9_PLAYWRIGHT_REGRESSION_TARGET: isolated
+
+      # The seed also builds the club demo show (MYK9-836), which no capture shows. It is cleared
+      # here, once, before any capture spec runs, so Find Shows, the secretary's shows, results and
+      # ringside read as they did before it existed. (Its dogs and entries belong to Dana Whitcomb,
+      # a person with no sign-in, so this clear is about the screens, not the second exhibitor's account.)
+      - name: Clear the club demo show from the capture's database
+        run: |
+          case "$SUPABASE_DB_URL" in
+            *@127.0.0.1:*|*@localhost:*) ;;
+            *) echo "refusing: the database is not this machine's stack"; exit 1 ;;
+          esac
+          psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -q -f apps/myk9show/src/test/e2e/capture/landingClubDemoClear.sql
 
       - name: Build app + packages
         run: pnpm build
@@ -169,7 +181,11 @@ jobs:
           done
           test "$(find "$out/public/landing/scenes/results" -type f | wc -l)" -eq 6
           test -s "$out/src/components/landing/lifecycle/scenes/resultsRegions.json"
-          test "$(find "$RUNNER_TEMP/landing-capture/out" -type f | wc -l)" -eq 26
+          for still in club-create-show exhibitor-find-a-show exhibitor-my-entries exhibitor-past-results; do
+            test -s "$out/public/landing/stills/$still.png"
+          done
+          test "$(find "$out/public/landing/stills" -type f | wc -l)" -eq 4
+          test "$(find "$RUNNER_TEMP/landing-capture/out" -type f | wc -l)" -eq 30
 
       # This repository's artifacts are public (MYK9-1057): fail before the upload if one of
       # the job's passwords (in the environment since the first step) is in the regions file.

@@ -10,6 +10,8 @@ interface AssignVolunteerPopoverProps {
   excludeIds: string[];
   conflictIds: Set<string>;
   onAssign: (volunteerId: string) => void;
+  /** The job being filled ("Table Steward"); names the trigger for a screen reader. */
+  roleLabel?: string | undefined;
 }
 
 /**
@@ -31,6 +33,7 @@ export function AssignVolunteerPopover({
   excludeIds,
   conflictIds,
   onAssign,
+  roleLabel,
 }: AssignVolunteerPopoverProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -52,7 +55,12 @@ export function AssignVolunteerPopover({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="sm" aria-label="Assign volunteer" className="h-6 px-1.5">
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-label={roleLabel ? `Assign ${roleLabel}` : 'Assign volunteer'}
+          className="h-11 min-w-11 px-2"
+        >
           <Plus className="h-3.5 w-3.5" />
         </Button>
       </PopoverTrigger>

@@ -31,21 +31,19 @@ describe('summarizeShowDayReconciliation', () => {
       WINDOW
     );
 
-    // MYK9-2145: the pending row is only flagged, so it is not a removal, and the desk offers
-    // no Confirm on a pending entry, so it is not listed as flagged either.
+    // MYK9-2145: the pending row is only flagged, so it is not a removal.
     expect(summary.removals.pulled).toBe(1);
-    expect(summary.flaggedPullDogCount).toBe(0);
     expect(summary.refundReviewCount).toBe(1);
     expect(summary.refundReviewAmount).toBe(35);
   });
 
   // MYK9-2145: a flag stays a flag until the secretary confirms it at the Check-in desk.
-  it('counts a paid check-in flag as flagged, not a removal, so removals and refunds agree', () => {
+  // The flag itself is listed by `collectFlaggedPulls` (MYK9-2180, flaggedPulls.test.ts).
+  it('counts a paid check-in flag as no removal, so removals and refunds agree', () => {
     const summary = summarizeShowDayReconciliation(
       [
         {
           id: 'flag-1',
-          dog_id: 'dog-1',
           entry_fee: 25,
           entry_status: 'confirmed',
           check_in_status: 'pulled',
@@ -54,7 +52,6 @@ describe('summarizeShowDayReconciliation', () => {
         },
         {
           id: 'flag-2',
-          dog_id: 'dog-1',
           entry_fee: 25,
           entry_status: 'confirmed',
           check_in_status: 'pulled',
@@ -68,43 +65,13 @@ describe('summarizeShowDayReconciliation', () => {
     expect(summary.removalCount).toBe(0);
     expect(summary.removals.pulled).toBe(0);
     expect(summary.refundReviewCount).toBe(0);
-    expect(summary.flaggedPullDogCount).toBe(1);
   });
 
-  // MYK9-2145: only a flag the Check-in desk offers Confirm on (deskStatusEditableFor) is listed.
-  it.each([
-    ['scored', { entry_status: 'confirmed', is_scored: true }],
-    ['completed', { entry_status: 'completed' }],
-    ['declined', { entry_status: 'not_accepted' }],
-    ['cancelled', { entry_status: 'cancelled' }],
-    ['promoted from the waitlist, unpaid', { entry_status: 'pending-payment' }],
-    ['pending', { entry_status: 'submitted' }],
-  ] as const)('does not list a flag on a %s entry the desk cannot confirm', (_label, fields) => {
-    const summary = summarizeShowDayReconciliation(
-      [
-        {
-          id: 'flag',
-          dog_id: 'dog-1',
-          entry_fee: 25,
-          check_in_status: 'pulled',
-          payment_status: 'paid',
-          payment_method: 'online',
-          ...fields,
-        },
-      ],
-      WINDOW
-    );
-
-    expect(summary.flaggedPullDogCount).toBe(0);
-    expect(summary.removals.pulled).toBe(0);
-  });
-
-  it('counts a desk-confirmed pull as a removal and a refund to decide, not as flagged', () => {
+  it('counts a desk-confirmed pull as a removal and a refund to decide', () => {
     const summary = summarizeShowDayReconciliation(
       [
         {
           id: 'confirmed',
-          dog_id: 'dog-1',
           entry_fee: 25,
           entry_status: 'scratched',
           check_in_status: 'pulled',
@@ -119,7 +86,6 @@ describe('summarizeShowDayReconciliation', () => {
     expect(summary.removals.pulled).toBe(1);
     expect(summary.refundReviewCount).toBe(1);
     expect(summary.refundReviewRemovals.pulled).toBe(1);
-    expect(summary.flaggedPullDogCount).toBe(0);
   });
 
   // MYK9-2099: refund review is `refundToDecideRemoval`, the rows Deny refund can decide.
@@ -156,7 +122,6 @@ describe('summarizeShowDayReconciliation', () => {
 
     // MYK9-2145: the flagged row is not a removal until confirmed at the Check-in desk.
     expect(summary.removalCount).toBe(3);
-    expect(summary.flaggedPullDogCount).toBe(1);
     expect(summary.refundReviewCount).toBe(1);
     expect(summary.refundReviewRemovals.absent).toBe(1);
     expect(summary.refundReviewAmount).toBe(20);

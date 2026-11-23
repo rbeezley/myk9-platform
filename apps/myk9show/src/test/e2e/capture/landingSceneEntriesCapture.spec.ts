@@ -29,7 +29,7 @@ import { box, holdWebSockets, proveSocketHold, type Box } from './captureKit';
  *
  * Takes the landing page's "Entries open" scene from the running app: the exhibitor's phone
  * (390x844 at 2x) and the secretary's desktop (1440x900), from the exhibitor's dogs and
- * classes to the secretary accepting the form (docs/plan-landing-animated-timeline.md
+ * classes to the secretary accepting the form (docs/archive/plan-landing-animated-timeline.md
  * § "The 'Entries open' scene", MYK9-2296). It is the ring capture's sibling and keeps all of
  * its guarantees:
  *   - the backend is the job's own Supabase stack on this machine, seeded from the repo's
@@ -54,7 +54,9 @@ const PHONE = { width: 390, height: 844 };
 const PHONE_SCALE = 2;
 const DESK = { width: 1440, height: 900 };
 const DESK_SCALE = 1;
-// The second demo exhibitor has no entries anywhere; landingEntriesSetup.sql gives her two dogs and
+// The second demo exhibitor has no entries anywhere (the club demo show's dogs and entries belong to Dana
+// Whitcomb, who has no sign-in; the workflow clears that show, landingClubDemoClear.sql, only to keep it
+// off the capture screens); landingEntriesSetup.sql gives her two dogs and
 // one form at the show (the job's own database, before the walk). Piper is the dog the walk
 // enters; Tessa is already in the full class, so for Piper it reads Full. Her card on My Entries
 // reads Pending review before the walk and Accepted after it.

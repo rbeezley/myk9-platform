@@ -9345,7 +9345,6 @@ export type Database = {
           style: string
           updated_at: string | null
           uses_device_scoring: boolean
-          uses_landing_page: boolean
           uses_paper_packet: boolean
           uses_volunteers: boolean
           venue_name: string | null
@@ -9430,7 +9429,6 @@ export type Database = {
           style?: string
           updated_at?: string | null
           uses_device_scoring?: boolean
-          uses_landing_page?: boolean
           uses_paper_packet?: boolean
           uses_volunteers?: boolean
           venue_name?: string | null
@@ -9515,7 +9513,6 @@ export type Database = {
           style?: string
           updated_at?: string | null
           uses_device_scoring?: boolean
-          uses_landing_page?: boolean
           uses_paper_packet?: boolean
           uses_volunteers?: boolean
           venue_name?: string | null
@@ -14851,7 +14848,6 @@ export type Database = {
           style: string
           updated_at: string | null
           uses_device_scoring: boolean
-          uses_landing_page: boolean
           uses_paper_packet: boolean
           uses_volunteers: boolean
           venue_name: string | null
@@ -16122,7 +16118,6 @@ export type Database = {
           style: string
           updated_at: string | null
           uses_device_scoring: boolean
-          uses_landing_page: boolean
           uses_paper_packet: boolean
           uses_volunteers: boolean
           venue_name: string | null
@@ -16281,9 +16276,7 @@ export type Database = {
         Returns: undefined
       }
       set_entry_refund_decision: {
-        Args:
-          | { p_decision: string; p_entry_id: string }
-          | { p_decision: string; p_entry_id: string; p_reason: string }
+        Args: { p_decision: string; p_entry_id: string; p_reason: string }
         Returns: undefined
       }
       set_judge_day_capacity: {

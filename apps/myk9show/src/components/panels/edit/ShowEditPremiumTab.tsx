@@ -85,16 +85,27 @@ export function ShowEditPremiumTab({
     showId,
     isActive && Boolean(showOrg) && hasPublishedContent
   );
+  // MYK9-2216: changing the organization invalidates the stored premium. Until the change is saved
+  // and the premium regenerated, no premium text is carried over, so old-organization narratives
+  // are never shown or published under the new organization.
+  const organizationChanged = Boolean(
+    showOrg && savedOrganization && savedOrganization !== showOrg
+  );
   const initialPremium = useMemo(() => {
-    if (factsLoading) return undefined;
+    if (factsLoading || organizationChanged) return undefined;
     if (serverFacts && publishedContent && serverFacts.org === showOrg) {
       // templateId null: a published show's cover edits never write to the club's shared template.
       return {
         ...applyEditorCopyToPremium(serverFacts, {
           style: data.style || 'monogram',
-          supplemental: publishedContent.supplemental,
+          // MYK9-2216: a snapshot built for another organization carries nothing over.
+          supplemental:
+            publishedContent.org === showOrg
+              ? publishedContent.supplemental
+              : serverFacts.supplemental,
           // The server's narratives already keep a non-blank published edit and fill a blank or
-          // legacy-placeholder section; the local snapshot is only the offline fallback below.
+          // legacy-placeholder section, and drop text built for another organization (MYK9-2216);
+          // the local snapshot is only the offline fallback below.
           narratives: serverFacts.narratives,
         }),
         templateId: null,
@@ -113,14 +124,22 @@ export function ShowEditPremiumTab({
       new Map((cachedAffiliations ?? []).map(judge => [judge.id, judge.affiliation]))
     );
     return draft && officials ? applyOfficialsToPremium(draft, officials) : draft;
-  }, [data, publishedContent, showOrg, officials, serverFacts, factsLoading, showId, queryClient]);
+  }, [
+    data,
+    publishedContent,
+    showOrg,
+    officials,
+    serverFacts,
+    factsLoading,
+    organizationChanged,
+    showId,
+    queryClient,
+  ]);
 
-  // MYK9-2213: generate-premium reads the SAVED organization, so while the form's differs a
-  // Regenerate would build the premium for the wrong one.
-  const regenerateBlockedReason =
-    showOrg && savedOrganization && savedOrganization !== showOrg
-      ? `Save the show first. Regenerate builds from the saved organization (${savedOrganization}).`
-      : undefined;
+  // generate-premium reads the SAVED organization, so Regenerate waits for the save.
+  const regenerateBlockedReason = organizationChanged
+    ? `The organization changed. Save the show, then regenerate the premium for ${showOrg} before publishing.`
+    : undefined;
 
   return (
     <TabsContent
@@ -241,7 +260,9 @@ function buildLocalPremiumDraft(
   publishedContent: ShowExperienceSnapshot | null,
   affiliationByJudgeId: ReadonlyMap<string, string | null>
 ): GeneratedPremium | undefined {
-  if (!showOrg || !publishedContent) return undefined;
+  // MYK9-2216: a snapshot built for another organization, or published before snapshots recorded
+  // it, is not reused offline; the editor generates fresh text instead.
+  if (!showOrg || !publishedContent || publishedContent.org !== showOrg) return undefined;
 
   // MYK9-2044: a cancelled trial is not printed, so the recording fee derived from this schedule
   // does not price it either.

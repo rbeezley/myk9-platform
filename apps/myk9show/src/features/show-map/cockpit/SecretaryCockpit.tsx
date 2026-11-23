@@ -27,6 +27,7 @@ import { SecretaryCockpitFocusedClass } from './SecretaryCockpitFocusedClass';
 import { useFocusedClassSetupActions } from './FocusedClassSetupActions';
 import { useClassJudgeAssignment } from '@/components/classes/useClassJudgeAssignment';
 import { FocusedClassJudge } from './FocusedClassJudge';
+import { FocusedClassStewards } from './FocusedClassStewards';
 import { FocusedClassJudgeScoring, FocusedClassScoringField } from './FocusedClassScoringControls';
 import { judgeLockReason } from './focusedClassJudgeModel';
 import { CockpitResultsHandoff } from './CockpitResultsHandoff';
@@ -224,6 +225,12 @@ export function SecretaryCockpit({
               className={model.focusedClass.name}
             />
           ),
+          // A cancelled class has no ring to staff (MYK9-2328).
+          ...(sourceClass.lifecycle !== 'cancelled' && {
+            stewardControl: (
+              <FocusedClassStewards showId={snapshot.showId} classId={sourceClass.id} />
+            ),
+          }),
         })}
       {...(canManageShow &&
         trial && {

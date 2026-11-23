@@ -63,7 +63,7 @@ export function PremiumContentEditor({
   const logMutation = useLogPremiumGeneration(clubId);
   const updateTemplateMutation = useUpdatePremiumTemplate(clubId);
   // MYK9-2236: a remount restores what the secretary had, and takes fresh facts once offered.
-  const [restored] = useState(() => cachedDraftFor(draftCache, showId));
+  const [restored] = useState(() => cachedDraftFor(draftCache, showId, showOrg));
   const factsPendingRef = useRef(restored !== null);
   const [original, setOriginal] = useState<GeneratedPremium | null>(
     () => restored?.original ?? initialPremium ?? null

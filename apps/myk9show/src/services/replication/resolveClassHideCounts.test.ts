@@ -155,6 +155,34 @@ describe('resolveHideCountsForClassRows', () => {
     expect(ruleIn).toHaveBeenCalledWith('sport_templates.organization', ['AKC', 'UKC', 'ASCA']);
   });
 
+  it('treats a trial with no registry as AKC when fetching rules and matching counts (MYK9-2346)', async () => {
+    const trialIn = vi.fn().mockResolvedValue({
+      data: [{ id: 'legacy-trial', show_id: 'show-1', registry_id: null }],
+      error: null,
+    });
+    const ruleNot = vi.fn().mockResolvedValue({ data: publicRules, error: null });
+    const ruleIn = vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ not: ruleNot }) });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'trials') return { select: vi.fn().mockReturnValue({ in: trialIn }) };
+      if (table === 'sport_class_rules') return { select: vi.fn().mockReturnValue({ in: ruleIn }) };
+      throw new Error(`Unexpected table: ${table}`);
+    });
+    mockRpc.mockResolvedValue({ data: [], error: null });
+
+    const result = await resolveHideCountsForClassRows([
+      {
+        id: 'legacy-excellent',
+        trial_id: 'legacy-trial',
+        element: 'Interior',
+        level: 'Excellent',
+        section: null,
+      },
+    ]);
+
+    expect(ruleIn).toHaveBeenCalledWith('sport_templates.organization', ['AKC']);
+    expect(result).toEqual(new Map([['legacy-excellent', 3]]));
+  });
+
   it('lets authorized RPC values override public rule-derived values', async () => {
     mockReferenceQueries();
     mockRpc.mockResolvedValue({

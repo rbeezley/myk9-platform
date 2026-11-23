@@ -4,10 +4,11 @@
 // page in Home.test.tsx. Design reference: canvas version D (docs/plan-landing-lifecycle.md).
 
 export type Audience = 'club' | 'exhibitor';
-export type StepId = 'setup' | 'entries' | 'before' | 'showday' | 'results' | 'after';
+export type StepId = 'setup' | 'entries' | 'before' | 'showday' | 'results';
 export type ShotShape = 'phone' | 'desktop';
 export type Shot = {
-  src: `/landing/stages/${string}.png`;
+  /** `stills/` holds the captures of the Landing capture workflow; `stages/` the one hand-taken still left. */
+  src: `/landing/${'stills' | 'stages'}/${string}.png`;
   alt: string;
   width: number;
   height: number;
@@ -66,32 +67,56 @@ export const PEAK_LEAD: Record<Audience, string> = {
   exhibitor: 'Then it’s show day.',
 };
 
-const desktop = (id: string, alt: string): Shot => ({
-  src: `/landing/stages/${id}.png`,
+// A still is one picture from the Landing capture workflow (landingStillsCapture.spec.ts, MYK9-2309).
+// A desktop still is a window of the screen, cut so no label or sentence is cut, at twice its size
+// (so its words read where the page draws it: about 440px wide, about 294 on a phone); a phone still
+// is the 390px-wide screen, whole or from under the app header.
+const desktopStill = (file: string, alt: string, width: number, height: number): Shot => ({
+  src: `/landing/stills/${file}.png`,
   alt,
-  width: 1200,
-  height: 750,
+  width,
+  height,
   shape: 'desktop',
 });
-const phone = (id: string, alt: string): Shot => ({
-  src: `/landing/stages/${id}.png`,
+const phoneStill = (file: string, alt: string, height = 844): Shot => ({
+  src: `/landing/stills/${file}.png`,
   alt,
   width: 390,
-  height: 844,
+  height,
   shape: 'phone',
 });
 
 const SHOTS = {
-  's-02': desktop('s-02', 'Create Show wizard, first step'),
-  's-12': desktop('s-12', 'Reports page with the Check-in Sheet card, ready to print'),
-  'e-01': desktop('e-01', 'Upcoming shows list with entry status'),
-  'e-12': phone(
-    'e-12',
-    'My Entries card for Willow with armband 100, class, day and check-in status'
+  'club-create-show': desktopStill(
+    'club-create-show',
+    'The Add Show wizard’s four steps, Show Details, Trials, Classes and Review, with the first step marked',
+    600,
+    160
   ),
-  'e-13': phone('e-13', 'My Entries on a phone with the Show Today banner'),
-  'e-16': phone('e-16', 'Willow’s past results with qualifying runs and a first place'),
-} as const;
+  'exhibitor-find-a-show': desktopStill(
+    'exhibitor-find-a-show',
+    'Find Shows cards for the Heartland Scent Work Classic, marked Entry Submitted, and the Heartland ASCA Scent Detection Trial, marked Accepting Entries',
+    640,
+    400
+  ),
+  'exhibitor-my-entries': phoneStill(
+    'exhibitor-my-entries',
+    'My Entries: the Heartland Scent Work Classic heading with its address and a Directions link, then Willow’s card, Armband 100, marked Accepted, with Interior Advanced and Container Novice A, each noting Check in on the day'
+  ),
+  'exhibitor-past-results': phoneStill(
+    'exhibitor-past-results',
+    'Willow’s Competitions card on the Past Results tab: three results from the Prairie Trail Fall Scent Work Trial, Exterior Novice A Q #1, Interior Novice A Q #2 and Container Novice A Q #1',
+    748
+  ),
+  // The exhibitor's show-day explainer still: the banner shows only on a show's own day.
+  'e-13': {
+    src: '/landing/stages/e-13.png',
+    alt: 'My Entries on a phone with the Show Today banner',
+    width: 390,
+    height: 844,
+    shape: 'phone',
+  },
+} as const satisfies Record<string, Shot>;
 
 const EXHIBITOR_SHOW_DAY: readonly ExplainerStep[] = [
   { x: 5, y: 32.5, w: 90, h: 23, caption: 'Show day is here: your first class time and entries' },
@@ -99,96 +124,120 @@ const EXHIBITOR_SHOW_DAY: readonly ExplainerStep[] = [
   { x: 5, y: 87, w: 90, h: 12.5, caption: 'Each dog’s classes for the day' },
 ];
 
-// Scene lines for the animated timeline (docs/plan-landing-animated-timeline.md, MYK9-1894).
+// Scene lines for the animated timeline (docs/archive/plan-landing-animated-timeline.md, MYK9-1894).
 // A line is a short heading plus one plain sentence, written to the club: "you" is the show
 // secretary (owner, 2026-11-16). Every claim has a KEEP row in
 // docs/qa/landing-lifecycle-evidence.md. The words describe the screen; the capture shows it.
 export type SceneId = 'entries' | 'showday-ring' | 'showday-desk' | 'results';
-export type SceneLine = { head: string; text: string };
+export type SceneLine = {
+  head: string;
+  text: string;
+  /** The tab's label: a few words, so five tabs fit in a row. */
+  short: string;
+};
 
 export const SCENE_LINES: Record<SceneId, readonly SceneLine[]> = {
   entries: [
     {
       head: 'An exhibitor enters online',
       text: 'They pick a dog and their classes. A full class says so, and they can only join its waiting list if you allow one.',
+      short: 'Enters online',
     },
     {
       head: 'They pay as they enter',
       text: 'They pay by card at a secure checkout, or by check or cash at the show if you turn those on.',
+      short: 'Pays as they enter',
     },
     {
       head: 'They can see where it stands',
       text: 'Their entry reads Pending review until you decide.',
+      short: 'Sees Pending review',
     },
     {
       head: 'The form arrives in your list',
       text: 'It is marked Needs review, with the payment shown beside it.',
+      short: 'Arrives in your list',
     },
     {
       head: 'You open it and accept',
       text: 'One button. Their entry changes to Accepted and they get an email.',
+      short: 'You accept',
     },
   ],
   'showday-ring': [
     {
       head: 'The judge opens the ring’s classes',
       text: 'Each class shows how many dogs are scored.',
+      short: 'Opens the classes',
     },
     {
       head: 'The signal drops',
       text: 'The screen says changes are saved on this device, and the run order stays.',
+      short: 'Signal drops',
     },
     {
       head: 'The judge times and scores the run',
       text: 'Start, Stop, then Qualified, NQ, Absent, Excused or DQ.',
+      short: 'Times and scores',
     },
     {
       head: 'The score is read back before it saves',
       text: 'The judge checks the dog, the result and the time, then confirms.',
+      short: 'Reads it back',
     },
     {
       head: 'The signal returns',
       text: 'The saved score sends itself, and the screen says Scores sent.',
+      short: 'Signal returns',
     },
   ],
   'showday-desk': [
     {
       head: 'Your day is on one page',
       text: 'Each class says where it stands, like 3 of 5 not checked in.',
+      short: 'Day on one page',
     },
     {
       head: 'Check in at the desk',
       text: 'Find an exhibitor by name, dog or armband and check in each dog.',
+      short: 'Check in',
     },
     {
       head: 'Watch the classes run',
       text: 'A running class shows how many dogs are scored and who is in the ring.',
+      short: 'Watch classes run',
     },
     {
       head: 'No tablets? Type in the paper scores',
       text: 'The dogs are listed in run order. Pick the result, type the time, save and move on.',
+      short: 'Type paper scores',
     },
     {
       head: 'Mark the class complete',
       text: 'It asks first if paper scores are missing, then takes you to Results.',
+      short: 'Mark complete',
     },
   ],
   results: [
     {
       head: 'A finished class is waiting for you',
       text: 'The Results tab lists it with what to do next: check the scores.',
+      short: 'Class finished',
     },
     {
       head: 'The placements are worked out',
       text: 'Open the class to see them, ranked from the scores.',
+      short: 'Placements worked out',
     },
     {
       head: 'You release the results',
       text: 'One press. The class reads Released and exhibitors can see their scores.',
+      short: 'You release',
     },
     {
       head: 'The exhibitor sees it on their phone',
       text: 'My Entries shows New result on the dog’s class, and it opens the result card.',
+      short: 'Exhibitor sees it',
     },
   ],
 };
@@ -199,7 +248,7 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
       id: 'setup',
       title: 'Set up the show',
       body: 'Classes, levels and qualifying rules for AKC, UKC and ASCA are built in. Start from last year’s show and change what is new.',
-      shot: SHOTS['s-02'],
+      shot: SHOTS['club-create-show'],
       meanwhile: 'Exhibitors can find your show and read the premium list as soon as you publish.',
     },
     {
@@ -214,7 +263,7 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
       id: 'before',
       title: 'Before show day',
       body: 'Running orders, check-in sheets and armbands come from the entries you already have.',
-      shot: SHOTS['s-12'],
+      shot: null,
       nightBefore: true,
       meanwhile: 'Exhibitors see their armband number and their classes.',
     },
@@ -235,14 +284,8 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
       body: 'Placements are worked out from the scores. You choose when results go public.',
       shot: null,
       scene: 'results',
-      meanwhile: 'Each exhibitor sees their dog’s placement the moment you release it.',
-    },
-    {
-      id: 'after',
-      title: 'After the show',
-      body: 'Every result is already recorded. Nothing to re-key.',
-      shot: null,
-      meanwhile: 'Every Q stays on each dog’s record, show after show.',
+      meanwhile:
+        'Each exhibitor sees their dog’s placement the moment you release it, and every Q stays on the dog’s record.',
     },
   ],
   exhibitor: [
@@ -250,7 +293,7 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
       id: 'setup',
       title: 'Find a show',
       body: 'Browse upcoming scent work shows by registry and date. Open any show to see what the club has published.',
-      shot: SHOTS['e-01'],
+      shot: SHOTS['exhibitor-find-a-show'],
       meanwhile: 'The club sets up the show, with AKC, UKC or ASCA rules already built in.',
     },
     {
@@ -265,7 +308,7 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
       id: 'before',
       title: 'Know where to be',
       body: 'See your armband number and the classes your dog is entered in.',
-      shot: SHOTS['e-12'],
+      shot: SHOTS['exhibitor-my-entries'],
       meanwhile: 'Running orders, check-in sheets and armbands come straight from the entries.',
     },
     {
@@ -281,18 +324,11 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
     {
       id: 'results',
       title: 'There’s your placement',
-      body: 'Your dog’s placement shows up as soon as the club releases results.',
-      shot: null,
+      body: 'Your dog’s placement shows up as soon as the club releases results, and every Q stays on your dog’s record, show after show.',
+      shot: SHOTS['exhibitor-past-results'],
       scene: 'results',
       meanwhile:
         'Placements are worked out from the scores, and the club chooses when to release them.',
-    },
-    {
-      id: 'after',
-      title: 'Every Q on your dog’s record',
-      body: 'Qualifying runs stay on your dog’s record, show after show.',
-      shot: SHOTS['e-16'],
-      meanwhile: 'The results are already recorded, with nothing to re-type.',
     },
   ],
 };

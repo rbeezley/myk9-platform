@@ -196,6 +196,7 @@ describe('ShowEditPremiumTab', () => {
           style: 'poster',
           clubName: 'Test Club',
           experiencePublishedContent: {
+            org: 'AKC',
             style: 'fieldGuide',
             generatedAt: '2026-05-09T14:00:00.000Z',
             narratives: {
@@ -249,6 +250,7 @@ describe('ShowEditPremiumTab', () => {
 
   describe('online, the preview starts from the server facts (MYK9-2244)', () => {
     const published = {
+      org: 'AKC',
       style: 'fieldGuide',
       generatedAt: '2026-05-09T14:00:00.000Z',
       narratives: { showHours: 'Edited hours.', trialInformation: 'Edited info.' },
@@ -356,7 +358,7 @@ describe('ShowEditPremiumTab', () => {
       ).trials[0]?.judges;
     const renderOffline = (queryClient: QueryClient) => {
       publishedExperienceContentMock = buildExperienceSnapshot({
-        premium: baseGeneratedPremium(),
+        premium: { ...baseGeneratedPremium(), org: 'ASCA' },
         premiumPath: null,
         premiumUrl: '',
       });
@@ -414,6 +416,7 @@ describe('ShowEditPremiumTab', () => {
       stewards: [],
     };
     publishedExperienceContentMock = {
+      org: 'AKC',
       style: 'fieldGuide',
       generatedAt: '2026-05-09T14:00:00.000Z',
       narratives: { showHours: 'h', trialInformation: 't' },
@@ -446,6 +449,7 @@ describe('ShowEditPremiumTab', () => {
 
   it('seeds shared content from the fetched published snapshot when replication has not cached it', () => {
     publishedExperienceContentMock = {
+      org: 'AKC',
       style: 'fieldGuide',
       generatedAt: '2026-05-09T14:00:00.000Z',
       narratives: {
@@ -528,7 +532,8 @@ describe('republishing an edited premium without Regenerate keeps the recording 
       organization: showOrg,
       startDate: NEW_YEAR_SHOW.startDate,
       endDate: newYear,
-      experiencePublishedContent: PUBLISHED,
+      // Built for the organization under test, so the editor seeds from it (MYK9-2216).
+      experiencePublishedContent: { ...PUBLISHED, org: showOrg },
       trials,
     };
     render(
@@ -642,7 +647,116 @@ describe('ShowEditPremiumTab unsaved organization (MYK9-2213)', () => {
     renderTab('UKC', 'AKC');
     expect(premiumEditorProps.at(-1)).toMatchObject({
       regenerateBlockedReason:
-        'Save the show first. Regenerate builds from the saved organization (AKC).',
+        'The organization changed. Save the show, then regenerate the premium for UKC before publishing.',
+    });
+  });
+
+  describe('with a published premium (MYK9-2216)', () => {
+    const published = buildExperienceSnapshot({
+      premium: {
+        org: 'AKC',
+        style: 'monogram',
+        show: { startDate: '2026-05-01' },
+        trials: [],
+        narratives: { showHours: 'AKC hours.', trialInformation: 'AKC info.' },
+        supplemental: {
+          vetClinic: null,
+          accommodations: [],
+          coverImageUrl: null,
+          hospitalityNotes: null,
+          awardsDescription: null,
+          additionalNotes: 'AKC notes.',
+        },
+      },
+      premiumPath: 'show-1/artifact-1.pdf',
+      premiumUrl: 'https://trusted.example/premium-published/show-1/artifact-1.pdf',
+    });
+    const renderPublished = (showOrg: 'AKC' | 'UKC') =>
+      render(
+        <ShowEditPremiumTab
+          data={{ ...baseData, organization: showOrg, experiencePublishedContent: published }}
+          clubId="c1"
+          showOrg={showOrg}
+          savedOrganization="AKC"
+          isActive
+          handleCheckboxChange={vi.fn(() => vi.fn())}
+          handleValueChange={vi.fn(() => vi.fn())}
+        />
+      );
+
+    it('carries no old premium text over to a changed organization', () => {
+      renderPublished('UKC');
+      expect(premiumEditorProps.at(-1)?.initialPremium).toBeUndefined();
+    });
+
+    it('offline, does not reuse a snapshot published before it recorded an organization', () => {
+      const legacy = structuredClone(published);
+      delete legacy.org;
+      render(
+        <ShowEditPremiumTab
+          data={{ ...baseData, organization: 'AKC', experiencePublishedContent: legacy }}
+          clubId="c1"
+          showOrg="AKC"
+          savedOrganization="AKC"
+          isActive
+          handleCheckboxChange={vi.fn(() => vi.fn())}
+          handleValueChange={vi.fn(() => vi.fn())}
+        />
+      );
+      expect(premiumEditorProps.at(-1)?.initialPremium).toBeUndefined();
+    });
+
+    it('online, seeds from the server facts, not a snapshot built for another organization', () => {
+      premiumFactsMock = {
+        data: {
+          ...published,
+          org: 'UKC',
+          narratives: { showHours: 'UKC hours.', trialInformation: 'UKC info.' },
+          supplemental: { ...published.supplemental, additionalNotes: 'UKC notes.' },
+        },
+        isLoading: false,
+      };
+      render(
+        <ShowEditPremiumTab
+          data={{ ...baseData, organization: 'UKC', experiencePublishedContent: published }}
+          clubId="c1"
+          showOrg="UKC"
+          savedOrganization="UKC"
+          isActive
+          handleCheckboxChange={vi.fn(() => vi.fn())}
+          handleValueChange={vi.fn(() => vi.fn())}
+        />
+      );
+      expect(premiumEditorProps.at(-1)?.initialPremium).toMatchObject({
+        org: 'UKC',
+        templateId: null,
+        narratives: { showHours: 'UKC hours.', trialInformation: 'UKC info.' },
+        supplemental: { additionalNotes: 'UKC notes.' },
+      });
+    });
+
+    it('offline, does not reuse a snapshot built for another saved organization', () => {
+      render(
+        <ShowEditPremiumTab
+          data={{
+            ...baseData,
+            organization: 'UKC',
+            experiencePublishedContent: published,
+          }}
+          clubId="c1"
+          showOrg="UKC"
+          savedOrganization="UKC"
+          isActive
+          handleCheckboxChange={vi.fn(() => vi.fn())}
+          handleValueChange={vi.fn(() => vi.fn())}
+        />
+      );
+      expect(premiumEditorProps.at(-1)?.initialPremium).toBeUndefined();
+    });
+
+    it('keeps the published premium when the organization is unchanged', () => {
+      renderPublished('AKC');
+      expect(premiumEditorProps.at(-1)?.initialPremium).toBeDefined();
     });
   });
 

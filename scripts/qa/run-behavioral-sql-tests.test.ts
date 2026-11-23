@@ -234,6 +234,7 @@ const launchCriticalSqlTests = [
   'myk9_1969_place_in_line_claim_state_test.sql',
   'myk9_1963_entry_receipt_marker_test.sql',
   'myk9_2088_confirmation_claim_lease_test.sql',
+  'myk9_2341_server_only_column_guards_test.sql',
   'myk9_1048_submit_entries_next_run_order_test.sql',
   'myk9_1010_owner_address_required_test.sql',
   'myk9_1010_fill_entry_owner_address_test.sql',

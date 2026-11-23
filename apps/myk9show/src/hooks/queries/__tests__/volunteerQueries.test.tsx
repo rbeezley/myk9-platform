@@ -214,6 +214,43 @@ describe('volunteerQueries', () => {
     });
   });
 
+  describe('a failed single assign or remove is not retried (MYK9-2332)', () => {
+    function retryingWrapper() {
+      const queryClient = new QueryClient({
+        defaultOptions: { mutations: { retry: 1, retryDelay: 0 } },
+      });
+      return ({ children }: { children: ReactNode }) => (
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      );
+    }
+
+    it('assigning inserts once even when the app default retries', async () => {
+      const single = vi.fn().mockResolvedValue({ data: null, error: new Error('Failed to fetch') });
+      vi.mocked(supabase.from).mockReturnValue({
+        insert: vi.fn().mockReturnValue({ select: vi.fn().mockReturnValue({ single }) }),
+      } as never);
+      const { result } = renderHook(() => useAssignToClass(SHOW_ID), {
+        wrapper: retryingWrapper(),
+      });
+      result.current.mutate({ volunteerId: 'v-1', classId: 'c-1', roleName: 'Timer' });
+      await waitFor(() => expect(result.current.isError).toBe(true));
+      expect(single).toHaveBeenCalledTimes(1);
+    });
+
+    it('removing deletes once even when the app default retries', async () => {
+      const eq = vi.fn().mockResolvedValue({ error: new Error('Failed to fetch') });
+      vi.mocked(supabase.from).mockReturnValue({
+        delete: vi.fn().mockReturnValue({ eq }),
+      } as never);
+      const { result } = renderHook(() => useUnassignFromClass(SHOW_ID), {
+        wrapper: retryingWrapper(),
+      });
+      result.current.mutate('a-1');
+      await waitFor(() => expect(result.current.isError).toBe(true));
+      expect(eq).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('useUnassignFromClass', () => {
     it('calls supabase delete on volunteer_class_assignments', async () => {
       vi.mocked(supabase.from).mockReturnValue({

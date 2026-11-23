@@ -2,6 +2,7 @@ import type { EntryPendingReason } from '@/utils/entryStatusUtils';
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { onlineManager } from '@tanstack/react-query';
 import { getShowStyle, getTrialTimezone } from '@/features/registries';
+import { isCountdownTargetClosed } from '@/features/_shared/hooks/useCountdown';
 import { STYLED_LANDING_BY_STYLE } from '@/features/_shared/styledLandingRegistry';
 import type { ShowStyle } from '@/features/registries';
 import { PremiumStyleSelector } from '@/components/panels/edit/PremiumStyleSelector';
@@ -11,6 +12,10 @@ import { ShowStyleSaveError } from '@/features/premium/showStylePersistence';
 import { StaleShowNotice } from './StaleShowNotice';
 import { ServiceFeeNote, useServiceFeeLabel } from '@/features/payments/ServiceFeeNote';
 import { acceptsOnlineEntries } from '@/features/payments/onlineEntryGate';
+import {
+  cardEntriesLanding,
+  useShowCardEntriesPaused,
+} from '@/features/payments/useShowCardEntriesPaused';
 import { PendingEntryCopyProvider } from '@/features/_shared/landing/PendingEntryCopyContext';
 import { pendingEntryCopy } from '@/features/_shared/landing/pendingEntryCopy';
 import { ShowResultsSection } from '@/features/_shared/landing/ShowResultsSection';
@@ -99,6 +104,27 @@ export function ShowPublicLanding({
   // Unknown (a stale cached row) is never online-capable: no Enter CTA until known.
   const onlineEntriesOpen = acceptsOnlineEntries(show);
   const showServiceFee = useServiceFeeLabel(show) !== null;
+  // MYK9-2192: the server's answer on card entries (anon-readable), so this page and the
+  // checkout refusal cannot disagree. Enter waits for it; it never reads loading as open.
+  // Asked whenever every other input of the styled landing's Enter decision
+  // (inventory !== false && !entryClosed && !entryPendingReason) would offer Enter. The close
+  // part is left to the landing's own countdown: the ask is not skipped on a close this page
+  // works out separately, so no clock or zone mismatch can offer Enter without an answer.
+  const cardState = useShowCardEntriesPaused(
+    show,
+    entryPendingReason === undefined && onlineEntriesOpen && hasEntryClassInventory !== false
+  );
+  const cardLanding = cardEntriesLanding(cardState, show);
+  const trialTimezone = getTrialTimezone(landingTrials[0] ?? null);
+  // The pay-by-check line only while entries are open. Read at render, with no timer of its
+  // own: the landing's countdown already ticks, and a note outliving the close by a few minutes
+  // offers nothing the closed Enter does not.
+  const cardNote = isCountdownTargetClosed(
+    landingTrials[0]?.entryCloseDate ?? show.entryCloseDate ?? null,
+    trialTimezone
+  )
+    ? null
+    : cardLanding.note;
 
   // Public visitors render the last published experience. Managers in Preview
   // intentionally render the current draft instead; changing the draft must
@@ -178,8 +204,8 @@ export function ShowPublicLanding({
   // Built once here, not per style page: a style's countdown re-renders every second, and the
   // copy (a date formatted in the trial's zone) only changes with these inputs.
   const effectivePendingReason =
-    entryPendingReason ?? (onlineEntriesOpen ? undefined : 'online_setting_unknown');
-  const trialTimezone = getTrialTimezone(landingTrials[0] ?? null);
+    entryPendingReason ??
+    (onlineEntriesOpen ? cardLanding.pendingReason : 'online_setting_unknown');
   // The copy follows `entryPendingReason`, which the page re-derives when the opening
   // boundary passes (useEntryOpenBoundaryTick), so the copy, the reason and the Enter action
   // change together.
@@ -252,6 +278,15 @@ export function ShowPublicLanding({
           aria-label="Service fee"
         >
           <ServiceFeeNote show={show} />
+        </div>
+      )}
+      {cardNote && (
+        <div
+          className="border-b border-border bg-muted px-4 py-3 text-sm text-foreground sm:px-6"
+          role="note"
+          aria-label="Card payments paused"
+        >
+          {cardNote}
         </div>
       )}
       <LateEntryContactContext.Provider value={lateEntryContact}>

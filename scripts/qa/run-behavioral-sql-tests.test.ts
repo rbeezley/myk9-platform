@@ -84,6 +84,7 @@ const launchCriticalSqlTests = [
   'myk9_979_online_entries_switch_test.sql',
   'myk9_2163_publish_needs_payouts_test.sql',
   'myk9_2197_show_publish_blockers_test.sql',
+  'myk9_2192_show_card_entries_paused_test.sql',
   'myk9_2199_club_first_show_published_test.sql',
   'myk9_2054_own_premium_unpublish_test.sql',
   'myk9_909_club_creator_select_test.sql',

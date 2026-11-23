@@ -75,12 +75,14 @@ export function StickyNav({
   entryClosed = false,
 }: StickyNavProps) {
   const pending = usePendingEntryCopy();
-  const statusLabel =
+  // The status follows the same decision as the CTA: never "Entries open" beside a withheld Enter.
+  const openLabel =
     entryCount == null
       ? 'Entries open · count unavailable'
       : entryLimit != null
         ? `Entries open · ${formatEntryCount(entryCount)} / ${entryLimit}`
         : `Entries open · ${formatEntryCount(entryCount)}`;
+  const statusLabel = canEnterOnline ? openLabel : entryClosed ? 'Entries closed' : pending.nav;
 
   return (
     <nav

@@ -218,6 +218,8 @@ describe('isUnambiguousSharedStagingRestWrite', () => {
     'get_effective_permissions',
     // Add Dog's "Find dog" (MYK9-1162); a pure yes/no read.
     'registry_identity_taken',
+    // The public show page's card-entries answer (MYK9-2192); STABLE.
+    'shows_card_entries_paused',
   ])('names %s explicitly so removing it from the allowlist fails here', rpc => {
     expect(AUDIT_READ_ONLY_RPCS.has(rpc)).toBe(true);
     expect(

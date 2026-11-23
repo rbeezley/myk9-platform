@@ -16,6 +16,8 @@ import { BannerLandingPage } from '../BannerLandingPage';
 import { deriveBannerBrandColors } from '../../hooks/useBannerBrandColor';
 import { bannerColors } from '../../tokens';
 import type { BannerLandingData } from '../types';
+import { PendingEntryCopyProvider } from '@/features/_shared/landing/PendingEntryCopyContext';
+import { CARD_PAUSED_COPY } from '@/features/_shared/landing/pendingEntryCopy';
 import { mockViewportWidth } from '@/test/utils/mockViewportWidth';
 
 vi.mock('../../fonts', () => ({
@@ -148,5 +150,23 @@ describe('BannerLandingPage — club flag colour (MYK9-751)', () => {
     }
     // The fixture's flag must differ from the default, or this proves nothing.
     expect(baseData.brandColors.flagText).not.toBe(bannerColors.flag);
+  });
+});
+
+describe('BannerLandingPage — card entries paused (MYK9-2192)', () => {
+  it('makes no open-entries claim when card entries are paused', () => {
+    render(
+      <PendingEntryCopyProvider value={CARD_PAUSED_COPY}>
+        <BannerLandingPage
+          show={{ id: 'show-1', name: 'x' } as never}
+          trial={null}
+          allTrials={[]}
+          hasEntryClassInventory
+          entryPendingReason="card_entries_paused"
+        />
+      </PendingEntryCopyProvider>
+    );
+    expect(screen.queryByText(/Entries open ·/)).not.toBeInTheDocument();
+    expect(screen.getAllByText('Card entries paused').length).toBeGreaterThan(0);
   });
 });

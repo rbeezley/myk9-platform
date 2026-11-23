@@ -1,4 +1,5 @@
 import { usePendingEntryCopy } from '@/features/_shared/landing/PendingEntryCopyContext';
+import { HeadlineRosterStatus } from './HeadlineRosterStatus';
 import { TO_BE_ANNOUNCED_LABEL } from '@/lib/format/fallbackLabels';
 import type { EntryPendingReason } from '@/utils/entryStatusUtils';
 import { formatEntryLimit } from '@/features/_shared/landing/entryLimit';
@@ -318,7 +319,15 @@ function Particulars({ data }: { data: HeritageLandingData }) {
   );
 }
 
-function Roster({ data }: { data: HeritageLandingData }) {
+function Roster({
+  data,
+  canEnterOnline,
+  entryClosed,
+}: {
+  data: HeritageLandingData;
+  canEnterOnline: boolean;
+  entryClosed: boolean;
+}) {
   const hasLimit = typeof data.entryLimit === 'number' && data.entryLimit > 0;
   const pct = entryCapacityPercent(data.entryCount, data.entryLimit);
 
@@ -375,7 +384,10 @@ function Roster({ data }: { data: HeritageLandingData }) {
                 <tr>
                   <th>Status</th>
                   <td>
-                    <span className="accent">Open</span> · accepting entries
+                    <HeadlineRosterStatus
+                      canEnterOnline={canEnterOnline}
+                      entryClosed={entryClosed}
+                    />
                   </td>
                 </tr>
                 <tr>
@@ -461,7 +473,7 @@ export function HeadlineLandingPage({
         <RecordingFeeSection statement={data.recordingFee} className="hd-section" />
         <ScoutingStatementSection statement={data.scoutingStatement} className="hd-section" />
         <PremiumDownloadSection show={show} className="hd-section" />
-        <Roster data={data} />
+        <Roster data={data} canEnterOnline={canEnterOnline} entryClosed={entryClosed} />
         <ScheduleAndPlan data={data} />
         <Officers data={data} />
         <OfferedClassesSection show={show} className="hd-section" />

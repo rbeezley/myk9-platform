@@ -13,7 +13,7 @@ import { formatShowDate, getCalendarDayParts } from './calendarDate';
  * - anything else: a neutral "not open yet", never an invented reason.
  */
 export interface PendingEntryCopy {
-  kind: 'not-open' | 'no-classes';
+  kind: 'not-open' | 'no-classes' | 'card-paused' | 'checking';
   /** Short nav / strip label. */
   nav: string;
   /** One full sentence for hero blocks. */
@@ -55,6 +55,26 @@ export const NOT_OPEN_NO_DATE: PendingEntryCopy = {
   sub: 'Online entry is not available yet.',
 };
 
+/** MYK9-2192: a card-only show whose card entries are paused. Neutral: no reason is given. */
+export const CARD_PAUSED_COPY: PendingEntryCopy = {
+  kind: 'card-paused',
+  nav: 'Card entries paused',
+  sentence: 'Card entries are paused. Contact the secretary.',
+  headlineLead: 'Card entries are',
+  headlineAccent: 'paused',
+  sub: 'Contact the secretary.',
+};
+
+/** MYK9-2192: Enter is withheld until the server says whether card entries are paused. */
+export const CHECKING_COPY: PendingEntryCopy = {
+  kind: 'checking',
+  nav: 'Checking entries',
+  sentence: 'Checking entry availability.',
+  headlineLead: 'Checking',
+  headlineAccent: 'entry availability',
+  sub: 'Online entry appears here once checked.',
+};
+
 /** True when the open date (a calendar day or an instant) is still ahead of `now`. */
 function isFutureOpenDate(iso: string, timezone: string, now: Date): boolean {
   const day = getCalendarDayParts(iso);
@@ -74,6 +94,8 @@ export function pendingEntryCopy({
   timezone,
   now = new Date(),
 }: PendingEntryCopyInput): PendingEntryCopy {
+  if (entryPendingReason === 'card_entries_paused') return CARD_PAUSED_COPY;
+  if (entryPendingReason === 'card_entries_checking') return CHECKING_COPY;
   if (entryPendingReason) {
     // Only `not_yet_open` with a date still ahead can say "opens <date>". The
     // other reasons (no window, unknown online setting) say nothing about when,

@@ -9,7 +9,7 @@ import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { GazetteLandingPage } from '../GazetteLandingPage';
 import { PendingEntryCopyProvider } from '@/features/_shared/landing/PendingEntryCopyContext';
-import { pendingEntryCopy } from '@/features/_shared/landing/pendingEntryCopy';
+import { CARD_PAUSED_COPY, pendingEntryCopy } from '@/features/_shared/landing/pendingEntryCopy';
 import type { GazetteLandingData } from '../types';
 import { mockViewportWidth } from '@/test/utils/mockViewportWidth';
 
@@ -213,5 +213,22 @@ describe('GazetteLandingPage: entries not open yet with classes assigned', () =>
 
     expect(screen.getAllByText('Classes pending').length).toBeGreaterThan(0);
     expect(container.textContent).toContain('assign classes');
+  });
+});
+
+describe('GazetteLandingPage — card entries paused (MYK9-2192)', () => {
+  it('makes no open-entries claim when card entries are paused', () => {
+    render(
+      <PendingEntryCopyProvider value={CARD_PAUSED_COPY}>
+        <GazetteLandingPage
+          show={{ id: 'show-1', name: 'x' } as never}
+          trial={null}
+          allTrials={[]}
+          hasEntryClassInventory
+          entryPendingReason="card_entries_paused"
+        />
+      </PendingEntryCopyProvider>
+    );
+    expect(screen.queryByText(/is now open for entries/)).not.toBeInTheDocument();
   });
 });

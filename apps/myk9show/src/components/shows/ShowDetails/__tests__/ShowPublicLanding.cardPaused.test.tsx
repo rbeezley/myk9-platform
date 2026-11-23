@@ -28,11 +28,14 @@ vi.mock('@/features/heritage/landing/HeritageLandingPage', () => ({
     show,
   }: {
     entryPendingReason?: string;
-    show: { entryCloseDate?: string };
+    show: { entryCloseDate?: string; testTimezone?: string };
   }) => {
     const copy = usePendingEntryCopy();
     // The real landings gate Enter on the same countdown and the pending reason.
-    const closed = useCountdown(show.entryCloseDate ?? null, 'America/New_York').closed;
+    const closed = useCountdown(
+      show.entryCloseDate ?? null,
+      show.testTimezone ?? 'America/New_York'
+    ).closed;
     return (
       <div>
         {!closed && !entryPendingReason && <button type="button">Enter</button>}
@@ -147,12 +150,14 @@ describe('ShowPublicLanding card entries (MYK9-2192)', () => {
       vi.useRealTimers();
     });
 
-    it('shows no card note and no Enter just after the close', () => {
+    it('shows no card note and no Enter just after the close', async () => {
       vi.useFakeTimers({ toFake: ['Date'] });
       vi.setSystemTime(new Date('2026-06-10T12:00:01Z'));
       rpc.mockResolvedValue({ data: ['show-1'], error: null });
       renderLanding(timed());
-      expect(rpc).not.toHaveBeenCalled();
+      // The close is the landing's own countdown; the page still asks, and nothing it learns
+      // can bring Enter or the note back.
+      await vi.waitFor(() => expect(rpc).toHaveBeenCalled());
       expect(screen.queryByRole('note', { name: 'Card payments paused' })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Enter' })).not.toBeInTheDocument();
     });
@@ -167,6 +172,26 @@ describe('ShowPublicLanding card entries (MYK9-2192)', () => {
       ).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Enter' })).toBeInTheDocument();
     });
+  });
+
+  // Codex round 5 on #4307: a Pacific trial in its last three hours of entry is already
+  // "closed" in New York. Enter must still wait for, and obey, the server's answer.
+  it('withholds Enter on a paused card-only Pacific show late on its close day', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-06-11T05:30:00Z')); // 22:30 on June 10 in Los Angeles
+    rpc.mockResolvedValue({ data: ['show-1'], error: null });
+    const show = {
+      ...openShow(false),
+      entryCloseDate: '2026-06-10T00:00:00+00:00',
+      testTimezone: 'America/Los_Angeles',
+    } as unknown as Show;
+    renderLanding(show);
+    expect(screen.queryByRole('button', { name: 'Enter' })).not.toBeInTheDocument();
+    expect(
+      await screen.findByText('Card entries are paused. Contact the secretary.')
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Enter' })).not.toBeInTheDocument();
+    vi.useRealTimers();
   });
 
   it('withholds Enter when the request fails', async () => {

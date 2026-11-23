@@ -1,8 +1,8 @@
-import { getEntryStatus, type EntryPendingReason } from '@/utils/entryStatusUtils';
+import type { EntryPendingReason } from '@/utils/entryStatusUtils';
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { onlineManager } from '@tanstack/react-query';
 import { getShowStyle, getTrialTimezone } from '@/features/registries';
-import { useCountdown } from '@/features/_shared/hooks/useCountdown';
+import { isCountdownTargetClosed } from '@/features/_shared/hooks/useCountdown';
 import { STYLED_LANDING_BY_STYLE } from '@/features/_shared/styledLandingRegistry';
 import type { ShowStyle } from '@/features/registries';
 import { PremiumStyleSelector } from '@/components/panels/edit/PremiumStyleSelector';
@@ -106,25 +106,25 @@ export function ShowPublicLanding({
   const showServiceFee = useServiceFeeLabel(show) !== null;
   // MYK9-2192: the server's answer on card entries (anon-readable), so this page and the
   // checkout refusal cannot disagree. Enter waits for it; it never reads loading as open.
-  // Asked only while Enter could be offered: a closed or finished show has nothing to pause.
-  // The inventory is the landing's own (null while unresolved counts as "could be offered"),
-  // the same input the styled landing gates Enter on, so skipping the ask never enables Enter.
-  const entryStatusNow = getEntryStatus(show, false, {
-    hasEntryClassInventory: hasEntryClassInventory !== false,
-  }).status;
-  // The close instant is decided once, by the countdown the styled landings' Enter button also
-  // reads (a non-midnight cutoff is honored), so the card ask, the paused note and Enter cannot
-  // disagree after a timed close. getEntryStatus only has day granularity.
-  const trialTimezone = getTrialTimezone(landingTrials[0] ?? null);
-  const entryClosed = useCountdown(
-    landingTrials[0]?.entryCloseDate ?? show.entryCloseDate ?? null,
-    trialTimezone
-  ).closed;
+  // Asked whenever every other input of the styled landing's Enter decision
+  // (inventory !== false && !entryClosed && !entryPendingReason) would offer Enter. The close
+  // part is left to the landing's own countdown: the ask is not skipped on a close this page
+  // works out separately, so no clock or zone mismatch can offer Enter without an answer.
   const cardState = useShowCardEntriesPaused(
     show,
-    !entryClosed && (entryStatusNow === 'accepting' || entryStatusNow === 'closing_soon')
+    entryPendingReason === undefined && onlineEntriesOpen && hasEntryClassInventory !== false
   );
   const cardLanding = cardEntriesLanding(cardState, show);
+  const trialTimezone = getTrialTimezone(landingTrials[0] ?? null);
+  // The pay-by-check line only while entries are open. Read at render, with no timer of its
+  // own: the landing's countdown already ticks, and a note outliving the close by a few minutes
+  // offers nothing the closed Enter does not.
+  const cardNote = isCountdownTargetClosed(
+    landingTrials[0]?.entryCloseDate ?? show.entryCloseDate ?? null,
+    trialTimezone
+  )
+    ? null
+    : cardLanding.note;
 
   // Public visitors render the last published experience. Managers in Preview
   // intentionally render the current draft instead; changing the draft must
@@ -280,13 +280,13 @@ export function ShowPublicLanding({
           <ServiceFeeNote show={show} />
         </div>
       )}
-      {cardLanding.note && (
+      {cardNote && (
         <div
           className="border-b border-border bg-muted px-4 py-3 text-sm text-foreground sm:px-6"
           role="note"
           aria-label="Card payments paused"
         >
-          {cardLanding.note}
+          {cardNote}
         </div>
       )}
       <LateEntryContactContext.Provider value={lateEntryContact}>

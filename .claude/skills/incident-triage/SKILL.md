@@ -21,7 +21,7 @@ Show weekends are the highest-stakes windows: exhibitors and secretaries are sta
 - Supabase MCP: `get_logs` (api, postgres, edge functions), `get_advisors`.
 - Sentry — recent release regressions and error spikes.
 - Vercel — did a deploy land right before onset? Merge time vs onset time.
-- `supabase migration list --remote` — did a migration land that wasn't matched by a function deploy (or vice versa)? Merge ≠ deploy.
+- `bash scripts/supabase.sh migration list --remote` — did a migration land that wasn't matched by a function deploy (or vice versa)? Merge ≠ deploy.
 
 ## Step 3 — Match against known signatures
 

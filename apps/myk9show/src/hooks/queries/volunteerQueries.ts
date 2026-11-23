@@ -3,7 +3,7 @@ import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import { supabase } from '@/services/database/supabaseClient';
 import { notifications } from '@/lib/notifications';
 import { VOLUNTEER_COPY } from './volunteerErrorCopy';
-import type { Volunteer, ClassInfo, ClassAssignment, GeneralAssignment } from '@/types/volunteer';
+import type { Volunteer, ClassAssignment, GeneralAssignment } from '@/types/volunteer';
 import { ilikeContains } from '@/utils/sanitizePostgRESTFilter';
 
 // ── Mappers ──────────────────────────────────────────────────────────────────
@@ -181,37 +181,6 @@ export function useVolunteerConflicts(showId: string | undefined, volunteers: Vo
     },
     enabled: !!showId && personIds.length > 0,
     ...cacheStrategies.moderate,
-  });
-}
-
-export function useShowClassesForVolunteers(showId: string | undefined) {
-  return useQuery({
-    queryKey: queryKeys.showClasses(showId ?? ''),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('classes')
-        .select(
-          'id, name, element, level, start_time, trial:trials!inner(id, trial_date:date, trial_number, show_id)'
-        )
-        .eq('trial.show_id' as string, showId!);
-      if (error) throw error;
-      return (data ?? []).map((row): ClassInfo => {
-        const trial = row.trial as unknown as Record<string, unknown>;
-        const displayName =
-          [row.element, row.level, (row as Record<string, unknown>).section as string | undefined]
-            .filter(Boolean)
-            .join(' ') || row.name;
-        const metaParts = [row.start_time ?? null].filter(Boolean);
-        return {
-          id: row.id,
-          name: displayName,
-          trialId: trial.id as string,
-          meta: metaParts.join(' \u2022 '),
-        };
-      });
-    },
-    enabled: !!showId,
-    ...cacheStrategies.dynamic,
   });
 }
 

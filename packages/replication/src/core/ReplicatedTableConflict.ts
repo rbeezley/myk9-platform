@@ -26,17 +26,6 @@ export function applyConflictSnapshot<T>(
   };
 }
 
-/**
- * MYK9-2337: a conflict choice was made against a row that a newer local edit moved on while
- * the queue was being reconciled. The row keeps its conflict, so the person can choose again.
- */
-export class ConflictChoiceStaleError extends Error {
-  constructor(tableName: string, rowId: string) {
-    super(`[ReplicatedTable] ${tableName}/${rowId} changed while its conflict was being resolved`);
-    this.name = 'ConflictChoiceStaleError';
-  }
-}
-
 export function clearConflictSnapshot<T>(
   existingRow: ReplicatedRow<T> | undefined,
   newServerVersion?: number

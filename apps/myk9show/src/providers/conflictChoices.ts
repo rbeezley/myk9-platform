@@ -12,7 +12,6 @@
  * overwrite the change the person just chose.
  */
 import type { MutationManager, ReplicatedTable } from '@myk9/replication';
-import { logger } from '@/utils/logger';
 
 export type ConflictChoiceTable = Pick<
   ReplicatedTable<{ id: string }>,
@@ -29,15 +28,8 @@ export async function keepMyChange(
   tableName: string,
   rowId: string
 ): Promise<void> {
-  // A throw here means the row still holds its conflict (MYK9-2337): the caller asks again.
   if (!(await table.resolveReplicationConflict(rowId, 'keep-local'))) return;
-  // Released. From here a failure to send is the queue's to report and retry, never a reason
-  // to ask again: a second prompt on a settled row could discard the write just kept.
-  try {
-    await queue.sendRowNow(tableName, rowId);
-  } catch (err) {
-    logger.warn('Keep my change: send now failed; the write stays queued', 'replication', { err });
-  }
+  await queue.sendRowNow(tableName, rowId);
 }
 
 export async function keepOtherChange(

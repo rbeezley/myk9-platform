@@ -194,22 +194,4 @@ describe('conflict choices offline past session expiry (MYK9-2337)', () => {
     expect(await table.resolveReplicationConflict('c1', 'keep-local')).toBe(true);
     expect((await deviceRow()).conflict).toBeUndefined();
   });
-
-  it('a local edit saved during the reconcile keeps the conflict and the newer edit (Codex P1 on #4324)', async () => {
-    const original = manager.reconcilePendingMutationsForRow.bind(manager);
-    vi.spyOn(manager, 'reconcilePendingMutationsForRow').mockImplementationOnce(async (...args) => {
-      // The judge taps another status while "Keep my change" is still sorting out the queue.
-      await table.setStatus('c1', 'completed');
-      return original(...args);
-    });
-
-    await expect(table.resolveReplicationConflict('c1', 'keep-local')).rejects.toThrow(
-      'changed while its conflict was being resolved'
-    );
-
-    const row = await deviceRow();
-    expect(row.data.classStatus).toBe('completed');
-    expect(row.syncStatus).toBe('conflict');
-    expect(row.conflict).toBeDefined();
-  });
 });

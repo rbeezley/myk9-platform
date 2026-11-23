@@ -1,6 +1,4 @@
 import { describe, expect, it, vi } from 'vitest';
-
-vi.mock('@/utils/logger', () => ({ logger: { warn: vi.fn() } }));
 import {
   keepMyChange,
   keepOtherChange,
@@ -59,14 +57,6 @@ describe('Keep my change failing (MYK9-2337)', () => {
 
     await expect(keepMyChange(table, queue, 'classes', 'c1')).rejects.toThrow('queue unavailable');
     expect(queue.sendRowNow).not.toHaveBeenCalled();
-  });
-
-  it('settles once the row is released even if sending now fails, so no second prompt can discard it', async () => {
-    const { table, queue } = makeFakes();
-    vi.mocked(queue.sendRowNow).mockRejectedValueOnce(new Error('token refresh failed'));
-
-    await expect(keepMyChange(table, queue, 'classes', 'c1')).resolves.toBeUndefined();
-    expect(table.resolveReplicationConflict).toHaveBeenCalledWith('c1', 'keep-local');
   });
 });
 

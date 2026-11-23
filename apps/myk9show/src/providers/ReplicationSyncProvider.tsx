@@ -234,9 +234,6 @@ async function ensureAuthenticatedEntryResultReplicaVersion(signal?: AbortSignal
   }
 }
 
-/** A conflict prompt re-asked after a failed choice (MYK9-2337): counts the re-asks. */
-type ConflictRetryDetail = ReplicationConflictEventDetail & { retryAttempt?: number };
-
 export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = ({
   children,
   syncScopeId = '',
@@ -878,18 +875,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
   useEffect(() => {
     const handleConflict = (event: Event) => {
       const detail = (event as CustomEvent<ReplicationConflictEventDetail>).detail;
-      // A re-ask after a failed choice gets its own toast id: the click that failed dismissed the
-      // original id, and Sonner's pending removal would take a reused id's buttons with it.
-      const retryAttempt = (detail as ConflictRetryDetail).retryAttempt ?? 0;
-      const conflictId =
-        `conflict:${detail.tableName}:${detail.rowId}` +
-        (retryAttempt ? `:retry-${retryAttempt}` : '');
-      const askAgain = () =>
-        window.dispatchEvent(
-          new CustomEvent('replication:conflict', {
-            detail: { ...detail, retryAttempt: retryAttempt + 1 } satisfies ConflictRetryDetail,
-          })
-        );
+      const conflictId = `conflict:${detail.tableName}:${detail.rowId}`;
 
       logger.warn('Replication conflict detected', 'replication', {
         tableName: detail.tableName,
@@ -934,7 +920,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
               .catch(err => {
                 // Nothing was released: ask again rather than leave the rows different.
                 logger.warn('Keep the other change failed', 'replication', { err });
-                askAgain();
+                window.dispatchEvent(new CustomEvent('replication:conflict', { detail }));
               })
               .finally(announceConflictSettled);
           },
@@ -950,11 +936,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
             }
             // A refusal gets the queue's own "could not be sent" notice (handleSyncFailed).
             void keepMyChange(anyTable, mutationManager, detail.tableName, detail.rowId)
-              .catch(err => {
-                // The row kept its conflict (MYK9-2337): ask again rather than lose the choice.
-                logger.warn('Keep my change failed', 'replication', { err });
-                askAgain();
-              })
+              .catch(err => logger.warn('Keep my change failed', 'replication', { err }))
               .finally(announceConflictSettled);
           },
         },

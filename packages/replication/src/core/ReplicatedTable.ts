@@ -49,7 +49,6 @@ import {
   applyConflictSnapshot,
   buildRemoteReplacementRow,
   clearConflictSnapshot,
-  ConflictChoiceStaleError,
   getConflictSnapshots,
 } from './ReplicatedTableConflict';
 import {
@@ -962,10 +961,10 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       return nextRow;
     };
 
-    const before = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, key)) as
-      ReplicatedRow<T> | undefined;
-    const planned = build(before);
-    if (!planned || !before) return;
+    const planned = build(
+      (await db.get(REPLICATION_STORES.REPLICATED_TABLES, key)) as ReplicatedRow<T> | undefined
+    );
+    if (!planned) return;
 
     // MYK9-2337: sort the queued change out FIRST. If this throws, the stored row still
     // holds syncStatus 'conflict' and row.conflict, so the person can choose again.
@@ -977,14 +976,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     }
 
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
-    const current = (await tx.store.get(key)) as ReplicatedRow<T> | undefined;
-    // A local edit saved while the queue was being reconciled moved the row on: releasing it
-    // now would lay the older choice over the newer edit. Keep the conflict and ask again.
-    if (current && current.version !== before.version) {
-      await tx.done;
-      throw new ConflictChoiceStaleError(this.tableName, normalizedId);
-    }
-    const nextRow = build(current);
+    const nextRow = build((await tx.store.get(key)) as ReplicatedRow<T> | undefined);
     if (nextRow) await tx.store.put(nextRow);
     await tx.done;
 

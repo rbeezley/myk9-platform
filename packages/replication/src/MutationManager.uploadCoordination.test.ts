@@ -169,30 +169,54 @@ describe('MutationManager upload coordination (MYK9-2345)', () => {
     }
   });
 
-  it('overlapping requests coalesce into one follow-up without polling', async () => {
-    await mockDb.put(REPLICATION_STORES.PENDING_MUTATIONS, makeMutation());
-    let releaseRpc!: () => void;
-    const rpcGate = new Promise<void>(resolve => {
-      releaseRpc = resolve;
+  // navigator.locks whose lock is held by "another tab" until release().
+  function installHeldWebLock(): { release: () => void } {
+    let held = true;
+    const waiters: Array<() => void> = [];
+    const request = (_name: string, options: unknown, maybeCallback?: unknown) => {
+      const callback = (maybeCallback ?? options) as () => Promise<unknown>;
+      return new Promise((resolve, reject) => {
+        const run = () => callback().then(resolve, reject);
+        if (held) waiters.push(run);
+        else void run();
+      });
+    };
+    Object.defineProperty(globalThis, 'navigator', {
+      value: { onLine: true, locks: { request } },
+      writable: true,
+      configurable: true,
     });
-    const rpc = vi.fn(async () => {
-      await rpcGate;
-      return { data: 8, error: null };
-    });
-    const manager = createManager(rpc);
-    const scheduleSpy = vi.spyOn(
+    return {
+      release: () => {
+        held = false;
+        waiters.splice(0).forEach(run => run());
+      },
+    };
+  }
+
+  function spyScheduleUpload(manager: MutationManager) {
+    return vi.spyOn(
       (manager as unknown as { uploadRunner: { scheduleUpload: () => void } }).uploadRunner,
       'scheduleUpload'
     );
+  }
+
+  it('overlapping requests while blocked on the lock coalesce into one follow-up without polling', async () => {
+    await mockDb.put(REPLICATION_STORES.PENDING_MUTATIONS, makeMutation());
+    const lock = installHeldWebLock();
+    const rpc = vi.fn(async () => ({ data: 8, error: null }));
+    const manager = createManager(rpc);
+    const scheduleSpy = spyScheduleUpload(manager);
     try {
+      // The pass is queued behind another tab's lock: isUploading is still false.
       const first = manager.uploadPendingMutations();
-      await waitFor(() => rpc.mock.calls.length === 1);
       await manager.uploadPendingMutations();
       await manager.uploadPendingMutations();
       await new Promise(resolve => setTimeout(resolve, 350));
       expect(scheduleSpy).not.toHaveBeenCalled();
+      expect(rpc).not.toHaveBeenCalled();
 
-      releaseRpc();
+      lock.release();
       await first;
       await waitFor(() => scheduleSpy.mock.calls.length > 0);
       await new Promise(resolve => setTimeout(resolve, 50));
@@ -200,6 +224,22 @@ describe('MutationManager upload coordination (MYK9-2345)', () => {
     } finally {
       manager.destroy();
     }
+  });
+
+  it('destroy() cancels a deferred overlap follow-up', async () => {
+    await mockDb.put(REPLICATION_STORES.PENDING_MUTATIONS, makeMutation());
+    const lock = installHeldWebLock();
+    const rpc = vi.fn(async () => ({ data: 8, error: null }));
+    const manager = createManager(rpc);
+    const scheduleSpy = spyScheduleUpload(manager);
+    const first = manager.uploadPendingMutations();
+    await manager.uploadPendingMutations();
+    manager.destroy();
+
+    lock.release();
+    await first;
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(scheduleSpy).not.toHaveBeenCalled();
   });
 
   describe('permanent failure move', () => {

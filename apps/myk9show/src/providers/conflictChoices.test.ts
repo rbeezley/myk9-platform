@@ -48,6 +48,18 @@ describe('Keep my change', () => {
   });
 });
 
+describe('Keep my change failing (MYK9-2337)', () => {
+  it('rejects without sending when the row could not be released, so the choice can be asked again', async () => {
+    const { table, queue } = makeFakes();
+    vi.mocked(table.resolveReplicationConflict).mockRejectedValueOnce(
+      new Error('queue unavailable')
+    );
+
+    await expect(keepMyChange(table, queue, 'classes', 'c1')).rejects.toThrow('queue unavailable');
+    expect(queue.sendRowNow).not.toHaveBeenCalled();
+  });
+});
+
 describe('Keep the other change', () => {
   it('drops the queued write before the row leaves the conflict', async () => {
     const { table, queue, calls } = makeFakes();

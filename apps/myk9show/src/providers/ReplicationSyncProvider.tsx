@@ -936,7 +936,11 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
             }
             // A refusal gets the queue's own "could not be sent" notice (handleSyncFailed).
             void keepMyChange(anyTable, mutationManager, detail.tableName, detail.rowId)
-              .catch(err => logger.warn('Keep my change failed', 'replication', { err }))
+              .catch(err => {
+                // The row kept its conflict (MYK9-2337): ask again rather than lose the choice.
+                logger.warn('Keep my change failed', 'replication', { err });
+                window.dispatchEvent(new CustomEvent('replication:conflict', { detail }));
+              })
               .finally(announceConflictSettled);
           },
         },

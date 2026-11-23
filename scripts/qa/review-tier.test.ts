@@ -35,6 +35,18 @@ describe('requiredTier', () => {
   // pattern it names is the only way to turn it red.
   it.each([
     ['supabase/functions/', 'supabase/functions/send-entry-email/index.ts'],
+    [
+      'apps/myk9show/supabase/functions/ (_shared)',
+      'apps/myk9show/supabase/functions/_shared/authoritativeFee.ts',
+    ],
+    [
+      'apps/myk9show/supabase/functions/ (_shared auth)',
+      'apps/myk9show/supabase/functions/_shared/stepUpReauth.ts',
+    ],
+    [
+      'apps/myk9show/supabase/functions/ (cron)',
+      'apps/myk9show/supabase/functions/cron-health-check/index.ts',
+    ],
     ['packages/replication/', 'packages/replication/src/replicatedEntriesTable.ts'],
     ['rls/grants/policies file', 'supabase/tests/rls_entries_select.sql'],
     ['auth/rbac/permissions/roles directory', 'apps/myk9show/src/features/auth/useAuth.ts'],

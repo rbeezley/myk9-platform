@@ -9,6 +9,8 @@
 -- earlier club rows, a reversal restoring the balance), a second reversal refused, the
 -- retry key writing once, a direct UPDATE of club_refunded_amount refused, a sibling entry
 -- of the same checkout untouched, and refund_amount / show_payouts unchanged by a write.
+-- Also: a dashboard refund no entry records (card_refund_unreconciled), and service_role
+-- holding no direct write on the ledger.
 -- Every fixture rolls back.
 
 BEGIN;
@@ -207,6 +209,22 @@ $$;
 RESET ROLE;
 UPDATE public.show_payouts SET status = 'completed', completed_at = now(), failure_reason = NULL
  WHERE id = '00000000-0000-0000-0000-000000230061';
+
+-- Codex #4292: a dashboard refund on the checkout's intent that no entry records.
+-- The entries on pi_2303_a record $15 (1500 cents); Stripe has returned $16.
+INSERT INTO public.stripe_order_refunds (stripe_refund_id, stripe_payment_intent_id,
+                                         amount_cents, kind, state)
+VALUES ('re_2303_dashboard', 'pi_2303_a', 1600, 'post_hoc', 'succeeded');
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000230151', true);
+SELECT public.t2303_expect(
+  $q$SELECT public.record_club_settled_refund('00000000-0000-0000-0000-000000230092',
+       5, current_date, 'check', NULL, NULL, NULL)$q$,
+  'card_refund_unreconciled');
+RESET ROLE;
+-- Reconciled: the Stripe ledger and the entries agree again (an app-recorded $15).
+UPDATE public.stripe_order_refunds SET amount_cents = 1500
+ WHERE stripe_refund_id = 're_2303_dashboard';
 SET LOCAL ROLE authenticated;
 
 -- --- who may record ---------------------------------------------------------
@@ -603,9 +621,42 @@ BEGIN
   EXCEPTION WHEN insufficient_privilege THEN
     RAISE NOTICE 'PASS service_role cannot move club_refunded_amount off its ledger';
   END;
+  -- Codex #4292: service_role writes the ledger only through the RPCs.
+  BEGIN
+    INSERT INTO public.club_settled_refunds (show_id, entry_id, amount, paid_on, method)
+    VALUES ('00000000-0000-0000-0000-000000230011', '00000000-0000-0000-0000-000000230092',
+            1, current_date, 'cash');
+    RAISE EXCEPTION 'FAIL service_role inserted a ledger row directly';
+  EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE 'PASS service_role cannot insert a ledger row directly';
+  END;
+  BEGIN
+    TRUNCATE public.club_settled_refunds;
+    RAISE EXCEPTION 'FAIL service_role truncated the ledger';
+  EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE 'PASS service_role cannot truncate the ledger';
+  END;
 END;
 $$;
 RESET ROLE;
+
+-- The applied ACL: service_role holds no write privilege on the ledger.
+DO $$
+DECLARE
+  v_privs text;
+BEGIN
+  SELECT string_agg(a.privilege_type, ',' ORDER BY a.privilege_type) INTO v_privs
+    FROM pg_class c
+    CROSS JOIN LATERAL aclexplode(c.relacl) a
+   WHERE c.oid = 'public.club_settled_refunds'::regclass
+     AND a.grantee = 'service_role'::regrole
+     AND a.privilege_type IN ('INSERT', 'UPDATE', 'DELETE', 'TRUNCATE');
+  IF v_privs IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL service_role still holds % on club_settled_refunds', v_privs;
+  END IF;
+  RAISE NOTICE 'PASS service_role holds no write privilege on the ledger';
+END;
+$$;
 
 DO $$
 BEGIN

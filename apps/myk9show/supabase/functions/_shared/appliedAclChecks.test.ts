@@ -215,5 +215,9 @@ describe('SERVICE_ROLE_TABLE_GRANTS agrees with the deployed SQL contract', () =
     expect(SERVICE_ROLE_TABLE_GRANTS.entry_status_history).toBe(
       'SELECT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'
     );
+    // MYK9-2303: the club refund ledger is written only by its two RPCs.
+    expect(SERVICE_ROLE_TABLE_GRANTS.club_settled_refunds).toBe(
+      'SELECT,REFERENCES,TRIGGER,MAINTAIN'
+    );
   });
 });

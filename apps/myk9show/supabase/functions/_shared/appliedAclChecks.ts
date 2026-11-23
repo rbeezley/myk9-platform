@@ -197,9 +197,11 @@ const HOSTED_SERVICE_ROLE_TABLE_GRANTS =
 export const SERVICE_ROLE_TABLE_GRANTS: Readonly<Record<string, string>> = Object.fromEntries(
   Object.keys(AUTHENTICATED_TABLE_GRANTS).map(name => [
     name,
-    name === 'entry_status_history'
-      ? 'SELECT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'
-      : HOSTED_SERVICE_ROLE_TABLE_GRANTS,
+    name === 'club_settled_refunds'
+      ? 'SELECT,REFERENCES,TRIGGER,MAINTAIN'
+      : name === 'entry_status_history'
+        ? 'SELECT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'
+        : HOSTED_SERVICE_ROLE_TABLE_GRANTS,
   ])
 );
 

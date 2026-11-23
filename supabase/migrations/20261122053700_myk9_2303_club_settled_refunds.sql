@@ -104,6 +104,11 @@ CREATE POLICY club_settled_refunds_select ON public.club_settled_refunds
 REVOKE ALL ON public.club_settled_refunds FROM PUBLIC, anon, authenticated;
 GRANT SELECT ON public.club_settled_refunds TO authenticated;
 GRANT ALL ON public.club_settled_refunds TO service_role;
+-- Codex #4292: service_role writes only through the two SECURITY DEFINER RPCs (which
+-- run as the owner). A direct INSERT would skip the cap and leave the cached total
+-- behind; TRUNCATE would erase the trail without firing the row trigger. Hosted
+-- defaults grant it everything, so revoke explicitly (entry_status_history precedent).
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.club_settled_refunds FROM service_role;
 
 -- ---------------------------------------------------------------------------
 -- entries.club_refunded_amount + write guard
@@ -251,7 +256,26 @@ BEGIN
     RAISE EXCEPTION 'payout_not_completed' USING ERRCODE = 'P0001';
   END IF;
 
-  -- Stripe refunds from either path are already in refund_amount.
+  -- Codex #4292: a refund issued from the Stripe dashboard is recorded on the order
+  -- (stripe_order_refunds, kind post_hoc) but never stamped on an entry, and an
+  -- intent can cover a whole cart, so it cannot be attributed. While Stripe has
+  -- returned more on this entry's intent than the entries on it record, refuse
+  -- rather than let the club pay back money the exhibitor already has.
+  IF (
+    SELECT COALESCE(sum(r.amount_cents), 0)
+      FROM public.stripe_order_refunds r
+     WHERE r.stripe_payment_intent_id = v_entry.stripe_payment_intent_id
+       AND r.kind = 'post_hoc'
+       AND r.state = 'succeeded'
+  ) > (
+    SELECT COALESCE(sum(round(COALESCE(e.refund_amount, 0) * 100)), 0)
+      FROM public.entries e
+     WHERE e.stripe_payment_intent_id = v_entry.stripe_payment_intent_id
+  ) THEN
+    RAISE EXCEPTION 'card_refund_unreconciled' USING ERRCODE = 'P0001';
+  END IF;
+
+  -- Stripe refunds made through the app are already in refund_amount.
   v_balance := (COALESCE(v_entry.entry_fee, 0) - COALESCE(v_entry.discount_amount, 0))
                - COALESCE(v_entry.refund_amount, 0)
                - v_entry.club_refunded_amount;
@@ -281,7 +305,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.record_club_settled_refund(uuid, numeric, date, text, text, text, uuid) IS
-  'MYK9-2303: records money the club paid an exhibitor directly after the show payout completed. Caller must be the show''s secretary, its club admin or a site admin. The entry must be card-paid, the show''s payout completed, and the amount within (entry_fee - discount_amount) - refund_amount - club_refunded_amount. Retry-safe on p_client_refund_id. Returns the ledger row plus the entry''s new club_refunded_amount. Refusals are P0001 with a stable code as the message.';
+  'MYK9-2303: records money the club paid an exhibitor directly after the show payout completed. Caller must be the show''s secretary, its club admin or a site admin. The entry must be card-paid, the show''s payout completed, no Stripe refund on its intent left unrecorded on the entries, and the amount within (entry_fee - discount_amount) - refund_amount - club_refunded_amount. Retry-safe on p_client_refund_id. Returns the ledger row plus the entry''s new club_refunded_amount. Refusals are P0001 with a stable code as the message.';
 
 REVOKE ALL ON FUNCTION public.record_club_settled_refund(uuid, numeric, date, text, text, text, uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.record_club_settled_refund(uuid, numeric, date, text, text, text, uuid) TO authenticated;

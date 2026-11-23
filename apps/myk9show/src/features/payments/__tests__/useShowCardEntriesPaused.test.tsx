@@ -46,6 +46,21 @@ describe('useShowCardEntriesPaused', () => {
     await waitFor(() => expect(result.current).toBe('open'));
   });
 
+  it('retries a temporary failure under the app retry policy, then answers', async () => {
+    rpc
+      .mockResolvedValueOnce({ data: null, error: new Error('503') })
+      .mockResolvedValueOnce({ data: [], error: null });
+    // The app's query default is a bounded retry (services/database/queryClient.ts).
+    const client = new QueryClient({ defaultOptions: { queries: { retry: 2, retryDelay: 0 } } });
+    const local = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    const { result } = renderHook(() => useShowCardEntriesPaused(cardOnly), { wrapper: local });
+    expect(result.current).toBe('loading');
+    await waitFor(() => expect(result.current).toBe('open'));
+    expect(rpc).toHaveBeenCalledTimes(2);
+  });
+
   it('is unknown, never open, when the request fails', async () => {
     rpc.mockResolvedValue({ data: null, error: new Error('boom') });
     const { result } = renderHook(() => useShowCardEntriesPaused(cardOnly), { wrapper });

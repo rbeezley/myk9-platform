@@ -55,7 +55,8 @@ export function useShowCardEntriesPaused(
     },
     enabled: asked,
     ...GUEST_READ_QUERY_OPTIONS,
-    retry: false,
+    // The app's bounded retry (queryClient.ts) applies: a temporary 5xx retries while Enter
+    // stays withheld as "checking", and only a read that still fails reads as unknown.
   });
   if (!asked) return 'open';
   const read = resolveGuestRead(query, isOnline);

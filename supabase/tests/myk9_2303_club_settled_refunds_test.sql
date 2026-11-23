@@ -1,4 +1,4 @@
--- MYK9-2303 behavioral contract for 20261121093700_myk9_2303_club_settled_refunds.sql.
+-- MYK9-2303 behavioral contract for 20261122053700_myk9_2303_club_settled_refunds.sql.
 --
 --   psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/myk9_2303_club_settled_refunds_test.sql
 --

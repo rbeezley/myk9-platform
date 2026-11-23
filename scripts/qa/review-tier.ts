@@ -37,7 +37,7 @@ const INDEPENDENT_PATTERNS: readonly RegExp[] = [
   /(^|\/)playwright[^/]*\.config\.ts$/,
   /^(CLAUDE|AGENTS)\.md$/,
   /^docs\/agents\/(shared-rules|rules-reference)\.md$/,
-  /^supabase\/functions\//,
+  /(^|\/)supabase\/functions\//,
   /^packages\/replication\//,
   /(^|\/)(rls|grants?|policies)[^/]*\.(sql|ts)$/i,
   /(^|\/)(auth|rbac|permissions?|roles?)\//i,

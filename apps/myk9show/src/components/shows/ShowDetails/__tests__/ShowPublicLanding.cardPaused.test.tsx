@@ -93,9 +93,7 @@ describe('ShowPublicLanding card entries (MYK9-2192)', () => {
   it('keeps Enter and adds one line for a paused show that takes check', async () => {
     rpc.mockResolvedValue({ data: ['show-1'], error: null });
     renderLanding(openShow(true));
-    expect(
-      await screen.findByText('Card payments are paused. Pay by check.')
-    ).toBeInTheDocument();
+    expect(await screen.findByText('Card payments are paused. Pay by check.')).toBeInTheDocument();
     expect(screen.getByTestId('reason')).toHaveTextContent('enter-open');
   });
 

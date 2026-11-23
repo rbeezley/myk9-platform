@@ -1203,7 +1203,7 @@ describe('secretary entry read replication', () => {
   it('returns retryable plain-English copy when the PostgREST fallback times out', async () => {
     mocks.getEntriesByShow.mockRejectedValueOnce(new Error('replicated entries unavailable'));
     const query = mockPostgrestEntriesRead([]);
-    query.order.mockResolvedValueOnce({
+    query.range.mockResolvedValueOnce({
       data: null,
       error: {
         code: '57014',

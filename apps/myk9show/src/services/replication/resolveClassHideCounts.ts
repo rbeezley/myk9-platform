@@ -84,9 +84,7 @@ export async function resolveHideCountsForClassRows(
     trials = (trialData ?? []) as ClassTrialRow[];
   }
   const trialById = new Map(trials.map(trial => [trial.id, trial]));
-  const registryIds = [
-    ...new Set(trials.map(trial => getTrialRegistry(trial).id).filter((id): id is string => !!id)),
-  ];
+  const registryIds = [...new Set(trials.map(trial => getTrialRegistry(trial).id))];
 
   if (registryIds.length > 0) {
     const { data: ruleData, error: rulesError } = await supabase

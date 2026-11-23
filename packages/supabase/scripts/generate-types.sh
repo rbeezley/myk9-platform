@@ -7,14 +7,18 @@ set -euo pipefail
 
 : "${SUPABASE_PROJECT_ID:?SUPABASE_PROJECT_ID is required}"
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-runner="${MYK9_SUPABASE_RUNNER:-bash $here/../../scripts/supabase.sh}"
+# An array, so a checkout path with a space (this repo's own) stays one argument.
+if [ -n "${MYK9_SUPABASE_RUNNER:-}" ]; then
+  runner=("$MYK9_SUPABASE_RUNNER")
+else
+  runner=(bash "$here/../../scripts/supabase.sh")
+fi
 out="${MYK9_TYPES_OUT:-$here/src/types/database.types.ts}"
 
 tmp="$(mktemp "$out.XXXXXX")"
 trap 'rm -f "$tmp"' EXIT
 
-# shellcheck disable=SC2086 # the runner is a command line, split on purpose
-if $runner gen types typescript --remote="$SUPABASE_PROJECT_ID" > "$tmp"; then
+if "${runner[@]}" gen types typescript --remote="$SUPABASE_PROJECT_ID" > "$tmp"; then
   mv "$tmp" "$out"
 else
   status=$?

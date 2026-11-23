@@ -1,5 +1,13 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { chmodSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -38,6 +46,42 @@ describe('generate-types.sh (MYK9-2335)', () => {
   it('replaces the file with the CLI output and passes --remote on success', () => {
     const { out, run } = setup('echo "ARGS $*"');
     expect(run().status).toBe(0);
+    expect(readFileSync(out, 'utf8')).toBe('ARGS gen types typescript --remote=ref123\n');
+  });
+
+  it('runs the default wrapper from a checkout path containing a space', () => {
+    const root = join(mkdtempSync(join(tmpdir(), 'gen-types-')), 'AI Projects', 'repo');
+    mkdirSync(join(root, 'packages', 'supabase', 'scripts'), { recursive: true });
+    mkdirSync(join(root, 'scripts'));
+    copyFileSync(SCRIPT, join(root, 'packages', 'supabase', 'scripts', 'generate-types.sh'));
+    copyFileSync(
+      join(__dirname, '..', '..', '..', 'scripts', 'supabase.sh'),
+      join(root, 'scripts', 'supabase.sh')
+    );
+    const bin = join(root, 'apps', 'myk9show', 'node_modules', '.bin');
+    mkdirSync(bin, { recursive: true });
+    writeFileSync(
+      join(bin, 'supabase'),
+      '#!/usr/bin/env bash\n[ "$1" = --version ] && echo 3.2.0 && exit 0\necho "ARGS $*"\n'
+    );
+    chmodSync(join(bin, 'supabase'), 0o755);
+    const out = join(root, 'out.ts');
+    writeFileSync(out, 'COMMITTED');
+    const res = spawnSync(
+      'bash',
+      [join(root, 'packages', 'supabase', 'scripts', 'generate-types.sh')],
+      {
+        encoding: 'utf8',
+        env: {
+          PATH: process.env.PATH,
+          HOME: tmpdir(),
+          SUPABASE_PROJECT_ID: 'ref123',
+          MYK9_TYPES_OUT: out,
+        },
+      }
+    );
+    expect(res.stderr).toBe('');
+    expect(res.status).toBe(0);
     expect(readFileSync(out, 'utf8')).toBe('ARGS gen types typescript --remote=ref123\n');
   });
 

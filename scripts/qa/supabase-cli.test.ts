@@ -61,6 +61,16 @@ describe('scripts/supabase.sh version check (MYK9-2335)', () => {
     expect(res.stderr).toContain(INSTALL_INSTRUCTION);
   });
 
+  it('reports a failed probe with its diagnostic, not as a version mismatch', () => {
+    const script = fakeRoot('9');
+    const bin = join(script, '..', '..', 'apps', 'myk9show', 'node_modules', '.bin', 'supabase');
+    writeFileSync(bin, '#!/usr/bin/env bash\necho "cannot write telemetry" >&2\nexit 1\n');
+    const res = run(script);
+    expect(res.status).toBe(2);
+    expect(res.stderr).toContain('cannot write telemetry');
+    expect(res.stderr).not.toContain('needs 3.x');
+  });
+
   it('runs a 3.x binary with the caller arguments', () => {
     const res = run(fakeRoot('3.2.0'));
     expect(res.status).toBe(0);

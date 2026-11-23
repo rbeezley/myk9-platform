@@ -13,7 +13,10 @@ if [ ! -x "$bin" ]; then
   exit 2
 fi
 
-version="$("$bin" --version 2>/dev/null || true)"
+if ! version="$("$bin" --version 2>&1)"; then
+  echo "scripts/supabase.sh: '$bin --version' failed (not a version mismatch): $version" >&2
+  exit 2
+fi
 case "$version" in
   3.*) ;;
   *)

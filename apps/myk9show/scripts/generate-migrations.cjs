@@ -74,7 +74,9 @@ function main() {
   console.log('📝 Next Steps:');
   console.log('1. Run the migration commands above in order');
   console.log('2. Edit each .sql file with the table schema');
-  console.log('3. From the repo root, apply with: bash scripts/supabase.sh db push --remote');
+  console.log(
+    '3. After merge, apply with the db-push skill (.claude/skills/db-push/SKILL.md, Step 2; owner approval before --yes)'
+  );
   console.log(
     '4. Generate types: cd packages/supabase && SUPABASE_PROJECT_ID=sojmvhhwsjxmfistvzbe pnpm generate-types'
   );

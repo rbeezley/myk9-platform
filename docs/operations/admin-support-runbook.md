@@ -85,5 +85,5 @@ For reference — these support actions have working UI and don't need this docu
 | Payments / payouts        | `/admin/payouts` (+ Stripe dashboard for failed-charge detail, per [`stripe-platform-setup.md`](stripe-platform-setup.md))                                                 |
 | Sync / replication health | `/admin/support`                                                                                                                                                           |
 | App health                | `/admin/health`, `/admin/support`                                                                                                                                          |
-| Deploy / migration health | [`ci-vercel-deploys.md`](ci-vercel-deploys.md), [`edge-function-deploy-drift-2026-06-23.md`](edge-function-deploy-drift-2026-06-23.md), `supabase migration list --remote` |
+| Deploy / migration health | [`ci-vercel-deploys.md`](ci-vercel-deploys.md), [`edge-function-deploy-drift-2026-06-23.md`](edge-function-deploy-drift-2026-06-23.md), `bash scripts/supabase.sh migration list --remote` |
 | Soft-delete restore       | `/admin/deleted-items`                                                                                                                                                     |

@@ -4,7 +4,7 @@ import { useShowStore } from '@/store/showStore';
 import type { Show } from '@/types/show-types';
 import { useRealTimeUpdates } from './useRealTimeUpdates';
 
-type ShowsPayload = { eventType: string; new?: Partial<Show>; old?: Partial<Show> };
+type ShowsPayload = { eventType: string; new?: Record<string, unknown>; old?: Partial<Show> };
 
 const channel = {
   on: vi.fn().mockReturnThis(),
@@ -25,6 +25,15 @@ vi.mock('@/utils/show-management-tracking', () => ({
 }));
 
 const makeShow = (id: string, name: string) => ({ id, name }) as unknown as Show;
+const makeRow = (id: string, name: string, extra: Record<string, unknown> = {}) => ({
+  id,
+  name,
+  club_id: 'club-9',
+  start_date: '2026-12-01',
+  end_date: '2026-12-02',
+  entry_open_date: '2026-11-01',
+  ...extra,
+});
 
 function showsHandler(): (payload: ShowsPayload) => void {
   const call = channel.on.mock.calls.find(([, filter]) => filter.table === 'shows');
@@ -69,7 +78,7 @@ describe('useRealTimeUpdates', () => {
     expect(channel.subscribe).toHaveBeenCalledTimes(1);
 
     act(() => {
-      showsHandler()({ eventType: 'UPDATE', new: makeShow('show-1', 'Alpha renamed') });
+      showsHandler()({ eventType: 'UPDATE', new: makeRow('show-1', 'Alpha renamed') });
     });
     act(() => {
       useShowStore.setState({ shows: [makeShow('show-3', 'Charlie')] });
@@ -89,11 +98,50 @@ describe('useRealTimeUpdates', () => {
     const { unmount } = renderHook(() => useRealTimeUpdates());
 
     act(() => {
-      showsHandler()({ eventType: 'UPDATE', new: makeShow('show-2', 'Bravo renamed') });
+      showsHandler()({ eventType: 'UPDATE', new: makeRow('show-2', 'Bravo renamed') });
     });
 
     expect(useShowStore.getState().shows.map(s => s.name)).toEqual(['Alpha', 'Bravo renamed']);
     expect(loadShows).not.toHaveBeenCalled();
+
+    unmount();
+  });
+
+  it('maps a snake_case UPDATE row to camelCase Show fields and keeps club fields', () => {
+    useShowStore.setState({
+      shows: [{ ...makeShow('show-1', 'Alpha'), clubName: 'Desert K9' } as Show],
+    });
+    const { unmount } = renderHook(() => useRealTimeUpdates());
+
+    act(() => {
+      showsHandler()({ eventType: 'UPDATE', new: makeRow('show-1', 'Alpha renamed') });
+    });
+
+    const updated = useShowStore.getState().shows[0] as unknown as Record<string, unknown>;
+    expect(updated).toMatchObject({
+      id: 'show-1',
+      name: 'Alpha renamed',
+      clubId: 'club-9',
+      startDate: '2026-12-01',
+      entryOpenDate: '2026-11-01',
+      clubName: 'Desert K9',
+    });
+    expect(updated).not.toHaveProperty('club_id');
+    expect(updated).not.toHaveProperty('start_date');
+
+    unmount();
+  });
+
+  it('adds a show that arrives as an INSERT', () => {
+    const { unmount } = renderHook(() => useRealTimeUpdates());
+
+    act(() => {
+      showsHandler()({ eventType: 'INSERT', new: makeRow('show-3', 'Charlie') });
+    });
+
+    const shows = useShowStore.getState().shows;
+    expect(shows.map(s => s.id)).toEqual(['show-1', 'show-2', 'show-3']);
+    expect(shows[2]).toMatchObject({ name: 'Charlie', clubId: 'club-9' });
 
     unmount();
   });

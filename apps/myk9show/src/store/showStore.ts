@@ -126,7 +126,7 @@ export function replicatedToShow(replicated: ReplicatedShow): Show {
  * Merge replicated show data with existing local show data
  * Preserves local-only fields (trials, judges, stats)
  */
-function mergeShowData(replicated: ReplicatedShow, existing: Show | undefined): Show {
+export function mergeShowData(replicated: ReplicatedShow, existing: Show | undefined): Show {
   const base = replicatedToShow(replicated);
   if (!existing) return base;
 

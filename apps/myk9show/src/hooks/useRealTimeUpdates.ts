@@ -6,7 +6,11 @@ import {
   syncShowRelationships,
   RelationshipPerformanceMonitor,
 } from '@/utils/show-management-tracking';
-import { Show } from '@/types/show-types';
+import type { StoreShow as Show } from '@/types/show-types';
+import type { Database } from '@/types/supabase';
+import { realtimeRowToStoreShow } from './realtimeShowRow';
+
+type ShowRow = Database['public']['Tables']['shows']['Row'];
 
 /**
  * Public Browse Shows updates. Entry/class freshness uses show-scoped Broadcast elsewhere.
@@ -16,6 +20,12 @@ import { Show } from '@/types/show-types';
  * resubscribe adds `realtime.list_changes` work, MYK9-1363). Each event touches one show only; a
  * DELETE removes that show from the store rather than reloading the whole list.
  */
+const mapRealtimeRow = (row: ShowRow): Show =>
+  realtimeRowToStoreShow(
+    row,
+    useShowStore.getState().shows.find(s => s.id === row.id)
+  );
+
 export const useRealTimeUpdates = () => {
   const { userWithRoles: user } = useAuthContext();
   const userRef = useRef(user);
@@ -25,7 +35,10 @@ export const useRealTimeUpdates = () => {
 
   const handleShowUpdate = useCallback((updatedShow: Show) => {
     const startTime = performance.now();
-    useShowStore.getState().updateShowLegacy(updatedShow);
+    const store = useShowStore.getState();
+    // updateShowLegacy only replaces; an INSERT for a show not in the list must be added.
+    if (store.shows.some(s => s.id === updatedShow.id)) store.updateShowLegacy(updatedShow);
+    else store.addShowLegacy(updatedShow);
     const currentUser = userRef.current;
     if (currentUser?.id) syncShowRelationships([updatedShow], currentUser);
     RelationshipPerformanceMonitor.getInstance().recordOperation(
@@ -44,7 +57,7 @@ export const useRealTimeUpdates = () => {
       .channel('realtime-shows')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'shows' }, payload => {
         if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-          handleShowUpdate(payload.new as Show);
+          handleShowUpdate(mapRealtimeRow(payload.new as ShowRow));
         } else if (payload.eventType === 'DELETE') {
           // Without REPLICA IDENTITY FULL a DELETE payload carries only the primary key.
           const deletedId = (payload.old as Partial<Show>).id;
@@ -85,7 +98,7 @@ export const useShowRealTimeUpdates = (showId: string) => {
         { event: '*', schema: 'public', table: 'shows', filter: `id=eq.${showId}` },
         payload => {
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-            handleShowUpdate(payload.new as Show);
+            handleShowUpdate(mapRealtimeRow(payload.new as ShowRow));
           }
         }
       )

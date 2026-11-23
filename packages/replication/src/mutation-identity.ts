@@ -44,7 +44,8 @@ export class MutationIdentity {
   }
 
   /**
-   * Owner stamp for a NEW queue entry (MYK9-1204). Offline past jwt_expiry the
+   * Owner for a NEW queue entry (MYK9-1204) and for every LOCAL queue read or
+   * reconcile helper (MYK9-2337). Offline past jwt_expiry the
    * live lookup throws, which would refuse a ringside write (or, after its dirty
    * local write, strand it unqueued). A throw falls back to the persisted
    * account; the stamp is only a label, since upload still needs a live session
@@ -105,6 +106,18 @@ export class MutationIdentity {
       return typeof cached === 'string' && cached.trim().length > 0 ? cached : null;
     } catch {
       return null;
+    }
+  }
+
+  /**
+   * The same-user guard for LOCAL queue work (reads, discard, reconcile), the
+   * counterpart of `requireSameCurrentUserId` that resolves through the queue
+   * owner fallback, so it holds offline past jwt_expiry (MYK9-2337). Upload keeps
+   * `requireSameCurrentUserId` and a live session.
+   */
+  async requireSameQueueOwnerUserId(expectedAuthUserId: string): Promise<void> {
+    if ((await this.requireQueueOwnerUserId()) !== expectedAuthUserId) {
+      throw new Error('[MutationManager] Authenticated user changed during queue operation');
     }
   }
 

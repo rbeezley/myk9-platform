@@ -943,37 +943,42 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   ): Promise<void> {
     const db = await this.init();
     const normalizedId = String(id);
-    const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
-    const existingRow = (await tx.store.get([this.tableName, normalizedId])) as
-      ReplicatedRow<T> | undefined;
-
-    const clearedRow = clearConflictSnapshot(existingRow, newServerVersion);
-    if (!clearedRow) {
-      await tx.done;
-      return;
-    }
-
-    const nextData = options?.mergedData
-      ? ({ ...options.mergedData, id: normalizedId } as T)
-      : clearedRow.data;
-    const nextRow: ReplicatedRow<T> = {
-      ...clearedRow,
-      data: nextData,
-      ...(options?.newBaseData ? { baseData: options.newBaseData } : {}),
+    const key = [this.tableName, normalizedId];
+    const build = (existingRow: ReplicatedRow<T> | undefined): ReplicatedRow<T> | undefined => {
+      const clearedRow = clearConflictSnapshot(existingRow, newServerVersion);
+      if (!clearedRow) return undefined;
+      const nextRow: ReplicatedRow<T> = {
+        ...clearedRow,
+        data: options?.mergedData
+          ? ({ ...options.mergedData, id: normalizedId } as T)
+          : clearedRow.data,
+        ...(options?.newBaseData ? { baseData: options.newBaseData } : {}),
+      };
+      if (options?.newBaseData) {
+        if (newServerVersion === undefined) delete nextRow.baseServerVersion;
+        else nextRow.baseServerVersion = newServerVersion;
+      }
+      return nextRow;
     };
-    if (options?.newBaseData) {
-      if (newServerVersion === undefined) delete nextRow.baseServerVersion;
-      else nextRow.baseServerVersion = newServerVersion;
-    }
 
-    await tx.store.put(nextRow);
-    await tx.done;
+    const planned = build(
+      (await db.get(REPLICATION_STORES.REPLICATED_TABLES, key)) as ReplicatedRow<T> | undefined
+    );
+    if (!planned) return;
 
+    // MYK9-2337: sort the queued change out FIRST. If this throws, the stored row still
+    // holds syncStatus 'conflict' and row.conflict, so the person can choose again.
+    // Reconciling is forward-only, so a retry after a later failure is safe.
     if (newServerVersion !== undefined) {
       const rebuiltData =
-        options?.rebuildUpdatePayload?.(nextRow.data) ?? this.rebuildUpdatePayload(nextRow.data);
+        options?.rebuildUpdatePayload?.(planned.data) ?? this.rebuildUpdatePayload(planned.data);
       await this.reconcileQueuedMutations(normalizedId, newServerVersion, rebuiltData);
     }
+
+    const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
+    const nextRow = build((await tx.store.get(key)) as ReplicatedRow<T> | undefined);
+    if (nextRow) await tx.store.put(nextRow);
+    await tx.done;
 
     this.notifyListeners();
   }

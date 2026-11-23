@@ -85,7 +85,7 @@ export async function resolveHideCountsForClassRows(
   }
   const trialById = new Map(trials.map(trial => [trial.id, trial]));
   const registryIds = [
-    ...new Set(trials.map(trial => trial.registry_id).filter((id): id is string => !!id)),
+    ...new Set(trials.map(trial => getTrialRegistry(trial).id).filter((id): id is string => !!id)),
   ];
 
   if (registryIds.length > 0) {

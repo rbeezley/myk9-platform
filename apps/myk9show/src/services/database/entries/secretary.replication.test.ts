@@ -75,6 +75,7 @@ vi.mock('@/services/replication/ReplicatedArmbandsTable', () => ({
 }));
 
 vi.mock('./handlerHydration', () => ({
+  isOffline: () => false,
   loadHandlerPeople: mocks.loadHandlerPeople,
 }));
 
@@ -127,7 +128,8 @@ function mockMetadataLookups(
   const makeQuery = (data: unknown[]) => {
     const query = {
       select: vi.fn(() => query),
-      in: vi.fn(() => Promise.resolve({ data, error: null })),
+      in: vi.fn(() => query),
+      abortSignal: vi.fn(() => Promise.resolve({ data, error: null })),
     };
     return query;
   };
@@ -176,7 +178,10 @@ function mockPostgrestEntriesRead(data: unknown[]) {
     eq: vi.fn(() => query),
     in: vi.fn(() => query),
     is: vi.fn(() => query),
-    order: vi.fn(() =>
+    order: vi.fn(() => query),
+    lt: vi.fn(() => query),
+    // The cold-store read pages (keyset on id); one short page ends it.
+    range: vi.fn(() =>
       Promise.resolve({ data: data as unknown[] | null, error: null as unknown | null })
     ),
   };
@@ -734,8 +739,8 @@ describe('secretary entry read replication', () => {
           in: vi.fn(() => query),
           is: vi.fn(() => query),
           lt: vi.fn(() => query),
-          // The pull-metadata read is paged (MYK9-2099): it orders, then asks `range`.
-          order: vi.fn(() => (relation === 'entries' ? query : Promise.resolve(respond()))),
+          // Both reads are paged (MYK9-2099): they order, then ask `range`.
+          order: vi.fn(() => query),
           range: vi.fn(() => Promise.resolve(respond())),
         };
         return query;
@@ -1038,8 +1043,18 @@ describe('secretary entry read replication', () => {
       });
       mocks.syncTrials.mockResolvedValue({ success: false });
       mockPostgrestEntriesRead([
-        { id: 'entry-checked-in', show_id: 'show-1', check_in_status: 'not-checked-in' },
-        { id: 'entry-2', show_id: 'show-1', check_in_status: 'not-checked-in' },
+        {
+          id: 'entry-checked-in',
+          show_id: 'show-1',
+          created_at: '2026-06-01T00:00:00Z',
+          check_in_status: 'not-checked-in',
+        },
+        {
+          id: 'entry-2',
+          show_id: 'show-1',
+          created_at: '2026-06-02T00:00:00Z',
+          check_in_status: 'not-checked-in',
+        },
       ]);
 
       const result = await getEntriesForShow('show-1');
@@ -1055,7 +1070,7 @@ describe('secretary entry read replication', () => {
       mockRowState([]);
       mocks.syncEntries.mockResolvedValue({ success: false });
       const query = mockPostgrestEntriesRead([]);
-      query.order.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+      query.range.mockRejectedValueOnce(new TypeError('Failed to fetch'));
 
       const result = await getEntriesForShow('show-1');
 

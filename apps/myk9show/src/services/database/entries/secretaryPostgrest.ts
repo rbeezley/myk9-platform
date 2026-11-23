@@ -1,9 +1,6 @@
-import { createDatabaseError, logQuery, supabase } from '../supabaseClient';
+import { logQuery, supabase } from '../supabaseClient';
 import { stampServerHeldFlags } from './serverHeldFlags';
-import {
-  isMoveUpLinkSchemaUnavailable,
-  isPlacementTieSchemaUnavailable,
-} from '@/features/payments/pullRefundSchemaCompatibility';
+import { isPlacementTieSchemaUnavailable } from '@/features/payments/pullRefundSchemaCompatibility';
 import { projectPostgrestEntryHandlerIdentity } from './entryHandlerReadBoundary';
 import { readAllEntryPages, type KeysetPageQuery } from './entryPagedRead';
 import type { SecretaryEntry } from './secretaryTypes';
@@ -129,6 +126,17 @@ const SECRETARY_ENTRIES_SELECT = `${SECRETARY_ENTRIES_BASE_SELECT},
         payment_received_on,
         payment_notes`;
 
+function compareCreatedAtAscending(a: Record<string, unknown>, b: Record<string, unknown>) {
+  const aAt = a.created_at ? String(a.created_at) : null;
+  const bAt = b.created_at ? String(b.created_at) : null;
+  if (aAt !== bAt) {
+    if (aAt === null) return 1;
+    if (bAt === null) return -1;
+    return aAt.localeCompare(bAt);
+  }
+  return String(a.id).localeCompare(String(b.id));
+}
+
 export async function postgrestGetSecretaryEntriesForShow(
   showId: string,
   startTime: number,
@@ -143,42 +151,41 @@ export async function postgrestGetSecretaryEntriesForShow(
   // brand-new show or a fresh device -- render "Couldn't load entries".
   // This is also the relation `ReplicatedEntriesTable` pulls, so both secretary
   // read paths now agree on columns as well as rows.
-  let includeMoveUpLink = true;
   let includePlacementTie = true;
-  const runSelect = () =>
-    supabase
-      .from('view_authenticated_entry_results')
-      .select(
-        SECRETARY_ENTRIES_SELECT +
-          (includeMoveUpLink ? MOVE_UP_LINK_COLUMN : '') +
-          (includePlacementTie ? PLACEMENT_TIE_COLUMNS : '')
-      )
-      .eq('show_id', showId)
-      .is('deleted_at', null)
-      .order('created_at', { ascending: true });
+  // Paged past PostgREST's `max_rows` (1000): one unpaged select silently dropped every entry
+  // beyond the first thousand of a large show. The pager owns the move-up link fallback.
+  const readAll = () =>
+    readAllEntryPages(
+      withLink =>
+        supabase
+          .from('view_authenticated_entry_results')
+          .select(
+            SECRETARY_ENTRIES_SELECT +
+              (withLink ? MOVE_UP_LINK_COLUMN : '') +
+              (includePlacementTie ? PLACEMENT_TIE_COLUMNS : '')
+          )
+          .eq('show_id', showId)
+          .is('deleted_at', null) as unknown as KeysetPageQuery,
+      operation
+    );
 
-  // PostgREST names one unknown column per failure, so drop each optional set as it is named.
-  let response = await runSelect();
-  for (;;) {
-    if (includePlacementTie && isPlacementTieSchemaUnavailable(response.error)) {
-      includePlacementTie = false;
-    } else if (includeMoveUpLink && isMoveUpLinkSchemaUnavailable(response.error)) {
-      includeMoveUpLink = false;
-    } else {
-      break;
+  // PostgREST names one unknown column per failure, so drop the optional tie set once it is named.
+  let rows: Record<string, unknown>[];
+  try {
+    rows = await readAll();
+  } catch (caught) {
+    if (!includePlacementTie || !isPlacementTieSchemaUnavailable(caught as { message?: string })) {
+      logQuery('entries', operation, Date.now() - startTime, (caught as Error).message);
+      throw caught;
     }
-    response = await runSelect();
-  }
-  const { data, error } = response;
-
-  const duration = Date.now() - startTime;
-  logQuery('entries', operation, duration, error?.message);
-
-  if (error) {
-    throw createDatabaseError(error, 'entries', operation);
+    includePlacementTie = false;
+    rows = await readAll();
   }
 
-  const entries = (data ?? []).map(row => {
+  logQuery('entries', operation, Date.now() - startTime);
+
+  // The pager returns id order; the roster is presented oldest first (null created_at last).
+  const entries = rows.sort(compareCreatedAtAscending).map(row => {
     const entry = row as unknown as SecretaryEntry;
     return {
       ...entry,

@@ -1,4 +1,6 @@
+import { DEFAULT_TIMEOUT_MS, withTimeout } from '@myk9/core';
 import { supabase } from '../supabaseClient';
+import { chunk, ID_CHUNK_SIZE } from '@/utils/chunkIds';
 import { replicatedEntryResultsLine } from '@/services/replication/replicatedEntryResultsLine';
 import {
   replicatedArmbandsTable,
@@ -25,7 +27,7 @@ import { buildMapFromArray } from '../_shared/maps';
 import { resolveEntryArmband } from '@/features/_shared/entryArmband';
 import { getTrialTimezone } from '@/features/registries';
 import { projectEntryHandlerIdentity } from './entryHandlerProjection';
-import { loadHandlerPeople, type HandlerPersonRow } from './handlerHydration';
+import { isOffline, loadHandlerPeople, type HandlerPersonRow } from './handlerHydration';
 import {
   collectHandlerIdentityIds,
   handlerPeopleMapFromRows,
@@ -132,6 +134,31 @@ function fallbackDogFromEntry(entry: ReplicatedEntry, dogId: string): SecretaryD
   };
 }
 
+/**
+ * One bounded `.in('id', ...)` read per ID_CHUNK_SIZE ids (a long list overflows the URL), each
+ * under its own deadline. Offline, a timeout or a failed chunk all throw, so the caller keeps its
+ * existing "enrichment unavailable" answer instead of a partial map posing as the whole.
+ */
+async function readRowsByIdChunks<T>(
+  ids: readonly string[],
+  read: (batch: string[], signal: AbortSignal) => PromiseLike<{ data: unknown; error: unknown }>,
+  label: string
+): Promise<T[]> {
+  if (isOffline()) throw new Error(`${label}: offline`);
+  const batches = await Promise.all(
+    chunk(ids, ID_CHUNK_SIZE).map(async batch => {
+      const { data, error } = await withTimeout(
+        read(batch, AbortSignal.timeout(DEFAULT_TIMEOUT_MS)),
+        DEFAULT_TIMEOUT_MS,
+        label
+      );
+      if (error || !data) throw new Error(`${label}: read failed`);
+      return data as T[];
+    })
+  );
+  return batches.flat();
+}
+
 async function loadSecretaryPeopleMap(
   entries: readonly ReplicatedEntry[]
 ): Promise<SecretaryPeopleSnapshot> {
@@ -139,16 +166,17 @@ async function loadSecretaryPeopleMap(
   if (uniqueIds.length === 0) return { peopleMap: new Map(), authoritative: true };
 
   try {
-    const { data, error } = await supabase
-      .from('people')
-      .select('id, first_name, last_name, email, auth_user_id')
-      .in('id', uniqueIds);
-
-    if (error || !data) return { peopleMap: new Map(), authoritative: false };
-    return {
-      peopleMap: new Map((data as SecretaryPerson[]).map(person => [person.id, person])),
-      authoritative: true,
-    };
+    const people = await readRowsByIdChunks<SecretaryPerson>(
+      uniqueIds,
+      (batch, signal) =>
+        supabase
+          .from('people')
+          .select('id, first_name, last_name, email, auth_user_id')
+          .in('id', batch)
+          .abortSignal(signal),
+      'Secretary people enrichment'
+    );
+    return { peopleMap: new Map(people.map(person => [person.id, person])), authoritative: true };
   } catch {
     return { peopleMap: new Map(), authoritative: false };
   }
@@ -161,30 +189,39 @@ async function loadSecretaryEnrollmentsMap(
   if (uniqueIds.length === 0) return new Map();
 
   try {
-    const { data, error } = await supabase
-      .from('enrollments')
-      .select(
-        'id, confirmation_number, payment_status, payment_reference, total_amount, paid_amount, card_covered_cents, handler_id, refund_amount, refund_notes, refunded_at'
-      )
-      .in('id', uniqueIds);
-
-    if (error || !data) return new Map();
-    return new Map((data as SecretaryEnrollment[]).map(enrollment => [enrollment.id, enrollment]));
+    const enrollments = await readRowsByIdChunks<SecretaryEnrollment>(
+      uniqueIds,
+      (batch, signal) =>
+        supabase
+          .from('enrollments')
+          .select(
+            'id, confirmation_number, payment_status, payment_reference, total_amount, paid_amount, card_covered_cents, handler_id, refund_amount, refund_notes, refunded_at'
+          )
+          .in('id', batch)
+          .abortSignal(signal),
+      'Secretary enrollment enrichment'
+    );
+    return new Map(enrollments.map(enrollment => [enrollment.id, enrollment]));
   } catch {
     return new Map();
   }
 }
 
 /**
- * Reconciliation is online-only. Offline (or on a failed read) Entry Management stays usable, but
- * the answer is `null`, never an empty map: an empty map reads as "nothing decided" and would put
- * every denied refund back on the list as one to decide (MYK9-2099).
+ * Reconciliation is online-only. Offline (or on a failed or timed-out read) Entry Management stays
+ * usable, but the answer is `null`, never an empty map: an empty map reads as "nothing decided" and
+ * would put every denied refund back on the list as one to decide (MYK9-2099).
  */
 async function loadSecretaryPullMetadataMap(
   showId: string
 ): Promise<Map<string, SecretaryPullMetadata> | null> {
+  if (isOffline()) return null;
   try {
-    return await postgrestGetSecretaryPullMetadataMap(showId);
+    return await withTimeout(
+      postgrestGetSecretaryPullMetadataMap(showId),
+      DEFAULT_TIMEOUT_MS,
+      'Secretary pull metadata'
+    );
   } catch {
     return null;
   }

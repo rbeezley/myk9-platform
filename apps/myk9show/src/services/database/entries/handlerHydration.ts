@@ -21,7 +21,7 @@ function beginGeneration(ids: readonly string[]): Map<string, number> {
   );
 }
 
-function isOffline(): boolean {
+export function isOffline(): boolean {
   return typeof navigator !== 'undefined' && navigator.onLine === false;
 }
 

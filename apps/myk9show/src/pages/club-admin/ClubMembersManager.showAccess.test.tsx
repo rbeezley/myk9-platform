@@ -225,7 +225,7 @@ describe('ClubMembersManager Show Access tab wiring', () => {
     const user = userEvent.setup();
     render(<ClubMembersManager clubId="club-1" clubName="Heartland Club" />);
 
-    await user.click(await screen.findByRole('tab', { name: /show access/i }));
+    await user.click(await screen.findByRole('tab', { name: /show secretaries/i }));
 
     expect(await screen.findByText('Grace Hopper')).toBeInTheDocument();
     expect(screen.getByText('Not a club member')).toBeInTheDocument();
@@ -245,7 +245,7 @@ describe('ClubMembersManager Show Access tab wiring', () => {
     const user = userEvent.setup();
     render(<ClubMembersManager clubId="club-1" clubName="Heartland Club" />);
 
-    await user.click(await screen.findByRole('tab', { name: /show access/i }));
+    await user.click(await screen.findByRole('tab', { name: /show secretaries/i }));
     await user.click(await screen.findByRole('button', { name: /revoke/i }));
     expect(setClubShowManagerAccess).not.toHaveBeenCalled();
     await user.click(await screen.findByRole('button', { name: 'Revoke show access' }));
@@ -264,8 +264,8 @@ describe('ClubMembersManager Show Access tab wiring', () => {
     const user = userEvent.setup();
     render(<ClubMembersManager clubId="club-1" clubName="Heartland Club" />);
 
-    await user.click(await screen.findByRole('tab', { name: /show access/i }));
-    await user.click(await screen.findByRole('button', { name: /appoint secretary/i }));
+    await user.click(await screen.findByRole('tab', { name: /show secretaries/i }));
+    await user.click(await screen.findByRole('button', { name: /appoint show secretary/i }));
 
     // people comes from the mocked userStore, which is empty, so the dialog opening
     // with its membership-free copy is what this can prove at the page level. The
@@ -297,7 +297,7 @@ describe('ClubMembersManager show-access confirmations name the person', () => {
     const user = userEvent.setup();
     render(<ClubMembersManager clubId="club-1" clubName="Heartland Club" />);
 
-    await user.click(await screen.findByRole('tab', { name: /show access/i }));
+    await user.click(await screen.findByRole('tab', { name: /show secretaries/i }));
     await user.click(await screen.findByRole('button', { name: /revoke/i }));
     expect(setClubShowManagerAccess).not.toHaveBeenCalled();
     expect(await screen.findByRole('alertdialog')).toHaveTextContent(

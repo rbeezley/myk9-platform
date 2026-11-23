@@ -37,12 +37,12 @@ export function useClubSecretaryRequest(club: Pick<Club, 'id' | 'name'>): ClubRe
   } else if (hasClubAdminScope(userWithRoles.scopes, club.id)) {
     preState = {
       kind: 'has-access',
-      message: `You are an admin of ${club.name}, so you can appoint secretaries yourself from Club Members → Show Access.`,
+      message: `You are an admin of ${club.name}, so you can appoint show secretaries yourself from Club Members → Show secretaries.`,
     };
   } else if (hasClubSecretaryScope(userWithRoles.scopes, club.id)) {
     preState = {
       kind: 'has-access',
-      message: `You already have secretary and show-manager access for ${club.name}.`,
+      message: `You already have show-secretary access for ${club.name}.`,
     };
   }
 
@@ -66,7 +66,7 @@ export function useClubSecretaryRequest(club: Pick<Club, 'id' | 'name'>): ClubRe
       }
     },
     submitRequest: note => submitClubSecretaryRequest({ clubId: club.id, note }),
-    successMessage: 'Request sent. The club can review it from Members > Show Access.',
+    successMessage: 'Request sent. The club can review it from Members > Show secretaries.',
     logContext: { clubId: club.id, request: 'secretary' },
   });
 }

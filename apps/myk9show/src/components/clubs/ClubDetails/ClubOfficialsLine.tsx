@@ -27,7 +27,7 @@ export const ClubOfficialsLine: React.FC<ClubOfficialsLineProps> = ({
       {secretaryNames.length > 0 && (
         <span data-testid="club-secretary-names">
           <span className="font-medium text-foreground">
-            {secretaryNames.length > 1 ? 'Secretaries' : 'Secretary'}:
+            {secretaryNames.length > 1 ? 'Show secretaries' : 'Show secretary'}:
           </span>{' '}
           {secretaryNames.join(', ')}
         </span>

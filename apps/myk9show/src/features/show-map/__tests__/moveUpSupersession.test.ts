@@ -107,6 +107,8 @@ describe('moveUpSupersession', () => {
       ['area2_time_seconds', 8],
       ['area3_time_seconds', 8],
       ['area4_time_seconds', 8],
+      ['area5_time_seconds', 8],
+      ['element_time_seconds', 8],
       ['total_faults', 1],
       ['total_correct_finds', 1],
       ['total_incorrect_finds', 2],

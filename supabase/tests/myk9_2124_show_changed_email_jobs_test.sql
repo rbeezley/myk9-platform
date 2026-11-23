@@ -223,4 +223,54 @@ begin
   raise notice 'PASS F the functions are not callable by an API role';
 end $$;
 
+-- H (MYK9-2347): an edit while a ready job is leased must queue a separate job, not rewrite the
+-- one the drain is sending.
+do $$
+declare
+  v_show uuid := '00000000-0000-0000-0000-000002124302';
+  v_ada uuid := '00000000-0000-0000-0000-000002124321';
+  v_hal uuid := '00000000-0000-0000-0000-000002124325';
+  v_leased record;
+  v_after record;
+begin
+  update public.show_lifecycle_email_jobs
+     set status = 'sent', sent_at = now(), attempt_id = null, claimed_until = null
+   where show_id = v_show and step_type = 'show_changed';
+  update public.shows set address = '3 Lease Road' where id = v_show;
+  if pg_temp.jobs(v_show, 'ready') <> 3 then
+    raise exception 'FAIL H setup expected 3 ready jobs, found %', pg_temp.jobs(v_show, 'ready');
+  end if;
+  -- The drain leases Ada's job; its due time is in the past so a rewrite (now() + 5 minutes) shows.
+  update public.show_lifecycle_email_jobs
+     set claimed_until = now() + interval '10 minutes', attempt_id = gen_random_uuid(),
+         due_at = now() - interval '1 minute', recipient_name = 'Leased Name'
+   where show_id = v_show and step_type = 'show_changed' and status = 'ready' and recipient_person_id = v_ada;
+  select * into v_leased from public.show_lifecycle_email_jobs
+   where show_id = v_show and status = 'ready' and recipient_person_id = v_ada;
+
+  update public.shows set address = '4 Newer Road' where id = v_show;
+
+  select * into v_after from public.show_lifecycle_email_jobs where id = v_leased.id;
+  if v_after.status <> 'ready' or v_after.due_at <> v_leased.due_at or v_after.claimed_until <> v_leased.claimed_until
+     or v_after.attempt_id <> v_leased.attempt_id or v_after.recipient_name <> 'Leased Name' then
+    raise exception 'FAIL H the leased in-flight job was rewritten: %', row_to_json(v_after);
+  end if;
+  if (select count(*) from public.show_lifecycle_email_jobs
+       where show_id = v_show and step_type = 'show_changed' and status = 'ready' and recipient_person_id = v_ada) <> 2 then
+    raise exception 'FAIL H the newer edit did not queue a separate job for Ada';
+  end if;
+  if not exists (select 1 from public.show_lifecycle_email_jobs
+                  where show_id = v_show and step_type = 'show_changed' and status = 'ready'
+                    and recipient_person_id = v_ada and id <> v_leased.id
+                    and claimed_until is null and due_at = now() + interval '5 minutes') then
+    raise exception 'FAIL H the separate job is not a fresh unleased ready job';
+  end if;
+  -- Hal's job was not leased: still one waiting job, merged as before.
+  if (select count(*) from public.show_lifecycle_email_jobs
+       where show_id = v_show and step_type = 'show_changed' and status = 'ready' and recipient_person_id = v_hal) <> 1 then
+    raise exception 'FAIL H an unleased waiting job was not merged';
+  end if;
+  raise notice 'PASS H an edit while a job is leased queues a separate job';
+end $$;
+
 rollback;

@@ -94,7 +94,7 @@ describe('ShowPublicLanding card entries (MYK9-2192)', () => {
     rpc.mockResolvedValue({ data: ['show-1'], error: null });
     renderLanding(openShow(true));
     expect(
-      await screen.findByText('Card payments are paused. Pay by check or cash.')
+      await screen.findByText('Card payments are paused. Pay by check.')
     ).toBeInTheDocument();
     expect(screen.getByTestId('reason')).toHaveTextContent('enter-open');
   });
@@ -142,6 +142,13 @@ describe('ShowPublicLanding card entries (MYK9-2192)', () => {
     expect(screen.getByText(/service fee when you pay online/)).toBeInTheDocument();
   });
 
+  it('hides the online service fee note while card payments are paused', async () => {
+    rpc.mockResolvedValue({ data: ['show-1'], error: null });
+    renderLanding(openShow(true));
+    await screen.findByText('Card payments are paused. Pay by check.');
+    expect(screen.queryByText(/service fee when you pay online/)).not.toBeInTheDocument();
+  });
+
   describe('a timed close (12:00 UTC)', () => {
     const timed = (): Show =>
       ({ ...openShow(true), entryCloseDate: '2026-06-10T12:00:00+00:00' }) as Show;
@@ -168,7 +175,7 @@ describe('ShowPublicLanding card entries (MYK9-2192)', () => {
       rpc.mockResolvedValue({ data: ['show-1'], error: null });
       renderLanding(timed());
       expect(
-        await screen.findByText('Card payments are paused. Pay by check or cash.')
+        await screen.findByText('Card payments are paused. Pay by check.')
       ).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Enter' })).toBeInTheDocument();
     });

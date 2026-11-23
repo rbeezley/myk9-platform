@@ -8,7 +8,6 @@ vi.mock('@/lib/supabase', () => ({ supabase: { rpc } }));
 
 import {
   cardEntriesLanding,
-  CARD_PAYMENTS_PAUSED_PAY_OTHER_MESSAGE,
   useShowCardEntriesPaused,
 } from '../useShowCardEntriesPaused';
 
@@ -134,8 +133,17 @@ describe('cardEntriesLanding', () => {
   it('keeps Enter and adds one line for a paused show that takes check or cash', () => {
     expect(cardEntriesLanding('paused', withCheck)).toEqual({
       pendingReason: undefined,
-      note: CARD_PAYMENTS_PAUSED_PAY_OTHER_MESSAGE,
+      note: 'Card payments are paused. Pay by check.',
     });
+  });
+  it.each([
+    [true, false, 'Card payments are paused. Pay by check.'],
+    [false, true, 'Card payments are paused. Pay by cash.'],
+    [true, true, 'Card payments are paused. Pay by check or cash.'],
+    [undefined, undefined, 'Card payments are paused. Pay by check or cash.'],
+  ])('names only the methods the show takes (check %s, cash %s)', (check, cash, line) => {
+    const show = { ...cardOnly, acceptCheckPayments: check, acceptCashPayments: cash };
+    expect(cardEntriesLanding('paused', show).note).toBe(line);
   });
   it('withholds Enter while loading or unknown, even with check or cash', () => {
     expect(cardEntriesLanding('loading', withCheck).pendingReason).toBe('card_entries_checking');

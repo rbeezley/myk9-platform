@@ -177,14 +177,12 @@ if review_has_findings "$VERDICT"; then
   echo
   echo "codex-review: findings above. Fix them, commit, and re-run — the evidence line is for the NEW head."
   # Findings belong ON the PR: without this they existed only in a local log,
-  # and the PR carried nothing but "12 findings, all addressed". This comment
-  # never begins with `Review gate:`, so review-gate.ts never reads it as
-  # evidence — and the clean re-run counts its [P*] bullets for the N.
+  # and the PR carried nothing but a clean gate line. This comment never
+  # begins with `Review gate:`, so review-gate.ts never reads it as evidence.
   if [ "$POST" = 1 ]; then
     PR="$("$GH" pr view --json number -q .number)"
-    # A lost findings comment is not a cosmetic failure: the next clean run
-    # counts N from these comments, so a silently dropped one makes the
-    # evidence read "no findings" for a head that had them (Codex, #2115 P2).
+    # A lost findings comment is not cosmetic: the findings would exist only
+    # in a local log, so fail loudly rather than carry on (Codex, #2115 P2).
     # Line 2 is the round-2 anchor's coverage claim (MYK9-1590): written only
     # when this review finished, so an aborted one can never narrow the next.
     COVERAGE=""
@@ -248,16 +246,6 @@ fi
 VERDICT_LINE="no findings"
 if [ "$POST" = 1 ]; then
   PR="$("$GH" pr view --json number -q .number)"
-  # N comes from the wrapper's OWN earlier findings comments on this PR, so
-  # "N findings, all addressed" is counted from what was posted, not typed.
-  # Fail closed: a transient API failure here returns an empty history, which
-  # would post "no findings" over a head that had them (Codex, #2115 round 2).
-  if ! PRIOR="$("$GH" pr view "$PR" --json comments -q '[.comments[].body | select(startswith("Codex findings for"))] | join("\n")')"; then
-    echo "codex-review: could not read this PR's earlier findings comments (gh failed), so N cannot be trusted. Exit 2; no evidence posted." >&2
-    exit 2
-  fi
-  N="$(review_finding_count "$PRIOR")"
-  [ "${N:-0}" -gt 0 ] && VERDICT_LINE="$N findings, all addressed"
   # The wrapper runs without errexit; a poster failure (grammar refusal, gh
   # error) must not fall through to exit 0 as if evidence had been posted.
   # MYK9-1603: this branch is reached only for a finished review, so it may

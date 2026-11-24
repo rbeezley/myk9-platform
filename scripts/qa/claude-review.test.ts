@@ -337,14 +337,14 @@ describe('claude-review.sh', () => {
     expect(bodies(gh.calls)).toHaveLength(2);
   });
 
-  it('counts N from its own earlier findings comments', () => {
+  it('a clean re-run after a findings comment posts exactly "no findings" (MYK9-2369)', () => {
     const stub = stubClaude('No actionable defects found.');
     const gh = stubGh({
       prior:
         'Claude findings for abc123456 (not gate evidence):\n\n- [P1] one\n- [P2] two\n- [P3] three\n',
     });
     expect(run(stub, gh).code).toBe(0);
-    expect(bodies(gh.calls)[0]).toMatch(/— 3 findings, all addressed\n/);
+    expect(bodies(gh.calls)[0]?.split('\n')[0]).toMatch(/— no findings$/);
   });
 
   it('exits 2 when the review was clean but the evidence did NOT get posted', () => {
@@ -363,16 +363,6 @@ describe('claude-review.sh', () => {
     const r = run(stub, gh);
     expect(r.code).toBe(2);
     expect(r.out).toContain('local HEAD');
-    expect(bodies(gh.calls)).toEqual([]);
-  });
-
-  it('exits 2 when the prior-findings lookup fails, instead of posting "no findings"', () => {
-    // A failed lookup returns an empty history, which reads as "there were
-    // never any findings" (Codex review of #2115, round 2).
-    const stub = stubClaude('No actionable defects found.');
-    const gh = stubGh({ commentsExit: 1, prior: '- [P1] one\n' });
-    const r = run(stub, gh);
-    expect(r.code).toBe(2);
     expect(bodies(gh.calls)).toEqual([]);
   });
 
@@ -446,8 +436,7 @@ describe('claude-review.sh', () => {
   });
 
   it('exits 2 when the findings comment could not be posted', () => {
-    // The next clean run counts N from these comments, so a dropped one makes
-    // the evidence say "no findings" for a head that had them.
+    // A dropped findings comment leaves the findings only in a local log.
     const stub = stubClaude('- [P1] Something is broken\n');
     const gh = stubGh({ commentExit: 1 });
     const r = run(stub, gh);

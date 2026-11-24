@@ -506,14 +506,14 @@ describe('codex-review.sh', () => {
     expect(bodies(gh.calls)).toHaveLength(2);
   });
 
-  it('counts N from its own earlier findings comments, not from a typed number', () => {
+  it('a clean re-run after a findings comment posts exactly "no findings" (MYK9-2369)', () => {
     const stub = stubCodex('codex\nNo actionable defects found.');
     const gh = stubGh({
       prior: 'Codex findings for abc123456 (not gate evidence):\n\n- [P1] one\n- [P3] two\n',
     });
     expect(runPost(stub, gh).code).toBe(0);
-    expect(bodies(gh.calls)[0]).toMatch(
-      /^Review gate: codex reviewed \S+ — 2 findings, all addressed\n/
+    expect(bodies(gh.calls)[0]?.split('\n')[0]).toMatch(
+      /^Review gate: codex reviewed \S+ — no findings$/
     );
   });
 
@@ -550,13 +550,13 @@ describe('codex-review.sh', () => {
       expect(run(stub).code).toBe(1);
     });
 
-    it('N ignores pre-existing bullets in earlier findings comments', () => {
+    it('a clean re-run after earlier pre-existing bullets still posts "no findings"', () => {
       const gh = stubGh({
         prior:
           'Codex findings for abc123456 (not gate evidence):\n\n- [P2] real\n\n- [pre-existing P1] old\n- [pre-existing P2] older\n',
       });
       expect(runPost(stubCodex('codex\nNo actionable defects found.'), gh).code).toBe(0);
-      expect(bodies(gh.calls)[0]).toMatch(/— 1 findings, all addressed\n/);
+      expect(bodies(gh.calls)[0]?.split('\n')[0]).toMatch(/— no findings$/);
     });
 
     it('lists the backticked-location and mixed-case shapes too', () => {
@@ -589,21 +589,9 @@ describe('codex-review.sh', () => {
     });
   });
 
-  it('exits 2 when the prior-findings lookup fails, instead of posting "no findings"', () => {
-    // A failed lookup returns an empty history, which reads as "there were
-    // never any findings" — the one direction this must never fail in
-    // (Codex review of #2115, round 2).
-    const stub = stubCodex('codex\nNo actionable defects found.');
-    const gh = stubGh({ commentsExit: 1, prior: '- [P1] one\n' });
-    const r = runPost(stub, gh);
-    expect(r.code).toBe(2);
-    expect(bodies(gh.calls)).toEqual([]);
-  });
-
   it('exits 2 when the findings comment could not be posted', () => {
-    // A dropped findings comment is not cosmetic: the next clean run counts N
-    // from these comments, so the evidence would say "no findings" for a head
-    // that had them (Codex review of #2115, P2).
+    // A dropped findings comment leaves the findings only in a local log
+    // (Codex review of #2115, P2).
     const stub = stubCodex('codex\n- [P2] Something is wrong');
     const gh = stubGh({ commentExit: 1 });
     const r = runPost(stub, gh);

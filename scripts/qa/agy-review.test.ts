@@ -303,10 +303,14 @@ esac
     expect(diff).not.toContain('+two');
   });
 
-  it('the prior-findings count reads only trusted authors', () => {
-    const script = readFileSync(SCRIPT, 'utf8');
-    const line = script.split('\n').find(l => l.includes('PRIOR="$(')) ?? '';
-    expect(line).toContain('authorAssociation == "OWNER"');
+  it('a clean re-run after a findings comment posts exactly "no findings" (MYK9-2369)', () => {
+    const gh = stubGh();
+    const r = run(stubAgy(CLEAN), ['HEAD~1', '--post'], gh);
+    expect(r.code).toBe(0);
+    const posted = bodies(gh.calls);
+    expect(posted).toHaveLength(1);
+    expect(posted[0]?.split('\n')[0]).toMatch(/— no findings$/);
+    expect(posted[0]).not.toContain('all addressed');
   });
 
   it('exits 2 when the diff is empty (nothing was reviewed)', () => {

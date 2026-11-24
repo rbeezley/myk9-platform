@@ -44,11 +44,11 @@ agent on it before your own review. Migrations are never pushed in an orchestrat
 
 **Concurrency cap: 3 heavy jobs at once** (owner, 2026-11-13). It was 2 from 2026-10-13, when
 four agents plus Codex reviews needed a reboot; implementers have since moved to the cloud lane. This counts sub-agents, resumed agents (SendMessage), verifiers that
-run a suite or a browser, Codex reviews and your own full test or Playwright runs. Lightweight
+run a suite or a browser, agy reviews and your own full test or Playwright runs. Lightweight
 `gh` watchers don't count. Count before every spawn or resume, and queue the work when you're
 at 3. No size exemption: a "small" fix's agent counts like any other. Implementers running
 in Claude cloud sessions (Linear run mode's cloud lane) don't count, since they use no Mac
-CPU; the Codex review and any verifier run for their PRs do.
+CPU; the agy review and any verifier run for their PRs do.
 
 ## Verify, then weigh (before any worktree, state change or dispatch)
 
@@ -125,8 +125,8 @@ all three of these are done and recorded in the ledger row (`premise:`, `approac
 
    Write it in its own worktree (branch `claude/myk9-<n>-plan-<topic>`, the prefix the cloud tooling accepts, created like any issue worktree; `-plan-` right after the number is excluded from cloud implementation discovery),
    never the primary checkout. Open it as a docs-only PR whose body says `Ignore MYK9-<n>`,
-   so neither the plan PR nor its merge moves the issue. `pnpm qa:codex-review --post` reviews
-   that diff and posts the verdict on the PR, so Codex reads the design, not code, and the
+   so neither the plan PR nor its merge moves the issue. `pnpm qa:agy-review --post` reviews
+   that diff and posts the verdict on the PR, so agy reads the design, not code, and the
    owner can see the review. Link the PR on the issue, label it `needs:decision`, and put the
    delete-or-do-nothing option to the owner before building, not after a convergence stop.
    Record `size: design first` in the ledger.
@@ -221,10 +221,10 @@ commands check `main`, not the proposed change.
          assertion. Dispatch the `verifier` with the issue's repro (e2e spec, browser at the
          stated width) against the branch worktree and against `main` as a control that must
          fail, and read its output, not its summary
-3. `independent` floor only: before the first Codex run, dispatch one read-only `sonnet` lens
+3. `independent` floor only: before the first agy run, dispatch one read-only `sonnet` lens
    on `git diff origin/main...HEAD` to find defects (never approve), fix what you agree with,
    and commit. It posts nothing and is not gate evidence; it counts as one Mac heavy job. The PR
-   body records `pre-pass: N findings fixed`, and `Codex rounds: M` at the end (`ship-pr` Step 4).
+   body records `pre-pass: N findings fixed`, and `Agy rounds: M` at the end (`ship-pr` Step 4).
 4. On failure, send the same agent (SendMessage, which keeps its context) a numbered defect list
    and re-review. **Max 3 rounds.** After that, escalate (see Model routing) or implement it
    yourself. A cheap model looping past the point where you'd be faster is waste.
@@ -253,7 +253,7 @@ implementation → PR → archive → cleanup).
 Group `tasks.md` items into coherent batches (one file cluster or one requirement each) and run
 them **one at a time**. Commit a checkpoint after each accepted batch, then **ship that batch
 before dispatching the next**: open its PR, run the OTHER harness's review with the flag that
-posts the gate (`pnpm qa:codex-review --post` from Claude Code), record the gate, merge, and
+posts the gate (`pnpm qa:agy-review --post` from Claude Code), record the gate, merge, and
 start the next batch from the merged `main`. Before the LAST batch's PR is opened, run
 `opsx:verify` against the integrated tree and fix CRITICAL findings in that PR, never after the
 merge. One PR per batch (shared rules, Gates § 3): the reviewer reads the whole net diff, so one
@@ -273,8 +273,8 @@ the pipeline.
   needs one stops short of it, parks the issue `needs:operator` with the reason, and says so.
 - Owner questions go to Linear (`needs:decision` / `needs:operator`) and the run moves on; it does
   not wait in chat.
-- The `independent` floor is met only by the other harness (`pnpm qa:codex-review --post`).
-  A same-harness reviewer never substitutes. If Codex is unavailable, the PR waits, open and
+- The `independent` floor is met only by the other harness (`pnpm qa:agy-review --post`).
+  A same-harness reviewer never substitutes. If agy is unavailable, the PR waits, open and
   unmerged, and the run reports it.
 
 ## Final report

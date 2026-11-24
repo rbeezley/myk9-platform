@@ -30,6 +30,7 @@ import {
   CART_EXPIRATION_MINUTES,
   EXPIRATION_WARNING_MINUTES,
   calculateCartTotals,
+  commitRebasedCart,
 } from './cartStore.helpers';
 import { findRecoverableEntries, loadCartItemsByCartId } from './cartStore.recovery';
 import type { RecoverableEntryRow, RecoveryOutcome } from './cartStore.recovery';
@@ -556,15 +557,24 @@ export const useCartStore = create<CartState>()(
               throw insertError;
             }
 
-            const updatedItems = [...cart.items, newItem as CartItemWithDetails];
-            const { subtotal, platformFee, total } = calculateCartTotals(updatedItems);
+            // MYK9-2340: commit onto the LATEST cart (never the pre-await
+            // snapshot; an overlapping mutation may have committed meanwhile)
+            // BEFORE the totals write, and send the committed totals. The item
+            // row is in the DB whatever the totals write does, so the local
+            // list must hold it before a totals failure is decided on
+            // (MYK9-530): throwing first left the list one row short of the DB.
+            // The stored totals are a cache; loadCart recomputes them.
+            const added = newItem as CartItemWithDetails;
+            const committed = commitRebasedCart(get, write, cart, items =>
+              items.some(i => i.id === added.id) ? items : [...items, added]
+            );
 
             const { error: updateError } = await supabase
               .from('entry_carts')
               .update({
-                subtotal_cents: subtotal,
-                platform_fee_cents: platformFee,
-                total_cents: total,
+                subtotal_cents: committed.subtotal_cents,
+                platform_fee_cents: committed.platform_fee_cents,
+                total_cents: committed.total_cents,
                 // Sever the checkout-session link: an abandoned-but-open Stripe
                 // page must not be able to pay for a cart that has since
                 // changed. The webhook rejects sessions the cart no longer
@@ -572,23 +582,6 @@ export const useCartStore = create<CartState>()(
                 stripe_checkout_session_id: null,
               })
               .eq('id', cart.id);
-
-            // The item row is in the DB whatever the totals write did, so commit
-            // it locally BEFORE deciding what a totals failure means. Throwing
-            // first left the local list one row short of the DB, and the next
-            // click on that chip then collided on the unique index (MYK9-530).
-            // The stored totals are a cache; loadCart recomputes them from items.
-            write({
-              cart: {
-                ...cart,
-                items: updatedItems,
-                subtotal_cents: subtotal,
-                platform_fee_cents: platformFee,
-                total_cents: total,
-                stripe_checkout_session_id: null,
-              },
-              lastSyncedAt: new Date().toISOString(),
-            });
 
             if (updateError) {
               logger.error(
@@ -630,41 +623,25 @@ export const useCartStore = create<CartState>()(
               throw deleteError;
             }
 
-            const updatedItems = cart.items.filter(i => i.id !== itemId);
-            const { subtotal, platformFee, total } = calculateCartTotals(updatedItems);
+            // The DELETE has already committed, so commit the local removal
+            // (onto the LATEST cart, MYK9-2340) BEFORE the totals write and
+            // before deciding what a totals failure means, exactly as
+            // `addItem` does (MYK9-530 review, P3-a). The stored totals are a
+            // cache; loadCart recomputes them from items.
+            const committed = commitRebasedCart(get, write, cart, items =>
+              items.filter(i => i.id !== itemId)
+            );
 
             const { error: updateError } = await supabase
               .from('entry_carts')
               .update({
-                subtotal_cents: subtotal,
-                platform_fee_cents: platformFee,
-                total_cents: total,
-                // Sever the checkout-session link: an abandoned-but-open Stripe
-                // page must not be able to pay for a cart that has since
-                // changed. The webhook rejects sessions the cart no longer
-                // points at (sessionCartGuard, Codex round-3 P1).
+                subtotal_cents: committed.subtotal_cents,
+                platform_fee_cents: committed.platform_fee_cents,
+                total_cents: committed.total_cents,
+                // Sever the checkout-session link (see addItem).
                 stripe_checkout_session_id: null,
               })
               .eq('id', cart.id);
-
-            // The DELETE has already committed, so the row is gone from the DB
-            // whatever the totals write did: commit the local removal BEFORE
-            // deciding what a totals failure means, exactly as `addItem` now
-            // does. Throwing first left the local list holding a row that no
-            // longer exists, and the next click on that chip took the REMOVE
-            // branch and deleted nothing (MYK9-530 review, P3-a). The stored
-            // totals are a cache; loadCart recomputes them from items.
-            write({
-              cart: {
-                ...cart,
-                items: updatedItems,
-                subtotal_cents: subtotal,
-                platform_fee_cents: platformFee,
-                total_cents: total,
-                stripe_checkout_session_id: null,
-              },
-              lastSyncedAt: new Date().toISOString(),
-            });
 
             if (updateError) {
               logger.error(
@@ -720,8 +697,12 @@ export const useCartStore = create<CartState>()(
               throw updateError;
             }
 
-            const updatedItems = cart.items.map(i =>
-              i.id === itemId ? { ...i, ...updateData } : i
+            // The item row is already updated in the DB whatever the cart write
+            // does, so commit locally (onto the LATEST cart, MYK9-2340) BEFORE
+            // the cart write and before surfacing its error, exactly as
+            // `addItem` and `removeItem` do (MYK9-530).
+            const committed = commitRebasedCart(get, write, cart, items =>
+              items.map(i => (i.id === itemId ? { ...i, ...updateData } : i))
             );
 
             // Sever the session on ANY item change (round-19 P2): handler,
@@ -729,17 +710,14 @@ export const useCartStore = create<CartState>()(
             // via buildEntryInsert — an old Stripe page must not lock in
             // values the user changed after checkout started. Fee changes also
             // require a totals refresh.
-            const totals =
-              updates.entryFeeCents !== undefined ? calculateCartTotals(updatedItems) : null;
-
             const { error: cartUpdateError } = await supabase
               .from('entry_carts')
               .update({
                 stripe_checkout_session_id: null,
-                ...(totals !== null && {
-                  subtotal_cents: totals.subtotal,
-                  platform_fee_cents: totals.platformFee,
-                  total_cents: totals.total,
+                ...(updates.entryFeeCents !== undefined && {
+                  subtotal_cents: committed.subtotal_cents,
+                  platform_fee_cents: committed.platform_fee_cents,
+                  total_cents: committed.total_cents,
                 }),
               })
               .eq('id', cart.id);
@@ -753,20 +731,6 @@ export const useCartStore = create<CartState>()(
               );
               throw cartUpdateError;
             }
-
-            write({
-              cart: {
-                ...cart,
-                items: updatedItems,
-                stripe_checkout_session_id: null,
-                ...(totals !== null && {
-                  subtotal_cents: totals.subtotal,
-                  platform_fee_cents: totals.platformFee,
-                  total_cents: totals.total,
-                }),
-              },
-              lastSyncedAt: new Date().toISOString(),
-            });
 
             return true;
           } catch (error) {

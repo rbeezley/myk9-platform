@@ -4,7 +4,7 @@
  * Constants and utility functions for cart calculations, extracted from cartStore.ts.
  */
 
-import type { CartItemWithDetails } from './cartStore.types';
+import type { CartItemWithDetails, CartWithDetails } from './cartStore.types';
 import { formatCents } from '@/lib/format/cents';
 
 // ── PLATFORM FEE: THE CLIENT HALF OF A DUPLICATED EXPRESSION ──────────────
@@ -147,6 +147,55 @@ export function calculateCartTotals(items: CartItemWithDetails[]): {
   const platformFee = calculatePlatformFeeCents(subtotal, DEFAULT_PLATFORM_FEE_RATES);
   const total = subtotal + platformFee;
   return { subtotal, platformFee, total };
+}
+
+/**
+ * MYK9-2340: apply one item change to the LATEST cart, not the one a mutation
+ * captured before it awaited. Every cart mutation awaits an `entry_cart_items`
+ * write, and a second mutation can commit in that gap; rebuilding `items` and
+ * the totals from the pre-await snapshot overwrote it. Callers re-read
+ * `get().cart` after each await and pass it here as `latest`; `fallback` (the
+ * cart the mutation started on) is used only when the store holds no cart or a
+ * different one. Totals are always recomputed from the resulting items.
+ */
+export function rebaseCartItems(
+  latest: CartWithDetails | null,
+  fallback: CartWithDetails,
+  change: (items: CartItemWithDetails[]) => CartItemWithDetails[]
+): {
+  base: CartWithDetails;
+  items: CartItemWithDetails[];
+  totals: ReturnType<typeof calculateCartTotals>;
+} {
+  const base = latest && latest.id === fallback.id ? latest : fallback;
+  const items = change(base.items);
+  return { base, items, totals: calculateCartTotals(items) };
+}
+
+/**
+ * Rebase `change` onto the latest cart and commit it to the store, returning
+ * the committed cart (items and totals always agree). Run it BEFORE the
+ * `entry_carts` totals write and send those returned totals: a mutation that
+ * commits first is visible to the next one, so the totals written last are the
+ * totals of every item committed so far (MYK9-2340).
+ */
+export function commitRebasedCart(
+  get: () => { cart: CartWithDetails | null },
+  write: (partial: { cart: CartWithDetails; lastSyncedAt: string }) => void,
+  fallback: CartWithDetails,
+  change: (items: CartItemWithDetails[]) => CartItemWithDetails[]
+): CartWithDetails {
+  const { base, items, totals } = rebaseCartItems(get().cart, fallback, change);
+  const cart: CartWithDetails = {
+    ...base,
+    items,
+    subtotal_cents: totals.subtotal,
+    platform_fee_cents: totals.platformFee,
+    total_cents: totals.total,
+    stripe_checkout_session_id: null,
+  };
+  write({ cart, lastSyncedAt: new Date().toISOString() });
+  return cart;
 }
 
 /**

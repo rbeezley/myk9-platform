@@ -1,11 +1,11 @@
 ---
 name: ship-it
-description: Use when given a docs/plan-*.md path to autonomously implement, test, simplify and (below the Codex review tier) harden a feature, then ship it through ship-pr (PR, independent review gate, merge, cleanup) with no human input until final merge confirmation. For OpenSpec changes use opsx:ship or orchestrate instead; for a list of Linear issues use orchestrate.
+description: Use when given a docs/plan-*.md path to autonomously implement, test, simplify and (below the independent review tier) harden a feature, then ship it through ship-pr (PR, independent review gate, merge, cleanup) with no human input until final merge confirmation. For OpenSpec changes use opsx:ship or orchestrate instead; for a list of Linear issues use orchestrate.
 ---
 
 # Ship It — Autonomous PR Pipeline
 
-Takes a plan path and ships it end-to-end: implement → test loop → migration audit → simplify → harden (unless Codex reviews, Step 3c) → `ship-pr` (commit, PR, review gate, merge, close-out, cleanup).
+Takes a plan path and ships it end-to-end: implement → test loop → migration audit → simplify → harden (unless agy reviews, Step 3c) → `ship-pr` (commit, PR, review gate, merge, close-out, cleanup).
 
 This skill owns everything up to a green working tree, hardened unless Step 3c hands that job to the Codex gate. From there `ship-pr` owns the rest, so the review gate, merge and cleanup rules live in ONE place. Do not restate or shortcut them here.
 
@@ -169,11 +169,11 @@ The same table decides the gate in `ship-pr` Step 3a, so the floor read here is 
 Apply the first rule that matches:
 
 1. `NON_SKIP_FILES == 0` → skip Step 3c with a logged note: "low-stakes diff (only [list extensions/dirs]), harden skipped"
-2. `FLOOR` is `independent` → skip Step 3c with a logged note: "review floor is independent, Codex reviews this diff at the gate, harden skipped". Carry the note into the PR body.
+2. `FLOOR` is `independent` → skip Step 3c with a logged note: "review floor is independent, agy reviews this diff at the gate, harden skipped". Carry the note into the PR body.
 3. `FLOOR` is `adversarial` or `none` (which includes every diff that will end at optional review) → invoke `/harden`. No stronger reviewer follows, so harden is the adversarial pass.
 4. `FLOOR` is empty or anything else (the command failed) → invoke `/harden`. An unread floor is not a reason to skip.
 
-Rule 2 trades harden for the Codex round, so it holds only while that round happens. If `ship-pr` ends the gate on an `owner` override because Codex is unavailable, run `/harden` on the branch before posting the override.
+Rule 2 trades harden for the agy round, so it holds only while that round happens. If `ship-pr` ends the gate on an `owner` override because agy is unavailable, run `/harden` on the branch before posting the override.
 
 Harden launches three parallel agents (edge cases, state corruption, security) and auto-fixes critical/high findings. After it completes:
 

@@ -38,6 +38,7 @@ import { narrowShowUpdatePayload } from './showUpdatePayload';
 import { showCloseRecordColumns, stripUnsetCloseRecordColumns } from './showCloseRecordColumns';
 import { showAscaFactColumns } from './showAscaFactColumns';
 import { mapShowStatusToDb } from './showStatusMapping';
+import { SHOW_DIRTY_ROW_COMPARE_POLICY } from './showsDirtyRowComparePolicy';
 import { formatDateLocal } from '@/utils/dateLocal';
 import type { ReplicatedShow, ReplicatedShowCreateInput } from './replicatedShowTypes';
 
@@ -186,6 +187,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
       getRemoteId: remote => String(remote.id),
       toLocalRow: rowToShow,
       rebuildUpdatePayload: show => this.rebuildUpdatePayload(show),
+      dirtyRowComparePolicy: SHOW_DIRTY_ROW_COMPARE_POLICY,
     };
   }
 

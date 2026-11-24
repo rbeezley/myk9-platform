@@ -370,7 +370,7 @@ Volunteers only shows here while its **This show uses…** switch is on (card 3;
 
 ## 17 · Run a class: status, start time, delays
 
-> **Watch:** [How to run a class (1 min 8 s)](https://youtu.be/EhwcGfYF93s)
+> **Watch:** [How to run a class (1 min 9 s)](https://youtu.be/EhwcGfYF93s)
 
 **Show Desk → click the class.** Under the class name, the fields can be changed in place. On a laptop-size screen, press **Class settings** to show them:
 

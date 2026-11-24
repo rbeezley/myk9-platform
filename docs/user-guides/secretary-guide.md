@@ -128,6 +128,8 @@ On the show page, open the **status pill** under the show's name and choose **Pu
 
 ## 4 · Approve or accept online entries
 
+> **Watch:** [How to approve entries (1 min 23 s)](https://youtu.be/-12vFHQXjdA)
+
 **Entry Forms.** The list opens on every form, one row per mail-in entry set or online checkout (an exhibitor who checked out twice online has two forms), with the forms that need you at the top: missing information first, then review, then payment, then the rest. The **Next action** column says what each one needs (**Resolve missing information**, **Review**, **Resolve payment**, or **View**).
 
 ![Entry Forms with the list on the left and the selected exhibitor's form on the right](../screenshots/S-07.png)
@@ -143,7 +145,7 @@ The header **Actions** button holds the rest. On **Entry Forms** it lists:
 
 ![The Actions menu open on Entry Forms, with the Entry lists group](../screenshots/S-23.png)
 
-Click a form to open it. At the top is the exhibitor's name and a **⋯** menu beside it. Add entry for, Email exhibitor… and Add private note… appear only on mail-in (paper) forms. A form from an online checkout lacks them; use the header **Actions → Add entry** instead, and the **$ due** card below has no Cash… or Check… buttons either (online payments follow Stripe).
+Click a form to open it. At the top is the exhibitor's name and a **⋯** menu beside it, with **Add entry for**, **Email exhibitor…** and **Add private note…** when the form allows them. Some forms from an online checkout have none of them; use the header **Actions → Add entry** instead. **Email exhibitor…** also needs the dog's owner on record and your permission to message exhibitors.
 
 - **Add entry for** the exhibitor opens the entry flow already on them (card 5).
 - **Email exhibitor…** opens the message composer addressed to that one exhibitor, so you can write to them about this form.
@@ -152,9 +154,9 @@ Click a form to open it. At the top is the exhibitor's name and a **⋯** menu b
 
 Under it, **To finish this form** lists only what is left, one card each, with the button that does it:
 
-- **N entries need review**: **Accept** or **Reject**.
+- **N entries need review**: **Accept** or **Reject**. Accept gives the dog an armband number. The accepted form leaves the **Needs review** view and the next form on the list opens. A message, "Updated all N items", shows with **Undo**.
 - **N entries are missing information**: use **Edit entry** on the entry's menu.
-- **$ due** (mail-in forms): **Cash…**, **Check…**, or the more options (**Partial Payment…**, **Paid in Full: Online**).
+- **$ due**: **Cash…**, **Check…**, or the more options (**Partial Payment…**, **Paid in Full: Online**). A form that shows a balance with none of these buttons cannot record a payment here.
 - **A dog has no armband**: **Assign**.
 - **A dog needs a registration number**: **Add number**.
 - **On a show day, N runs to check in**: **Check in all** (card 18).
@@ -163,7 +165,9 @@ When nothing is left it collapses to a green **All set.** line saying what was d
 
 ## 5 · Add a mail-in entry
 
-**Actions → Add entry** (the top-bar Actions button, on any page of the show). Or open the exhibitor's form on **Entry Forms** and choose **Add entry for** them from its **⋯** menu. Pick the dog and handler (or create them), choose classes, and record payment. The same flow enters your own dog: search for it like any other.
+> **Watch:** [How to enter a dog for an exhibitor (2 min 28 s)](https://youtu.be/TIkYExmdvCA) A mail-in form, a phone call, or someone at the desk: the steps are the same.
+
+**Actions → Add entry** (the top-bar Actions button, on any page of the show). Or open the exhibitor's form on **Entry Forms** and choose **Add entry for** them from its **⋯** menu. Pick the dog and handler (or create them), choose classes, and record payment. The same flow enters your own dog: search for it like any other. The **Handlers** step is skipped when the owner is the handler of every dog. A mail-in entry you key in for someone else is saved already accepted, with an armband number, so it does not wait in **Needs review**. The exception is a full class: the dog may go on its waitlist instead, and one class can place while another waitlists. Read each class's outcome on the confirmation screen before you tell the exhibitor they have a spot.
 
 > This works **after entries close** — you're the trial secretary, so the deadline doesn't block you.
 
@@ -199,6 +203,8 @@ When nothing is left it collapses to a green **All set.** line saying what was d
 > so you can look a cheque number up later.
 
 ## 6 · Take a late or walk-in entry on show day
+
+> **Watch:** [How to take a late or walk-in entry (1 min 27 s)](https://youtu.be/aEmrZWZI8Kk)
 
 **Entry Forms → Actions → Add late entry.** Same flow as entering for someone else. The row is greyed, with the reason, when no class has room.
 
@@ -341,6 +347,8 @@ To put one dog in a specific spot, drag it. In the class's entries list, each do
 
 ## 15 · Ringside access codes
 
+> **Watch:** [Give judges and stewards their access codes (1 min 34 s)](https://youtu.be/EUay7yOlSm4)
+
 **Show Desk → Actions → Access codes.** Separate codes for Admin, Steward, and Exhibitor, and one code for each judge, listed under the judge's name. A judge's code opens only that judge's classes at ringside; the Admin and Steward codes open every class. A judge's code is also printed on their page of **Reports → Judge Supply Checklists**. Copy a code, copy a share link, print a slip, or generate new codes if one gets out. Generating new codes replaces every code, the judges' too. To replace just one judge's code, use **New code** on that judge's row; every other code stays the same.
 
 ## 16 · Volunteers, lunch orders, and the paper fallback
@@ -362,14 +370,17 @@ Volunteers only shows here while its **This show uses…** switch is on (card 3;
 
 ## 17 · Run a class: status, start time, delays
 
-**Show Desk → click the class.** Under the class name, the fields can be changed in place:
+> **Watch:** [How to run a class (1 min 9 s)](https://youtu.be/EhwcGfYF93s)
+
+**Show Desk → click the class.** Under the class name, the fields can be changed in place. On a laptop-size screen, press **Class settings** to show them:
 
 - **Status** — Not started, In progress, Complete, or Cancelled. Press it to choose. Marking a class complete with scores still unentered asks you to confirm.
 - **Judge** — who is judging the class. You can change it here until the class starts; after that, use **Edit class**.
-- **Expected start** — press the time (or **Set expected start**) to give a revised start when a class runs late or early, then **Save expected start**.
+- **Expected start** — press the time (or **Set expected start**) to give a revised start when a class runs late or early, then press the check mark (**Save expected start**).
+- **Scoring** — whether this class is scored on paper or on a phone.
 - **Actual timing** — when the class started and finished. Press it to correct the start.
 
-The **⋯** button at the top right of the class opens **Actions for** that class: **Edit class**, **Score this class** (opens paper scoring for the class), **Announce a delay**, **Auto-sort run order** and **View entries and results**.
+The **⋯** button at the top right of the class opens **Actions for** that class: **Edit class**, **Score this class** (opens paper scoring for the class) and **Auto-sort run order**, plus **Announce a delay** when the class is running late.
 
 **Announce a delay** appears before a class starts when it is running late; it opens the delay message already filled in with the class and the minutes.
 
@@ -407,9 +418,16 @@ Choose the target class and give a reason. Targets are restricted to the same el
 
 ## 20 · Enter results from paper scoresheets
 
-**Show Desk → click the class → Enter results from scoresheet.**
+> **Watch:** [Enter results from paper scoresheets (1 min 17 s)](https://youtu.be/3M2ynjKE_pI)
 
-Per dog, record the result (Q, NQ, ABS, EX), the search time, and any faults. Search time is digit-masked — type `4520` for 45.20 seconds.
+**Show Desk → click the class → ⋯ → Score this class.** The first dog not yet scored is already selected, which is not the first dog when you come back to a class part way through. Check that the armband on screen matches the sheet in your hand before you save.
+
+Per dog, record the result (Q, NQ, ABS, EX or DQ), the search time, and any faults, then press **Save & Next** for the next dog.
+
+- Search time is digit-masked: type `4520` and it shows as 0:45.20.
+- A time is asked for on a Q only while **Record time for: Q only** is chosen (the default). Choose **All runs** to record a time for every result.
+- **NQ** needs a reason before it can be saved.
+- **ABS** saves as soon as you press it, but only while **Record time for: Q only** and **Pre-fill: None** are both chosen. With any other setting, press **Save & Next** as for any other result.
 
 > Placements are calculated for you once every dog in the class is scored. You don't enter them.
 

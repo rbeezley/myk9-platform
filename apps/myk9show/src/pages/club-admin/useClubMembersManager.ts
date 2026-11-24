@@ -257,7 +257,9 @@ export function useClubMembersManager(clubId: string) {
         members.find(member => member.personId === personId)?.personName ??
         showManagers.find(manager => manager.personId === personId)?.personName ??
         'that person';
-      notifications.success(`Show secretary role ${grant ? 'granted to' : 'revoked from'} ${name}.`);
+      notifications.success(
+        `Show secretary role ${grant ? 'granted to' : 'revoked from'} ${name}.`
+      );
       logger.info(`Show access ${grant ? 'granted to' : 'revoked from'} ${personId}`, 'club-admin');
     },
     onError: (error, { grant }) => {

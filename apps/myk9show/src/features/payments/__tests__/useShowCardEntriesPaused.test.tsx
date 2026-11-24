@@ -46,7 +46,7 @@ describe('useShowCardEntriesPaused', () => {
     rpc
       .mockResolvedValueOnce({ data: null, error: new Error('503') })
       .mockResolvedValueOnce({ data: [], error: null });
-    // The app's query default is a bounded retry (services/database/queryClient.ts).
+    // The app's query default is a bounded retry (@/lib/queryClient).
     const client = new QueryClient({ defaultOptions: { queries: { retry: 2, retryDelay: 0 } } });
     const local = ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={client}>{children}</QueryClientProvider>

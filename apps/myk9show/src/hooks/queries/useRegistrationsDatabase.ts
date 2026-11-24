@@ -164,9 +164,11 @@ export const useRegistrationsSearchQuery = (searchTerm: string, enabled = true) 
 };
 
 // Get registration statistics
+export const REGISTRATION_STATISTICS_KEY = ['registrations', 'statistics'] as const;
+
 export const useRegistrationStatisticsQuery = () => {
   return useQuery({
-    queryKey: ['registrations', 'statistics'],
+    queryKey: REGISTRATION_STATISTICS_KEY,
     queryFn: async () => {
       const { data, error } = await getRegistrationStatistics();
       if (error) throw error;
@@ -213,7 +215,7 @@ const invalidateRegistrationSummaries = (
   if (organization) {
     queryClient.invalidateQueries({ queryKey: ['registrations', 'organization', organization] });
   }
-  queryClient.invalidateQueries({ queryKey: ['dog_registrations', 'statistics'] });
+  queryClient.invalidateQueries({ queryKey: REGISTRATION_STATISTICS_KEY });
 };
 
 export const useCreateRegistrationMutation = () => {
@@ -283,7 +285,7 @@ export const useUpdateRegistrationMutation = () => {
       }
 
       // Invalidate statistics
-      queryClient.invalidateQueries({ queryKey: ['dog_registrations', 'statistics'] });
+      queryClient.invalidateQueries({ queryKey: REGISTRATION_STATISTICS_KEY });
       void invalidateDogRosters(queryClient);
     },
   });

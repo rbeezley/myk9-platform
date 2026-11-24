@@ -156,7 +156,7 @@ export function calculateCartTotals(items: CartItemWithDetails[]): {
  * the totals from the pre-await snapshot overwrote it. Callers re-read
  * `get().cart` after each await and pass it here as `latest`; `fallback` (the
  * cart the mutation started on) is used only when the store holds no cart or a
- * different one. Totals are always recomputed from the resulting items.
+ * different one, and callers must not write that result back to the store. Totals are always recomputed from the resulting items.
  */
 export function rebaseCartItems(
   latest: CartWithDetails | null,
@@ -174,7 +174,10 @@ export function rebaseCartItems(
 
 /**
  * Rebase `change` onto the latest cart and commit it to the store, returning
- * the committed cart (items and totals always agree). Run it BEFORE the
+ * the committed cart (items and totals always agree). It writes to the store
+ * ONLY when the store still holds the same cart (same id): after a clearCart or
+ * a cart swap during the item write, the cart is computed from `fallback` for
+ * the totals write but never put back, so a cleared cart stays cleared. Run it BEFORE the
  * `entry_carts` totals write and send those returned totals: a mutation that
  * commits first is visible to the next one, so the totals written last are the
  * totals of every item committed so far (MYK9-2340).
@@ -185,7 +188,8 @@ export function commitRebasedCart(
   fallback: CartWithDetails,
   change: (items: CartItemWithDetails[]) => CartItemWithDetails[]
 ): CartWithDetails {
-  const { base, items, totals } = rebaseCartItems(get().cart, fallback, change);
+  const latest = get().cart;
+  const { base, items, totals } = rebaseCartItems(latest, fallback, change);
   const cart: CartWithDetails = {
     ...base,
     items,
@@ -194,7 +198,9 @@ export function commitRebasedCart(
     total_cents: totals.total,
     stripe_checkout_session_id: null,
   };
-  write({ cart, lastSyncedAt: new Date().toISOString() });
+  if (latest && latest.id === fallback.id) {
+    write({ cart, lastSyncedAt: new Date().toISOString() });
+  }
   return cart;
 }
 

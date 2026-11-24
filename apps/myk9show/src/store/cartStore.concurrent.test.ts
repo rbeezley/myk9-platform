@@ -260,6 +260,18 @@ describe('cartStore concurrent mutations (MYK9-2340)', () => {
     expect(cart.subtotal_cents).toBe(4000 + FEE);
   });
 
+  it('an addItem whose cart is cleared during the item write does not bring it back', async () => {
+    seedCart([row('item-a', 'class-1')]);
+
+    const add = useCartStore.getState().addItem(newItem('class-2'));
+    await flush();
+    useCartStore.setState({ cart: null });
+    await releaseAll();
+    await add;
+
+    expect(useCartStore.getState().cart).toBeNull();
+  });
+
   it('updateItem commits locally before surfacing a failed entry_carts write', async () => {
     seedCart([row('item-a', 'class-1')]);
     gates.hold = false;

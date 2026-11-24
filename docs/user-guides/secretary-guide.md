@@ -445,15 +445,19 @@ Per dog, record the result (Q, NQ, ABS, EX or DQ), the search time, and any faul
 
 ## 23 · Release results to exhibitors
 
-**Results.** Each class is a row with a status and the next thing it needs. A class still being scored sends you back to **Show Desk**. Once every dog is scored and the class is marked complete, open it and work down its **Primary work** card:
+> **Watch:** [How to release results to exhibitors (1 min 42 s)](https://youtu.be/INYaO2cTmgw)
 
-1. **Record coin flip** if dogs finished tied for a ribbon. Flip, say who won, then check the scores.
+**Results.** The class list sits below the **Finish the show** list at the top of the tab. Each class is a row with a status and the next thing it needs. A class still being scored sends you back to **Show Desk**. Once every dog is scored and the class is marked complete, open it and work down its **Primary work** card:
+
+1. **Record coin flip** appears only when dogs finished tied for a ribbon. Flip, say who won, then check the scores. With no tie, the class skips this step.
 2. **Check scores** (the card reads **Release the results**): look the scores over, fix anything that is off, then choose **Release results**. That saves your check and makes the scores visible to exhibitors. If scores change after a release, the card reads **Confirm the scores** and the button **Confirm scores**.
-3. **Print the results sheet and result labels**, and record them as printed.
-4. **Record the judge's initials** (a signature for UKC and ASCA) once the judge's day is over: print the marked catalog, have the judge initial it, and record it under **Judge sign-off**.
+3. **Print the results sheet and result labels.** Each has its own row under **Then**. **Print** opens the report; after the print dialog, choose **Mark printed** on the message that appears. You can also choose **Record as printed** on the row and confirm.
+4. **Record the judge's initials** (a signature for UKC and ASCA) under **Judge sign-off**. The judge initials once for the whole day, not once per class. Choose **Print marked catalog**, have the judge initial it, then choose **Record initials: _judge_, _day_**. That button appears once every class the judge ran that day is complete.
 5. The class then reads **Done**.
 
-**More → Visibility settings** decides when exhibitors can see a score at all.
+A released class also shows **Hide results**. It works only for a class set to _After Review_; otherwise it is greyed out, with a note saying to change the setting first.
+
+**More → Visibility settings** decides when exhibitors can see a score at all. It also shows **Results readiness**: how many entries are still unscored and how many classes are still unreleased.
 
 ![Visibility settings with Results readiness and the Immediately, After Class and After Review show defaults](../screenshots/S-20.png)
 

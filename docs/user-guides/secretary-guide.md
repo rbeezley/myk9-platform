@@ -370,6 +370,8 @@ Volunteers only shows here while its **This show uses…** switch is on (card 3;
 
 ## 17 · Run a class: status, start time, delays
 
+> **Watch:** [How to run a class (1 min 8 s)](https://youtu.be/EhwcGfYF93s)
+
 **Show Desk → click the class.** Under the class name, the fields can be changed in place. On a laptop-size screen, press **Class settings** to show them:
 
 - **Status** — Not started, In progress, Complete, or Cancelled. Press it to choose. Marking a class complete with scores still unentered asks you to confirm.

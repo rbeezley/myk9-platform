@@ -36,7 +36,7 @@ export const ClubContextGate: React.FC<ClubContextGateProps> = ({
   if (context.status === 'choose') {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <Card className="bg-gradient-to-br from-card to-card/80 border-border/50 backdrop-blur-xl">
+        <Card className="bg-transparent bg-gradient-to-br from-card to-card/80 border-border/50 backdrop-blur-xl">
           <CardContent className="flex flex-col items-center gap-4 pt-6 text-center">
             <Building2 className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
             <p className="max-w-md text-muted-foreground">
@@ -64,7 +64,7 @@ export const ClubContextGate: React.FC<ClubContextGateProps> = ({
 
   return (
     <div className="flex items-center justify-center min-h-[60vh]">
-      <Card className="bg-gradient-to-br from-card to-card/80 border-border/50 backdrop-blur-xl">
+      <Card className="bg-transparent bg-gradient-to-br from-card to-card/80 border-border/50 backdrop-blur-xl">
         <CardContent className="flex flex-col items-center gap-4 pt-6 text-center">
           <Icon className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
           <p className="max-w-md text-muted-foreground">{message}</p>

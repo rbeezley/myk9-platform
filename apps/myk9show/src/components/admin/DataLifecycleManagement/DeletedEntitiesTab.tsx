@@ -216,7 +216,7 @@ export function DeletedEntitiesTab() {
   return (
     <div className="space-y-6">
       {/* Entity sections */}
-      <Card className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl">
+      <Card className="group relative overflow-hidden bg-transparent bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Trash2 className="h-5 w-5 text-muted-foreground" />
@@ -261,7 +261,7 @@ export function DeletedEntitiesTab() {
       </Card>
 
       {/* Admin Information */}
-      <Card className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl">
+      <Card className="group relative overflow-hidden bg-transparent bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Shield className="h-5 w-5 text-purple-600" />

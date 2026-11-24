@@ -290,7 +290,7 @@ export function LoadTestDashboard() {
                     {testScenarios.map(scenario => (
                       <Card
                         key={scenario.name}
-                        className="group relative overflow-hidden p-4 bg-gradient-to-br from-card to-card/80 
+                        className="group relative overflow-hidden p-4 bg-transparent bg-gradient-to-br from-card to-card/80 
                                border border-border rounded-2xl shadow-sm backdrop-blur-xl 
                                transition-all duration-500 hover:shadow-xl hover:-translate-y-2"
                       >

@@ -364,7 +364,7 @@ const JudgeDashboard: React.FC = () => {
 
         {/* Classes List */}
         <FadeIn>
-          <Card className="bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl">
+          <Card className="bg-transparent bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl">
             <CardHeader className="pb-4">
               <CardTitle className="text-xl font-semibold">Judging Assignments</CardTitle>
               <CardDescription className="text-muted-foreground">

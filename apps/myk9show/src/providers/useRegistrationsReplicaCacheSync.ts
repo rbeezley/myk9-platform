@@ -8,6 +8,7 @@ import {
 import { queryKeys } from '@/lib/queryClient';
 import { replicatedDogRegistrationsTable } from '@/services/replication/ReplicatedDogRegistrationsTable';
 import { ARMBAND_LABEL_HELD_ENTRIES_KEY } from '@/hooks/queries/useArmbandLabelData';
+import { REGISTRATION_STATISTICS_KEY } from '@/hooks/queries/useRegistrationsDatabase';
 import { isDogRosterQuery } from '@/hooks/queries/dogRosterMeta';
 
 /** Longer than the replica's own notify debounce (100ms), so both edges of one change land in one window. */
@@ -46,6 +47,9 @@ export function refreshRegistrationReads(queryClient: QueryClient): void {
     // MYK9-1162: adding or removing a number releases or holds an entry, so the
     // armband-label held lookup must not print from the earlier answer.
     { queryKey: ARMBAND_LABEL_HELD_ENTRIES_KEY },
+    // MYK9-2351: a write still queued behind the upload queue leaves the server count
+    // old, so the statistics refetch when the upload is acknowledged.
+    { queryKey: REGISTRATION_STATISTICS_KEY },
   ];
   cancelThenInvalidate(queryClient, filters);
 }

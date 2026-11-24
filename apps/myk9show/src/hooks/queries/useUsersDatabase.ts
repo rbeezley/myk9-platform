@@ -154,10 +154,6 @@ export const useCreateUserMutation = () => {
       if (data) {
         queryClient.setQueryData(queryKeys.person(data.id), data);
       }
-
-      // Invalidate related queries
-      queryClient.invalidateQueries({ queryKey: ['users', 'statistics'] });
-      queryClient.invalidateQueries({ queryKey: ['users', 'with-dog-counts'] });
     },
   });
 };
@@ -200,9 +196,6 @@ export const useUpdateUserMutation = () => {
 
       // Invalidate users list to ensure consistency
       queryClient.invalidateQueries({ queryKey: queryKeys.people });
-
-      // Invalidate related queries
-      queryClient.invalidateQueries({ queryKey: ['users', 'with-dog-counts'] });
     },
   });
 };
@@ -235,8 +228,6 @@ export const useRestoreUserMutation = () => {
       // Invalidate all related queries
       queryClient.invalidateQueries({ queryKey: queryKeys.people });
       queryClient.invalidateQueries({ queryKey: ['users', 'deleted'] });
-      queryClient.invalidateQueries({ queryKey: ['users', 'statistics'] });
-      queryClient.invalidateQueries({ queryKey: ['users', 'with-dog-counts'] });
     },
   });
 };

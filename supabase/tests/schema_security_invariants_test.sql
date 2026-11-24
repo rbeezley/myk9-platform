@@ -165,18 +165,19 @@ BEGIN
       args,
       raw_sp,
       lower(btrim(replace(replace(coalesce(raw_sp, ''), '"', ''), '''', ''))) AS clean_sp,
-      lower(btrim(replace(replace(
+      -- Identifier semantics: only pg_temp or "pg_temp" name the temp schema;
+      -- "PG_TEMP" is a different (nonexistent) schema, so no lower() here.
+      btrim(
         (string_to_array(coalesce(raw_sp, ''), ','))[
           coalesce(array_length(string_to_array(coalesce(raw_sp, ''), ','), 1), 1)
-        ],
-        '"', ''), '''', ''))) AS last_schema
+        ]) AS last_schema
     FROM secdef
   ),
   violating AS (
     SELECT *
     FROM evaluated
     WHERE clean_sp <> ''
-      AND last_schema <> 'pg_temp'
+      AND last_schema NOT IN ('pg_temp', '"pg_temp"')
   )
   SELECT
     (
@@ -230,13 +231,7 @@ BEGIN
   JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
   WHERE n.nspname = 'public'
     AND p.prosecdef
-    AND NOT EXISTS (
-      SELECT 1
-      FROM pg_catalog.pg_depend d
-      WHERE d.classid = 'pg_catalog.pg_proc'::regclass
-        AND d.objid = p.oid
-        AND d.deptype = 'e'
-    )
+    -- Extension members are included: the invariant has no extension exception.
     AND pg_catalog.has_function_privilege('public', p.oid, 'EXECUTE');
 
   IF v_public_bad IS NOT NULL THEN
@@ -278,13 +273,6 @@ BEGIN
     JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
     WHERE n.nspname = 'public'
       AND p.prosecdef
-      AND NOT EXISTS (
-        SELECT 1
-        FROM pg_catalog.pg_depend d
-        WHERE d.classid = 'pg_catalog.pg_proc'::regclass
-          AND d.objid = p.oid
-          AND d.deptype = 'e'
-      )
       AND pg_catalog.has_function_privilege('anon', p.oid, 'EXECUTE')
   )
   SELECT
@@ -363,14 +351,7 @@ BEGIN
   FROM pg_catalog.pg_class c
   JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
   WHERE n.nspname = 'public'
-    AND c.relkind = 'm'
-    AND NOT EXISTS (
-      SELECT 1
-      FROM pg_catalog.pg_depend d
-      WHERE d.classid = 'pg_catalog.pg_class'::regclass
-        AND d.objid = c.oid
-        AND d.deptype = 'e'
-    );
+    AND c.relkind = 'm';  -- extension-owned ones too: no extension exception
 
   IF v_matview IS NOT NULL THEN
     RAISE EXCEPTION
@@ -416,27 +397,36 @@ DECLARE
   v_unregistered text;
   v_unguarded text;
 BEGIN
-  WITH expected_triggers(tbl, trg) AS (VALUES
-    ('entries', 'trg_entries_00_direct_write_gate'),
-    ('entries', 'trg_entries_capacity_override'),
-    ('entries', 'trg_entries_handler_is_junior'),
-    ('entries', 'trg_entries_junior_fee'),
-    ('entries', 'trg_entries_derive_card_paid'),
-    ('entries', 'trg_entries_confirmation_claim_guard'),
-    ('entries', 'trg_entries_reminder_email_guard'),
-    ('clubs', 'trg_guard_club_authorization_write'),
-    ('clubs', 'trg_guard_club_created_by_write'),
-    ('clubs', 'trg_guard_club_is_demo_write'),
-    ('clubs', 'trg_clubs_first_show_published_guard'),
-    ('classes', 'trg_00_block_direct_results_verified_write'),
-    ('classes', 'trg_00_block_direct_results_verified_insert'),
-    ('people', 'people_authz_guard_identity_columns'),
-    ('platform_settings', 'trg_guard_platform_settings_write'),
-    ('user_roles', 'trg_user_roles_require_recent_reauth'),
-    ('roles', 'trg_roles_require_recent_reauth'),
-    ('role_permissions', 'trg_role_permissions_require_recent_reauth')
+  -- tgtype pins each guard's level, timing and events exactly (bits: 1 row,
+  -- 2 BEFORE, 4 INSERT, 8 DELETE, 16 UPDATE; 7 = BEFORE INSERT row, 19 = BEFORE
+  -- UPDATE row, 23 = BEFORE INSERT OR UPDATE row, 27 = BEFORE UPDATE OR DELETE
+  -- row, 29 = AFTER INSERT OR UPDATE OR DELETE row). Changing a guard's shape
+  -- must change this list in the same migration review.
+  WITH expected_triggers(tbl, trg, typ) AS (VALUES
+    ('entries', 'trg_entries_00_direct_write_gate', 23),
+    ('entries', 'trg_entries_capacity_override', 23),
+    ('entries', 'trg_entries_handler_is_junior', 23),
+    ('entries', 'trg_entries_junior_fee', 23),
+    ('entries', 'trg_entries_derive_card_paid', 23),
+    ('entries', 'trg_entries_confirmation_claim_guard', 23),
+    ('entries', 'trg_entries_reminder_email_guard', 23),
+    ('entries', 'trg_entries_protect_payment_fields', 19),
+    ('entries', 'trg_entries_protect_payment_fields_insert', 7),
+    ('entries', 'trg_entries_protect_payment_status', 19),
+    ('entries', 'trg_entries_receipt_email_server_only', 23),
+    ('clubs', 'trg_guard_club_authorization_write', 23),
+    ('clubs', 'trg_guard_club_created_by_write', 23),
+    ('clubs', 'trg_guard_club_is_demo_write', 23),
+    ('clubs', 'trg_clubs_first_show_published_guard', 23),
+    ('classes', 'trg_00_block_direct_results_verified_write', 19),
+    ('classes', 'trg_00_block_direct_results_verified_insert', 7),
+    ('people', 'people_authz_guard_identity_columns', 19),
+    ('platform_settings', 'trg_guard_platform_settings_write', 27),
+    ('user_roles', 'trg_user_roles_require_recent_reauth', 29),
+    ('roles', 'trg_roles_require_recent_reauth', 29),
+    ('role_permissions', 'trg_role_permissions_require_recent_reauth', 29)
   )
-  SELECT string_agg(format('public.%s.%s', e.tbl, e.trg), ', ' ORDER BY e.tbl, e.trg)
+  SELECT string_agg(format('public.%s.%s (tgtype %s)', e.tbl, e.trg, e.typ), ', ' ORDER BY e.tbl, e.trg)
     INTO v_missing
   FROM expected_triggers e
   WHERE NOT EXISTS (
@@ -451,9 +441,7 @@ BEGIN
       -- 'O' fires on origin/local, 'A' always; 'R' (replica only) and 'D' do not
       -- fire for ordinary API writes.
       AND t.tgenabled IN ('O', 'A')
-      -- Must still fire on INSERT or UPDATE (4 = INSERT, 16 = UPDATE). Not all
-      -- are BEFORE: the recent-reauth guards are AFTER triggers that raise.
-      AND (t.tgtype & 20) <> 0
+      AND t.tgtype = e.typ
   );
 
   IF v_missing IS NOT NULL THEN
@@ -516,6 +504,14 @@ BEGIN
         AND (t.tgtype & 1) <> 0   -- row level
         AND (t.tgtype & 2) <> 0   -- BEFORE
         AND (t.tgtype & 16) <> 0  -- UPDATE
+        -- An UPDATE OF list must still name the column (empty = every column).
+        AND (
+          pg_catalog.array_length(t.tgattr::int2[], 1) IS NULL
+          OR (
+            SELECT a.attnum FROM pg_catalog.pg_attribute a
+            WHERE a.attrelid = c.oid AND a.attname = r.col
+          ) = ANY (t.tgattr::int2[])
+        )
     );
 
   IF v_unguarded IS NOT NULL THEN

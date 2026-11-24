@@ -40,8 +40,8 @@ interface ShowEditBasicInfoTabProps {
    * whether "Published" is offered in the Status dropdown -- see the comment
    * on that option. */
   initialStatus?: string | undefined;
-  /** Called when the "Change a trial's day" link is followed, so the panel can close. */
-  onOpenTrials?: (() => void) | undefined;
+  /** Opens a trial's Edit Trial from the show's dates (MYK9-2375). */
+  onEditTrial?: ((trialId: string) => void) | undefined;
 }
 
 export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
@@ -53,7 +53,7 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
   handleSelectChange,
   handleDateChange,
   initialStatus,
-  onOpenTrials,
+  onEditTrial,
 }) => {
   const nameError = form?.getError('name');
   const clubError = form?.getError('clubId');
@@ -304,7 +304,7 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
                   startDate={data.startDate}
                   endDate={data.endDate}
                   showId={data.id}
-                  onNavigate={onOpenTrials}
+                  onEditTrial={onEditTrial}
                 />
               }
               entryError={entryOpenError ?? entryCloseError}

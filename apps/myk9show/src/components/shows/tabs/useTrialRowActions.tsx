@@ -174,8 +174,15 @@ export function useTrialRowActions(showId: string, enabled: boolean) {
       />
     ) : null;
 
+  /** Opens the trial's Edit Trial directly (Show Edit's day buttons, MYK9-2375). */
+  const editTrial = useCallback(
+    (trialId: string) => void openTrialAction(trialId, 'edit'),
+    [openTrialAction]
+  );
+
   return {
     trialRowMenu,
     trialDialogs,
+    editTrial,
   };
 }

@@ -43,6 +43,7 @@ const ShowEditPanelSession: React.FC<ShowEditPanelProps> = ({
   initialTab,
   onSave,
   onDelete,
+  onEditTrial,
   enableAutoSave = false,
 }) => {
   // Phase 3 soft edit-awareness: advertise that this user has the show's edit
@@ -151,7 +152,15 @@ const ShowEditPanelSession: React.FC<ShowEditPanelProps> = ({
           onTabChange={setActiveTab}
           initialStatus={initialShowData?.status}
           savedOrganization={initialShowData?.organization}
-          onClose={onClose}
+          // Close this sheet first, then open the trial's Edit Trial on the same page.
+          onEditTrial={
+            onEditTrial
+              ? trialId => {
+                  onClose();
+                  onEditTrial(trialId);
+                }
+              : undefined
+          }
           onPremiumPendingChange={setPremiumPending}
           onPremiumEditedChange={onPremiumEditedChange}
         />

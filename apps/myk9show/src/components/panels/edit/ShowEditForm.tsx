@@ -47,8 +47,8 @@ interface ShowEditFormProps {
   initialStatus?: string | undefined;
   /** The organization saved on the show; the Premium tab's Regenerate builds from it. */
   savedOrganization?: string | undefined;
-  /** Closes the panel; the Basic Info tab's trial-days link calls it before it navigates. */
-  onClose?: (() => void) | undefined;
+  /** Opens a trial's Edit Trial from the Basic Info tab's show dates (MYK9-2375). */
+  onEditTrial?: ((trialId: string) => void) | undefined;
   /** Passed to the Premium tab: true while a Regenerate is pending (MYK9-2144). */
   onPremiumPendingChange?: ((pending: boolean) => void) | undefined;
   onPremiumEditedChange?: ((edited: boolean) => void) | undefined;
@@ -59,7 +59,7 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
   onTabChange,
   initialStatus,
   savedOrganization,
-  onClose,
+  onEditTrial,
   onPremiumPendingChange,
   onPremiumEditedChange,
 }) => {
@@ -263,7 +263,7 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
           handleSelectChange={handleSelectChange}
           handleDateChange={handleDateChange}
           initialStatus={initialStatus}
-          onOpenTrials={onClose}
+          onEditTrial={onEditTrial}
         />
 
         {/* Personnel Tab */}

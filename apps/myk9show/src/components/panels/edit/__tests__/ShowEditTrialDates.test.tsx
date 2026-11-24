@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { ShowEditTrialDates } from '../ShowEditTrialDates';
@@ -26,58 +26,77 @@ describe('formatShowDatesText', () => {
   });
 });
 
-describe('ShowEditTrialDates', () => {
-  it('shows the dates as text and links to the show page where trials are edited', async () => {
-    const onNavigate = vi.fn();
-    const { user } = render(
-      <ShowEditTrialDates
-        startDate="2026-12-12T00:00:00+00:00"
-        endDate="2026-12-13T00:00:00+00:00"
-        showId="show-1"
-        onNavigate={onNavigate}
-      />
-    );
-    expect(screen.getByTestId('show-dates-text')).toHaveTextContent('Dec 12, 2026 to Dec 13, 2026');
-    const link = screen.getByRole('link', { name: /change a trial.s day/i });
-    expect(link).toHaveAttribute('href', '/shows/show-1');
-    await user.click(link);
-    expect(onNavigate).toHaveBeenCalledTimes(1);
-  });
-});
+const mockUseShowTrials = vi.hoisted(() => vi.fn());
+vi.mock('@/hooks/queries/useShowTrials', () => ({ useShowTrials: mockUseShowTrials }));
 
-function withChanges(hasChanges: boolean, onNavigate = vi.fn()) {
-  const value = { hasChanges } as unknown as EditPanelContextValue;
-  return render(
+const TRIALS = [
+  { id: 'trial-1', name: 'Trial 1', trial_number: '1', trial_date: '2026-12-12' },
+  { id: 'trial-2', name: 'Trial 2', trial_number: '2', trial_date: '2026-12-13' },
+];
+
+function renderDates(opts: { hasChanges?: boolean; onEditTrial?: (id: string) => void } = {}) {
+  const onEditTrial = 'onEditTrial' in opts ? opts.onEditTrial : vi.fn();
+  const value = { hasChanges: opts.hasChanges ?? false } as unknown as EditPanelContextValue;
+  const result = render(
     <EditPanelContext.Provider value={value}>
       <ShowEditTrialDates
         startDate="2026-12-12T00:00:00+00:00"
         endDate="2026-12-13T00:00:00+00:00"
         showId="show-1"
-        onNavigate={onNavigate}
+        onEditTrial={onEditTrial}
       />
     </EditPanelContext.Provider>
   );
+  return { ...result, onEditTrial };
 }
 
-describe('ShowEditTrialDates unsaved changes', () => {
-  it('links and closes the panel when nothing is unsaved', async () => {
-    const onNavigate = vi.fn();
-    const { user } = withChanges(false, onNavigate);
-    await user.click(screen.getByRole('link', { name: /change a trial.s day/i }));
-    expect(onNavigate).toHaveBeenCalledTimes(1);
-    expect(screen.queryByText(/save or cancel your changes first/i)).not.toBeInTheDocument();
+describe('ShowEditTrialDates', () => {
+  beforeEach(() => {
+    mockUseShowTrials.mockReturnValue({ data: TRIALS });
   });
 
-  it('is a disabled control with a hint, and never navigates, while changes are unsaved', async () => {
-    const onNavigate = vi.fn();
-    const { user } = withChanges(true, onNavigate);
-    const control = screen.getByRole('link', { name: /change a trial.s day/i });
-    expect(control).toHaveAttribute('aria-disabled', 'true');
-    expect(control).not.toHaveAttribute('href');
-    expect(control).not.toHaveAttribute('tabindex');
+  it('shows the dates as text and one Change day button per trial', () => {
+    renderDates();
+    expect(screen.getByTestId('show-dates-text')).toHaveTextContent('Dec 12, 2026 to Dec 13, 2026');
+    expect(screen.getAllByRole('button')).toHaveLength(2);
+    expect(
+      screen.getByRole('button', { name: /^Trial 1 · .*Dec 12, 2026 · Change day$/ })
+    ).toBeVisible();
+    expect(
+      screen.getByRole('button', { name: /^Trial 2 · .*Dec 13, 2026 · Change day$/ })
+    ).toBeVisible();
+  });
+
+  it('works with a single trial', () => {
+    mockUseShowTrials.mockReturnValue({ data: [TRIALS[0]] });
+    renderDates();
+    expect(screen.getAllByRole('button')).toHaveLength(1);
+  });
+
+  it('opens Edit Trial for the chosen trial only', async () => {
+    const { user, onEditTrial } = renderDates();
+    await user.click(screen.getByRole('button', { name: /^Trial 2 / }));
+    expect(onEditTrial).toHaveBeenCalledTimes(1);
+    expect(onEditTrial).toHaveBeenCalledWith('trial-2');
+  });
+
+  it('offers no buttons when the host has no trial dialogs', () => {
+    renderDates({ onEditTrial: undefined });
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('disables every button with a hint while changes are unsaved', async () => {
+    const { user, onEditTrial } = renderDates({ hasChanges: true });
+    const buttons = screen.getAllByRole('button');
+    for (const button of buttons) expect(button).toBeDisabled();
     expect(screen.getByText(/save or cancel your changes first/i)).toBeInTheDocument();
-    await user.click(control);
-    expect(onNavigate).not.toHaveBeenCalled();
+    await user.click(buttons[0]!);
+    expect(onEditTrial).not.toHaveBeenCalled();
+  });
+
+  it('shows no hint when nothing is unsaved', () => {
+    renderDates();
+    expect(screen.queryByText(/save or cancel your changes first/i)).not.toBeInTheDocument();
   });
 });
 

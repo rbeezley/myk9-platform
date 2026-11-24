@@ -11,6 +11,7 @@ import { ShowHeaderControls } from './ShowHeaderControls';
 import { ShowStatusLine } from './ShowStatusLine';
 import { SHOW_TAB_STRIP_CLASS } from './showStickyLayout';
 import { ShowEditPanel } from '@/components/panels/edit/ShowEditPanel';
+import { useTrialRowActions } from '@/components/shows/tabs/useTrialRowActions';
 import { showDeleteDetail } from '@/features/delete';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { canDeleteShowForClub } from '@/components/clubs/ClubDetails/clubPermissions';
@@ -207,6 +208,9 @@ function AuthorizedShowManagementShell({
     }
   }
 
+  // Show Edit's "Change day" buttons open the trial's own Edit Trial here, on this page (MYK9-2375).
+  const { trialDialogs, editTrial } = useTrialRowActions(show.id || '', canManageShow);
+
   // Hidden for a viewer `soft_delete_show` would refuse (a show-scoped secretary, say).
   const { userWithRoles } = useAuthContext();
   const canDeleteShow = canDeleteShowForClub(userWithRoles, {
@@ -340,10 +344,12 @@ function AuthorizedShowManagementShell({
       </PageShell>
 
       {/* Dialogs */}
+      {trialDialogs}
       <ShowEditPanel
         open={showEditPanel}
         initialTab={editPanelOpenedByLink ? editPanelTab : DEFAULT_SHOW_EDIT_TAB}
         onClose={() => setShowEditPanel(false)}
+        onEditTrial={canManageShow ? editTrial : undefined}
         showId={show.id || ''}
         showName={show.name || ''}
         initialShowData={show || {}}

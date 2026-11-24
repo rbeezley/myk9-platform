@@ -27,6 +27,11 @@ export interface ShowEditPanelProps {
    * show-management shell (ClubDetails), where deleting the show is not on offer.
    */
   onDelete?: EditPanelDeleteOption | undefined;
+  /**
+   * Opens a trial's Edit Trial from the show's dates (MYK9-2375). The panel closes itself first.
+   * Omitted by hosts with no trial dialogs, which then offer no day buttons.
+   */
+  onEditTrial?: ((trialId: string) => void) | undefined;
 }
 
 export interface ShowEditSaveData extends Partial<Show> {

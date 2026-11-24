@@ -298,6 +298,8 @@ export function useAssignToClass(showId: string) {
     // MYK9-2328: offline, fail at once so the chip is put back and the toast says so, rather than
     // show a change that waits unseen for a connection.
     networkMode: 'always',
+    // A lost answer would retry into the unique key and report a failure for a row that exists.
+    retry: false,
     mutationFn: async (input: AssignToClassInput) => {
       const { data, error } = await supabase
         .from('volunteer_class_assignments')
@@ -346,6 +348,8 @@ export function useUnassignFromClass(showId: string) {
     // MYK9-2328: offline, fail at once so the chip is put back and the toast says so, rather than
     // show a change that waits unseen for a connection.
     networkMode: 'always',
+    // Fail at once; the chip is put back rather than the delete retried unseen.
+    retry: false,
     mutationFn: async (assignmentId: string) => {
       const { error } = await supabase
         .from('volunteer_class_assignments')

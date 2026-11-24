@@ -122,14 +122,17 @@ describe('BulkStewardDialog (MYK9-2328)', () => {
     ).toBeInTheDocument();
   });
 
-  it('cannot assign twice while the assignment is saving, but can still be closed', async () => {
+  it('shows Assigning and locks the choices while saving, but can still be closed', async () => {
     pending.current = true;
     const onOpenChange = vi.fn();
     const { user } = render(
       <BulkStewardDialog showId="show-1" classes={classes} open onOpenChange={onOpenChange} />
     );
-    await user.click(screen.getByRole('button', { name: 'Tom Kennedy' }));
-    expect(screen.getByRole('button', { name: 'Assign to 3 classes' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Assigning…' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /^Assign to/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tom Kennedy' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Gate Steward' })).toBeDisabled();
+    expect(screen.getByLabelText('Search volunteers')).toBeDisabled();
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });

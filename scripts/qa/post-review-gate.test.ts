@@ -141,7 +141,7 @@ describe('post-review-gate.sh', () => {
     const gh = stubGh();
     const log = logFile('codex\nNo actionable defects found on the re-run.\n');
     expect(
-      run(['42', 'claude', '0a2020c7a', '5af9af158', '2 findings, all fixed', log], gh.bin).code
+      run(['42', 'codex', '0a2020c7a', '5af9af158', '2 findings, all fixed', log], gh.bin).code
     ).toBe(0);
   });
 
@@ -213,7 +213,7 @@ describe('post-review-gate.sh', () => {
   it('accepts "no findings" only when the first paragraph carries the contract sentence', () => {
     const gh = stubGh();
     for (const text of [
-      'codex\nNo actionable defects found.\n',
+      'No actionable defects found.\n',
       'No actionable correctness, security, or data-flow regressions were found. Tests pass.\n',
       'The change is small. No actionable issues found.\n',
     ]) {
@@ -370,6 +370,35 @@ describe('post-review-gate.sh', () => {
       0
     );
     expect(readFileSync(gh.calls, 'utf8')).toContain('checked file 59');
+  });
+
+  it.each([
+    [
+      'claude',
+      'No actionable defects found.\n\nNotes:\ncodex\nis only a word on its own line here.\n',
+    ],
+    [
+      'agy',
+      'No actionable defects found.\n\nNotes:\ncodex\nis only a word on its own line here.\n\nEND OF REVIEW\n',
+    ],
+  ])(
+    'a clean %s log containing a bare codex line is read whole and posts (MYK9-2368)',
+    (reviewer, text) => {
+      const gh = stubGh();
+      const log = logFile(text);
+      expect(run(['42', reviewer, '0a2020c7a', '5af9af158', 'no findings', log], gh.bin).code).toBe(
+        0
+      );
+      expect(readFileSync(gh.calls, 'utf8')).toContain('No actionable defects found.');
+    }
+  );
+
+  it('a codex log still reads only the text after its last marker line', () => {
+    const gh = stubGh();
+    const log = logFile('No actionable defects found.\n\ncodex\n- [P2] a.ts:1 — a defect.\n');
+    expect(
+      run(['42', 'codex', '0a2020c7a', '5af9af158', 'no findings', log], gh.bin).code
+    ).not.toBe(0);
   });
 
   describe('owner tier', () => {
@@ -742,7 +771,7 @@ describe('post-review-gate.sh', () => {
   });
 
   describe('the adversarial tier must name its lenses (F3)', () => {
-    const CLEAN = 'codex\nNo actionable defects found.\n';
+    const CLEAN = 'No actionable defects found.\n';
     const VERDICT = '2 lenses, all findings addressed';
 
     it('refuses adversarial with no REVIEW_LENSES at all', () => {

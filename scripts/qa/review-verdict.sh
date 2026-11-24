@@ -144,6 +144,44 @@ review_last_block() {  # FILE
   awk '/^codex$/{buf=""; f=1; next} f{buf=buf $0 "\n"} END{printf "%s", buf}' "$1"
 }
 
+# MYK9-2369: the blocking bullets of the previous round's findings comment, so
+# a fix-range round can ask the reviewer to confirm each was fixed. The
+# predicate is REVIEW_FINDING_BULLET itself (what blocks everywhere else), so
+# the two cannot drift: it matches [P0]..[P3] and [unlikely P0|P1], never
+# [unlikely P2|P3] or [pre-existing ...]. [earlier-round ...] bullets are
+# dropped too. A bullet keeps its continuation lines (up to the next bullet,
+# heading or blank line); each bullet is printed on one line, joined by spaces.
+review_actionable_bullets() {  # TEXT
+  local line cur="" in=0
+  while IFS= read -r line || [ -n "$line" ]; do
+    if [[ "$line" =~ $REVIEW_FINDING_BULLET ]] && ! [[ "$line" =~ \[earlier-round[[:space:]]P[0-9]\] ]]; then
+      [ -z "$cur" ] || printf '%s\n' "$cur"
+      cur="$(printf '%s' "$line" | tr '\t\r' '  ' | sed -E 's/^[[:space:]]+//')"
+      in=1
+    elif [ "$in" = 1 ] && [[ -n "${line//[[:space:]]/}" ]] && ! [[ "$line" =~ ^[[:space:]]*([-*]|#)([[:space:]]|#|$) ]]; then
+      cur="$cur $(printf '%s' "$line" | tr '\t\r' '  ' | sed -E 's/^[[:space:]]+//')"
+    else
+      [ -z "$cur" ] || printf '%s\n' "$cur"
+      cur=""; in=0
+    fi
+  done <<< "$1"
+  [ -z "$cur" ] || printf '%s\n' "$cur"
+}
+
+# The instruction text for a fix-range round, or nothing. $1 = the findings
+# comment prefix ("Codex findings for" / "Agy findings for"); $2 = the ANCHOR
+# comment the wrapper already fetched (trusted authors only). Only a findings
+# anchor carries anything forward: a clean `Review gate:` anchor has no
+# earlier findings to confirm. One line, so it can sit in a quoted CLI arg.
+review_prior_findings_instructions() {  # PREFIX ANCHOR
+  local first bullets
+  first="$(printf '%s\n' "$2" | head -n 1)"
+  case "$first" in "$1"*) ;; *) return 0 ;; esac
+  bullets="$(review_actionable_bullets "$2" | paste -sd '|' - | sed 's/|/ | /g')"
+  [ -n "$bullets" ] || return 0
+  printf '%s' "Findings from the previous round (each one is actionable this round, even in code earlier rounds already read): ${bullets}. For each of these, check whether the head fixes it. Report any that the head does not fix as a normal finding, a bullet beginning with its - [P0], - [P1], - [P2] or - [P3] tag, saying it is still present. Do not change any other classification."
+}
+
 # The clean-verdict sentence, by EXACT SHAPE (MYK9-1209), never by a list of
 # disqualifying words: `No actionable <qualifiers> <finding noun> [[was|were]
 # <found|identified|...>] [in|on|... <short scope>]` and then a terminator

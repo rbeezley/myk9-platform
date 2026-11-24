@@ -127,6 +127,13 @@ if [ "$POST" = 1 ] && PR="$("$GH" pr view --json number -q .number 2>/dev/null)"
     REVIEW_BASE="$LAST_SHA"
     COVERED_FROM="$FROM_SHA"
     REVIEW_INSTRUCTIONS="${REVIEW_INSTRUCTIONS/requested whole-branch review/requested fix-range review} Fix-range round: earlier rounds of this review already read ${BASE_SHA:0:9}..${LAST_SHA:0:9}; this round reviews ${LAST_SHA:0:9}..${HEAD_SHA:0:9}. Report as normal findings only (a) defects those commits introduce, including regressions they cause elsewhere, and (b) any P0 or P1 anywhere in the branch ${BASE_SHA:0:9}..${HEAD_SHA:0:9}. A P2 or P3 in code the earlier rounds already read is not actionable this round: list it after the verdict under the heading Not actionable this round, as a bullet beginning with - [earlier-round P2] or - [earlier-round P3]."
+    PRIOR_TEXT="$(review_prior_findings_instructions "Codex findings for" "$ANCHOR")"
+    if [ -n "$PRIOR_TEXT" ]; then
+      # developer_instructions is a TOML basic string: escape \ and ", one line.
+      PRIOR_TEXT="${PRIOR_TEXT//\\/\\\\}"
+      PRIOR_TEXT="${PRIOR_TEXT//\"/\\\"}"
+      REVIEW_INSTRUCTIONS="${REVIEW_INSTRUCTIONS} ${PRIOR_TEXT}"
+    fi
     echo "codex-review: round 2+ — fix range ${LAST_SHA:0:9}..${HEAD_SHA:0:9} (last completed codex review on PR #${PR})"
   fi
 fi
@@ -252,7 +259,7 @@ if [ "$POST" = 1 ]; then
   # "N findings, all addressed" is counted from what was posted, not typed.
   # Fail closed: a transient API failure here returns an empty history, which
   # would post "no findings" over a head that had them (Codex, #2115 round 2).
-  if ! PRIOR="$("$GH" pr view "$PR" --json comments -q '[.comments[].body | select(startswith("Codex findings for"))] | join("\n")')"; then
+  if ! PRIOR="$("$GH" pr view "$PR" --json comments -q '[.comments[] | select(.authorAssociation == "OWNER" or .authorAssociation == "MEMBER" or .authorAssociation == "COLLABORATOR") | .body | select(startswith("Codex findings for"))] | join("\n")')"; then
     echo "codex-review: could not read this PR's earlier findings comments (gh failed), so N cannot be trusted. Exit 2; no evidence posted." >&2
     exit 2
   fi

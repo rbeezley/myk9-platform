@@ -309,6 +309,142 @@ esac
     expect(line).toContain('authorAssociation == "OWNER"');
   });
 
+  describe('earlier findings are confirmed against the new head (MYK9-2369)', () => {
+    const TWO = ['- [P2] earlier-a.ts:1 first defect', '- [P2] earlier-b.ts:2 second defect'];
+    /** gh stub that answers the wrapper's comment queries with jq over a fixed comment list. */
+    function ghWith(comments: { body: string; authorAssociation: string }[]) {
+      const dir = tmp('gh-stub-');
+      const json = join(dir, 'comments.json');
+      const calls = join(dir, 'calls.log');
+      writeFileSync(json, JSON.stringify({ comments }));
+      const bin = join(dir, 'gh');
+      writeFileSync(
+        bin,
+        `#!/usr/bin/env bash
+printf '%s\n' "$@" >> '${calls}'
+printf -- '---\n' >> '${calls}'
+case "$*" in
+  *'--json comments'*)
+    q=""; prev=""
+    for a in "$@"; do [ "$prev" = "-q\" ] && q="$a"; prev="$a"; done
+    jq -r "$q" '${json}' ;;
+  'pr view --json number'*) echo 7 ;;
+esac
+`
+      );
+      chmodSync(bin, 0o755);
+      return { bin, calls };
+    }
+    // The SHAs exist only inside run()'s repo, so the comment bodies are built by a
+    // shell-free trick: three-commit repo, anchor = HEAD~1 with coverage from HEAD~2.
+    function anchorBodies(bullets: string[], assoc = 'OWNER') {
+      return (repo: string) => {
+        const sha = (rev: string) =>
+          execFileSync('git', ['rev-parse', rev], { cwd: repo, encoding: 'utf8' }).trim();
+        return {
+          authorAssociation: assoc,
+          body: `Agy findings for ${sha('HEAD~1')} (not gate evidence):
+Coverage: complete from ${sha('HEAD~2')}
+
+${bullets.join('\n')}`,
+        };
+      };
+    }
+    /** run() makes its own repo, so build it first and point the wrapper at it. */
+    function runRound2(
+      output: string,
+      comments: ((repo: string) => { body: string; authorAssociation: string })[],
+      extra: { body: string; authorAssociation: string }[] = []
+    ) {
+      const stub = stubAgy(output);
+      const repo = makeRepo(true);
+      const gh = ghWith([...comments.map(c => c(repo)), ...extra]);
+      let code = 0;
+      let out = '';
+      try {
+        out = execFileSync('bash', [SCRIPT, 'HEAD~2', '--post'], {
+          cwd: repo,
+          encoding: 'utf8',
+          env: { ...process.env, AGY_BIN: stub.bin, AGY_REVIEW_LOG: stub.log, GH_BIN: gh.bin },
+          stdio: ['ignore', 'pipe', 'pipe'],
+        });
+      } catch (error) {
+        const e = error as { status: number; stdout: string; stderr: string };
+        code = e.status;
+        out = `${e.stdout}${e.stderr}`;
+      }
+      const args = readFileSync(stub.args, 'utf8').split('\0').slice(0, -1);
+      return { code, out, gh, prompt: args[args.indexOf('-p') + 1] ?? '' };
+    }
+
+    it('lists the anchor findings in the prompt', () => {
+      const r = runRound2(CLEAN, [anchorBodies(TWO)]);
+      expect(r.prompt).toContain('Findings from the previous round');
+      expect(r.prompt).toContain('earlier-a.ts:1 first defect');
+      expect(r.prompt).toContain('earlier-b.ts:2 second defect');
+    });
+
+    it('one of two earlier P2s left unfixed does not post "all addressed" (known answer)', () => {
+      const r = runRound2(
+        '- [P2] earlier-a.ts:1 first defect is still present\n\nEND OF REVIEW\n',
+        [anchorBodies(TWO)]
+      );
+      expect(r.code).toBe(1);
+      expect(bodies(r.gh.calls).some(b => b.includes('all addressed'))).toBe(false);
+    });
+
+    it('both fixed: the clean re-run posts "2 findings, all addressed"', () => {
+      const r = runRound2(CLEAN, [anchorBodies(TWO)]);
+      expect(r.code).toBe(0);
+      expect(bodies(r.gh.calls)[0]).toMatch(/ — 2 findings, all addressed\n/);
+    });
+
+    it('carries nothing forward from a clean Review gate anchor', () => {
+      const clean = (repo: string) => {
+        const sha = (rev: string) =>
+          execFileSync('git', ['rev-parse', rev], { cwd: repo, encoding: 'utf8' }).trim();
+        return {
+          authorAssociation: 'OWNER',
+          body: `Review gate: agy reviewed ${sha('HEAD~2')}..${sha('HEAD~1')} — no findings
+Coverage: complete from ${sha('HEAD~2')}
+log sha256: ${'0'.repeat(64)}`,
+        };
+      };
+      const r = runRound2(CLEAN, [clean]);
+      expect(r.out).toContain('round 2+');
+      expect(r.prompt).not.toContain('Findings from the previous round');
+    });
+
+    it('carries [unlikely P1] and a multi-line bullet whole, not [unlikely P3]', () => {
+      const r = runRound2(CLEAN, [
+        anchorBodies([
+          '- [unlikely P1] rare-one.ts:1 blocks anyway',
+          '- [unlikely P3] rare-two.ts:1 parked',
+          '- [P2] wrapped.ts:4 first line',
+          '  and its continuation',
+        ]),
+      ]);
+      expect(r.prompt).toContain('[unlikely P1] rare-one.ts:1 blocks anyway');
+      expect(r.prompt).not.toContain('rare-two.ts');
+      expect(r.prompt).toContain('[P2] wrapped.ts:4 first line and its continuation');
+    });
+
+    it('does not count findings comments from untrusted authors', () => {
+      const r = runRound2(
+        CLEAN,
+        [anchorBodies(TWO)],
+        [
+          {
+            authorAssociation: 'NONE',
+            body: 'Agy findings for aaaaaaaaa (not gate evidence):\n\n- [P2] x.ts:1 a\n- [P2] y.ts:1 b\n- [P2] z.ts:1 c\n',
+          },
+        ]
+      );
+      expect(r.code).toBe(0);
+      expect(bodies(r.gh.calls)[0]).toMatch(/ — 2 findings, all addressed\n/);
+    });
+  });
+
   it('exits 2 when the diff is empty (nothing was reviewed)', () => {
     const r = run(stubAgy(CLEAN), ['HEAD']);
     expect(r.code).toBe(2);

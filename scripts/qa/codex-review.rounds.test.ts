@@ -401,4 +401,121 @@ describe('codex-review.sh rounds (MYK9-1590)', () => {
       expect(postedBodies(s)).toHaveLength(0);
     });
   });
+
+  describe('earlier findings are confirmed against the new head (MYK9-2369)', () => {
+    const TWO = [
+      '- [P2] src/a.ts:3 — first defect.',
+      '- [P2] src/b.ts:9 — second "quoted" defect.',
+    ];
+    const withBullets = (
+      head: string,
+      from: string,
+      bullets: string[],
+      assoc = 'OWNER'
+    ): Comment => ({
+      authorAssociation: assoc,
+      body: `Codex findings for ${head.slice(0, 9)} (not gate evidence):\nCoverage: complete from ${from.slice(0, 9)}\n\n${bullets.join('\n')}`,
+    });
+
+    it('lists the anchor findings in the prompt and tells the reviewer to report any left unfixed', () => {
+      const repo = makeRepo();
+      const r = run(repo, stubs(CLEAN_VERDICT, [withBullets(repo.b, repo.a, TWO)]));
+      expect(r.instructions).toContain('Findings from the previous round');
+      expect(r.instructions).toContain('src/a.ts:3 — first defect.');
+      expect(r.instructions).toContain('src/b.ts:9 — second \\"quoted\\" defect.');
+      expect(r.instructions).toContain('Report any that the head does not fix as a normal finding');
+    });
+
+    it('one of two earlier P2s left unfixed does not post "all addressed" (known answer)', () => {
+      const repo = makeRepo();
+      const s = stubs('codex\n- [P2] src/a.ts:3 — first defect, still present at the head.\n', [
+        withBullets(repo.b, repo.a, TWO),
+      ]);
+      const r = run(repo, s);
+      expect(r.code).toBe(1);
+      const bodies = postedBodies(s);
+      expect(bodies.some(b => b.includes('all addressed'))).toBe(false);
+      expect(bodies[0]).toMatch(/^Codex findings for /);
+    });
+
+    it('both fixed: the clean re-run posts "2 findings, all addressed"', () => {
+      const repo = makeRepo();
+      const s = stubs(CLEAN_VERDICT, [withBullets(repo.b, repo.a, TWO)]);
+      expect(run(repo, s).code).toBe(0);
+      const evidence = postedBodies(s).find(b => b.startsWith('Review gate: codex reviewed'));
+      expect(evidence?.split('\n')[0]).toMatch(/ — 2 findings, all addressed$/);
+    });
+
+    it('a round 2 from a clean Review gate anchor carries no earlier findings', () => {
+      const repo = makeRepo();
+      const r = run(repo, stubs(CLEAN_VERDICT, [gate(repo.b, { from: repo.a })]));
+      expect(r.base).toBe(repo.b);
+      expect(r.instructions).not.toContain('Findings from the previous round');
+    });
+
+    it('a clean anchor newer than an old findings comment carries nothing forward', () => {
+      const repo = makeRepo();
+      const r = run(
+        repo,
+        stubs(CLEAN_VERDICT, [withBullets(repo.b, repo.a, TWO), gate(repo.b, { from: repo.a })])
+      );
+      expect(r.instructions).not.toContain('Findings from the previous round');
+    });
+
+    it('carries only actionable bullets: parked and pre-existing ones stay out', () => {
+      const repo = makeRepo();
+      const r = run(
+        repo,
+        stubs(CLEAN_VERDICT, [
+          withBullets(repo.b, repo.a, [
+            '- [P1] keep-one.ts:1 — real.',
+            '- [earlier-round P2] parked-a.ts:1 — parked.',
+            '- [unlikely P3] parked-b.ts:1 — improbable.',
+            '- [pre-existing P2] old.ts:1 — old.',
+          ]),
+        ])
+      );
+      expect(r.instructions).toContain('keep-one.ts:1');
+      expect(r.instructions).not.toContain('parked-a.ts');
+      expect(r.instructions).not.toContain('parked-b.ts');
+      expect(r.instructions).not.toContain('old.ts');
+    });
+
+    it('carries [unlikely P0|P1] (they block) but not [unlikely P2|P3], and keeps a multi-line bullet whole', () => {
+      const repo = makeRepo();
+      const r = run(
+        repo,
+        stubs(CLEAN_VERDICT, [
+          withBullets(repo.b, repo.a, [
+            '- [unlikely P1] rare-one.ts:1 — blocks anyway.',
+            '- [unlikely P2] rare-two.ts:1 — parked.',
+            '- [P2] wrapped.ts:4 — first line',
+            '  and its continuation.',
+            '',
+            'trailing prose',
+          ]),
+        ])
+      );
+      expect(r.instructions).toContain('[unlikely P1] rare-one.ts:1 — blocks anyway.');
+      expect(r.instructions).not.toContain('rare-two.ts');
+      expect(r.instructions).toContain('[P2] wrapped.ts:4 — first line and its continuation.');
+      expect(r.instructions).not.toContain('trailing prose');
+    });
+
+    it('does not count findings comments from untrusted authors', () => {
+      const repo = makeRepo();
+      const s = stubs(CLEAN_VERDICT, [
+        withBullets(repo.b, repo.a, TWO),
+        withBullets(
+          repo.b,
+          repo.a,
+          ['- [P2] x.ts:1 — a.', '- [P2] y.ts:1 — b.', '- [P2] z.ts:1 — c.'],
+          'NONE'
+        ),
+      ]);
+      expect(run(repo, s).code).toBe(0);
+      const evidence = postedBodies(s).find(b => b.startsWith('Review gate: codex reviewed'));
+      expect(evidence?.split('\n')[0]).toMatch(/ — 2 findings, all addressed$/);
+    });
+  });
 });

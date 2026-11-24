@@ -8,6 +8,7 @@ import {
 } from '@/utils/show-management-tracking';
 import type { StoreShow as Show } from '@/types/show-types';
 import type { Database } from '@/types/supabase';
+import { replicatedShowsTable } from '@/services/replication';
 import { reportWarning } from '@/utils/standardizedErrorHandler';
 import { readRealtimeShow } from './realtimeShowRow';
 
@@ -25,6 +26,21 @@ type ShowRow = Database['public']['Tables']['shows']['Row'];
  * Re-reads of one show run one after another, so each starts after its event and a burst
  * collapses to the newest; a DELETE or a newer event makes an in-flight re-read stale.
  */
+/**
+ * Takes a show off the list and out of this device's shows replica. The store's replica
+ * subscription rebuilds the whole list on every replica change, so a row left in the replica
+ * would bring the show back on the next event for any show. A row with unsynced local edits
+ * is kept, the same rule as every clean-row purge (MYK9-922).
+ */
+function removeShowEverywhere(showId: string): void {
+  useShowStore.getState().removeShow(showId);
+  replicatedShowsTable.deleteRowsIfClean([showId]).catch((error: unknown) => {
+    reportWarning('realtime', `Could not drop show ${showId} from this device`, {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  });
+}
+
 export const useRealTimeUpdates = () => {
   const { userWithRoles: user } = useAuthContext();
   const userRef = useRef(user);
@@ -53,7 +69,7 @@ export const useRealTimeUpdates = () => {
     const inStore = store.shows.some(s => s.id === showId);
     if (!show) {
       // Soft deleted, or no longer visible to this account.
-      if (inStore) store.removeShow(showId);
+      removeShowEverywhere(showId);
       return;
     }
     if (inStore) store.updateShowLegacy(show);
@@ -72,7 +88,7 @@ export const useRealTimeUpdates = () => {
       const inStore = useShowStore.getState().shows.some(s => s.id === showId);
       if (row.deleted_at) {
         markEvent(showId);
-        if (inStore) useShowStore.getState().removeShow(showId);
+        removeShowEverywhere(showId);
         return Promise.resolve();
       }
       // An UPDATE for a show this list never loaded (not public, or filtered out) stays out,
@@ -102,7 +118,7 @@ export const useRealTimeUpdates = () => {
   const handleShowDelete = useCallback(
     (showId: string) => {
       markEvent(showId);
-      useShowStore.getState().removeShow(showId);
+      removeShowEverywhere(showId);
     },
     [markEvent]
   );

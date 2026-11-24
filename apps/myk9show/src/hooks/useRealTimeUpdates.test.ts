@@ -48,14 +48,18 @@ const replicated = (row: Record<string, unknown>) =>
 /** What the server returns for a show id when the hook re-reads it. */
 let serverRows: Map<string, Record<string, unknown>>;
 const pullShowById = () => vi.mocked(replicatedShowsTable.pullShowById);
+const deleteRowsIfClean = () => vi.mocked(replicatedShowsTable.deleteRowsIfClean);
 
-/** Holds the next re-read until `release()`; the row is looked up when it is released. */
-function deferredPull() {
+/**
+ * Holds the next re-read until `release()`. It returns `fixedRow` when given (the row as it was
+ * when the read started), else the server row at release time.
+ */
+function deferredPull(fixedRow?: Record<string, unknown>) {
   let release: () => void = () => undefined;
   const gate = new Promise<void>(resolve => (release = resolve));
   pullShowById().mockImplementationOnce(async id => {
     await gate;
-    const row = serverRows.get(id);
+    const row = fixedRow ?? serverRows.get(id);
     return row ? replicated(row) : null;
   });
   return () => release();
@@ -85,6 +89,10 @@ describe('useRealTimeUpdates', () => {
       const row = serverRows.get(id);
       return row ? replicated(row) : null;
     });
+    vi.spyOn(replicatedShowsTable, 'deleteRowsIfClean').mockResolvedValue({
+      deleted: [],
+      kept: [],
+    } as never);
     loadShows = vi.fn();
     useShowStore.setState({
       shows: [makeShow('show-1', 'Alpha'), makeShow('show-2', 'Bravo')],
@@ -315,7 +323,8 @@ describe('useRealTimeUpdates', () => {
 
   it('applies an UPDATE that arrives while an INSERT for the same show is re-read', async () => {
     serverRows.set('show-3', makeRow('show-3', 'Charlie'));
-    const release = deferredPull();
+    // The INSERT's read started before the UPDATE committed, so it returns the old row.
+    const release = deferredPull(makeRow('show-3', 'Charlie'));
     const { unmount } = renderHook(() => useRealTimeUpdates());
 
     await act(async () => {
@@ -356,6 +365,7 @@ describe('useRealTimeUpdates', () => {
     });
 
     expect(ids()).toEqual(['show-2']);
+    expect(deleteRowsIfClean()).toHaveBeenCalledWith(['show-1']);
 
     unmount();
   });
@@ -385,6 +395,7 @@ describe('useRealTimeUpdates', () => {
 
     expect(ids()).toEqual(['show-2']);
     expect(pullShowById()).not.toHaveBeenCalled();
+    expect(deleteRowsIfClean()).toHaveBeenCalledWith(['show-1']);
 
     unmount();
   });
@@ -412,6 +423,7 @@ describe('useRealTimeUpdates', () => {
     });
 
     expect(useShowStore.getState().shows.map(s => s.id)).toEqual(['show-2']);
+    expect(deleteRowsIfClean()).toHaveBeenCalledWith(['show-1']);
     expect(loadShows).not.toHaveBeenCalled();
 
     unmount();

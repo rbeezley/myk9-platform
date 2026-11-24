@@ -56,11 +56,11 @@ const CLEAN_VERDICT = [
 ];
 /** REVIEW_GATE_LINE from review-gate.ts: the first line of the comment. */
 const GATE_LINE =
-  /^Review gate: (?:independent\/codex|independent\/claude|codex|claude|adversarial|owner|none) reviewed [0-9a-f]{7,40}\.\.[0-9a-f]{7,40}\s+[—–-]\s+(.+?)\s*$/;
+  /^Review gate: (?:independent\/codex|independent\/claude|codex|claude|agy|adversarial|owner|none) reviewed [0-9a-f]{7,40}\.\.[0-9a-f]{7,40}\s+[—–-]\s+(.+?)\s*$/;
 
 const TRUSTED = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
 /** The reviewers' own findings comment, as posted by codex-review.sh / claude-review.sh. */
-const FINDINGS_COMMENT = /^(?:Codex|Claude) findings for ([0-9a-f]{7,40})\b/;
+const FINDINGS_COMMENT = /^(?:Codex|Claude|Agy) findings for ([0-9a-f]{7,40})\b/;
 const RANGE_HEAD = /reviewed [0-9a-f]{7,40}\.\.([0-9a-f]{7,40})\b/;
 
 export type Classified = { kind: 'findings' | 'clean'; reviewedHead: string | null };

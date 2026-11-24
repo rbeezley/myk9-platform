@@ -629,7 +629,7 @@ describe('post-review-gate.sh', () => {
         const gh = stubGh();
         const r = run(['1', reviewer, 'abc1234', 'def5678', 'no findings', '/dev/null'], gh.bin);
         expect(r.code).toBe(2);
-        expect(r.out).toMatch(/reviewer must be codex, claude, adversarial, none or owner/);
+        expect(r.out).toMatch(/reviewer must be codex, claude, agy, adversarial, none or owner/);
         expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
       }
     );

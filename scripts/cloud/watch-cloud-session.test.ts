@@ -71,6 +71,21 @@ describe('classifyComment', () => {
     expect(classifyComment(findingsComment('Claude'), 'COLLABORATOR')?.kind).toBe('findings');
     expect(classifyComment(gate('2 findings'), OWNER)?.reviewedHead).toBe('def5678');
   });
+  it('reads agy findings comments and agy gate lines (MYK9-2326)', () => {
+    expect(classifyComment(findingsComment('Agy'), 'OWNER')).toEqual({
+      kind: 'findings',
+      reviewedHead: 'def5678',
+    });
+    expect(
+      classifyComment(`Review gate: agy reviewed ${SHAS} — no findings\nlog sha256: x`, OWNER)?.kind
+    ).toBe('clean');
+    expect(
+      classifyComment(
+        `Review gate: agy reviewed ${SHAS} — 2 findings, not addressed\nlog sha256: x`,
+        OWNER
+      )?.kind
+    ).toBe('findings');
+  });
   it('ignores untrusted authors and comments that are not review lines', () => {
     expect(classifyComment(findingsComment(), 'NONE')).toBeNull();
     expect(classifyComment(gate('2 findings'), 'CONTRIBUTOR')).toBeNull();

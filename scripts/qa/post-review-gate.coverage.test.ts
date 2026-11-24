@@ -88,6 +88,20 @@ describe('post-review-gate.sh coverage record (MYK9-1603)', () => {
     }
   });
 
+  it('records coverage for a finished agy review too, from a log with no codex marker (MYK9-2326)', () => {
+    const args = ['42', 'agy', '0a2020c7a', '5af9af158', 'no findings', 'LOG'];
+    const r = post(args, 'No actionable defects found.\n', { REVIEW_COVERAGE_FROM: '0a2020c7a' });
+    expect(r.code).toBe(0);
+    const lines = r.body.split('\n');
+    expect(lines[0]).toBe('Review gate: agy reviewed 0a2020c7a..5af9af158 — no findings');
+    expect(lines[1]).toBe('Coverage: complete from 0a2020c7a');
+    const [evidence] = parseGateComments([
+      { body: r.body, authorAssociation: 'OWNER', createdAt: '2026-11-01T00:00:00Z' },
+    ]);
+    expect(evidence?.reviewer).toBe('agy');
+    expect(post(args, 'No actionable defects found.\n', {}).body).not.toContain('Coverage:');
+  });
+
   it('review-gate.ts still parses the posted comment as codex evidence', () => {
     const r = post(CLEAN_ARGS, CLEAN, { REVIEW_COVERAGE_FROM: '0a2020c7a' });
     const [evidence] = parseGateComments([

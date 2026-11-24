@@ -16,7 +16,7 @@
 # checker rejects and the log really does carry findings — it can only ever
 # make the gate redder.
 #
-# Usage: post-review-gate.sh [--withdraw] <pr> <codex|claude|adversarial|none|owner> <base-sha> <head-sha> "<verdict>" <log>
+# Usage: post-review-gate.sh [--withdraw] <pr> <codex|claude|agy|adversarial|none|owner> <base-sha> <head-sha> "<verdict>" <log>
 # Exit:  0 posted · 2 refused (bad reviewer/verdict grammar, missing or
 #        malformed owner env vars, the phone-width walk not green on a PR
 #        that needs it, or — codex/claude/adversarial only — an
@@ -107,8 +107,8 @@ has_any_terminator() {  # the above, plus LF
 }
 
 case "$REVIEWER" in
-  codex|claude|adversarial|none|owner) ;;
-  *) echo "post-review-gate: reviewer must be codex, claude, adversarial, none or owner" >&2; exit 2;;
+  codex|claude|agy|adversarial|none|owner) ;;
+  *) echo "post-review-gate: reviewer must be codex, claude, agy, adversarial, none or owner" >&2; exit 2;;
 esac
 
 # MYK9-1967: the evidence line is `<reviewer> reviewed <base9>..<head9>`, and
@@ -441,7 +441,7 @@ elif [ "$REVIEWER" = "owner" ]; then
     "$REVIEWER" "${BASE:0:9}" "${HEAD:0:9}" "$VERDICT" "$OVERRIDE_REASON" "$DEFERRED_REVIEW" "$HASH" "$REVIEWER" "$VERDICT_BLOCK")"
 else
   COVERAGE_LINE=""
-  if [ "$REVIEWER" = "codex" ] && [ "$WITHDRAW" != 1 ] && [ -n "${REVIEW_COVERAGE_FROM:-}" ]; then
+  if { [ "$REVIEWER" = "codex" ] || [ "$REVIEWER" = "agy" ]; } && [ "$WITHDRAW" != 1 ] && [ -n "${REVIEW_COVERAGE_FROM:-}" ]; then
     case "$REVIEW_COVERAGE_FROM" in
       *[!0-9a-f]*) echo "post-review-gate: REVIEW_COVERAGE_FROM must be a hex commit sha; nothing posted" >&2; exit 2;;
     esac

@@ -76,7 +76,7 @@ const PERMISSION_TEMPLATES: PermissionTemplate[] = [
   {
     id: 'show-manager',
     name: 'show-manager',
-    displayName: 'Show Manager',
+    displayName: 'Show secretary',
     description: 'Full show management capabilities with advanced permissions',
     icon: Crown,
     color: 'bg-violet-100 text-violet-700 border-violet-200',

@@ -232,7 +232,7 @@ function VerifiedLine({
 > & {
   onUndo: () => void;
 }) {
-  const by = row.verifiedBy && row.verifiedBy === currentUserId ? 'you' : 'another show manager';
+  const by = row.verifiedBy && row.verifiedBy === currentUserId ? 'you' : 'another show secretary';
   const at = formatTime(row.verifiedAt, timeZone);
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-success/5 px-3 py-2 text-sm">

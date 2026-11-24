@@ -81,7 +81,7 @@ export const ClubRemovalDialogs: React.FC<ClubRemovalDialogsProps> = ({
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
-            Revoke show access from {pendingShowAccessRevoke?.personName}?
+            Revoke show secretary from {pendingShowAccessRevoke?.personName}?
           </AlertDialogTitle>
           <AlertDialogDescription>
             {pendingShowAccessRevoke?.personName} will no longer be able to create or run any of
@@ -89,9 +89,9 @@ export const ClubRemovalDialogs: React.FC<ClubRemovalDialogsProps> = ({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter className="gap-2 sm:flex-wrap sm:space-x-0">
-          <AlertDialogCancel className="w-full sm:w-auto">Keep show access</AlertDialogCancel>
+          <AlertDialogCancel className="w-full sm:w-auto">Keep show secretary</AlertDialogCancel>
           <AlertDialogAction className="w-full sm:w-auto" onClick={confirmShowAccessRevoke}>
-            Revoke show access
+            Revoke show secretary
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -99,7 +99,7 @@ describe('ClubMembersManager show access', () => {
     render(<ClubMembersManager clubId="club-1" clubName="Heartland Club" />, { queryClient });
 
     await user.click(await screen.findByRole('button', { name: 'Actions for Ada Lovelace' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Grant Show Access' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Appoint show secretary' }));
 
     await waitFor(() => {
       expect(setClubShowManagerAccess).toHaveBeenCalledWith({
@@ -118,7 +118,7 @@ describe('ClubMembersManager show access', () => {
     render(<ClubMembersManager clubId="club-1" clubName="Heartland Club" />);
 
     await user.click(await screen.findByRole('button', { name: 'Actions for Ada Lovelace' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Grant Show Access' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Appoint show secretary' }));
 
     await waitFor(() => {
       expect(notificationError).toHaveBeenCalledWith(
@@ -147,23 +147,23 @@ describe('ClubMembersManager show access', () => {
     render(<ClubMembersManager clubId="club-1" clubName="Heartland Club" />, { queryClient });
 
     await user.click(await screen.findByRole('button', { name: 'Actions for Ada Lovelace' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Revoke Show Access' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Revoke show secretary' }));
     expect(setClubShowManagerAccess).not.toHaveBeenCalled();
 
     const dialog = await screen.findByRole('alertdialog');
-    expect(dialog).toHaveTextContent('Revoke show access from Ada Lovelace?');
+    expect(dialog).toHaveTextContent('Revoke show secretary from Ada Lovelace?');
     const footer = dialog.querySelector('[class*="flex-col-reverse"]');
     expect(footer?.className).toContain('sm:flex-wrap');
     expect(footer?.className).toContain('sm:space-x-0');
-    expect(screen.getByRole('button', { name: 'Keep show access' })).toHaveClass(
+    expect(screen.getByRole('button', { name: 'Keep show secretary' })).toHaveClass(
       'w-full',
       'sm:w-auto'
     );
-    expect(screen.getByRole('button', { name: 'Revoke show access' })).toHaveClass(
+    expect(screen.getByRole('button', { name: 'Revoke show secretary' })).toHaveClass(
       'w-full',
       'sm:w-auto'
     );
-    await user.click(await screen.findByRole('button', { name: 'Revoke show access' }));
+    await user.click(await screen.findByRole('button', { name: 'Revoke show secretary' }));
 
     await waitFor(() => {
       expect(setClubShowManagerAccess).toHaveBeenCalledWith({
@@ -191,8 +191,8 @@ describe('ClubMembersManager show access', () => {
     render(<ClubMembersManager clubId="club-1" clubName="Heartland Club" />);
 
     await user.click(await screen.findByRole('button', { name: 'Actions for Ada Lovelace' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Revoke Show Access' }));
-    await user.click(await screen.findByRole('button', { name: 'Revoke show access' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Revoke show secretary' }));
+    await user.click(await screen.findByRole('button', { name: 'Revoke show secretary' }));
 
     await waitFor(() => {
       expect(notificationError).toHaveBeenCalledWith(
@@ -248,7 +248,7 @@ describe('ClubMembersManager Show Access tab wiring', () => {
     await user.click(await screen.findByRole('tab', { name: /show secretaries/i }));
     await user.click(await screen.findByRole('button', { name: /revoke/i }));
     expect(setClubShowManagerAccess).not.toHaveBeenCalled();
-    await user.click(await screen.findByRole('button', { name: 'Revoke show access' }));
+    await user.click(await screen.findByRole('button', { name: 'Revoke show secretary' }));
 
     await waitFor(() => {
       expect(setClubShowManagerAccess).toHaveBeenCalledWith({
@@ -303,7 +303,7 @@ describe('ClubMembersManager show-access confirmations name the person', () => {
     expect(await screen.findByRole('alertdialog')).toHaveTextContent(
       'Grace Hopper will no longer be able to create or run'
     );
-    await user.click(await screen.findByRole('button', { name: 'Keep show access' }));
+    await user.click(await screen.findByRole('button', { name: 'Keep show secretary' }));
     expect(setClubShowManagerAccess).not.toHaveBeenCalled();
 
     expect(notificationSuccess).not.toHaveBeenCalledWith(expect.stringContaining('the member'));
@@ -324,8 +324,8 @@ describe('ClubMembersManager show-access confirmations name the person', () => {
     render(<ClubMembersManager clubId="club-1" clubName="Heartland Club" />);
 
     await user.click(await screen.findByRole('button', { name: 'Actions for Ada Lovelace' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Revoke Show Access' }));
-    await user.click(await screen.findByRole('button', { name: 'Revoke show access' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Revoke show secretary' }));
+    await user.click(await screen.findByRole('button', { name: 'Revoke show secretary' }));
 
     await waitFor(() => {
       expect(notificationSuccess).toHaveBeenCalledWith('Show access revoked from Ada Lovelace.');

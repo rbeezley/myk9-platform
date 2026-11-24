@@ -127,15 +127,18 @@ if [ "$POST" = 1 ] && PR="$("$GH" pr view --json number -q .number 2>/dev/null)"
     REVIEW_BASE="$LAST_SHA"
     COVERED_FROM="$FROM_SHA"
     REVIEW_INSTRUCTIONS="${REVIEW_INSTRUCTIONS/requested whole-branch review/requested fix-range review} Fix-range round: earlier rounds of this review already read ${BASE_SHA:0:9}..${LAST_SHA:0:9}; this round reviews ${LAST_SHA:0:9}..${HEAD_SHA:0:9}. Report as normal findings only (a) defects those commits introduce, including regressions they cause elsewhere, and (b) any P0 or P1 anywhere in the branch ${BASE_SHA:0:9}..${HEAD_SHA:0:9}. A P2 or P3 in code the earlier rounds already read is not actionable this round: list it after the verdict under the heading Not actionable this round, as a bullet beginning with - [earlier-round P2] or - [earlier-round P3]."
-    PRIOR_TEXT="$(review_prior_findings_instructions "Codex findings for" "$ANCHOR")"
-    if [ -n "$PRIOR_TEXT" ]; then
-      # developer_instructions is a TOML basic string: escape \ and ", one line.
-      PRIOR_TEXT="${PRIOR_TEXT//\\/\\\\}"
-      PRIOR_TEXT="${PRIOR_TEXT//\"/\\\"}"
-      REVIEW_INSTRUCTIONS="${REVIEW_INSTRUCTIONS} ${PRIOR_TEXT}"
-    fi
     echo "codex-review: round 2+ — fix range ${LAST_SHA:0:9}..${HEAD_SHA:0:9} (last completed codex review on PR #${PR})"
   fi
+fi
+
+# MYK9-2369: whichever range is reviewed (fix range or the whole-branch
+# fallback), a findings anchor's actionable bullets are confirmed against the head.
+PRIOR_TEXT="$(review_prior_findings_instructions "Codex findings for" "${ANCHOR:-}")"
+if [ -n "$PRIOR_TEXT" ]; then
+  # developer_instructions is a TOML basic string: escape \ and ", one line.
+  PRIOR_TEXT="${PRIOR_TEXT//\\/\\\\}"
+  PRIOR_TEXT="${PRIOR_TEXT//\"/\\\"}"
+  REVIEW_INSTRUCTIONS="${REVIEW_INSTRUCTIONS} ${PRIOR_TEXT}"
 fi
 
 echo "codex-review: ${REVIEW_BASE} (${BASE_SHA:0:9}) .. HEAD (${HEAD_SHA:0:9}) -> ${LOG} (model ${MODEL:-config default})"

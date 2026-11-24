@@ -110,11 +110,14 @@ BT='`'
 NEWEST_TEXT=""
 if [ "$FIX_RANGE" = 1 ]; then
   git diff "${REVIEW_BASE}..HEAD" > "$NEWEST_FILE"
-  PRIOR_TEXT="$(review_prior_findings_instructions "Agy findings for" "$ANCHOR")"
-  [ -z "$PRIOR_TEXT" ] || CONTRACT="$CONTRACT $PRIOR_TEXT"
   NEWEST_TEXT="The newest commits alone, which answer findings from an earlier review round, are in ${BT}.logs/agy-review-newest-${HEAD_SHA:0:9}.diff${BT}; give them the most attention."
   CONTRACT="${CONTRACT/requested whole-branch review/requested fix-range review} Fix-range round: earlier rounds of this review already read ${BASE_SHA:0:9}..${REVIEW_BASE:0:9}; this round reviews ${REVIEW_BASE:0:9}..${HEAD_SHA:0:9}. Report as normal findings only (a) defects those commits introduce, including regressions they cause elsewhere, and (b) any P0 or P1 anywhere in the branch ${BASE_SHA:0:9}..${HEAD_SHA:0:9}. A P2 or P3 in code the earlier rounds already read is not actionable this round: list it after the verdict under the heading Not actionable this round, as a bullet beginning with - [earlier-round P2] or - [earlier-round P3]."
 fi
+# MYK9-2369: whichever range is reviewed, a findings anchor's actionable bullets
+# are confirmed against the head (one per line, text untouched).
+PRIOR_TEXT="$(review_prior_findings_instructions "Agy findings for" "${ANCHOR:-}" $'\n')"
+[ -z "$PRIOR_TEXT" ] || CONTRACT="$CONTRACT
+$PRIOR_TEXT"
 PROMPT="$(cat "$PROMPT_TEMPLATE")"
 PROMPT="${PROMPT//\{DIFF\}/${BT}.logs/agy-review-${HEAD_SHA:0:9}.diff${BT}}"
 PROMPT="${PROMPT//\{NEWEST\}/$NEWEST_TEXT}"

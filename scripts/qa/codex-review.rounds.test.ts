@@ -502,6 +502,32 @@ describe('codex-review.sh rounds (MYK9-1590)', () => {
       expect(r.instructions).not.toContain('trailing prose');
     });
 
+    it('the whole-branch fallback carries the anchor findings too (merge in range)', () => {
+      const repo = makeRepo({ mergeAfterB: true });
+      const r = run(repo, stubs(CLEAN_VERDICT, [withBullets(repo.b, repo.a, TWO)]));
+      expect(r.base).toBe(repo.a);
+      expect(r.instructions).toContain('Findings from the previous round');
+      expect(r.instructions).toContain('src/a.ts:3 — first defect.');
+    });
+
+    it('does not rewrite "|" inside a finding, and keeps nested sub-bullets', () => {
+      const repo = makeRepo();
+      const r = run(
+        repo,
+        stubs(CLEAN_VERDICT, [
+          withBullets(repo.b, repo.a, [
+            '- [P2] pipe.ts:1 — a || b is wrong',
+            '  - nested detail one',
+            '    - deeper detail',
+            '- [P3] next.ts:2 — second',
+          ]),
+        ])
+      );
+      expect(r.instructions).toContain(
+        '[P2] pipe.ts:1 — a || b is wrong - nested detail one - deeper detail ;; - [P3] next.ts:2'
+      );
+    });
+
     it('does not count findings comments from untrusted authors', () => {
       const repo = makeRepo();
       const s = stubs(CLEAN_VERDICT, [

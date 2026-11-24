@@ -429,6 +429,30 @@ log sha256: ${'0'.repeat(64)}`,
       expect(r.prompt).toContain('[P2] wrapped.ts:4 first line and its continuation');
     });
 
+    it('the whole-branch fallback carries the anchor findings too (last head unknown)', () => {
+      const r = runRound2(CLEAN, [
+        () => ({
+          authorAssociation: 'OWNER',
+          body: 'Agy findings for deadbeefdeadbeef (not gate evidence):\nCoverage: complete from deadbeef0\n\n- [P2] fallback.ts:1 still to confirm',
+        }),
+      ]);
+      expect(r.out).not.toContain('round 2+');
+      expect(r.prompt).toContain('- [P2] fallback.ts:1 still to confirm');
+    });
+
+    it('lists one finding per line without rewriting "|" and keeps nested sub-bullets', () => {
+      const r = runRound2(CLEAN, [
+        anchorBodies([
+          '- [P2] pipe.ts:1 a || b is wrong',
+          '  - nested detail',
+          '- [P3] next.ts:2 second',
+        ]),
+      ]);
+      expect(r.prompt).toContain(
+        '- [P2] pipe.ts:1 a || b is wrong - nested detail\n- [P3] next.ts:2 second\n'
+      );
+    });
+
     it('does not count findings comments from untrusted authors', () => {
       const r = runRound2(
         CLEAN,

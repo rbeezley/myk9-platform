@@ -140,7 +140,7 @@ for exempt files. There is no comment-only exemption.
 - **`adversarial`** — run at least 2 subagent reviews with distinct
   bug-finding lenses (a migration path makes one lens `migration-auditor`
   and requires `src/test/database/` green), each prompt carrying the output
-  of `bash scripts/qa/review-contract.sh` (the same contract Codex gets; an
+  of `bash scripts/qa/review-contract.sh` (the same contract agy gets; an
   `[unlikely P3]` or `[earlier-round P2|P3]` bullet never blocks, a P0/P1
   always does), fix every finding, save the combined log, then post:
   `REVIEW_LENSES=$'<lens one>\n<lens two>' bash scripts/qa/post-review-gate.sh $PR_NUMBER adversarial <base-sha> <head-sha> "<N> lenses, all findings addressed" <log>`
@@ -207,7 +207,7 @@ PR_NUMBER=$(gh pr view --json number -q '.number')
 
 **Pre-pass (`independent` tier only).** Before the first agy run, dispatch one read-only `sonnet` sub-agent (one Mac heavy job against the orchestrate cap) with `git diff origin/main...HEAD`, told to find defects and never to approve, answering as `- [P<n>] file:line finding` bullets. Fix every finding you agree with and commit, so agy reviews a second draft. It posts nothing and is not gate evidence. Record `pre-pass: N findings fixed` in the PR body, and `Agy rounds: M` once the gate is green.
 
-**Author is Claude Code → agy reviews.** Run the wrapper from the worktree. An agy run takes 3-8 minutes and prints nothing until it finishes: the main session starts it once with `run_in_background: true` (never under `timeout`) and is notified when it exits; it blocks until the verdict, so never poll it, re-run it, or read its log before then. When it exits, read `.logs/agy-review.log` once for the verdict (`No actionable defects found.` or the `[P*]` bullets) and act on the exit code below. A sub-agent that must return the verdict runs it in the foreground. Foreground runs in the main session cost 16 h of blocked sessions over Sept–Oct 2026 (MYK9-1483).
+**Author is Claude Code → agy reviews.** Run the wrapper from the worktree. An agy run takes 3-8 minutes and prints nothing until it finishes: the main session starts it once with `run_in_background: true` (never under `timeout`) and is notified when it exits; it blocks until the verdict, so never poll it, re-run it, or read its log before then. When it exits, read `.logs/agy-review.log` once for the verdict (the wrapper's own full log is `.logs/agy-review-<head-sha>.log`, the file the poster hashes) (`No actionable defects found.` or the `[P*]` bullets) and act on the exit code below. A sub-agent that must return the verdict runs it in the foreground. Foreground runs in the main session cost 16 h of blocked sessions over Sept–Oct 2026 (MYK9-1483).
 
 ```bash
 pnpm qa:agy-review --post > .logs/agy-review.log 2>&1; echo "EXIT=$?"   # scripts/qa/agy-review.sh, always --base origin/main

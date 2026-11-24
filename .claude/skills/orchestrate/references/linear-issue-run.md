@@ -33,7 +33,7 @@ what an issue queue needs: selection, holds, Linear state and the run summary.
      a stop time (default 07:00 local), and how many issues may be in flight at once on the
      cloud lane (default 4; see **Lanes**). Record the limits in the ledger header.
 3. **Preflight.** One `get_issue` call proves the Linear connector works. If it's down, stop: a
-   run that can't write Linear can't leave it accurate. Check that `codex --version` answers; if
+   run that can't write Linear can't leave it accurate. Check that `agy --version` answers; if
    it doesn't, say before starting that any `independent`-tier PR will wait unmerged.
    For the cloud lane, `claude --version` and `claude auth status` must answer from the Bash
    tool (`loggedIn: true`; `claude auth login` is a one-time owner step), and the dispatch
@@ -85,7 +85,7 @@ approach, the review gate, the agy review, the merge and the close-out never mov
 Cloud lane limits: at most 4 issues in flight at once (the owner's yes at run start covers the
 number), and the Mac count still includes every agy review of a cloud PR, so reviews queue
 behind the cap even when four implementers are running. Cloud sessions have no `.env.local`,
-no staging passwords, no Codex and no Linear; anything an issue needs from that list keeps it
+no staging passwords, no agy and no Linear; anything an issue needs from that list keeps it
 local. The owner's rule from 2026-09-26 holds: **never message a cloud session**. A review
 round is a fresh session (below), and the Mac reads results from the PR, never from the
 session.
@@ -401,7 +401,7 @@ lanes. Additions specific to the run:
   angles) in parallel. Fix or evidence every finding, then **re-run both lenses on the new
   head**: `post-review-gate.sh` posts "all findings addressed" only over a clean final log.
   Paste the output of `bash scripts/qa/review-contract.sh` into each lens prompt: it is the
-  contract Codex gets, likelihood cap included, so a capped finding comes back as a
+  contract agy gets, likelihood cap included, so a capped finding comes back as a
   non-blocking `[unlikely P3]` instead of a `[P3]` that forces another round. A valid clean
   opening is `No actionable defects found.` The final log must contain no finding bullets or
   findings JSON, including fixed findings; preserve earlier findings/dispositions in separate history.

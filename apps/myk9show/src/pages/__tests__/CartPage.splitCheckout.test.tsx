@@ -164,6 +164,7 @@ vi.mock('@/components/cart/CartSummary', () => ({
 }));
 
 import CartPage from '@/pages/CartPage';
+import { runCartMutation } from '@/store/cartStore.helpers';
 
 describe('CartPage split checkout wiring', () => {
   beforeEach(() => {
@@ -281,6 +282,24 @@ describe('CartPage split checkout wiring', () => {
       showId: 'show-1',
       splitCheckoutId: storedSummary.correlationId,
     });
+  });
+
+  it('refuses checkout while a queued cart edit is still saving, then proceeds (MYK9-2340)', async () => {
+    let release: () => void = () => undefined;
+    const held = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    const edit = runCartMutation('cart-1', () => held);
+    const { user } = render(<CartPage />, { initialRoute: '/cart' });
+
+    await user.click(screen.getByRole('button', { name: 'Checkout' }));
+    expect(checkoutWithWaitlistMock).not.toHaveBeenCalled();
+    expect(createEntryCheckoutSessionMock).not.toHaveBeenCalled();
+
+    release();
+    await edit;
+    await user.click(screen.getByRole('button', { name: 'Checkout' }));
+    await waitFor(() => expect(checkoutWithWaitlistMock).toHaveBeenCalled());
   });
 
   it('holds checkout while capacity is refetching stale data', () => {

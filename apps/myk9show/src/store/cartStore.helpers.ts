@@ -5,6 +5,7 @@
  */
 
 import type { CartItemWithDetails, CartWithDetails } from './cartStore.types';
+import { create } from 'zustand';
 import { formatCents } from '@/lib/format/cents';
 
 // ── PLATFORM FEE: THE CLIENT HALF OF A DUPLICATED EXPRESSION ──────────────
@@ -159,8 +160,38 @@ export function calculateCartTotals(items: CartItemWithDetails[]): {
  */
 const cartMutationTails = new Map<string, Promise<void>>();
 
+/**
+ * Queued-or-running mutation count per cart, in Zustand state so the cart page
+ * re-renders and can hold Pay until the cart in the database matches the cart
+ * on screen. Kept apart from `useCartStore` so it is never persisted.
+ */
+const useCartMutationPending = create<{ counts: Record<string, number> }>()(() => ({
+  counts: {},
+}));
+
+function adjustPending(cartId: string, delta: 1 | -1): void {
+  useCartMutationPending.setState(state => {
+    const next = Math.max(0, (state.counts[cartId] ?? 0) + delta);
+    const counts = { ...state.counts };
+    if (next === 0) delete counts[cartId];
+    else counts[cartId] = next;
+    return { counts };
+  });
+}
+
+/** Non-reactive read for event handlers (the Pay backstop). */
+export function hasPendingCartMutations(cartId: string | undefined): boolean {
+  return !!cartId && (useCartMutationPending.getState().counts[cartId] ?? 0) > 0;
+}
+
+/** Reactive read: true while any edit to this cart is queued or in flight. */
+export function useHasPendingCartMutations(cartId: string | undefined): boolean {
+  return useCartMutationPending(state => !!cartId && (state.counts[cartId] ?? 0) > 0);
+}
+
 export function runCartMutation<T>(cartId: string, step: () => Promise<T>): Promise<T> {
   const previous = cartMutationTails.get(cartId) ?? Promise.resolve();
+  adjustPending(cartId, 1);
   const result = previous.then(step);
   const tail = result.then(
     () => undefined,
@@ -168,6 +199,7 @@ export function runCartMutation<T>(cartId: string, step: () => Promise<T>): Prom
   );
   cartMutationTails.set(cartId, tail);
   void tail.then(() => {
+    adjustPending(cartId, -1);
     if (cartMutationTails.get(cartId) === tail) cartMutationTails.delete(cartId);
   });
   return result;
@@ -176,6 +208,7 @@ export function runCartMutation<T>(cartId: string, step: () => Promise<T>): Prom
 /** Test hook: drop every queued tail so one test cannot block the next. */
 export function resetCartMutationQueue(): void {
   cartMutationTails.clear();
+  useCartMutationPending.setState({ counts: {} });
 }
 
 /**

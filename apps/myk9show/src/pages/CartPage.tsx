@@ -23,6 +23,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useCartStore, useCartItems } from '@/store/cartStore';
+import { hasPendingCartMutations } from '@/store/cartStore.helpers';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { CartItemCard } from '@/components/cart/CartItemCard';
@@ -242,6 +243,9 @@ export default function CartPage() {
 
   const handleCheckout = async () => {
     if (checkoutInFlightRef.current) return;
+    // MYK9-2340: a queued edit (a second removal) has not reached the database
+    // yet; paying now would charge the cart as it was before it.
+    if (hasPendingCartMutations(cart?.id)) return;
     if (!cart?.id) {
       setError('No entry found. Please add a class to your entry.');
       return;

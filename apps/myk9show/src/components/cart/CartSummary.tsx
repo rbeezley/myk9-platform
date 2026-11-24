@@ -21,7 +21,11 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { useCartStore } from '@/store/cartStore';
-import { calculatePlatformFeeCents, formatCartCurrency } from '@/store/cartStore.helpers';
+import {
+  calculatePlatformFeeCents,
+  formatCartCurrency,
+  useHasPendingCartMutations,
+} from '@/store/cartStore.helpers';
 import { usePlatformFeeRates } from '@/hooks/queries/usePlatformFeeRates';
 import { WithdrawalPolicyDisclosure } from '@/features/payments/WithdrawalPolicyDisclosure';
 import { PlatformFeeSplitLines } from '@/features/payments/PlatformFeeSplitLines';
@@ -69,6 +73,9 @@ export function CartSummary({
   const getTotalEntryFees = useCartStore(state => state.getTotalEntryFees);
   const getItemCount = useCartStore(state => state.getItemCount);
   const feeRates = usePlatformFeeRates();
+  // MYK9-2340: Pay waits for queued cart edits so checkout never prices a cart
+  // the database does not hold yet.
+  const editsPending = useHasPendingCartMutations(cart?.id);
 
   // INTENT: Entry carts are a calm flow, not a time-pressured checkout: no
   // ticking countdown, and nothing strands the user by redirecting to /shows
@@ -267,7 +274,12 @@ export function CartSummary({
         <Button
           onClick={handleCheckout}
           disabled={
-            isCheckingOut || itemCount === 0 || entriesClosed || blockedCount > 0 || capacityUnknown
+            isCheckingOut ||
+            editsPending ||
+            itemCount === 0 ||
+            entriesClosed ||
+            blockedCount > 0 ||
+            capacityUnknown
           }
           // The label is the longest in the app ("Pay $1,234.50 and confirm
           // entries", plus a waitlist suffix at its fullest) and it renders in
@@ -317,6 +329,11 @@ export function CartSummary({
             </>
           )}
         </Button>
+        {editsPending && (
+          <p role="status" className="text-center text-xs text-muted-foreground">
+            Saving your changes…
+          </p>
+        )}
         {/* MYK9-1012: Pay holds the payable lines' spots until the Stripe page
             expires. Said only where Pay charges for spots. */}
         {canPayForSpots && (

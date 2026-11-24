@@ -88,7 +88,12 @@ vi.mock('@/services/LoggingService', () => ({
 }));
 
 import { useCartStore } from './cartStore';
-import { calculateCartTotals, resetCartMutationQueue } from './cartStore.helpers';
+import {
+  calculateCartTotals,
+  hasPendingCartMutations,
+  resetCartMutationQueue,
+  runCartMutation,
+} from './cartStore.helpers';
 
 const FEE = 3000;
 
@@ -178,6 +183,37 @@ describe('cartStore concurrent mutations (MYK9-2340)', () => {
   afterEach(() => {
     resetCartMutationQueue();
     useCartStore.setState({ cart: null, error: null });
+  });
+
+  it('reports pending edits until the last queued removal settles', async () => {
+    seedCart([row('item-1', 'class-1'), row('item-2', 'class-2')]);
+    const store = useCartStore.getState();
+    expect(hasPendingCartMutations('cart-1')).toBe(false);
+
+    const first = store.removeItem('item-1');
+    const second = store.removeItem('item-2');
+    await flush();
+    // The first write is held open and the second is queued behind it.
+    expect(hasPendingCartMutations('cart-1')).toBe(true);
+    expect(useCartStore.getState().cart!.items).toHaveLength(2);
+
+    gates.pending.splice(0).forEach(release => release());
+    await first;
+    expect(hasPendingCartMutations('cart-1')).toBe(true);
+
+    await releaseAll();
+    await second;
+    await flush();
+    expect(hasPendingCartMutations('cart-1')).toBe(false);
+    expect(useCartStore.getState().cart!.items).toHaveLength(0);
+  });
+
+  it('clears the pending state after a rejected mutation', async () => {
+    const failing = runCartMutation('cart-1', () => Promise.reject(new Error('write failed')));
+    expect(hasPendingCartMutations('cart-1')).toBe(true);
+    await expect(failing).rejects.toThrow('write failed');
+    await flush();
+    expect(hasPendingCartMutations('cart-1')).toBe(false);
   });
 
   it('two overlapping addItem calls keep both items and sum the totals', async () => {

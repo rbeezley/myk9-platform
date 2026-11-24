@@ -40,6 +40,7 @@ export const MUTATION_TARGET_DEFS = {
     mutate: ['apps/myk9show/src/store/cartStore.helpers.ts'],
     testFiles: [
       'apps/myk9show/src/features/payments/platformFeeSplit.test.ts',
+      'apps/myk9show/src/store/cartStore.concurrent.test.ts',
       'apps/myk9show/src/store/cartStore.helpers.test.ts',
       'apps/myk9show/supabase/functions/_shared/platformFeeAgreement.test.ts',
     ],

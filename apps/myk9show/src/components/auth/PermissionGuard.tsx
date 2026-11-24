@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { useRegistrationPermissions } from '../../hooks/useRegistrationPermissions';
-import { Permission, UserRole, Scope } from '../../types/auth-types';
+import { Permission, UserRole } from '../../types/auth-types';
 
 /**
  * Props for the PermissionGuard component
@@ -14,9 +14,6 @@ interface PermissionGuardProps {
 
   /** Required role(s) */
   role?: UserRole | UserRole[];
-
-  /** Scope for scoped permissions */
-  scope?: Scope;
 
   /** Whether all permissions/roles must be satisfied (AND) or just one (OR) */
   requireAll?: boolean;
@@ -54,14 +51,6 @@ interface PermissionGuardProps {
  *   <AdminFeatures />
  * </PermissionGuard>
  *
- * // Scoped permission
- * <PermissionGuard
- *   permission={PERMISSIONS.CLUB_UPDATE}
- *   scope={{ type: ScopeType.CLUB, id: clubId }}
- * >
- *   <ClubEditForm />
- * </PermissionGuard>
- *
  * // With fallback content
  * <PermissionGuard
  *   permission={PERMISSIONS.DOG_CREATE}
@@ -85,7 +74,6 @@ export function PermissionGuard({
   children,
   permission,
   role,
-  scope,
   requireAll = false,
   fallback = null,
   renderNothing = false,
@@ -107,7 +95,7 @@ export function PermissionGuard({
 
     // Check permission if specified
     if (permission) {
-      permissionResult = can(permission, scope);
+      permissionResult = can(permission);
     }
 
     // Check role if specified

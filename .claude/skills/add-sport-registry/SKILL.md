@@ -68,7 +68,7 @@ Use `AskUserQuestion` (or just ask) at these forks rather than guessing:
 
 ## 7. Workflow rhythm
 
-One PR per phase, through the standard 8-step workflow (implement → test → `/simplify` → `/commit` → PR → `/review` + `/codex:review` → fix → merge → cleanup). Codex review is a good default-on here — both real findings this session (a dropped mapper field, an overclaimed comment) were exactly the "real bug or overclaim Claude reviewed past" class of issue Codex catches. After merge: sync `main`, `git fetch --prune`, branch the next phase off fresh `main`, clean up the merged local branch.
+One PR per phase, through the standard 8-step workflow (implement → test → `/simplify` → `/commit` → PR → `/review` + `pnpm qa:agy-review` → fix → merge → cleanup). The cross-harness review is a good default-on here — both real findings this session (a dropped mapper field, an overclaimed comment) were exactly the "real bug or overclaim Claude reviewed past" class of issue a non-Claude reviewer catches. After merge: sync `main`, `git fetch --prune`, branch the next phase off fresh `main`, clean up the merged local branch.
 
 ## Reference
 

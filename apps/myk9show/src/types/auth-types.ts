@@ -143,7 +143,7 @@ export interface UserWithRoles extends User {
 /**
  * Permission check function signature
  */
-export type PermissionChecker = (permission: Permission, scope?: Scope) => boolean;
+export type PermissionChecker = (permission: Permission) => boolean;
 
 /**
  * RBAC context state

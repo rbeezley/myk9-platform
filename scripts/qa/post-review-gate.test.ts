@@ -395,10 +395,15 @@ describe('post-review-gate.sh', () => {
 
   it('a codex log still reads only the text after its last marker line', () => {
     const gh = stubGh();
-    const log = logFile('No actionable defects found.\n\ncodex\n- [P2] a.ts:1 — a defect.\n');
-    expect(
-      run(['42', 'codex', '0a2020c7a', '5af9af158', 'no findings', log], gh.bin).code
-    ).not.toBe(0);
+    // An earlier block with a finding, then the final clean verdict: only the last block counts,
+    // so this posts, and the earlier finding is not in the posted verdict.
+    const log = logFile(
+      'codex\n- [P2] a.ts:1 — an earlier-block defect.\n\ncodex\nNo actionable defects found.\n'
+    );
+    expect(run(['42', 'codex', '0a2020c7a', '5af9af158', 'no findings', log], gh.bin).code).toBe(0);
+    const posted = readFileSync(gh.calls, 'utf8');
+    expect(posted).toContain('No actionable defects found.');
+    expect(posted).not.toContain('earlier-block defect');
   });
 
   describe('owner tier', () => {

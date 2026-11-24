@@ -128,6 +128,8 @@ On the show page, open the **status pill** under the show's name and choose **Pu
 
 ## 4 · Approve or accept online entries
 
+> **Watch:** [How to approve entries (1 min 23 s)](https://youtu.be/-12vFHQXjdA)
+
 **Entry Forms.** The list opens on every form, one row per mail-in entry set or online checkout (an exhibitor who checked out twice online has two forms), with the forms that need you at the top: missing information first, then review, then payment, then the rest. The **Next action** column says what each one needs (**Resolve missing information**, **Review**, **Resolve payment**, or **View**).
 
 ![Entry Forms with the list on the left and the selected exhibitor's form on the right](../screenshots/S-07.png)

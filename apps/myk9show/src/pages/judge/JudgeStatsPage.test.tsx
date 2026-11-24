@@ -63,6 +63,18 @@ describe('JudgeStatsPage', () => {
     expect(screen.getByText('Container Advanced')).toBeInTheDocument();
   });
 
+  it('does not claim a secretary fee figure it does not have', () => {
+    mockStats.mockReturnValue({
+      data: { showsJudged: 1, classesJudged: 2, totalFees: null, statusBreakdown: {} },
+      isLoading: false,
+    });
+
+    render(<JudgeStatsPage />, { initialRoute: '/judge/stats' });
+
+    expect(screen.getByText('Not shown on this dashboard')).toBeInTheDocument();
+    expect(screen.queryByText(/secretary/i)).not.toBeInTheDocument();
+  });
+
   describe('upcoming assignment date (MYK9-1174)', () => {
     const originalTimezone = process.env.TZ;
     afterEach(() => {

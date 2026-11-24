@@ -110,7 +110,7 @@ const JudgeStatsPage: React.FC = () => {
               value={stats?.totalFees == null ? '—' : `$${stats.totalFees.toFixed(0)}`}
               icon={DollarSign}
               subtitle={
-                stats?.totalFees == null ? 'Show secretary only' : `${currentYear} earnings`
+                stats?.totalFees == null ? 'Not shown on this dashboard' : `${currentYear} earnings`
               }
               color="emerald"
             />

@@ -249,7 +249,7 @@ The **Members** tab lists your club's member roster. Each member has a **Type** 
 1. In the sidebar, open **My Club**, then **Members**. Your club's page opens on its **Members** tab.
 2. The **Members** view lists each person with their type and status. Switch between **All**, **Active**, **Lapsed**, **Suspended** and **Resigned**, or search by name or email.
 
-![Club Members tab — member list with name, email, type, status and Show secretary badge](../screenshots/C-06.png)
+![Club Members tab — the Members, Officers, Show secretaries and Admins sub-tabs above Membership requests](../screenshots/C-06.png)
 
 **Membership requests:** exhibitors can ask to join your club from **Request additional access**. Every active club admin of your club receives an email about each request. Waiting requests appear at the top of the **Members** view under **Membership requests**, and the tab shows a count badge. **Approve** adds the person to the member list as an active member, without show access. **Deny** declines, with an optional reason. The requester is emailed either way, and your reason is included. A denied person cannot send the same request again, but you can still add them yourself at any time.
 

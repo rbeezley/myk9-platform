@@ -66,6 +66,7 @@ describe('the guides carry each how-to video in its own section', () => {
   it.each([
     ['judge-steward-quickstart.md', '## Score a dog', '1d6sVXNVDak'],
     ['secretary-guide.md', '## 1 · Create a show, its trials, and its classes', 'IAltmLZVG9A'],
+    ['secretary-guide.md', '## 3 · Edit a show, or reassign a judge', '2Loklv39bVI'],
     ['secretary-guide.md', '## 11 · Set the run order', 'mKj5PIHfAmY'],
     ['secretary-guide.md', '## 18 · Check dogs in', 'mKj5PIHfAmY'],
     ['secretary-guide.md', '## 23 · Release results to exhibitors', 'INYaO2cTmgw'],

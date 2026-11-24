@@ -108,6 +108,8 @@ On the show page, open the **status pill** under the show's name and choose **Pu
 
 ## 3 · Edit a show, or reassign a judge
 
+> **Watch:** [How to change a class's judge (1 min 22 s)](https://youtu.be/2Loklv39bVI)
+
 - **Show details:** **Actions → Edit show** (the **Actions** button sits in the top bar, left of the bell), or **Edit show** on the **About** tab. The edit panel opens over the page you are on, with tabs **Basic Info**, **Officials**, **Judges**, **Fees**, **Venue & policies** and **Premium**.
 - **Venue & policies:** each card or switch on this tab saves on its own, so the panel's **Save Changes** is not needed for it. The switches save the moment you flip them. The pin, WiFi and policy cards each have their own button (**Save pin**, **Save**, **Save policy**). It holds, in order:
   - **This show uses…** switches for the optional tools: **Exhibitor self check-in**, **Judges score on devices**, **Paper fallback packet**, **Volunteer tracking**, **Public landing page**, and **We publish our own premium list**. A club that never uses a tool can turn it off. A new show has self check-in, judges scoring on devices and the paper packet on, and volunteer tracking, public landing page and own premium list off, so switch on volunteer tracking if you want that row. **Exhibitor self check-in**, **Judges score on devices** and **Volunteer tracking** hide their row in the Show Desk **Actions** menu. **Paper fallback packet** controls the packet myK9 emails the evening before each trial day, the reminder to print it, and the **Saved copy** section of the before-trial packet. **Public landing page** shows or hides the Landing page card and its reminder. **We publish our own premium list** stops the premium list reminder. Nothing is deleted when you turn a tool off. **Exhibitor self check-in** needs a connection to change. In the week before the show, **Ready for show day** (see Getting ready for show day) may offer one quiet suggestion for a tool that is off, such as "Want judges to score on their phones?", with a **Turn it on** link to this tab. The X beside it hides that suggestion on that device.
@@ -115,12 +117,17 @@ On the show page, open the **status pill** under the show's name and choose **Pu
 
   ![Edit show on the Venue & policies tab, with the This show uses switches](../screenshots/S-25.png)
 
-- **Add a judge to the show:** open **Edit show**, then the **Judges** tab.
+- **Add a judge to the show:** open **Edit show**, then the **Judges** tab. It lists the judges qualified for the show's organization; tick the one you want. A judge with no qualification for that organization is not listed:
+  - **Someone not in myK9Show yet,** on an AKC or UKC show: choose **Add a new judge**, fill in their first and last name, judge number and email, then **Add Judge**. That creates their record and qualification straight away.
+  - **Someone already in myK9Show:** do not use **Add a new judge**, which would make a second record for them. Ask a site admin to add their qualification for this organization; they are then listed on the **Judges** tab.
+
+  Ticking a judge, or adding one, shows **Assigned to show**, but the judge is on the show only once you choose **Save Changes**. Closing the panel first asks whether to discard the change.
+
 - **Add classes to a show that already exists:** on **Show Desk**, open the **⋮** menu on the trial's heading and choose **Add classes**. The wizard opens on the **Classes** step with Show Details and Trials locked, because you are only adding classes. To add a trial instead, open the header **Actions** menu and choose **Add Trial**.
 - **Edit or delete a trial or class:** on **Show Desk**, open the **⋮** menu on a trial's heading and choose **Edit Trial**. The same menu also has **Add classes**, **Trial report** (the registry's end-of-trial report, already set to that trial) and, on AKC shows, **High in Trial**. That trial's entries and money are on the **Entry Forms** and **Reports** tabs. **Delete trial** is the button at the bottom left of the edit panel. For a class, click it and use **Edit class** or **Delete class** in its panel. Deleting a trial or class also deletes its entries, so read the confirmation before you accept it.
-- **Change a class's judge, or several classes at once:** **Actions → Select classes**, then the judge dropdown on that class's row. To set many classes in one trial to the same status, export them or delete them, tick their checkboxes and use the bar that appears. **Done** returns you to the schedule.
+- **Change a class's judge, or several classes at once:** **Actions → Select classes**. Each class gets a checkbox. Tick the classes, all in one trial, and a bar appears at the bottom with **Assign judge**, **Assign steward**, **Change status**, **Export** and **Delete**. Choose **Assign judge**, then the judge (or **Unassigned**). Each class card then shows its new judge. A class that has already started keeps its judge, and the button says how many of the ticked classes it will change, for example **Assign judge (1 of 2)**. **Done** returns you to the schedule.
 
-> A class's judge dropdown only offers judges already attached to the show. If the one you want isn't listed, add them on the **Judges** tab first, then come back.
+> **Assign judge** offers every judge qualified for the show's organization. If the one you want isn't listed, they have no qualification for it yet: give them one as described under **Add a judge to the show**, then come back.
 
 ---
 

@@ -30,8 +30,8 @@ const mockUseShowTrials = vi.hoisted(() => vi.fn());
 vi.mock('@/hooks/queries/useShowTrials', () => ({ useShowTrials: mockUseShowTrials }));
 
 const TRIALS = [
-  { id: 'trial-1', name: 'Trial 1', trial_number: '1', trial_date: '2026-12-12' },
-  { id: 'trial-2', name: 'Trial 2', trial_number: '2', trial_date: '2026-12-13' },
+  { id: 'trial-1', name: 'Trial 1', trial_number: '1', date: '2026-12-12' },
+  { id: 'trial-2', name: 'Trial 2', trial_number: '2', date: '2026-12-13' },
 ];
 
 function renderDates(opts: { hasChanges?: boolean; onEditTrial?: (id: string) => void } = {}) {

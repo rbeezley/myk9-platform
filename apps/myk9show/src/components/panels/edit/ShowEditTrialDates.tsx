@@ -3,6 +3,7 @@ import { formatTrialDate, formatTrialLabel } from '@myk9/core';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useShowTrials } from '@/hooks/queries/useShowTrials';
+import { mapDatabaseToTrial, type DbTrialWithShow } from '@/services/mappers/trialMappers';
 import { formatShowDatesText } from './formatShowDatesText';
 import { EditPanelContext } from './useEditPanel';
 
@@ -32,7 +33,8 @@ export const ShowEditTrialDates: React.FC<ShowEditTrialDatesProps> = ({
   // Leaving with unsaved edits would skip the wrapper's discard prompt, so the buttons wait.
   const hasChanges = React.useContext(EditPanelContext)?.hasChanges ?? false;
   // Replica-first read (offline-safe); soft-deleted trials are already excluded.
-  const { data: trials = [] } = useShowTrials(onEditTrial ? (showId ?? null) : null);
+  const { data: rows = [] } = useShowTrials(onEditTrial ? (showId ?? null) : null);
+  const trials = rows.map(row => mapDatabaseToTrial(row as unknown as DbTrialWithShow));
   return (
     <>
       <Label>Show Dates</Label>
@@ -45,8 +47,8 @@ export const ShowEditTrialDates: React.FC<ShowEditTrialDatesProps> = ({
       {onEditTrial && trials.length > 0 && (
         <div className="flex flex-col items-start gap-2">
           {trials.map(trial => {
-            const label = formatTrialLabel({ name: trial.name, trialNumber: trial.trial_number });
-            const day = trial.trial_date ? formatTrialDate(trial.trial_date) : 'No date yet';
+            const label = formatTrialLabel({ name: trial.name, trialNumber: trial.trialNumber });
+            const day = trial.trialDate ? formatTrialDate(trial.trialDate) : 'No date yet';
             return (
               <Button
                 key={trial.id}

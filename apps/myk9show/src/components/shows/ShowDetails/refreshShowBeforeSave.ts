@@ -1,3 +1,4 @@
+import { withTimeout } from '@myk9/core';
 import { replicatedShowsTable } from '@/services/replication';
 import { reportDebug } from '@/utils/standardizedErrorHandler';
 
@@ -10,9 +11,16 @@ import { reportDebug } from '@/utils/standardizedErrorHandler';
  * pull skips it), and a failed or offline pull is not a failed save: the save goes ahead on the
  * local row exactly as before.
  */
+/** Longest the Save waits on the server's row before saving on the local one. */
+export const REFRESH_SHOW_TIMEOUT_MS = 4000;
+
 export async function refreshShowBeforeSave(showId: string): Promise<void> {
   try {
-    await replicatedShowsTable.pullShowById(showId);
+    await withTimeout(
+      replicatedShowsTable.pullShowById(showId),
+      REFRESH_SHOW_TIMEOUT_MS,
+      'Show refresh before save'
+    );
   } catch (error) {
     reportDebug('shows', 'Could not refresh the show before saving the edit', {
       showId,

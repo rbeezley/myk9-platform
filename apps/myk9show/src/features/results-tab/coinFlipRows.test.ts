@@ -12,6 +12,7 @@ const dog = (id: string, fields: Partial<ResultsEntryRow> = {}): ResultsEntryRow
   resultLabel: 'Q',
   qualified: true,
   timeLabel: '',
+  elementTimeLabel: '',
   faults: 0,
   scored: true,
   pointsEarned: null,

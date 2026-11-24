@@ -28,14 +28,21 @@ const ROW = {
       resultLabel: 'Q',
       qualified: true,
       timeLabel: '0:41.25',
+      elementTimeLabel: '',
       faults: 0,
     },
   ],
 } as unknown as ResultsClassRow;
 
-async function pageTexts(registryId: string): Promise<string[]> {
+async function pageTexts(registryId: string, elementTimeLabel = ''): Promise<string[]> {
   const [judge] = buildJudgeReviews({
-    rows: [{ ...ROW, registryId }],
+    rows: [
+      {
+        ...ROW,
+        registryId,
+        entries: [{ ...ROW.entries[0]!, elementTimeLabel }],
+      },
+    ],
     entryInfo: [],
     correctionsByEntryId: new Map([
       ['e1', [{ fieldLabel: 'time', was: '0:38.50', now: '0:41.25', at: '10:42 AM' }]],
@@ -82,5 +89,24 @@ describe('buildJudgeReviewPdf', () => {
     expect(cover).toContain('sign the page');
     expect(results).toContain('Signature');
     expect(results).not.toContain('Initials ____');
+  });
+
+  it('shows search and element times for a UKC class with an element time', async () => {
+    const pages = await pageTexts('UKC', '0:12.50');
+
+    expect(pages[1]).toContain('Search');
+    expect(pages[1]).toContain('Element');
+    expect(pages[1]).toContain('0:41.25');
+    expect(pages[1]).toContain('0:12.50');
+  });
+
+  it('leaves the layout unchanged when no run has an element time', async () => {
+    for (const registry of ['AKC', 'ASCA', 'UKC']) {
+      const pages = await pageTexts(registry);
+
+      expect(pages[1]).toContain('Time');
+      expect(pages[1]).not.toContain('Element');
+      expect(pages[1]).not.toContain('Search');
+    }
   });
 });

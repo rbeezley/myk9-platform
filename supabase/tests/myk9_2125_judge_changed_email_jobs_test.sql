@@ -299,4 +299,44 @@ begin
   raise notice 'PASS H a judge change while a job is leased queues a separate job';
 end $$;
 
+-- I (MYK9-2347): a job in its retry-delay hold and a job with an expired lease are not in flight: a
+-- judge change merges into each, one email.
+do $$
+declare
+  v_show uuid := '00000000-0000-0000-0000-000002125002';
+  v_hal uuid := '00000000-0000-0000-0000-000002125025';
+  v_job uuid;
+  v_after record;
+begin
+  select id into v_job from public.show_lifecycle_email_jobs
+   where show_id = v_show and step_type = 'judge_changed' and status = 'ready' and recipient_person_id = v_hal;
+
+  update public.show_lifecycle_email_jobs
+     set attempt_id = null, claimed_until = now() + interval '10 minutes', due_at = now() - interval '1 minute'
+   where id = v_job;
+  -- Class 4 is now Two's; Judge One takes it back.
+  perform pg_temp.replace_judge('00000000-0000-0000-0000-000002125004', '00000000-0000-0000-0000-000002125051',
+    v_show, '00000000-0000-0000-0000-000002125003');
+  select * into v_after from public.show_lifecycle_email_jobs where id = v_job;
+  if (select count(*) from public.show_lifecycle_email_jobs
+       where show_id = v_show and step_type = 'judge_changed' and status = 'ready' and recipient_person_id = v_hal) <> 1
+     or v_after.due_at <> now() + interval '5 minutes' then
+    raise exception 'FAIL I a judge change did not merge into a job in its retry hold';
+  end if;
+
+  update public.show_lifecycle_email_jobs
+     set attempt_id = gen_random_uuid(), claimed_until = now() - interval '1 minute', due_at = now() - interval '1 minute'
+   where id = v_job;
+  perform pg_temp.replace_judge('00000000-0000-0000-0000-000002125004', '00000000-0000-0000-0000-000002125052',
+    v_show, '00000000-0000-0000-0000-000002125003');
+  select * into v_after from public.show_lifecycle_email_jobs where id = v_job;
+  if (select count(*) from public.show_lifecycle_email_jobs
+       where show_id = v_show and step_type = 'judge_changed' and status = 'ready' and recipient_person_id = v_hal) <> 1
+     or v_after.due_at <> now() + interval '5 minutes'
+     or v_after.attempt_id is not null or v_after.claimed_until is not null then
+    raise exception 'FAIL I a judge change did not merge into a job with an expired lease';
+  end if;
+  raise notice 'PASS I a retry hold and an expired lease are merged into, one email';
+end $$;
+
 rollback;

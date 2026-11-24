@@ -1,36 +1,38 @@
 -- MYK9-2347: the show_changed and judge_changed producers must not rewrite a job the email drain
--- has leased.
+-- is sending right now.
 --
--- The one-waiting-job unique indexes of MYK9-2124 and MYK9-2125 did not exclude a leased row
--- (claimed_until set), so an edit that arrived while the drain was sending found the leased row as
--- its conflict and its DO UPDATE rewrote the in-flight job (due_at, recipient, judge_changes). The
--- send then finished and marked the row sent, and the newer edit was never emailed. The entry_changed,
--- substitute_judge and pull_out_money producers already keep a leased job out of the index; this
--- migration backports that rule:
+-- The one-waiting-job unique indexes of MYK9-2124 and MYK9-2125 did not exclude a job in flight, so an
+-- edit that arrived while the drain was sending found that row as its conflict and its DO UPDATE
+-- rewrote the in-flight job (due_at, recipient, judge_changes). The send then finished and marked the
+-- row sent, and the newer edit was never emailed. The entry_changed, substitute_judge and
+-- pull_out_money producers already keep an in-flight job out of the index; this backports that rule
+-- with a sharper test of "in flight":
 --
---   1. both partial unique indexes gain AND claimed_until IS NULL, so a leased job is not a
---      conflict target and a change arriving meanwhile inserts a new ready job;
---   2. both producers' ON CONFLICT predicates match the new indexes, and their DO UPDATE re-checks
---      claimed_until after the row lock (the drain may lease it in that instant);
---   3. queue_substitute_judge_emails (MYK9-2161) also targets the judge_changed index, so its
---      predicate changes with it; it keeps skipping a person whose waiting email is leased (the
---      offer stays up), which its own test asserts.
---
--- An expired lease (claimed_until in the past) still counts as leased for the index, exactly as in
--- entry_changed: the drain re-leases or fails it, and a change meanwhile is a separate job.
--- Rollback: recreate the two indexes without claimed_until and restore the three function bodies
+--   * claim_due_auto_email_jobs sets attempt_id and a lease (claimed_until). A send that finishes
+--     clears both; releaseLease (the retry-delay hold in lifecycle-email-autoSend.ts) clears
+--     attempt_id and leaves a FUTURE claimed_until. So a job in its retry hold has attempt_id NULL:
+--     nothing is sending it, and an edit must merge into it (one email, current judge_changes).
+--   * The indexes therefore exclude only attempt_id IS NOT NULL. A time test cannot be in an index,
+--     so a job whose lease has EXPIRED (an abandoned attempt, attempt_id still set) is released by
+--     each producer just before it inserts (attempt_id and claimed_until cleared), which puts it back
+--     in the index to be merged into. The abandoned attempt's late outcome fails its attempt_id
+--     compare-and-set and changes nothing, exactly as when the drain re-claims it.
+--   * Each DO UPDATE re-checks attempt_id after the row lock (the drain may claim it in that instant).
+--   * queue_substitute_judge_emails (MYK9-2161) also targets the judge_changed index; its predicate
+--     changes with it and its skip guard counts only a job with a live attempt, as the index does.
+-- Rollback: recreate the two indexes without attempt_id and restore the three function bodies
 -- from 20261117094700, 20261117191300 and 20261119043500.
 
 DROP INDEX IF EXISTS public.show_lifecycle_email_jobs_one_ready_show_changed;
 CREATE UNIQUE INDEX show_lifecycle_email_jobs_one_ready_show_changed
   ON public.show_lifecycle_email_jobs (show_id, recipient_person_id)
-  WHERE step_type = 'show_changed' AND status = 'ready' AND claimed_until IS NULL
+  WHERE step_type = 'show_changed' AND status = 'ready' AND attempt_id IS NULL
     AND recipient_person_id IS NOT NULL;
 
 DROP INDEX IF EXISTS public.show_lifecycle_email_jobs_one_ready_judge_changed;
 CREATE UNIQUE INDEX show_lifecycle_email_jobs_one_ready_judge_changed
   ON public.show_lifecycle_email_jobs (show_id, recipient_person_id)
-  WHERE step_type = 'judge_changed' AND status = 'ready' AND claimed_until IS NULL
+  WHERE step_type = 'judge_changed' AND status = 'ready' AND attempt_id IS NULL
     AND recipient_person_id IS NOT NULL;
 
 CREATE OR REPLACE FUNCTION public.queue_show_changed_email_for_show(p_show_id uuid)
@@ -65,6 +67,12 @@ BEGIN
     RETURN;
   END IF;
 
+  -- An abandoned attempt (lease expired) is released so it can be merged into, not duplicated.
+  UPDATE public.show_lifecycle_email_jobs
+     SET attempt_id = NULL, claimed_until = NULL
+   WHERE show_id = p_show_id AND step_type = 'show_changed' AND status = 'ready'
+     AND attempt_id IS NOT NULL AND claimed_until <= now();
+
   INSERT INTO public.show_lifecycle_email_jobs AS j (
     show_id, step_id, step_type, status, recipient_scope, recipient_person_id,
     recipient_email, recipient_name, subject, idempotency_key, due_at, auto_send
@@ -88,18 +96,19 @@ BEGIN
   WHERE nullif(btrim(coalesce(p.email, '')), '') IS NOT NULL
     AND p.deleted_at IS NULL
     AND p.id IN (SELECT ids.person_id FROM public.show_live_entry_person_ids(p_show_id) AS ids(person_id))
-  -- Another edit in the same sitting: the one waiting job stays and waits again. A job the drain
-  -- has leased is not in the index: it is frozen, and the new edit becomes a job of its own.
+  -- Another edit in the same sitting: the one waiting job stays and waits again (also one in its
+  -- retry hold). A job the drain is sending right now is not in the index: it is frozen, and the
+  -- new edit becomes a job of its own.
   ON CONFLICT (show_id, recipient_person_id)
-    WHERE step_type = 'show_changed' AND status = 'ready' AND claimed_until IS NULL
+    WHERE step_type = 'show_changed' AND status = 'ready' AND attempt_id IS NULL
       AND recipient_person_id IS NOT NULL
   DO UPDATE SET
     due_at = now() + interval '5 minutes',
     recipient_email = excluded.recipient_email,
     recipient_name = excluded.recipient_name
   -- The conflict is found through the index, but the row is re-read after its lock: if the
-  -- drain leased it in that instant, leave the frozen job alone (the entry_changed rule).
-  WHERE j.claimed_until IS NULL;
+  -- drain claimed it in that instant, leave the frozen job alone.
+  WHERE j.attempt_id IS NULL;
 END;
 $$;
 
@@ -148,6 +157,12 @@ BEGIN
     RETURN;
   END IF;
 
+  -- An abandoned attempt (lease expired) is released so it can be merged into, not duplicated.
+  UPDATE public.show_lifecycle_email_jobs
+     SET attempt_id = NULL, claimed_until = NULL
+   WHERE show_id = v_show_id AND step_type = 'judge_changed' AND status = 'ready'
+     AND attempt_id IS NOT NULL AND claimed_until <= now();
+
   INSERT INTO public.show_lifecycle_email_jobs AS j (
     show_id, step_id, step_type, status, recipient_scope, recipient_person_id,
     recipient_email, recipient_name, subject, idempotency_key, due_at, auto_send,
@@ -179,10 +194,10 @@ BEGIN
     )
   -- Another edit in the same sitting: the one waiting job stays, waits again and adds the
   -- class. The existing value wins on a class already there, so "was" stays the judge
-  -- before the FIRST change. A job the drain has leased is not in the index: it is frozen
+  -- before the FIRST change. A job the drain is sending right now is not in the index: it is frozen
   -- (it plans its email from judge_changes at claim time), and the new edit becomes a job of its own.
   ON CONFLICT (show_id, recipient_person_id)
-    WHERE step_type = 'judge_changed' AND status = 'ready' AND claimed_until IS NULL
+    WHERE step_type = 'judge_changed' AND status = 'ready' AND attempt_id IS NULL
       AND recipient_person_id IS NOT NULL
   DO UPDATE SET
     due_at = now() + interval '5 minutes',
@@ -190,8 +205,8 @@ BEGIN
     recipient_name = excluded.recipient_name,
     judge_changes = excluded.judge_changes || j.judge_changes
   -- The conflict is found through the index, but the row is re-read after its lock: if the
-  -- drain leased it in that instant, leave the frozen job alone.
-  WHERE j.claimed_until IS NULL;
+  -- drain claimed it in that instant, leave the frozen job alone.
+  WHERE j.attempt_id IS NULL;
 END;
 $$;
 
@@ -253,6 +268,12 @@ BEGIN
     RETURN 0;
   END IF;
 
+  -- An abandoned attempt (lease expired) is released so it can be merged into, not duplicated.
+  UPDATE public.show_lifecycle_email_jobs
+     SET attempt_id = NULL, claimed_until = NULL
+   WHERE show_id = v_show_id AND step_type = 'judge_changed' AND status = 'ready'
+     AND attempt_id IS NOT NULL AND claimed_until <= now();
+
   WITH ins AS (
   INSERT INTO public.show_lifecycle_email_jobs AS j (
     show_id, step_id, step_type, status, recipient_scope, recipient_person_id,
@@ -271,16 +292,16 @@ BEGIN
     jsonb_build_object(p_class_id::text, v_from::text)
   FROM public.people p
   WHERE p.id IN (SELECT r.person_id FROM public.substitute_judge_email_recipients(p_class_id, v_show_id) r)
-    -- A person whose waiting judge email the sender has leased is skipped, as before: with the
-    -- lease outside the unique index a new job would otherwise be a second email, and the offer
-    -- stays up for another tap.
+    -- A person whose waiting judge email is being sent right now (a live attempt; an expired one
+    -- was released above) is skipped: with that job outside the unique index a new one would be a
+    -- second email, and the offer stays up for another tap. A retry hold is merged into.
     AND NOT EXISTS (
       SELECT 1 FROM public.show_lifecycle_email_jobs lj
        WHERE lj.show_id = v_show_id AND lj.step_type = 'judge_changed' AND lj.status = 'ready'
-         AND lj.recipient_person_id = p.id AND lj.claimed_until IS NOT NULL AND lj.claimed_until > now()
+         AND lj.recipient_person_id = p.id AND lj.attempt_id IS NOT NULL AND lj.claimed_until > now()
     )
   ON CONFLICT (show_id, recipient_person_id)
-    WHERE step_type = 'judge_changed' AND status = 'ready' AND claimed_until IS NULL
+    WHERE step_type = 'judge_changed' AND status = 'ready' AND attempt_id IS NULL
       AND recipient_person_id IS NOT NULL
   DO UPDATE SET
     due_at = now() + interval '5 minutes',
@@ -288,9 +309,9 @@ BEGIN
     recipient_name = excluded.recipient_name,
     -- The earliest "was" for a class already on the waiting job stays.
     judge_changes = excluded.judge_changes || j.judge_changes
-  -- Never change a job the sender has claimed: it plans its email from judge_changes at claim time
+  -- Never change a job the sender is sending: it plans its email from judge_changes at claim time
   -- and, once the provider took it, only records it as sent.
-  WHERE (j.claimed_until IS NULL OR j.claimed_until <= now())
+  WHERE j.attempt_id IS NULL
     AND NOT EXISTS (
       SELECT 1 FROM public.show_lifecycle_email_attempts att
        WHERE att.job_id = j.id AND att.resend_message_id IS NOT NULL

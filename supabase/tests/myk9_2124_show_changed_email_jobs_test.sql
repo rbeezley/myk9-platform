@@ -273,4 +273,41 @@ begin
   raise notice 'PASS H an edit while a job is leased queues a separate job';
 end $$;
 
+-- I (MYK9-2347): a job in its retry-delay hold (attempt_id cleared, future claimed_until) and a job
+-- with an expired lease (abandoned attempt) are not in flight: an edit merges into each, one email.
+do $$
+declare
+  v_show uuid := '00000000-0000-0000-0000-000002124302';
+  v_hal uuid := '00000000-0000-0000-0000-000002124325';
+  v_job uuid;
+  v_after record;
+begin
+  select id into v_job from public.show_lifecycle_email_jobs
+   where show_id = v_show and step_type = 'show_changed' and status = 'ready' and recipient_person_id = v_hal;
+
+  update public.show_lifecycle_email_jobs
+     set attempt_id = null, claimed_until = now() + interval '10 minutes', due_at = now() - interval '1 minute'
+   where id = v_job;
+  update public.shows set address = '5 Hold Road' where id = v_show;
+  select * into v_after from public.show_lifecycle_email_jobs where id = v_job;
+  if (select count(*) from public.show_lifecycle_email_jobs
+       where show_id = v_show and step_type = 'show_changed' and status = 'ready' and recipient_person_id = v_hal) <> 1
+     or v_after.due_at <> now() + interval '5 minutes' then
+    raise exception 'FAIL I an edit did not merge into a job in its retry hold';
+  end if;
+
+  update public.show_lifecycle_email_jobs
+     set attempt_id = gen_random_uuid(), claimed_until = now() - interval '1 minute', due_at = now() - interval '1 minute'
+   where id = v_job;
+  update public.shows set address = '6 Expired Road' where id = v_show;
+  select * into v_after from public.show_lifecycle_email_jobs where id = v_job;
+  if (select count(*) from public.show_lifecycle_email_jobs
+       where show_id = v_show and step_type = 'show_changed' and status = 'ready' and recipient_person_id = v_hal) <> 1
+     or v_after.due_at <> now() + interval '5 minutes'
+     or v_after.attempt_id is not null or v_after.claimed_until is not null then
+    raise exception 'FAIL I an edit did not merge into a job with an expired lease';
+  end if;
+  raise notice 'PASS I a retry hold and an expired lease are merged into, one email';
+end $$;
+
 rollback;

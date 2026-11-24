@@ -257,12 +257,12 @@ export function useClubMembersManager(clubId: string) {
         members.find(member => member.personId === personId)?.personName ??
         showManagers.find(manager => manager.personId === personId)?.personName ??
         'that person';
-      notifications.success(`Show access ${grant ? 'granted to' : 'revoked from'} ${name}.`);
+      notifications.success(`Show secretary role ${grant ? 'granted to' : 'revoked from'} ${name}.`);
       logger.info(`Show access ${grant ? 'granted to' : 'revoked from'} ${personId}`, 'club-admin');
     },
     onError: (error, { grant }) => {
       notifications.error(
-        `We couldn't ${grant ? 'grant' : 'revoke'} show access. Check your club access and try again.`
+        `We couldn't ${grant ? 'grant' : 'revoke'} the show secretary role. Check your club access and try again.`
       );
       logger.error(`Failed to ${grant ? 'grant' : 'revoke'} show access`, 'club-admin', {
         error: error instanceof Error ? error.message : String(error),

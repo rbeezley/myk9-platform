@@ -108,7 +108,9 @@ describe('ClubMembersManager show access', () => {
         grant: true,
       });
     });
-    expect(notificationSuccess).toHaveBeenCalledWith('Show access granted to Ada Lovelace.');
+    expect(notificationSuccess).toHaveBeenCalledWith(
+      'Show secretary role granted to Ada Lovelace.'
+    );
     expect(queryClient.getQueryState(queryKeys.clubOfficials('club-1'))?.isInvalidated).toBe(true);
   });
 
@@ -122,7 +124,7 @@ describe('ClubMembersManager show access', () => {
 
     await waitFor(() => {
       expect(notificationError).toHaveBeenCalledWith(
-        "We couldn't grant show access. Check your club access and try again."
+        "We couldn't grant the show secretary role. Check your club access and try again."
       );
     });
   });
@@ -172,7 +174,9 @@ describe('ClubMembersManager show access', () => {
         grant: false,
       });
     });
-    expect(notificationSuccess).toHaveBeenCalledWith('Show access revoked from Ada Lovelace.');
+    expect(notificationSuccess).toHaveBeenCalledWith(
+      'Show secretary role revoked from Ada Lovelace.'
+    );
     expect(queryClient.getQueryState(queryKeys.clubOfficials('club-1'))?.isInvalidated).toBe(true);
   });
 
@@ -196,7 +200,7 @@ describe('ClubMembersManager show access', () => {
 
     await waitFor(() => {
       expect(notificationError).toHaveBeenCalledWith(
-        "We couldn't revoke show access. Check your club access and try again."
+        "We couldn't revoke the show secretary role. Check your club access and try again."
       );
     });
   });
@@ -328,7 +332,9 @@ describe('ClubMembersManager show-access confirmations name the person', () => {
     await user.click(await screen.findByRole('button', { name: 'Revoke show secretary' }));
 
     await waitFor(() => {
-      expect(notificationSuccess).toHaveBeenCalledWith('Show access revoked from Ada Lovelace.');
+      expect(notificationSuccess).toHaveBeenCalledWith(
+        'Show secretary role revoked from Ada Lovelace.'
+      );
     });
   });
 });

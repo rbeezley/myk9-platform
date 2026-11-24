@@ -222,12 +222,6 @@ fi
 VERDICT_LINE="no findings"
 if [ "$POST" = 1 ]; then
   PR="$("$GH" pr view --json number -q .number)"
-  if ! PRIOR="$("$GH" pr view "$PR" --json comments -q '[.comments[] | select(.authorAssociation == "OWNER" or .authorAssociation == "MEMBER" or .authorAssociation == "COLLABORATOR") | .body | select(startswith("Agy findings for"))] | join("\n")')"; then
-    echo "agy-review: could not read this PR's earlier findings comments (gh failed), so N cannot be trusted. Exit 2; no evidence posted." >&2
-    exit 2
-  fi
-  N="$(review_finding_count "$PRIOR")"
-  [ "${N:-0}" -gt 0 ] && VERDICT_LINE="$N findings, all addressed"
   if ! REVIEW_COVERAGE_FROM="$(review_finished && printf '%s' "${COVERED_FROM:0:9}")" bash "$POSTER" "$PR" agy "$BASE_SHA" "$HEAD_SHA" "$VERDICT_LINE" "$LOG"; then
     echo "agy-review: review was clean but the evidence was NOT posted (poster failed). Exit 2; nothing recorded." >&2
     exit 2

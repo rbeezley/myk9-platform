@@ -231,7 +231,7 @@ Both wrappers behave identically. Exit 0 = clean and the evidence comment has be
 
 A re-review that finds defects on a head that already carries clean evidence also **withdraws** it — the wrapper posts a `<N> findings, not addressed` evidence line, which the checker rejects — so the gate goes red instead of staying green on the older attestation.
 
-**The exit code is not the verdict.** Both reviewers exit 0 when they were interrupted, hit a usage limit, or returned findings; that is why the wrappers read the log and why only the poster writes evidence. On a clean re-run after findings, the wrapper counts the `[P*]` bullets in its own earlier findings comments and posts `<N> findings, all addressed` — you do not supply N.
+**The exit code is not the verdict.** Both reviewers exit 0 when they were interrupted, hit a usage limit, or returned findings; that is why the wrappers read the log and why only the poster writes evidence. A clean re-run, including one after a findings round, posts `no findings`: the wrapper does not count or attest to earlier findings, so verify each earlier finding was fixed yourself. A re-review that finds defects on a head with clean evidence still withdraws it with `<N> findings, not addressed`.
 
 `.github/workflows/review-gate.yml` parses the comment's FIRST line into the `Review gate` commit status on the head. Concrete example — this exact line is what the checker's contract test parses, so keep one here:
 

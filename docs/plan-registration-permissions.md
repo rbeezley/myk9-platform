@@ -28,25 +28,28 @@ Both are in the block at the end of `can` (lines 74-83).
 
 - **A. Do nothing.** Zero risk today and zero cost. Rejected: the guard's own docs advertise `scope`, and the first caller inherits a fail-open check on a payments and armband surface. A security-shaped trap left for later is the kind this repo has been bitten by.
 - **B. Delete the scope parameter** (and the JSDoc example). Matches "deletions are a feature" and removes both defects with no behavior change, since nothing passes a scope. Cost: if a club-scoped registration check is wanted later, it must be rebuilt, and it would be rebuilt from this same shape.
-- **C. Reuse an existing helper.** `hasScopedClubRole` / `canManageShowSurface` are the repo's one scope rule, but they take a viewer, a role and a club or show id, not a generic `Scope`, and they do not express "any scoped role" or the SITE_ADMIN bypass. Using them means widening their signatures. More churn than the defect warrants.
-- **D. Fix in place (recommended).** Three lines, the exact behavior the issue asks for, and the API stays honest:
+- **C. Reuse an existing helper, whole.** `hasScopedClubRole` / `canManageShowSurface` take a viewer, a role and an id, not a generic `Scope`, and do not express "any scoped role" or the SITE_ADMIN bypass. Adopting them as the entire fix means widening their signatures. More churn than the defect warrants, so D calls them from inside `can` instead (step 2).
+- **D. Fix in place, built on the existing helpers (recommended).** The API stays honest and the scope rule stays the repo's one rule:
   1. If the user holds SITE_ADMIN, return `true` before any scope work.
-  2. If the user holds a scoped role (SECRETARY or CLUB_ADMIN), return whether `scopes` contains `{type, id}`. An empty list is then `false`, because `some` on `[]` is `false`. The `scopes.length > 0` guard goes away.
+  2. If the user holds a scoped role (SECRETARY or CLUB_ADMIN), the scope must be carried by a grant OF THAT ROLE, never by any grant at that id. Reuse `utils/roleScopes.ts`: for a club scope, `hasClubAdminGrant(user, { clubId })` (which also accepts a show-pinned club-admin grant that carries the owning `clubId`, as the server does) or `hasScopedClubRole(user, SECRETARY, id)`; for a show scope, `hasScopedShowRole(user, role, id)` for each scoped role held. No match, including an empty `scopes`, is `false`. The `scopes.length > 0` guard goes away. A bare `{type, id}` comparison is wrong: a secretary for Show A who is only a judge at Show B would pass `can(MARK_PAYMENT, showB)`, and a show-pinned club admin would be denied their own club.
   3. Otherwise (exhibitor, judge and others, which have no scope concept) keep returning `true`, unchanged.
 
 Recommendation: **D**. B is the better answer if the owner would rather not carry a scope API nobody uses; say so on the PR and it becomes a deletion instead.
 
 ## Behavior table after D
 
-| Roles                  | Scopes | Scope asked | Result                            |
-| ---------------------- | ------ | ----------- | --------------------------------- |
-| SITE_ADMIN             | any    | any         | `true`                            |
-| SITE_ADMIN + SECRETARY | club A | club B      | `true` (was `false`)              |
-| SECRETARY              | club A | club A      | `true`                            |
-| SECRETARY              | club A | club B      | `false`                           |
-| CLUB_ADMIN             | none   | any         | `false` (was `true`)              |
-| EXHIBITOR              | none   | any         | `true` (unchanged)                |
-| any                    | any    | none passed | permission check only (unchanged) |
+| Roles                  | Scopes                               | Scope asked | Result                                   |
+| ---------------------- | ------------------------------------ | ----------- | ---------------------------------------- |
+| SITE_ADMIN             | any                                  | any         | `true`                                   |
+| SITE_ADMIN + SECRETARY | club A                               | club B      | `true` (was `false`)                     |
+| SECRETARY              | club A                               | club A      | `true`                                   |
+| SECRETARY              | club A                               | club B      | `false`                                  |
+| SECRETARY + JUDGE      | secretary at show A, judge at show B | show B      | `false` (grant is not a secretary grant) |
+| CLUB_ADMIN             | show-pinned grant on show S, club C  | club C      | `true`                                   |
+| CLUB_ADMIN             | show-pinned grant on show S, club C  | club D      | `false`                                  |
+| CLUB_ADMIN             | none                                 | any         | `false` (was `true`)                     |
+| EXHIBITOR              | none                                 | any         | `true` (unchanged)                       |
+| any                    | any                                  | none passed | permission check only (unchanged)        |
 
 ## Non-goals
 
@@ -54,4 +57,4 @@ No change to `canRegisterForShow`, the mail-in role fallback, `roleScopes.ts`, o
 
 ## Testing phase
 
-New `src/hooks/__tests__/useRegistrationPermissions.test.tsx`, rendered with the project's `renderHook` helper and a mocked `useAuthContext`: each row of the table above, plus a missing permission with a matching scope (`false`) and a user with no auth context (`false`). Assertion-first: write the SITE_ADMIN and empty-scope cases, run them red, then change `can`. Also run `pnpm vitest related src/hooks/useRegistrationPermissions.ts --run`, `pnpm vitest run src/test/ci`, `typecheck:app`, `typecheck:tests`, `lint:changed`, then `pnpm typecheck` and `pnpm lint` from the root.
+New `src/hooks/__tests__/useRegistrationPermissions.test.tsx`, rendered with the project's `renderHook` helper and a mocked `useAuthContext`: each row of the table above (fixtures built with `roleId` and `clubId` on the scope grants), plus a missing permission with a matching scope (`false`) and a user with no auth context (`false`). Assertion-first: write the SITE_ADMIN and empty-scope cases, run them red, then change `can`. Also run `pnpm vitest related src/hooks/useRegistrationPermissions.ts --run`, `pnpm vitest run src/test/ci`, `typecheck:app`, `typecheck:tests`, `lint:changed`, then `pnpm typecheck` and `pnpm lint` from the root.

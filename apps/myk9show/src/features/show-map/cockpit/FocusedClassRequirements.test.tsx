@@ -61,7 +61,6 @@ describe('FocusedClassRequirements (MYK9-2118)', () => {
     fireEvent.click(screen.getByRole('button', { name: /requirements/i }));
     expect(await screen.findByText('2–6')).toBeInTheDocument();
     expect(screen.queryByText('1:00–3:00')).not.toBeInTheDocument();
-    expect(screen.getByText('2–6')).toBeInTheDocument();
     expect(screen.getByText('Birch')).toBeInTheDocument();
     expect(screen.queryByText(/Area 2/)).not.toBeInTheDocument();
   });

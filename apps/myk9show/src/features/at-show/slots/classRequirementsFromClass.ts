@@ -6,7 +6,11 @@
 import { formatTimeLimitSeconds } from '@myk9/core';
 import { formatIntRange, type ClassRequirements } from '@/hooks/queries/useClassRequirements';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
-import { classTimerMode } from '@/pages/scoring/classScoringRules';
+import {
+  classMaxTimeSeconds,
+  classTimerMode,
+  ruleFixedSeconds,
+} from '@/pages/scoring/classScoringRules';
 import { isRuleCurrent } from '@/services/replication/resolveClassTimeLimitRules';
 
 function ruleTime(cls: ReplicatedClass): Pick<ClassRequirements, 'time_limit_text' | 'time_type'> {
@@ -55,14 +59,15 @@ export function classRequirementsFromClass(
 }
 
 /**
- * The class's saved max time(s): "2:00", "Area 1 2:00 · Area 2 2:30", or "Not set".
- * Each area shows its own time, falling back to area 1's as the scoresheet does;
- * an area with neither says "Not set" without hiding the others.
+ * The class's max time(s): "2:00", "Area 1 2:00 · Area 2 2:30", or "Not set".
+ * Each area shows its own saved time, falling back to area 1's, then the rule's fixed time, as
+ * the scoresheet does; an area with none says "Not set" without hiding the others.
  */
 export function setMaxTimeText(cls: ReplicatedClass | null, perArea: boolean): string {
   const times = [cls?.timeLimitSeconds, cls?.timeLimitArea2Seconds, cls?.timeLimitArea3Seconds];
   const areas = perArea ? Math.min(3, Math.max(1, cls?.areaCount ?? 1)) : 1;
-  const shown = times.slice(0, areas).map(t => t || times[0]);
+  const fixed = cls ? classMaxTimeSeconds(cls) : 0;
+  const shown = times.slice(0, areas).map(t => t || times[0] || fixed || undefined);
   if (!shown.some(Boolean)) return 'Not set';
   const label = (t: number | undefined) => (t ? formatTimeLimitSeconds(t) : 'Not set');
   if (areas === 1) return label(shown[0]);
@@ -88,12 +93,13 @@ export function classTimeDisplay(
   perArea: boolean,
   registry: string
 ): ClassTimeDisplay {
-  const savedText = setMaxTimeText(cls, perArea);
-  if (savedText !== 'Not set') return { value: savedText, saved: true, range: null };
-  const rule = cls ? classRequirementsFromClass(cls, registry) : null;
-  if (rule?.time_type === 'fixed' && rule.time_limit_text) {
-    return { value: rule.time_limit_text, saved: false, range: null };
+  const value = setMaxTimeText(cls, perArea);
+  if (cls?.timeLimitSeconds || cls?.timeLimitArea2Seconds || cls?.timeLimitArea3Seconds) {
+    return { value, saved: true, range: null };
   }
+  if (value !== 'Not set' || (cls && ruleFixedSeconds(cls)))
+    return { value, saved: false, range: null };
+  const rule = cls ? classRequirementsFromClass(cls, registry) : null;
   const range = rule?.time_type === 'range' && rule.time_limit_text ? rule.time_limit_text : null;
   return { value: 'Not set', saved: false, range };
 }

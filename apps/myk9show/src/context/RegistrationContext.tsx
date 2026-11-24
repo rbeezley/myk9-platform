@@ -5,7 +5,6 @@ import {
   USER_ROLE_HIERARCHY,
   PERMISSIONS,
   Permission,
-  Scope,
   ScopeType,
 } from '../types/auth-types';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -51,20 +50,10 @@ export function RegistrationProvider({ children }: RegistrationProviderProps) {
   /**
    * Permission checker function
    */
-  const can = (permission: Permission, scope?: Scope): boolean => {
+  const can = (permission: Permission): boolean => {
     if (!userWithRoles || !userWithRoles.permissions) return false;
 
-    // Check if user has the permission
-    if (!userWithRoles.permissions.includes(permission)) {
-      return false;
-    }
-
-    // For scoped permissions, check if user has access to the scope
-    if (scope && userWithRoles.scopes && userWithRoles.scopes.length > 0) {
-      return userWithRoles.scopes.some(s => s.scopeType === scope.type && s.scopeId === scope.id);
-    }
-
-    return true;
+    return userWithRoles.permissions.includes(permission);
   };
 
   /**

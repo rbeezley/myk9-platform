@@ -4,7 +4,6 @@ import {
   PERMISSIONS,
   UserRole,
   USER_ROLE_HIERARCHY,
-  Scope,
   ScopeType,
 } from '../types/auth-types';
 
@@ -57,7 +56,7 @@ export function useRegistrationPermissions() {
   /**
    * Check if user has a specific permission
    */
-  const can = (permission: Permission, scope?: Scope): boolean => {
+  const can = (permission: Permission): boolean => {
     if (!userWithRoles) return false;
 
     const hasPermission =
@@ -68,16 +67,6 @@ export function useRegistrationPermissions() {
     // flow usable while older RBAC rows are being backfilled by migration.
     if (!hasPermission) {
       return false;
-    }
-
-    // For scoped permissions, check if user has access to the scope
-    if (scope && userWithRoles.scopes.length > 0) {
-      const scopedRoles = [UserRole.SECRETARY, UserRole.CLUB_ADMIN];
-      const hasScope = userWithRoles.roles.some(role => scopedRoles.includes(role));
-
-      if (hasScope) {
-        return userWithRoles.scopes.some(s => s.scopeType === scope.type && s.scopeId === scope.id);
-      }
     }
 
     return true;

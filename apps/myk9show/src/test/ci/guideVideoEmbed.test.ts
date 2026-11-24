@@ -68,6 +68,7 @@ describe('the guides carry each how-to video in its own section', () => {
     ['secretary-guide.md', '## 1 · Create a show, its trials, and its classes', 'IAltmLZVG9A'],
     ['secretary-guide.md', '## 11 · Set the run order', 'mKj5PIHfAmY'],
     ['secretary-guide.md', '## 18 · Check dogs in', 'mKj5PIHfAmY'],
+    ['secretary-guide.md', '## 23 · Release results to exhibitors', 'INYaO2cTmgw'],
     ['exhibitor-guide.md', '## Section 3 — Add Your Dog', '3LBeFqQrNGg'],
     ['exhibitor-guide.md', '## Section 4 — Enter a Show', 'J2gw-w8I2gE'],
   ])('%s, "%s"', (file, heading, id) => {

@@ -292,7 +292,7 @@ const TrialEditForm: React.FC<TrialEditFormProps> = ({
   return (
     <div className="space-y-6 p-6">
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 transition-all duration-300 ease-out">
+        <TabsList className="grid w-full grid-cols-3 bg-transparent bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 transition-all duration-300 ease-out">
           <TabsTrigger value="basic" className="gap-2 rounded-lg transition-all duration-300">
             <Info className="h-4 w-4" />
             Basic Info

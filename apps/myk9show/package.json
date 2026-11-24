@@ -150,7 +150,7 @@
     "react-window": "^1.8.11",
     "recharts": "^3.10.1",
     "sonner": "^2.0.8",
-    "tailwind-merge": "^3.7.0",
+    "tailwind-merge": "^2.6.2",
     "tailwindcss-animate": "^1.0.7",
     "workbox-routing": "^7.4.1",
     "workbox-strategies": "^7.4.1",

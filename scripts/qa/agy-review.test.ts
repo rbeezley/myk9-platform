@@ -24,7 +24,7 @@ function tmp(prefix: string): string {
 }
 
 /** A throwaway repo with two commits, so BASE..HEAD is a real, non-empty diff. */
-function makeRepo(): string {
+function makeRepo(threeCommits = false): string {
   const dir = tmp('agy-repo-');
   const env = {
     ...process.env,
@@ -41,6 +41,10 @@ function makeRepo(): string {
   git('commit', '-q', '-m', 'base');
   writeFileSync(join(dir, 'a.txt'), 'one\ntwo\n');
   git('commit', '-q', '-am', 'change');
+  if (threeCommits) {
+    writeFileSync(join(dir, 'a.txt'), 'one\ntwo\nthree\n');
+    git('commit', '-q', '-am', 'fix');
+  }
   return dir;
 }
 
@@ -96,9 +100,10 @@ function bodies(callsPath: string): string[] {
 function run(
   stub: { bin: string; log: string },
   args: string[] = ['HEAD~1'],
-  gh?: { bin: string }
+  gh?: { bin: string },
+  threeCommits = false
 ): { code: number; out: string; repo: string } {
-  const repo = makeRepo();
+  const repo = makeRepo(threeCommits);
   const env = {
     ...process.env,
     AGY_BIN: stub.bin,
@@ -264,6 +269,38 @@ describe('agy-review.sh', () => {
     const allowed = [...script.matchAll(/command\((\w+)\)/g)].map(m => m[1]!);
     expect(told.length).toBeGreaterThan(3);
     for (const cmd of told) expect(allowed, `prompt names ${cmd}`).toContain(cmd);
+  });
+
+  it('round 2 reviews the fix range after a trusted findings comment, and NEWEST holds only the fix commit', () => {
+    // base (HEAD~2) .. reviewed (HEAD~1) .. fix (HEAD)
+    const dir = tmp('gh-stub-');
+    const bin = join(dir, 'gh');
+    writeFileSync(
+      bin,
+      `#!/usr/bin/env bash
+case "$*" in
+  'pr view --json number'*) echo 7 ;;
+  *'Coverage: complete from'*)
+    printf 'Agy findings for %s (not gate evidence):\\nCoverage: complete from %s\\n\\n- [P2] earlier finding\\n' "$(git rev-parse HEAD~1)" "$(git rev-parse HEAD~2)" ;;
+esac
+`
+    );
+    chmodSync(bin, 0o755);
+    const stub = stubAgy(CLEAN);
+    const r = run(stub, ['HEAD~2', '--post'], { bin }, true);
+    expect(r.code).toBe(0);
+    const sha = (rev: string) =>
+      execFileSync('git', ['rev-parse', rev], { cwd: r.repo, encoding: 'utf8' }).trim();
+    expect(r.out).toContain(
+      `round 2+ — fix range ${sha('HEAD~1').slice(0, 9)}..${sha('HEAD').slice(0, 9)}`
+    );
+    const args = readFileSync(stub.args, 'utf8').split('\0').slice(0, -1);
+    const prompt = args[args.indexOf('-p') + 1] ?? '';
+    const newest = prompt.match(/\.logs\/(agy-review-newest-[0-9a-f]{9}\.diff)/)?.[1];
+    expect(newest).toBeDefined();
+    const diff = readFileSync(join(r.repo, '.logs', newest!), 'utf8');
+    expect(diff).toContain('+three');
+    expect(diff).not.toContain('+two');
   });
 
   it('the prior-findings count reads only trusted authors', () => {

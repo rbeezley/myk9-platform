@@ -55,21 +55,22 @@ export function createRealGitFixture(
       mode: 0o755,
     });
   }
+  writeFileSync(join(bin, 'pnpm'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+  // Opt-in rendezvous (MYK9_BOOTSTRAP_BARRIER): the first `git worktree list`
+  // of each bootstrap, which runs before the config lock, blocks until every
+  // participant has arrived. That forces real lock contention without a sleep
+  // tuned to timing; the wait has no deadline, so a slow runner cannot trip it.
+  const realGit = execFileSync('which', ['git'], { encoding: 'utf8' }).trim();
   writeFileSync(
-    join(bin, 'pnpm'),
+    join(bin, 'git'),
     `#!/bin/sh
-if [ "$1" = "build" ]; then
-  attempt=0
-  while [ "$attempt" -lt 30 ]; do
-    other_hooks="$(git -C "$MYK9_BOOTSTRAP_OTHER_WORKTREE" config --get core.hooksPath 2>/dev/null || true)"
-    if [ "$other_hooks" = ".githooks" ]; then exit 0; fi
-    attempt=$((attempt + 1))
-    sleep 0.1
+if [ -n "$MYK9_BOOTSTRAP_BARRIER" ] && [ "$1" = "worktree" ] && [ "$2" = "list" ]; then
+  : > "$MYK9_BOOTSTRAP_BARRIER/arrived.$$"
+  while [ "$(ls "$MYK9_BOOTSTRAP_BARRIER" | wc -l)" -lt "$MYK9_BOOTSTRAP_PARTICIPANTS" ]; do
+    sleep 0.01
   done
-  echo 'other bootstrap could not update config during build' >&2
-  exit 1
 fi
-exit 0
+exec '${realGit}' "$@"
 `,
     { mode: 0o755 }
   );
@@ -80,7 +81,7 @@ export function runBootstrapAt(
   worktree: string,
   bin: string,
   globalConfig: string,
-  otherWorktree: string
+  barrier?: { dir: string; participants: number }
 ): Promise<BootstrapResult> {
   return new Promise(resolvePromise => {
     const child = spawn('bash', [bootstrapScript], {
@@ -89,7 +90,12 @@ export function runBootstrapAt(
         ...process.env,
         GIT_CONFIG_GLOBAL: globalConfig,
         GIT_CONFIG_NOSYSTEM: '1',
-        MYK9_BOOTSTRAP_OTHER_WORKTREE: otherWorktree,
+        ...(barrier
+          ? {
+              MYK9_BOOTSTRAP_BARRIER: barrier.dir,
+              MYK9_BOOTSTRAP_PARTICIPANTS: String(barrier.participants),
+            }
+          : {}),
         PATH: `${bin}:${process.env.PATH ?? ''}`,
       },
     });

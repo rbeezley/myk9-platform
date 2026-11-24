@@ -1,5 +1,5 @@
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -325,14 +325,14 @@ describe('bootstrap-worktree worktree inventory handling', () => {
           'core.hooksPath',
         ]).status
       ).toBe(1);
+      const barrierDir = join(fixture.root, 'barrier');
+      mkdirSync(barrierDir);
       const results = await Promise.all(
-        fixture.worktrees.map((worktree, index) =>
-          runBootstrapAt(
-            worktree,
-            fixture.bin,
-            fixture.globalConfig,
-            fixture.worktrees[index === 0 ? 1 : 0]
-          )
+        fixture.worktrees.map(worktree =>
+          runBootstrapAt(worktree, fixture.bin, fixture.globalConfig, {
+            dir: barrierDir,
+            participants: fixture.worktrees.length,
+          })
         )
       );
       for (const result of results) {
@@ -381,12 +381,7 @@ describe('bootstrap-worktree worktree inventory handling', () => {
       globalWorktreeConfig: true,
     });
     try {
-      const result = await runBootstrapAt(
-        fixture.worktrees[0],
-        fixture.bin,
-        fixture.globalConfig,
-        fixture.worktrees[1]
-      );
+      const result = await runBootstrapAt(fixture.worktrees[0], fixture.bin, fixture.globalConfig);
       expect(result.error).toBeUndefined();
       expect(result.status).toBe(0);
       for (const checkout of fixture.worktrees) {

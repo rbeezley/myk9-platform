@@ -89,7 +89,7 @@ export const ClubRemovalDialogs: React.FC<ClubRemovalDialogsProps> = ({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter className="gap-2 sm:flex-wrap sm:space-x-0">
-          <AlertDialogCancel className="w-full sm:w-auto">Keep show secretary</AlertDialogCancel>
+          <AlertDialogCancel className="w-full sm:w-auto">Keep as show secretary</AlertDialogCancel>
           <AlertDialogAction className="w-full sm:w-auto" onClick={confirmShowAccessRevoke}>
             Revoke show secretary
           </AlertDialogAction>

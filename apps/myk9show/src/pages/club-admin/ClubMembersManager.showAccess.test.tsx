@@ -157,7 +157,7 @@ describe('ClubMembersManager show access', () => {
     const footer = dialog.querySelector('[class*="flex-col-reverse"]');
     expect(footer?.className).toContain('sm:flex-wrap');
     expect(footer?.className).toContain('sm:space-x-0');
-    expect(screen.getByRole('button', { name: 'Keep show secretary' })).toHaveClass(
+    expect(screen.getByRole('button', { name: 'Keep as show secretary' })).toHaveClass(
       'w-full',
       'sm:w-auto'
     );
@@ -307,7 +307,7 @@ describe('ClubMembersManager show-access confirmations name the person', () => {
     expect(await screen.findByRole('alertdialog')).toHaveTextContent(
       'Grace Hopper will no longer be able to create or run'
     );
-    await user.click(await screen.findByRole('button', { name: 'Keep show secretary' }));
+    await user.click(await screen.findByRole('button', { name: 'Keep as show secretary' }));
     expect(setClubShowManagerAccess).not.toHaveBeenCalled();
 
     expect(notificationSuccess).not.toHaveBeenCalledWith(expect.stringContaining('the member'));

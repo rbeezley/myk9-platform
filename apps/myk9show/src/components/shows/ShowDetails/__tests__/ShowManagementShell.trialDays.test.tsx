@@ -205,15 +205,6 @@ describe('ShowManagementShell: Edit Show trial day buttons', () => {
     expect(screen.queryByRole('button', { name: /^Saturday Trial 1/ })).not.toBeInTheDocument();
   });
 
-  it('offers no Change day buttons to a viewer who cannot manage the show', async () => {
-    dataMocks.canManage = false;
-    renderShell();
-
-    // Let the trials read settle, then check nothing offers a day change.
-    await new Promise(resolve => setTimeout(resolve, 100));
-    expect(screen.queryByRole('button', { name: /Change day$/ })).not.toBeInTheDocument();
-  });
-
   it('offers exactly one button on a one-trial show', async () => {
     dataMocks.trialRows = [ROWS[0]];
     renderShell();

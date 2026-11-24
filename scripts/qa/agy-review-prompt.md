@@ -17,10 +17,12 @@ Your job is to find the defects that matter before merge, not to summarize the c
 ## How to work
 
 - Read the surrounding source files, not only the diff. Confirm a problem in the code before reporting it.
-- Shell commands may only use `grep`, `find`, `ls`, `cat`, `head`, `tail`, `wc`, `sort` and `uniq`. You may combine them with pipes (`|`) and `&&` to do more in one call, for example `grep -rn "name" apps/myk9show/src | head -40` or `grep -c "x" a.ts && head -n 80 a.ts | tail -n 30`. `rg` is NOT installed; use `grep -rn`. No `cd`, loops, subshells, redirects or any other command: anything else is refused and ends your run.
+- Shell commands may only use `grep`, `ls`, `cat`, `head`, `tail` and `wc`. You may combine them with pipes (`|`) and `&&` to do more in one call, for example `grep -rn "name" apps/myk9show/src | head -40` or `grep -c "x" a.ts && head -n 80 a.ts | tail -n 30`. `rg` is NOT installed; use `grep -rn`. No `cd`, loops, subshells, redirects or any other command: anything else is refused and ends your run.
 - Batch your reading: search across files in one call instead of one file per call.
 - Do not report style, naming or formatting.
 
 ## Output
 
 A severity-ranked list. For each finding: severity (P0 critical, P1 high, P2 medium, P3 low), `file:line`, what is wrong, and a concrete scenario where it fails. Then one line per checklist area you checked and found clean. If there are no findings, say "No findings" first.
+
+The last line of your answer must be exactly `END OF REVIEW`, with nothing after it.

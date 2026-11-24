@@ -71,6 +71,8 @@ fi
 REVIEW_BASE="$BASE_REF"
 COVERED_FROM="$(git merge-base "$BASE_SHA" HEAD)"
 FIX_RANGE=0
+PREV_FINDINGS=""
+END_MARKER="END OF REVIEW"
 ANCHOR_JQ='[.comments[] | select(.authorAssociation == "OWNER" or .authorAssociation == "MEMBER" or .authorAssociation == "COLLABORATOR") | select(.body | split("\n") as $l | ($l[0] | startswith("Agy findings for")) or (($l[0] | test("^Review gate: agy reviewed [0-9a-f]{7,40}\\.\\.[0-9a-f]{7,40} — ")) and (($l[1] // "") | startswith("Coverage: complete from ")))) | .body] | last // ""'
 if [ "$POST" = 1 ] && PR="$("$GH" pr view --json number -q .number 2>/dev/null)" && [ -n "$PR" ] &&
   ANCHOR="$("$GH" pr view "$PR" --json comments -q "$ANCHOR_JQ" 2>/dev/null)"; then
@@ -92,6 +94,9 @@ if [ "$POST" = 1 ] && PR="$("$GH" pr view --json number -q .number 2>/dev/null)"
     REVIEW_BASE="$LAST_SHA"
     COVERED_FROM="$FROM_SHA"
     FIX_RANGE=1
+    # The last TRUSTED findings comment rides in the prompt so a finding the
+    # newest commits did not fix is reported again, not dropped as "earlier".
+    PREV_FINDINGS="$("$GH" pr view "$PR" --json comments -q '[.comments[] | select(.authorAssociation == "OWNER" or .authorAssociation == "MEMBER" or .authorAssociation == "COLLABORATOR") | .body | select(startswith("Agy findings for"))] | last // ""' 2>/dev/null)" || PREV_FINDINGS=""
     echo "agy-review: round 2+ — fix range ${LAST_SHA:0:9}..${HEAD_SHA:0:9} (last completed agy review on PR #${PR})"
   fi
 fi
@@ -115,14 +120,17 @@ fi
 PROMPT="$(cat "$PROMPT_TEMPLATE")"
 PROMPT="${PROMPT//\{DIFF\}/${BT}.logs/agy-review-${HEAD_SHA:0:9}.diff${BT}}"
 PROMPT="${PROMPT//\{NEWEST\}/$NEWEST_TEXT}"
-PROMPT="$(printf '%s\n\n## Verdict format (overrides the Output section above)\n\n%s\n' "$PROMPT" "$CONTRACT")"
+PROMPT="$(printf '%s\n\n## Verdict format (overrides the Output section above)\n\n%s\n\nThe LAST line of your answer must be exactly: %s\nPut nothing after it. An answer without that final line is treated as cut off and discarded.\n' "$PROMPT" "$CONTRACT" "$END_MARKER")"
+if [ "$FIX_RANGE" = 1 ] && [ -n "$PREV_FINDINGS" ]; then
+  PROMPT="$(printf '%s\n\n## Findings from the previous round\n\n%s\n\nReport any of these that the newest commits did not fix as a normal finding (a bullet beginning with - [P0], - [P1], - [P2] or - [P3]).\n' "$PROMPT" "$PREV_FINDINGS")"
+fi
 
 echo "agy-review: ${REVIEW_BASE} (${BASE_SHA:0:9}) .. HEAD (${HEAD_SHA:0:9}) -> ${LOG}"
 # Flags BEFORE -p (agy takes the prompt as -p's value). Read-only: plan mode and
 # an allow list with no sed (sed -i writes). stdin is closed.
 cd "$ROOT" || exit 2
 "$AGY" --mode plan --print-timeout "${AGY_REVIEW_TIMEOUT:-20m}" \
-  --settings '{"permissions":{"allow":["command(grep)","command(ls)","command(cat)","command(head)","command(tail)","command(wc)","command(sort)","command(uniq)"]}}' \
+  --settings '{"permissions":{"allow":["command(grep)","command(ls)","command(cat)","command(head)","command(tail)","command(wc)"]}}' \
   -p "$PROMPT" < /dev/null > "$LOG" 2>&1
 CLI_EXIT=$?
 
@@ -139,6 +147,12 @@ fence_unbalanced() {
   [ $(( $(grep -c '^[[:space:]]*```' "$LOG") % 2 )) -eq 1 ]
 }
 
+# The positive completion signal: the answer's last non-blank line is exactly
+# END OF REVIEW (trailing whitespace tolerated). Anything else was cut off.
+has_end_marker() {
+  [ "$(awk 'NF{l=$0} END{sub(/[[:space:]]+$/, "", l); print l}' "$LOG")" = "$END_MARKER" ]
+}
+
 # No marker line: the whole log is the verdict (agy prints only the answer).
 VERDICT="$(cat "$LOG")"
 if [ -z "$(printf '%s' "$VERDICT" | tr -d '[:space:]')" ]; then
@@ -152,7 +166,7 @@ review_note_not_this_round agy-review "$VERDICT"
 
 # 0 only when the review FINISHED, for the coverage claim a next round trusts.
 review_finished() {
-  [ "$CLI_EXIT" -eq 0 ] && ! abort_lines > /dev/null && ! fence_unbalanced &&
+  [ "$CLI_EXIT" -eq 0 ] && has_end_marker && ! abort_lines > /dev/null && ! fence_unbalanced &&
     ! review_text_imatches '\breview[[:space:]]+(did not run|was interrupted|interrupted)\b|unable to complete the review' "$VERDICT"
 }
 
@@ -178,7 +192,13 @@ if review_has_findings "$VERDICT"; then
   exit 1
 fi
 
-# No findings: the incompleteness guards decide, and they are strict.
+# No findings: the incompleteness guards decide, and they are strict. The end
+# marker comes first: no clean verdict is accepted from an answer that was cut off.
+if ! has_end_marker; then
+  echo
+  echo "agy-review: GATE DID NOT RUN (the answer does not end with a line reading ${END_MARKER}; cut off or incomplete). This is not a verdict. No evidence emitted."
+  exit 2
+fi
 if abort_lines > /dev/null; then
   echo
   echo "agy-review: GATE DID NOT RUN (timeout, refused command or error line in the output; cli exit ${CLI_EXIT}). This is not a verdict."
@@ -209,7 +229,7 @@ fi
 VERDICT_LINE="no findings"
 if [ "$POST" = 1 ]; then
   PR="$("$GH" pr view --json number -q .number)"
-  if ! PRIOR="$("$GH" pr view "$PR" --json comments -q '[.comments[].body | select(startswith("Agy findings for"))] | join("\n")')"; then
+  if ! PRIOR="$("$GH" pr view "$PR" --json comments -q '[.comments[] | select(.authorAssociation == "OWNER" or .authorAssociation == "MEMBER" or .authorAssociation == "COLLABORATOR") | .body | select(startswith("Agy findings for"))] | join("\n")')"; then
     echo "agy-review: could not read this PR's earlier findings comments (gh failed), so N cannot be trusted. Exit 2; no evidence posted." >&2
     exit 2
   fi
@@ -222,7 +242,7 @@ if [ "$POST" = 1 ]; then
 else
   echo
   echo "agy-review: clean. Do NOT type the evidence by hand; re-run with --post, or:"
-  echo "  bash scripts/qa/post-review-gate.sh <pr> agy ${BASE_SHA:0:9} ${HEAD_SHA:0:9} \"$VERDICT_LINE\" $LOG"
+  echo "  bash scripts/qa/post-review-gate.sh <pr> agy ${BASE_SHA:0:9} ${HEAD_SHA:0:9} \"$VERDICT_LINE\" $(printf '%q' "$LOG")"
   echo "Review gate: agy reviewed ${BASE_SHA:0:9}..${HEAD_SHA:0:9} — no findings"
 fi
 exit 0

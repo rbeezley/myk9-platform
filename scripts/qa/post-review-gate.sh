@@ -395,6 +395,14 @@ if [ "$LOG_SUPPLIED" = 1 ] && [ "$WITHDRAW" != 1 ]; then
   fi
 fi
 if [ "$HAS_REVIEW_LOG" = 1 ] && [ "$WITHDRAW" != 1 ]; then
+  # agy prints no marker line and exits 0 when cut off, so its completion is a
+  # positive signal: the wrapper's prompt makes the last line END OF REVIEW, and
+  # a clean post for a log without it is refused (MYK9-2326).
+  if [ "$REVIEWER" = "agy" ] &&
+    [ "$(awk 'NF{l=$0} END{sub(/[[:space:]]+$/, "", l); print l}' "$LOG")" != "END OF REVIEW" ]; then
+    echo "post-review-gate: agy log does not end with the line END OF REVIEW (cut off or incomplete); nothing posted" >&2
+    exit 2
+  fi
   # Not free text: both review wrappers instruct the reviewer to open a clean
   # verdict with the CONTRACT sentence "No actionable <findings> ..." and
   # nothing else counts. "No findings yet; only the workflow file has been

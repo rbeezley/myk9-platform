@@ -24,7 +24,7 @@ function tmp(prefix: string): string {
 }
 
 /** A throwaway repo with two commits, so BASE..HEAD is a real, non-empty diff. */
-function makeRepo(): string {
+function makeRepo(threeCommits = false): string {
   const dir = tmp('agy-repo-');
   const env = {
     ...process.env,
@@ -41,6 +41,10 @@ function makeRepo(): string {
   git('commit', '-q', '-m', 'base');
   writeFileSync(join(dir, 'a.txt'), 'one\ntwo\n');
   git('commit', '-q', '-am', 'change');
+  if (threeCommits) {
+    writeFileSync(join(dir, 'a.txt'), 'one\ntwo\nthree\n');
+    git('commit', '-q', '-am', 'fix');
+  }
   return dir;
 }
 
@@ -96,9 +100,10 @@ function bodies(callsPath: string): string[] {
 function run(
   stub: { bin: string; log: string },
   args: string[] = ['HEAD~1'],
-  gh?: { bin: string }
+  gh?: { bin: string },
+  threeCommits = false
 ): { code: number; out: string; repo: string } {
-  const repo = makeRepo();
+  const repo = makeRepo(threeCommits);
   const env = {
     ...process.env,
     AGY_BIN: stub.bin,
@@ -119,7 +124,7 @@ function run(
   }
 }
 
-const CLEAN = 'No actionable defects found.\n\n- Behavior changes: clean.\n';
+const CLEAN = 'No actionable defects found.\n\n- Behavior changes: clean.\n\nEND OF REVIEW\n';
 
 describe('agy-review.sh', () => {
   it('exits 0 and prints the exact evidence line on a clean verdict', () => {
@@ -139,7 +144,12 @@ describe('agy-review.sh', () => {
       permissions: { allow: string[] };
     };
     expect(settings.permissions.allow).toContain('command(grep)');
+    expect(settings.permissions.allow.sort()).toEqual(
+      ['grep', 'ls', 'cat', 'head', 'tail', 'wc'].map(c => `command(${c})`).sort()
+    );
     expect(settings.permissions.allow).not.toContain('command(sed)');
+    expect(settings.permissions.allow).not.toContain('command(sort)');
+    expect(settings.permissions.allow).not.toContain('command(uniq)');
     // find -exec / -delete write, so find is not read-only.
     expect(settings.permissions.allow).not.toContain('command(find)');
     const p = args.indexOf('-p');
@@ -151,6 +161,7 @@ describe('agy-review.sh', () => {
     expect(prompt).not.toContain('{DIFF}');
     expect(prompt).not.toContain('{NEWEST}');
     expect(prompt).toContain('No actionable defects found.');
+    expect(prompt).toContain('The LAST line of your answer must be exactly: END OF REVIEW');
     expect(readFileSync(join(r.repo, '.logs', `agy-review-${sha}.diff`), 'utf8')).toContain('+two');
   });
 
@@ -172,6 +183,16 @@ describe('agy-review.sh', () => {
     ],
     ['output cut inside a code block', 'No actionable defects found.\n\n```ts\nconst a = 1;\n', 0],
     ['a clean verdict but cli exit 1', CLEAN, 1],
+    [
+      'a clean opening cut off mid-prose (no END OF REVIEW)',
+      'No actionable defects found.\n\n- Behavior changes: clean, and the migration only add',
+      0,
+    ],
+    [
+      'a clean verdict whose END OF REVIEW is not the last line',
+      'No actionable defects found.\n\nEND OF REVIEW\nand then one more thing',
+      0,
+    ],
     ['prose with no verdict', 'I looked at the diff and it seems fine overall.\n', 0],
     ['an incomplete review', 'Unable to complete the review: the diff was too large.\n', 0],
   ])('exits 2 and posts no evidence on %s', (_, output, exitCode) => {
@@ -185,7 +206,7 @@ describe('agy-review.sh', () => {
   it('a completed clean review with column-0 prose that merely starts like an error is still clean', () => {
     const r = run(
       stubAgy(
-        'No actionable defects found.\n\nError handling was checked and is clean.\nPermission checks are denied for anonymous callers, as intended.\nTimeout handling: fine.\n'
+        'No actionable defects found.\n\nError handling was checked and is clean.\nPermission checks are denied for anonymous callers, as intended.\nTimeout handling: fine.\n\nEND OF REVIEW\n'
       )
     );
     expect(r.code).toBe(0);
@@ -204,11 +225,53 @@ describe('agy-review.sh', () => {
   it('a clean opening followed by an unable-to-complete statement is not clean, with or without --post', () => {
     const gh = stubGh();
     const text =
-      'No actionable defects found.\n\nUnable to complete the review of the migrations.\n';
+      'No actionable defects found.\n\nUnable to complete the review of the migrations.\n\nEND OF REVIEW\n';
     expect(run(stubAgy(text)).code).toBe(2);
     const r = run(stubAgy(text), ['HEAD~1', '--post'], gh);
     expect(r.code).toBe(2);
     expect(bodies(gh.calls)).toEqual([]);
+  });
+
+  it('every command the prompt tells agy to use is on the allow list', () => {
+    const prompt = readFileSync(resolve(import.meta.dirname, 'agy-review-prompt.md'), 'utf8');
+    const line = prompt.split('\n').find(l => l.includes('Shell commands may only use')) ?? '';
+    const told = [...line.split('You may combine')[0]!.matchAll(/`([a-z]+)`/g)].map(m => m[1]!);
+    const script = readFileSync(SCRIPT, 'utf8');
+    const allowed = [...script.matchAll(/command\((\w+)\)/g)].map(m => m[1]!);
+    expect(told.length).toBeGreaterThan(3);
+    for (const cmd of told) expect(allowed, `prompt names ${cmd}`).toContain(cmd);
+  });
+
+  it('round 2 puts the last trusted findings comment in the prompt', () => {
+    const dir = tmp('gh-stub-');
+    const bin = join(dir, 'gh');
+    writeFileSync(
+      bin,
+      `#!/usr/bin/env bash
+case "$*" in
+  'pr view --json number'*) echo 7 ;;
+  *'Coverage: complete from'*)
+    printf 'Agy findings for %s (not gate evidence):\\nCoverage: complete from %s\\n\\n- [P2] earlier finding\\n' "$(git rev-parse HEAD~1)" "$(git rev-parse HEAD~2)" ;;
+  *'last // ""'*) printf 'Agy findings for x (not gate evidence):\\n- [P2] a.txt earlier finding text\\n' ;;
+esac
+`
+    );
+    chmodSync(bin, 0o755);
+    const stub = stubAgy(CLEAN);
+    const r = run(stub, ['HEAD~2', '--post'], { bin }, true);
+    expect(r.out).toContain('round 2+');
+    const args = readFileSync(stub.args, 'utf8').split('\0').slice(0, -1);
+    const prompt = args[args.indexOf('-p') + 1] ?? '';
+    expect(prompt).toContain('## Findings from the previous round');
+    expect(prompt).toContain('a.txt earlier finding text');
+    expect(prompt).toContain('did not fix as a normal finding');
+    expect(prompt).toMatch(/agy-review-newest-[0-9a-f]{9}\.diff/);
+  });
+
+  it('the prior-findings count reads only trusted authors', () => {
+    const script = readFileSync(SCRIPT, 'utf8');
+    const line = script.split('\n').find(l => l.includes('PRIOR="$(')) ?? '';
+    expect(line).toContain('authorAssociation == "OWNER"');
   });
 
   it('exits 2 when the diff is empty (nothing was reviewed)', () => {

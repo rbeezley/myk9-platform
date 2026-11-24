@@ -311,7 +311,7 @@ concentrate the logic; it just silently drops invalidations.
 
 ### Files
 
-- [`apps/myk9show/src/services/database/queryClient.ts`](../apps/myk9show/src/services/database/queryClient.ts)
+- `apps/myk9show/src/lib/queryClient.ts`
   (80+ `queryKeys` definitions) — the key factory.
 - The 83 `invalidateQueries` call sites (hooks under `hooks/`, `hooks/queries/`).
 - Entity write modules: `entries/writes.ts` + `entries/lifecycle.ts`,

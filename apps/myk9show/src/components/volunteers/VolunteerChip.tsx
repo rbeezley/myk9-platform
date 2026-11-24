@@ -27,7 +27,7 @@ export function VolunteerChip({ name, hasConflict = false, onRemove }: Volunteer
         type="button"
         aria-label={`Remove ${name}`}
         onClick={onRemove}
-        className="relative ml-0.5 rounded-full p-0.5 before:absolute before:-inset-y-1 before:-left-4 before:-right-2.5 before:content-[''] hover:bg-black/10 dark:hover:bg-white/10"
+        className="relative ml-0.5 rounded-full p-0.5 before:absolute before:-inset-y-[14px] before:-left-[18px] before:-right-[10px] before:content-[''] hover:bg-black/10 dark:hover:bg-white/10"
       >
         <X className="h-3 w-3" />
       </button>

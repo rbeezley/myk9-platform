@@ -46,7 +46,7 @@ describe('MembersTable', () => {
     expect(screen.getByText('ada@example.com')).toBeInTheDocument();
   });
 
-  it('shows the Show Manager badge when the member has show access', () => {
+  it('shows the Show secretary badge when the member has show access', () => {
     render(
       <MembersTable
         members={[baseMember]}
@@ -59,7 +59,7 @@ describe('MembersTable', () => {
         onToggleShowAccess={noop}
       />
     );
-    expect(screen.getByText('Show Manager')).toBeInTheDocument();
+    expect(screen.getByText('Show secretary')).toBeInTheDocument();
   });
 
   it('renders the empty state with an Add Member CTA when there are no members', () => {

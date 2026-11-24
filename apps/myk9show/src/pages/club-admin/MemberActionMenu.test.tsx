@@ -4,7 +4,7 @@
  * Measured on staging at 1280x600 before this was fixed: the bottom row's
  * trigger sat at y=532 with 24px of space below it, and the popup — pinned by
  * `absolute right-0 top-full` — rendered at y=580 with a height of 573px. That
- * put 553px of it below the fold, including "Grant Show Access" and "Remove
+ * put 553px of it below the fold, including "Appoint show secretary" and "Remove
  * Member", with no way to reach them. Wheeling over the visible sliver scrolled
  * the table container instead of the menu.
  *
@@ -85,7 +85,7 @@ describe('MemberActionMenu', () => {
     await screen.findByRole('menu');
     // Every action is reachable by the roving-focus keyboard contract that the
     // hand-rolled version never implemented.
-    expect(screen.getByRole('menuitem', { name: /grant show access/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /appoint show secretary/i })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: /remove member/i })).toBeInTheDocument();
   });
 
@@ -113,7 +113,9 @@ describe('MemberActionMenu', () => {
 
     await screen.findByRole('menu');
     expect(screen.getByRole('menuitem', { name: /remove member/i })).toHaveClass('min-h-11');
-    expect(screen.getByRole('menuitem', { name: /grant show access/i })).toHaveClass('min-h-11');
+    expect(screen.getByRole('menuitem', { name: /appoint show secretary/i })).toHaveClass(
+      'min-h-11'
+    );
   });
 
   it('fires the action the operator picked', async () => {
@@ -123,7 +125,7 @@ describe('MemberActionMenu', () => {
     });
     await openMenu(user);
 
-    await user.click(await screen.findByRole('menuitem', { name: /grant show access/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /appoint show secretary/i }));
     expect(granted).toEqual([['p1', true]]);
   });
 
@@ -148,11 +150,11 @@ describe('MemberActionMenu', () => {
     await openMenu(user);
 
     await screen.findByRole('menu');
-    const item = screen.getByRole('menuitem', { name: /grant show access/i });
+    const item = screen.getByRole('menuitem', { name: /appoint show secretary/i });
     expect(item).not.toHaveAttribute('data-disabled');
     // The label carried the rule too, so a disabled-only assertion would pass on a
     // menu that still tells the admin members-only.
-    expect(item).toHaveTextContent(/^Grant Show Access$/);
+    expect(item).toHaveTextContent(/^Appoint show secretary$/);
 
     await user.click(item);
     expect(granted).toEqual([['p1', true]]);
@@ -168,7 +170,7 @@ describe('MemberActionMenu', () => {
     await openMenu(user);
 
     await screen.findByRole('menu');
-    expect(screen.getByRole('menuitem', { name: /revoke show access/i })).not.toHaveAttribute(
+    expect(screen.getByRole('menuitem', { name: /revoke show secretary/i })).not.toHaveAttribute(
       'data-disabled'
     );
   });

@@ -26,7 +26,7 @@ describe('ClubOfficialsLine', () => {
   it('shows the club secretary by name', () => {
     render(<ClubOfficialsLine adminNames={[]} secretaryNames={['Pat Lee']} />);
 
-    expect(screen.getByTestId('club-secretary-names')).toHaveTextContent('Secretary: Pat Lee');
+    expect(screen.getByTestId('club-secretary-names')).toHaveTextContent('Show secretary: Pat Lee');
     expect(screen.queryByTestId('club-admin-names')).not.toBeInTheDocument();
   });
 
@@ -34,7 +34,7 @@ describe('ClubOfficialsLine', () => {
     render(<ClubOfficialsLine adminNames={['Jane Doe']} secretaryNames={['Pat Lee']} />);
 
     expect(screen.getByTestId('club-admin-names')).toHaveTextContent('Admin: Jane Doe');
-    expect(screen.getByTestId('club-secretary-names')).toHaveTextContent('Secretary: Pat Lee');
+    expect(screen.getByTestId('club-secretary-names')).toHaveTextContent('Show secretary: Pat Lee');
   });
 
   it('renders nothing when neither group is readable for this viewer', () => {

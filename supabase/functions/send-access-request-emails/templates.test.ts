@@ -39,7 +39,7 @@ describe('requesterReceivedEmail', () => {
   it('describes the thing asked for on club requests', () => {
     expect(
       requesterReceivedEmail(record({ kind: 'role', requestedRole: 'secretary' }), SITE).html
-    ).toContain('secretary and show-manager access');
+    ).toContain('show-secretary access');
     expect(requesterReceivedEmail(record({ kind: 'membership' }), SITE).html).toContain(
       'club membership'
     );
@@ -73,7 +73,7 @@ describe('reviewerNoticeEmail', () => {
     );
 
     expect(email.emailType).toBe('access_request_role_submitted');
-    expect(email.html).toContain('secretary and show-manager access');
+    expect(email.html).toContain('show-secretary access');
     expect(email.html).toContain('I run entries.');
     expect(email.html).toContain(`${SITE}/club-admin/members`);
   });
@@ -113,7 +113,7 @@ describe('decisionEmail', () => {
     expect(email.html).toContain('Heartland Dog Club');
   });
 
-  it('tells a secretary requester that show-manager access is available', () => {
+  it('tells a secretary requester that show-secretary access is available', () => {
     const email = decisionEmail(
       record({ kind: 'role', requestedRole: 'secretary', status: 'approved', clubId: 'club-1' }),
       'approved',
@@ -121,7 +121,7 @@ describe('decisionEmail', () => {
     );
 
     expect(email.emailType).toBe('access_request_role_approved');
-    expect(email.html).toContain('Secretary and show-manager access is now available');
+    expect(email.html).toContain('Show-secretary access is now available');
   });
 
   it('includes the reviewer note on a denial when one was entered', () => {

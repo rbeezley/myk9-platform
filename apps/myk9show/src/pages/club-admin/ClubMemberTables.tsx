@@ -75,7 +75,7 @@ export const MembersTable: React.FC<MembersTableProps> = ({
                 {showManagerIds.has(member.personId) && (
                   <Badge className="bg-success/10 text-success border-success/20 hover:bg-success/10 text-xs">
                     <KeyRound className="h-3 w-3 mr-1" />
-                    Show Manager
+                    Show secretary
                   </Badge>
                 )}
               </span>

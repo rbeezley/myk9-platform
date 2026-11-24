@@ -23,13 +23,13 @@ Do not document deferred features. If a club asks about them, the answer is "com
 
 ## Readiness Summary
 
-| Section                              | Route                                      | Screenshot needed | Stable?     | Notes                                                                |
-| ------------------------------------ | ------------------------------------------ | ----------------- | ----------- | -------------------------------------------------------------------- |
-| Club profile setup                   | Club profile page (via club-admin sidebar) | yes               | stable      | Site admin creates the club; this is edit-only                       |
-| Show access and secretary assignment | Club Admin → Shows                         | yes               | stable      |                                                                      |
-| Stripe Express onboarding            | `/club-admin/payments`                     | yes               | **partial** | Cataloged in pageDirectory (#1014); sandbox walkthrough still needed |
-| View payouts                         | `/club-admin/payments`                     | yes               | partial     | Same route as onboarding                                             |
-| Club members                         | `/club-admin/members`                      | yes               | stable      | Cataloged in pageDirectory (#1014)                                   |
+| Section                    | Route                                      | Screenshot needed | Stable?     | Notes                                                                |
+| -------------------------- | ------------------------------------------ | ----------------- | ----------- | -------------------------------------------------------------------- |
+| Club profile setup         | Club profile page (via club-admin sidebar) | yes               | stable      | Site admin creates the club; this is edit-only                       |
+| Show secretary appointment | My Club → Members                          | yes               | stable      |                                                                      |
+| Stripe Express onboarding  | `/club-admin/payments`                     | yes               | **partial** | Cataloged in pageDirectory (#1014); sandbox walkthrough still needed |
+| View payouts               | `/club-admin/payments`                     | yes               | partial     | Same route as onboarding                                             |
+| Club members               | `/club-admin/members`                      | yes               | stable      | Cataloged in pageDirectory (#1014)                                   |
 
 ---
 
@@ -88,21 +88,21 @@ Include this boundary clearly near the front of the guide. Clubs get confused wh
 
 ---
 
-## Section 3 — Show Access and Secretary Assignment
+## Section 3 — Appoint a Show Secretary
 
-**User outcome:** Club admin grants a secretary account access to manage a specific show.
+**User outcome:** Club admin appoints a show secretary, who can manage all of the club's shows.
 
 **Rough steps (qa-draft):**
 
-1. From the sidebar, open **My Club** → **Our Shows** → your club's shows are listed.
-2. Click a show → find the secretary assignment section.
-3. Select the secretary account to assign → Save.
+1. In the sidebar, open **My Club**, then **Members**.
+2. Open the **Show secretaries** tab, click **Appoint show secretary**, search by name or email, and select the person.
+3. Click **Appoint**.
 
-**Screenshots:** Shows list; secretary assignment section.
+**Screenshots:** Members tab with the Show secretary badge.
 
 **Stability notes:**
 
-- Stable for fall 2026. Only the club admin can assign a secretary to a show — secretaries cannot self-assign.
+- Stable for fall 2026. Only the club admin can appoint a show secretary — nobody can appoint themselves.
 
 ---
 

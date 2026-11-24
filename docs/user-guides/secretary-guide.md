@@ -47,9 +47,9 @@ The **Actions** button in the top bar changes with the page you are on. On **Sho
 
 ### Your first show, if your club is new to myK9Show
 
-**Your club is not on myK9Show yet?** On the myK9Show home page choose **Add your club**, sign in or create a free account (sign-up asks for no role), and fill in the form. Then choose **Add my club**. The club exists right away and you are its **Club Admin** and its **Secretary/show manager**, so you can build a show and open the club's Payments tab the same day. The screen reads "Your club is waiting for myK9Show approval." Nothing is public until myK9Show approves the club, usually within a day. You are emailed when you ask and again when the club is approved or not.
+**Your club is not on myK9Show yet?** On the myK9Show home page choose **Add your club**, sign in or create a free account (sign-up asks for no role), and fill in the form. Then choose **Add my club**. The club exists right away and you are its **Club Admin** and its **Show secretary**, so you can build a show and open the club's Payments tab the same day. The screen reads "Your club is waiting for myK9Show approval." Nothing is public until myK9Show approves the club, usually within a day. You are emailed when you ask and again when the club is approved or not.
 
-**Your club is already on myK9Show?** Do not ask for it again. Ask its club admin to give you **Show Access**: under **My Club → Members**, the **Show Access** tab has **Appoint Secretary**, and a member's row menu has **Grant Show Access**. Being a club member alone does not let you run the club's shows.
+**Your club is already on myK9Show?** Do not ask for it again. Ask its club admin to appoint you as a **Show secretary**: under **My Club → Members**, the **Show secretaries** tab has **Appoint show secretary**, and a member's row menu has **Appoint show secretary**. Being a club member alone does not let you run the club's shows.
 
 Your home page then shows **Get (your club's name)'s first show published**, a card that lists what is left and goes away after the club publishes its first show. Its button reads **Create your first show**, then **Continue your draft show** once a draft exists.
 

@@ -286,7 +286,7 @@ describe('club officials line', () => {
     expect(await screen.findByTestId('club-admin-names')).toHaveTextContent(
       'Admins: Jane Doe, John Smith'
     );
-    expect(screen.getByTestId('club-secretary-names')).toHaveTextContent('Secretary: Pat Lee');
+    expect(screen.getByTestId('club-secretary-names')).toHaveTextContent('Show secretary: Pat Lee');
   });
 
   it('renders nothing when this viewer gets no officials back', async () => {

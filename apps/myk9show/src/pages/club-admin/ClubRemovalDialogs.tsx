@@ -60,7 +60,7 @@ export const ClubRemovalDialogs: React.FC<ClubRemovalDialogsProps> = ({
               ? 'The officer record is deleted. Their club membership is not affected.'
               : 'Their membership record, join date and dues history are deleted.'}
             {pendingRemoval?.kind === 'member' && pendingRemoval?.hasShowAccess
-              ? ' Their show access is separate and is NOT removed — they stay an appointed secretary and can still run this club’s shows. Revoke show access as well if that is what you intend.'
+              ? ' Their show access is separate and is NOT removed — they stay an appointed secretary and can still run this club’s shows. Revoke show secretary as well if that is what you intend.'
               : ''}{' '}
             This cannot be undone.
           </AlertDialogDescription>
@@ -81,7 +81,7 @@ export const ClubRemovalDialogs: React.FC<ClubRemovalDialogsProps> = ({
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
-            Revoke show access from {pendingShowAccessRevoke?.personName}?
+            Revoke show secretary from {pendingShowAccessRevoke?.personName}?
           </AlertDialogTitle>
           <AlertDialogDescription>
             {pendingShowAccessRevoke?.personName} will no longer be able to create or run any of
@@ -89,9 +89,9 @@ export const ClubRemovalDialogs: React.FC<ClubRemovalDialogsProps> = ({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter className="gap-2 sm:flex-wrap sm:space-x-0">
-          <AlertDialogCancel className="w-full sm:w-auto">Keep show access</AlertDialogCancel>
+          <AlertDialogCancel className="w-full sm:w-auto">Keep as show secretary</AlertDialogCancel>
           <AlertDialogAction className="w-full sm:w-auto" onClick={confirmShowAccessRevoke}>
-            Revoke show access
+            Revoke show secretary
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

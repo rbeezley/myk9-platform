@@ -110,7 +110,7 @@ export const RequestShowAccessCard: React.FC<RequestShowAccessCardProps> = ({ cl
             <p className="text-sm text-muted-foreground">
               Ask {club.name} to appoint you as a secretary. This sends a request to the club
               &apos;s admins — it does not grant access on its own. They can approve or deny it from
-              Members &gt; Show Access.
+              Members &gt; Show secretaries.
             </p>
             <FormField label="Why are you asking?" fieldId="show-access-note" required>
               <Textarea

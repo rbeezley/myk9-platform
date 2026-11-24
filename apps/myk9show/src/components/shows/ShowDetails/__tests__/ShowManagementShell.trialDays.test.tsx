@@ -151,11 +151,14 @@ function ReopenEditShow() {
 
 function renderShell() {
   return render(
-    <Routes>
-      <Route path="/shows/:id" element={<ShowManagementShell {...props()} />}>
-        <Route index element={<ReopenEditShow />} />
-      </Route>
-    </Routes>,
+    <>
+      <ReopenEditShow />
+      <Routes>
+        <Route path="/shows/:id" element={<ShowManagementShell {...props()} />}>
+          <Route index element={<div>section</div>} />
+        </Route>
+      </Routes>
+    </>,
     { initialRoute: '/shows/show-1?edit=true' }
   );
 }
@@ -192,7 +195,7 @@ describe('ShowManagementShell: Edit Show trial day buttons', () => {
     // What an Edit Trial save leaves behind: the trial's day moved, and a trial deleted.
     dataMocks.trialRows = [{ ...ROWS[1], date: '2026-12-20' }];
     await user.click(screen.getByRole('button', { name: /cancel/i }));
-    await user.click(screen.getByRole('button', { name: 'Reopen Edit Show' }));
+    await user.click(await screen.findByRole('button', { name: 'Reopen Edit Show' }));
 
     expect(
       await screen.findByRole('button', { name: /^Sunday Trial 2 .*Dec 20, 2026/ })

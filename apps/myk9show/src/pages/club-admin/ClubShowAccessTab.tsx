@@ -6,8 +6,8 @@
  * roster row to hang the badge on. Once appointment stopped requiring membership
  * (20260830210000), that arrangement broke in both directions at once — a club could
  * appoint a professional secretary who then appeared nowhere in the UI, could not be
- * revoked (Revoke Show Access lives in a member row's menu), and could not have been
- * appointed in the first place, because Grant Show Access lives in that same menu.
+ * revoked (Revoke show secretary lives in a member row's menu), and could not have been
+ * appointed in the first place, because Appoint show secretary lives in that same menu.
  *
  * So this is not a second copy of the roster. It is the only surface that can show a
  * person who is not on the roster, which is exactly the case the permission change was
@@ -86,7 +86,7 @@ export const AppointSecretaryDialog: React.FC<AppointDialogProps> = ({
             <KeyRound className="h-4 w-4 text-primary" />
           </div>
           <DialogTitle className="text-lg font-semibold text-foreground">
-            Appoint Secretary
+            Appoint show secretary
           </DialogTitle>
         </div>
         <div className="space-y-4 pt-2">
@@ -251,7 +251,7 @@ const ClubShowAccessManagers: React.FC<ClubShowAccessManagersProps> = ({
         </p>
         <Button onClick={onAppoint} className="gap-2">
           <Plus className="h-4 w-4" />
-          Appoint Secretary
+          Appoint show secretary
         </Button>
       </div>
 

@@ -19,7 +19,7 @@ Do these in parallel; don't guess a cause until you've looked:
 2. **Supabase MCP** — `get_logs` (api / postgres / edge functions) and `get_advisors`.
 3. **Sentry** — recent release regressions and error spikes.
 4. **Vercel** — did a deploy land right before onset? Compare merge time to onset time.
-5. **`supabase migration list`** — did a migration land without a matching function deploy (or vice-versa)? **Merge ≠ deploy.**
+5. **`bash scripts/supabase.sh migration list --remote`** — did a migration land without a matching function deploy (or vice-versa)? **Merge ≠ deploy.**
 6. **Is there a live show right now?** If yes, prioritize ringside scoring / offline paths above everything else. Reach for the [`incident-triage`](../../.claude/skills/incident-triage/SKILL.md) skill.
 
 ---

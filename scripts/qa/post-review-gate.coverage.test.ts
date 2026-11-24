@@ -36,6 +36,8 @@ function stubGh(): { bin: string; calls: string } {
 }
 
 const CLEAN = 'codex\nNo actionable defects found.\n';
+/** What a claude, agy or adversarial log looks like: no codex marker line (MYK9-2368). */
+const CLEAN_WHOLE = 'No actionable defects found.\n';
 const FINDING = 'codex\n- [P2] src/a.ts:3 — a defect.\n';
 
 function post(
@@ -88,6 +90,24 @@ describe('post-review-gate.sh coverage record (MYK9-1603)', () => {
     }
   });
 
+  it('records coverage for a finished agy review too, from a log with no codex marker (MYK9-2326)', () => {
+    const args = ['42', 'agy', '0a2020c7a', '5af9af158', 'no findings', 'LOG'];
+    const r = post(args, 'No actionable defects found.\n\nEND OF REVIEW\n', {
+      REVIEW_COVERAGE_FROM: '0a2020c7a',
+    });
+    expect(r.code).toBe(0);
+    const lines = r.body.split('\n');
+    expect(lines[0]).toBe('Review gate: agy reviewed 0a2020c7a..5af9af158 — no findings');
+    expect(lines[1]).toBe('Coverage: complete from 0a2020c7a');
+    const [evidence] = parseGateComments([
+      { body: r.body, authorAssociation: 'OWNER', createdAt: '2026-11-01T00:00:00Z' },
+    ]);
+    expect(evidence?.reviewer).toBe('agy');
+    expect(post(args, 'No actionable defects found.\n\nEND OF REVIEW\n', {}).body).not.toContain(
+      'Coverage:'
+    );
+  });
+
   it('review-gate.ts still parses the posted comment as codex evidence', () => {
     const r = post(CLEAN_ARGS, CLEAN, { REVIEW_COVERAGE_FROM: '0a2020c7a' });
     const [evidence] = parseGateComments([
@@ -101,7 +121,7 @@ describe('post-review-gate.sh coverage record (MYK9-1603)', () => {
     ['claude', 'no findings'],
     ['none', 'low-risk paths, CI green'],
   ])('the %s tier ignores the variable and never writes a coverage line', (reviewer, verdict) => {
-    const r = post(['42', reviewer, '0a2020c7a', '5af9af158', verdict, 'LOG'], CLEAN, {
+    const r = post(['42', reviewer, '0a2020c7a', '5af9af158', verdict, 'LOG'], CLEAN_WHOLE, {
       REVIEW_COVERAGE_FROM: '0a2020c7a',
     });
     expect(r.code).toBe(0);
@@ -111,7 +131,7 @@ describe('post-review-gate.sh coverage record (MYK9-1603)', () => {
   it('the adversarial and owner tiers never write a coverage line', () => {
     const adv = post(
       ['42', 'adversarial', '0a2020c7a', '5af9af158', '2 lenses, all findings addressed', 'LOG'],
-      CLEAN,
+      CLEAN_WHOLE,
       { REVIEW_COVERAGE_FROM: '0a2020c7a', REVIEW_LENSES: 'correctness\nsecurity' }
     );
     expect(adv.code).toBe(0);

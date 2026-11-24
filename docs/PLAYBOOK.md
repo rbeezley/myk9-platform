@@ -196,13 +196,13 @@ that follows this playbook can regress.
 
 ## 5. Database change
 
-1. `supabase migration list` — check remote migration state before writing a new one (never assume local is authoritative).
+1. `bash scripts/supabase.sh migration list --remote` — check remote migration state before writing a new one (never assume local is authoritative).
 2. If the migration references existing rows (permissions, roles, etc.), **query the target table first** to confirm the referenced values exist.
 3. Every `CREATE TABLE public.<name>` needs explicit `GRANT`s to `anon`/`authenticated`/`service_role` — see the template in `CLAUDE.md` § "Database Migrations." Supabase no longer auto-exposes new public tables to the Data API.
 4. Run migration commands from the worktree linked to Supabase, not the main repo.
 5. Dispatch the `migration-auditor` agent before `db push`.
 6. `db-push` skill (or `deploy` skill for the full deploy including edge functions/Vault secrets) to actually push.
-7. Confirm live: check `supabase migration list` again post-push, or query the new table/column directly.
+7. Confirm live: check `bash scripts/supabase.sh migration list --remote` again post-push, or query the new table/column directly.
 
 ## 6. UX work
 
@@ -245,7 +245,7 @@ Flow: commit on `main` (or fast-forward a feature commit into `main`), push dire
 ## Common mistakes (pulled from project feedback memory)
 
 - **Bash matcher no-cd-prefix**: `cd "..." && git branch -D ...` doesn't match a `Bash(git branch:*)` allow rule — bash already persists cwd between calls, drop the `cd`.
-- **Merge is not deploy**: merging a PR never pushes migrations or deploys functions — verify with `supabase migration list` / `db push` / `deploy` separately.
+- **Merge is not deploy**: merging a PR never pushes migrations or deploys functions — verify with `bash scripts/supabase.sh migration list --remote` / `db push --remote` / `deploy` separately.
 - **Stacked PR base-delete**: merging a stacked PR's base with `--delete-branch` closes the dependent PR — cherry-pick onto a fresh branch instead.
 - **Review against git ref, not working tree**: when reviewing a PR, `git show origin/main:<file>` or the PR ref — not your local working tree, which may have drifted.
 - **Rebuild package for app tests**: app vitest runs against a package's built `dist/` — rebuild with `pnpm --filter @myk9/<pkg> build` after editing a shared package, or tests silently run stale code.

@@ -43,7 +43,7 @@ async function readManagementRoster(page: Page): Promise<{ count: number; names:
         .map(row =>
           row
             .querySelector('td:first-child')
-            ?.textContent?.replace(/Show Manager/g, '')
+            ?.textContent?.replace(/Show secretary/g, '')
             .trim()
         )
         .filter((name): name is string => Boolean(name))

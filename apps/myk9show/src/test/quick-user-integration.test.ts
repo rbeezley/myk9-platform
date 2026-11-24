@@ -44,14 +44,6 @@ vi.mock('@/services/LoggingService', () => ({
   logger: mockLogger,
 }));
 
-// Mock the database queryClient invalidation
-vi.mock('@/services/database/queryClient', () => ({
-  invalidateQueries: {
-    all: vi.fn(),
-    lists: vi.fn(),
-  },
-}));
-
 // Test imports to ensure no compilation errors
 describe('User Integration - Import Validation', () => {
   it('should import all user database hooks without errors', async () => {

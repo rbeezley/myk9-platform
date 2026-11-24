@@ -11,6 +11,8 @@ interface LeadArticleSectionProps {
   trialStartDate: string | null;
   trialEndDate: string | null;
   timezone: string;
+  /** Same decision as the Enter CTA; false drops the "open for entries" claim. */
+  canEnterOnline?: boolean;
 }
 
 /**
@@ -34,6 +36,7 @@ export function LeadArticleSection({
   trialStartDate,
   trialEndDate,
   timezone,
+  canEnterOnline = true,
 }: LeadArticleSectionProps) {
   const reducedMotion = useReducedMotion();
 
@@ -47,7 +50,7 @@ export function LeadArticleSection({
     .join(' – ');
 
   const paragraphs = (welcomeText ?? '').split(/\n\n+/).filter(p => p.trim().length > 0);
-  const lead = paragraphs[0] ?? defaultLeadParagraph(showName, showSubtitle);
+  const lead = paragraphs[0] ?? defaultLeadParagraph(showName, showSubtitle, canEnterOnline);
   const rest = paragraphs.slice(1);
 
   const riseClass = (delay: 'delay-2' | 'delay-3') => (reducedMotion ? '' : `gz-rise ${delay}`);
@@ -149,6 +152,7 @@ export function LeadArticleSection({
  * has set an entry limit" but a club may legitimately run with no cap; the
  * current copy only restates the show name and subtitle.
  */
-function defaultLeadParagraph(showName: string, subtitle: string): string {
+function defaultLeadParagraph(showName: string, subtitle: string, canEnterOnline: boolean): string {
+  if (!canEnterOnline) return `${showName}. ${subtitle}.`;
   return `${showName} is now open for entries. ${subtitle}.`;
 }

@@ -142,7 +142,7 @@ For role-gate bugs (Add button visible to a user the RLS will reject, etc.):
 
 1. Read the relevant RLS policy in `supabase/migrations/` to find the source of truth
 2. Gate the UI to **match** the policy, never to lie about it
-3. If the RLS itself is wrong, fix it with a migration — number it via `supabase migration list` against the linked project, never reuse a number
+3. If the RLS itself is wrong, fix it with a migration — number it via `bash scripts/supabase.sh migration list --remote` against the linked project, never reuse a number
 
 For permission logic that lives in a hook: extract a pure helper (e.g. `computeXPermissions`), put it in a sibling file, write vitest unit tests for it. The unit tests run in CI even when the e2e env vars aren't set, so coverage compounds.
 
@@ -204,7 +204,7 @@ A successful run produces:
 
 - **Never skip an app bug to keep the recording flowing.** A spec that passes against a buggy app codifies the bug.
 - **Never use `waitForTimeout` in the committed spec.** It's a flake factory. The recording session can use it, the spec cannot.
-- **Never reuse a migration number.** Always run `supabase migration list` against the linked project before picking one.
+- **Never reuse a migration number.** Always run `bash scripts/supabase.sh migration list --remote` against the linked project before picking one.
 - **Never commit `.playwright-cli/` artifacts.** It's gitignored; storage state for a role belongs in CI secrets, not the repo.
 - **Never run `supabase db push` without explicit confirmation** (per the Auto Mode rule for shared-system writes in `CLAUDE.md` / `AGENTS.md`).
 - **Don't wander.** If you spot a bug outside the area being audited, flag it for a separate session (Claude Code: a `spawn_task` chip; Codex: a Linear issue via `todo-add`); don't fix it in this PR. Phase 2 has a "no wandering" rule for a reason.

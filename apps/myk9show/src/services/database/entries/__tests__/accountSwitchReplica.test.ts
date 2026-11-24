@@ -109,6 +109,7 @@ vi.mock('@/services/replication/ReplicatedArmbandsTable', () => ({
   replicatedArmbandsTable: { getByShow: vi.fn(async () => []) },
 }));
 vi.mock('@/services/database/entries/handlerHydration', () => ({
+  isOffline: () => false,
   loadHandlerPeople: vi.fn(async () => new Map()),
 }));
 

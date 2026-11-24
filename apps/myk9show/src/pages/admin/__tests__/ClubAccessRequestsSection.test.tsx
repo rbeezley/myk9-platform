@@ -70,9 +70,7 @@ describe('ClubAccessRequestsSection', () => {
     expect(screen.getByText(/Liz Beezley/)).toBeInTheDocument();
     expect(screen.getByText('Club numbers: AKC #4521 · UKC #U-88')).toBeInTheDocument();
     expect(
-      screen.getByText(
-        /active member.*club-admin.*secretary\/show-manager access.*authorizes the club/i
-      )
+      screen.getByText(/active member.*club-admin.*show-secretary access.*authorizes the club/i)
     ).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Create a new club' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Use Existing Dog Club' })).toBeInTheDocument();

@@ -128,7 +128,7 @@ export const MemberActionMenu: React.FC<ActionMenuProps> = ({
         <DropdownMenuSeparator />
 
         <DropdownMenuGroup>
-          <DropdownMenuLabel className={MENU_LABEL_BASE}>Show Access</DropdownMenuLabel>
+          <DropdownMenuLabel className={MENU_LABEL_BASE}>Show secretary</DropdownMenuLabel>
           {/*
           Appointment is the grant, and it is independent of membership: a club may
           appoint a professional secretary who is a member of none of its clubs, and a
@@ -146,7 +146,7 @@ export const MemberActionMenu: React.FC<ActionMenuProps> = ({
             )}
           >
             <KeyRound className="h-3.5 w-3.5" />
-            {hasShowAccess ? 'Revoke Show Access' : 'Grant Show Access'}
+            {hasShowAccess ? 'Revoke show secretary' : 'Appoint show secretary'}
           </DropdownMenuItem>
         </DropdownMenuGroup>
 

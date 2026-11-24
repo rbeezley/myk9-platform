@@ -192,7 +192,7 @@ export function evaluate(
     reasons.push(
       `primary checkout is ${distance} commits behind ${ref} ` +
         `(limit ${behindLimit}) — stale deps, stale package dist, and false ` +
-        `\`supabase db push --dry-run\` drift follow from this`
+        `\`supabase db push --remote --dry-run\` drift follow from this`
     );
   }
 

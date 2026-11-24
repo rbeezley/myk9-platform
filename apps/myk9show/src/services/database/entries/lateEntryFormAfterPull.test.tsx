@@ -21,9 +21,11 @@ vi.mock('../supabaseClient', async importOriginal => ({
   supabase: {
     from: (table: string) => ({
       select: () => ({
-        in: async (_column: string, ids: unknown) => {
+        in: (_column: string, ids: unknown) => {
           mocks.inCalls.push({ table, ids });
-          return { data: mocks.rows[table] ?? [], error: null };
+          return {
+            abortSignal: async () => ({ data: mocks.rows[table] ?? [], error: null }),
+          };
         },
       }),
     }),

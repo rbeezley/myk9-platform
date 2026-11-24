@@ -75,6 +75,43 @@ function run(
 }
 
 describe('post-review-gate.sh', () => {
+  describe('agy completion marker (MYK9-2326)', () => {
+    const args = (log: string) => ['42', 'agy', 'abc1234', 'def5678', 'no findings', log];
+    it('refuses a clean agy post when the log does not end with END OF REVIEW', () => {
+      for (const text of [
+        'No actionable defects found.\n',
+        'No actionable defects found.\n\nEND OF REVIEW\nmore\n',
+      ]) {
+        const gh = stubGh();
+        const r = run(args(logFile(text)), gh.bin);
+        expect(r.code).toBe(2);
+        expect(r.out).toContain('END OF REVIEW');
+        expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
+      }
+    });
+    it('posts a clean agy log that ends with END OF REVIEW (trailing blank lines allowed)', () => {
+      const gh = stubGh();
+      const r = run(args(logFile('No actionable defects found.\n\nEND OF REVIEW\n\n')), gh.bin);
+      expect(r.code).toBe(0);
+      expect(readFileSync(gh.calls, 'utf8')).toContain('Review gate: agy reviewed');
+    });
+    it('does not require the marker of other reviewers', () => {
+      const gh = stubGh();
+      const r = run(
+        [
+          '42',
+          'codex',
+          'abc1234',
+          'def5678',
+          'no findings',
+          logFile('codex\nNo actionable defects found.\n'),
+        ],
+        gh.bin
+      );
+      expect(r.code).toBe(0);
+    });
+  });
+
   it('posts the evidence line first, then the log hash, then the verdict block', () => {
     const gh = stubGh();
     const log = logFile('codex\nNo actionable defects found.\n');
@@ -104,7 +141,7 @@ describe('post-review-gate.sh', () => {
     const gh = stubGh();
     const log = logFile('codex\nNo actionable defects found on the re-run.\n');
     expect(
-      run(['42', 'claude', '0a2020c7a', '5af9af158', '2 findings, all fixed', log], gh.bin).code
+      run(['42', 'codex', '0a2020c7a', '5af9af158', '2 findings, all fixed', log], gh.bin).code
     ).toBe(0);
   });
 
@@ -176,7 +213,7 @@ describe('post-review-gate.sh', () => {
   it('accepts "no findings" only when the first paragraph carries the contract sentence', () => {
     const gh = stubGh();
     for (const text of [
-      'codex\nNo actionable defects found.\n',
+      'No actionable defects found.\n',
       'No actionable correctness, security, or data-flow regressions were found. Tests pass.\n',
       'The change is small. No actionable issues found.\n',
     ]) {
@@ -333,6 +370,40 @@ describe('post-review-gate.sh', () => {
       0
     );
     expect(readFileSync(gh.calls, 'utf8')).toContain('checked file 59');
+  });
+
+  it.each([
+    [
+      'claude',
+      'No actionable defects found.\n\nNotes:\ncodex\nis only a word on its own line here.\n',
+    ],
+    [
+      'agy',
+      'No actionable defects found.\n\nNotes:\ncodex\nis only a word on its own line here.\n\nEND OF REVIEW\n',
+    ],
+  ])(
+    'a clean %s log containing a bare codex line is read whole and posts (MYK9-2368)',
+    (reviewer, text) => {
+      const gh = stubGh();
+      const log = logFile(text);
+      expect(run(['42', reviewer, '0a2020c7a', '5af9af158', 'no findings', log], gh.bin).code).toBe(
+        0
+      );
+      expect(readFileSync(gh.calls, 'utf8')).toContain('No actionable defects found.');
+    }
+  );
+
+  it('a codex log still reads only the text after its last marker line', () => {
+    const gh = stubGh();
+    // An earlier block with a finding, then the final clean verdict: only the last block counts,
+    // so this posts, and the earlier finding is not in the posted verdict.
+    const log = logFile(
+      'codex\n- [P2] a.ts:1 — an earlier-block defect.\n\ncodex\nNo actionable defects found.\n'
+    );
+    expect(run(['42', 'codex', '0a2020c7a', '5af9af158', 'no findings', log], gh.bin).code).toBe(0);
+    const posted = readFileSync(gh.calls, 'utf8');
+    expect(posted).toContain('No actionable defects found.');
+    expect(posted).not.toContain('earlier-block defect');
   });
 
   describe('owner tier', () => {
@@ -629,7 +700,7 @@ describe('post-review-gate.sh', () => {
         const gh = stubGh();
         const r = run(['1', reviewer, 'abc1234', 'def5678', 'no findings', '/dev/null'], gh.bin);
         expect(r.code).toBe(2);
-        expect(r.out).toMatch(/reviewer must be codex, claude, adversarial, none or owner/);
+        expect(r.out).toMatch(/reviewer must be codex, claude, agy, adversarial, none or owner/);
         expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
       }
     );
@@ -705,7 +776,7 @@ describe('post-review-gate.sh', () => {
   });
 
   describe('the adversarial tier must name its lenses (F3)', () => {
-    const CLEAN = 'codex\nNo actionable defects found.\n';
+    const CLEAN = 'No actionable defects found.\n';
     const VERDICT = '2 lenses, all findings addressed';
 
     it('refuses adversarial with no REVIEW_LENSES at all', () => {

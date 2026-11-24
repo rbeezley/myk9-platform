@@ -162,6 +162,21 @@ should be treated as a hint that changed, not a defect.
 
 Confirm each in the browser and mark holds / regressed:
 
+- **MYK9-1949 phase 4 (Show Desk waiting pills and Entry Forms count parity).** Verify the three Show Desk waiting pills match Entry Forms counts across tabs and filters.
+- **MYK9-2262 (People search with punctuation).** Search People with punctuated queries (`"Smith, Mary"`, `"(Smith)"`) and verify matching records do not return empty.
+- **MYK9-1929 / MYK9-1978 (`Class changes` queue).** On an isolated fixture, verify Accept, Undo, and Decline on exhibitor class-change requests without breaking check-in state or fee accounting.
+- **MYK9-1966 (desk add-on onto held-money form).** On an isolated fixture, confirm adding an entry onto an entry form with held money preserves payment status and totals.
+- **MYK9-2156 (payment/refund dialog failure retention).** On an isolated failure/offline fixture, verify a failed payment or refund dialog keeps typed inputs and shows the error without claiming success.
+- **MYK9-2099 (`Refunds to decide` and Pulls list).** On an isolated fixture, verify denied refunds drop from the count, paid removals/no-shows appear in Pulls, and Deny works for them.
+- **MYK9-1945 (show closeout).** Verify Finish the show / Close out / Reopen / submission unmark-with-reason and refund payout-date wording once built.
+- **MYK9-2235 (paid check/cash receipt label).** Verify a paid check/cash receipt names the received method accurately and never labels it paid online.
+- **MYK9-1924 / MYK9-2075 / MYK9-2079 / MYK9-1977 (print packets and judge record).** Walk the before-trial packet (including cross-day trial numbering such as Heartland Trial 1 Dec 7 / Trials 2–4 Dec 8, saved PDF copy, and earlier-trial note), Judge Review packet, Judge's Record (PDF and email preview, stopping before live send), and After-show packet.
+- **MYK9-1997 (offline paused Judge supplies and Lunch orders).** Verify Judge supplies and Lunch orders show a clean paused/unavailable state (not an empty list) when opened offline before judges are cached, then load on reconnect.
+- **MYK9-2361 (Edit Show trial-day move + Save Changes).** After moving a trial to a different day in Edit Show and editing another show field, verify Save Changes succeeds cleanly without a false "This was changed somewhere else" conflict toast.
+- **MYK9-2362 (Show Desk class Requirements single time card).** On Show Desk → class Requirements, verify only one Time Limit card appears (no duplicate "Max Time: Not set" card alongside the real limit).
+- **MYK9-2330 / MYK9-2332 / MYK9-2328 (Volunteers page & Show Desk steward assignment).** Verify `/secretary/volunteers` links to Show Desk with no per-class steward cards, and Show Desk steward assignment shows the saving label, roomy chip remove hit area, and blocks linked-volunteer assignment while conflict checks are loading or failed.
+- **MYK9-2358 (UKC element time on judge review & record PDFs).** On a UKC dual-timer class, visually inspect the Judge Review packet and Judge's Record PDF to confirm the `Element` column aligns cleanly beside `Search` time without overlapping.
+
 - **MYK9-448** (Done) — on a UKC week, the UKC Nosework Trial Report must be in the catalog on the UKC walk show. **MYK9-447** (Done) — on a UKC week, the mail-in entry is on a seeded dog holding a UKC `dog_registrations` row, so the downloaded UKC entry form should tick the permanent-registration box; this is checkable only if the run can extract the PDF's text (see task 4), otherwise record it UNVERIFIED by harness, never as a pass. Both closed; confirm they have not recurred on the week that can see them.
 
 - **MYK9-283** — RESOLVED. Fixed in #1922, live on staging, and re-verified 2026-09-01: 30 cold loads, 0 false zeros, plus the sibling `scoresheet` report and both trial and class scopes. Do not re-file. If you re-check it, note that re-navigating in ONE browser context does NOT give a cold replica — `myK9_Replication` stays warm from run 2 on, so only run 1 ever tests the bug. Capture `storageState()` after sign-in and open a FRESH context per run: storageState carries cookies and localStorage (where the Supabase session lives) but no IndexedDB.

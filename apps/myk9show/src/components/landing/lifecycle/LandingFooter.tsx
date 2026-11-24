@@ -45,9 +45,9 @@ export function LandingFooter() {
             <h4>Company</h4>
             <ul>
               <li>
-                <a href="#about" className={FOOT_LINK}>
-                  About RyKris
-                </a>
+                <Link to="/about" className={FOOT_LINK}>
+                  About
+                </Link>
               </li>
               <li>
                 <a href="mailto:hello@myk9show.com" className={FOOT_LINK}>

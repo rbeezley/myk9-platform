@@ -74,9 +74,11 @@ function main() {
   console.log('📝 Next Steps:');
   console.log('1. Run the migration commands above in order');
   console.log('2. Edit each .sql file with the table schema');
-  console.log('3. Apply with: npx supabase db push');
   console.log(
-    '4. Generate types: npx supabase gen types typescript --linked > src/types/supabase.ts'
+    '3. After merge, apply with the db-push skill (.claude/skills/db-push/SKILL.md, Step 2; owner approval before --yes)'
+  );
+  console.log(
+    '4. Generate types: cd packages/supabase && SUPABASE_PROJECT_ID=sojmvhhwsjxmfistvzbe pnpm generate-types'
   );
 }
 

@@ -35,7 +35,7 @@ Your club receives entry fees through a payment processor called Stripe. Here is
 
 You ask for a club once, on the myK9Show home page. Choose **Add your club**, sign in or create a free account, and fill in the form: club name, organization (AKC, UKC or ASCA), at least one club number and your contact details. Then choose **Add my club**.
 
-The club exists right away, and you are its **Club Admin** and its **Secretary/show manager**. You can build a show and connect the club's bank account the same day. The screen reads "Your club is waiting for myK9Show approval." Nothing is public until myK9Show approves the club, usually within a day. You get an email when you ask and another when the club is approved or not.
+The club exists right away, and you are its **Club Admin** and its **Show secretary**. You can build a show and connect the club's bank account the same day. The screen reads "Your club is waiting for myK9Show approval." Nothing is public until myK9Show approves the club, usually within a day. You get an email when you ask and another when the club is approved or not.
 
 If the form says "A club with this name is already on myK9Show", the club is already here. Ask its admin to add you, or email us.
 
@@ -43,7 +43,7 @@ These permissions apply only to your club. They do not give you access to anothe
 
 **What happens next:** your home page shows a card titled with your club's name, for example **Get Heartland Scent Work Club's first show published**, that lists what is left. It goes away after your club publishes its first show. [Section 2](#section-2--your-clubs-shows) explains the list on each draft show.
 
-**If your club is already on myK9Show,** do not ask for it again. Ask its club admin to add you (see [Section 3](#section-3--grant-show-access-to-a-secretary), and [Section 7](#section-7--club-members) for adding an admin).
+**If your club is already on myK9Show,** do not ask for it again. Ask its club admin to add you (see [Section 3](#section-3--appoint-a-show-secretary), and [Section 7](#section-7--club-members) for adding an admin).
 
 ---
 
@@ -108,34 +108,34 @@ The **Actions** menu in the top bar has **Edit show**, which opens the show's ed
 
 If you follow a link into one of those pages anyway, you land on a page that says **"Trial secretary access only"** and explains why, with a way back — not a dead end.
 
-If your club needs any of those done, ask your secretary — or grant secretary access to the person who will do them (see [Section 3](#section-3--grant-show-access-to-a-secretary)).
+If your club needs any of those done, ask your secretary — or grant secretary access to the person who will do them (see [Section 3](#section-3--appoint-a-show-secretary)).
 
 ---
 
-## Section 3 — Grant Show Access to a Secretary
+## Section 3 — Appoint a Show Secretary
 
-Show access is managed from the **Members** tab of your club's page, on its **Show Access** tab and in each member's action menu, not from the show itself. This is how you give **someone else** the operational role — you do not grant it to yourself. Your own club admin role already covers your club's shows (see [Section 2](#section-2--your-clubs-shows)).
+Show access is managed from the **Members** tab of your club's page, on its **Show secretaries** tab and in each member's action menu, not from the show itself. This is how you give **someone else** the operational role — you do not grant it to yourself. Your own club admin role already covers your club's shows (see [Section 2](#section-2--your-clubs-shows)).
 
 When you appoint someone to show access, they can manage any of your club's shows, and they get the three things your own role does not carry: entering on an exhibitor's behalf (mail-in, phone, walk-up) and late entries, entering results from paper scoresheets, and volunteer scheduling. Everything else — entries, run order, show-day operations, results, and registry submission — they share with you.
 
 **The person does not need to be a club member.** Appointment is the grant, and club membership is not checked, so you can appoint a hired or professional secretary who is not on your roster. A member whose membership lapses, is suspended, or is resigned keeps show access until you revoke it.
 
-**To appoint anyone with a myK9Show account:** open **My Club** → **Members**, go to the **Show Access** tab, click **Appoint Secretary**, search for the person by name or email, select them, and click **Appoint**.
+**To appoint anyone with a myK9Show account:** open **My Club** → **Members**, go to the **Show secretaries** tab, click **Appoint show secretary**, search for the person by name or email, select them, and click **Appoint**.
 
 **To appoint someone already on your member list:**
 
 1. In the sidebar, open **My Club**, then **Members**.
 2. Find the person you want to make secretary.
 3. Click **⋮** (the action menu) next to their name.
-4. Under **Show Access**, click **Grant Show Access**.
+4. Under **Show secretary**, click **Appoint show secretary**.
 
-![Members tab — members with the Show Manager badge on those who can run shows](../screenshots/C-03.png)
+![Members tab — members with the Show secretary badge on those who can run shows](../screenshots/C-03.png)
 
-The member's row now shows a **Show Manager** badge (key icon) indicating active show access. They can sign in and immediately access show management for all of your club's shows.
+The member's row now shows a **Show secretary** badge (key icon) indicating active show access. They can sign in and immediately access show management for all of your club's shows.
 
-**When someone asks for access:** an exhibitor can ask your club for secretary access from **Request additional access**. Every active club admin of your club receives an email with their name, email address, and reason. The request also appears on the **Show Access** tab under **Pending requests**, which shows a count badge while requests are waiting. Click **Approve** to appoint them, or **Deny** to decline, optionally with a reason. The requester is emailed either way, and your reason is included in the email. They also see the decision, and your reason, when they return to **Request additional access**.
+**When someone asks for access:** an exhibitor can ask your club for secretary access from **Request additional access**. Every active club admin of your club receives an email with their name, email address, and reason. The request also appears on the **Show secretaries** tab under **Pending requests**, which shows a count badge while requests are waiting. Click **Approve** to appoint them, or **Deny** to decline, optionally with a reason. The requester is emailed either way, and your reason is included in the email. They also see the decision, and your reason, when they return to **Request additional access**.
 
-**To revoke access:** open the same **⋮** menu and click **Revoke Show Access**, or use **Revoke** on the **Show Access** tab. The person loses management access immediately. If they are a club member, they stay one.
+**To revoke access:** open the same **⋮** menu and click **Revoke show secretary**, or use **Revoke** on the **Show secretaries** tab. The person loses management access immediately. If they are a club member, they stay one.
 
 > **Note:** Show access is club-wide — anyone you appoint can manage all of your club's shows, not just one. There is no show-by-show secretary access: naming someone as an official on one show is paperwork only and grants nothing. Judges are assigned to shows or classes separately and do not need to be club members.
 
@@ -242,14 +242,14 @@ Two things: Stripe's card processing, which myK9Show neither sets nor receives, 
 
 The **Members** tab lists your club's member roster. Each member has a **Type** (Full Member, Associate, Junior or Honorary) and a **Status** (Active, Lapsed, Suspended or Resigned). Use it to add members, change their type or status, and give or take away show access.
 
-> **Note:** This is not a general membership roster. It lists only people who have been added to your club in myK9Show. Membership alone does not let anyone set up or run shows; that is **Show Access** (Section 3).
+> **Note:** This is not a general membership roster. It lists only people who have been added to your club in myK9Show. Membership alone does not let anyone set up or run shows; that is appointing a **Show secretary** (Section 3).
 
 **View current members:**
 
 1. In the sidebar, open **My Club**, then **Members**. Your club's page opens on its **Members** tab.
 2. The **Members** view lists each person with their type and status. Switch between **All**, **Active**, **Lapsed**, **Suspended** and **Resigned**, or search by name or email.
 
-![Club Members tab — member list with name, email, type, status and Show Manager badge](../screenshots/C-06.png)
+![Club Members tab — the Members, Officers, Show secretaries and Admins sub-tabs above Membership requests](../screenshots/C-06.png)
 
 **Membership requests:** exhibitors can ask to join your club from **Request additional access**. Every active club admin of your club receives an email about each request. Waiting requests appear at the top of the **Members** view under **Membership requests**, and the tab shows a count badge. **Approve** adds the person to the member list as an active member, without show access. **Deny** declines, with an optional reason. The requester is emailed either way, and your reason is included. A denied person cannot send the same request again, but you can still add them yourself at any time.
 
@@ -302,7 +302,7 @@ All shots to be captured and added to `docs/training/screenshot-shot-list.md`. S
 | ------- | ------- | ----------------------------------------------------------- | ---------------------------------------------------- |
 | C-01    | § 1     | Club Settings form — all fields visible                     | captured 2026-10-28 (MYK9-1462)                      |
 | C-02    | § 2     | Club Admin → Shows list                                     | ready                                                |
-| C-03    | § 3     | Members page — member row with Show Manager badge           | captured 2026-10-28 (MYK9-1462)                      |
+| C-03    | § 3     | Members page — member row with Show secretary badge         | captured 2026-10-28 (MYK9-1462)                      |
 | C-04    | § 4     | Payments page — pre-onboarding "Connect bank account" state | stale: shows the old "Connect payment account" label |
 | C-05    | § 5     | Payments page — payout history table                        | captured 2026-10-28 (MYK9-1462)                      |
 | C-06    | § 7     | Club Members page — members list                            | captured 2026-10-28 (MYK9-1462)                      |

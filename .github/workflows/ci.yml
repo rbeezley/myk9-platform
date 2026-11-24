@@ -317,6 +317,7 @@ jobs:
       - name: Codex review wrapper + dist freshness contracts
         run: |
           pnpm qa:codex-review:test
+          pnpm qa:agy-review:test
           pnpm qa:post-review-gate:test
           pnpm qa:claude-review:test
           pnpm qa:dist-fresh:test
@@ -452,7 +453,7 @@ jobs:
 
       - uses: supabase/setup-cli@v3
         with:
-          version: 2.122.0 # exact pin, never latest; see MYK9-1662
+          version: 3.2.0 # exact pin, never latest; see MYK9-1662
 
       - name: Compare committed types with the applied schema
         continue-on-error: true
@@ -477,7 +478,7 @@ jobs:
 
       - uses: supabase/setup-cli@v3
         with:
-          version: 2.122.0 # exact pin, never latest; see MYK9-1662
+          version: 3.2.0 # exact pin, never latest; see MYK9-1662
 
       - name: Financial migration SQL tests
         # REQUIRE=1 so a runner image without Postgres fails loudly instead of
@@ -779,7 +780,7 @@ jobs:
 
       - uses: supabase/setup-cli@v3
         with:
-          version: 2.122.0 # exact pin, never latest; see MYK9-1662
+          version: 3.2.0 # exact pin, never latest; see MYK9-1662
 
       - uses: pnpm/action-setup@v6
 
@@ -913,7 +914,7 @@ jobs:
 
       - uses: supabase/setup-cli@v3
         with:
-          version: 2.122.0 # exact pin, never latest; see MYK9-1662
+          version: 3.2.0 # exact pin, never latest; see MYK9-1662
 
       - uses: pnpm/action-setup@v6
 

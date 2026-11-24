@@ -74,7 +74,7 @@ may have `overflow: hidden`, which clips the dropdown. Two approaches:
 2. **Scroll into view** — `await btn.scrollIntoViewIfNeeded()` before clicking, then
    screenshot quickly before the dropdown repositions.
 
-For the Members page **Show Manager badge**, the badge is visible on the row itself without
+For the Members page **Show secretary** badge, the badge is visible on the row itself without
 opening the menu — prefer that state for screenshots.
 
 ## Post-navigation settle

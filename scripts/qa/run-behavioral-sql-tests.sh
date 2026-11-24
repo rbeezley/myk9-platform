@@ -82,6 +82,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_2292_judge_affiliation_test.sql"
   "$TEST_DIR/myk9_2294_set_judge_affiliation_test.sql"
   "$TEST_DIR/myk9_2197_show_publish_blockers_test.sql"
+  "$TEST_DIR/myk9_2192_show_card_entries_paused_test.sql"
   "$TEST_DIR/myk9_2199_club_first_show_published_test.sql"
   "$TEST_DIR/myk9_2054_own_premium_unpublish_test.sql"
   "$TEST_DIR/myk9_909_club_creator_select_test.sql"
@@ -232,6 +233,7 @@ TEST_FILES=(
   "$TEST_DIR/withdraw_or_pull_own_entry_test.sql"
   "$TEST_DIR/myk9_1929_class_change_request_test.sql"
   "$TEST_DIR/myk9_2122_undo_class_change_keeps_request_test.sql"
+  "$TEST_DIR/myk9_2349_reverse_move_up_area5_element_guard_test.sql"
   "$TEST_DIR/myk9_778_no_owner_withdraw_after_show_completed_test.sql"
   "$TEST_DIR/myk9_719_scratch_requested_retired_test.sql"
   "$TEST_DIR/update_own_entry_jump_height_test.sql"
@@ -239,6 +241,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_1969_place_in_line_claim_state_test.sql"
   "$TEST_DIR/myk9_1963_entry_receipt_marker_test.sql"
   "$TEST_DIR/myk9_2088_confirmation_claim_lease_test.sql"
+  "$TEST_DIR/myk9_2341_server_only_column_guards_test.sql"
   "$TEST_DIR/myk9_1048_submit_entries_next_run_order_test.sql"
   "$TEST_DIR/myk9_1010_owner_address_required_test.sql"
   "$TEST_DIR/myk9_1010_fill_entry_owner_address_test.sql"
@@ -288,6 +291,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_1975_junior_fee_limit_test.sql"
   "$TEST_DIR/myk9_1931_class_fee_wins_test.sql"
   "$TEST_DIR/golden_replay_trial_27835_test.sql"
+  "$TEST_DIR/schema_security_invariants_test.sql"
 )
 
 # MYK9-1659: optional file arguments run ONLY those registered tests, against the

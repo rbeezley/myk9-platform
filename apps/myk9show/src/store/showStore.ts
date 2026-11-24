@@ -126,7 +126,7 @@ export function replicatedToShow(replicated: ReplicatedShow): Show {
  * Merge replicated show data with existing local show data
  * Preserves local-only fields (trials, judges, stats)
  */
-function mergeShowData(replicated: ReplicatedShow, existing: Show | undefined): Show {
+export function mergeShowData(replicated: ReplicatedShow, existing: Show | undefined): Show {
   const base = replicatedToShow(replicated);
   if (!existing) return base;
 
@@ -149,7 +149,7 @@ function mergeShowData(replicated: ReplicatedShow, existing: Show | undefined): 
  * fields are not stored on the show row, so we have to join here so UI
  * consumers (cards, headers) see a populated club name instead of "TBD".
  */
-function hydrateClubFields(show: Show, clubsById: Map<string, ReplicatedClub>): Show {
+export function hydrateClubFields(show: Show, clubsById: Map<string, ReplicatedClub>): Show {
   if (!show.clubId) return show;
   const club = clubsById.get(show.clubId);
   if (!club) return show;

@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { disposableClass, registerDisposableProofHooks } from './disposableClass';
 import {
   evidence,
+  expectDeviceQueueDrained,
   isolatedClient,
   judgeRow,
   queueSnapshot,
@@ -110,6 +111,10 @@ test('Ringside at 375 px: open, leave unscored, score, reset (MYK9-1762, MYK9-17
     .poll(async () => (await row(client, f.willowId)).result_status, { timeout: 30_000 })
     .toBe('qualified');
   const scored = await ringState(client, f.willowId);
+  // MYK9-2370: the server row shows the score as soon as the RPC commits, but the device only
+  // takes the new version when it processes the reply. Reloading in that gap left the reset on the
+  // old version, held behind a "scored two ways" notice (product gap: MYK9-2371).
+  await expectDeviceQueueDrained(page);
 
   // Reset the score: the dog is unscored again and its ring time is gone (MYK9-1778).
   await page.goto(path);

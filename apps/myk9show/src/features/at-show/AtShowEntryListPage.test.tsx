@@ -40,7 +40,7 @@ vi.mock('@/services/replication', () => ({
   },
   replicatedShowsTable: { getShowById: vi.fn() },
   replicatedClassesTable: {
-    batchDelete: vi.fn(),
+    deleteRowsIfClean: vi.fn(),
     getClassById: vi.fn(),
     sync: vi.fn(),
     subscribe: vi.fn(() => vi.fn()),
@@ -651,7 +651,7 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
   it('resets a moved or deleted class locally before complete reconciliation', async () => {
     await syncAtShowChangeSignals('show-1', [{ table: 'classes', id: 'class-1' }]);
 
-    expect(replicatedClassesTable.batchDelete).toHaveBeenCalledWith(['class-1']);
+    expect(replicatedClassesTable.deleteRowsIfClean).toHaveBeenCalledWith(['class-1']);
     expect(replicatedTrialsTable.sync).toHaveBeenCalledWith(
       'show-1',
       expect.objectContaining({ signal: expect.any(AbortSignal) })

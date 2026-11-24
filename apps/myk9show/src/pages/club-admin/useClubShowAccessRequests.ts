@@ -65,7 +65,7 @@ export function useClubShowAccessRequests(
       // this tab can list people the roster structurally cannot.
       {
         id: 'show-access',
-        label: 'Show Access',
+        label: 'Show secretaries',
         icon: KeyRound,
         ...(pendingRoleRequests.length > 0 ? { badge: pendingRoleRequests.length } : {}),
       },

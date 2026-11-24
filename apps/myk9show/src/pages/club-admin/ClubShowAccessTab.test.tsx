@@ -269,7 +269,7 @@ describe('AppointSecretaryDialog before a search (MYK9-1983)', () => {
 });
 
 describe('AppointSecretaryDialog title', () => {
-  it('is titled "Appoint Secretary", not "Appoint Show Secretary"', () => {
+  it('is titled "Appoint show secretary"', () => {
     render(
       <AppointSecretaryDialog
         open
@@ -281,7 +281,6 @@ describe('AppointSecretaryDialog title', () => {
       />
     );
 
-    expect(screen.getByRole('heading', { name: 'Appoint Secretary' })).toBeInTheDocument();
-    expect(screen.queryByText(/appoint show secretary/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Appoint show secretary' })).toBeInTheDocument();
   });
 });

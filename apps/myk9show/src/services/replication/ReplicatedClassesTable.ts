@@ -400,6 +400,10 @@ export const CLASS_DIRTY_ROW_COMPARE_POLICY: DirtyRowComparePolicy = {
     field === 'classStatus' && typeof value === 'string' ? foldClassStatus(value) : value,
   normalizeRemoteComparison: notServerChangedJudge,
   serverWinsFields: ['actual_end_time'],
+  // MYK9-2346: a trigger stamps `time_limit_set_at`; `updateTimeLimits` clears it locally while
+  // the upload never carries it, so base, local and remote all differ mid-edit. Staleness, not
+  // a collision: always taken from the server.
+  serverOwnedFields: ['timeLimitSetAt', 'time_limit_set_at'],
   // One judge across five fields: a changed judge is kept whole, never half-replaced.
   fieldGroups: [[...CLASS_JUDGE_FIELDS]],
 };
@@ -939,6 +943,10 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       filterLocalRows: (rows, scope) =>
         scope.value ? rows.filter(r => r.trialId === scope.value) : rows,
       resolveConflict: (local, remote) => this.resolveConflict(local, remote),
+      // MYK9-2346: hard-deleted classes must leave the replica on a full sync. The engine
+      // keeps dirty rows and rows with pending writes, and skips cleanup after a fetch short
+      // of the server count (getRemoteRowCount above).
+      cleanupStaleRowsOnFullSync: true,
     };
 
     const result = await syncReplicatedTable(

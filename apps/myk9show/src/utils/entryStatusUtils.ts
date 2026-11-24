@@ -171,10 +171,14 @@ export function getEntryStatus(
  * Why a public landing is withholding its Enter CTA before entries are open,
  * or `undefined` when entries are not pending. Landings use the reason to word
  * the copy: only `not_yet_open` means a dated "opens" claim can be true.
- * `online_setting_unknown` is added by the landing caller, not by status.
+ * `online_setting_unknown`, `card_entries_checking` and `card_entries_paused` (MYK9-2192) are
+ * added by the landing caller, not by status.
  */
 export type EntryPendingReason =
-  Extract<EntryStatus, 'not_yet_open' | 'window_unknown'> | 'online_setting_unknown';
+  | Extract<EntryStatus, 'not_yet_open' | 'window_unknown'>
+  | 'online_setting_unknown'
+  | 'card_entries_checking'
+  | 'card_entries_paused';
 
 /**
  * The reason entries are not open YET: the window has not opened, or nobody set

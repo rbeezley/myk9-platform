@@ -112,6 +112,7 @@ export function BulkStewardDialog({
                     type="button"
                     variant={item === role ? 'secondary' : 'outline'}
                     aria-pressed={item === role}
+                    disabled={saving}
                     onClick={() => setRole(item)}
                   >
                     {item}
@@ -136,6 +137,7 @@ export function BulkStewardDialog({
                     placeholder="Search volunteers..."
                     aria-label="Search volunteers"
                     value={search}
+                    disabled={saving}
                     onChange={e => setSearch(e.target.value)}
                   />
                   <div className="max-h-48 space-y-1 overflow-y-auto">
@@ -151,6 +153,7 @@ export function BulkStewardDialog({
                         variant={vol.id === volunteerId ? 'secondary' : 'ghost'}
                         aria-pressed={vol.id === volunteerId}
                         className="w-full justify-start"
+                        disabled={saving}
                         onClick={() => setVolunteerId(vol.id)}
                       >
                         {vol.name}
@@ -192,7 +195,7 @@ export function BulkStewardDialog({
             onClick={confirm}
             disabled={!chosen || toAssign.length === 0 || checkingConflicts || saving}
           >
-            {summary.confirmLabel}
+            {saving ? 'Assigning…' : summary.confirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

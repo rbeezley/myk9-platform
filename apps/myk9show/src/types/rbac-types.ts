@@ -385,7 +385,7 @@ export const PERMISSION_TEMPLATES: Record<string, PermissionTemplate> = {
   'show-manager': {
     id: 'show-manager',
     name: 'show-manager',
-    displayName: 'Show Manager',
+    displayName: 'Show secretary',
     description: 'Full show management capabilities',
     category: 'system',
     permissions: [

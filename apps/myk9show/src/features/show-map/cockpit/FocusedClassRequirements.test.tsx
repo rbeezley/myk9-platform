@@ -59,8 +59,8 @@ describe('FocusedClassRequirements (MYK9-2118)', () => {
 
     expect(await screen.findByText('Time limit: 2:00')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /requirements/i }));
-    expect(await screen.findByText('1:00–3:00')).toBeInTheDocument();
-    expect(screen.getByText('2–6')).toBeInTheDocument();
+    expect(await screen.findByText('2–6')).toBeInTheDocument();
+    expect(screen.queryByText('1:00–3:00')).not.toBeInTheDocument();
     expect(screen.getByText('Birch')).toBeInTheDocument();
     expect(screen.queryByText(/Area 2/)).not.toBeInTheDocument();
   });
@@ -90,6 +90,65 @@ describe('FocusedClassRequirements (MYK9-2118)', () => {
     replica.rows.set('c0', { id: 'c0', element: 'Interior', level: 'Master' });
     render(<FocusedClassRequirements classId="c0" registryId="AKC" timeZone="America/New_York" />);
     expect(await screen.findByText('Time limit: Not set')).toBeInTheDocument();
+  });
+
+  describe('one time card (MYK9-2362)', () => {
+    const fixedRule = { ...rule, fixed: 120, forElement: 'Container', forLevel: 'Novice' };
+
+    it('shows a fixed-rule time once, in the header and the card, with nothing saved', async () => {
+      replica.rows.set('c1', {
+        id: 'c1',
+        element: 'Container',
+        level: 'Novice',
+        areaCount: 1,
+        timeLimitRule: fixedRule,
+      });
+      render(
+        <FocusedClassRequirements classId="c1" registryId="AKC" timeZone="America/New_York" />
+      );
+      expect(await screen.findByText('Time limit: 2:00')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: /requirements/i }));
+      expect(await screen.findByText('Time Limit')).toBeInTheDocument();
+      expect(screen.getAllByText('2:00')).toHaveLength(1);
+      expect(screen.queryByText('Not set')).not.toBeInTheDocument();
+      expect(screen.queryByText(/Max Time/)).not.toBeInTheDocument();
+    });
+
+    it('says Not set once and shows the range on the same card', async () => {
+      replica.rows.set('c1', {
+        id: 'c1',
+        element: 'Interior',
+        level: 'Master',
+        areaCount: 1,
+        timeLimitRule: rule,
+      });
+      render(
+        <FocusedClassRequirements classId="c1" registryId="AKC" timeZone="America/New_York" />
+      );
+      expect(await screen.findByText('Time limit: Not set')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: /requirements/i }));
+      expect(await screen.findByText('Judge sets within 1:00–3:00')).toBeInTheDocument();
+      expect(screen.getAllByText('Time Limit')).toHaveLength(1);
+      expect(screen.getAllByText('Not set')).toHaveLength(1);
+    });
+
+    it('lets the saved time win over the rule', async () => {
+      replica.rows.set('c1', {
+        id: 'c1',
+        element: 'Container',
+        level: 'Novice',
+        areaCount: 1,
+        timeLimitSeconds: 90,
+        timeLimitRule: fixedRule,
+      });
+      render(
+        <FocusedClassRequirements classId="c1" registryId="AKC" timeZone="America/New_York" />
+      );
+      expect(await screen.findByText('Time limit: 1:30')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: /requirements/i }));
+      expect(await screen.findByText('Time Limit')).toBeInTheDocument();
+      expect(screen.queryByText('2:00')).not.toBeInTheDocument();
+    });
   });
 
   describe('when the limit was set (MYK9-2120)', () => {

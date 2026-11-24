@@ -77,7 +77,7 @@ export const ExistingClubRequestPanel: React.FC<{ club: Club }> = ({ club }) => 
         <div className="rounded-lg border border-border p-4">
           <p className="flex items-center gap-2 font-semibold">
             <KeyRound className="h-5 w-5 text-primary" />
-            Secretary or show-manager access
+            Show-secretary access
           </p>
           <p className="mt-1 text-sm text-muted-foreground">{SECRETARY_COPY.explanation}</p>
           <Button className="mt-3 min-h-11" onClick={() => setType('secretary')}>
@@ -91,7 +91,7 @@ export const ExistingClubRequestPanel: React.FC<{ club: Club }> = ({ club }) => 
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold">
-        {type === 'membership' ? 'Join as a club member' : 'Secretary or show-manager access'}
+        {type === 'membership' ? 'Join as a club member' : 'Show-secretary access'}
       </h3>
       {type === 'membership' ? <MembershipRequest club={club} /> : <SecretaryRequest club={club} />}
       <Button variant="ghost" className="min-h-11" onClick={() => setType(null)}>

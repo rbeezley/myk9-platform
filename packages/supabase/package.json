@@ -23,10 +23,10 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "clean": "rimraf dist",
-    "generate-types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > src/types/database.types.ts"
+    "generate-types": "bash scripts/generate-types.sh"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.119.0"
+    "@supabase/supabase-js": "^2.119.2"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^5.1.0",

@@ -228,6 +228,17 @@
   [data-banner] .bn-hero-title {
     font-size: 48px !important;
   }
+  /* Four meta cells are too narrow for "To be announced" at phone width:
+     fold to 2x2 so each cell has room to wrap on word boundaries. */
+  [data-banner] .bn-meta-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  [data-banner] .bn-meta-cell:nth-child(2n) {
+    border-right: none !important;
+  }
+  [data-banner] .bn-meta-cell:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--bn-meta-rule);
+  }
 }
 
 /* Honour reduced-motion: drop reveal transitions, kill the status pulse. */

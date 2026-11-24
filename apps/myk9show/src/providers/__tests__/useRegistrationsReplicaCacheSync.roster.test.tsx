@@ -109,8 +109,8 @@ describe('dog roster refresh: leading edge, then one trailing per window (MYK9-1
     await vi.advanceTimersByTimeAsync(ROSTER_REFRESH_COALESCE_MS * 2);
 
     expect(rostersInvalidated(queryClient)).toEqual([true, true]);
-    // 4 other-read filters, once, plus the roster filter, once.
-    expect(cancels).toHaveBeenCalledTimes(5);
+    // 5 other-read filters, once, plus the roster filter, once.
+    expect(cancels).toHaveBeenCalledTimes(6);
   });
 
   it('a change after the window is idle again refreshes at once', async () => {

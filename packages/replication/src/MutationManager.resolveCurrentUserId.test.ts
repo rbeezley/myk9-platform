@@ -8,8 +8,8 @@ import { MutationManager, type MutationManagerOptions } from './MutationManager'
  * waits on the network: with an expired token offline the live lookup retries
  * its refresh with backoff for tens of seconds, and guarded IndexedDB reads
  * must not wait on that. The live lookup answers only when nothing is
- * persisted. The queue and upload paths keep `requireCurrentUserId`, which
- * never consults the cache.
+ * persisted. Upload paths keep `requireCurrentUserId`, which never consults the
+ * cache; local queue reads and reconcile helpers use the queue-owner fallback (MYK9-2337).
  */
 
 function manager(options: MutationManagerOptions) {
@@ -68,11 +68,19 @@ describe('MutationManager.resolveCurrentUserId', () => {
     expect(await manager({}).resolveCurrentUserId()).toBeNull();
   });
 
-  it('never lends the cached id to queue operations', async () => {
+  it('lends the cached id to LOCAL queue reads, offline past expiry (MYK9-2337)', async () => {
     const m = manager({
       getCurrentUserId: async () => offline(),
       getCachedUserId: () => 'cached-user',
     });
-    await expect(m.getFailedMutations()).rejects.toThrow();
+    await expect(m.getFailedMutations()).resolves.toEqual([]);
+  });
+
+  it('never lends the cached id to a queue operation that re-arms upload', async () => {
+    const m = manager({
+      getCurrentUserId: async () => offline(),
+      getCachedUserId: () => 'cached-user',
+    });
+    await expect(m.retryFailedMutation('m1')).rejects.toThrow();
   });
 });

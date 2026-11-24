@@ -11,7 +11,7 @@
  *
  * INTENT: a request is an ask, never a grant. Approve here calls the same
  * grant_club_secretary path — and gets the same permission_audit_log row —
- * as appointing someone directly from this tab's "Appoint Secretary" button.
+ * as appointing someone directly from this tab's "Appoint show secretary" button.
  */
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';

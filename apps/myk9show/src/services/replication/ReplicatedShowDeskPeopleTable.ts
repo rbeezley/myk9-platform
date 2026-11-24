@@ -105,7 +105,12 @@ export class ReplicatedShowDeskPeopleTable extends ReplicatedTable<ReplicatedSho
   /**
    * MYK9-2255, at sign-out: a row with unsent work keeps every field; a row that
    * was sent keeps the name only. Covers every account's rows on this device.
-   * Throws when storage cannot be read or written (the caller retries later).
+   *
+   * MYK9-2356: "sent" is read from the row's own replication state (clean wrapper,
+   * not `_localOnly`), never from the mutation queue, which needs a signed-in user
+   * and so throws at sign-out. A row whose state is unknown counts as unsent. A row
+   * that fails is logged and skipped; the rest are still stripped, and the strip
+   * runs again at the next start. Throws only when storage cannot be read.
    */
   async redactSentContacts(): Promise<void> {
     const db = await this.init();
@@ -115,16 +120,22 @@ export class ReplicatedShowDeskPeopleTable extends ReplicatedTable<ReplicatedSho
     let changed = false;
     for (const candidate of all) {
       if (candidate.tableName !== table || !hasContacts(candidate.data)) continue;
-      if (await this.hasUnsyncedLocalWork(candidate.id)) continue;
-      const tx = db.transaction(store, 'readwrite');
-      const row = (await tx.store.get([table, candidate.id])) as
-        ReplicatedRow<ReplicatedShowDeskPerson> | undefined;
-      const data = row?.data as (ReplicatedShowDeskPerson & { _localOnly?: boolean }) | undefined;
-      if (row && data && !row.isDirty && data._localOnly !== true) {
-        await tx.store.put({ ...row, data: { ...data, ...NO_CONTACTS } });
-        changed = true;
+      try {
+        const tx = db.transaction(store, 'readwrite');
+        const row = (await tx.store.get([table, candidate.id])) as
+          ReplicatedRow<ReplicatedShowDeskPerson> | undefined;
+        const data = row?.data as ReplicatedShowDeskPerson | undefined;
+        if (row && data && row.isDirty === false && data._localOnly !== true) {
+          await tx.store.put({ ...row, data: { ...data, ...NO_CONTACTS } });
+          changed = true;
+        }
+        await tx.done;
+      } catch (error) {
+        logger.error(
+          `[${table}] Could not remove contact details from row ${candidate.id}`,
+          error as Error
+        );
       }
-      await tx.done;
     }
     if (changed) await this.notifyListeners();
   }

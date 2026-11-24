@@ -43,13 +43,13 @@ So the design already recognises the phone's own writes. The gap is that this re
 
 ## Recommendation
 
-1. First, the reproduction test (Testing, step 1). If it cannot be made to fail, close MYK9-2371 with the evidence and keep the MYK9-2370 spec wait.
+1. First, the reproduction test (Testing, step 1). If it passes on `main`, close MYK9-2371 with the evidence and keep the MYK9-2370 spec wait.
 2. If it reproduces: D now (small, safe), and B after the December mock show, since it touches the RPC and the sync core.
 3. A is acceptable for the mock show.
 
 ## Testing
 
-1. **Reproduction first** (`packages/replication`, near `MutationManager.delayed-response.test.ts`). Send A, commit it on the stub server, drop the reply, rebuild the manager from the same IndexedDB (the reload), then queue B. Assert the conflict appears, and name the ordering that causes it. The test must fail on current `main` before any fix.
+1. **Reproduction first, asserting the wanted outcome** (`packages/replication`, near `MutationManager.delayed-response.test.ts`). Send A, commit it on the stub server, drop the reply, rebuild the manager from the same IndexedDB (the reload), then queue B. Assert no conflict, B sent with the advanced version, and B stored on the server. On `main` the test must fail with the unexpected conflict, and the failure names the ordering. If it passes on `main`, the bug does not reproduce in the replication layer: close MYK9-2371 with that evidence.
 2. **For B:**
    - After the fix, the same test shows no conflict, B is sent with the new version, and the server holds B.
    - Control: another account writes the same value to the same field. The conflict must still fire.

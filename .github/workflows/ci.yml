@@ -317,6 +317,7 @@ jobs:
       - name: Codex review wrapper + dist freshness contracts
         run: |
           pnpm qa:codex-review:test
+          pnpm qa:agy-review:test
           pnpm qa:post-review-gate:test
           pnpm qa:claude-review:test
           pnpm qa:dist-fresh:test

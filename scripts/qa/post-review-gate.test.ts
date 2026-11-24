@@ -75,6 +75,43 @@ function run(
 }
 
 describe('post-review-gate.sh', () => {
+  describe('agy completion marker (MYK9-2326)', () => {
+    const args = (log: string) => ['42', 'agy', 'abc1234', 'def5678', 'no findings', log];
+    it('refuses a clean agy post when the log does not end with END OF REVIEW', () => {
+      for (const text of [
+        'No actionable defects found.\n',
+        'No actionable defects found.\n\nEND OF REVIEW\nmore\n',
+      ]) {
+        const gh = stubGh();
+        const r = run(args(logFile(text)), gh.bin);
+        expect(r.code).toBe(2);
+        expect(r.out).toContain('END OF REVIEW');
+        expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
+      }
+    });
+    it('posts a clean agy log that ends with END OF REVIEW (trailing blank lines allowed)', () => {
+      const gh = stubGh();
+      const r = run(args(logFile('No actionable defects found.\n\nEND OF REVIEW\n\n')), gh.bin);
+      expect(r.code).toBe(0);
+      expect(readFileSync(gh.calls, 'utf8')).toContain('Review gate: agy reviewed');
+    });
+    it('does not require the marker of other reviewers', () => {
+      const gh = stubGh();
+      const r = run(
+        [
+          '42',
+          'codex',
+          'abc1234',
+          'def5678',
+          'no findings',
+          logFile('codex\nNo actionable defects found.\n'),
+        ],
+        gh.bin
+      );
+      expect(r.code).toBe(0);
+    });
+  });
+
   it('posts the evidence line first, then the log hash, then the verdict block', () => {
     const gh = stubGh();
     const log = logFile('codex\nNo actionable defects found.\n');
@@ -629,7 +666,7 @@ describe('post-review-gate.sh', () => {
         const gh = stubGh();
         const r = run(['1', reviewer, 'abc1234', 'def5678', 'no findings', '/dev/null'], gh.bin);
         expect(r.code).toBe(2);
-        expect(r.out).toMatch(/reviewer must be codex, claude, adversarial, none or owner/);
+        expect(r.out).toMatch(/reviewer must be codex, claude, agy, adversarial, none or owner/);
         expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
       }
     );

@@ -134,6 +134,11 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
   },
   {
     pkgDir: '.',
+    script: 'qa:agy-review:test',
+    command: 'vitest run scripts/qa/agy-review.test.ts',
+  },
+  {
+    pkgDir: '.',
     script: 'qa:post-review-gate:test',
     command:
       'vitest run scripts/qa/post-review-gate.test.ts scripts/qa/post-review-gate.coverage.test.ts scripts/qa/post-review-gate.refs.test.ts',

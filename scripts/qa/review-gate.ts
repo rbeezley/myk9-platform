@@ -82,6 +82,7 @@ export const REVIEWER_TOKENS = [
   'independent/claude',
   'codex',
   'claude',
+  'agy',
   'adversarial',
   'owner',
   'none',
@@ -131,7 +132,7 @@ export interface GateResult {
  * trigger filter uses the same rule); the dash accepts em, en or hyphen.
  */
 export const REVIEW_GATE_LINE =
-  /^Review gate: (independent\/codex|independent\/claude|codex|claude|adversarial|owner|none) reviewed ([0-9a-f]{7,40})\.\.([0-9a-f]{7,40})\s+[—–-]\s+(.+?)\s*$/m;
+  /^Review gate: (independent\/codex|independent\/claude|codex|claude|agy|adversarial|owner|none) reviewed ([0-9a-f]{7,40})\.\.([0-9a-f]{7,40})\s+[—–-]\s+(.+?)\s*$/m;
 
 /**
  * MYK9-532: `human-fallback` is retired and is deliberately NOT part of
@@ -176,6 +177,9 @@ const TIER_BY_REVIEWER = {
   'independent/claude': 'independent',
   codex: 'independent',
   claude: 'independent',
+  // MYK9-2326: agy (Antigravity CLI) is the cross-harness reviewer that replaces
+  // Codex for Claude-authored work. Same tier, same SHA pin, same grammar.
+  agy: 'independent',
   adversarial: 'adversarial',
   owner: 'owner',
   none: 'none',

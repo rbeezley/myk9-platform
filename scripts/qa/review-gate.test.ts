@@ -223,6 +223,28 @@ describe('evaluateReviewGate', () => {
     expect(r.description).toContain('no findings');
   });
 
+  it('passes on a clean agy review of the current head (MYK9-2326)', () => {
+    const r = evaluateReviewGate({
+      headSha: HEAD,
+      changedFiles: [],
+      comments: [comment(`Review gate: agy reviewed 0a2020c7a..${H9} — no findings`)],
+    });
+    expect(r.state).toBe('success');
+    expect(r.evidence?.reviewer).toBe('agy');
+  });
+
+  it('fails when the only agy review is for an EARLIER head (MYK9-2326)', () => {
+    const r = evaluateReviewGate({
+      headSha: HEAD,
+      changedFiles: [],
+      comments: [
+        comment(`Review gate: agy reviewed 0a2020c7a..${OLD_HEAD.slice(0, 9)} — no findings`),
+      ],
+    });
+    expect(r.state).toBe('failure');
+    expect(r.description).toMatch(/no independent review recorded/);
+  });
+
   it('passes when findings were reported AND addressed', () => {
     const r = evaluateReviewGate({
       headSha: HEAD,
@@ -958,6 +980,23 @@ describe('floor enforcement', () => {
         changedFiles: ['scripts/qa/review-gate.ts'],
       });
       expect(result.state).toBe('failure');
+    } finally {
+      if (prev === undefined) delete process.env.MYK9_REVIEW_TIERS;
+      else process.env.MYK9_REVIEW_TIERS = prev;
+    }
+  });
+
+  it('the kill switch also ignores agy evidence: legacy mode is the pre-tier codex/claude pair (MYK9-2326)', () => {
+    const prev = process.env.MYK9_REVIEW_TIERS;
+    process.env.MYK9_REVIEW_TIERS = 'off';
+    try {
+      const result = evaluateReviewGate({
+        headSha: HEAD,
+        changedFiles: [],
+        comments: [comment(`Review gate: agy reviewed 0a2020c7a..${H9} — no findings`)],
+      });
+      expect(result.state).toBe('failure');
+      expect(result.description).toMatch(/no independent review recorded/);
     } finally {
       if (prev === undefined) delete process.env.MYK9_REVIEW_TIERS;
       else process.env.MYK9_REVIEW_TIERS = prev;

@@ -16,7 +16,7 @@
 # checker rejects and the log really does carry findings — it can only ever
 # make the gate redder.
 #
-# Usage: post-review-gate.sh [--withdraw] <pr> <codex|claude|adversarial|none|owner> <base-sha> <head-sha> "<verdict>" <log>
+# Usage: post-review-gate.sh [--withdraw] <pr> <codex|claude|agy|adversarial|none|owner> <base-sha> <head-sha> "<verdict>" <log>
 # Exit:  0 posted · 2 refused (bad reviewer/verdict grammar, missing or
 #        malformed owner env vars, the phone-width walk not green on a PR
 #        that needs it, or — codex/claude/adversarial only — an
@@ -107,8 +107,8 @@ has_any_terminator() {  # the above, plus LF
 }
 
 case "$REVIEWER" in
-  codex|claude|adversarial|none|owner) ;;
-  *) echo "post-review-gate: reviewer must be codex, claude, adversarial, none or owner" >&2; exit 2;;
+  codex|claude|agy|adversarial|none|owner) ;;
+  *) echo "post-review-gate: reviewer must be codex, claude, agy, adversarial, none or owner" >&2; exit 2;;
 esac
 
 # MYK9-1967: the evidence line is `<reviewer> reviewed <base9>..<head9>`, and
@@ -395,6 +395,14 @@ if [ "$LOG_SUPPLIED" = 1 ] && [ "$WITHDRAW" != 1 ]; then
   fi
 fi
 if [ "$HAS_REVIEW_LOG" = 1 ] && [ "$WITHDRAW" != 1 ]; then
+  # agy prints no marker line and exits 0 when cut off, so its completion is a
+  # positive signal: the wrapper's prompt makes the last line END OF REVIEW, and
+  # a clean post for a log without it is refused (MYK9-2326).
+  if [ "$REVIEWER" = "agy" ] &&
+    [ "$(awk 'NF{l=$0} END{sub(/[[:space:]]+$/, "", l); print l}' "$LOG")" != "END OF REVIEW" ]; then
+    echo "post-review-gate: agy log does not end with the line END OF REVIEW (cut off or incomplete); nothing posted" >&2
+    exit 2
+  fi
   # Not free text: both review wrappers instruct the reviewer to open a clean
   # verdict with the CONTRACT sentence "No actionable <findings> ..." and
   # nothing else counts. "No findings yet; only the workflow file has been
@@ -441,7 +449,7 @@ elif [ "$REVIEWER" = "owner" ]; then
     "$REVIEWER" "${BASE:0:9}" "${HEAD:0:9}" "$VERDICT" "$OVERRIDE_REASON" "$DEFERRED_REVIEW" "$HASH" "$REVIEWER" "$VERDICT_BLOCK")"
 else
   COVERAGE_LINE=""
-  if [ "$REVIEWER" = "codex" ] && [ "$WITHDRAW" != 1 ] && [ -n "${REVIEW_COVERAGE_FROM:-}" ]; then
+  if { [ "$REVIEWER" = "codex" ] || [ "$REVIEWER" = "agy" ]; } && [ "$WITHDRAW" != 1 ] && [ -n "${REVIEW_COVERAGE_FROM:-}" ]; then
     case "$REVIEW_COVERAGE_FROM" in
       *[!0-9a-f]*) echo "post-review-gate: REVIEW_COVERAGE_FROM must be a hex commit sha; nothing posted" >&2; exit 2;;
     esac

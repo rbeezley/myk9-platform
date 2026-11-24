@@ -110,6 +110,20 @@ test('Ringside at 375 px: open, leave unscored, score, reset (MYK9-1762, MYK9-17
     .poll(async () => (await row(client, f.willowId)).result_status, { timeout: 30_000 })
     .toBe('qualified');
   const scored = await ringState(client, f.willowId);
+  // MYK9-2370: the server row shows the score as soon as the RPC commits, but the device only drops
+  // the write and takes the new version when the response is processed. Reloading before then left
+  // the reset stamped with the old version, so the server read the device's own score as another
+  // device's and held the reset behind a "scored two ways" notice. Wait for the device's own signal.
+  await expect
+    .poll(
+      async () => {
+        const queue = await queueSnapshot(page);
+        const pending = queue.pending_mutations;
+        return Array.isArray(pending) ? pending.length : -1;
+      },
+      { timeout: 30_000 }
+    )
+    .toBe(0);
 
   // Reset the score: the dog is unscored again and its ring time is gone (MYK9-1778).
   await page.goto(path);

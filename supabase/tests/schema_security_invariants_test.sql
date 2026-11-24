@@ -375,6 +375,10 @@ BEGIN
 END;
 $$;
 
+-- pg_get_triggerdef() schema-qualifies function names that are not on the
+-- search_path, so pin it: section F compares trigger definitions as text.
+SET LOCAL search_path = pg_catalog, public;
+
 -- ===========================================================================
 -- F. Critical server-owned column write-guard triggers remain attached and
 --    enabled, and withheld columns on `classes` / `judge_assignments` stay

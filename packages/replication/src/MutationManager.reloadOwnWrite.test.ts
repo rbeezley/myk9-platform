@@ -64,11 +64,23 @@ describe('a reload between the server commit and the reply (MYK9-2371)', () => {
     await databaseManager.reset();
   });
 
+  /**
+   * What `ringside_update_entry` keeps of p_fields: only its allowed list is applied, so an unknown
+   * field is dropped. The shared fixture row stores the free-text reason in `reason_text`; here
+   * that column stands for the allowed `disqualification_reason`.
+   */
+  function toRowColumns(fields: Record<string, unknown>): Record<string, unknown> {
+    const columns: Record<string, unknown> = {};
+    if ('result_status' in fields) columns.result_status = fields.result_status;
+    if ('disqualification_reason' in fields) columns.reason_text = fields.disqualification_reason;
+    return columns;
+  }
+
   /** `ringside_update_entry` as a stub server, with a switch that drops replies. */
   function makeRpcServer() {
     const row: RemoteScore = {
       id: '1',
-      result_status: 'abs',
+      result_status: 'absent',
       reason_text: 'R0',
       final_placement: null,
       ended_at: null,
@@ -87,11 +99,12 @@ describe('a reload between the server commit and the reply (MYK9-2371)', () => {
         p_expected_version: number | null;
       };
       sent.push({ expected: body.p_expected_version, fields: body.p_fields });
-      const sameValues = Object.entries(body.p_fields).every(
+      const columns = toRowColumns(body.p_fields);
+      const sameValues = Object.entries(columns).every(
         ([column, value]) => (row as unknown as Record<string, unknown>)[column] === value
       );
       if (body.p_expected_version === row.version) {
-        Object.assign(row, body.p_fields, { version: row.version + 1 });
+        Object.assign(row, columns, { version: row.version + 1 });
         if (dropReplies) throw new TypeError('Failed to fetch');
         return json(row.version);
       }
@@ -145,7 +158,7 @@ describe('a reload between the server commit and the reply (MYK9-2371)', () => {
       serverVersion,
       {
         name: 'ringside_update_entry',
-        fields: { result_status: result, reason_text: reason },
+        fields: { result_status: result, disqualification_reason: reason },
       },
       false
     );
@@ -178,14 +191,14 @@ describe('a reload between the server commit and the reply (MYK9-2371)', () => {
     boot(table, server.supabase);
     await table.set(
       '1',
-      { id: '1', result: 'abs', reason: 'R0', placement: null, endedAt: null },
+      { id: '1', result: 'absent', reason: 'R0', placement: null, endedAt: null },
       false,
       undefined,
       3
     );
-    await queueScore(table, 'q', null, 3);
+    await queueScore(table, 'qualified', null, 3);
     await manager!.uploadPendingMutations();
-    expect(server.row).toMatchObject({ result_status: 'q', reason_text: null, version: 4 });
+    expect(server.row).toMatchObject({ result_status: 'qualified', reason_text: null, version: 4 });
     // The reply never arrived: A is still queued, the row still holds version 3.
     expect(await manager!.getPendingCount()).toBe(1);
     expect((await table.getReplicatedRow('1'))?.serverVersion).toBe(3);
@@ -226,7 +239,7 @@ describe('a reload between the server commit and the reply (MYK9-2371)', () => {
     expect(outcome.conflict).toBe(true);
     expect(conflicts).toHaveLength(1);
     expect(conflicts[0]?.fields.sort()).toEqual(['reason', 'result']);
-    expect(conflicts[0]?.remoteData).toMatchObject({ result: 'q', reason: null });
+    expect(conflicts[0]?.remoteData).toMatchObject({ result: 'qualified', reason: null });
     expect((await table.getReplicatedRow('1'))?.syncStatus).toBe('conflict');
   });
 });

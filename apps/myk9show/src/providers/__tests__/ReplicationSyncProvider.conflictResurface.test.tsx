@@ -423,7 +423,7 @@ describe('ReplicationSyncProvider: the conflict notice (MYK9-1995)', () => {
     // 11 notices, never 12. A dog's notice names the dog instead of using the shared title
     // (MYK9-2010), so the other 10 tables carry the shared one.
     expect(screen.getAllByText(CONFLICT_TOAST_TITLE)).toHaveLength(10);
-    expect(screen.getByText(/^A dog was changed on two devices$/)).toBeInTheDocument();
+    expect(screen.getByText(/^A dog had two changes at the same time$/)).toBeInTheDocument();
   });
 
   it('tells the header a choice was saved, after the resolve lands', async () => {

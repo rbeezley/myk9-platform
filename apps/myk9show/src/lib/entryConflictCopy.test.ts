@@ -24,7 +24,7 @@ describe('entryConflictCopy (MYK9-2010)', () => {
 
   it('names the dog on a conflict that involves no score', () => {
     const copy = entryConflictCopy({ ...dog }, { ...dog });
-    expect(copy.title).toBe('#12 Rex was changed somewhere else at the same time');
+    expect(copy.title).toBe('#12 Rex had two changes at the same time');
   });
 
   it('shows both statuses when two staff changed an unscored dog', () => {
@@ -35,7 +35,7 @@ describe('entryConflictCopy (MYK9-2010)', () => {
     expect(copy.title).toBe('#12 Rex was checked in two ways');
     expect(copy.takeRemoteLabel).toMatch(/^Keep the saved status: .*[Pp]ulled/);
     expect(copy.keepLocalLabel).toMatch(/^Keep my status: /);
-    expect(copy.description).toContain('drops anything else');
+    expect(copy.description).toContain('Keeping the saved status also drops anything else');
   });
 
   it('shows both values when two changes collide on the entry status', () => {
@@ -53,8 +53,10 @@ describe('entryConflictCopy (MYK9-2010)', () => {
   it('names the field that collided on an already scored dog, not the score', () => {
     const same = { ...dog, is_scored: true, result_status: 'qualified', handler_notes: 'a' };
     const copy = entryConflictCopy(same, { ...same, handler_notes: 'b' }, ['handler_notes']);
-    expect(copy.title).toBe('#12 Rex was changed on two devices');
-    expect(copy.description).toContain('handler notes: this device a, other device b');
+    expect(copy.title).toBe('#12 Rex had two changes at the same time');
+    expect(copy.description).toContain('handler notes: this device a, saved in myK9Show b');
+    expect(copy.description).not.toMatch(/other device|another device/);
+    expect(copy.description).toContain('Keeping the other change also drops');
     expect(copy.description).not.toContain('Qualified');
   });
 
@@ -65,7 +67,11 @@ describe('entryConflictCopy (MYK9-2010)', () => {
       ['result_status', 'handler_notes']
     );
     expect(copy.title).toBe('#12 Rex was scored two ways');
-    expect(copy.description).toContain('Also changed on both: handler notes: this device a');
+    expect(copy.description).toContain(
+      'Also changed on both: handler notes: this device a, saved in myK9Show b.'
+    );
+    expect(copy.description).not.toMatch(/other device|another device/);
+    expect(copy.description).toContain('Keeping the saved score also drops');
   });
 
   it('never reformats an unknown status value into words of its own', () => {

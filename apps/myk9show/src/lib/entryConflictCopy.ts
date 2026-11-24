@@ -101,7 +101,9 @@ function describeFieldConflicts(
     const name = humanField(field);
     if (seen.has(name)) continue;
     seen.add(name);
-    parts.push(`${name}: this device ${shown(local[field])}, other device ${shown(remote[field])}`);
+    parts.push(
+      `${name}: this device ${shown(local[field])}, saved in myK9Show ${shown(remote[field])}`
+    );
   }
   const shownParts = parts.slice(0, 4).join('; ');
   return parts.length > 4 ? `${shownParts}; and ${parts.length - 4} more` : shownParts;
@@ -115,8 +117,8 @@ export function entryConflictCopy(
   const named = describeConflictDog(remote);
   const dog = named !== 'this dog' ? named : describeConflictDog(local);
   const subject = dog === 'this dog' ? 'A dog' : dog;
-  const dropsOthers =
-    'Keeping the other one also drops anything else this device changed on this dog and had not sent yet.';
+  const dropsOthers = (choice: string) =>
+    `${choice} also drops anything else this device changed on this dog and had not sent yet.`;
   const collided = fields.filter(field => !SCORE_CONFLICT_IGNORED.has(field));
   // Callers always pass the collided fields; without them, fall back to whether either side is scored.
   const scoreCollision =
@@ -145,21 +147,21 @@ export function entryConflictCopy(
       const theirs = statusWords(remoteStatus, kind);
       return {
         title: `${subject} was checked in two ways`,
-        description: `This device: ${mine}. Saved in myK9Show: ${theirs}. Choose the status to keep. ${dropsOthers}`,
+        description: `This device: ${mine}. Saved in myK9Show: ${theirs}. Choose the status to keep. ${dropsOthers('Keeping the saved status')}`,
         takeRemoteLabel: `Keep the saved status: ${theirs}`,
         keepLocalLabel: `Keep my status: ${mine}`,
       };
     }
     if (collided.length > 0) {
       return {
-        title: `${subject} was changed on two devices`,
-        description: `Changed on both: ${describeFieldConflicts(collided, local, remote)}. Choose which to keep. ${dropsOthers}`,
+        title: `${subject} had two changes at the same time`,
+        description: `Changed on both: ${describeFieldConflicts(collided, local, remote)}. Choose which to keep. ${dropsOthers('Keeping the other change')}`,
         takeRemoteLabel: CONFLICT_TAKE_REMOTE_LABEL,
         keepLocalLabel: CONFLICT_KEEP_LOCAL_LABEL,
       };
     }
     return {
-      title: `${subject} was changed somewhere else at the same time`,
+      title: `${subject} had two changes at the same time`,
       description: CONFLICT_TOAST_DESCRIPTION,
       takeRemoteLabel: CONFLICT_TAKE_REMOTE_LABEL,
       keepLocalLabel: CONFLICT_KEEP_LOCAL_LABEL,
@@ -173,7 +175,7 @@ export function entryConflictCopy(
       : '';
   return {
     title: `${subject} was scored two ways`,
-    description: `This device: ${describeConflictScore(local)}. Saved in myK9Show: ${describeConflictScore(remote)}. Choose the score to keep.${alsoChanged} ${dropsOthers}`,
+    description: `This device: ${describeConflictScore(local)}. Saved in myK9Show: ${describeConflictScore(remote)}. Choose the score to keep.${alsoChanged} ${dropsOthers('Keeping the saved score')}`,
     takeRemoteLabel: `Keep the saved score: ${describeConflictScore(remote)}`,
     keepLocalLabel: `Keep my score: ${describeConflictScore(local)}`,
   };

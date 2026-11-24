@@ -38,6 +38,8 @@ export interface ClubNumbersDraft {
   error: string | null;
   setValue: (org: ClubRegistryOrg, value: string) => void;
   retry: () => void;
+  /** Drops the typed changes, back to the stored numbers. */
+  reset: () => void;
   /** False (and sets the error) when a club that has a number would be left with none. */
   validate: () => boolean;
   /** Writes the typed fields. Throws when the write fails. */
@@ -90,6 +92,10 @@ export function useClubNumbersDraft(clubId: string, enabled: boolean): ClubNumbe
       setError(null);
     },
     retry: () => void refetch(),
+    reset: () => {
+      setEdits({});
+      setError(null);
+    },
     validate: () => {
       // A club that has a number keeps at least one.
       if (hasClubRegistryNumber(loaded) && !hasClubRegistryNumber(values)) {

@@ -383,8 +383,12 @@ const ClubEditPanelSession: React.FC<ClubEditPanelProps> = ({
   // Convert club data to form data
   const initialFormData = useMemo(() => clubToFormData(initialClubData), [initialClubData]);
 
-  const { numbers, numbersPending, numbersDirty, schema, handleSave, handleDataChange } =
-    useClubPanelSave({ clubId, mode, onSave, setActiveTab });
+  const { numbers, schema, handleSave, handleDataChange } = useClubPanelSave({
+    clubId,
+    mode,
+    onSave,
+    setActiveTab,
+  });
 
   return (
     <EditPanelWrapper<ClubEditFormData>
@@ -402,8 +406,8 @@ const ClubEditPanelSession: React.FC<ClubEditPanelProps> = ({
       schema={schema}
       onDataChange={handleDataChange}
       enableAutoSave={enableAutoSave}
-      forceHasChanges={numbersPending}
-      hasUntrackedInput={numbersDirty}
+      forceHasChanges={numbers.dirty}
+      hasUntrackedInput={numbers.dirty}
       saveLabel={mode === 'create' ? 'Add Club' : 'Save Changes'}
       cancelLabel="Cancel"
       onDelete={mode === 'edit' ? onDelete : undefined}

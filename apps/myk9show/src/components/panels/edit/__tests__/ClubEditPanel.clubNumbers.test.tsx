@@ -12,7 +12,6 @@ const mocks = vi.hoisted(() => ({
   save: vi.fn(),
   online: { value: true },
   error: vi.fn(),
-  warning: vi.fn(),
 }));
 
 vi.mock('@/services/database/clubs', async importOriginal => ({
@@ -28,7 +27,7 @@ vi.mock('@/lib/notifications', async importOriginal => {
   const actual = await importOriginal<typeof import('@/lib/notifications')>();
   return {
     ...actual,
-    notifications: { ...actual.notifications, error: mocks.error, warning: mocks.warning },
+    notifications: { ...actual.notifications, error: mocks.error },
   };
 });
 vi.mock('@/components/shows/WithdrawalPolicyCard', () => ({ WithdrawalPolicyCard: () => null }));
@@ -124,7 +123,21 @@ describe('ClubEditPanel club numbers', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it('says which part saved when the club saved but the numbers did not', async () => {
+  it('writes the numbers before the club row', async () => {
+    const user = userEvent.setup();
+    const { onSave } = renderPanel();
+    await loadedAkc();
+    await user.type(screen.getByRole('textbox', { name: /UKC club number/ }), 'U-9');
+    await user.type(screen.getByRole('textbox', { name: /Club Name/ }), ' Club');
+    await user.click(saveButton());
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    expect(mocks.save.mock.invocationCallOrder[0]).toBeLessThan(
+      onSave.mock.invocationCallOrder[0] as number
+    );
+  });
+
+  it('writes nothing else and keeps the draft when the numbers cannot be saved', async () => {
     mocks.save.mockRejectedValue(new Error('network'));
     const user = userEvent.setup();
     const { onSave, onClose } = renderPanel();
@@ -135,11 +148,13 @@ describe('ClubEditPanel club numbers', () => {
 
     await waitFor(() =>
       expect(mocks.error).toHaveBeenCalledWith(
-        expect.stringContaining("Club details saved, but the club numbers couldn't be saved")
+        "The club numbers couldn't be saved. Check your connection and try again."
       )
     );
-    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSave).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('textbox', { name: /UKC club number/ })).toHaveValue('U-9');
+    expect(screen.getByRole('textbox', { name: /Club Name/ })).toHaveValue('Heartland Club');
   });
 
   it('disables the fields and says why when offline, without blocking the club save', async () => {
@@ -208,19 +223,38 @@ describe('ClubEditPanel club numbers', () => {
     expect(onSave).not.toHaveBeenCalled();
   });
 
-  it('saves the club details when the connection drops with a number draft, and says the numbers were not saved', async () => {
+  it('writes nothing and keeps the draft when the connection drops with a number change', async () => {
     const user = userEvent.setup();
-    const { onSave } = renderPanel();
-    await user.clear(await loadedAkc());
+    const { onSave, onClose } = renderPanel();
+    await loadedAkc();
+    await user.type(screen.getByRole('textbox', { name: /UKC club number/ }), 'U-9');
     mocks.online.value = false;
     await user.type(screen.getByRole('textbox', { name: /Club Name/ }), ' Club');
     await user.click(saveButton());
 
-    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
-    expect(mocks.warning).toHaveBeenCalledWith(
-      'The club number changes were not saved because they need a connection.'
+    await waitFor(() =>
+      expect(mocks.error).toHaveBeenCalledWith(
+        'Club numbers need a connection. Reconnect, or undo the number change.'
+      )
     );
     expect(mocks.save).not.toHaveBeenCalled();
-    expect(screen.queryByText('Enter at least one club number.')).not.toBeInTheDocument();
+    expect(onSave).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('textbox', { name: /UKC club number/ })).toHaveValue('U-9');
+  });
+
+  it('lets the admin undo the number change and then save the club offline', async () => {
+    const user = userEvent.setup();
+    const { onSave } = renderPanel();
+    await loadedAkc();
+    await user.type(screen.getByRole('textbox', { name: /UKC club number/ }), 'U-9');
+    mocks.online.value = false;
+    await user.type(screen.getByRole('textbox', { name: /Club Name/ }), ' Club');
+    await user.click(screen.getByRole('button', { name: 'Undo number changes' }));
+    expect(screen.getByRole('textbox', { name: /UKC club number/ })).toHaveValue('');
+    await user.click(saveButton());
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    expect(mocks.save).not.toHaveBeenCalled();
   });
 });

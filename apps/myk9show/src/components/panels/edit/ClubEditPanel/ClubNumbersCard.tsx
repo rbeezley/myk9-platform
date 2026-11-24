@@ -40,6 +40,11 @@ export const ClubNumbersCard: React.FC<{ numbers: ClubNumbersDraft }> = ({ numbe
             </Button>
           </div>
         )}
+        {numbers.dirty && (
+          <Button type="button" variant="outline" className="min-h-11" onClick={numbers.reset}>
+            Undo number changes
+          </Button>
+        )}
         {offline && (
           <p className="text-sm text-muted-foreground" role="status">
             Club numbers need a connection. The rest of the club can still be saved.

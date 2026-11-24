@@ -204,6 +204,8 @@ When nothing is left it collapses to a green **All set.** line saying what was d
 
 ## 6 · Take a late or walk-in entry on show day
 
+> **Watch:** [How to take a late or walk-in entry (1 min 27 s)](https://youtu.be/aEmrZWZI8Kk)
+
 **Entry Forms → Actions → Add late entry.** Same flow as entering for someone else. The row is greyed, with the reason, when no class has room.
 
 ## 7 · Manage the waitlist

@@ -16,8 +16,12 @@ type ShowRow = Database['public']['Tables']['shows']['Row'];
 export function realtimeRowToStoreShow(row: ShowRow, existing: StoreShow | undefined): StoreShow {
   const merged = mergeShowData(rowToShow(row), existing);
   if (!existing) return merged;
+  // A realtime UPDATE omits unchanged TOASTed columns, so an absent key keeps the stored value.
+  const keepContent =
+    !('experience_published_content' in row) && existing.experiencePublishedContent !== undefined;
   return {
     ...merged,
+    ...(keepContent ? { experiencePublishedContent: existing.experiencePublishedContent } : {}),
     assignedJudges: existing.assignedJudges,
     logoUrl: merged.logoUrl || existing.logoUrl,
     coverImageUrl: merged.coverImageUrl || existing.coverImageUrl,

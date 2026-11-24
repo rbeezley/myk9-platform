@@ -33,23 +33,31 @@ export const useRealTimeUpdates = () => {
     userRef.current = user;
   }, [user]);
 
+  // Ids removed (DELETE or soft delete) since their last INSERT began, so an INSERT still
+  // awaiting club hydration cannot resurrect a show that was deleted meanwhile.
+  const removedIds = useRef(new Set<string>());
+
   const handleShowUpdate = useCallback(async (eventType: string, row: ShowRow) => {
     const startTime = performance.now();
     const store = useShowStore.getState();
     const inStore = store.shows.some(s => s.id === row.id);
     // A soft-deleted show leaves the list (or never enters it).
     if (row.deleted_at) {
+      removedIds.current.add(row.id);
       if (inStore) store.removeShow(row.id);
       return;
     }
+    removedIds.current.delete(row.id);
     let updatedShow = mapRealtimeRow(row);
     if (inStore) store.updateShowLegacy(updatedShow);
     else if (eventType === 'INSERT') {
       updatedShow = await hydrateNewRealtimeShow(updatedShow);
+      if (removedIds.current.has(row.id)) return;
       const latest = useShowStore.getState();
-      // A replication read may have added it while the clubs were loading.
-      if (latest.shows.some(s => s.id === row.id)) latest.updateShowLegacy(updatedShow);
-      else latest.addShowLegacy(updatedShow);
+      // A replication read or a newer event may have added it while the clubs were loading.
+      const current = latest.shows.find(s => s.id === row.id);
+      if (!current) latest.addShowLegacy(updatedShow);
+      // else: whoever added it during the await saw a newer or equal state; keep theirs.
     } else {
       // An UPDATE for a show this list never loaded (not public, or filtered out) stays out.
       return;
@@ -63,6 +71,7 @@ export const useRealTimeUpdates = () => {
   }, []);
 
   const handleShowDelete = useCallback((showId: string) => {
+    removedIds.current.add(showId);
     useShowStore.getState().removeShow(showId);
   }, []);
 

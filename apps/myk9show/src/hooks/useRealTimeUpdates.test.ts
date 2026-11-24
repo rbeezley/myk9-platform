@@ -152,6 +152,66 @@ describe('useRealTimeUpdates', () => {
     unmount();
   });
 
+  it('does not add an INSERTed show that is deleted while its clubs load', async () => {
+    let release: () => void = () => undefined;
+    vi.mocked(readClubsByIdOrThrow).mockReturnValue(
+      new Promise(r => (release = () => r(new Map()))) as never
+    );
+    const { unmount } = renderHook(() => useRealTimeUpdates());
+
+    await act(async () => {
+      showsHandler()({ eventType: 'INSERT', new: makeRow('show-3', 'Charlie') });
+      showsHandler()({ eventType: 'DELETE', old: { id: 'show-3' } });
+      release();
+    });
+
+    expect(useShowStore.getState().shows.map(s => s.id)).toEqual(['show-1', 'show-2']);
+
+    unmount();
+  });
+
+  it('keeps a newer row added while an INSERT awaited its clubs', async () => {
+    let release: () => void = () => undefined;
+    vi.mocked(readClubsByIdOrThrow).mockReturnValue(
+      new Promise(r => (release = () => r(new Map()))) as never
+    );
+    const { unmount } = renderHook(() => useRealTimeUpdates());
+
+    await act(async () => {
+      showsHandler()({
+        eventType: 'INSERT',
+        new: makeRow('show-3', 'Old', { updated_at: '2026-11-01T00:00:00Z' }),
+      });
+      useShowStore.getState().addShowLegacy({
+        ...makeShow('show-3', 'Newer'),
+        updatedAt: '2026-11-02T00:00:00Z',
+      } as Show);
+      release();
+    });
+
+    expect(useShowStore.getState().shows.find(s => s.id === 'show-3')?.name).toBe('Newer');
+
+    unmount();
+  });
+
+  it('keeps stored experience content when an UPDATE omits the TOASTed column', async () => {
+    useShowStore.setState({
+      shows: [{ ...makeShow('show-1', 'Alpha'), experiencePublishedContent: { keep: 1 } } as never],
+    });
+    const { unmount } = renderHook(() => useRealTimeUpdates());
+
+    await act(async () => {
+      showsHandler()({ eventType: 'UPDATE', new: makeRow('show-1', 'Alpha 2') });
+    });
+
+    expect(useShowStore.getState().shows[0]).toMatchObject({
+      name: 'Alpha 2',
+      experiencePublishedContent: { keep: 1 },
+    });
+
+    unmount();
+  });
+
   it('gives an INSERTed show its club name from the replicated clubs', async () => {
     vi.mocked(readClubsByIdOrThrow).mockResolvedValue(
       new Map([['club-9', { id: 'club-9', name: 'Desert K9' }]]) as never

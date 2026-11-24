@@ -56,9 +56,7 @@ function layout(heading: string, body: string, action: { label: string; url: str
 function askedFor(record: AccessRequestRecord): string {
   if (record.kind === 'new_club') return 'club setup';
   if (record.kind === 'membership') return 'club membership';
-  return record.requestedRole === 'club_admin'
-    ? 'club-admin access'
-    : 'secretary and show-manager access';
+  return record.requestedRole === 'club_admin' ? 'club-admin access' : 'show-secretary access';
 }
 
 /** "at <b>Club</b>" when the request names a club, else nothing. */
@@ -181,11 +179,9 @@ function approvedCopy(record: AccessRequestRecord): { subject: string; body: str
   return {
     subject: `Show access approved${record.clubName ? ` at ${record.clubName}` : ''}`,
     body:
+      paragraph(`Your request for show-secretary access${atClub(record)} was approved.`) +
       paragraph(
-        `Your request for secretary and show-manager access${atClub(record)} was approved.`
-      ) +
-      paragraph(
-        'Secretary and show-manager access is now available on your account, so you can set up and run the club&rsquo;s shows.'
+        'Show-secretary access is now available on your account, so you can set up and run the club&rsquo;s shows.'
       ),
   };
 }

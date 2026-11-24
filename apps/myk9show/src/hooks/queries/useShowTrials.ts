@@ -2,12 +2,17 @@ import { useQuery } from '@tanstack/react-query';
 import { getTrialsByShow } from '@/services/database/trials';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 
+/** `refetchOnMount: 'always'` for a reader that must see a trial edit saved since the last read. */
+export interface UseShowTrialsOptions {
+  refetchOnMount?: 'always' | boolean;
+}
+
 /**
  * Fetches trials for a given show.
  * Used by the Entry Management page trial filter dropdown.
  * Disabled when showId is null (no show selected).
  */
-export function useShowTrials(showId: string | null) {
+export function useShowTrials(showId: string | null, options: UseShowTrialsOptions = {}) {
   return useQuery({
     queryKey: queryKeys.showTrials(showId!),
     queryFn: async () => {
@@ -22,5 +27,6 @@ export function useShowTrials(showId: string | null) {
     // and on a cold offline load the trials on the device were never read
     // (MYK9-1162: the "Registration number needed" pane skeleton never ended).
     networkMode: 'always',
+    ...(options.refetchOnMount !== undefined && { refetchOnMount: options.refetchOnMount }),
   });
 }

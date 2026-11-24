@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { STORAGE_KEYS } from '@/constants/storageKeys';
 
@@ -346,6 +346,30 @@ describe('CartPage split checkout wiring', () => {
     await user.click(screen.getByRole('button', { name: 'Remove item-open' }));
     expect(removeItemMock).toHaveBeenCalledWith('item-open');
     expect(screen.getByRole('button', { name: /clear entry/i })).toBeEnabled();
+  });
+
+  it('frees Pay, Remove and Clear when Back restores the page from the bfcache', async () => {
+    checkoutWithWaitlistMock.mockResolvedValue({ confirmed: ['class-open'], waitlisted: [] });
+    createEntryCheckoutSessionMock.mockReturnValueOnce(new Promise<void>(() => undefined));
+    const { user } = render(<CartPage />, { initialRoute: '/cart' });
+
+    await user.click(screen.getByRole('button', { name: 'Checkout' }));
+    await waitFor(() => expect(createEntryCheckoutSessionMock).toHaveBeenCalled());
+    removeItemMock.mockClear();
+    expect(screen.getByRole('button', { name: 'Remove item-open' })).toBeDisabled();
+
+    act(() => {
+      window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: false }));
+    });
+    expect(screen.getByRole('button', { name: 'Remove item-open' })).toBeDisabled();
+
+    act(() => {
+      window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
+    });
+    expect(screen.getByRole('button', { name: 'Checkout' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /clear entry/i })).toBeEnabled();
+    await user.click(screen.getByRole('button', { name: 'Remove item-open' }));
+    expect(removeItemMock).toHaveBeenCalledWith('item-open');
   });
 
   it('holds checkout while capacity is refetching stale data', () => {

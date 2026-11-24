@@ -87,6 +87,18 @@ export default function CartPage() {
   const checkoutInFlightRef = useRef(false);
   const [cancelNoticeDismissed, setCancelNoticeDismissed] = useState(false);
 
+  // Back from Stripe can restore this page from the back/forward cache with
+  // the redirect latch still held; release it so Pay, Remove and Clear work.
+  useEffect(() => {
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (!event.persisted) return;
+      checkoutInFlightRef.current = false;
+      setIsCheckingOut(false);
+    };
+    window.addEventListener('pageshow', onPageShow);
+    return () => window.removeEventListener('pageshow', onPageShow);
+  }, []);
+
   // The cart is NOT necessarily untouched on a cancelled return. A split
   // checkout commits waitlist rows and removes those lines from the cart
   // BEFORE redirecting to Stripe (see handleCheckout), so an exhibitor who

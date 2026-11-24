@@ -139,9 +139,11 @@ export function FlagMasthead({
       </h1>
 
       <div
+        className="bn-meta-grid"
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
+          gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+          ['--bn-meta-rule' as string]: brandColors.textOnFlag,
           gap: 0,
           marginTop: 40,
           maxWidth: bannerSpacing.contentMax,
@@ -157,6 +159,7 @@ export function FlagMasthead({
         ].map((cell, i, arr) => (
           <div
             key={cell.label}
+            className="bn-meta-cell"
             style={{
               padding: '20px 14px',
               borderRight: i === arr.length - 1 ? 'none' : `1px solid ${brandColors.textOnFlag}`,
@@ -182,6 +185,7 @@ export function FlagMasthead({
                 fontSize: 22,
                 letterSpacing: '-0.025em',
                 color: brandColors.textOnFlag,
+                overflowWrap: 'anywhere',
               }}
             >
               {cell.value}

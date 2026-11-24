@@ -2,16 +2,16 @@ import { useQuery } from '@tanstack/react-query';
 import { getTrialsByShow } from '@/services/database/trials';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 
-/**
- * Fetches trials for a given show.
- * Used by the Entry Management page trial filter dropdown.
- * Disabled when showId is null (no show selected).
- */
 /** `refetchOnMount: 'always'` for a reader that must see a trial edit saved since the last read. */
 export interface UseShowTrialsOptions {
   refetchOnMount?: 'always' | boolean;
 }
 
+/**
+ * Fetches trials for a given show.
+ * Used by the Entry Management page trial filter dropdown.
+ * Disabled when showId is null (no show selected).
+ */
 export function useShowTrials(showId: string | null, options: UseShowTrialsOptions = {}) {
   return useQuery({
     queryKey: queryKeys.showTrials(showId!),

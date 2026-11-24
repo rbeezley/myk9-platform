@@ -12,7 +12,7 @@ import { useTrialStore } from '@/store/trialStore';
 // trial's existing Edit Trial on the same page. The real shell, Edit Show panel, row actions and
 // Edit Trial panel run together; only data sources and unrelated page chrome are stubbed.
 
-const dataMocks = vi.hoisted(() => ({ trialRows: [] as unknown[] }));
+const dataMocks = vi.hoisted(() => ({ trialRows: [] as unknown[], canManage: true }));
 
 // The real useShowTrials runs (with its cache); only the replica read under it is stubbed.
 vi.mock('@/services/database/trials', async importOriginal => ({
@@ -33,7 +33,7 @@ vi.mock('@/hooks/useAuthContext', () => ({
 vi.mock('@/hooks/useShowManageScope', () => ({
   useShowManageScope: () => ({
     status: 'resolved',
-    canManage: true,
+    canManage: dataMocks.canManage,
     canOperate: true,
     hasOperationalStaffRole: true,
     clubId: 'club-1',
@@ -166,6 +166,7 @@ function renderShell() {
 describe('ShowManagementShell: Edit Show trial day buttons', () => {
   beforeEach(() => {
     dataMocks.trialRows = ROWS;
+    dataMocks.canManage = true;
     useTrialStore.setState({ trials: ROWS.map(syncable) });
   });
 
@@ -202,6 +203,15 @@ describe('ShowManagementShell: Edit Show trial day buttons', () => {
     ).toBeVisible();
     expect(screen.queryByRole('button', { name: /Dec 13, 2026/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Saturday Trial 1/ })).not.toBeInTheDocument();
+  });
+
+  it('offers no Change day buttons to a viewer who cannot manage the show', async () => {
+    dataMocks.canManage = false;
+    renderShell();
+
+    // The Edit Show sheet is open (its dates text renders); it just offers no day buttons.
+    expect(await screen.findByTestId('show-dates-text')).toBeVisible();
+    expect(screen.queryByRole('button', { name: /Change day$/ })).not.toBeInTheDocument();
   });
 
   it('offers exactly one button on a one-trial show', async () => {

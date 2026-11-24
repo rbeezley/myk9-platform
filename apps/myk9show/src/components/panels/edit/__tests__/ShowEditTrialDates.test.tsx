@@ -82,6 +82,7 @@ describe('ShowEditTrialDates', () => {
 
   it('offers no buttons when the host has no trial dialogs', () => {
     renderDates({ onEditTrial: undefined });
+    expect(mockUseShowTrials).toHaveBeenCalledWith(null, expect.anything());
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 

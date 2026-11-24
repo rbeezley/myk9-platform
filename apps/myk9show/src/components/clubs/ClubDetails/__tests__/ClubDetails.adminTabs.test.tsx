@@ -39,7 +39,6 @@ vi.mock('../AboutTab', () => ({ AboutTab: () => null }));
 vi.mock('../MembersTab', () => ({ MembersTab: () => <div data-testid="readonly-members" /> }));
 vi.mock('../BrandingTab', () => ({ BrandingTab: () => null }));
 vi.mock('../ClubDialogs', () => ({ ClubDialogs: () => null }));
-vi.mock('../ClubNumbersSection', () => ({ ClubNumbersSection: () => null }));
 vi.mock('../ClubShowsUnsettled', () => ({ ClubShowsUnsettled: () => null }));
 vi.mock('@/pages/club-admin/ClubMembersManager', () => ({
   ClubMembersManager: ({ clubId }: { clubId: string }) => (

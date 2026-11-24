@@ -61,4 +61,22 @@ describe('useClubDetailsState club edit', () => {
     expect(mocks.saveNumbers).not.toHaveBeenCalled();
     offline.mockRestore();
   });
+
+  it('keeps the edit panel open after the club row saves, so a failed numbers save is not lost', async () => {
+    mocks.updateClub.mockResolvedValue(undefined);
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { result } = renderHook(() => useClubDetailsState(club), {
+      wrapper: ({ children }: { children: React.ReactNode }) => (
+        <MemoryRouter>
+          <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        </MemoryRouter>
+      ),
+    });
+    act(() => result.current.handleEditClub());
+    expect(result.current.showEditPanel).toBe(true);
+
+    await act(() => result.current.handleClubEditComplete({ name: 'Renamed' }));
+
+    expect(result.current.showEditPanel).toBe(true);
+  });
 });

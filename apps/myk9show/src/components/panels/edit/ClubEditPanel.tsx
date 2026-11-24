@@ -27,7 +27,6 @@ import ClubPhotoDialog from '@/components/clubs/ClubPhotoDialog';
 import { AccentColorPicker } from '@/components/ui/accent-color-picker';
 import type { Club } from '@/types/club-types';
 import { CLUB_TYPES } from '@/types/club-types';
-import { logger } from '@/services/LoggingService';
 import { PremiumTemplatesTab } from './ClubEditPanel/PremiumTemplatesTab';
 import { ClubTabsList } from './ClubEditPanel/ClubTabsList';
 import {
@@ -37,13 +36,11 @@ import {
   type ClubTabValue,
 } from './ClubEditPanel/validationTab';
 import { ClubContactCard } from './ClubEditPanel/ClubContactCard';
-import {
-  clubEditSchema,
-  clubToFormData,
-  formDataToClub,
-  type ClubEditFormData,
-} from './ClubEditPanel/formData';
+import { clubToFormData, type ClubEditFormData } from './ClubEditPanel/formData';
 import { usePanelValidationNavigation } from './usePanelValidationNavigation';
+import { ClubNumbersCard } from './ClubEditPanel/ClubNumbersCard';
+import type { ClubNumbersDraft } from './ClubEditPanel/useClubNumbersDraft';
+import { useClubPanelSave } from './ClubEditPanel/useClubPanelSave';
 
 interface ClubEditPanelProps {
   open: boolean;
@@ -67,7 +64,8 @@ const ClubEditForm: React.FC<{
   onClose?: () => void;
   activeTab: ClubTabValue;
   onTabChange: (tab: ClubTabValue) => void;
-}> = ({ clubId, mode, onClose, activeTab, onTabChange }) => {
+  numbers: ClubNumbersDraft;
+}> = ({ clubId, mode, onClose, activeTab, onTabChange, numbers }) => {
   const { data, form, requestTab } = useEditPanel<ClubEditFormData>();
 
   // Photo dialog state
@@ -236,8 +234,8 @@ const ClubEditForm: React.FC<{
 
               {mode === 'create' && (
                 <p className="text-sm text-muted-foreground">
-                  After the club is added, enter its AKC, UKC or ASCA club numbers in the Club
-                  numbers section on the club page.
+                  After the club is added, enter its AKC, UKC or ASCA club numbers from Edit Club on
+                  the club page.
                 </p>
               )}
 
@@ -293,6 +291,8 @@ const ClubEditForm: React.FC<{
               </div>
             </CardContent>
           </Card>
+
+          <ClubNumbersCard numbers={numbers} />
 
           {/*
             Club-wide default withdrawal refund policy (shows can override).
@@ -383,18 +383,12 @@ const ClubEditPanelSession: React.FC<ClubEditPanelProps> = ({
   // Convert club data to form data
   const initialFormData = useMemo(() => clubToFormData(initialClubData), [initialClubData]);
 
-  // Handle save
-  const handleSave = useCallback(
-    async (formData: ClubEditFormData, context: EditPanelSaveContext) => {
-      logger.debug('ClubEditPanel handleSave - Raw form data:', 'panels', { data: formData });
-      const clubData = formDataToClub(formData);
-      logger.debug('ClubEditPanel handleSave - Converted club data:', 'panels', { data: clubData });
-      if (onSave) {
-        await onSave(clubData, context);
-      }
-    },
-    [onSave]
-  );
+  const { numbers, schema, handleSave, handleDataChange } = useClubPanelSave({
+    clubId,
+    mode,
+    onSave,
+    setActiveTab,
+  });
 
   return (
     <EditPanelWrapper<ClubEditFormData>
@@ -409,8 +403,11 @@ const ClubEditPanelSession: React.FC<ClubEditPanelProps> = ({
       size="xl"
       initialData={initialFormData}
       onSave={handleSave}
-      schema={clubEditSchema}
+      schema={schema}
+      onDataChange={handleDataChange}
       enableAutoSave={enableAutoSave}
+      forceHasChanges={numbers.dirty}
+      hasUntrackedInput={numbers.dirty}
       saveLabel={mode === 'create' ? 'Add Club' : 'Save Changes'}
       cancelLabel="Cancel"
       onDelete={mode === 'edit' ? onDelete : undefined}
@@ -433,6 +430,7 @@ const ClubEditPanelSession: React.FC<ClubEditPanelProps> = ({
         onClose={onClose}
         activeTab={activeTab}
         onTabChange={setActiveTab}
+        numbers={numbers}
       />
     </EditPanelWrapper>
   );

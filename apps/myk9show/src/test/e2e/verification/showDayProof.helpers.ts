@@ -213,22 +213,53 @@ export async function queueSnapshot(page: Page) {
           const names = ['pending_mutations', 'failed_mutations'].filter(n =>
             db.objectStoreNames.contains(n)
           );
-          if (names.length === 0) return resolve(out);
+          if (names.length === 0) {
+            db.close();
+            return resolve(out);
+          }
           let left = names.length;
           for (const name of names) {
             const req = db.transaction(name).objectStore(name).getAll();
             req.onsuccess = () => {
               out[name] = req.result;
-              if (--left === 0) resolve(out);
+              if (--left === 0) {
+                db.close();
+                resolve(out);
+              }
             };
             req.onerror = () => {
               out[name] = String(req.error);
-              if (--left === 0) resolve(out);
+              if (--left === 0) {
+                db.close();
+                resolve(out);
+              }
             };
           }
         };
       })
   );
+}
+
+/**
+ * Waits until this page's replication queue has sent everything (MYK9-2370). A
+ * server row can show a write before the device has processed the reply; a reload
+ * in that gap leaves the next write on the old version (MYK9-2371). A write that
+ * moved to failed_mutations fails here, not at a later step.
+ */
+export async function expectDeviceQueueDrained(page: Page, timeout = 30_000) {
+  await expect
+    .poll(
+      async () => {
+        const queue = await queueSnapshot(page);
+        const pending = queue.pending_mutations;
+        const failed = queue.failed_mutations;
+        if (!Array.isArray(pending)) return 'queue not readable';
+        if (Array.isArray(failed) && failed.length > 0) return `${failed.length} failed`;
+        return pending.length === 0 ? 'drained' : `${pending.length} pending`;
+      },
+      { timeout }
+    )
+    .toBe('drained');
 }
 
 /** A failure-evidence read that itself failed is recorded, never allowed to mask the real error. */

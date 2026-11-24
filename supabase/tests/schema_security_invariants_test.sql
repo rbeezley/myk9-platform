@@ -17,7 +17,7 @@
 --      except the three explicitly allowlisted masked-results views, and no
 --      materialized view exists in `public` (they bypass RLS).
 --   E. Schema `private` grants no USAGE privilege to `anon` or `authenticated`.
---   F. Critical BEFORE INSERT/UPDATE write-guard triggers on entries, clubs and
+--   F. Critical INSERT/UPDATE write-guard triggers on entries, clubs and
 --      classes (and the other guarded tables) stay attached and enabled, and
 --      withheld columns on `classes` / `judge_assignments` cannot be added
 --      without an explicit, reasoned registration.
@@ -451,6 +451,9 @@ BEGIN
       -- 'O' fires on origin/local, 'A' always; 'R' (replica only) and 'D' do not
       -- fire for ordinary API writes.
       AND t.tgenabled IN ('O', 'A')
+      -- Must still fire on INSERT or UPDATE (4 = INSERT, 16 = UPDATE). Not all
+      -- are BEFORE: the recent-reauth guards are AFTER triggers that raise.
+      AND (t.tgtype & 20) <> 0
   );
 
   IF v_missing IS NOT NULL THEN

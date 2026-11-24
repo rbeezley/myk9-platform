@@ -416,6 +416,8 @@ Choose the target class and give a reason. Targets are restricted to the same el
 
 ## 20 · Enter results from paper scoresheets
 
+> **Watch:** [Enter results from paper scoresheets (1 min 17 s)](https://youtu.be/3M2ynjKE_pI)
+
 **Show Desk → click the class → ⋯ → Score this class.** The first dog is already selected.
 
 Per dog, record the result (Q, NQ, ABS, EX or DQ), the search time, and any faults, then press **Save & Next** for the next dog.

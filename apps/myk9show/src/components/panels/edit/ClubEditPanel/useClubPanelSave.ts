@@ -10,6 +10,8 @@ import { useClubNumbersDraft } from './useClubNumbersDraft';
 
 export const CLUB_NUMBERS_OFFLINE_MESSAGE =
   'Club numbers need a connection. Reconnect, or undo the number change.';
+export const CLUB_DETAILS_SAVE_FAILED_MESSAGE =
+  "Club numbers saved. The club details couldn't be saved; try again.";
 export const CLUB_NUMBERS_SAVE_FAILED_MESSAGE =
   "The club numbers couldn't be saved. Check your connection and try again.";
 
@@ -63,7 +65,17 @@ export function useClubPanelSave({ clubId, mode, onSave, setActiveTab }: Options
         }
       }
       if (onSave && (clubDirty || !numbersDirty)) {
-        await onSave(formDataToClub(formData), context);
+        try {
+          await onSave(formDataToClub(formData), context);
+        } catch (err) {
+          // Without a saved number change this is the plain club save, so the wrapper reports it.
+          if (!numbersDirty) throw err;
+          // The numbers are already written (and no longer a draft), so say so; a retry is the
+          // plain club save.
+          logger.error('Failed to save club after numbers', 'clubs', { clubId }, err as Error);
+          notifications.error(CLUB_DETAILS_SAVE_FAILED_MESSAGE);
+          throw new PanelSaveHandledError();
+        }
       }
     },
     [numbersDirty, editable, validate, persist, onSave, clubDirty, setActiveTab, clubId]

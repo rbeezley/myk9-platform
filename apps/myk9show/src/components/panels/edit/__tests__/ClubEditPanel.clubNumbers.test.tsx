@@ -157,6 +157,29 @@ describe('ClubEditPanel club numbers', () => {
     expect(screen.getByRole('textbox', { name: /Club Name/ })).toHaveValue('Heartland Club');
   });
 
+  it('keeps the panel open and says the numbers saved when the club row then fails', async () => {
+    const user = userEvent.setup();
+    const { onSave, onClose } = renderPanel();
+    onSave.mockRejectedValueOnce(new Error('store failed'));
+    await loadedAkc();
+    await user.type(screen.getByRole('textbox', { name: /UKC club number/ }), 'U-9');
+    await user.type(screen.getByRole('textbox', { name: /Club Name/ }), ' Club');
+    await user.click(saveButton());
+
+    await waitFor(() =>
+      expect(mocks.error).toHaveBeenCalledWith(
+        "Club numbers saved. The club details couldn't be saved; try again."
+      )
+    );
+    expect(mocks.save).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('textbox', { name: /Club Name/ })).toHaveValue('Heartland Club');
+
+    await user.click(saveButton());
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(2));
+    expect(mocks.save).toHaveBeenCalledTimes(1);
+  });
+
   it('disables the fields and says why when offline, without blocking the club save', async () => {
     mocks.online.value = false;
     const user = userEvent.setup();

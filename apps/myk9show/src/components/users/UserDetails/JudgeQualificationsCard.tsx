@@ -21,7 +21,7 @@ const JudgeQualificationsCard: React.FC<JudgeQualificationsCardProps> = ({
 
   return (
     <Card
-      className="group bg-gradient-to-br from-card/95 to-card/80 myk9-subtle-card-border
+      className="group bg-transparent bg-gradient-to-br from-card/95 to-card/80 myk9-subtle-card-border
                      rounded-2xl p-6 shadow-md backdrop-blur-xl transition-all duration-500
                      hover:shadow-xl hover:-translate-y-1 hover:border-primary/20"
     >
@@ -46,8 +46,8 @@ const JudgeQualificationsCard: React.FC<JudgeQualificationsCardProps> = ({
               variant="outline"
               size="sm"
               onClick={onManageQualifications}
-              className="gap-2 bg-gradient-to-r from-muted/50 to-muted/30 border-border/30
-                        hover:bg-gradient-to-r hover:from-primary/5 hover:to-primary/10
+              className="gap-2 bg-transparent bg-gradient-to-r from-muted/50 to-muted/30 border-border/30
+                        hover:bg-transparent hover:bg-gradient-to-r hover:from-primary/5 hover:to-primary/10
                         hover:border-primary/20 hover:scale-105 transition-all duration-300"
             >
               <Settings className="h-4 w-4" />
@@ -84,7 +84,7 @@ const JudgeQualificationsCard: React.FC<JudgeQualificationsCardProps> = ({
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
                     <Badge
-                      className="bg-gradient-to-r from-amber-500/20 to-amber-500/10
+                      className="bg-transparent bg-gradient-to-r from-amber-500/20 to-amber-500/10
                                     text-warning border-amber-500/30
                                     font-medium px-3 py-1"
                     >
@@ -99,10 +99,10 @@ const JudgeQualificationsCard: React.FC<JudgeQualificationsCardProps> = ({
                   <Badge
                     className={`font-medium px-3 py-1 ${
                       qual.is_active
-                        ? 'bg-gradient-to-r from-green-500/20 to-green-500/10 text-success border-green-500/30'
+                        ? 'bg-transparent bg-gradient-to-r from-green-500/20 to-green-500/10 text-success border-green-500/30'
                         : qual.suspension_date
-                          ? 'bg-gradient-to-r from-red-500/20 to-red-500/10 text-destructive border-destructive/30'
-                          : 'bg-gradient-to-r from-gray-500/20 to-gray-500/10 text-gray-700 dark:text-gray-300 border-gray-500/30'
+                          ? 'bg-transparent bg-gradient-to-r from-red-500/20 to-red-500/10 text-destructive border-destructive/30'
+                          : 'bg-transparent bg-gradient-to-r from-gray-500/20 to-gray-500/10 text-gray-700 dark:text-gray-300 border-gray-500/30'
                     }`}
                   >
                     {qual.is_active ? 'Active' : qual.suspension_date ? 'Suspended' : 'Expired'}
@@ -152,8 +152,8 @@ const JudgeQualificationsCard: React.FC<JudgeQualificationsCardProps> = ({
               <Button
                 variant="outline"
                 onClick={onManageQualifications}
-                className="gap-3 bg-gradient-to-r from-muted/50 to-muted/30 border-border/30
-                          hover:bg-gradient-to-r hover:from-amber-500/5 hover:to-amber-500/10
+                className="gap-3 bg-transparent bg-gradient-to-r from-muted/50 to-muted/30 border-border/30
+                          hover:bg-transparent hover:bg-gradient-to-r hover:from-amber-500/5 hover:to-amber-500/10
                           hover:border-amber-500/20 hover:scale-105 transition-all duration-300 px-6 py-3"
               >
                 <Plus className="h-4 w-4" />

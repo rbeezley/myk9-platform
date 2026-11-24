@@ -200,7 +200,7 @@ const UserEditForm: React.FC<{
         className="w-full"
       >
         <TabsList
-          className={`grid w-full ${isJudge ? 'grid-cols-4' : 'grid-cols-2'} bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 transition-all duration-300 ease-out`}
+          className={`grid w-full ${isJudge ? 'grid-cols-4' : 'grid-cols-2'} bg-transparent bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 transition-all duration-300 ease-out`}
         >
           <TabsTrigger value="basic" className={TAB_TRIGGER_CLASS}>
             <User className="h-4 w-4" />

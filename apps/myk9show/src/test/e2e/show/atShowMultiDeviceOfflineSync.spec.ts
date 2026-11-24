@@ -26,7 +26,7 @@ import { fillEveryAreaTime } from '../helpers/scoresheetTimes';
  *      so the server genuinely rejects it (40001) and the app parks the row as
  *      a conflict instead of overwriting A's score. B's user sees the
  *      "<dog> was scored two ways" notice (ReplicationSyncProvider, entryConflictCopy).
- *   3. B's user resolves it with "Keep the other score". B's queue drains to 0 and both
+ *   3. B's user resolves it with "Keep the saved score". B's queue drains to 0 and both
  *      devices hold the same final result (A's).
  *
  * The write guard (`installSharedStagingWriteGuard`) still protects shared
@@ -73,7 +73,7 @@ test.describe('At-show multi-device offline conflict', () => {
     if (current) await cleanupDisposableEntry(current);
   });
 
-  test('second device to reconnect gets a conflict notice, and Keep the other score settles both devices on the first score', async ({
+  test('second device to reconnect gets a conflict notice, and Keep the saved score settles both devices on the first score', async ({
     browser,
   }) => {
     test.skip(
@@ -138,7 +138,7 @@ test.describe('At-show multi-device offline conflict', () => {
       // Parked, not dropped: B's queue still holds its writes until the user chooses.
       expect(await readPendingMutationCount(deviceB)).toBeGreaterThan(0);
 
-      await deviceB.getByRole('button', { name: /^Keep the other score/ }).click();
+      await deviceB.getByRole('button', { name: /^Keep the saved score/ }).click();
       await expect(deviceB.getByText(CONFLICT_TITLE)).toHaveCount(0);
       await expect.poll(() => readPendingMutationCount(deviceB), { timeout: 30_000 }).toBe(0);
       await expect.poll(() => readPendingMutationCount(deviceA), { timeout: 10_000 }).toBe(0);

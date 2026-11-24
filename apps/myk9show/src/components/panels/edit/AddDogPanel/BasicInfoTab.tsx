@@ -112,7 +112,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                 {formData.imageUrl ? (
                   <AvatarImage src={formData.imageUrl} alt="Dog photo" className="object-cover" />
                 ) : (
-                  <AvatarFallback className="bg-gradient-to-br from-primary/15 to-primary/8 text-2xl font-semibold text-primary">
+                  <AvatarFallback className="bg-transparent bg-gradient-to-br from-primary/15 to-primary/8 text-2xl font-semibold text-primary">
                     {formData.callName ? (
                       firstGraphemeUpper(formData.callName)
                     ) : (

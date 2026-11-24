@@ -319,8 +319,8 @@ if review_has_findings "$VERDICT"; then
   echo
   echo "claude-review: findings above. Fix them, commit, and re-run — the evidence is for the NEW head."
   if [ "$POST" = 1 ]; then
-    # A lost findings comment is not cosmetic: the next clean run counts N from
-    # these comments (Codex review of #2115, P2).
+    # A lost findings comment is not cosmetic: the findings would exist only
+    # in a local log (Codex review of #2115, P2).
     if ! "$GH" pr comment "$PR" --body "$(printf 'Claude findings for %s (not gate evidence):\n\n%s\n' "${HEAD_SHA:0:9}" "$VERDICT")"; then
       echo "claude-review: findings were NOT posted (gh failed). Exit 2; nothing recorded — re-run once gh works." >&2
       exit 2
@@ -390,14 +390,6 @@ if [ "$POST" = 1 ] && [ "$CODEX_AUTHORED" = 0 ]; then
   exit 2
 fi
 if [ "$POST" = 1 ]; then
-  # Fail closed: a transient API failure here returns an empty history, which
-  # would post "no findings" over a head that had them (Codex, #2115 round 2).
-  if ! PRIOR="$("$GH" pr view "$PR" --json comments -q '[.comments[].body | select(startswith("Claude findings for"))] | join("\n")')"; then
-    echo "claude-review: could not read this PR's earlier findings comments (gh failed), so N cannot be trusted. Exit 2; no evidence posted." >&2
-    exit 2
-  fi
-  N="$(review_finding_count "$PRIOR")"
-  [ "${N:-0}" -gt 0 ] && VERDICT_LINE="$N findings, all addressed"
   if ! bash "$POSTER" "$PR" claude "$BASE_SHA" "$HEAD_SHA" "$VERDICT_LINE" "$LOG"; then
     echo "claude-review: review was clean but the evidence was NOT posted (poster failed). Exit 2; nothing recorded." >&2
     exit 2

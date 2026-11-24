@@ -85,7 +85,7 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
           overlay resolved against an ancestor far up the tree and painted well
           outside this card. */}
       <Card
-        className="group relative bg-gradient-to-br from-card/95 to-card/80 myk9-subtle-card-border
+        className="group relative bg-transparent bg-gradient-to-br from-card/95 to-card/80 myk9-subtle-card-border
                        rounded-2xl p-6 shadow-md backdrop-blur-xl transition-all duration-500
                        hover:shadow-xl hover:border-primary/20"
       >

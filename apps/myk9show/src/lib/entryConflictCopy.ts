@@ -154,14 +154,14 @@ export function entryConflictCopy(
     }
     if (collided.length > 0) {
       return {
-        title: `${subject} had two changes at the same time`,
+        title: `${subject} has conflicting changes`,
         description: `Changed on both: ${describeFieldConflicts(collided, local, remote)}. Choose which to keep. ${dropsOthers('Keeping the other change')}`,
         takeRemoteLabel: CONFLICT_TAKE_REMOTE_LABEL,
         keepLocalLabel: CONFLICT_KEEP_LOCAL_LABEL,
       };
     }
     return {
-      title: `${subject} had two changes at the same time`,
+      title: `${subject} has conflicting changes`,
       description: CONFLICT_TOAST_DESCRIPTION,
       takeRemoteLabel: CONFLICT_TAKE_REMOTE_LABEL,
       keepLocalLabel: CONFLICT_KEEP_LOCAL_LABEL,

@@ -362,14 +362,15 @@ Volunteers only shows here while its **This show uses…** switch is on (card 3;
 
 ## 17 · Run a class: status, start time, delays
 
-**Show Desk → click the class.** Under the class name, the fields can be changed in place:
+**Show Desk → click the class.** Under the class name, the fields can be changed in place. On a laptop-size screen, press **Class settings** to show them:
 
 - **Status** — Not started, In progress, Complete, or Cancelled. Press it to choose. Marking a class complete with scores still unentered asks you to confirm.
 - **Judge** — who is judging the class. You can change it here until the class starts; after that, use **Edit class**.
-- **Expected start** — press the time (or **Set expected start**) to give a revised start when a class runs late or early, then **Save expected start**.
+- **Expected start** — press the time (or **Set expected start**) to give a revised start when a class runs late or early, then press the check mark (**Save expected start**).
+- **Scoring** — whether this class is scored on paper or on a phone.
 - **Actual timing** — when the class started and finished. Press it to correct the start.
 
-The **⋯** button at the top right of the class opens **Actions for** that class: **Edit class**, **Score this class** (opens paper scoring for the class), **Announce a delay**, **Auto-sort run order** and **View entries and results**.
+The **⋯** button at the top right of the class opens **Actions for** that class: **Edit class**, **Score this class** (opens paper scoring for the class) and **Auto-sort run order**, plus **Announce a delay** when the class is running late.
 
 **Announce a delay** appears before a class starts when it is running late; it opens the delay message already filled in with the class and the minutes.
 
@@ -407,9 +408,14 @@ Choose the target class and give a reason. Targets are restricted to the same el
 
 ## 20 · Enter results from paper scoresheets
 
-**Show Desk → click the class → Enter results from scoresheet.**
+**Show Desk → click the class → ⋯ → Score this class.** The first dog is already selected.
 
-Per dog, record the result (Q, NQ, ABS, EX), the search time, and any faults. Search time is digit-masked — type `4520` for 45.20 seconds.
+Per dog, record the result (Q, NQ, ABS, EX or DQ), the search time, and any faults, then press **Save & Next** for the next dog.
+
+- Search time is digit-masked: type `4520` and it shows as 0:45.20.
+- A time is asked for on a Q only (the page says **Record time for: Q only**).
+- **NQ** needs a reason before it can be saved.
+- **ABS** saves as soon as you press it.
 
 > Placements are calculated for you once every dog in the class is scored. You don't enter them.
 

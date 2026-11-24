@@ -66,7 +66,7 @@ exit ${exitCode}
   return { bin, args, log: join(dir, 'review.log') };
 }
 
-function stubGh() {
+function stubGh(opts: { prior?: string } = {}) {
   const dir = tmp('gh-stub-');
   const calls = join(dir, 'calls.log');
   const bin = join(dir, 'gh');
@@ -76,7 +76,7 @@ function stubGh() {
 printf '%s\\n' "$@" >> '${calls}'
 printf -- '---\\n' >> '${calls}'
 case "$*" in
-  *comments*) exit 0 ;;
+  *comments*) printf '%s' '${(opts.prior ?? '').replace(/'/g, "'\\''")}'; exit 0 ;;
   'pr view --json number'*) echo 7 ;;
 esac
 `
@@ -304,7 +304,9 @@ esac
   });
 
   it('a clean re-run after a findings comment posts exactly "no findings" (MYK9-2369)', () => {
-    const gh = stubGh();
+    const gh = stubGh({
+      prior: 'Agy findings for abc123456 (not gate evidence):\n\n- [P2] earlier finding\n',
+    });
     const r = run(stubAgy(CLEAN), ['HEAD~1', '--post'], gh);
     expect(r.code).toBe(0);
     const posted = bodies(gh.calls);

@@ -149,7 +149,7 @@ export function mergeShowData(replicated: ReplicatedShow, existing: Show | undef
  * fields are not stored on the show row, so we have to join here so UI
  * consumers (cards, headers) see a populated club name instead of "TBD".
  */
-function hydrateClubFields(show: Show, clubsById: Map<string, ReplicatedClub>): Show {
+export function hydrateClubFields(show: Show, clubsById: Map<string, ReplicatedClub>): Show {
   if (!show.clubId) return show;
   const club = clubsById.get(show.clubId);
   if (!club) return show;

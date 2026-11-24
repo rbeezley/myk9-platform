@@ -1,5 +1,7 @@
 import { rowToShow } from '@/services/replication/showRowMapping';
-import { mergeShowData } from '@/store/showStore';
+import { hydrateClubFields, mergeShowData } from '@/store/showStore';
+import { readClubsByIdOrThrow } from '@/store/showStoreReads';
+import type { ReplicatedClub } from '@/services/replication/ReplicatedClubsTable';
 import type { StoreShow } from '@/types/show-types';
 import type { Database } from '@/types/supabase';
 
@@ -21,4 +23,14 @@ export function realtimeRowToStoreShow(row: ShowRow, existing: StoreShow | undef
     coverImageUrl: merged.coverImageUrl || existing.coverImageUrl,
     accentColor: merged.accentColor || existing.accentColor,
   };
+}
+
+/**
+ * A show first seen through realtime has no card in the store to borrow club fields from, so join
+ * them from the replicated clubs table exactly as the replication read does. An unreadable clubs
+ * table leaves the club fields blank; the clubs subscription re-hydrates them when it syncs.
+ */
+export async function hydrateNewRealtimeShow(show: StoreShow): Promise<StoreShow> {
+  const clubsById = await readClubsByIdOrThrow().catch(() => new Map<string, ReplicatedClub>());
+  return hydrateClubFields(show, clubsById);
 }

@@ -2,6 +2,7 @@ import { act, renderHook } from '@/test/utils/testUtils';
 import { supabase } from '@/lib/supabase';
 import { useShowStore } from '@/store/showStore';
 import type { Show } from '@/types/show-types';
+import { readClubsByIdOrThrow } from '@/store/showStoreReads';
 import { useRealTimeUpdates } from './useRealTimeUpdates';
 
 type ShowsPayload = { eventType: string; new?: Record<string, unknown>; old?: Partial<Show> };
@@ -13,6 +14,10 @@ const channel = {
 
 vi.mock('@/lib/supabase', () => ({
   supabase: { channel: vi.fn(), removeChannel: vi.fn() },
+}));
+vi.mock('@/store/showStoreReads', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/store/showStoreReads')>()),
+  readClubsByIdOrThrow: vi.fn(),
 }));
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({ userWithRoles: null }),
@@ -47,6 +52,7 @@ describe('useRealTimeUpdates', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(supabase.channel).mockReturnValue(channel as never);
+    vi.mocked(readClubsByIdOrThrow).mockResolvedValue(new Map());
     loadShows = vi.fn();
     useShowStore.setState({
       shows: [makeShow('show-1', 'Alpha'), makeShow('show-2', 'Bravo')],
@@ -132,16 +138,73 @@ describe('useRealTimeUpdates', () => {
     unmount();
   });
 
-  it('adds a show that arrives as an INSERT', () => {
+  it('adds a show that arrives as an INSERT', async () => {
     const { unmount } = renderHook(() => useRealTimeUpdates());
 
-    act(() => {
+    await act(async () => {
       showsHandler()({ eventType: 'INSERT', new: makeRow('show-3', 'Charlie') });
     });
 
     const shows = useShowStore.getState().shows;
     expect(shows.map(s => s.id)).toEqual(['show-1', 'show-2', 'show-3']);
     expect(shows[2]).toMatchObject({ name: 'Charlie', clubId: 'club-9' });
+
+    unmount();
+  });
+
+  it('gives an INSERTed show its club name from the replicated clubs', async () => {
+    vi.mocked(readClubsByIdOrThrow).mockResolvedValue(
+      new Map([['club-9', { id: 'club-9', name: 'Desert K9' }]]) as never
+    );
+    const { unmount } = renderHook(() => useRealTimeUpdates());
+
+    await act(async () => {
+      showsHandler()({ eventType: 'INSERT', new: makeRow('show-3', 'Charlie') });
+    });
+
+    expect(useShowStore.getState().shows[2]).toMatchObject({ clubName: 'Desert K9' });
+
+    unmount();
+  });
+
+  it('does not add a show that arrives as an UPDATE when the store never had it', async () => {
+    const { unmount } = renderHook(() => useRealTimeUpdates());
+
+    await act(async () => {
+      showsHandler()({ eventType: 'UPDATE', new: makeRow('show-3', 'Charlie') });
+    });
+
+    expect(useShowStore.getState().shows.map(s => s.id)).toEqual(['show-1', 'show-2']);
+
+    unmount();
+  });
+
+  it('removes a show whose UPDATE soft-deletes it', async () => {
+    const { unmount } = renderHook(() => useRealTimeUpdates());
+
+    await act(async () => {
+      showsHandler()({
+        eventType: 'UPDATE',
+        new: makeRow('show-1', 'Alpha', { deleted_at: '2026-11-23T00:00:00Z' }),
+      });
+    });
+
+    expect(useShowStore.getState().shows.map(s => s.id)).toEqual(['show-2']);
+
+    unmount();
+  });
+
+  it('never adds a soft-deleted show that arrives as an INSERT', async () => {
+    const { unmount } = renderHook(() => useRealTimeUpdates());
+
+    await act(async () => {
+      showsHandler()({
+        eventType: 'INSERT',
+        new: makeRow('show-3', 'Charlie', { deleted_at: '2026-11-23T00:00:00Z' }),
+      });
+    });
+
+    expect(useShowStore.getState().shows.map(s => s.id)).toEqual(['show-1', 'show-2']);
 
     unmount();
   });

@@ -119,7 +119,7 @@ On the show page, open the **status pill** under the show's name and choose **Pu
 
 - **Add a judge to the show:** open **Edit show**, then the **Judges** tab. It lists the judges qualified for the show's organization; tick the one you want. A judge with no qualification for that organization is not listed:
   - **Someone not in myK9Show yet,** on an AKC or UKC show: choose **Add a new judge**, fill in their first and last name, judge number and email, then **Add Judge**. That creates their record and qualification straight away.
-  - **Someone already in myK9Show** (an exhibitor, or a judge for another organization): do not use **Add a new judge**, which would make a second record for them. Open them on **People** and add the qualification there with **Add Qualifications**.
+  - **Someone already in myK9Show:** do not use **Add a new judge**, which would make a second record for them. Open them on **People**. A judge's record has a **Judge Qualifications** card; add this organization there. If their record has no such card, they are not set up as a judge yet, and a site admin has to do that first.
 
   Ticking a judge, or adding one, shows **Assigned to show**, but the judge is on the show only once you choose **Save Changes**. Closing the panel first asks whether to discard the change.
 

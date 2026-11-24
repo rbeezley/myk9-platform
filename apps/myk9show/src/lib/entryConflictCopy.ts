@@ -146,7 +146,7 @@ export function entryConflictCopy(
       return {
         title: `${subject} was checked in two ways`,
         description: `This device: ${mine}. Saved in myK9Show: ${theirs}. Choose the status to keep. ${dropsOthers}`,
-        takeRemoteLabel: `Keep the other status: ${theirs}`,
+        takeRemoteLabel: `Keep the saved status: ${theirs}`,
         keepLocalLabel: `Keep my status: ${mine}`,
       };
     }
@@ -174,7 +174,7 @@ export function entryConflictCopy(
   return {
     title: `${subject} was scored two ways`,
     description: `This device: ${describeConflictScore(local)}. Saved in myK9Show: ${describeConflictScore(remote)}. Choose the score to keep.${alsoChanged} ${dropsOthers}`,
-    takeRemoteLabel: `Keep the other score: ${describeConflictScore(remote)}`,
+    takeRemoteLabel: `Keep the saved score: ${describeConflictScore(remote)}`,
     keepLocalLabel: `Keep my score: ${describeConflictScore(local)}`,
   };
 }

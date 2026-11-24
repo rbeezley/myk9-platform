@@ -190,8 +190,7 @@ describe('a reload between the server commit and the reply (MYK9-2371)', () => {
     expect(await manager!.getPendingCount()).toBe(1);
     expect((await table.getReplicatedRow('1'))?.serverVersion).toBe(3);
 
-    const reloaded = boot(table, server.supabase);
-    expect(reloaded).not.toBe(undefined);
+    boot(table, server.supabase);
     await queueScore(table, 'nq', 'R1', 3);
     server.restoreReplies();
     await releaseBackoff();

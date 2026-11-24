@@ -12,14 +12,14 @@ describe('entryConflictCopy (MYK9-2010)', () => {
     expect(copy.title).toBe('#12 Rex was scored two ways');
     expect(copy.description).toContain('This device: Qualified, 1:01.23.');
     expect(copy.description).toContain('Saved in myK9Show: NQ, 1 fault.');
-    expect(copy.takeRemoteLabel).toBe('Keep the other score: NQ, 1 fault');
+    expect(copy.takeRemoteLabel).toBe('Keep the saved score: NQ, 1 fault');
     expect(copy.keepLocalLabel).toBe('Keep my score: Qualified, 1:01.23');
   });
 
   it('says so when one side has no score, and falls back when the dog is unknown', () => {
     const copy = entryConflictCopy({ is_scored: true, result_status: 'qualified' }, {});
     expect(copy.title).toBe('A dog was scored two ways');
-    expect(copy.takeRemoteLabel).toBe('Keep the other score: no score yet');
+    expect(copy.takeRemoteLabel).toBe('Keep the saved score: no score yet');
   });
 
   it('names the dog on a conflict that involves no score', () => {
@@ -33,7 +33,7 @@ describe('entryConflictCopy (MYK9-2010)', () => {
       { ...dog, check_in_status: 'pulled' }
     );
     expect(copy.title).toBe('#12 Rex was checked in two ways');
-    expect(copy.takeRemoteLabel).toMatch(/^Keep the other status: .*[Pp]ulled/);
+    expect(copy.takeRemoteLabel).toMatch(/^Keep the saved status: .*[Pp]ulled/);
     expect(copy.keepLocalLabel).toMatch(/^Keep my status: /);
     expect(copy.description).toContain('drops anything else');
   });
@@ -47,7 +47,7 @@ describe('entryConflictCopy (MYK9-2010)', () => {
     expect(copy.title).toBe('#12 Rex was checked in two ways');
     // Entry statuses use the shared entry-status words Show Desk already shows.
     expect(copy.keepLocalLabel).toBe('Keep my status: Pulled');
-    expect(copy.takeRemoteLabel).toBe('Keep the other status: Withdrawn');
+    expect(copy.takeRemoteLabel).toBe('Keep the saved status: Withdrawn');
   });
 
   it('names the field that collided on an already scored dog, not the score', () => {
@@ -74,7 +74,7 @@ describe('entryConflictCopy (MYK9-2010)', () => {
       { ...dog, check_in_status: 'not-a-real-status' },
       ['check_in_status']
     );
-    expect(copy.takeRemoteLabel).toBe('Keep the other status: another status');
+    expect(copy.takeRemoteLabel).toBe('Keep the saved status: another status');
     expect(copy.description).not.toContain('not a real status');
   });
 
@@ -85,7 +85,7 @@ describe('entryConflictCopy (MYK9-2010)', () => {
       ['entry_status']
     );
     expect(copy.keepLocalLabel).toBe('Keep my status: Accepted');
-    expect(copy.takeRemoteLabel).toBe('Keep the other status: Withdrawn');
+    expect(copy.takeRemoteLabel).toBe('Keep the saved status: Withdrawn');
     expect(copy.description).toContain('This device: Accepted. Saved in myK9Show: Withdrawn.');
   });
 
@@ -95,6 +95,6 @@ describe('entryConflictCopy (MYK9-2010)', () => {
       { ...dog, entry_status: 'not-a-real-status' },
       ['entry_status']
     );
-    expect(copy.takeRemoteLabel).toBe('Keep the other status: another status');
+    expect(copy.takeRemoteLabel).toBe('Keep the saved status: another status');
   });
 });

@@ -1,4 +1,3 @@
-import { ClubNumbersSection } from './ClubNumbersSection';
 import React, { Suspense, useCallback, useMemo, useRef } from 'react';
 import { Calendar, History, Info, Users, Palette, CreditCard } from 'lucide-react';
 import { TabsContent } from '@/components/ui/tabs';
@@ -137,8 +136,6 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
           clubName={selectedClub.name}
           onConfirm={state.handleRevokeAuthorization}
         />
-
-        <ClubNumbersSection clubId={selectedClub.id} canEdit={state.canEditClub} />
 
         {!state.canEditClub && (
           <div className="rounded-md border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">

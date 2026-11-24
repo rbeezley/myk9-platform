@@ -397,36 +397,57 @@ DECLARE
   v_unregistered text;
   v_unguarded text;
 BEGIN
-  -- tgtype pins each guard's level, timing and events exactly (bits: 1 row,
-  -- 2 BEFORE, 4 INSERT, 8 DELETE, 16 UPDATE; 7 = BEFORE INSERT row, 19 = BEFORE
-  -- UPDATE row, 23 = BEFORE INSERT OR UPDATE row, 27 = BEFORE UPDATE OR DELETE
-  -- row, 29 = AFTER INSERT OR UPDATE OR DELETE row). Changing a guard's shape
-  -- must change this list in the same migration review.
-  WITH expected_triggers(tbl, trg, typ) AS (VALUES
-    ('entries', 'trg_entries_00_direct_write_gate', 23),
-    ('entries', 'trg_entries_capacity_override', 23),
-    ('entries', 'trg_entries_handler_is_junior', 23),
-    ('entries', 'trg_entries_junior_fee', 23),
-    ('entries', 'trg_entries_derive_card_paid', 23),
-    ('entries', 'trg_entries_confirmation_claim_guard', 23),
-    ('entries', 'trg_entries_reminder_email_guard', 23),
-    ('entries', 'trg_entries_protect_payment_fields', 19),
-    ('entries', 'trg_entries_protect_payment_fields_insert', 7),
-    ('entries', 'trg_entries_protect_payment_status', 19),
-    ('entries', 'trg_entries_receipt_email_server_only', 23),
-    ('clubs', 'trg_guard_club_authorization_write', 23),
-    ('clubs', 'trg_guard_club_created_by_write', 23),
-    ('clubs', 'trg_guard_club_is_demo_write', 23),
-    ('clubs', 'trg_clubs_first_show_published_guard', 23),
-    ('classes', 'trg_00_block_direct_results_verified_write', 19),
-    ('classes', 'trg_00_block_direct_results_verified_insert', 7),
-    ('people', 'people_authz_guard_identity_columns', 19),
-    ('platform_settings', 'trg_guard_platform_settings_write', 27),
-    ('user_roles', 'trg_user_roles_require_recent_reauth', 29),
-    ('roles', 'trg_roles_require_recent_reauth', 29),
-    ('role_permissions', 'trg_role_permissions_require_recent_reauth', 29)
+  -- Each guard is pinned by its whole definition (timing, events, UPDATE OF
+  -- columns, row level, WHEN clause and function), as pg_get_triggerdef()
+  -- prints it. Any change to a guard's shape must update this list in the same
+  -- migration review (owner decision 2026-11-23, MYK9-2353).
+  WITH expected_triggers(tbl, trg, def) AS (VALUES
+    ('classes', 'trg_00_block_direct_results_verified_insert',
+     $d$CREATE TRIGGER trg_00_block_direct_results_verified_insert BEFORE INSERT ON public.classes FOR EACH ROW WHEN (((new.results_verified_at IS NOT NULL) OR (new.results_verified_by IS NOT NULL) OR (new.results_verified_fingerprint IS NOT NULL))) EXECUTE FUNCTION private.classes_block_direct_results_verified_write()$d$),
+    ('classes', 'trg_00_block_direct_results_verified_write',
+     $d$CREATE TRIGGER trg_00_block_direct_results_verified_write BEFORE UPDATE OF results_verified_at, results_verified_by, results_verified_fingerprint ON public.classes FOR EACH ROW WHEN (((old.results_verified_at IS DISTINCT FROM new.results_verified_at) OR (old.results_verified_by IS DISTINCT FROM new.results_verified_by) OR (old.results_verified_fingerprint IS DISTINCT FROM new.results_verified_fingerprint))) EXECUTE FUNCTION private.classes_block_direct_results_verified_write()$d$),
+    ('clubs', 'trg_clubs_first_show_published_guard',
+     $d$CREATE TRIGGER trg_clubs_first_show_published_guard BEFORE INSERT OR UPDATE ON public.clubs FOR EACH ROW EXECUTE FUNCTION private.clubs_first_show_published_guard()$d$),
+    ('clubs', 'trg_guard_club_authorization_write',
+     $d$CREATE TRIGGER trg_guard_club_authorization_write BEFORE INSERT OR UPDATE ON public.clubs FOR EACH ROW EXECUTE FUNCTION guard_club_authorization_write()$d$),
+    ('clubs', 'trg_guard_club_created_by_write',
+     $d$CREATE TRIGGER trg_guard_club_created_by_write BEFORE INSERT OR UPDATE ON public.clubs FOR EACH ROW EXECUTE FUNCTION guard_club_created_by_write()$d$),
+    ('clubs', 'trg_guard_club_is_demo_write',
+     $d$CREATE TRIGGER trg_guard_club_is_demo_write BEFORE INSERT OR UPDATE ON public.clubs FOR EACH ROW EXECUTE FUNCTION guard_club_is_demo_write()$d$),
+    ('entries', 'trg_entries_00_direct_write_gate',
+     $d$CREATE TRIGGER trg_entries_00_direct_write_gate BEFORE INSERT OR UPDATE OF junior_fee_override_by, entry_fee, junior_fee_declared, capacity_override ON public.entries FOR EACH ROW EXECUTE FUNCTION private.entries_direct_write_gate()$d$),
+    ('entries', 'trg_entries_capacity_override',
+     $d$CREATE TRIGGER trg_entries_capacity_override BEFORE INSERT OR UPDATE OF capacity_override ON public.entries FOR EACH ROW EXECUTE FUNCTION private.entries_server_capacity_override()$d$),
+    ('entries', 'trg_entries_confirmation_claim_guard',
+     $d$CREATE TRIGGER trg_entries_confirmation_claim_guard BEFORE INSERT OR UPDATE ON public.entries FOR EACH ROW EXECUTE FUNCTION private.entries_confirmation_claim_guard()$d$),
+    ('entries', 'trg_entries_derive_card_paid',
+     $d$CREATE TRIGGER trg_entries_derive_card_paid BEFORE INSERT OR UPDATE OF card_paid, refund_amount ON public.entries FOR EACH ROW EXECUTE FUNCTION private.entries_derive_card_paid()$d$),
+    ('entries', 'trg_entries_handler_is_junior',
+     $d$CREATE TRIGGER trg_entries_handler_is_junior BEFORE INSERT OR UPDATE ON public.entries FOR EACH ROW EXECUTE FUNCTION private.entries_record_handler_is_junior()$d$),
+    ('entries', 'trg_entries_junior_fee',
+     $d$CREATE TRIGGER trg_entries_junior_fee BEFORE INSERT OR UPDATE OF junior_fee_override_by, entry_fee, junior_fee_declared ON public.entries FOR EACH ROW EXECUTE FUNCTION private.entries_apply_junior_fee()$d$),
+    ('entries', 'trg_entries_protect_payment_fields',
+     $d$CREATE TRIGGER trg_entries_protect_payment_fields BEFORE UPDATE OF entry_fee, payment_method, stripe_payment_intent_id ON public.entries FOR EACH ROW WHEN (((new.entry_fee IS DISTINCT FROM old.entry_fee) OR (new.payment_method IS DISTINCT FROM old.payment_method) OR (new.stripe_payment_intent_id IS DISTINCT FROM old.stripe_payment_intent_id))) EXECUTE FUNCTION entries_protect_payment_fields()$d$),
+    ('entries', 'trg_entries_protect_payment_fields_insert',
+     $d$CREATE TRIGGER trg_entries_protect_payment_fields_insert BEFORE INSERT ON public.entries FOR EACH ROW EXECUTE FUNCTION entries_protect_payment_fields_insert()$d$),
+    ('entries', 'trg_entries_protect_payment_status',
+     $d$CREATE TRIGGER trg_entries_protect_payment_status BEFORE UPDATE OF payment_status ON public.entries FOR EACH ROW WHEN ((new.payment_status IS DISTINCT FROM old.payment_status)) EXECUTE FUNCTION entries_protect_payment_status()$d$),
+    ('entries', 'trg_entries_receipt_email_server_only',
+     $d$CREATE TRIGGER trg_entries_receipt_email_server_only BEFORE INSERT OR UPDATE ON public.entries FOR EACH ROW EXECUTE FUNCTION private.entries_receipt_email_server_only()$d$),
+    ('entries', 'trg_entries_reminder_email_guard',
+     $d$CREATE TRIGGER trg_entries_reminder_email_guard BEFORE INSERT OR UPDATE ON public.entries FOR EACH ROW EXECUTE FUNCTION private.entries_reminder_email_guard()$d$),
+    ('people', 'people_authz_guard_identity_columns',
+     $d$CREATE TRIGGER people_authz_guard_identity_columns BEFORE UPDATE OF auth_user_id, email ON public.people FOR EACH ROW EXECUTE FUNCTION people_guard_identity_columns()$d$),
+    ('platform_settings', 'trg_guard_platform_settings_write',
+     $d$CREATE TRIGGER trg_guard_platform_settings_write BEFORE DELETE OR UPDATE ON public.platform_settings FOR EACH ROW EXECUTE FUNCTION guard_platform_settings_write()$d$),
+    ('role_permissions', 'trg_role_permissions_require_recent_reauth',
+     $d$CREATE TRIGGER trg_role_permissions_require_recent_reauth AFTER INSERT OR DELETE OR UPDATE ON public.role_permissions FOR EACH ROW EXECUTE FUNCTION require_recent_reauth_for_client_write()$d$),
+    ('roles', 'trg_roles_require_recent_reauth',
+     $d$CREATE TRIGGER trg_roles_require_recent_reauth AFTER INSERT OR DELETE OR UPDATE ON public.roles FOR EACH ROW EXECUTE FUNCTION require_recent_reauth_for_client_write()$d$),
+    ('user_roles', 'trg_user_roles_require_recent_reauth',
+     $d$CREATE TRIGGER trg_user_roles_require_recent_reauth AFTER INSERT OR DELETE OR UPDATE ON public.user_roles FOR EACH ROW EXECUTE FUNCTION require_recent_reauth_for_client_write()$d$)
   )
-  SELECT string_agg(format('public.%s.%s (tgtype %s)', e.tbl, e.trg, e.typ), ', ' ORDER BY e.tbl, e.trg)
+  SELECT string_agg(format('public.%s.%s', e.tbl, e.trg), ', ' ORDER BY e.tbl, e.trg)
     INTO v_missing
   FROM expected_triggers e
   WHERE NOT EXISTS (
@@ -441,11 +462,11 @@ BEGIN
       -- 'O' fires on origin/local, 'A' always; 'R' (replica only) and 'D' do not
       -- fire for ordinary API writes.
       AND t.tgenabled IN ('O', 'A')
-      AND t.tgtype = e.typ
+      AND pg_catalog.pg_get_triggerdef(t.oid) = e.def
   );
 
   IF v_missing IS NOT NULL THEN
-    RAISE EXCEPTION 'FAIL critical write-guard trigger(s) missing or disabled: %', v_missing;
+    RAISE EXCEPTION 'FAIL critical write-guard trigger(s) missing, disabled, or changed from the pinned definition (update the list only after review): %', v_missing;
   END IF;
 
   -- Withheld columns on authenticated-writable, column-allowlisted tables.
@@ -506,7 +527,7 @@ BEGIN
         AND (t.tgtype & 16) <> 0  -- UPDATE
         -- An UPDATE OF list must still name the column (empty = every column).
         AND (
-          pg_catalog.array_length(t.tgattr::int2[], 1) IS NULL
+          pg_catalog.cardinality(t.tgattr::int2[]) = 0
           OR (
             SELECT a.attnum FROM pg_catalog.pg_attribute a
             WHERE a.attrelid = c.oid AND a.attname = r.col

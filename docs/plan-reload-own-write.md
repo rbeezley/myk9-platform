@@ -9,9 +9,11 @@ Issue: MYK9-2371. Found while tracing the phone-walk flake MYK9-2370 (CI run 453
 1. A judge saves score A. The upload (`ringside_update_entry`) commits on the server (version 14 to 15).
 2. The phone reloads before it processes the reply.
 3. Score A stays queued with version 14. No `lastOwnUpload` was written, because that happens only when the reply is applied (`mutation-row-sync.ts:151-155`). The in-memory `InFlightWriteRegistry` (`inflight-written-base.ts`, MYK9-1221) is gone after the reload.
-4. The judge changes the same dog again (B, for example a reset). B takes over A's columns (`mutation-supersede.ts`) and is sent with expected version 14.
-5. The server refuses B (current 15). The server's replay check (MYK9-740, `ringside_replay_applied_version`) cannot help, because B's values differ from what is stored.
+4. The judge changes the same dog again (B, for example a reset), and B goes up still expecting version 14.
+5. The server refuses B (current 15). The server's replay check (MYK9-740, `ringside_replay_applied_version`) helps only when the stored values equal the request, and B's do not.
 6. The next download compares base (before A), local (B) and remote (A) in `reconcileDirtyRemoteRow`. Both sides changed the same field, so the phone shows the persistent "#200 Willow was scored two ways ... Other device: Qualified 1:02.03" notice. The "other device" is this phone.
+
+**Not yet proven.** Steps 1 to 3 and step 6 match the CI evidence: the notice, "Not sent yet 1", and a queued write with version 6 and `retries` 0. The ordering in steps 4 and 5 does not. Older queued writes are superseded only after an acknowledgement (`supersedeOlderQueuedWrites` runs from `markReplicatedRowSynced`), so queueing B does not remove A. A could replay, be recognised as applied, and advance B's version first. Which pull and upload ordering actually leaves B stale has to be shown by a failing test before any design is chosen (Testing, step 1).
 
 **What the judge can do:** "Keep this device's" sends B with a fresh version, which is correct. "Take theirs" puts A back, which loses the judge's correction. So the harm is a correction the judge can lose, plus a confusing notice at the ring.
 
@@ -29,24 +31,28 @@ So the design already recognises the phone's own writes. The gap is that this re
 
 **A. Do nothing.** It is rare, the right choice exists, and no score is lost unless the judge picks "Take theirs". Cost: none. Risk: a confusing notice at the ring, and a correction that can be lost.
 
-**B. Keep the in-flight record across a reload (recommended).** Before sending, write `{mutationId, tableName, rowId, fields, serverVersion}` to IndexedDB. Delete it once the reply is applied, in the same place the memory registry ends today. On startup, load these records into `InFlightWriteRegistry`. Supersede must keep the record of a write that was sent, even when it drops that write's columns. The existing `resolveInFlightMergeBase` path then sees "base plus own write", finds no conflict and rebases B.
+**B. Server-verifiable identity (the only safe silent rebase).** Send the queued write's `mutation.id` with the RPC (a new `p_mutation_id` parameter), and record it on the row as `last_mutation_id`. When a write is refused, or a download disagrees with a queued write, the phone treats the server value as its own only if `last_mutation_id` is one of its own sent ids, persisted with the signed-in account's id. Otherwise the conflict stays.
 
-- No server or migration change.
-- The MYK9-2111 rule is unchanged: nothing is restamped blindly. A remote value is treated as the phone's own only when it equals what this phone sent.
-- Cost: a new IndexedDB store (a schema version bump), one extra write per send, and cleanup rules for records left over after an account switch or a reply that never came. Remove a record once the server's version is past it, or when the account signs out.
+- Why identity and not values: two people can record the same result. A matching value proves only that this phone meant to send it, not that its write is the one that committed. Silently rebasing on a value match could send B over another person's score.
+- Cost: a migration (RPC overload plus a column), a client change, and a persisted record of sent ids scoped to `authUserId`. Records are restored only after the current account is resolved, and dropped for any other account. Clean them up once the server's version is past them.
+- MYK9-2111's rule holds: nothing is restamped without proof.
 
-**C. Value match without a persisted record.** At reconcile, treat the remote as the phone's own when it equals a queued write. This does not work after supersede, because A has already been deleted. That is why B persists the record.
+**C. Client record plus a value match (rejected).** Persist `{mutationId, fields, serverVersion}` before sending, and treat an equal server value as the phone's own after a reload. This cannot tell this phone's commit from someone else's identical write (see B), so it can hide a real conflict.
 
-**D. Server idempotency by mutation id.** A new RPC parameter and a migration. It recognises a replay of A but not the B-versus-A conflict, so it does not fix this on its own.
+**D. Clearer conflict wording only.** Keep the conflict, but stop calling the server side "Other device" when the phone cannot know who wrote it, for example "Saved on the server". Cost: a copy change in `entryConflictCopy.ts`. It does not stop a wrong "Take theirs", but it removes the claim that someone else scored the dog.
 
 ## Recommendation
 
-B, after the December mock show, unless the owner wants it sooner. A is acceptable for the mock show.
+1. First, the reproduction test (Testing, step 1). If it cannot be made to fail, close MYK9-2371 with the evidence and keep the MYK9-2370 spec wait.
+2. If it reproduces: D now (small, safe), and B after the December mock show, since it touches the RPC and the sync core.
+3. A is acceptable for the mock show.
 
 ## Testing
 
-- Unit (`packages/replication`, near `MutationManager.delayed-response.test.ts`):
-  - Send A, commit it on the stub server, drop the reply, rebuild the manager from the same IndexedDB (the reload), then queue B. Expect no `replication:conflict`, B sent with the new version, and the server holding B.
-  - Control: another device changes the same field. The conflict must still fire.
-- Cleanup: a record whose reply arrives late is removed. A record left after sign-out does not apply to the next account.
-- E2E: the phone walk drops its queue-drain wait before the reset (MYK9-2370) and still passes 10 runs in CI.
+1. **Reproduction first** (`packages/replication`, near `MutationManager.delayed-response.test.ts`). Send A, commit it on the stub server, drop the reply, rebuild the manager from the same IndexedDB (the reload), then queue B. Assert the conflict appears, and name the ordering that causes it. The test must fail on current `main` before any fix.
+2. **For B:**
+   - After the fix, the same test shows no conflict, B is sent with the new version, and the server holds B.
+   - Control: another account writes the same value to the same field. The conflict must still fire.
+   - Account change across a restart without a clean sign-out: the earlier account's sent ids are not used.
+3. **For D:** a unit test on the new wording.
+4. **E2E:** the phone walk drops its queue-drain wait before the reset (MYK9-2370) and still passes 10 runs in CI.

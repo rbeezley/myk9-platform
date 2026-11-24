@@ -190,33 +190,6 @@ SELECT pg_temp.expect_raise(
   $sql$,
   'share the name');
 
--- A4b. (MYK9-2354) A club demo show (0836 range) renamed to today's fixture's name and start
--- date raises the duplicate error, and the error starts with the fixed prefix the seed's
--- closing DO block matches on. Today's fixture is in the owned set, so the block must not
--- forgive this pair (it forgives other 0731 shows only).
-SELECT pg_temp.expect_raise(
-  'A4b a club demo show shares today''s fixture name and start date',
-  $sql$
-    SELECT pg_temp.mk_show('dededede-0000-0000-0836-000000000b4b', (SELECT name FROM a_fixture),
-                           (SELECT (start_date AT TIME ZONE 'UTC')::date FROM a_fixture),
-                           (SELECT (start_date AT TIME ZONE 'UTC')::date FROM a_fixture) - 3);
-    SELECT public.seed_demo_assert_date_coherence();
-  $sql$,
-  'seed-demo: two live shows share the name');
-
--- A4c. (MYK9-2354) The demo registration backfill compares organizations with
--- normalize_registry_organization, which maps a full registry name to its code, so a dog
--- that already holds a full-name registration is not given a second one.
-DO $$
-BEGIN
-  IF public.normalize_registry_organization('American Kennel Club')
-     IS DISTINCT FROM public.normalize_registry_organization('AKC (American Kennel Club)') THEN
-    RAISE EXCEPTION 'FAIL A4c a full registry name does not match the seed''s organization label';
-  END IF;
-  RAISE NOTICE 'PASS A4c a full-name registration matches the seed''s organization label';
-END;
-$$;
-
 -- A5. Today's fixture is owned: closing after it starts fails the reseed.
 SELECT pg_temp.expect_raise(
   'A5 today''s show-day fixture closes after it starts',

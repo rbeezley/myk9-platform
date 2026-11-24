@@ -3,7 +3,7 @@ import { ChevronDown } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { ClassRequirementsContent } from '@/features/at-show/slots/ClassRequirementsContent';
-import { setMaxTimeText } from '@/features/at-show/slots/classRequirementsFromClass';
+import { classTimeDisplay } from '@/features/at-show/slots/classRequirementsFromClass';
 import { useLiveClasses } from '@/features/at-show/useLiveClasses';
 import { formatTimeLimitSetAt } from './timeLimitSetAt';
 
@@ -29,8 +29,9 @@ export function FocusedClassRequirements({
   const live = useLiveClasses([classId]);
   const cls = live?.[0] ?? null;
   const perArea = (cls?.areaCount ?? 1) > 1;
-  const limit = live === null ? 'Loading…' : setMaxTimeText(cls, perArea);
-  const setAt = limit === 'Not set' ? null : formatTimeLimitSetAt(cls?.timeLimitSetAt, timeZone);
+  const time = classTimeDisplay(cls, perArea, registryId);
+  const limit = live === null ? 'Loading…' : time.value;
+  const setAt = !time.saved ? null : formatTimeLimitSetAt(cls?.timeLimitSetAt, timeZone);
   return (
     <section aria-label="Requirements" data-testid="focused-class-requirements">
       <button

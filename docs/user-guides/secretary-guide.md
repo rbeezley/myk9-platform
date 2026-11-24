@@ -108,7 +108,7 @@ On the show page, open the **status pill** under the show's name and choose **Pu
 
 ## 3 · Edit a show, or reassign a judge
 
-> **Watch:** [How to change a class's judge (1 min 22 s)](https://youtu.be/c3172HoHnQw)
+> **Watch:** [How to change a class's judge (1 min 22 s)](https://youtu.be/2Loklv39bVI)
 
 - **Show details:** **Actions → Edit show** (the **Actions** button sits in the top bar, left of the bell), or **Edit show** on the **About** tab. The edit panel opens over the page you are on, with tabs **Basic Info**, **Officials**, **Judges**, **Fees**, **Venue & policies** and **Premium**.
 - **Venue & policies:** each card or switch on this tab saves on its own, so the panel's **Save Changes** is not needed for it. The switches save the moment you flip them. The pin, WiFi and policy cards each have their own button (**Save pin**, **Save**, **Save policy**). It holds, in order:

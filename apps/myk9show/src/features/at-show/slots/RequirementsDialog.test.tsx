@@ -81,7 +81,9 @@ describe('ringside ClassRequirementsDialog (MYK9-1100)', () => {
     render(<ClassRequirementsDialog isOpen onClose={vi.fn()} classData={classData} />);
 
     expect(await screen.findByText('Area 1 1:30 · Area 2 2:00 · Area 3 2:30')).toBeInTheDocument();
-    expect(screen.getByText('1:00–3:00')).toBeInTheDocument();
+    // One time card: the saved times, with no second rule card beside them (MYK9-2362).
+    expect(screen.queryByText('1:00–3:00')).not.toBeInTheDocument();
+    expect(screen.getAllByText('Time Limit')).toHaveLength(1);
     // The rule's range, not the class's chosen total.
     expect(screen.getByText('2–6')).toBeInTheDocument();
     expect(screen.getByText('Birch, Anise, Clove')).toBeInTheDocument();
@@ -127,7 +129,28 @@ describe('ringside ClassRequirementsDialog (MYK9-1100)', () => {
     });
     render(<ClassRequirementsDialog isOpen onClose={vi.fn()} classData={classData} />);
     expect(await screen.findByText('Not set')).toBeInTheDocument();
+    expect(screen.getByText('Judge sets within 1:00–3:00')).toBeInTheDocument();
+    expect(screen.getAllByText('Time Limit')).toHaveLength(1);
     expect(screen.queryByRole('button', { name: /set max time/i })).not.toBeInTheDocument();
+  });
+
+  it('shows a rule that fixes the time once, never Not set (MYK9-2362)', async () => {
+    seed({
+      timeLimitSeconds: undefined,
+      timeLimitArea2Seconds: undefined,
+      timeLimitArea3Seconds: undefined,
+      timeLimitRule: { ...rule, fixed: 120 },
+    });
+    render(
+      <ClassRequirementsDialog
+        isOpen
+        onClose={vi.fn()}
+        classData={{ ...classData, per_area_times: false }}
+      />
+    );
+    expect(await screen.findByText('2:00')).toBeInTheDocument();
+    expect(screen.getAllByText('Time Limit')).toHaveLength(1);
+    expect(screen.queryByText('Not set')).not.toBeInTheDocument();
   });
 
   it('notes No 30-second warning only when the cached rule says so', async () => {

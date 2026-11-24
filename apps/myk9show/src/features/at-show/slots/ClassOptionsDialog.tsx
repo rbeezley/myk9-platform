@@ -28,7 +28,7 @@ import { cn } from '@/lib/utils';
 import { useLiveClasses } from '../useLiveClasses';
 import { ClassDialogShell } from './ClassDialogShell';
 import { ClassStatisticsDialog } from './ClassStatisticsDialog';
-import { setMaxTimeText } from './classRequirementsFromClass';
+import { classTimeDisplay } from './classRequirementsFromClass';
 
 type Tone = 'primary' | 'class' | 'run';
 
@@ -135,7 +135,7 @@ const ClassOptionsBody: React.FC<ClassOptionsDialogProps> = ({
     Number(showAreaCount) +
     Number(showSettingsTile);
   const cls = live?.[0] ?? null;
-  const savedMaxTime = cls ? setMaxTimeText(cls, !!classData?.per_area_times) : null;
+  const savedMaxTime = cls ? classTimeDisplay(cls, !!classData?.per_area_times, '').value : null;
 
   return (
     <ClassDialogShell

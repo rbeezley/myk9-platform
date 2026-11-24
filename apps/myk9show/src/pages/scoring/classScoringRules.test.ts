@@ -2,9 +2,49 @@
 import { describe, it, expect } from 'vitest';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import { classScoringRules, classTimerMode } from './classScoringRules';
-import { classRequirementsFromClass } from '@/features/at-show/slots/classRequirementsFromClass';
+import {
+  classRequirementsFromClass,
+  setMaxTimeText,
+} from '@/features/at-show/slots/classRequirementsFromClass';
 
 const base = { id: 'c', name: 'HD Master', element: 'Handler Discrimination', level: 'Master' };
+
+describe('classScoringRules max time (MYK9-2362)', () => {
+  const rule = (extra: object) => ({
+    ...base,
+    element: 'Container',
+    level: 'Novice',
+    timeLimitRule: { forElement: 'Container', forLevel: 'Novice', ...extra },
+  });
+
+  it('a fixed-rule class with no saved time runs the rule time, in every area', () => {
+    const cls = { ...rule({ fixed: 120 }), areaCount: 2 } as ReplicatedClass;
+    const rules = classScoringRules(cls);
+    expect(rules.maxTimeSeconds).toBe(120);
+    expect(rules.areaMaxTimeSeconds).toEqual([120, 120]);
+    expect(setMaxTimeText(cls, false)).toBe('2:00');
+  });
+
+  it('a range-rule class with no saved time keeps no limit', () => {
+    const cls = rule({ min: 60, max: 180 }) as ReplicatedClass;
+    expect(classScoringRules(cls).maxTimeSeconds).toBe(0);
+    expect(setMaxTimeText(cls, false)).toBe('Not set');
+  });
+
+  it('a saved time wins over the rule', () => {
+    const cls = { ...rule({ fixed: 120 }), timeLimitSeconds: 90 } as ReplicatedClass;
+    expect(classScoringRules(cls).maxTimeSeconds).toBe(90);
+    expect(setMaxTimeText(cls, false)).toBe('1:30');
+  });
+
+  it('ignores a fixed time cached for another element or level', () => {
+    const cls = {
+      ...base,
+      timeLimitRule: { fixed: 120, forElement: 'Interior', forLevel: 'Master' },
+    } as ReplicatedClass;
+    expect(classScoringRules(cls).maxTimeSeconds).toBe(0);
+  });
+});
 
 describe('classScoringRules', () => {
   it("uses the current rule's warning, even where the level would say otherwise", () => {

@@ -27,6 +27,17 @@ describe('VolunteerChip', () => {
     expect(defaultProps.onRemove).toHaveBeenCalledOnce();
   });
 
+  it('extends the remove hit area to about 44 by 44 px', () => {
+    render(<VolunteerChip {...defaultProps} />);
+    const btn = screen.getByRole('button', { name: /remove/i });
+    // 16px button + 14px above/below = 44 tall; 16px + 18px left + 10px right = 44 wide
+    expect(btn).toHaveClass(
+      'before:-inset-y-[14px]',
+      'before:-left-[18px]',
+      'before:-right-[10px]'
+    );
+  });
+
   it('shows conflict indicator when hasConflict is true', () => {
     render(<VolunteerChip {...defaultProps} hasConflict />);
     expect(screen.getByTitle(/conflict/i)).toBeInTheDocument();

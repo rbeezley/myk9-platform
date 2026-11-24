@@ -16,10 +16,25 @@ export function classTimerMode(cls: ReplicatedClass): string | undefined {
   return display?.timerMode ?? cls.timerMode;
 }
 
+/** The current rule's fixed time in seconds (AKC Container Novice 2:00), else undefined. */
+export function ruleFixedSeconds(cls: ReplicatedClass): number | undefined {
+  return isRuleCurrent(cls.timeLimitRule, cls) ? cls.timeLimitRule.fixed || undefined : undefined;
+}
+
+/**
+ * The one max time a class runs with (MYK9-2362): the saved time, else the rule's fixed time,
+ * else 0 (no limit; a range rule leaves it to the judge). The scoresheet timer, its notice, the
+ * Requirements card and the Show Desk header all read this.
+ */
+export function classMaxTimeSeconds(cls: ReplicatedClass): number {
+  return cls.timeLimitSeconds || ruleFixedSeconds(cls) || 0;
+}
+
 export function classScoringRules(cls: ReplicatedClass): ResolvedClassRules {
   const rule = isRuleCurrent(cls.timeLimitRule, cls) ? cls.timeLimitRule : undefined;
   return buildResolvedClassRules({
     ...cls,
+    timeLimitSeconds: classMaxTimeSeconds(cls),
     timerMode: classTimerMode(cls),
     thirtySecondWarning: rule?.thirtySecondWarning,
   });

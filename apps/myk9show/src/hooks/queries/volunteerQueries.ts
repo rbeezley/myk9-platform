@@ -3,7 +3,7 @@ import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import { supabase } from '@/services/database/supabaseClient';
 import { notifications } from '@/lib/notifications';
 import { VOLUNTEER_COPY } from './volunteerErrorCopy';
-import type { Volunteer, ClassInfo, ClassAssignment, GeneralAssignment } from '@/types/volunteer';
+import type { Volunteer, ClassAssignment, GeneralAssignment } from '@/types/volunteer';
 import { ilikeContains } from '@/utils/sanitizePostgRESTFilter';
 
 // ── Mappers ──────────────────────────────────────────────────────────────────
@@ -184,37 +184,6 @@ export function useVolunteerConflicts(showId: string | undefined, volunteers: Vo
   });
 }
 
-export function useShowClassesForVolunteers(showId: string | undefined) {
-  return useQuery({
-    queryKey: queryKeys.showClasses(showId ?? ''),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('classes')
-        .select(
-          'id, name, element, level, start_time, trial:trials!inner(id, trial_date:date, trial_number, show_id)'
-        )
-        .eq('trial.show_id' as string, showId!);
-      if (error) throw error;
-      return (data ?? []).map((row): ClassInfo => {
-        const trial = row.trial as unknown as Record<string, unknown>;
-        const displayName =
-          [row.element, row.level, (row as Record<string, unknown>).section as string | undefined]
-            .filter(Boolean)
-            .join(' ') || row.name;
-        const metaParts = [row.start_time ?? null].filter(Boolean);
-        return {
-          id: row.id,
-          name: displayName,
-          trialId: trial.id as string,
-          meta: metaParts.join(' \u2022 '),
-        };
-      });
-    },
-    enabled: !!showId,
-    ...cacheStrategies.dynamic,
-  });
-}
-
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function lookupVolunteerName(
@@ -329,6 +298,8 @@ export function useAssignToClass(showId: string) {
     // MYK9-2328: offline, fail at once so the chip is put back and the toast says so, rather than
     // show a change that waits unseen for a connection.
     networkMode: 'always',
+    // A lost answer would retry into the unique key and report a failure for a row that exists.
+    retry: false,
     mutationFn: async (input: AssignToClassInput) => {
       const { data, error } = await supabase
         .from('volunteer_class_assignments')
@@ -377,6 +348,8 @@ export function useUnassignFromClass(showId: string) {
     // MYK9-2328: offline, fail at once so the chip is put back and the toast says so, rather than
     // show a change that waits unseen for a connection.
     networkMode: 'always',
+    // Fail at once; the chip is put back rather than the delete retried unseen.
+    retry: false,
     mutationFn: async (assignmentId: string) => {
       const { error } = await supabase
         .from('volunteer_class_assignments')

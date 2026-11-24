@@ -49,6 +49,9 @@ export class MutationManager {
   /** Prevent startup/reconnect restore from racing an active queue flush. */
   private restoreInFlight: Promise<void> | null = null;
   private uploadInFlight: Promise<SyncResult[]> | null = null;
+  private overlapFollowUpPending = false;
+  /** Bumped by destroy() so a deferred overlap follow-up cannot fire on a disposed manager. */
+  private overlapFollowUpEpoch = 0;
   /** Signal the in-flight upload started with, so a new call can tell it is winding down. */
   private uploadInFlightSignal: AbortSignal | undefined;
   private readonly identity: MutationIdentity;
@@ -94,7 +97,8 @@ export class MutationManager {
       (tableName, rowId) => this.rowRefetchers.request(tableName, rowId),
       this.writtenOverlays,
       this.inFlightWrites,
-      options.checkConnectivity
+      options.checkConnectivity,
+      () => this.uploadPendingMutations()
     );
   }
 
@@ -115,6 +119,11 @@ export class MutationManager {
 
   private requireCurrentUserId(): Promise<string> {
     return this.identity.requireCurrentUserId();
+  }
+
+  /** Same-user guard for local queue work (MYK9-2337); see MutationIdentity. */
+  private requireSameQueueOwnerUserId(expected: string): Promise<void> {
+    return this.identity.requireSameQueueOwnerUserId(expected);
   }
 
   /** Owner stamp for a NEW queue entry (MYK9-1204); see MutationIdentity. */
@@ -391,11 +400,11 @@ export class MutationManager {
     return this.readAsCurrentUser(id => this.queueStore.getPendingMutationsForTable(tableName, id));
   }
 
-  /** An owner-scoped queue read, refused if the signed-in user changed during it. */
+  /** An owner-scoped LOCAL queue read (works offline past JWT expiry, MYK9-2337), refused if the signed-in user changed during it. */
   private async readAsCurrentUser<R>(read: (authUserId: string) => Promise<R>): Promise<R> {
-    const authUserId = await this.requireCurrentUserId();
+    const authUserId = await this.requireQueueOwnerUserId();
     const result = await read(authUserId);
-    await this.requireSameCurrentUserId(authUserId);
+    await this.requireSameQueueOwnerUserId(authUserId);
     return result;
   }
 
@@ -453,12 +462,12 @@ export class MutationManager {
    * overwrites the remote version the user just accepted.
    */
   async discardPendingMutationsForRow(tableName: string, rowId: string): Promise<void> {
-    const authUserId = await this.requireCurrentUserId();
+    const authUserId = await this.requireQueueOwnerUserId();
     const discarded = await this.queueStore.discardPendingMutationsForRow(
       tableName,
       rowId,
       authUserId,
-      () => this.requireSameCurrentUserId(authUserId)
+      () => this.requireSameQueueOwnerUserId(authUserId)
     );
     if (discarded === 0) return;
     await this.backupStore.writeCurrent();
@@ -477,13 +486,13 @@ export class MutationManager {
     rowId: string,
     newServerVersion: number
   ): Promise<void> {
-    const authUserId = await this.requireCurrentUserId();
+    const authUserId = await this.requireQueueOwnerUserId();
     const updated = await this.queueStore.updateMutationServerVersions(
       tableName,
       rowId,
       newServerVersion,
       authUserId,
-      () => this.requireSameCurrentUserId(authUserId)
+      () => this.requireSameQueueOwnerUserId(authUserId)
     );
     if (updated === 0) return;
     await this.backupStore.writeCurrent();
@@ -523,7 +532,7 @@ export class MutationManager {
     rebuiltData?: Record<string, unknown>,
     legacyOmittedKeysServerWins?: readonly string[]
   ): Promise<void> {
-    const authUserId = await this.requireCurrentUserId();
+    const authUserId = await this.requireQueueOwnerUserId();
     const changed = await this.queueStore.reconcilePendingMutationsForRow(
       tableName,
       rowId,
@@ -531,7 +540,7 @@ export class MutationManager {
       authUserId,
       rebuiltData,
       legacyOmittedKeysServerWins,
-      () => this.requireSameCurrentUserId(authUserId)
+      () => this.requireSameQueueOwnerUserId(authUserId)
     );
     if (changed > 0) {
       await this.backupStore.writeCurrent();
@@ -546,7 +555,8 @@ export class MutationManager {
    * clears the wait: the queue sends on reconnect as it always does.
    */
   async sendRowNow(tableName: string, rowId: string): Promise<SyncResult[]> {
-    const authUserId = await this.requireCurrentUserId();
+    // Clearing the wait is local; the upload pass below stays on a live session.
+    const authUserId = await this.requireQueueOwnerUserId();
     await this.queueStore.clearRetryWaitForRow(tableName, rowId, authUserId);
     if (typeof navigator !== 'undefined' && navigator.onLine === false) return [];
     return this.uploadPendingMutations();
@@ -558,7 +568,7 @@ export class MutationManager {
     rowId: string,
     fields: readonly string[]
   ): Promise<void> {
-    const authUserId = await this.requireCurrentUserId();
+    const authUserId = await this.requireQueueOwnerUserId();
     const changed = await this.queueStore.dropQueuedFieldsForRow(
       tableName,
       rowId,
@@ -577,9 +587,25 @@ export class MutationManager {
   }
 
   private requestOverlappingUpload(): void {
-    void this.uploadRunner.uploadPendingMutations().catch(error => {
-      this.logger.error('[MutationManager] Overlapping upload request failed:', error);
-    });
+    if (this.uploadRunner.noteOverlappingUpload()) return;
+    // The runner pass has not started (waiting on the cross-tab lock) or just
+    // ended. Record the overlap once and follow up when the tracked upload
+    // settles, rather than polling the lock.
+    if (this.overlapFollowUpPending) return;
+    const tracked = this.uploadInFlight;
+    if (!tracked) {
+      this.scheduleUpload();
+      return;
+    }
+    this.overlapFollowUpPending = true;
+    const epoch = this.overlapFollowUpEpoch;
+    void tracked
+      .catch(() => undefined)
+      .then(() => {
+        if (epoch !== this.overlapFollowUpEpoch) return;
+        this.overlapFollowUpPending = false;
+        this.scheduleUpload();
+      });
   }
 
   /**
@@ -709,6 +735,8 @@ export class MutationManager {
    * Call when disposing of the MutationManager instance.
    */
   destroy(): void {
+    this.overlapFollowUpEpoch++;
+    this.overlapFollowUpPending = false;
     this.uploadRunner.destroy();
     this.logger.log('[MutationManager] Destroyed');
   }

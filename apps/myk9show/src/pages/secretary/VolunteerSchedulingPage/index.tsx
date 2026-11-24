@@ -1,43 +1,30 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Users } from 'lucide-react';
-import { formatTrialLabel } from '@myk9/core';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useShowStore } from '@/store/showStore';
-import { useTrialStore } from '@/store/trialStore';
+import { getShowHomeHref } from '@/features/show-map/cockpit/cockpitRoutes';
 import {
   useVolunteers,
-  useVolunteerClassAssignments,
   useVolunteerGeneralAssignments,
-  useVolunteerConflicts,
-  useShowClassesForVolunteers,
   useAddVolunteer,
   useUpdateVolunteer,
   useDeleteVolunteer,
-  useAssignToClass,
-  useUnassignFromClass,
   useAssignToGeneralDuty,
   useUnassignFromGeneralDuty,
 } from '@/hooks/queries/volunteerQueries';
 import { VolunteerPool } from '@/components/volunteers/VolunteerPool';
 import { VolunteerDialog } from '@/components/volunteers/VolunteerDialog';
-import { ClassVolunteerCard } from '@/components/volunteers/ClassVolunteerCard';
 import { GeneralDutyCard } from '@/components/volunteers/GeneralDutyCard';
-import { ListFilterBar, ListResultLine, ListViewTabs } from '@/components/list-toolkit';
 import { GENERAL_DUTY_ROLES } from '@/types/volunteer';
-import type { ListFilterField, ListView } from '@/components/list-toolkit';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/common/ErrorState';
-import { useVolunteerFilters } from './useVolunteerFilters';
-import type { Volunteer, ClassInfo } from '@/types/volunteer';
-
-const EMPTY_CONFLICT_MAP = new Map<string, Set<string>>();
+import type { Volunteer } from '@/types/volunteer';
 
 export default function VolunteerSchedulingPage() {
   const [searchParams] = useSearchParams();
   const routeShowId = searchParams.get('showId') ?? undefined;
   const selectedShowId = useShowStore(s => s.selectedShowId);
   const selectShow = useShowStore(s => s.selectShow);
-  const { trials } = useTrialStore();
 
   // INTENT: When the workbench's VolunteersCard links here with ?showId=X
   // the explicit route value wins over whatever the sidebar last set as
@@ -50,80 +37,29 @@ export default function VolunteerSchedulingPage() {
   useEffect(() => {
     if (routeShowId && routeShowId !== selectedShowId) selectShow(routeShowId);
   }, [routeShowId, selectedShowId, selectShow]);
-  const showTrials = trials.filter(t => t.showId === activeShowId);
 
   const volunteersQuery = useVolunteers(showId);
-  const classAssignmentsQuery = useVolunteerClassAssignments(showId);
   const generalAssignmentsQuery = useVolunteerGeneralAssignments(showId);
-  const classesQuery = useShowClassesForVolunteers(showId);
   const { data: volunteers = [], isLoading: loadingVols } = volunteersQuery;
-  const { data: classAssignments = [], isLoading: loadingCA } = classAssignmentsQuery;
   const { data: generalAssignments = [], isLoading: loadingGA } = generalAssignmentsQuery;
-  const { data: classInfos = [], isLoading: loadingClasses } = classesQuery;
-  const { data: conflictMap = EMPTY_CONFLICT_MAP } = useVolunteerConflicts(showId, volunteers);
 
   // MYK9-1726: a load that failed with nothing cached would otherwise fall back to [] and read
-  // as fact: "no volunteers yet", "no classes yet", every job unfilled (inviting duplicate adds
+  // as fact: "no volunteers yet", every job unfilled (inviting duplicate adds
   // and assignments). A failed background refresh keeps the cached data and leaves the page be.
-  // Conflicts stay advisory and are not gated.
-  const failedLoads = [
-    volunteersQuery,
-    classAssignmentsQuery,
-    generalAssignmentsQuery,
-    classesQuery,
-  ].filter(query => query.isError && query.data === undefined);
+  const failedLoads = [volunteersQuery, generalAssignmentsQuery].filter(
+    query => query.isError && query.data === undefined
+  );
 
-  const isLoading = loadingVols || loadingCA || loadingGA || loadingClasses;
+  const isLoading = loadingVols || loadingGA;
 
   const addVolunteer = useAddVolunteer();
   const updateVolunteer = useUpdateVolunteer();
   const deleteVolunteer = useDeleteVolunteer();
-  const assignToClass = useAssignToClass(activeShowId);
-  const unassignFromClass = useUnassignFromClass(activeShowId);
   const assignToGeneralDuty = useAssignToGeneralDuty(activeShowId);
   const unassignFromGeneralDuty = useUnassignFromGeneralDuty(activeShowId);
 
-  const {
-    search,
-    setSearch,
-    trialFilter,
-    setTrialFilter,
-    unfilledOnly,
-    setUnfilledOnly,
-    filteredClasses,
-    filteredDutyRoles,
-    allCount,
-    unfilledCount,
-  } = useVolunteerFilters({ classes: classInfos, classAssignments, generalAssignments });
-
-  const views: ListView[] = [
-    { id: 'all', label: 'All classes', count: allCount },
-    { id: 'unfilled', label: 'Unfilled only', count: unfilledCount },
-  ];
-
-  const trialField: ListFilterField = {
-    kind: 'options',
-    key: 'trial',
-    label: 'Trial',
-    value: trialFilter === 'all' ? null : trialFilter,
-    onChange: value => setTrialFilter(value ?? 'all'),
-    options: showTrials.map(t => ({
-      value: t.id,
-      label: `${formatTrialLabel({ name: t.name, trialNumber: t.trialNumber })} — ${t.trialDate}`,
-    })),
-  };
-
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingVolunteer, setEditingVolunteer] = useState<Volunteer | null>(null);
-
-  const assignmentsByClass = useMemo(() => {
-    const map = new Map<string, typeof classAssignments>();
-    for (const a of classAssignments) {
-      if (!map.has(a.classId)) map.set(a.classId, []);
-      map.get(a.classId)!.push(a);
-    }
-    return map;
-  }, [classAssignments]);
 
   const assignmentsByDuty = useMemo(() => {
     const map = new Map<string, typeof generalAssignments>();
@@ -133,15 +69,6 @@ export default function VolunteerSchedulingPage() {
     }
     return map;
   }, [generalAssignments]);
-
-  const classesByTrial = useMemo(() => {
-    const map = new Map<string, ClassInfo[]>();
-    for (const cls of filteredClasses) {
-      if (!map.has(cls.trialId)) map.set(cls.trialId, []);
-      map.get(cls.trialId)!.push(cls);
-    }
-    return map;
-  }, [filteredClasses]);
 
   function handleAddClick() {
     setEditingVolunteer(null);
@@ -228,86 +155,30 @@ export default function VolunteerSchedulingPage() {
         onEditClick={handleEditClick}
       />
 
-      <div className="flex flex-col gap-3">
-        <ListViewTabs
-          label="Volunteer views"
-          views={views}
-          activeId={unfilledOnly ? 'unfilled' : 'all'}
-          onSelect={id => setUnfilledOnly(id === 'unfilled')}
-        />
-        <ListFilterBar
-          searchValue={search}
-          onSearchChange={setSearch}
-          searchPlaceholder="Search classes, volunteers..."
-          fields={[trialField]}
-        />
-        <ListResultLine
-          ready={!isLoading}
-          shown={filteredClasses.length + filteredDutyRoles.length}
-          total={classInfos.length + GENERAL_DUTY_ROLES.length}
-          noun={['class or duty', 'classes and duties']}
-          filtered={search !== '' || trialFilter !== 'all' || unfilledOnly}
-          onShowAll={() => {
-            setSearch('');
-            setTrialFilter('all');
-            setUnfilledOnly(false);
-          }}
-        />
-      </div>
+      <p className="text-sm text-muted-foreground">
+        Ring stewards are assigned to each class in{' '}
+        <Link
+          to={getShowHomeHref({ showId: activeShowId, state: { statuses: [] } })}
+          className="font-medium text-primary underline-offset-4 hover:underline"
+        >
+          Show Desk
+        </Link>
+        , next to the judge.
+      </p>
 
       {isLoading && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: GENERAL_DUTY_ROLES.length }).map((_, i) => (
             <Skeleton key={i} className="h-40 rounded-lg" />
           ))}
         </div>
       )}
 
-      {!isLoading && classesByTrial.size === 0 && filteredDutyRoles.length === 0 && (
-        <div className="py-12 text-center">
-          <p className="text-muted-foreground">
-            {classInfos.length === 0
-              ? 'This show has no classes yet. Create trials and classes first.'
-              : 'No classes match your filters.'}
-          </p>
-        </div>
-      )}
-
-      {!isLoading &&
-        Array.from(classesByTrial.entries()).map(([trialId, trialClasses]) => {
-          const trial = showTrials.find(t => t.id === trialId);
-          return (
-            <section key={trialId}>
-              <h2 className="mb-3 text-sm font-semibold text-muted-foreground">
-                {formatTrialLabel({ name: trial?.name, trialNumber: trial?.trialNumber })} —{' '}
-                {trial?.trialDate ?? ''}
-              </h2>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {trialClasses.map(cls => (
-                  <ClassVolunteerCard
-                    key={cls.id}
-                    classId={cls.id}
-                    className={cls.name}
-                    classMeta={cls.meta}
-                    assignments={assignmentsByClass.get(cls.id) ?? []}
-                    volunteers={volunteers}
-                    conflictMap={conflictMap}
-                    onAssign={(volId, classId, roleName) =>
-                      assignToClass.mutate({ volunteerId: volId, classId, roleName })
-                    }
-                    onUnassign={id => unassignFromClass.mutate(id)}
-                  />
-                ))}
-              </div>
-            </section>
-          );
-        })}
-
-      {!isLoading && filteredDutyRoles.length > 0 && (
+      {!isLoading && (
         <section>
           <h2 className="mb-3 text-sm font-semibold text-muted-foreground">General Duties</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {filteredDutyRoles.map(role => (
+            {GENERAL_DUTY_ROLES.map(role => (
               <GeneralDutyCard
                 key={role}
                 roleName={role}

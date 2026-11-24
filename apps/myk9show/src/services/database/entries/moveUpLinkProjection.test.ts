@@ -96,6 +96,9 @@ describe('moved_from_entry_id reaches Entry Management (MYK9-639)', () => {
         or: vi.fn(() => query),
         order: vi.fn(() => query),
         limit: vi.fn(() => query),
+        lt: vi.fn(() => query),
+        // The cold-store read pages by keyset; one short page ends it.
+        range: vi.fn(() => query),
         then: (resolve: (value: { data: unknown[] | null; error: unknown }) => unknown) =>
           Promise.resolve(
             resolve({

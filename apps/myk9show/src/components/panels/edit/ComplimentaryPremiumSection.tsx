@@ -22,6 +22,7 @@ import {
   fetchGrantHistory,
 } from '@/services/database/entitlement/admin';
 import type { AdminGrantHistoryRow } from '@/services/database/entitlement/types';
+import { ENTITLEMENT_QUERY_KEY } from '@/features/entitlement/useEntitlement';
 import { notifications } from '@/lib/notifications';
 import { ComplimentaryPremiumHistory } from './ComplimentaryPremiumHistory';
 import { endOfLocalDay, toDateInputValue } from './complimentaryPremiumDates';
@@ -69,7 +70,7 @@ export const ComplimentaryPremiumSection: React.FC<ComplimentaryPremiumSectionPr
 
   const invalidateEntitlementQueries = () => {
     queryClient.invalidateQueries({ queryKey: grantHistoryQueryKey(personId) });
-    queryClient.invalidateQueries({ queryKey: ['entitlement', 'context', personId] });
+    queryClient.invalidateQueries({ queryKey: ENTITLEMENT_QUERY_KEY });
   };
 
   const grantMutation = useMutation({

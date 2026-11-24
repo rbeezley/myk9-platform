@@ -14,7 +14,10 @@ import { replicatedDogRegistrationsTable } from '@/services/replication/Replicat
 import RegistrationsSection from '@/components/dogs/DogDetails/Registrations/RegistrationsSection';
 import type { Dog } from '@/types/dog-types';
 import { serverRow } from '@/services/replication/__tests__/dogRegistrationFixtures';
-import { useRegistrationsByDogQuery } from '@/hooks/queries/useRegistrationsDatabase';
+import {
+  REGISTRATION_STATISTICS_KEY,
+  useRegistrationsByDogQuery,
+} from '@/hooks/queries/useRegistrationsDatabase';
 import { ARMBAND_LABEL_HELD_ENTRIES_KEY } from '@/hooks/queries/useArmbandLabelData';
 import { useRegistrationsReplicaCacheSync } from '../useRegistrationsReplicaCacheSync';
 
@@ -25,6 +28,8 @@ const READER_KEYS = [
   queryKeys.personDogs('owner-1'),
   // MYK9-1162: a number added or removed changes which armband labels may print.
   [...ARMBAND_LABEL_HELD_ENTRIES_KEY, 'show-1'],
+  // MYK9-2351: statistics refresh when an upload is acknowledged.
+  REGISTRATION_STATISTICS_KEY,
 ] as const;
 
 function mountListener(): QueryClient {
@@ -116,10 +121,10 @@ describe('a burst of replica changes', () => {
   // Past the shared table's own debounce plus the listener's coalescing window.
   const SETTLE_MS = NOTIFY_DEBOUNCE_MS + 400;
   const settle = () => new Promise(resolve => setTimeout(resolve, SETTLE_MS));
-  // The four other-read filters. The dog rosters (MYK9-1303) are refreshed on a leading edge
+  // The five other-read filters. The dog rosters (MYK9-1303) are refreshed on a leading edge
   // plus one trailing per window: one more filter on the first refresh, none on the next
   // (the later change lands inside the window). See useRegistrationsReplicaCacheSync.roster.test.tsx.
-  const FILTERS_PER_REFRESH = 4;
+  const FILTERS_PER_REFRESH = 5;
   const ROSTER_LEADING_FILTERS = 1;
 
   function spyOnRefreshes() {

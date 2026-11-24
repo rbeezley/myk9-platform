@@ -207,6 +207,9 @@ vi.mock('@/services/database/judges', () => ({
   fetchShowJudgesForPublish: vi.fn(async () => []),
 }));
 
+vi.mock('@/components/shows/ShowDetails/refreshShowBeforeSave', () => ({
+  refreshShowBeforeSave: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock('@/features/premium/waitForShowSync', () => ({
   waitForShowSync: vi.fn(async () => undefined),
 }));

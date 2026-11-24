@@ -1,6 +1,7 @@
 import type { IDBPDatabase } from 'idb';
 import { REPLICATION_STORES } from './core/DatabaseManager';
 import type { Logger } from './dependencies';
+import { moveMutationToFailed } from './mutation-failed-move';
 import { OccRejectionError } from './mutation-occ';
 import * as rowSync from './mutation-row-sync';
 import { calculateBackoffDelay } from './mutation-utils';
@@ -138,15 +139,7 @@ export async function handleOccRejection(ctx: OccRejectionContext): Promise<numb
     // leave the mutation in BOTH pending (auto-uploads) and failed
     // (Retry/Discard toast) — which would defeat the circuit breaker
     // and surface conflicting user actions (Codex review, P2).
-    const parkTx = db.transaction(
-      [REPLICATION_STORES.FAILED_MUTATIONS, REPLICATION_STORES.PENDING_MUTATIONS],
-      'readwrite'
-    );
-    await Promise.all([
-      parkTx.objectStore(REPLICATION_STORES.FAILED_MUTATIONS).put(parked),
-      parkTx.objectStore(REPLICATION_STORES.PENDING_MUTATIONS).delete(queuedMutation.id),
-      parkTx.done,
-    ]);
+    await moveMutationToFailed(db, parked);
     failedMutations.push(parked);
     blockedDependencyIds.add(queuedMutation.id);
     failedDependencyIds.add(queuedMutation.id);

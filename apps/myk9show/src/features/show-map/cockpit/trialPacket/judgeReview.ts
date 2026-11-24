@@ -15,6 +15,8 @@ export interface ReviewLine {
   /** "Q, 1st", "NQ: left the ring", "ABS", "Pending". */
   result: string;
   time: string;
+  /** UKC element time; "" when the run has none. */
+  elementTime: string;
   faults: string;
   /** The "Changed after you submitted" note, or "" when the score stands as submitted. */
   correctionNote: string;
@@ -29,6 +31,8 @@ export interface ReviewClass {
   name: string;
   trialLabel: string;
   dayLabel: string;
+  /** MYK9-2358: UKC dual-timer class with at least one element time; AKC and ASCA never set it. */
+  showElementTime: boolean;
   /** The class's lines split into the pages the judge initials: one page minimum. */
   pages: ReviewPage[];
 }
@@ -131,6 +135,7 @@ export function buildJudgeReviews(input: {
       handlerName: entry.handlerName,
       result: resultText(entry, reasons.get(entry.entryId)),
       time: entry.timeLabel,
+      elementTime: entry.elementTimeLabel,
       faults: entry.faults === null ? '' : String(entry.faults),
       correctionNote: correctionLine(input.correctionsByEntryId.get(entry.entryId) ?? []),
     }));
@@ -139,6 +144,7 @@ export function buildJudgeReviews(input: {
       name: row.name,
       trialLabel: row.trialLabel,
       dayLabel: formatJudgeDayDate(row.trialDate),
+      showElementTime: lines.some(line => Boolean(line.elementTime)),
       pages: paginateReviewLines(lines),
     });
     judge.done &&= row.runFinished;

@@ -15,7 +15,6 @@ import {
   checkEmailExists,
 } from '@/services/database/users';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
-import { invalidateQueries } from '@/services/database/queryClient';
 import type { DbUserInsert, DbUserUpdate } from '@/types/database-mappings';
 
 // Get all users
@@ -149,16 +148,12 @@ export const useCreateUserMutation = () => {
     },
     onSuccess: data => {
       // Invalidate and refetch
-      invalidateQueries.all('people');
+      queryClient.invalidateQueries({ queryKey: queryKeys.people });
 
       // Update the cache with the new user data
       if (data) {
         queryClient.setQueryData(queryKeys.person(data.id), data);
       }
-
-      // Invalidate related queries
-      queryClient.invalidateQueries({ queryKey: ['users', 'statistics'] });
-      queryClient.invalidateQueries({ queryKey: ['users', 'with-dog-counts'] });
     },
   });
 };
@@ -200,10 +195,7 @@ export const useUpdateUserMutation = () => {
       queryClient.setQueryData(queryKeys.person(id), data);
 
       // Invalidate users list to ensure consistency
-      invalidateQueries.lists('people');
-
-      // Invalidate related queries
-      queryClient.invalidateQueries({ queryKey: ['users', 'with-dog-counts'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.people });
     },
   });
 };
@@ -236,8 +228,6 @@ export const useRestoreUserMutation = () => {
       // Invalidate all related queries
       queryClient.invalidateQueries({ queryKey: queryKeys.people });
       queryClient.invalidateQueries({ queryKey: ['users', 'deleted'] });
-      queryClient.invalidateQueries({ queryKey: ['users', 'statistics'] });
-      queryClient.invalidateQueries({ queryKey: ['users', 'with-dog-counts'] });
     },
   });
 };

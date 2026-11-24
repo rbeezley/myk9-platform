@@ -59,6 +59,7 @@ const SubscriptionPage = lazyWithRetry(() => import('@/pages/SubscriptionPage'))
 const LegalPage = lazyWithRetry(() => import('@/pages/LegalPage'));
 const CredentialsHelpPage = lazyWithRetry(() => import('@/pages/CredentialsHelpPage'));
 const FeesPage = lazyWithRetry(() => import('@/pages/FeesPage'));
+const AboutPage = lazyWithRetry(() => import('@/pages/AboutPage'));
 const SupportTicketPage = lazyWithRetry(() => import('@/pages/SupportTicketPage'));
 
 // Account (merged profile + preferences + settings)
@@ -561,6 +562,18 @@ export const PublicRoutes = () => (
         <SuspenseWrapper>
           <PageTransition>
             <FeesPage />
+          </PageTransition>
+        </SuspenseWrapper>
+      }
+    />
+
+    {/* About — public, linked from the landing and app footers */}
+    <Route
+      path="/about"
+      element={
+        <SuspenseWrapper>
+          <PageTransition>
+            <AboutPage />
           </PageTransition>
         </SuspenseWrapper>
       }

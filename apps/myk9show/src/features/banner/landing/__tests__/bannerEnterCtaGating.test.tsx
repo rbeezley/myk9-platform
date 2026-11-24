@@ -105,13 +105,15 @@ describe('Banner Enter CTA gating', () => {
         </PendingEntryCopyProvider>
       );
       expect(screen.queryByRole('link', { name: 'Enter this show' })).not.toBeInTheDocument();
-      expect(screen.getByText('Classes pending')).toBeInTheDocument();
+      // The status line and the CTA slot say the same thing; neither claims entries are open.
+      expect(screen.getAllByText('Classes pending')).toHaveLength(2);
+      expect(screen.queryByText(/Entries open ·/)).not.toBeInTheDocument();
     });
 
     it('shows closed-entry copy when entries are closed', () => {
       render(<StickyNav {...stickyNavProps} canEnterOnline={false} entryClosed />);
       expect(screen.queryByRole('link', { name: 'Enter this show' })).not.toBeInTheDocument();
-      expect(screen.getByText('Entries closed')).toBeInTheDocument();
+      expect(screen.getAllByText('Entries closed')).toHaveLength(2);
       expect(screen.queryByText('Classes pending')).not.toBeInTheDocument();
     });
   });

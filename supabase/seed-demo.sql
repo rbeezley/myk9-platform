@@ -7,8 +7,11 @@
 --   ASCA ...012 -- plus one entry-free PAST Prairie Trail show that exists only
 --   as a cross-club class target (section 4c), the show-day fixture
 --   `Show-day fixture · <Mon D>` that is always running today (section 19,
---   MYK9-731), 6 dogs, 13 hand-authored entries on the demo show) that
---   preserves the golden paths. Every staging e2e spec and
+--   MYK9-731), the `Club demo show` for the live club demo (section 20,
+--   MYK9-836: a trial dated the reseed day, 9 owing entries on its own six dogs
+--   owned by a made-up exhibitor with no account, one class finished and released,
+--   one half scored; insert-only, a new one each day), 6 dogs, 13 hand-authored
+--   entries on the demo show) that preserves the golden paths. Every staging e2e spec and
 --   scheduled walk that needs a specific row points at this lean set;
 --   seedDemoStagingConsumersContract.test.ts pins that. It also includes complete show officials and
 --   full RBAC role coverage so every role's golden path is walkable after a reseed:
@@ -77,7 +80,14 @@
 --   at all. See section 2.
 --
 -- WHAT THIS IS NOT
---   It does NOT create people and does NOT touch auth.users. The 11 protected
+--   It does NOT create people and does NOT touch auth.users, with ONE exception:
+--   the club demo show (section 20) brings a made-up exhibitor, one public.people
+--   row (dededede-0000-0000-0836-0000000000e1, an example.com email, NO auth.users row, so
+--   it cannot sign in), because that show's six dogs need an owner and no real
+--   account may own them (the landing stills and the club deck read exhibitor@'s dogs).
+--   Nothing in this file ever deletes or updates that person, her dogs or any club demo
+--   show (the one exception: a reseed on a later day sets an earlier demo show's status
+--   from published to draft). The 11 protected
 --   accounts survive the wipe; this seed references them by email lookup
 --   (subquery on public.people) so the fixed UUIDs below never collide with
 --   real account ids. Dogs/entries are attached to:
@@ -192,6 +202,11 @@ END $$;
 --   load armband a1090000-0000-0000-0003-*   load show    a1090000-0000-0000-0010-*
 --   load trial   a1090000-0000-0000-0011-*   load class   a1090000-0000-0000-0012-*
 --   load club    a1090000-0000-0000-0013-*
+--   MYK9-836 club demo show: NOT deleted here, ever (section 20 is insert-only). Its ids,
+--   dededede-0000-0000-0836-<YYYYMMDD>00NN per day (show ...0010, trial ...0021, entries
+--   ...005{1..9}, form ...0070, armbands ...00a{1..6}, judge_assign ...00b{1..3}), classes
+--   dec1a55e-0000-0000-0836-<YYYYMMDD>00{31..33}, and the fixed dogs ...0836-0000000000d{1..6}
+--   and person ...0836-0000000000e1, are created once and left in place.
 --   judge_assign dededede-0000-0000-0000-0000000000b{1..5} (e2e-judge), class-level
 --   passcode     dededede-0000-0000-0000-00000000008{1,2}
 --   judge_qual   dededede-0000-0000-0000-00000000009{1,2}
@@ -2800,6 +2815,363 @@ END $$;
 
 
 
+-- ---------------------------------------------------------------------------
+-- 20. CLUB DEMO SHOW (MYK9-836): a prepared show for the live Zoom demo.
+--
+-- The deck is followed by a live demo, presented as the demo secretary (and as the
+-- demo judge for ringside). Section 19 gives a trial that runs today but only two
+-- unscored dogs; sections 8 and 8b have results but on a show 45 days out. This is
+-- the one show that reads as a real show day in progress: entries in, one class
+-- half scored, one class finished and released, one still to run.
+--
+-- INSERT-ONLY. Nothing in this section, and nothing anywhere else in this file, ever
+-- deletes or updates a row of the club demo range (dededede-0000-0000-0836-*, classes
+-- dec1a55e-0000-0000-0836-*), with ONE exception: step 2 below sets an earlier demo show's
+-- status. A live user may attach anything to the demo show, its exhibitor or its dogs (a
+-- cash payment, a desk refund, a waitlist row, a cart, an entry at another show), and a
+-- reseed must never destroy it. So there is no clear in section 0 and no refusal.
+--
+-- WHAT A RESEED DOES (one transaction, the whole section is a single DO block):
+--   1. If today's demo show already exists, it does nothing at all. Reseeding twice in
+--      a day is a no-op for this section.
+--   2. Otherwise it unpublishes every EARLIER demo show: status 'published' becomes
+--      'draft' for a show in the range that started before today, and nothing else on it
+--      changes. 'draft' is the least visible valid status (shows_status_check): it leaves
+--      Find Shows and the public page (the public policies read only published shows)
+--      and moves the secretary's list from current/upcoming to Drafts. 'cancelled' would
+--      queue cancellation emails and 'completed' stays public, so neither is used.
+--   3. It adds today's show, every id derived from the Chicago date d: the show
+--      dededede-0000-0000-0836-<YYYYMMDD>0010, trial ...0021, classes
+--      dec1a55e-0000-0000-0836-<YYYYMMDD>00{31..33}, entries ...00{51..59}, form ...0070,
+--      armbands ...00a{1..6} and judge assignments ...00b{1..3}.
+--   4. The exhibitor and her six dogs are created once and never touched again:
+--      INSERT ... ON CONFLICT DO NOTHING on their fixed ids (the person
+--      ...0836-0000000000e1, the dogs ...0836-0000000000d{1..6}).
+--
+-- WHAT. `Club demo show`, AKC, under the Heartland club the demo secretary runs,
+-- one trial dated TODAY in its own timezone (America/Chicago, read from now() like
+-- section 19, so the date is the reseed day: reseed on the morning of a demo).
+-- Entries closed three days ago. Nine entries from six dogs of its own (Poppy, Tucker,
+-- Hazel, Bear, Nova, Rusty, owned and handled by a made-up exhibitor, Dana Whitcomb,
+-- who has no account), three classes, each shaped like its AKC template row in
+-- migration 030_seed_sport_templates.sql (named and sectioned like section 4):
+--   Container Novice A 09:00  finished: 3 of 3 scored, finalized, results released,
+--                             explicit placements (the section 8 recipe)
+--   Interior Advanced  10:30  in progress: 2 of 4 scored, no placements (placement
+--                             is only computed at 100%), two dogs still to run
+--   Exterior Excellent 13:00  not started: 2 dogs checked in or waiting
+-- The judge fixture judges all three classes at class level (section 11 explains why).
+--
+-- MONEY. Nothing is invented. Every entry is owing: payment_status 'pending', on one
+-- entry form (Dana Whitcomb's), pending with nothing received, so the demo can record a
+-- cash or check payment on it. No Stripe id, no order, no paid_amount (MYK9-2190's rule,
+-- section 9b).
+--
+-- WHY ITS OWN DOGS AND OWNER. The landing stills and the club deck's clips read
+-- exhibitor@'s six dogs (My Entries card counts, Past Results), so this show must add no
+-- entry or result to any of them or to secretary@'s, and no demo account owns these dogs.
+--
+-- WHY A SEPARATE SHOW. The show-day fixture is built by a migration function and
+-- the e2e walks key on it; the Heartland show's counts and states are pinned by
+-- specs. Neither can take a half-scored class.
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  v_d date := (now() AT TIME ZONE 'America/Chicago')::date;
+  v_day text := to_char(v_d, 'YYYYMMDD');
+  v_midnight timestamptz := v_d::timestamp AT TIME ZONE 'UTC';
+  v_show uuid := ('dededede-0000-0000-0836-' || v_day || '0010')::uuid;
+  v_trial uuid := ('dededede-0000-0000-0836-' || v_day || '0021')::uuid;
+  v_form uuid := ('dededede-0000-0000-0836-' || v_day || '0070')::uuid;
+  -- v_c[1..3] are the classes ...0031..0033; v_e[1..9] the entries ...0051..0059.
+  v_c uuid[] := ARRAY(SELECT ('dec1a55e-0000-0000-0836-' || v_day || '00' || n)::uuid FROM generate_series(31, 33) n);
+  v_e uuid[] := ARRAY(SELECT ('dededede-0000-0000-0836-' || v_day || '00' || n)::uuid FROM generate_series(51, 59) n);
+  v_person constant uuid := 'dededede-0000-0000-0836-0000000000e1';
+  v_dog constant uuid[] := ARRAY[
+    'dededede-0000-0000-0836-0000000000d1', 'dededede-0000-0000-0836-0000000000d2',
+    'dededede-0000-0000-0836-0000000000d3', 'dededede-0000-0000-0836-0000000000d4',
+    'dededede-0000-0000-0836-0000000000d5', 'dededede-0000-0000-0836-0000000000d6']::uuid[];
+  v_entries integer;
+  v_unlinked integer;
+  v_money integer;
+  v_finished record;
+  v_half record;
+  v_placed_half integer;
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.shows WHERE id = v_show) THEN
+    RAISE NOTICE 'seed-demo: the club demo show for % already exists; section 20 does nothing (MYK9-836)', v_d;
+    RETURN;
+  END IF;
+
+  -- Step 2: earlier demo shows leave the public and current lists. Status only. "Earlier"
+  -- is read from the immutable date stamp in the id (YYYYMMDD after the 0836 group), never
+  -- from start_date, which a secretary may edit (a show moved to today is still earlier).
+  UPDATE public.shows
+  SET status = 'draft'
+  WHERE id >= 'dededede-0000-0000-0836-000000000000'::uuid
+    AND id <  ('dededede-0000-0000-0836-' || v_day || '0000')::uuid
+    AND status = 'published';
+
+  INSERT INTO public.shows (
+    id, name, organization, description,
+    start_date, end_date, entry_open_date, entry_close_date,
+    location, city, state, latitude, longitude, status, club_id,
+    pre_entry_fee, day_of_show_fee,
+    allow_non_owner_handlers, results_visible_to_all,
+    starting_armband_number, default_judge_day_capacity,
+    mail_in_strategy, mail_in_auto_release, waitlist_payment_deadline_hours,
+    accept_check_payments, accept_cash_payments,
+    cc_secretary_on_exhibitor_emails,
+    style, experience_is_published, experience_published_content,
+    brand_color, version, is_nationals, online_entries_enabled
+  )
+  VALUES (
+    v_show,
+    'Club demo show',
+    'AKC',
+    'A one-day AKC Scent Work trial that is always dated the day the demo seed ran, with a class half scored and a class finished.',
+    v_midnight,
+    v_midnight,
+    ((v_d - 30)::timestamp AT TIME ZONE 'UTC'),
+    ((v_d - 3)::timestamp AT TIME ZONE 'UTC'),
+    '100 Dog Show Lane, Tulsa, OK 74101', 'Tulsa', 'Oklahoma', 36.15, -95.99,
+    'published', 'dededede-0000-0000-0000-000000000001',
+    30.00, 35.00,
+    true, true,
+    300, 125,
+    'none', false, 48,
+    true, true,
+    true,
+    'headline', false, '{}'::jsonb,
+    '#0d4d4f', 1, false, true
+  );
+
+  INSERT INTO public.show_visibility_settings (
+    show_id, preset, placement_timing, qualification_timing,
+    time_timing, faults_timing, self_checkin_enabled
+  )
+  VALUES (
+    v_show, 'open', 'class_complete', 'immediate', 'immediate', 'immediate', true
+  );
+
+  INSERT INTO public.trials (
+    id, show_id, name, date, trial_number, status,
+    planned_start_time, allow_self_checkin, trial_type, pipeline_stage,
+    display_order, category, registry_id, timezone, version
+  )
+  VALUES (
+    v_trial, v_show, 'Trial 1', v_d, 'Trial 1', 'in_progress',
+    '8:00 AM', true, 'scent_work', 1, 1, 'Trial 1', 'AKC', 'America/Chicago', 1
+  );
+
+  -- The AKC scent work template rows (migration 030): Container Novice A (section A,
+  -- 2 min fixed, 1 hide, 1 area, known), Interior Advanced (judge-set 1 to 3 min, 2 hides,
+  -- 1 area, known), Exterior Excellent (judge-set 3 to 5 min, 3 hides, 1 area, known).
+  INSERT INTO public.classes (
+    id, trial_id, name, level, element, section,
+    entry_fee, status, time_limit_seconds, num_hides, num_areas,
+    has_blank, timer_mode, hides_known, display_order, start_time, version
+  )
+  VALUES
+    (v_c[1], v_trial, 'Container Novice A', 'Novice', 'Container', 'A',
+     30.00, 'upcoming', 120, 1, 1, false, 'single', true, 1, '09:00'::time, 1),
+    (v_c[2], v_trial, 'Interior Advanced', 'Advanced', 'Interior', NULL,
+     30.00, 'upcoming', 180, 2, 1, false, 'single', true, 2, '10:30'::time, 1),
+    (v_c[3], v_trial, 'Exterior Excellent', 'Excellent', 'Exterior', NULL,
+     30.00, 'upcoming', 180, 3, 1, false, 'single', true, 3, '13:00'::time, 1);
+
+  -- The show's made-up exhibitor: one people row, no auth.users row, so nobody can sign in
+  -- as it. The address is complete because an AKC entry needs an owner address (MYK9-1010).
+  -- Created once; a later day's reseed finds it and leaves it as it is.
+  INSERT INTO public.people (id, first_name, last_name, email, street_address, city, state, zip_code)
+  VALUES (
+    v_person,
+    'Dana', 'Whitcomb', 'dana.whitcomb@example.com',
+    '108 Demo Lane', 'Demoville', 'KS', '99999'
+  )
+  ON CONFLICT (id) DO NOTHING;
+
+  -- The show's own dogs, created once and never updated, each with the registrations
+  -- entries_require_dog_registration needs, the section 5 pattern. The registrations are added
+  -- only to a dog that has none, so a person's later edit to them stands.
+  INSERT INTO public.dogs (id, name, call_name, breed, sex, date_of_birth, color, status, owner_id, version)
+  SELECT v.id::uuid, v.name, v.name, v.breed, v.sex, v.dob::date, v.color, 'active', p.id, 1
+  FROM (VALUES
+    ('dededede-0000-0000-0836-0000000000d1', 'Poppy',  'Standard Poodle',   'female', '2021-04-18', 'Apricot'),
+    ('dededede-0000-0000-0836-0000000000d2', 'Tucker', 'Vizsla',            'male',   '2020-08-09', 'Rust'),
+    ('dededede-0000-0000-0836-0000000000d3', 'Hazel',  'Brittany',          'female', '2022-02-25', 'Orange & White'),
+    ('dededede-0000-0000-0836-0000000000d4', 'Bear',   'Bernese Mountain Dog', 'male', '2019-12-03', 'Tricolor'),
+    ('dededede-0000-0000-0836-0000000000d5', 'Nova',   'Siberian Husky',    'female', '2021-10-11', 'Gray & White'),
+    ('dededede-0000-0000-0836-0000000000d6', 'Rusty',  'Cocker Spaniel',    'male',   '2023-03-07', 'Red')
+  ) AS v(id, name, breed, sex, dob, color)
+  JOIN public.people p ON p.id = v_person
+  ON CONFLICT (id) DO NOTHING;
+
+  INSERT INTO public.dog_registrations (
+    dog_id, organization, registration_number, registered_name, breed, status, is_primary
+  )
+  SELECT
+    d.id,
+    reg.organization,
+    reg.prefix || upper(substr(md5(d.id::text || reg.registry), 1, 8)),
+    d.name,
+    d.breed,
+    'Active',
+    reg.registry = 'AKC'
+      AND NOT EXISTS (SELECT 1 FROM public.dog_registrations p WHERE p.dog_id = d.id AND p.is_primary)
+  FROM public.dogs d
+  CROSS JOIN (VALUES
+    ('AKC',  'AKC (American Kennel Club)',                 'SR'),
+    ('UKC',  'UKC (United Kennel Club)',                   'P'),
+    ('ASCA', 'ASCA (Australian Shepherd Club of America)', 'E')
+  ) AS reg(registry, organization, prefix)
+  WHERE d.id = ANY (v_dog)
+    AND NOT EXISTS (
+      SELECT 1 FROM public.dog_registrations r
+      WHERE r.dog_id = d.id
+        AND public.normalize_registry_organization(r.organization)
+          = public.normalize_registry_organization(reg.organization))
+  ON CONFLICT DO NOTHING;
+
+  -- Entries: Nova, Poppy, Rusty in Container Novice A; Tucker, Hazel, Bear, Poppy in
+  -- Interior Advanced; Bear, Rusty in Exterior Excellent. A dog keeps one armband
+  -- for the show (300 + its order below), Poppy's in both of her classes.
+  INSERT INTO public.entries (
+    id, dog_id, class_id, show_id, trial_id, handler_id, handler,
+    entry_status, payment_status, entry_fee, armband, run_order, move_up_requested,
+    check_in_status, version
+  )
+  SELECT v.id, v.dog_id, v.class_id, v_show, v_trial,
+         h.id, h.display_name, 'confirmed', 'pending', 30.00, v.armband, v.run_order, false,
+         v.check_in_status, 1
+  FROM (VALUES
+    (v_e[1], v_dog[5], v_c[1], '305', 2, 'no-status'),
+    (v_e[2], v_dog[1], v_c[1], '301', 1, 'no-status'),
+    (v_e[3], v_dog[6], v_c[1], '306', 3, 'no-status'),
+    (v_e[4], v_dog[2], v_c[2], '302', 1, 'no-status'),
+    (v_e[5], v_dog[3], v_c[2], '303', 2, 'no-status'),
+    (v_e[6], v_dog[4], v_c[2], '304', 3, 'at-gate'),
+    (v_e[7], v_dog[1], v_c[2], '301', 4, 'checked-in'),
+    (v_e[8], v_dog[4], v_c[3], '304', 1, 'checked-in'),
+    (v_e[9], v_dog[6], v_c[3], '306', 2, 'checked-in')
+  ) AS v(id, dog_id, class_id, armband, run_order, check_in_status)
+  JOIN (
+    SELECT p.id, p.first_name || ' ' || p.last_name AS display_name
+    FROM public.people p
+    WHERE p.id = v_person
+  ) AS h ON true;
+
+  INSERT INTO public.armbands (id, show_id, dog_id, armband_number, is_available, assigned_at, version)
+  SELECT ('dededede-0000-0000-0836-' || v_day || '00a' || n)::uuid, v_show, v_dog[n], (300 + n)::text,
+         false, ((v_d - 3)::timestamp AT TIME ZONE 'UTC'), 1
+  FROM generate_series(1, 6) n;
+
+  -- Entry form (MYK9-2190, section 9b): one per exhibitor per show, pending, nothing
+  -- received. The nine entries are owing, so the form owes what its entries cost.
+  INSERT INTO public.enrollments (id, show_id, handler_id, payment_status)
+  VALUES (v_form, v_show, v_person, 'pending');
+  UPDATE public.entries
+  SET registration_id = v_form
+  WHERE show_id = v_show;
+
+  -- Judge fixture on all three classes, at class level. The passcode a judge
+  -- assignment mints is the section 12 machinery; nothing here pins a value.
+  INSERT INTO public.judge_assignments (
+    id, person_id, show_id, trial_id, class_id, status, confirmed_at, created_at, updated_at
+  )
+  SELECT ('dededede-0000-0000-0836-' || v_day || '00b' || n)::uuid, p.id, v_show, v_trial,
+         v_c[n], 'confirmed', now(), now(), now()
+  FROM generate_series(1, 3) n
+  JOIN public.people p ON lower(p.email) = 'judge@myk9t.com';
+
+  -- Stamps are capped at the reseed time (a morning reseed must not hold future
+  -- timestamps), by distinct offsets so the order still holds.
+  -- Container Novice A: scored and finalized like section 8. The placement trigger is
+  -- AFTER UPDATE only, so it places on the last update below and never on the
+  -- inserts above; final_placement is set explicitly to the values it computes (all
+  -- three qualify with 0 faults, so fastest time first): Nova 36.80s -> 1, Poppy
+  -- 41.30s -> 2, Rusty 44.10s -> 3.
+  UPDATE public.entries SET
+    is_scored = true, result_status = 'qualified', check_in_status = 'completed',
+    entry_status = 'completed', search_time_seconds = 41.30, total_faults = 0,
+    total_score = 100, final_placement = 2,
+    scoring_completed_at = LEAST(now() - INTERVAL '40 minutes', (v_d::timestamp + INTERVAL '09:08:00') AT TIME ZONE 'America/Chicago')
+  WHERE id = v_e[2];  -- Poppy
+  UPDATE public.entries SET
+    is_scored = true, result_status = 'qualified', check_in_status = 'completed',
+    entry_status = 'completed', search_time_seconds = 36.80, total_faults = 0,
+    total_score = 100, final_placement = 1,
+    scoring_completed_at = LEAST(now() - INTERVAL '30 minutes', (v_d::timestamp + INTERVAL '09:14:00') AT TIME ZONE 'America/Chicago')
+  WHERE id = v_e[1];  -- Nova
+  UPDATE public.entries SET
+    is_scored = true, result_status = 'qualified', check_in_status = 'completed',
+    entry_status = 'completed', search_time_seconds = 44.10, total_faults = 0,
+    total_score = 100, final_placement = 3,
+    scoring_completed_at = LEAST(now() - INTERVAL '20 minutes', (v_d::timestamp + INTERVAL '09:20:00') AT TIME ZONE 'America/Chicago')
+  WHERE id = v_e[3];  -- Rusty
+  UPDATE public.classes SET
+    status = 'completed', is_scoring_finalized = true, scored_count = 3,
+    results_released_at = LEAST(now() - INTERVAL '10 minutes', (v_d::timestamp + INTERVAL '09:30:00') AT TIME ZONE 'America/Chicago')
+  WHERE id = v_c[1];
+
+  -- Interior Advanced: half scored. Tucker and Hazel have run; Bear (at the gate) and
+  -- Poppy (checked in) have not. No final_placement: placement is only computed
+  -- when every dog is accounted for, and the entry trigger clears it until then. The
+  -- trigger also derives the class's in-progress status and scored_count of 2.
+  UPDATE public.entries SET
+    is_scored = true, result_status = 'qualified', check_in_status = 'completed',
+    entry_status = 'completed', search_time_seconds = 52.10, total_faults = 0,
+    total_score = 100,
+    scoring_completed_at = LEAST(now() - INTERVAL '8 minutes', (v_d::timestamp + INTERVAL '10:42:00') AT TIME ZONE 'America/Chicago')
+  WHERE id = v_e[4];  -- Tucker
+  UPDATE public.entries SET
+    is_scored = true, result_status = 'qualified', check_in_status = 'completed',
+    entry_status = 'completed', search_time_seconds = 58.60, total_faults = 0,
+    total_score = 100,
+    scoring_completed_at = LEAST(now() - INTERVAL '5 minutes', (v_d::timestamp + INTERVAL '10:49:00') AT TIME ZONE 'America/Chicago')
+  WHERE id = v_e[5];  -- Hazel
+
+  -- Postcondition, scoped to today's show: the shapes the demo walks through, and no money.
+  SELECT count(*), count(*) FILTER (WHERE registration_id IS NULL)
+    INTO v_entries, v_unlinked
+  FROM public.entries
+  WHERE show_id = v_show;
+  IF v_entries <> 9 OR v_unlinked <> 0 THEN
+    RAISE EXCEPTION 'seed-demo club demo show expected 9 entries all on an entry form, found % (% unlinked) (MYK9-836)', v_entries, v_unlinked;
+  END IF;
+
+  SELECT
+    (SELECT count(*) FROM public.stripe_orders WHERE show_id = v_show)
+    + (SELECT count(*) FROM public.entries
+        WHERE show_id = v_show
+          AND (payment_status <> 'pending' OR stripe_payment_intent_id IS NOT NULL))
+    + (SELECT count(*) FROM public.enrollments
+        WHERE show_id = v_show
+          AND coalesce(paid_amount, 0) <> 0)
+    INTO v_money;
+  IF v_money <> 0 THEN
+    RAISE EXCEPTION 'seed-demo club demo show must carry no money (found % money rows) (MYK9-836)', v_money;
+  END IF;
+
+  SELECT c.status, c.is_scoring_finalized, c.results_released_at, c.scored_count,
+         (SELECT count(*) FROM public.entries e WHERE e.class_id = c.id AND e.final_placement IS NOT NULL) AS placed
+    INTO v_finished
+  FROM public.classes c WHERE c.id = v_c[1];
+  IF v_finished.status <> 'completed' OR NOT v_finished.is_scoring_finalized
+     OR v_finished.results_released_at IS NULL OR v_finished.scored_count <> 3 OR v_finished.placed <> 3 THEN
+    RAISE EXCEPTION 'seed-demo club demo show: the finished class is not finalized, released and placed (MYK9-836): %', v_finished;
+  END IF;
+
+  SELECT c.status, c.is_scoring_finalized, c.scored_count INTO v_half
+  FROM public.classes c WHERE c.id = v_c[2];
+  SELECT count(*) INTO v_placed_half FROM public.entries
+  WHERE class_id = v_c[2] AND final_placement IS NOT NULL;
+  IF v_half.status <> 'in_progress' OR v_half.is_scoring_finalized
+     OR v_half.scored_count <> 2 OR v_placed_half <> 0 THEN
+    RAISE EXCEPTION 'seed-demo club demo show: the half-scored class is not 2 of 4 scored, in progress and unplaced (MYK9-836): %, % placed', v_half, v_placed_half;
+  END IF;
+END $$;
+
 -- MYK9-979: shows.online_entries_enabled defaults to false (mail-in only).
 -- The Heartland club is Stripe-ready in the platform's test mode (its
 -- club_stripe_accounts row above), so its demo shows take online entries, as
@@ -2823,7 +3195,38 @@ UPDATE public.shows
 -- the seed's 'dededede-' id namespace plus today's show-day fixture, so it must
 -- run after section 19. The function (migration 20261022034100, MYK9-1309) is
 -- exercised by supabase/tests/myk9_1309_seed_fixture_functions_test.sql.
-SELECT public.seed_demo_assert_date_coherence();
+-- Earlier club demo shows (MYK9-836, ids dededede-0000-0000-0836-<YYYYMMDD>0010 before today's
+-- stamp) are preserved history, like the show-day fixture's earlier shows. The function lives in
+-- a migration and counts them as seed-owned, so a secretary who moved yesterday's demo to today
+-- would trip its duplicate name + start date check and roll back the whole reseed. Its duplicate
+-- check is its LAST check, so a failure of that one kind is re-judged here: it is forgiven
+-- only when every duplicate pair involves an earlier club demo show; any other pair re-raises.
+-- The error is matched by its fixed prefix (a show's own name cannot start the message), and
+-- today's show-day fixture stays in the owned set: a pair with it is never forgiven (MYK9-2354).
+DO $$
+DECLARE
+  v_today_floor uuid := ('dededede-0000-0000-0836-' || to_char((now() AT TIME ZONE 'America/Chicago')::date, 'YYYYMMDD') || '0000')::uuid;
+  v_fixture uuid := public.seed_demo_show_day_fixture_today();
+BEGIN
+  PERFORM public.seed_demo_assert_date_coherence();
+EXCEPTION WHEN raise_exception THEN
+  IF SQLERRM NOT LIKE 'seed-demo: two live shows share the name%' OR EXISTS (
+    SELECT 1
+    FROM public.shows a
+    JOIN public.shows b ON b.id > a.id AND b.name = a.name AND b.start_date = a.start_date AND b.deleted_at IS NULL
+    WHERE a.deleted_at IS NULL
+      AND a.id >= 'dededede-0000-0000-0000-000000000000'::uuid AND a.id <= 'dededede-ffff-ffff-ffff-ffffffffffff'::uuid
+      AND b.id >= 'dededede-0000-0000-0000-000000000000'::uuid AND b.id <= 'dededede-ffff-ffff-ffff-ffffffffffff'::uuid
+      AND NOT (a.id >= 'dededede-0000-0000-0836-000000000000'::uuid AND a.id < v_today_floor)
+      AND NOT (b.id >= 'dededede-0000-0000-0836-000000000000'::uuid AND b.id < v_today_floor)
+      AND NOT (a.id >= 'dededede-0000-0000-0731-000000000000'::uuid AND a.id < 'dededede-0000-0000-0732-000000000000'::uuid AND a.id IS DISTINCT FROM v_fixture)
+      AND NOT (b.id >= 'dededede-0000-0000-0731-000000000000'::uuid AND b.id < 'dededede-0000-0000-0732-000000000000'::uuid AND b.id IS DISTINCT FROM v_fixture)
+      AND a.id <> 'dededede-0000-0000-0000-000000000014'::uuid AND b.id <> 'dededede-0000-0000-0000-000000000014'::uuid
+  ) THEN
+    RAISE;
+  END IF;
+  RAISE WARNING 'seed-demo: an earlier club demo show shares the name and start date of today''s (it was rescheduled); kept as history (MYK9-836)';
+END $$;
 
 COMMIT;
 

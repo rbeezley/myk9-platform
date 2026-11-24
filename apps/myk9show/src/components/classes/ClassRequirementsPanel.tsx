@@ -58,10 +58,14 @@ export function RequirementCard({
   );
 }
 
+export function hasNoThirtySecondWarning(req: ClassRequirements): boolean {
+  return req.thirty_second_warning === false;
+}
+
 function buildTimeSubtitle(req: ClassRequirements): string | undefined {
   const parts = [
     req.time_type === 'range' ? 'Judge sets within range' : null,
-    req.thirty_second_warning === false ? 'No 30-second warning' : null,
+    hasNoThirtySecondWarning(req) ? 'No 30-second warning' : null,
   ].filter(Boolean);
   return parts.length ? parts.join(' \u00b7 ') : undefined;
 }
@@ -88,8 +92,8 @@ function hasAnyDisplayableData(req: ClassRequirements | null): boolean {
 
 /**
  * The requirement cards, shared by the secretary panel and the ringside
- * Requirements dialog (MYK9-1100). `leading` renders first -- ringside puts the
- * class's set max time there.
+ * Requirements dialog (MYK9-1100). `leading` renders first and is the
+ * class's one time card (MYK9-2362), so the rule's own Time Limit card is left out when it is given.
  */
 export function ClassRequirementsCards({
   requirements,
@@ -105,7 +109,7 @@ export function ClassRequirementsCards({
     <div className={className}>
       {leading}
       {/* Time Limit */}
-      {requirements.time_limit_text && (
+      {!leading && requirements.time_limit_text && (
         <RequirementCard
           icon={<Clock className="h-4 w-4" />}
           colorClass={iconColors.blue}

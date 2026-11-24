@@ -1,40 +1,32 @@
-import { rowToShow } from '@/services/replication/showRowMapping';
+import { replicatedShowsTable } from '@/services/replication';
 import { hydrateClubFields, mergeShowData } from '@/store/showStore';
-import { readClubsByIdOrThrow } from '@/store/showStoreReads';
+import {
+  joinAssignedJudges,
+  readClubsByIdOrThrow,
+  readJudgeAssignmentsOrNull,
+} from '@/store/showStoreReads';
+import { useUserStore } from '@/store/userStore';
 import type { ReplicatedClub } from '@/services/replication/ReplicatedClubsTable';
 import type { StoreShow } from '@/types/show-types';
-import type { Database } from '@/types/supabase';
-
-type ShowRow = Database['public']['Tables']['shows']['Row'];
 
 /**
- * Maps a raw `postgres_changes` shows row (snake_case) to the store's camelCase Show, keeping the
- * fields the row does not carry (club name, assigned judges, stats) from the show already in the
- * store. Realtime rows never hold the joined club fields, so a blank branding value falls back to
- * what the club hydration already put on the card.
+ * Reads one show after a realtime event, the way the show list loads it. The event payload is
+ * only a signal: a partial UPDATE leaves out unchanged TOASTed columns and never carries the
+ * joined club fields, so the whole row is pulled into the replicated shows table and hydrated
+ * from there (MYK9-2350). Resolves `null` when the server returns no row for this account (soft
+ * deleted or no longer visible). A failed fetch throws.
  */
-export function realtimeRowToStoreShow(row: ShowRow, existing: StoreShow | undefined): StoreShow {
-  const merged = mergeShowData(rowToShow(row), existing);
-  if (!existing) return merged;
-  // A realtime UPDATE omits unchanged TOASTed columns, so an absent key keeps the stored value.
-  const keepContent =
-    !('experience_published_content' in row) && existing.experiencePublishedContent !== undefined;
-  return {
-    ...merged,
-    ...(keepContent ? { experiencePublishedContent: existing.experiencePublishedContent } : {}),
-    assignedJudges: existing.assignedJudges,
-    logoUrl: merged.logoUrl || existing.logoUrl,
-    coverImageUrl: merged.coverImageUrl || existing.coverImageUrl,
-    accentColor: merged.accentColor || existing.accentColor,
-  };
-}
-
-/**
- * A show first seen through realtime has no card in the store to borrow club fields from, so join
- * them from the replicated clubs table exactly as the replication read does. An unreadable clubs
- * table leaves the club fields blank; the clubs subscription re-hydrates them when it syncs.
- */
-export async function hydrateNewRealtimeShow(show: StoreShow): Promise<StoreShow> {
-  const clubsById = await readClubsByIdOrThrow().catch(() => new Map<string, ReplicatedClub>());
-  return hydrateClubFields(show, clubsById);
+export async function readRealtimeShow(
+  showId: string,
+  existing: StoreShow | undefined
+): Promise<StoreShow | null> {
+  const replicated = await replicatedShowsTable.pullShowById(showId);
+  if (!replicated) return null;
+  const [clubsById, assignments] = await Promise.all([
+    readClubsByIdOrThrow().catch(() => new Map<string, ReplicatedClub>()),
+    readJudgeAssignmentsOrNull(),
+  ]);
+  const show = hydrateClubFields(mergeShowData(replicated, existing), clubsById);
+  const { people } = useUserStore.getState();
+  return { ...show, assignedJudges: joinAssignedJudges(assignments, showId, people, existing) };
 }

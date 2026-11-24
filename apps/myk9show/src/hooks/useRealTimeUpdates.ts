@@ -8,7 +8,8 @@ import {
 } from '@/utils/show-management-tracking';
 import type { StoreShow as Show } from '@/types/show-types';
 import type { Database } from '@/types/supabase';
-import { hydrateNewRealtimeShow, realtimeRowToStoreShow } from './realtimeShowRow';
+import { reportWarning } from '@/utils/standardizedErrorHandler';
+import { readRealtimeShow } from './realtimeShowRow';
 
 type ShowRow = Database['public']['Tables']['shows']['Row'];
 
@@ -19,13 +20,11 @@ type ShowRow = Database['public']['Tables']['shows']['Row'];
  * `getState()`, so a store update never tears the channel down and resubscribes (every
  * resubscribe adds `realtime.list_changes` work, MYK9-1363). Each event touches one show only; a
  * DELETE removes that show from the store rather than reloading the whole list.
+ *
+ * An INSERT or UPDATE payload is a signal, not data: the show is re-read whole (MYK9-2350).
+ * Re-reads of one show run one after another, so each starts after its event and a burst
+ * collapses to the newest; a DELETE or a newer event makes an in-flight re-read stale.
  */
-const mapRealtimeRow = (row: ShowRow): Show =>
-  realtimeRowToStoreShow(
-    row,
-    useShowStore.getState().shows.find(s => s.id === row.id)
-  );
-
 export const useRealTimeUpdates = () => {
   const { userWithRoles: user } = useAuthContext();
   const userRef = useRef(user);
@@ -33,47 +32,80 @@ export const useRealTimeUpdates = () => {
     userRef.current = user;
   }, [user]);
 
-  // Ids removed (DELETE or soft delete) since their last INSERT began, so an INSERT still
-  // awaiting club hydration cannot resurrect a show that was deleted meanwhile.
-  const removedIds = useRef(new Set<string>());
+  // Per show: the number of the newest event, and the tail of its queued re-reads.
+  const latestEvent = useRef(new Map<string, number>());
+  const queues = useRef(new Map<string, Promise<void>>());
 
-  const handleShowUpdate = useCallback(async (eventType: string, row: ShowRow) => {
+  const markEvent = useCallback((showId: string): number => {
+    const next = (latestEvent.current.get(showId) ?? 0) + 1;
+    latestEvent.current.set(showId, next);
+    return next;
+  }, []);
+
+  const refreshShow = useCallback(async (showId: string, eventNumber: number) => {
+    const isStale = () => latestEvent.current.get(showId) !== eventNumber;
+    if (isStale()) return; // a newer event is queued behind this one and will re-read
     const startTime = performance.now();
+    const existing = useShowStore.getState().shows.find(s => s.id === showId);
+    const show = await readRealtimeShow(showId, existing);
+    if (isStale()) return;
     const store = useShowStore.getState();
-    const inStore = store.shows.some(s => s.id === row.id);
-    // A soft-deleted show leaves the list (or never enters it).
-    if (row.deleted_at) {
-      removedIds.current.add(row.id);
-      if (inStore) store.removeShow(row.id);
+    const inStore = store.shows.some(s => s.id === showId);
+    if (!show) {
+      // Soft deleted, or no longer visible to this account.
+      if (inStore) store.removeShow(showId);
       return;
     }
-    removedIds.current.delete(row.id);
-    let updatedShow = mapRealtimeRow(row);
-    if (inStore) store.updateShowLegacy(updatedShow);
-    else if (eventType === 'INSERT') {
-      updatedShow = await hydrateNewRealtimeShow(updatedShow);
-      if (removedIds.current.has(row.id)) return;
-      const latest = useShowStore.getState();
-      // A replication read or a newer event may have added it while the clubs were loading.
-      const current = latest.shows.find(s => s.id === row.id);
-      if (!current) latest.addShowLegacy(updatedShow);
-      // else: whoever added it during the await saw a newer or equal state; keep theirs.
-    } else {
-      // An UPDATE for a show this list never loaded (not public, or filtered out) stays out.
-      return;
-    }
+    if (inStore) store.updateShowLegacy(show);
+    else store.addShowLegacy(show);
     const currentUser = userRef.current;
-    if (currentUser?.id) syncShowRelationships([updatedShow], currentUser);
+    if (currentUser?.id) syncShowRelationships([show], currentUser);
     RelationshipPerformanceMonitor.getInstance().recordOperation(
       'realTimeShowUpdate',
       performance.now() - startTime
     );
   }, []);
 
-  const handleShowDelete = useCallback((showId: string) => {
-    removedIds.current.add(showId);
-    useShowStore.getState().removeShow(showId);
-  }, []);
+  const handleShowUpdate = useCallback(
+    (eventType: string, row: Pick<ShowRow, 'id' | 'deleted_at'>): Promise<void> => {
+      const showId = row.id;
+      const inStore = useShowStore.getState().shows.some(s => s.id === showId);
+      if (row.deleted_at) {
+        markEvent(showId);
+        if (inStore) useShowStore.getState().removeShow(showId);
+        return Promise.resolve();
+      }
+      // An UPDATE for a show this list never loaded (not public, or filtered out) stays out,
+      // unless an INSERT for it is still being read.
+      if (!inStore && eventType !== 'INSERT' && !queues.current.has(showId)) {
+        return Promise.resolve();
+      }
+      const eventNumber = markEvent(showId);
+      const previous = queues.current.get(showId) ?? Promise.resolve();
+      const next = previous
+        .then(() => refreshShow(showId, eventNumber))
+        .catch((error: unknown) => {
+          // Offline or a failed read: the card keeps what it showed; replication sync catches up.
+          reportWarning('realtime', `Could not re-read show ${showId} after a realtime event`, {
+            error: error instanceof Error ? error.message : String(error),
+          });
+        })
+        .finally(() => {
+          if (queues.current.get(showId) === next) queues.current.delete(showId);
+        });
+      queues.current.set(showId, next);
+      return next;
+    },
+    [markEvent, refreshShow]
+  );
+
+  const handleShowDelete = useCallback(
+    (showId: string) => {
+      markEvent(showId);
+      useShowStore.getState().removeShow(showId);
+    },
+    [markEvent]
+  );
 
   useEffect(() => {
     // Browse Shows stays calm (docs/INTENT.md): one event updates one show, never the whole list.

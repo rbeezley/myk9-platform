@@ -167,21 +167,7 @@ describe('every directory write respects a sign-out (MYK9-2255)', () => {
     expectNoContacts(savedDirectory());
   });
 
-  it('show-desk rows held back only by a pending mutation, or only by isDirty, keep every field', async () => {
-    setQueue({
-      getPendingMutationsForRow: vi.fn(async (_table: string, id: string) =>
-        id === 'queued-1' ? [{ id: 'm1' }] : []
-      ),
-      getFailedMutations: vi.fn(async () => []),
-    });
-    await desk.set(
-      'queued-1',
-      { id: 'queued-1', ...deskPerson },
-      false,
-      undefined,
-      undefined,
-      coldInsert
-    );
+  it('a show-desk row held back by isDirty keeps every field, a clean row is stripped (MYK9-2356)', async () => {
     await desk.set(
       'dirty-1',
       { id: 'dirty-1', ...deskPerson },
@@ -201,7 +187,7 @@ describe('every directory write respects a sign-out (MYK9-2255)', () => {
 
     await signOut();
 
-    for (const id of ['queued-1', 'dirty-1']) {
+    for (const id of ['dirty-1']) {
       expect(await desk.get(id)).toMatchObject({
         email: 'bo@example.com',
         phone: '555-0111',

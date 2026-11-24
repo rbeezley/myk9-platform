@@ -29,6 +29,7 @@ import {
 import { fetchShowJudgesForPublish, saveShowJudgeChanges } from '@/services/database/judges';
 import { PREMIUM_JUDGE_AFFILIATIONS_KEY } from '@/services/database/judges/judgeAffiliations';
 import { waitForShowSync } from '@/features/premium/waitForShowSync';
+import { refreshShowBeforeSave } from './refreshShowBeforeSave';
 import {
   SHOW_EDIT_TAB_PARAM,
   normalizeShowEditTab,
@@ -372,6 +373,8 @@ function AuthorizedShowManagementShell({
               inkSaver?: boolean;
             };
             const persistShowChanges = async () => {
+              // MYK9-2361: start from the server's current row (a moved trial day rewrites it).
+              await refreshShowBeforeSave(id);
               const localShow = await updateShowLocally(id, showData as Partial<ShowInput>);
               if (!localShow) {
                 throw new Error('Show was not available in the local store.');

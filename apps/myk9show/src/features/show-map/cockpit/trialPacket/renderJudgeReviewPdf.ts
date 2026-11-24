@@ -7,6 +7,16 @@ const PAGE_WIDTH = 215.9;
 const RIGHT = PAGE_WIDTH - MARGIN;
 const ROW_HEIGHT = 7;
 const COLUMNS = { armband: MARGIN, dog: 36, handler: 82, result: 128, time: 165, faults: 188 };
+/** UKC dual-timer classes: search and element times each get a column, so the text columns narrow. */
+const ELEMENT_COLUMNS = {
+  armband: MARGIN,
+  dog: 33,
+  handler: 70,
+  result: 106,
+  time: 148,
+  element: 168,
+  faults: 190,
+};
 
 export interface ReviewCoverContext {
   showName: string;
@@ -94,12 +104,14 @@ function drawResultsPage(
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
-  doc.text('Armband', COLUMNS.armband, y);
-  doc.text('Dog', COLUMNS.dog, y);
-  doc.text('Handler', COLUMNS.handler, y);
-  doc.text('Result', COLUMNS.result, y);
-  doc.text('Time', COLUMNS.time, y);
-  doc.text('Faults', COLUMNS.faults, y);
+  const columns = item.showElementTime ? ELEMENT_COLUMNS : { ...COLUMNS, element: 0 };
+  doc.text('Armband', columns.armband, y);
+  doc.text('Dog', columns.dog, y);
+  doc.text('Handler', columns.handler, y);
+  doc.text('Result', columns.result, y);
+  doc.text(item.showElementTime ? 'Search' : 'Time', columns.time, y);
+  if (item.showElementTime) doc.text('Element', columns.element, y);
+  doc.text('Faults', columns.faults, y);
   y += 2;
   doc.line(MARGIN, y, RIGHT, y);
   y += 6;
@@ -109,19 +121,20 @@ function drawResultsPage(
       doc.setFillColor(255, 243, 176);
       doc.rect(MARGIN - 1, y - 5, RIGHT - MARGIN + 2, ROW_HEIGHT * 2 - 1, 'F');
     }
-    doc.text(line.armband, COLUMNS.armband, y);
-    doc.text(line.dogName, COLUMNS.dog, y, { maxWidth: COLUMNS.handler - COLUMNS.dog - 2 });
-    doc.text(line.handlerName, COLUMNS.handler, y, {
-      maxWidth: COLUMNS.result - COLUMNS.handler - 2,
+    doc.text(line.armband, columns.armband, y);
+    doc.text(line.dogName, columns.dog, y, { maxWidth: columns.handler - columns.dog - 2 });
+    doc.text(line.handlerName, columns.handler, y, {
+      maxWidth: columns.result - columns.handler - 2,
     });
-    doc.text(line.result, COLUMNS.result, y, { maxWidth: COLUMNS.time - COLUMNS.result - 2 });
-    doc.text(line.time, COLUMNS.time, y);
-    doc.text(line.faults, COLUMNS.faults, y);
+    doc.text(line.result, columns.result, y, { maxWidth: columns.time - columns.result - 2 });
+    doc.text(line.time, columns.time, y);
+    if (item.showElementTime) doc.text(line.elementTime, columns.element, y);
+    doc.text(line.faults, columns.faults, y);
     y += ROW_HEIGHT;
     if (line.correctionNote) {
       doc.setFont('helvetica', 'italic');
       doc.setFontSize(8);
-      doc.text(line.correctionNote, COLUMNS.dog, y - 1, { maxWidth: RIGHT - COLUMNS.dog });
+      doc.text(line.correctionNote, columns.dog, y - 1, { maxWidth: RIGHT - columns.dog });
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
       y += ROW_HEIGHT;

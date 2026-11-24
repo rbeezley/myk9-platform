@@ -12,6 +12,7 @@ import { createTestQueryClient, renderHook } from '@/test/utils/testUtils';
 import { queryKeys } from '@/lib/queryClient';
 import { DOG_ROSTER_META } from '@/hooks/queries/dogRosterMeta';
 import {
+  REGISTRATION_STATISTICS_KEY,
   useCreateRegistrationMutation,
   useDeleteRegistrationMutation,
   useUpdateRegistrationMutation,
@@ -34,6 +35,7 @@ const DETAIL_KEY = queryKeys.dog('dog-1');
 function setup() {
   const queryClient = createTestQueryClient();
   queryClient.setQueryData(DETAIL_KEY, ['cached']);
+  queryClient.setQueryData(REGISTRATION_STATISTICS_KEY, { total: 1 });
   for (const key of [ROSTER_KEY, OWNER_ROSTER_KEY]) {
     queryClient
       .getQueryCache()
@@ -45,6 +47,11 @@ function setup() {
   );
   return { queryClient, wrapper };
 }
+
+const statisticsInvalidated = (queryClient: QueryClient) => {
+  // The key the statistics hook reads, seeded as an active-shaped entry.
+  return queryClient.getQueryState(REGISTRATION_STATISTICS_KEY)?.isInvalidated;
+};
 
 const rostersInvalidated = (queryClient: QueryClient) =>
   [ROSTER_KEY, OWNER_ROSTER_KEY].map(key => queryClient.getQueryState(key)?.isInvalidated);
@@ -68,6 +75,7 @@ describe('a registration write refreshes the dog rosters at once (MYK9-1303)', (
     });
 
     expect(rostersInvalidated(queryClient)).toEqual([true, true]);
+    expect(statisticsInvalidated(queryClient)).toBe(true);
     expect(queryClient.getQueryState(DETAIL_KEY)?.isInvalidated).toBe(false);
   });
 
@@ -84,6 +92,7 @@ describe('a registration write refreshes the dog rosters at once (MYK9-1303)', (
     });
 
     expect(rostersInvalidated(queryClient)).toEqual([true, true]);
+    expect(statisticsInvalidated(queryClient)).toBe(true);
   });
 
   it('delete', async () => {
@@ -96,5 +105,6 @@ describe('a registration write refreshes the dog rosters at once (MYK9-1303)', (
     });
 
     expect(rostersInvalidated(queryClient)).toEqual([true, true]);
+    expect(statisticsInvalidated(queryClient)).toBe(true);
   });
 });

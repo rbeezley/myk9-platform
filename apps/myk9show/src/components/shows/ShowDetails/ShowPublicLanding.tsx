@@ -115,6 +115,8 @@ export function ShowPublicLanding({
     entryPendingReason === undefined && onlineEntriesOpen && hasEntryClassInventory !== false
   );
   const cardLanding = cardEntriesLanding(cardState, show);
+  // An online fee beside "card payments are paused" contradicts it; say the fee only while card is not paused.
+  const showServiceFeeNote = showServiceFee && cardState !== 'paused';
   const trialTimezone = getTrialTimezone(landingTrials[0] ?? null);
   // The pay-by-check line only while entries are open. Read at render, with no timer of its
   // own: the landing's countdown already ticks, and a note outliving the close by a few minutes
@@ -271,7 +273,7 @@ export function ShowPublicLanding({
           met on its third step. Every landing style prints its own fee rows,
           so the one line lives here, above all of them, and only where an
           exhibitor could still enter online and the live rate is read. */}
-      {showServiceFee && (
+      {showServiceFeeNote && (
         <div
           className="border-b border-border bg-muted px-4 py-3 text-sm text-foreground sm:px-6"
           role="note"

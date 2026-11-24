@@ -3,7 +3,10 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import type { AdminGrantHistoryRow } from '@/services/database/entitlement/types';
+import type { QueryClient } from '@tanstack/react-query';
 import type React from 'react';
+import { createTestQueryClient } from '@/test/utils/testUtils';
+import { entitlementQueryKey } from '@/features/entitlement/useEntitlement';
 
 const grantEntitlementMock = vi.fn();
 const revokeEntitlementMock = vi.fn();
@@ -47,8 +50,13 @@ const expiredGrant: AdminGrantHistoryRow = {
   ends_at: new Date(Date.now() - 30 * 86400000).toISOString(),
 };
 
-function renderSection(props?: Partial<React.ComponentProps<typeof ComplimentaryPremiumSection>>) {
-  return render(<ComplimentaryPremiumSection personId="person-1" {...props} />);
+function renderSection(
+  props?: Partial<React.ComponentProps<typeof ComplimentaryPremiumSection>>,
+  queryClient?: QueryClient
+) {
+  return render(<ComplimentaryPremiumSection personId="person-1" {...props} />, {
+    ...(queryClient && { queryClient }),
+  });
 }
 
 const futureDateInputValue = () => {
@@ -158,6 +166,21 @@ describe('ComplimentaryPremiumSection', () => {
     );
     // Refetch after success: initial mount call + post-mutation invalidation call.
     await waitFor(() => expect(fetchGrantHistoryMock.mock.calls.length).toBeGreaterThanOrEqual(2));
+  });
+
+  it('invalidates the entitlement query the app reads after a grant (MYK9-2351)', async () => {
+    grantEntitlementMock.mockResolvedValue('new-grant-id');
+    const queryClient = createTestQueryClient();
+    const ownKey = entitlementQueryKey('auth-user-1');
+    queryClient.setQueryData(ownKey, { cached: true });
+    const user = userEvent.setup();
+    renderSection({}, queryClient);
+
+    await user.type(await screen.findByLabelText(/expiration date/i), futureDateInputValue());
+    await user.type(screen.getByLabelText(/reason/i), 'Founding beta tester gift');
+    await user.click(screen.getByRole('button', { name: /grant complimentary premium/i }));
+
+    await waitFor(() => expect(queryClient.getQueryState(ownKey)?.isInvalidated).toBe(true));
   });
 
   it('surfaces the server overlap error and offers the explicit replace path', async () => {

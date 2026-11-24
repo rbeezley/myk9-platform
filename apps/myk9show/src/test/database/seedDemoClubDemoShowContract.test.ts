@@ -76,7 +76,16 @@ describe('seed-demo club demo show (MYK9-836)', () => {
     expect(unpublish).toContain("v_day || '0000'");
     const tail = seed.slice(seed.lastIndexOf('seed_demo_assert_date_coherence()'));
     expect(tail).toContain('EXCEPTION WHEN raise_exception');
-    expect(tail).toContain("NOT LIKE '%share the name%'");
+    // Matched by the error's fixed prefix, never a substring a show name could supply.
+    expect(tail).toContain("NOT LIKE 'seed-demo: two live shows share the name%'");
+    expect(tail).not.toContain("'%share the name%'");
+    // Today's show-day fixture is seed-owned: only OTHER 0731 shows are forgiven.
+    expect(seed).toContain('v_fixture uuid := public.seed_demo_show_day_fixture_today();');
+    for (const side of ['a', 'b']) {
+      expect(tail.replace(/\s+/g, ' ')).toContain(
+        `AND NOT (${side}.id >= 'dededede-0000-0000-0731-000000000000'::uuid AND ${side}.id < 'dededede-0000-0000-0732-000000000000'::uuid AND ${side}.id IS DISTINCT FROM v_fixture)`
+      );
+    }
     expect(tail).toContain('RAISE;');
     expect(tail).toContain('v_today_floor');
   });
@@ -105,8 +114,10 @@ describe('seed-demo club demo show (MYK9-836)', () => {
       'INSERT INTO public.entries'
     );
     expect(registrations.replace(/\s+/g, ' ')).toContain(
-      'WHERE r.dog_id = d.id AND public.normalize_dog_registration_organization(r.organization) = public.normalize_dog_registration_organization(reg.organization))'
+      'WHERE r.dog_id = d.id AND public.normalize_registry_organization(r.organization) = public.normalize_registry_organization(reg.organization))'
     );
+    // The normalizer entries_require_dog_registration() uses, which maps full names to codes.
+    expect(registrations).not.toContain('normalize_dog_registration_organization');
     expect(registrations).not.toContain('r.dog_id = d.id)');
     expect(registrations).toContain('ON CONFLICT DO NOTHING;');
     // The demo accounts' dogs are not referenced; the only account is the judge.

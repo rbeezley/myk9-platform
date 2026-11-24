@@ -20,6 +20,7 @@ const saveHarness = vi.hoisted(() => ({
   facts: vi.fn(),
   judgesSynced: vi.fn(),
   showSynced: vi.fn(),
+  refresh: vi.fn().mockResolvedValue(undefined),
   payload: undefined as Record<string, unknown> | undefined,
 }));
 
@@ -33,6 +34,9 @@ vi.mock('@/features/premium/fetchPremium', () => ({
 vi.mock('@/services/database/judges', () => ({
   saveShowJudgeChanges: saveHarness.persistJudges,
   fetchShowJudgesForPublish: saveHarness.judgesSynced,
+}));
+vi.mock('../refreshShowBeforeSave', () => ({
+  refreshShowBeforeSave: (...args: unknown[]) => saveHarness.refresh(...args),
 }));
 vi.mock('@/features/premium/waitForShowSync', () => ({
   waitForShowSync: (...args: unknown[]) => saveHarness.showSynced(...args),
@@ -919,6 +923,19 @@ describe('Edit Show saves judges as a change from the loaded list', () => {
         [judge('j1'), judge('j3')]
       )
     );
+  });
+
+  it("takes the server's current show row before the save is written (MYK9-2361)", async () => {
+    const order: string[] = [];
+    saveHarness.refresh.mockReset().mockImplementation(async () => {
+      order.push('refresh');
+    });
+    await saveWith([], []);
+    expect(saveHarness.refresh).toHaveBeenCalledWith('show-1');
+    expect(saveHarness.refresh.mock.invocationCallOrder[0]).toBeLessThan(
+      saveHarness.updateShow.mock.invocationCallOrder[0] ?? 0
+    );
+    expect(order).toEqual(['refresh']);
   });
 
   it('re-reads the premium checklist affiliations once the judge list is saved (MYK9-2292)', async () => {

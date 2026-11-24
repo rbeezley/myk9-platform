@@ -52,6 +52,25 @@ describe('findScoreCorrections', () => {
     );
   });
 
+  it('marks an element time the secretary changed, worded as its own field', () => {
+    const history = [
+      audit('a1', '2026-12-07T17:00:00Z', 'assigned_judge', [
+        ['search_time_seconds', null, 38.5],
+        ['element_time_seconds', null, 12],
+      ]),
+      audit('a2', '2026-12-07T18:42:00Z', 'manager', [['element_time_seconds', 12, 14.5]]),
+    ];
+
+    const corrections = findScoreCorrections(history);
+
+    expect(corrections).toEqual([
+      { fieldLabel: 'element time', was: '0:12.00', now: '0:14.50', at: '10:42 AM' },
+    ]);
+    expect(correctionLine(corrections)).toBe(
+      'Changed after you submitted: element time was 0:12.00, corrected by the secretary at 10:42 AM'
+    );
+  });
+
   it('reads from the judge value to the final one when a field is changed twice', () => {
     const history = [
       JUDGE_SUBMITS,

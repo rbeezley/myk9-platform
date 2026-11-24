@@ -4,7 +4,7 @@ import { dbSecondsToInputFormat, mapResultStatusToQualification } from '@/utils/
 
 /** One score a secretary changed after the judge had submitted it. */
 export interface ScoreCorrection {
-  /** "time", "faults", "result" or "reason": how the judge's page words the field. */
+  /** "time", "element time", "faults", "result" or "reason": how the judge's page words the field. */
   fieldLabel: string;
   /** The value as the judge submitted it, ready to print. */
   was: string;
@@ -17,6 +17,7 @@ export interface ScoreCorrection {
 /** The scoring columns a judge's results page shows. Placement moves with them and is not listed. */
 const SHOWN_FIELDS: Readonly<Record<string, string>> = {
   search_time_seconds: 'time',
+  element_time_seconds: 'element time',
   total_faults: 'faults',
   result_status: 'result',
   disqualification_reason: 'reason',
@@ -29,7 +30,7 @@ function isRingsideTier(tier: EntryScoreAuditItem['actorTier']): boolean {
 
 function formatValue(field: string, value: unknown): string {
   if (value === null || value === undefined || value === '') return 'none';
-  if (field === 'search_time_seconds') {
+  if (field === 'search_time_seconds' || field === 'element_time_seconds') {
     return typeof value === 'number' ? dbSecondsToInputFormat(value) || 'none' : String(value);
   }
   if (field === 'result_status') {

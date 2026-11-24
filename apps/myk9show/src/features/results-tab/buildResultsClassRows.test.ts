@@ -127,6 +127,7 @@ describe('buildResultsClassRows', () => {
       resultLabel: 'Q',
       qualified: true,
       timeLabel: '1:01.25',
+      elementTimeLabel: '',
       faults: 0,
       scored: true,
       pointsEarned: null,

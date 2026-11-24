@@ -7,11 +7,12 @@
 import { Clock } from 'lucide-react';
 import {
   ClassRequirementsCards,
+  hasNoThirtySecondWarning,
   RequirementCard,
 } from '@/components/classes/ClassRequirementsPanel';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import { formatTimeLimitSetAt } from '@/features/show-map/cockpit/timeLimitSetAt';
-import { classRequirementsFromClass, setMaxTimeText } from './classRequirementsFromClass';
+import { classRequirementsFromClass, classTimeDisplay } from './classRequirementsFromClass';
 
 export function ClassRequirementsContent({
   cls,
@@ -32,18 +33,22 @@ export function ClassRequirementsContent({
   timeZone?: string | undefined;
 }) {
   const requirements = cls ? classRequirementsFromClass(cls, registry) : null;
-  const maxTimeText = setMaxTimeText(cls, perAreaTimes);
-  const setAt =
-    timeZone && maxTimeText !== 'Not set'
-      ? formatTimeLimitSetAt(cls?.timeLimitSetAt, timeZone)
-      : null;
-  const subtitle = [setAt, onSetMaxTime ? 'Tap to set' : null].filter(Boolean).join(' · ');
+  const time = classTimeDisplay(cls, perAreaTimes, registry);
+  const setAt = timeZone && time.saved ? formatTimeLimitSetAt(cls?.timeLimitSetAt, timeZone) : null;
+  const subtitle = [
+    setAt,
+    time.range ? `Judge sets within ${time.range}` : null,
+    requirements && hasNoThirtySecondWarning(requirements) ? 'No 30-second warning' : null,
+    onSetMaxTime ? 'Tap to set' : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
   const maxTime = (
     <RequirementCard
       icon={<Clock className="h-4 w-4" />}
       colorClass="bg-blue-500/15 text-blue-500"
-      label="Max Time (this class)"
-      value={maxTimeText}
+      label="Time Limit"
+      value={time.value}
       subtitle={subtitle || undefined}
     />
   );

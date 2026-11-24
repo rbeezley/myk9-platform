@@ -33,7 +33,7 @@ what an issue queue needs: selection, holds, Linear state and the run summary.
      a stop time (default 07:00 local), and how many issues may be in flight at once on the
      cloud lane (default 4; see **Lanes**). Record the limits in the ledger header.
 3. **Preflight.** One `get_issue` call proves the Linear connector works. If it's down, stop: a
-   run that can't write Linear can't leave it accurate. Check that `codex --version` answers; if
+   run that can't write Linear can't leave it accurate. Check that `agy --version` answers; if
    it doesn't, say before starting that any `independent`-tier PR will wait unmerged.
    For the cloud lane, `claude --version` and `claude auth status` must answer from the Bash
    tool (`loggedIn: true`; `claude auth login` is a one-time owner step), and the dispatch
@@ -65,7 +65,7 @@ run (go to Run end) when any of these holds:
 - it's past the stop time. Never start an issue after the stop time; an in-flight one finishes
   or follows the shared asynchronous-merge boundary/handoff protocol;
 - the last two issues both ended in a hold. That pattern means something systemic (a red `main`,
-  Codex down, a broken connector), and more attempts would only burn budget.
+  agy down, a broken connector), and more attempts would only burn budget.
 
 Issues run in parallel only when their expected file sets are disjoint. How many run at once
 depends on the lane: the Mac's 3-heavy-job cap governs the local lane and every review, and the
@@ -75,17 +75,17 @@ cloud in-flight limit governs the cloud lane.
 
 Triage decides where each issue's implementer runs and records `lane: local` or `lane: cloud`
 in the ledger row. The orchestrator stays on the Mac either way: triage, the premise and
-approach, the review gate, the Codex review, the merge and the close-out never move.
+approach, the review gate, the agy review, the merge and the close-out never move.
 
-| Lane      | Implementer runs in                                        | Counts toward the Mac cap                                     | Default for                                                                                                                                |
-| --------- | ---------------------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| **local** | A worktree under `$MAIN/.claude/worktrees`, as a sub-agent | Yes: the implementer, its suites, verifiers, `/simplify`      | Anything that needs the Mac: an E2E or browser repro, `apps/myk9show/.env.local`, staging credentials, a dev server, a migration, Ops work |
-| **cloud** | A Claude cloud session started with `claude --cloud`       | No for the implementer; yes for its Codex review and verifier | Code-plus-unit-test work whose acceptance a cloud checkout can prove: a bug with a failing test, a refactor, copy, a typed data-path fix   |
+| Lane      | Implementer runs in                                        | Counts toward the Mac cap                                   | Default for                                                                                                                                |
+| --------- | ---------------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| **local** | A worktree under `$MAIN/.claude/worktrees`, as a sub-agent | Yes: the implementer, its suites, verifiers, `/simplify`    | Anything that needs the Mac: an E2E or browser repro, `apps/myk9show/.env.local`, staging credentials, a dev server, a migration, Ops work |
+| **cloud** | A Claude cloud session started with `claude --cloud`       | No for the implementer; yes for its agy review and verifier | Code-plus-unit-test work whose acceptance a cloud checkout can prove: a bug with a failing test, a refactor, copy, a typed data-path fix   |
 
 Cloud lane limits: at most 4 issues in flight at once (the owner's yes at run start covers the
-number), and the Mac count still includes every Codex review of a cloud PR, so reviews queue
+number), and the Mac count still includes every agy review of a cloud PR, so reviews queue
 behind the cap even when four implementers are running. Cloud sessions have no `.env.local`,
-no staging passwords, no Codex and no Linear; anything an issue needs from that list keeps it
+no staging passwords, no agy and no Linear; anything an issue needs from that list keeps it
 local. The owner's rule from 2026-09-26 holds: **never message a cloud session**. A review
 round is a fresh session (below), and the Mac reads results from the PR, never from the
 session.
@@ -340,7 +340,7 @@ add "$WT" "$BRANCH"`) and dispatch a local implementer on it with the session's 
   Findings that were never posted on the PR (your own review gate) get no watcher: the session
   cannot see them, so fix them yourself in `$WT` at once, as for exit 12, after the remote-head
   check above: unposted findings do not stop the session pushing for its own reasons.
-  It reads the findings comment (`Codex findings for <sha>`, `Claude findings for <sha>`, or a
+  It reads the findings comment (`Agy findings for <sha>`, `Claude findings for <sha>`, or a
   `Review gate:` withdrawal, from a trusted author) and gives the still-running session 10
   minutes from that comment to push a head that no longer starts with the reviewed SHA. Exit 0
   means it self-fixed: re-review the new head. **Exit 12 means fix the findings yourself in
@@ -401,19 +401,19 @@ lanes. Additions specific to the run:
   angles) in parallel. Fix or evidence every finding, then **re-run both lenses on the new
   head**: `post-review-gate.sh` posts "all findings addressed" only over a clean final log.
   Paste the output of `bash scripts/qa/review-contract.sh` into each lens prompt: it is the
-  contract Codex gets, likelihood cap included, so a capped finding comes back as a
+  contract agy gets, likelihood cap included, so a capped finding comes back as a
   non-blocking `[unlikely P3]` instead of a `[P3]` that forces another round. A valid clean
   opening is `No actionable defects found.` The final log must contain no finding bullets or
   findings JSON, including fixed findings; preserve earlier findings/dispositions in separate history.
-- **`independent` floor pre-pass:** before the first `pnpm qa:codex-review --post`, run the
+- **`independent` floor pre-pass:** before the first `pnpm qa:agy-review --post`, run the
   `ship-pr` Step 4 pre-pass (one read-only `sonnet` lens on the diff, fixes committed, nothing
-  posted) and record `pre-pass: N findings fixed` and `Codex rounds: M` in the PR body.
+  posted) and record `pre-pass: N findings fixed` and `Agy rounds: M` in the PR body.
 - **Docs-only two-round budget:** `ship-pr` Step 4 states the rule and its run-start
   condition; this run posts that override only when the approval at Run start named the budget.
 - **Migration in the diff:** carry it through the PR and review gate (`migration-auditor`
   is one adversarial lens), then **do not merge** in this run. Route the owner's merge/deploy
   action through the shared table. Never push a migration from an unmerged branch.
-- **Codex unavailable on an `independent` floor:** leave the PR open and route the unavailable
+- **agy unavailable on an `independent` floor:** leave the PR open and route the unavailable
   reviewer through the shared table. No same-harness substitute, no owner override from an agent
   (the docs-only budget above is the one exception, and only when the run-start approval named it).
 - **Watcher exit 3:** follow ship-pr Path B and the shared **Asynchronous merge protocol**;
@@ -506,7 +506,7 @@ run, and mark each `refill` issue in the table (e.g. `MYK9-321 (refill)`).
 | Ending an overnight run when the approved list is done      | Refill from Ready/qualified fallback until an approved stop condition                                                          |
 | Reusing run-start Ready results for refills                 | Re-query and requalify; the board changes overnight                                                                            |
 | Messaging a cloud session, or pushing to its branch early   | Read its PR; give its self-fix 10 min, then fix locally in `$WT`                                                               |
-| Treating cloud implementers as free of the Mac cap entirely | Their Codex reviews and verifier runs still count; queue those at 3                                                            |
+| Treating cloud implementers as free of the Mac cap entirely | Their agy reviews and verifier runs still count; queue those at 3                                                              |
 | Sending an E2E-proven issue to the cloud lane               | No `.env.local` or staging there; it stays local                                                                               |
 | Watching `gh pr list --head <name>` for a cloud PR          | The harness names the branch; match `$PREFIX` or `Fixes MYK9-<n>`, minus `$PREFIX` + `plan-` heads; read `$BRANCH` from the PR |
 | Dispatching a cloud session without starting its watcher    | Start `watch-cloud-session.sh` in the same turn; a stall exit is a local takeover, no owner question                           |

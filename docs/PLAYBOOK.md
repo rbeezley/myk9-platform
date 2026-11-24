@@ -24,10 +24,10 @@ See also: [`CLAUDE.md`](../CLAUDE.md) for hard rules (worktrees, merges, migrati
 2. Write the test first and watch it fail for the right reason.
 3. Implement.
 4. `/simplify` — constructive cleanup pass (3 parallel agents: efficiency, quality, reuse). Auto-fixes safe wins.
-5. `/harden` — adversarial stress-test (3 parallel agents try to break it: edge cases, state corruption, security holes). **Skip it when the review floor is `independent`**: Codex hunts the same class of defect at the gate, so harden there is three agents of latency ahead of a stronger reviewer (MYK9-1789). Nothing is committed yet, so read the floor from the working diff: `{ git diff --name-only "$(git merge-base origin/main HEAD)"; git ls-files --others --exclude-standard; } | sort -u | pnpm --silent qa:review-tier --files-stdin`. Run harden when it prints `adversarial` or `none` (which covers optional review), or prints nothing. If the gate later ends on an `owner` override because Codex is unavailable, run harden before posting the override.
-6. `ship-pr` — its Step A is the same simplify pass and finds nothing new after step 4. It runs `/commit`, opens the PR, reads `pnpm qa:review-tier` for the floor, satisfies that gate (§ 4), fixes findings, merges from the main repo, closes out the Linear issue and cleans up the worktree. Below the `independent` floor, the § 4 table still adds `/codex:review` by default for user-visible behavior changes. Run the `cleanup` skill afterwards when stale todos or other loose ends remain.
+5. `/harden` — adversarial stress-test (3 parallel agents try to break it: edge cases, state corruption, security holes). **Skip it when the review floor is `independent`**: agy hunts the same class of defect at the gate, so harden there is three agents of latency ahead of a stronger reviewer (MYK9-1789). Nothing is committed yet, so read the floor from the working diff: `{ git diff --name-only "$(git merge-base origin/main HEAD)"; git ls-files --others --exclude-standard; } | sort -u | pnpm --silent qa:review-tier --files-stdin`. Run harden when it prints `adversarial` or `none` (which covers optional review), or prints nothing. If the gate later ends on an `owner` override because agy is unavailable, run harden before posting the override.
+6. `ship-pr` — its Step A is the same simplify pass and finds nothing new after step 4. It runs `/commit`, opens the PR, reads `pnpm qa:review-tier` for the floor, satisfies that gate (§ 4), fixes findings, merges from the main repo, closes out the Linear issue and cleans up the worktree. Below the `independent` floor, the § 4 table still adds `pnpm qa:agy-review` by default for user-visible behavior changes. Run the `cleanup` skill afterwards when stale todos or other loose ends remain.
 
-This is the canonical loop: implement → simplify → harden (unless Codex reviews) → `ship-pr`. `ship-it` Step 3c applies the same harden rule for plan-driven work.
+This is the canonical loop: implement → simplify → harden (unless agy reviews) → `ship-pr`. `ship-it` Step 3c applies the same harden rule for plan-driven work.
 
 ## 3. Bug / troubleshooting
 
@@ -44,9 +44,9 @@ This is the canonical loop: implement → simplify → harden (unless Codex revi
 | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Uncommitted working diff, pre-commit                             | `/code-review` (cleanup order: `/simplify` → `/harden` unless the floor is `independent`, § 2 → commit)                                                                   |
 | Open GitHub PR                                                   | `/review`                                                                                                                                                                 |
-| Shipping a branch or PR to `main`                                | `ship-pr` — runs the independent gate (Codex for Claude-authored, Claude for Codex-authored) at Step 4, **before** merge; a same-harness subagent is never the gate       |
+| Shipping a branch or PR to `main`                                | `ship-pr` — runs the independent gate (agy for Claude-authored, Claude for Codex-authored) at Step 4, **before** merge; a same-harness subagent is never the gate         |
 | Commits already on `main` / a finished phase, no PR              | `phase-review` skill                                                                                                                                                      |
-| High-stakes or user-visible behavior change                      | Add `/codex:review` (non-Claude second opinion) — default ON for RLS/migrations/payment/auth/RBAC/gates/state/ranking/hook-shape changes                                  |
+| High-stakes or user-visible behavior change                      | Add `pnpm qa:agy-review` (non-Claude second opinion) — default ON for RLS/migrations/payment/auth/RBAC/gates/state/ranking/hook-shape changes                             |
 | Whole-branch, multi-agent deep review                            | `/code-review ultra` (user-triggered, billed)                                                                                                                             |
 | PR touches `package.json` / auth / RLS / migrations / list views | Also load `code-review-extensions` checklists (dependency, security, migration, performance sections)                                                                     |
 | New/changed Supabase migration before `db push`                  | `migration-auditor` agent — checks missing GRANTs, missing RLS, O(N) policy anti-patterns, missing pre-queries, enum/CHECK mismatches                                     |
@@ -54,14 +54,14 @@ This is the canonical loop: implement → simplify → harden (unless Codex revi
 | Pre-pass or lens inside an orchestrated / `ship-pr` run          | The `sonnet` sub-agent `ship-pr` Step 4 names. Not `/code-review`: it fans out ~4 agents, which breaks the 3-heavy-job Mac cap, and it is never gate evidence (MYK9-1469) |
 | Security pass on a diff                                          | `security-audit` skill (diff mode). Claude's built-in `/security-review` is not used: it duplicates this without the repo's RLS/grant/RPC traps                           |
 
-Run Codex review **before** merging, not after — it's a gate, not a follow-up.
+Run the agy review **before** merging, not after — it's a gate, not a follow-up.
 
 **Scrutiny scales with risk.** Run `pnpm qa:review-tier --base origin/main` to get the
 floor before spending a review round — the same floor `scripts/qa/review-gate.ts`
 refuses evidence below. Four tiers, weakest to strongest: `none` < `owner` <
 `adversarial` < `independent`. Nobody types a `Review gate:` evidence line by hand;
 `scripts/qa/post-review-gate.sh` is the only writer, for every tier it can write —
-`codex`, `claude`, `adversarial`, `none`, `owner`.
+`agy`, `codex`, `claude`, `adversarial`, `none`, `owner`.
 
 - **`independent`** — guardrails (`.github/`, `.claude/`, `.codex/`, `.agents/`,
   `.githooks/`, `scripts/qa/`, `playwright*.config.ts`, `CLAUDE.md`, `AGENTS.md`,

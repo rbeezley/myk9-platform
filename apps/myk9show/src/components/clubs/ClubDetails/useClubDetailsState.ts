@@ -248,8 +248,9 @@ export function useClubDetailsState(selectedClub: Club | null) {
       logger.debug('Updated club object', 'clubs', { updatedClub });
 
       try {
+        // The panel stays open: EditPanelWrapper closes it once every part of the save
+        // (this club row and the online-only club numbers) has succeeded.
         await updateClub(updatedClub);
-        setShowEditPanel(false);
       } catch (error) {
         logger.error('Failed to save club', 'clubs', { clubId: selectedClub.id }, error as Error);
         // EditPanelWrapper keeps the panel open and reports the failure only

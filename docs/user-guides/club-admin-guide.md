@@ -58,9 +58,9 @@ Your club profile holds the information that flows into every show your club hos
 3. Open the **Actions** menu at the top → **Edit club**. The panel has three tabs: **Basic Info**, **Contact** and **Premium**.
 4. Review each field:
    - **Club Name** (as it appears on AKC paperwork), **Description**, **Club Type** and **Founded** on **Basic Info**
+   - **AKC club number**, **UKC club number** and **ASCA club number** on **Basic Info** (enter at least one; these need an internet connection)
    - **Email Address**, **Phone Number**, **Website**, **Street Address**, **City**, **State/Province**, **ZIP Code** and **Country** on **Contact**
-5. Update any field that is out of date → click **Save Changes**.
-6. For the club numbers, use **Edit** on the **Club numbers** line near the top of the page. Enter the **AKC club number**, **UKC club number** and **ASCA club number** that apply, and click **Save**.
+5. Update any field that is out of date → click **Save Changes**. If the club numbers cannot be saved, the panel tells you which part was saved and stays open so you can try again.
 
 ![Edit Club panel — Basic Info tab with club name, description and club type](../screenshots/C-01.png)
 

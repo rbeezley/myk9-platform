@@ -98,7 +98,11 @@ begin
   set local role authenticated;
   update public.entries set reminder_email_status = 'pending', reminder_email_sent_at = null
    where id = '00000000-0000-0000-0000-000002341021';
+  get diagnostics n = row_count;
   reset role;
+  if n <> 1 then
+    raise exception 'FAIL A2: the UPDATE matched % rows', n;
+  end if;
   select * into r from public.entries where id = '00000000-0000-0000-0000-000002341021';
   if r.reminder_email_status <> 'sent' or r.reminder_email_sent_at is distinct from stamp then
     raise exception 'FAIL A2: client re-armed the reminder (% / %)', r.reminder_email_status, r.reminder_email_sent_at;
@@ -112,7 +116,11 @@ begin
     ('00000000-0000-0000-0000-000002341022', '00000000-0000-0000-0000-000002341012',
      '00000000-0000-0000-0000-000002341005', '00000000-0000-0000-0000-000002341002',
      '00000000-0000-0000-0000-000002341003', 'confirmed', 'pending', 25, 'sent', now());
+  get diagnostics n = row_count;
   reset role;
+  if n <> 1 then
+    raise exception 'FAIL B: the INSERT affected % rows', n;
+  end if;
   select * into r from public.entries where id = '00000000-0000-0000-0000-000002341022';
   if r.reminder_email_status <> 'pending' or r.reminder_email_sent_at is not null then
     raise exception 'FAIL B: client INSERT set the reminder columns (% / %)', r.reminder_email_status, r.reminder_email_sent_at;
@@ -143,7 +151,11 @@ begin
   set local role authenticated;
   update public.clubs set first_show_published_at = now() + interval '5 years'
    where id = '00000000-0000-0000-0000-000002341001';
+  get diagnostics n = row_count;
   reset role;
+  if n <> 1 then
+    raise exception 'FAIL D2: the UPDATE matched % rows', n;
+  end if;
   select * into c from public.clubs where id = '00000000-0000-0000-0000-000002341001';
   if c.first_show_published_at is distinct from stamp then
     raise exception 'FAIL D: club admin moved first_show_published_at (%)', c.first_show_published_at;
@@ -154,7 +166,11 @@ begin
   set local role authenticated;
   insert into public.clubs (id, name, first_show_published_at)
   values ('00000000-0000-0000-0000-000002341003', 'MYK9-2341 Client Insert', now());
+  get diagnostics n = row_count;
   reset role;
+  if n <> 1 then
+    raise exception 'FAIL E: the INSERT affected % rows', n;
+  end if;
   select * into c from public.clubs where id = '00000000-0000-0000-0000-000002341003';
   if c.first_show_published_at is not null then
     raise exception 'FAIL E: client INSERT set first_show_published_at (%)', c.first_show_published_at;

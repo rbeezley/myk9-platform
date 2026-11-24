@@ -61,7 +61,7 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
   return (
     <TabsList
       className={cn(
-        'grid w-full grid-cols-3 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 backdrop-blur-xl',
+        'grid w-full grid-cols-3 bg-transparent bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 backdrop-blur-xl',
         compact && COMPACT_STRIP
       )}
     >

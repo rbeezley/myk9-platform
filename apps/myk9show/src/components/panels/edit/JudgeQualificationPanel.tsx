@@ -363,7 +363,7 @@ export const JudgeQualificationPanel: React.FC<JudgeQualificationPanelProps> = (
               <Button
                 variant="outline"
                 onClick={addQualification}
-                className="w-full bg-gradient-to-r from-primary/5 to-secondary/5 border-primary/20 hover:from-primary/10 hover:to-secondary/10 hover:border-primary/30 transition-all duration-300"
+                className="w-full bg-transparent bg-gradient-to-r from-primary/5 to-secondary/5 border-primary/20 hover:from-primary/10 hover:to-secondary/10 hover:border-primary/30 transition-all duration-300"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Another Qualification

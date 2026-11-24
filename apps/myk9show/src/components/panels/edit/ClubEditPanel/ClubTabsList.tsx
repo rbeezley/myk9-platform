@@ -46,7 +46,7 @@ export const ClubTabsList: React.FC<ClubTabsListProps> = ({ mode, data, errors }
 
   return (
     <>
-      <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 transition-all duration-300 ease-out">
+      <TabsList className="grid w-full grid-cols-3 bg-transparent bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 transition-all duration-300 ease-out">
         {CLUB_TAB_ORDER.map(tab => {
           let status: React.ReactNode = null;
           const unresolved = invalid[tab];

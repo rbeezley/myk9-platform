@@ -210,7 +210,7 @@ export function LoadTestDashboard() {
           </div>
 
           <Tabs defaultValue="load-tests" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-2 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1">
+            <TabsList className="grid w-full grid-cols-2 bg-transparent bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1">
               <TabsTrigger value="load-tests" className="rounded-lg transition-all duration-300">
                 Load Testing
               </TabsTrigger>
@@ -290,7 +290,7 @@ export function LoadTestDashboard() {
                     {testScenarios.map(scenario => (
                       <Card
                         key={scenario.name}
-                        className="group relative overflow-hidden p-4 bg-gradient-to-br from-card to-card/80 
+                        className="group relative overflow-hidden p-4 bg-transparent bg-gradient-to-br from-card to-card/80 
                                border border-border rounded-2xl shadow-sm backdrop-blur-xl 
                                transition-all duration-500 hover:shadow-xl hover:-translate-y-2"
                       >

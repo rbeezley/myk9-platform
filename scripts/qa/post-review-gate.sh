@@ -336,7 +336,10 @@ if [ -s "$LOG" ] 2>/dev/null; then
   # output has no marker, so the whole log is the verdict. Never a `tail`: a
   # long clean Claude review would lose its opening contract sentence and be
   # refused (Codex review of #2110, round 9).
-  VERDICT_BLOCK="$(review_last_block "$LOG")"
+  # MYK9-2368: only a codex log has the marker; a claude or agy log is read
+  # whole, so a bare "codex" line in its prose cannot cut the verdict short.
+  VERDICT_BLOCK=""
+  [ "$REVIEWER" = "codex" ] && VERDICT_BLOCK="$(review_last_block "$LOG")"
   [ -n "$VERDICT_BLOCK" ] || VERDICT_BLOCK="$(cat "$LOG")"
 else
   # Only reachable for owner/none on a NON-WITHDRAW post: REQUIRES_LOG folds

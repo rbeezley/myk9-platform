@@ -24,7 +24,7 @@ function tmp(prefix: string): string {
 }
 
 /** A throwaway repo with two commits, so BASE..HEAD is a real, non-empty diff. */
-function makeRepo(threeCommits = false): string {
+function makeRepo(): string {
   const dir = tmp('agy-repo-');
   const env = {
     ...process.env,
@@ -41,10 +41,6 @@ function makeRepo(threeCommits = false): string {
   git('commit', '-q', '-m', 'base');
   writeFileSync(join(dir, 'a.txt'), 'one\ntwo\n');
   git('commit', '-q', '-am', 'change');
-  if (threeCommits) {
-    writeFileSync(join(dir, 'a.txt'), 'one\ntwo\nthree\n');
-    git('commit', '-q', '-am', 'fix');
-  }
   return dir;
 }
 
@@ -100,10 +96,9 @@ function bodies(callsPath: string): string[] {
 function run(
   stub: { bin: string; log: string },
   args: string[] = ['HEAD~1'],
-  gh?: { bin: string },
-  threeCommits = false
+  gh?: { bin: string }
 ): { code: number; out: string; repo: string } {
-  const repo = makeRepo(threeCommits);
+  const repo = makeRepo();
   const env = {
     ...process.env,
     AGY_BIN: stub.bin,
@@ -172,33 +167,62 @@ describe('agy-review.sh', () => {
   });
 
   it.each([
-    ['empty output', '', 0],
-    ['whitespace-only output', '\n  \n', 0],
-    ['a print timeout line', 'Print timeout exceeded after 20m0s\n', 0],
-    ['a refused command line', 'Error: command denied: rg -n foo\n', 0],
+    ['empty output', '', 0, 'empty output'],
+    ['whitespace-only output', '\n  \n', 0, 'empty output'],
+    [
+      'a print timeout line',
+      'Print timeout exceeded after 20m0s\n\nEND OF REVIEW\n',
+      0,
+      'timeout, refused command or error line',
+    ],
+    [
+      'a refused command line',
+      'Error: command denied: rg -n foo\n\nEND OF REVIEW\n',
+      0,
+      'timeout, refused command or error line',
+    ],
     [
       'a refusal after a clean-looking opening',
-      'No actionable defects found.\nError: command denied: git diff\n',
+      'No actionable defects found.\nError: command denied: git diff\n\nEND OF REVIEW\n',
       0,
+      'timeout, refused command or error line',
     ],
-    ['output cut inside a code block', 'No actionable defects found.\n\n```ts\nconst a = 1;\n', 0],
-    ['a clean verdict but cli exit 1', CLEAN, 1],
+    [
+      'output cut inside a code block',
+      'No actionable defects found.\n\n```ts\nconst a = 1;\n\nEND OF REVIEW\n',
+      0,
+      'truncated inside a code block',
+    ],
+    ['a clean verdict but cli exit 1', CLEAN, 1, 'cli exited 1'],
     [
       'a clean opening cut off mid-prose (no END OF REVIEW)',
       'No actionable defects found.\n\n- Behavior changes: clean, and the migration only add',
       0,
+      'does not end with a line reading END OF REVIEW',
     ],
     [
       'a clean verdict whose END OF REVIEW is not the last line',
       'No actionable defects found.\n\nEND OF REVIEW\nand then one more thing',
       0,
+      'does not end with a line reading END OF REVIEW',
     ],
-    ['prose with no verdict', 'I looked at the diff and it seems fine overall.\n', 0],
-    ['an incomplete review', 'Unable to complete the review: the diff was too large.\n', 0],
-  ])('exits 2 and posts no evidence on %s', (_, output, exitCode) => {
+    [
+      'prose with no verdict',
+      'I looked at the diff and it seems fine overall.\n\nEND OF REVIEW\n',
+      0,
+      'neither findings nor an explicit clean verdict',
+    ],
+    [
+      'an incomplete review',
+      'Unable to complete the review: the diff was too large.\n\nEND OF REVIEW\n',
+      0,
+      'incomplete review',
+    ],
+  ])('exits 2 and posts no evidence on %s', (_, output, exitCode, message) => {
     const gh = stubGh();
     const r = run(stubAgy(output, exitCode), ['HEAD~1', '--post'], gh);
     expect(r.code).toBe(2);
+    expect(r.out).toContain(message);
     expect(r.out).not.toContain('Review gate: agy reviewed');
     expect(bodies(gh.calls)).toEqual([]);
   });
@@ -240,32 +264,6 @@ describe('agy-review.sh', () => {
     const allowed = [...script.matchAll(/command\((\w+)\)/g)].map(m => m[1]!);
     expect(told.length).toBeGreaterThan(3);
     for (const cmd of told) expect(allowed, `prompt names ${cmd}`).toContain(cmd);
-  });
-
-  it('round 2 puts the last trusted findings comment in the prompt', () => {
-    const dir = tmp('gh-stub-');
-    const bin = join(dir, 'gh');
-    writeFileSync(
-      bin,
-      `#!/usr/bin/env bash
-case "$*" in
-  'pr view --json number'*) echo 7 ;;
-  *'Coverage: complete from'*)
-    printf 'Agy findings for %s (not gate evidence):\\nCoverage: complete from %s\\n\\n- [P2] earlier finding\\n' "$(git rev-parse HEAD~1)" "$(git rev-parse HEAD~2)" ;;
-  *'last // ""'*) printf 'Agy findings for x (not gate evidence):\\n- [P2] a.txt earlier finding text\\n' ;;
-esac
-`
-    );
-    chmodSync(bin, 0o755);
-    const stub = stubAgy(CLEAN);
-    const r = run(stub, ['HEAD~2', '--post'], { bin }, true);
-    expect(r.out).toContain('round 2+');
-    const args = readFileSync(stub.args, 'utf8').split('\0').slice(0, -1);
-    const prompt = args[args.indexOf('-p') + 1] ?? '';
-    expect(prompt).toContain('## Findings from the previous round');
-    expect(prompt).toContain('a.txt earlier finding text');
-    expect(prompt).toContain('did not fix as a normal finding');
-    expect(prompt).toMatch(/agy-review-newest-[0-9a-f]{9}\.diff/);
   });
 
   it('the prior-findings count reads only trusted authors', () => {

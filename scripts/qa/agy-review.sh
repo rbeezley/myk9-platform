@@ -71,7 +71,6 @@ fi
 REVIEW_BASE="$BASE_REF"
 COVERED_FROM="$(git merge-base "$BASE_SHA" HEAD)"
 FIX_RANGE=0
-PREV_FINDINGS=""
 END_MARKER="END OF REVIEW"
 ANCHOR_JQ='[.comments[] | select(.authorAssociation == "OWNER" or .authorAssociation == "MEMBER" or .authorAssociation == "COLLABORATOR") | select(.body | split("\n") as $l | ($l[0] | startswith("Agy findings for")) or (($l[0] | test("^Review gate: agy reviewed [0-9a-f]{7,40}\\.\\.[0-9a-f]{7,40} — ")) and (($l[1] // "") | startswith("Coverage: complete from ")))) | .body] | last // ""'
 if [ "$POST" = 1 ] && PR="$("$GH" pr view --json number -q .number 2>/dev/null)" && [ -n "$PR" ] &&
@@ -94,9 +93,6 @@ if [ "$POST" = 1 ] && PR="$("$GH" pr view --json number -q .number 2>/dev/null)"
     REVIEW_BASE="$LAST_SHA"
     COVERED_FROM="$FROM_SHA"
     FIX_RANGE=1
-    # The last TRUSTED findings comment rides in the prompt so a finding the
-    # newest commits did not fix is reported again, not dropped as "earlier".
-    PREV_FINDINGS="$("$GH" pr view "$PR" --json comments -q '[.comments[] | select(.authorAssociation == "OWNER" or .authorAssociation == "MEMBER" or .authorAssociation == "COLLABORATOR") | .body | select(startswith("Agy findings for"))] | last // ""' 2>/dev/null)" || PREV_FINDINGS=""
     echo "agy-review: round 2+ — fix range ${LAST_SHA:0:9}..${HEAD_SHA:0:9} (last completed agy review on PR #${PR})"
   fi
 fi
@@ -121,9 +117,6 @@ PROMPT="$(cat "$PROMPT_TEMPLATE")"
 PROMPT="${PROMPT//\{DIFF\}/${BT}.logs/agy-review-${HEAD_SHA:0:9}.diff${BT}}"
 PROMPT="${PROMPT//\{NEWEST\}/$NEWEST_TEXT}"
 PROMPT="$(printf '%s\n\n## Verdict format (overrides the Output section above)\n\n%s\n\nThe LAST line of your answer must be exactly: %s\nPut nothing after it. An answer without that final line is treated as cut off and discarded.\n' "$PROMPT" "$CONTRACT" "$END_MARKER")"
-if [ "$FIX_RANGE" = 1 ] && [ -n "$PREV_FINDINGS" ]; then
-  PROMPT="$(printf '%s\n\n## Findings from the previous round\n\n%s\n\nReport any of these that the newest commits did not fix as a normal finding (a bullet beginning with - [P0], - [P1], - [P2] or - [P3]).\n' "$PROMPT" "$PREV_FINDINGS")"
-fi
 
 echo "agy-review: ${REVIEW_BASE} (${BASE_SHA:0:9}) .. HEAD (${HEAD_SHA:0:9}) -> ${LOG}"
 # Flags BEFORE -p (agy takes the prompt as -p's value). Read-only: plan mode and

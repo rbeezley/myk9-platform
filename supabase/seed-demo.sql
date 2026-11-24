@@ -3029,8 +3029,8 @@ BEGIN
     AND NOT EXISTS (
       SELECT 1 FROM public.dog_registrations r
       WHERE r.dog_id = d.id
-        AND public.normalize_dog_registration_organization(r.organization)
-          = public.normalize_dog_registration_organization(reg.organization))
+        AND public.normalize_registry_organization(r.organization)
+          = public.normalize_registry_organization(reg.organization))
   ON CONFLICT DO NOTHING;
 
   -- Entries: Nova, Poppy, Rusty in Container Novice A; Tucker, Hazel, Bear, Poppy in
@@ -3201,13 +3201,16 @@ UPDATE public.shows
 -- would trip its duplicate name + start date check and roll back the whole reseed. Its duplicate
 -- check is its LAST check, so a failure of that one kind is re-judged here: it is forgiven
 -- only when every duplicate pair involves an earlier club demo show; any other pair re-raises.
+-- The error is matched by its fixed prefix (a show's own name cannot start the message), and
+-- today's show-day fixture stays in the owned set: a pair with it is never forgiven (MYK9-2354).
 DO $$
 DECLARE
   v_today_floor uuid := ('dededede-0000-0000-0836-' || to_char((now() AT TIME ZONE 'America/Chicago')::date, 'YYYYMMDD') || '0000')::uuid;
+  v_fixture uuid := public.seed_demo_show_day_fixture_today();
 BEGIN
   PERFORM public.seed_demo_assert_date_coherence();
 EXCEPTION WHEN raise_exception THEN
-  IF SQLERRM NOT LIKE '%share the name%' OR EXISTS (
+  IF SQLERRM NOT LIKE 'seed-demo: two live shows share the name%' OR EXISTS (
     SELECT 1
     FROM public.shows a
     JOIN public.shows b ON b.id > a.id AND b.name = a.name AND b.start_date = a.start_date AND b.deleted_at IS NULL
@@ -3216,8 +3219,8 @@ EXCEPTION WHEN raise_exception THEN
       AND b.id >= 'dededede-0000-0000-0000-000000000000'::uuid AND b.id <= 'dededede-ffff-ffff-ffff-ffffffffffff'::uuid
       AND NOT (a.id >= 'dededede-0000-0000-0836-000000000000'::uuid AND a.id < v_today_floor)
       AND NOT (b.id >= 'dededede-0000-0000-0836-000000000000'::uuid AND b.id < v_today_floor)
-      AND NOT (a.id >= 'dededede-0000-0000-0731-000000000000'::uuid AND a.id < 'dededede-0000-0000-0732-000000000000'::uuid)
-      AND NOT (b.id >= 'dededede-0000-0000-0731-000000000000'::uuid AND b.id < 'dededede-0000-0000-0732-000000000000'::uuid)
+      AND NOT (a.id >= 'dededede-0000-0000-0731-000000000000'::uuid AND a.id < 'dededede-0000-0000-0732-000000000000'::uuid AND a.id IS DISTINCT FROM v_fixture)
+      AND NOT (b.id >= 'dededede-0000-0000-0731-000000000000'::uuid AND b.id < 'dededede-0000-0000-0732-000000000000'::uuid AND b.id IS DISTINCT FROM v_fixture)
       AND a.id <> 'dededede-0000-0000-0000-000000000014'::uuid AND b.id <> 'dededede-0000-0000-0000-000000000014'::uuid
   ) THEN
     RAISE;

@@ -39,7 +39,9 @@ export const MUTATION_TARGET_DEFS = {
   cart: {
     mutate: ['apps/myk9show/src/store/cartStore.helpers.ts'],
     testFiles: [
+      'apps/myk9show/src/components/cart/CartSummary.pendingEdits.test.tsx',
       'apps/myk9show/src/features/payments/platformFeeSplit.test.ts',
+      'apps/myk9show/src/pages/__tests__/CartPage.splitCheckout.test.tsx',
       'apps/myk9show/src/store/cartStore.concurrent.test.ts',
       'apps/myk9show/src/store/cartStore.helpers.test.ts',
       'apps/myk9show/supabase/functions/_shared/platformFeeAgreement.test.ts',

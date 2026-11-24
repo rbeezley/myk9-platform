@@ -188,6 +188,8 @@ export default function CartPage() {
   }, [loadCartForPage]);
 
   const handleRemoveItem = async (itemId: string) => {
+    // MYK9-2340: once checkout has started Stripe prices the cart as it is.
+    if (checkoutInFlightRef.current) return;
     const removed = items.find(item => item.id === itemId);
     setRemovingItemId(itemId);
     setError(null);
@@ -229,6 +231,7 @@ export default function CartPage() {
   };
 
   const handleClearCart = async () => {
+    if (checkoutInFlightRef.current) return;
     setIsClearing(true);
     setError(null);
     if (!(await clearCart())) setError(CART_ERROR.clearFailed);
@@ -463,6 +466,7 @@ export default function CartPage() {
               variant="outline"
               size="default"
               onClick={() => setShowClearDialog(true)}
+              disabled={isCheckingOut}
               className="min-h-[44px] text-muted-foreground hover:text-destructive"
             >
               <Trash2 className="h-4 w-4 mr-1" />
@@ -529,6 +533,7 @@ export default function CartPage() {
                 item={item}
                 onRemove={() => handleRemoveItem(item.id)}
                 isRemoving={removingItemId === item.id}
+                removeDisabled={isCheckingOut}
                 fulfillment={fulfillment.fulfillmentByItemId[item.id] ?? 'payable'}
                 fullReason={fulfillment.fullReasonByItemId.get(item.id)}
                 judgeNameById={judgeNameById}

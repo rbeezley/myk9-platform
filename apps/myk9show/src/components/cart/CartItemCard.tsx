@@ -21,6 +21,8 @@ interface CartItemCardProps {
   item: CartItemWithDetails;
   onRemove: () => void;
   isRemoving?: boolean;
+  /** Checkout is in flight: edits would race the priced session. */
+  removeDisabled?: boolean;
   /**
    * How this line will actually be fulfilled at checkout (MYK9-122). Defaults to
    * 'payable' so callers that have no capacity context are unchanged.
@@ -63,6 +65,7 @@ export function CartItemCard({
   item,
   onRemove,
   isRemoving = false,
+  removeDisabled = false,
   fulfillment = 'payable',
   fullReason,
   judgeNameById,
@@ -175,7 +178,7 @@ export function CartItemCard({
               variant="ghost"
               size="sm"
               onClick={onRemove}
-              disabled={isRemoving}
+              disabled={isRemoving || removeDisabled}
               className="min-h-[44px] text-muted-foreground hover:text-destructive hover:bg-destructive/10"
             >
               {isRemoving ? (

@@ -109,6 +109,9 @@ vi.mock('react-router-dom', async () => {
 
 vi.mock('@/lib/stripe', () => ({
   createEntryCheckoutSession: createEntryCheckoutSessionMock,
+  CheckoutSessionError: class CheckoutSessionError extends Error {
+    status?: number;
+  },
 }));
 
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -138,8 +141,21 @@ vi.mock('@/store/cartStore', () => ({
 }));
 
 vi.mock('@/components/cart/CartItemCard', () => ({
-  CartItemCard: ({ item }: { item: { class?: { name?: string } } }) => (
-    <div>{item.class?.name ?? 'Cart Item'}</div>
+  CartItemCard: ({
+    item,
+    onRemove,
+    removeDisabled,
+  }: {
+    item: { id: string; class?: { name?: string } };
+    onRemove: () => void;
+    removeDisabled?: boolean;
+  }) => (
+    <div>
+      {item.class?.name ?? 'Cart Item'}
+      <button type="button" onClick={onRemove} disabled={removeDisabled}>
+        Remove {item.id}
+      </button>
+    </div>
   ),
 }));
 
@@ -300,6 +316,36 @@ describe('CartPage split checkout wiring', () => {
     await edit;
     await user.click(screen.getByRole('button', { name: 'Checkout' }));
     await waitFor(() => expect(checkoutWithWaitlistMock).toHaveBeenCalled());
+  });
+
+  it('blocks Remove and Clear once checkout starts, then frees them (MYK9-2340)', async () => {
+    checkoutWithWaitlistMock.mockResolvedValue({ confirmed: ['class-open'], waitlisted: [] });
+    let fail: (reason: Error) => void = () => undefined;
+    createEntryCheckoutSessionMock.mockReturnValueOnce(
+      new Promise<void>((_resolve, reject) => {
+        fail = reject;
+      })
+    );
+    const { user } = render(<CartPage />, { initialRoute: '/cart' });
+
+    await user.click(screen.getByRole('button', { name: 'Checkout' }));
+    await waitFor(() => expect(createEntryCheckoutSessionMock).toHaveBeenCalled());
+    removeItemMock.mockClear();
+
+    const removeButton = screen.getByRole('button', { name: 'Remove item-open' });
+    expect(removeButton).toBeDisabled();
+    expect(screen.getByRole('button', { name: /clear entry/i })).toBeDisabled();
+    await user.click(removeButton);
+    expect(removeItemMock).not.toHaveBeenCalled();
+    expect(clearCartMock).not.toHaveBeenCalled();
+
+    fail(new Error('stripe down'));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Remove item-open' })).toBeEnabled()
+    );
+    await user.click(screen.getByRole('button', { name: 'Remove item-open' }));
+    expect(removeItemMock).toHaveBeenCalledWith('item-open');
+    expect(screen.getByRole('button', { name: /clear entry/i })).toBeEnabled();
   });
 
   it('holds checkout while capacity is refetching stale data', () => {

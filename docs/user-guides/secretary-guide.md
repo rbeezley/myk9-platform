@@ -117,12 +117,17 @@ On the show page, open the **status pill** under the show's name and choose **Pu
 
   ![Edit show on the Venue & policies tab, with the This show uses switches](../screenshots/S-25.png)
 
-- **Add a judge to the show:** open **Edit show**, then the **Judges** tab. It lists the judges qualified for the show's organization; tick the one you want. A judge with no qualification for that organization is not listed. On an AKC or UKC show, choose **Add a new judge**, fill in their first and last name, judge number and email, then **Add Judge**. Either way, the judge reads **Assigned to show** but nothing is saved until you choose **Save Changes**. Closing the panel first asks whether to discard the change.
+- **Add a judge to the show:** open **Edit show**, then the **Judges** tab. It lists the judges qualified for the show's organization; tick the one you want. A judge with no qualification for that organization is not listed:
+  - **Someone not in myK9Show yet,** on an AKC or UKC show: choose **Add a new judge**, fill in their first and last name, judge number and email, then **Add Judge**. That creates their record and qualification straight away.
+  - **Someone already in myK9Show** (an exhibitor, or a judge for another organization): do not use **Add a new judge**, which would make a second record for them. Open them on **People** and add the qualification there with **Add Qualifications**.
+
+  Ticking a judge, or adding one, shows **Assigned to show**, but the judge is on the show only once you choose **Save Changes**. Closing the panel first asks whether to discard the change.
+
 - **Add classes to a show that already exists:** on **Show Desk**, open the **⋮** menu on the trial's heading and choose **Add classes**. The wizard opens on the **Classes** step with Show Details and Trials locked, because you are only adding classes. To add a trial instead, open the header **Actions** menu and choose **Add Trial**.
 - **Edit or delete a trial or class:** on **Show Desk**, open the **⋮** menu on a trial's heading and choose **Edit Trial**. The same menu also has **Add classes**, **Trial report** (the registry's end-of-trial report, already set to that trial) and, on AKC shows, **High in Trial**. That trial's entries and money are on the **Entry Forms** and **Reports** tabs. **Delete trial** is the button at the bottom left of the edit panel. For a class, click it and use **Edit class** or **Delete class** in its panel. Deleting a trial or class also deletes its entries, so read the confirmation before you accept it.
 - **Change a class's judge, or several classes at once:** **Actions → Select classes**. Each class gets a checkbox. Tick the classes, all in one trial, and a bar appears at the bottom with **Assign judge**, **Assign steward**, **Change status**, **Export** and **Delete**. Choose **Assign judge**, then the judge (or **Unassigned**). Each class card then shows its new judge. A class that has already started keeps its judge, and the button says how many of the ticked classes it will change, for example **Assign judge (1 of 2)**. **Done** returns you to the schedule.
 
-> **Assign judge** offers every judge qualified for the show's organization. If the one you want isn't listed, they have no qualification yet: add them on the **Judges** tab with **Add a new judge**, then come back.
+> **Assign judge** offers every judge qualified for the show's organization. If the one you want isn't listed, they have no qualification for it yet: give them one as described under **Add a judge to the show**, then come back.
 
 ---
 

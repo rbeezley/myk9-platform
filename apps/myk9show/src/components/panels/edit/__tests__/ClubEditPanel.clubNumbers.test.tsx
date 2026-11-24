@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   save: vi.fn(),
   online: { value: true },
   error: vi.fn(),
+  warning: vi.fn(),
 }));
 
 vi.mock('@/services/database/clubs', async importOriginal => ({
@@ -25,7 +26,10 @@ vi.mock('@/hooks/useNetworkStatus', async importOriginal => ({
 }));
 vi.mock('@/lib/notifications', async importOriginal => {
   const actual = await importOriginal<typeof import('@/lib/notifications')>();
-  return { ...actual, notifications: { ...actual.notifications, error: mocks.error } };
+  return {
+    ...actual,
+    notifications: { ...actual.notifications, error: mocks.error, warning: mocks.warning },
+  };
 });
 vi.mock('@/components/shows/WithdrawalPolicyCard', () => ({ WithdrawalPolicyCard: () => null }));
 
@@ -41,7 +45,10 @@ const CLUB = {
   clubType: 'local' as const,
 };
 
-function renderPanel(mode: 'create' | 'edit' = 'edit') {
+function renderPanel(
+  mode: 'create' | 'edit' = 'edit',
+  initialClubData: Record<string, unknown> = CLUB
+) {
   const onSave = vi.fn().mockResolvedValue(undefined);
   const onClose = vi.fn();
   render(
@@ -50,7 +57,7 @@ function renderPanel(mode: 'create' | 'edit' = 'edit') {
       onClose={onClose}
       clubId="club-1"
       clubName="Heartland"
-      initialClubData={CLUB}
+      initialClubData={initialClubData}
       onSave={onSave}
       mode={mode}
     />
@@ -177,5 +184,43 @@ describe('ClubEditPanel club numbers', () => {
     expect(await screen.findByText(/from Edit Club on the club page/)).toBeInTheDocument();
     expect(screen.queryByLabelText(/club number/i)).not.toBeInTheDocument();
     expect(mocks.get).not.toHaveBeenCalled();
+  });
+
+  it('saves a number on a club whose other profile fields are still blank, leaving the row alone', async () => {
+    const user = userEvent.setup();
+    const { onSave } = renderPanel('edit', { id: 'club-1', name: 'Heartland' });
+    await loadedAkc();
+    await user.type(screen.getByRole('textbox', { name: /UKC club number/ }), 'U-9');
+    await user.click(saveButton());
+
+    await waitFor(() => expect(mocks.save).toHaveBeenCalledWith('club-1', { UKC: 'U-9' }));
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('does not rewrite the club row for a number edit when the stored website normalizes', async () => {
+    const user = userEvent.setup();
+    const { onSave } = renderPanel('edit', { ...CLUB, website: 'https://example.org' });
+    await loadedAkc();
+    await user.type(screen.getByRole('textbox', { name: /UKC club number/ }), 'U-9');
+    await user.click(saveButton());
+
+    await waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(1));
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('saves the club details when the connection drops with a number draft, and says the numbers were not saved', async () => {
+    const user = userEvent.setup();
+    const { onSave } = renderPanel();
+    await user.clear(await loadedAkc());
+    mocks.online.value = false;
+    await user.type(screen.getByRole('textbox', { name: /Club Name/ }), ' Club');
+    await user.click(saveButton());
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    expect(mocks.warning).toHaveBeenCalledWith(
+      'The club number changes were not saved because they need a connection.'
+    );
+    expect(mocks.save).not.toHaveBeenCalled();
+    expect(screen.queryByText('Enter at least one club number.')).not.toBeInTheDocument();
   });
 });

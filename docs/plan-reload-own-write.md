@@ -36,6 +36,11 @@ So the design already recognises the phone's own writes. The gap is that this re
 - Why identity and not values: two people can record the same result. A matching value proves only that this phone meant to send it, not that its write is the one that committed. Silently rebasing on a value match could send B over another person's score.
 - Cost: a migration (RPC overload plus a column), a client change, and a persisted record of sent ids scoped to `authUserId`. Records are restored only after the current account is resolved, and dropped for any other account. Clean them up once the server's version is past them.
 - MYK9-2111's rule holds: nothing is restamped without proof.
+- Requirements found in design review (Codex, plan PR rounds 1 and 2), each needing its own test:
+  - Bind the id to the exact version it produced (`last_mutation_id` plus `last_mutation_version`). A later write on another path, such as a secretary's correction in entry management or the legacy RPC, must not inherit A's id.
+  - Check the id on replay acknowledgements too. `ringside_replay_applied_version` returns success on value equality at two sites in `ringside_update_entry`, so another person's identical write would otherwise be acknowledged as A.
+  - Scope sent ids to the account, as above.
+- Every one of these touches the scoring RPC. That is why B is a post-mock-show change, if it is done at all.
 
 **C. Client record plus a value match (rejected).** Persist `{mutationId, fields, serverVersion}` before sending, and treat an equal server value as the phone's own after a reload. This cannot tell this phone's commit from someone else's identical write (see B), so it can hide a real conflict.
 
@@ -52,7 +57,7 @@ So the design already recognises the phone's own writes. The gap is that this re
 1. **Reproduction first, asserting the wanted outcome** (`packages/replication`, near `MutationManager.delayed-response.test.ts`). Send A, commit it on the stub server, drop the reply, rebuild the manager from the same IndexedDB (the reload), then queue B. Assert no conflict, B sent with the advanced version, and B stored on the server. On `main` the test must fail with the unexpected conflict, and the failure names the ordering. If it passes on `main`, the bug does not reproduce in the replication layer: close MYK9-2371 with that evidence.
 2. **For B:**
    - After the fix, the same test shows no conflict, B is sent with the new version, and the server holds B.
-   - Control: another account writes the same value to the same field. The conflict must still fire.
+   - Controls, where the conflict must still fire: another account writes the same value to the same field, with A replaying both before and after the next pull; and a secretary corrects the score between A's commit and the phone's next pull.
    - Account change across a restart without a clean sign-out: the earlier account's sent ids are not used.
 3. **For D:** a unit test on the new wording.
 4. **E2E:** the phone walk drops its queue-drain wait before the reset (MYK9-2370) and still passes 10 runs in CI.

@@ -88,7 +88,7 @@ vi.mock('@/services/LoggingService', () => ({
 }));
 
 import { useCartStore } from './cartStore';
-import { calculateCartTotals } from './cartStore.helpers';
+import { calculateCartTotals, resetCartMutationQueue } from './cartStore.helpers';
 
 const FEE = 3000;
 
@@ -132,12 +132,23 @@ const newItem = (classId: string) => ({ dogId: 'dog-1', classId, entryFeeCents: 
 const flush = () => new Promise(resolve => setTimeout(resolve, 0));
 
 /** Release every gated item write issued so far, then let the mutations finish. */
-const releaseAll = async (order: 'fifo' | 'lifo' = 'fifo') => {
+const releaseAll = async () => {
   await flush();
-  const batch = gates.pending.splice(0);
-  for (const release of order === 'fifo' ? batch : batch.reverse()) release();
-  await flush();
+  // Serialized mutations issue their next item write only after the previous one
+  // finishes, so keep releasing until nothing new shows up.
+  for (let round = 0; round < 20 && gates.pending.length > 0; round++) {
+    for (const release of gates.pending.splice(0)) release();
+    await flush();
+  }
 };
+
+/** The order every table write was issued in, e.g. "entry_cart_items:insert". */
+const writeOrder = () => calls.filter(c => c.op).map(c => `${c.table}:${c.op}`);
+
+const cartsSubtotals = () =>
+  calls
+    .filter(c => c.table === 'entry_carts' && c.op === 'update')
+    .map(c => c.payload?.subtotal_cents);
 
 const lastCartsPayload = () => {
   const writes = calls.filter(c => c.table === 'entry_carts' && c.op === 'update');
@@ -158,12 +169,14 @@ describe('cartStore concurrent mutations (MYK9-2340)', () => {
     gates.pending.length = 0;
     gates.hold = true;
     gates.cartsUpdateError = null;
+    resetCartMutationQueue();
     mockFrom.mockReset();
     mockFrom.mockImplementation((table: string) => new MockBuilder(table));
     useCartStore.setState({ cart: null, error: null });
   });
 
   afterEach(() => {
+    resetCartMutationQueue();
     useCartStore.setState({ cart: null, error: null });
   });
 
@@ -182,20 +195,6 @@ describe('cartStore concurrent mutations (MYK9-2340)', () => {
     expect(cart.subtotal_cents).toBe(2 * FEE);
     // The stored totals must carry both items too, not the truncated snapshot.
     expect(lastCartsPayload()).toMatchObject({ subtotal_cents: 2 * FEE });
-  });
-
-  it('two overlapping addItem calls completing in reverse order keep both items', async () => {
-    seedCart([]);
-    const store = useCartStore.getState();
-
-    const first = store.addItem(newItem('class-1'));
-    const second = store.addItem(newItem('class-2'));
-    await releaseAll('lifo');
-    await Promise.all([first, second]);
-
-    const cart = useCartStore.getState().cart!;
-    expect(cart.items.map(i => i.class_id).sort()).toEqual(['class-1', 'class-2']);
-    assertTotalsMatchItems();
   });
 
   it('two overlapping removeItem calls drop both rows and zero the totals', async () => {
@@ -221,7 +220,7 @@ describe('cartStore concurrent mutations (MYK9-2340)', () => {
 
     const add = store.addItem(newItem('class-2'));
     const remove = store.removeItem('item-a');
-    await releaseAll('lifo');
+    await releaseAll();
     await Promise.all([add, remove]);
 
     const cart = useCartStore.getState().cart!;
@@ -260,7 +259,25 @@ describe('cartStore concurrent mutations (MYK9-2340)', () => {
     expect(cart.subtotal_cents).toBe(4000 + FEE);
   });
 
-  it('an addItem whose cart is cleared during the item write does not bring it back', async () => {
+  it('issues the entry_carts totals writes in call order', async () => {
+    seedCart([]);
+    const store = useCartStore.getState();
+
+    const first = store.addItem(newItem('class-1'));
+    const second = store.addItem(newItem('class-2'));
+    await releaseAll();
+    await Promise.all([first, second]);
+
+    expect(cartsSubtotals()).toEqual([FEE, 2 * FEE]);
+    expect(writeOrder()).toEqual([
+      'entry_cart_items:insert',
+      'entry_carts:update',
+      'entry_cart_items:insert',
+      'entry_carts:update',
+    ]);
+  });
+
+  it('an addItem whose cart is reset during the item write does not bring it back', async () => {
     seedCart([row('item-a', 'class-1')]);
 
     const add = useCartStore.getState().addItem(newItem('class-2'));
@@ -270,6 +287,36 @@ describe('cartStore concurrent mutations (MYK9-2340)', () => {
     await add;
 
     expect(useCartStore.getState().cart).toBeNull();
+  });
+
+  it('a clearCart issued during an addItem leaves the same-id cart empty', async () => {
+    seedCart([row('item-a', 'class-1')]);
+    const store = useCartStore.getState();
+
+    const add = store.addItem(newItem('class-2'));
+    await flush();
+    const clear = store.clearCart();
+    await releaseAll();
+    expect(await Promise.all([add, clear])).toEqual([true, true]);
+
+    const cart = useCartStore.getState().cart!;
+    expect(cart.id).toBe('cart-1');
+    expect(cart.items).toEqual([]);
+    expect(cart.total_cents).toBe(0);
+    expect(lastCartsPayload()).toMatchObject({ subtotal_cents: 0, total_cents: 0 });
+  });
+
+  it('an addItem queued behind a clearCart adds to the cleared cart', async () => {
+    seedCart([row('item-a', 'class-1')]);
+    const store = useCartStore.getState();
+
+    const clear = store.clearCart();
+    const add = store.addItem(newItem('class-2'));
+    await releaseAll();
+    await Promise.all([clear, add]);
+
+    expect(useCartStore.getState().cart!.items.map(i => i.id)).toEqual(['item-class-2']);
+    assertTotalsMatchItems();
   });
 
   it('updateItem commits locally before surfacing a failed entry_carts write', async () => {
@@ -285,6 +332,41 @@ describe('cartStore concurrent mutations (MYK9-2340)', () => {
     const cart = useCartStore.getState().cart!;
     expect(cart.items[0]?.entry_fee_cents).toBe(4000);
     assertTotalsMatchItems();
-    expect(cart.stripe_checkout_session_id).toBeNull();
+  });
+
+  it.each(['addItem', 'removeItem', 'updateItem'] as const)(
+    '%s keeps the checkout link locally when the entry_carts write fails',
+    async method => {
+      seedCart([row('item-a', 'class-1')]);
+      useCartStore.setState({
+        cart: { ...useCartStore.getState().cart!, stripe_checkout_session_id: 'cs_open' },
+      });
+      gates.hold = false;
+      gates.cartsUpdateError = { message: 'carts update failed' };
+      const store = useCartStore.getState();
+
+      const ok =
+        method === 'addItem'
+          ? await store.addItem(newItem('class-2'))
+          : method === 'removeItem'
+            ? await store.removeItem('item-a')
+            : await store.updateItem('item-a', { entryFeeCents: 4000 });
+
+      expect(ok).toBe(false);
+      expect(useCartStore.getState().cart!.stripe_checkout_session_id).toBe('cs_open');
+    }
+  );
+
+  it('drops the checkout link locally once the entry_carts write succeeds', async () => {
+    seedCart([row('item-a', 'class-1')]);
+    useCartStore.setState({
+      cart: { ...useCartStore.getState().cart!, stripe_checkout_session_id: 'cs_open' },
+    });
+    gates.hold = false;
+
+    expect(await useCartStore.getState().removeItem('item-a')).toBe(true);
+
+    expect(useCartStore.getState().cart!.stripe_checkout_session_id).toBeNull();
+    expect(lastCartsPayload()).toMatchObject({ stripe_checkout_session_id: null });
   });
 });

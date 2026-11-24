@@ -150,58 +150,77 @@ export function calculateCartTotals(items: CartItemWithDetails[]): {
 }
 
 /**
- * MYK9-2340: apply one item change to the LATEST cart, not the one a mutation
- * captured before it awaited. Every cart mutation awaits an `entry_cart_items`
- * write, and a second mutation can commit in that gap; rebuilding `items` and
- * the totals from the pre-await snapshot overwrote it. Callers re-read
- * `get().cart` after each await and pass it here as `latest`; `fallback` (the
- * cart the mutation started on) is used only when the store holds no cart or a
- * different one, and callers must not write that result back to the store. Totals are always recomputed from the resulting items.
+ * MYK9-2340: cart mutations (addItem, removeItem, updateItem, clearCart) for
+ * one cart run one at a time. Each awaits an `entry_cart_items` write and then
+ * an `entry_carts` totals write; overlapping calls dropped each other's items
+ * and let the older totals payload land last. A step starts only after the
+ * previous one settled (resolved OR rejected), so it reads the store fresh and
+ * the totals writes reach the database in call order.
  */
-export function rebaseCartItems(
-  latest: CartWithDetails | null,
-  fallback: CartWithDetails,
-  change: (items: CartItemWithDetails[]) => CartItemWithDetails[]
-): {
-  base: CartWithDetails;
-  items: CartItemWithDetails[];
-  totals: ReturnType<typeof calculateCartTotals>;
-} {
-  const base = latest && latest.id === fallback.id ? latest : fallback;
-  const items = change(base.items);
-  return { base, items, totals: calculateCartTotals(items) };
+const cartMutationTails = new Map<string, Promise<void>>();
+
+export function runCartMutation<T>(cartId: string, step: () => Promise<T>): Promise<T> {
+  const previous = cartMutationTails.get(cartId) ?? Promise.resolve();
+  const result = previous.then(step);
+  const tail = result.then(
+    () => undefined,
+    () => undefined
+  );
+  cartMutationTails.set(cartId, tail);
+  void tail.then(() => {
+    if (cartMutationTails.get(cartId) === tail) cartMutationTails.delete(cartId);
+  });
+  return result;
+}
+
+/** Test hook: drop every queued tail so one test cannot block the next. */
+export function resetCartMutationQueue(): void {
+  cartMutationTails.clear();
 }
 
 /**
- * Rebase `change` onto the latest cart and commit it to the store, returning
- * the committed cart (items and totals always agree). It writes to the store
- * ONLY when the store still holds the same cart (same id): after a clearCart or
- * a cart swap during the item write, the cart is computed from `fallback` for
- * the totals write but never put back, so a cleared cart stays cleared. Run it BEFORE the
- * `entry_carts` totals write and send those returned totals: a mutation that
- * commits first is visible to the next one, so the totals written last are the
- * totals of every item committed so far (MYK9-2340).
+ * Apply one item change and commit it to the store, returning the committed
+ * cart (items and totals always agree; totals are recomputed from the items).
+ * It writes ONLY when the store still holds this cart (same id): after a cart
+ * swap or reset mid-step the result is used for the totals write but never put
+ * back. The checkout link is left alone here; see `releaseCheckoutLink`.
  */
-export function commitRebasedCart(
+export function commitCartChange(
   get: () => { cart: CartWithDetails | null },
   write: (partial: { cart: CartWithDetails; lastSyncedAt: string }) => void,
   fallback: CartWithDetails,
   change: (items: CartItemWithDetails[]) => CartItemWithDetails[]
 ): CartWithDetails {
   const latest = get().cart;
-  const { base, items, totals } = rebaseCartItems(latest, fallback, change);
+  const current = latest && latest.id === fallback.id ? latest : null;
+  const items = change((current ?? fallback).items);
+  const totals = calculateCartTotals(items);
   const cart: CartWithDetails = {
-    ...base,
+    ...(current ?? fallback),
     items,
     subtotal_cents: totals.subtotal,
     platform_fee_cents: totals.platformFee,
     total_cents: totals.total,
-    stripe_checkout_session_id: null,
   };
-  if (latest && latest.id === fallback.id) {
-    write({ cart, lastSyncedAt: new Date().toISOString() });
-  }
+  if (current) write({ cart, lastSyncedAt: new Date().toISOString() });
   return cart;
+}
+
+/**
+ * The `entry_carts` write that severs the Stripe link succeeded, so the local
+ * cart may drop it too. Until then the store keeps the id, so a failed unlink
+ * still lets clearCart abandon the linked cart and keep evidence for a late
+ * payment.
+ */
+export function releaseCheckoutLink(
+  get: () => { cart: CartWithDetails | null },
+  write: (partial: { cart: CartWithDetails }) => void,
+  cartId: string
+): void {
+  const current = get().cart;
+  if (current && current.id === cartId && current.stripe_checkout_session_id) {
+    write({ cart: { ...current, stripe_checkout_session_id: null } });
+  }
 }
 
 /**

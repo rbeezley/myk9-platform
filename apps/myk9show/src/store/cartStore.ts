@@ -30,7 +30,9 @@ import {
   CART_EXPIRATION_MINUTES,
   EXPIRATION_WARNING_MINUTES,
   calculateCartTotals,
-  commitRebasedCart,
+  commitCartChange,
+  releaseCheckoutLink,
+  runCartMutation,
 } from './cartStore.helpers';
 import { findRecoverableEntries, loadCartItemsByCartId } from './cartStore.recovery';
 import type { RecoverableEntryRow, RecoveryOutcome } from './cartStore.recovery';
@@ -484,8 +486,8 @@ export const useCartStore = create<CartState>()(
         addItem: async (item: NewCartItem) => {
           const guard = captureCartWriteGuard();
           const write = guardedSet<CartState>(set, guard);
-          const { cart } = get();
-          if (!cart) {
+          const { cart: requested } = get();
+          if (!requested) {
             // Says WHICH add was dropped and what the store held instead. The
             // bare `write({ error })` was invisible in logs, so a chip clicked
             // before the cart finished loading looked to the exhibitor like a
@@ -498,356 +500,385 @@ export const useCartStore = create<CartState>()(
             write({ error: 'No active entry' });
             return false;
           }
+          return runCartMutation(requested.id, async () => {
+            // Read fresh now that earlier mutations settled; a swapped or reset cart is not ours.
+            const cart = get().cart;
+            if (!cart || cart.id !== requested.id) return false;
 
-          try {
-            const itemInsert: EntryCartItemInsert = {
-              cart_id: cart.id,
-              dog_id: item.dogId,
-              class_id: item.classId,
-              handler_id: item.handlerId || null,
-              entry_fee_cents: item.entryFeeCents,
-              ...(item.juniorFeeDeclared ? { junior_fee_declared: true } : {}),
-              jump_height: item.jumpHeight || null,
-              special_requests: item.specialRequests || null,
-            };
+            try {
+              const itemInsert: EntryCartItemInsert = {
+                cart_id: cart.id,
+                dog_id: item.dogId,
+                class_id: item.classId,
+                handler_id: item.handlerId || null,
+                entry_fee_cents: item.entryFeeCents,
+                ...(item.juniorFeeDeclared ? { junior_fee_declared: true } : {}),
+                jump_height: item.jumpHeight || null,
+                special_requests: item.specialRequests || null,
+              };
 
-            const { data: newItem, error: insertError } = await supabase
-              .from('entry_cart_items')
-              .insert(itemInsert)
-              .select(
-                `*, dog:dogs(id, name, call_name, registrations:dog_registrations(id, created_at, breed)), class:classes(id, name, level, trial_id), handler:people(id, first_name, last_name)`
-              )
-              .single();
+              const { data: newItem, error: insertError } = await supabase
+                .from('entry_cart_items')
+                .insert(itemInsert)
+                .select(
+                  `*, dog:dogs(id, name, call_name, registrations:dog_registrations(id, created_at, breed)), class:classes(id, name, level, trial_id), handler:people(id, first_name, last_name)`
+                )
+                .single();
 
-            if (insertError) {
-              // 23505 on entry_cart_items_unique_dog_class_idx means this cart
-              // ALREADY holds this (dog, class): the row is in the DB and the
-              // locally-held list had fallen short of it. That is not a failure
-              // to add -- the exhibitor's intent is already satisfied. Refresh
-              // the list from the DB so local truth matches, and report success
-              // (MYK9-530). This needs only a SELECT, which the same FOR ALL
-              // policy that allowed the read already grants.
-              if (insertError.code === '23505') {
-                logger.warn(
-                  'Cart item already present; refreshing cart from DB',
+              if (insertError) {
+                // 23505 on entry_cart_items_unique_dog_class_idx means this cart
+                // ALREADY holds this (dog, class): the row is in the DB and the
+                // locally-held list had fallen short of it. That is not a failure
+                // to add -- the exhibitor's intent is already satisfied. Refresh
+                // the list from the DB so local truth matches, and report success
+                // (MYK9-530). This needs only a SELECT, which the same FOR ALL
+                // policy that allowed the read already grants.
+                if (insertError.code === '23505') {
+                  logger.warn(
+                    'Cart item already present; refreshing cart from DB',
+                    'cartStore',
+                    { cartId: cart.id, item },
+                    insertError
+                  );
+                  const refreshedItems = await loadCartItemsByCartId(cart.id);
+                  const refreshedTotals = calculateCartTotals(refreshedItems);
+                  write({
+                    cart: {
+                      ...cart,
+                      items: refreshedItems,
+                      subtotal_cents: refreshedTotals.subtotal,
+                      platform_fee_cents: refreshedTotals.platformFee,
+                      total_cents: refreshedTotals.total,
+                    },
+                    lastSyncedAt: new Date().toISOString(),
+                  });
+                  return true;
+                }
+                logger.error(
+                  'Error adding cart item',
                   'cartStore',
                   { cartId: cart.id, item },
                   insertError
                 );
-                const refreshedItems = await loadCartItemsByCartId(cart.id);
-                const refreshedTotals = calculateCartTotals(refreshedItems);
-                write({
-                  cart: {
-                    ...cart,
-                    items: refreshedItems,
-                    subtotal_cents: refreshedTotals.subtotal,
-                    platform_fee_cents: refreshedTotals.platformFee,
-                    total_cents: refreshedTotals.total,
-                  },
-                  lastSyncedAt: new Date().toISOString(),
-                });
-                return true;
+                throw insertError;
               }
-              logger.error(
-                'Error adding cart item',
-                'cartStore',
-                { cartId: cart.id, item },
-                insertError
+
+              // MYK9-2340: commit onto the LATEST cart (never the pre-await
+              // snapshot; an overlapping mutation may have committed meanwhile)
+              // BEFORE the totals write, and send the committed totals. The item
+              // row is in the DB whatever the totals write does, so the local
+              // list must hold it before a totals failure is decided on
+              // (MYK9-530): throwing first left the list one row short of the DB.
+              // The stored totals are a cache; loadCart recomputes them.
+              const added = newItem as CartItemWithDetails;
+              const committed = commitCartChange(get, write, cart, items =>
+                items.some(i => i.id === added.id) ? items : [...items, added]
               );
-              throw insertError;
+
+              const { error: updateError } = await supabase
+                .from('entry_carts')
+                .update({
+                  subtotal_cents: committed.subtotal_cents,
+                  platform_fee_cents: committed.platform_fee_cents,
+                  total_cents: committed.total_cents,
+                  // Sever the checkout-session link: an abandoned-but-open Stripe
+                  // page must not be able to pay for a cart that has since
+                  // changed. The webhook rejects sessions the cart no longer
+                  // points at (sessionCartGuard, Codex round-3 P1).
+                  stripe_checkout_session_id: null,
+                })
+                .eq('id', cart.id);
+
+              if (updateError) {
+                logger.error(
+                  'Error updating cart totals',
+                  'cartStore',
+                  { cartId: cart.id },
+                  updateError
+                );
+                throw updateError;
+              }
+
+              releaseCheckoutLink(get, write, cart.id);
+              return true;
+            } catch (error) {
+              const message = error instanceof Error ? error.message : 'Failed to add item';
+              write({ error: message });
+              logger.error('Failed to add cart item', 'cartStore', { item }, ensureError(error));
+              return false;
             }
-
-            // MYK9-2340: commit onto the LATEST cart (never the pre-await
-            // snapshot; an overlapping mutation may have committed meanwhile)
-            // BEFORE the totals write, and send the committed totals. The item
-            // row is in the DB whatever the totals write does, so the local
-            // list must hold it before a totals failure is decided on
-            // (MYK9-530): throwing first left the list one row short of the DB.
-            // The stored totals are a cache; loadCart recomputes them.
-            const added = newItem as CartItemWithDetails;
-            const committed = commitRebasedCart(get, write, cart, items =>
-              items.some(i => i.id === added.id) ? items : [...items, added]
-            );
-
-            const { error: updateError } = await supabase
-              .from('entry_carts')
-              .update({
-                subtotal_cents: committed.subtotal_cents,
-                platform_fee_cents: committed.platform_fee_cents,
-                total_cents: committed.total_cents,
-                // Sever the checkout-session link: an abandoned-but-open Stripe
-                // page must not be able to pay for a cart that has since
-                // changed. The webhook rejects sessions the cart no longer
-                // points at (sessionCartGuard, Codex round-3 P1).
-                stripe_checkout_session_id: null,
-              })
-              .eq('id', cart.id);
-
-            if (updateError) {
-              logger.error(
-                'Error updating cart totals',
-                'cartStore',
-                { cartId: cart.id },
-                updateError
-              );
-              throw updateError;
-            }
-
-            return true;
-          } catch (error) {
-            const message = error instanceof Error ? error.message : 'Failed to add item';
-            write({ error: message });
-            logger.error('Failed to add cart item', 'cartStore', { item }, ensureError(error));
-            return false;
-          }
+          });
         },
 
         // Remove item from cart
         removeItem: async (itemId: string) => {
           const guard = captureCartWriteGuard();
           const write = guardedSet<CartState>(set, guard);
-          const { cart } = get();
-          if (!cart) {
+          const { cart: requested } = get();
+          if (!requested) {
             write({ error: 'No active entry' });
             return false;
           }
+          return runCartMutation(requested.id, async () => {
+            // Read fresh now that earlier mutations settled; a swapped or reset cart is not ours.
+            const cart = get().cart;
+            if (!cart || cart.id !== requested.id) return false;
 
-          try {
-            const { error: deleteError } = await supabase
-              .from('entry_cart_items')
-              .delete()
-              .eq('id', itemId);
+            try {
+              const { error: deleteError } = await supabase
+                .from('entry_cart_items')
+                .delete()
+                .eq('id', itemId);
 
-            if (deleteError) {
-              logger.error('Error removing cart item', 'cartStore', { itemId }, deleteError);
-              throw deleteError;
-            }
+              if (deleteError) {
+                logger.error('Error removing cart item', 'cartStore', { itemId }, deleteError);
+                throw deleteError;
+              }
 
-            // The DELETE has already committed, so commit the local removal
-            // (onto the LATEST cart, MYK9-2340) BEFORE the totals write and
-            // before deciding what a totals failure means, exactly as
-            // `addItem` does (MYK9-530 review, P3-a). The stored totals are a
-            // cache; loadCart recomputes them from items.
-            const committed = commitRebasedCart(get, write, cart, items =>
-              items.filter(i => i.id !== itemId)
-            );
-
-            const { error: updateError } = await supabase
-              .from('entry_carts')
-              .update({
-                subtotal_cents: committed.subtotal_cents,
-                platform_fee_cents: committed.platform_fee_cents,
-                total_cents: committed.total_cents,
-                // Sever the checkout-session link (see addItem).
-                stripe_checkout_session_id: null,
-              })
-              .eq('id', cart.id);
-
-            if (updateError) {
-              logger.error(
-                'Error updating cart totals',
-                'cartStore',
-                { cartId: cart.id },
-                updateError
+              // The DELETE has already committed, so commit the local removal
+              // (onto the LATEST cart, MYK9-2340) BEFORE the totals write and
+              // before deciding what a totals failure means, exactly as
+              // `addItem` does (MYK9-530 review, P3-a). The stored totals are a
+              // cache; loadCart recomputes them from items.
+              const committed = commitCartChange(get, write, cart, items =>
+                items.filter(i => i.id !== itemId)
               );
-              throw updateError;
-            }
 
-            return true;
-          } catch (error) {
-            const message = error instanceof Error ? error.message : 'Failed to remove item';
-            write({ error: message });
-            logger.error('Failed to remove cart item', 'cartStore', { itemId }, ensureError(error));
-            return false;
-          }
+              const { error: updateError } = await supabase
+                .from('entry_carts')
+                .update({
+                  subtotal_cents: committed.subtotal_cents,
+                  platform_fee_cents: committed.platform_fee_cents,
+                  total_cents: committed.total_cents,
+                  // Sever the checkout-session link (see addItem).
+                  stripe_checkout_session_id: null,
+                })
+                .eq('id', cart.id);
+
+              if (updateError) {
+                logger.error(
+                  'Error updating cart totals',
+                  'cartStore',
+                  { cartId: cart.id },
+                  updateError
+                );
+                throw updateError;
+              }
+
+              releaseCheckoutLink(get, write, cart.id);
+              return true;
+            } catch (error) {
+              const message = error instanceof Error ? error.message : 'Failed to remove item';
+              write({ error: message });
+              logger.error(
+                'Failed to remove cart item',
+                'cartStore',
+                { itemId },
+                ensureError(error)
+              );
+              return false;
+            }
+          });
         },
 
         // Update item in cart
         updateItem: async (itemId: string, updates: Partial<NewCartItem>) => {
           const guard = captureCartWriteGuard();
           const write = guardedSet<CartState>(set, guard);
-          const { cart } = get();
-          if (!cart) {
+          const { cart: requested } = get();
+          if (!requested) {
             write({ error: 'No active entry' });
             return false;
           }
+          return runCartMutation(requested.id, async () => {
+            // Read fresh now that earlier mutations settled; a swapped or reset cart is not ours.
+            const cart = get().cart;
+            if (!cart || cart.id !== requested.id) return false;
 
-          try {
-            const updateData: Partial<EntryCartItem> = {};
-            if (updates.handlerId !== undefined) updateData.handler_id = updates.handlerId || null;
-            if (updates.jumpHeight !== undefined)
-              updateData.jump_height = updates.jumpHeight || null;
-            if (updates.specialRequests !== undefined)
-              updateData.special_requests = updates.specialRequests || null;
-            if (updates.entryFeeCents !== undefined)
-              updateData.entry_fee_cents = updates.entryFeeCents;
+            try {
+              const updateData: Partial<EntryCartItem> = {};
+              if (updates.handlerId !== undefined)
+                updateData.handler_id = updates.handlerId || null;
+              if (updates.jumpHeight !== undefined)
+                updateData.jump_height = updates.jumpHeight || null;
+              if (updates.specialRequests !== undefined)
+                updateData.special_requests = updates.specialRequests || null;
+              if (updates.entryFeeCents !== undefined)
+                updateData.entry_fee_cents = updates.entryFeeCents;
 
-            const { error: updateError } = await supabase
-              .from('entry_cart_items')
-              .update(updateData)
-              .eq('id', itemId);
+              const { error: updateError } = await supabase
+                .from('entry_cart_items')
+                .update(updateData)
+                .eq('id', itemId);
 
-            if (updateError) {
+              if (updateError) {
+                logger.error(
+                  'Error updating cart item',
+                  'cartStore',
+                  { itemId, updates },
+                  updateError
+                );
+                throw updateError;
+              }
+
+              // The item row is already updated in the DB whatever the cart write
+              // does, so commit locally (onto the LATEST cart, MYK9-2340) BEFORE
+              // the cart write and before surfacing its error, exactly as
+              // `addItem` and `removeItem` do (MYK9-530).
+              const committed = commitCartChange(get, write, cart, items =>
+                items.map(i => (i.id === itemId ? { ...i, ...updateData } : i))
+              );
+
+              // Sever the session on ANY item change (round-19 P2): handler,
+              // jump height, and special requests are all stamped on the entry
+              // via buildEntryInsert — an old Stripe page must not lock in
+              // values the user changed after checkout started. Fee changes also
+              // require a totals refresh.
+              const { error: cartUpdateError } = await supabase
+                .from('entry_carts')
+                .update({
+                  stripe_checkout_session_id: null,
+                  ...(updates.entryFeeCents !== undefined && {
+                    subtotal_cents: committed.subtotal_cents,
+                    platform_fee_cents: committed.platform_fee_cents,
+                    total_cents: committed.total_cents,
+                  }),
+                })
+                .eq('id', cart.id);
+
+              if (cartUpdateError) {
+                logger.error(
+                  'Error updating cart',
+                  'cartStore',
+                  { cartId: cart.id },
+                  cartUpdateError
+                );
+                throw cartUpdateError;
+              }
+
+              releaseCheckoutLink(get, write, cart.id);
+              return true;
+            } catch (error) {
+              const message = error instanceof Error ? error.message : 'Failed to update item';
+              write({ error: message });
               logger.error(
-                'Error updating cart item',
+                'Failed to update cart item',
                 'cartStore',
                 { itemId, updates },
-                updateError
+                ensureError(error)
               );
-              throw updateError;
+              return false;
             }
-
-            // The item row is already updated in the DB whatever the cart write
-            // does, so commit locally (onto the LATEST cart, MYK9-2340) BEFORE
-            // the cart write and before surfacing its error, exactly as
-            // `addItem` and `removeItem` do (MYK9-530).
-            const committed = commitRebasedCart(get, write, cart, items =>
-              items.map(i => (i.id === itemId ? { ...i, ...updateData } : i))
-            );
-
-            // Sever the session on ANY item change (round-19 P2): handler,
-            // jump height, and special requests are all stamped on the entry
-            // via buildEntryInsert — an old Stripe page must not lock in
-            // values the user changed after checkout started. Fee changes also
-            // require a totals refresh.
-            const { error: cartUpdateError } = await supabase
-              .from('entry_carts')
-              .update({
-                stripe_checkout_session_id: null,
-                ...(updates.entryFeeCents !== undefined && {
-                  subtotal_cents: committed.subtotal_cents,
-                  platform_fee_cents: committed.platform_fee_cents,
-                  total_cents: committed.total_cents,
-                }),
-              })
-              .eq('id', cart.id);
-
-            if (cartUpdateError) {
-              logger.error(
-                'Error updating cart',
-                'cartStore',
-                { cartId: cart.id },
-                cartUpdateError
-              );
-              throw cartUpdateError;
-            }
-
-            return true;
-          } catch (error) {
-            const message = error instanceof Error ? error.message : 'Failed to update item';
-            write({ error: message });
-            logger.error(
-              'Failed to update cart item',
-              'cartStore',
-              { itemId, updates },
-              ensureError(error)
-            );
-            return false;
-          }
+          });
         },
 
         // Clear all items from cart
         clearCart: async () => {
           const guard = captureCartWriteGuard();
           const write = guardedSet<CartState>(set, guard);
-          const { cart } = get();
-          if (!cart) {
+          const { cart: requested } = get();
+          if (!requested) {
             write({ error: 'No active entry' });
             return false;
           }
+          return runCartMutation(requested.id, async () => {
+            // Read fresh now that earlier mutations settled; a swapped or reset cart is not ours.
+            const cart = get().cart;
+            if (!cart || cart.id !== requested.id) return false;
 
-          try {
-            // MYK9-975: an open Checkout page can still be paid after this. The
-            // webhook refunds a late payment only on a cart that is abandoned
-            // AND still holds that session id, so abandon the cart, leave its
-            // session id (and lines, as evidence) untouched, and hand back a
-            // fresh empty cart; abandoning also frees the one-active-cart slot.
-            // A cart the webhook already closed (paid, or queued for refund) is
-            // owned by the service role: never touch it, just open a new one.
-            if (cart.stripe_checkout_session_id) {
-              if (!CLOSED_CART_STATUSES.has(cart.status ?? '')) {
-                const { error: abandonError } = await supabase
-                  .from('entry_carts')
-                  .update({ status: 'abandoned' })
-                  .eq('id', cart.id);
-                if (abandonError) {
-                  logger.error(
-                    'Error abandoning cart with an open checkout',
-                    'cartStore',
-                    { cartId: cart.id },
-                    abandonError
-                  );
-                  throw abandonError;
+            try {
+              // MYK9-975: an open Checkout page can still be paid after this. The
+              // webhook refunds a late payment only on a cart that is abandoned
+              // AND still holds that session id, so abandon the cart, leave its
+              // session id (and lines, as evidence) untouched, and hand back a
+              // fresh empty cart; abandoning also frees the one-active-cart slot.
+              // A cart the webhook already closed (paid, or queued for refund) is
+              // owned by the service role: never touch it, just open a new one.
+              if (cart.stripe_checkout_session_id) {
+                if (!CLOSED_CART_STATUSES.has(cart.status ?? '')) {
+                  const { error: abandonError } = await supabase
+                    .from('entry_carts')
+                    .update({ status: 'abandoned' })
+                    .eq('id', cart.id);
+                  if (abandonError) {
+                    logger.error(
+                      'Error abandoning cart with an open checkout',
+                      'cartStore',
+                      { cartId: cart.id },
+                      abandonError
+                    );
+                    throw abandonError;
+                  }
                 }
+                const fresh = await get().createCart(cart.show_id, cart.exhibitor_id, {
+                  isCurrent: guard,
+                });
+                // No new cart: the old one must not stay on screen.
+                if (!fresh) write({ cart: null });
+                // createCart recovers another tab's cart when it loses the
+                // one-active-cart race. That cart stays in the store (it is what
+                // the exhibitor really has) but Clear Cart did not clear it, so
+                // report failure: callers append to a cleared cart.
+                return fresh !== null && fresh.items.length === 0 && (fresh.total_cents ?? 0) === 0;
               }
-              const fresh = await get().createCart(cart.show_id, cart.exhibitor_id, {
-                isCurrent: guard,
+
+              const { error: deleteError } = await supabase
+                .from('entry_cart_items')
+                .delete()
+                .eq('cart_id', cart.id);
+
+              if (deleteError) {
+                logger.error(
+                  'Error clearing cart items',
+                  'cartStore',
+                  { cartId: cart.id },
+                  deleteError
+                );
+                throw deleteError;
+              }
+
+              const { error: updateError } = await supabase
+                .from('entry_carts')
+                .update({
+                  subtotal_cents: 0,
+                  platform_fee_cents: 0,
+                  total_cents: 0,
+                  // Sever the checkout-session link (see addItem) — paying an
+                  // abandoned session after Clear Cart must not claim the empty
+                  // cart (Codex round-4 P1).
+                  stripe_checkout_session_id: null,
+                })
+                .eq('id', cart.id);
+
+              if (updateError) {
+                logger.warn(
+                  'Error updating cart totals',
+                  'cartStore',
+                  { cartId: cart.id },
+                  updateError
+                );
+              }
+
+              write({
+                cart: {
+                  ...cart,
+                  items: [],
+                  subtotal_cents: 0,
+                  platform_fee_cents: 0,
+                  total_cents: 0,
+                  stripe_checkout_session_id: null,
+                },
+                lastSyncedAt: new Date().toISOString(),
               });
-              // No new cart: the old one must not stay on screen.
-              if (!fresh) write({ cart: null });
-              // createCart recovers another tab's cart when it loses the
-              // one-active-cart race. That cart stays in the store (it is what
-              // the exhibitor really has) but Clear Cart did not clear it, so
-              // report failure: callers append to a cleared cart.
-              return fresh !== null && fresh.items.length === 0 && (fresh.total_cents ?? 0) === 0;
+
+              return true;
+            } catch (error) {
+              const message = error instanceof Error ? error.message : 'Failed to clear your entry';
+              write({ error: message });
+              logger.error('Failed to clear cart', 'cartStore', {}, ensureError(error));
+              return false;
             }
-
-            const { error: deleteError } = await supabase
-              .from('entry_cart_items')
-              .delete()
-              .eq('cart_id', cart.id);
-
-            if (deleteError) {
-              logger.error(
-                'Error clearing cart items',
-                'cartStore',
-                { cartId: cart.id },
-                deleteError
-              );
-              throw deleteError;
-            }
-
-            const { error: updateError } = await supabase
-              .from('entry_carts')
-              .update({
-                subtotal_cents: 0,
-                platform_fee_cents: 0,
-                total_cents: 0,
-                // Sever the checkout-session link (see addItem) — paying an
-                // abandoned session after Clear Cart must not claim the empty
-                // cart (Codex round-4 P1).
-                stripe_checkout_session_id: null,
-              })
-              .eq('id', cart.id);
-
-            if (updateError) {
-              logger.warn(
-                'Error updating cart totals',
-                'cartStore',
-                { cartId: cart.id },
-                updateError
-              );
-            }
-
-            write({
-              cart: {
-                ...cart,
-                items: [],
-                subtotal_cents: 0,
-                platform_fee_cents: 0,
-                total_cents: 0,
-                stripe_checkout_session_id: null,
-              },
-              lastSyncedAt: new Date().toISOString(),
-            });
-
-            return true;
-          } catch (error) {
-            const message = error instanceof Error ? error.message : 'Failed to clear your entry';
-            write({ error: message });
-            logger.error('Failed to clear cart', 'cartStore', {}, ensureError(error));
-            return false;
-          }
+          });
         },
 
         // Refresh cart data from database

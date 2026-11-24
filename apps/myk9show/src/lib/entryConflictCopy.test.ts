@@ -11,7 +11,7 @@ describe('entryConflictCopy (MYK9-2010)', () => {
     );
     expect(copy.title).toBe('#12 Rex was scored two ways');
     expect(copy.description).toContain('This device: Qualified, 1:01.23.');
-    expect(copy.description).toContain('Other device: NQ, 1 fault.');
+    expect(copy.description).toContain('Saved in myK9Show: NQ, 1 fault.');
     expect(copy.takeRemoteLabel).toBe('Keep the other score: NQ, 1 fault');
     expect(copy.keepLocalLabel).toBe('Keep my score: Qualified, 1:01.23');
   });
@@ -86,7 +86,7 @@ describe('entryConflictCopy (MYK9-2010)', () => {
     );
     expect(copy.keepLocalLabel).toBe('Keep my status: Accepted');
     expect(copy.takeRemoteLabel).toBe('Keep the other status: Withdrawn');
-    expect(copy.description).toContain('This device: Accepted. Other device: Withdrawn.');
+    expect(copy.description).toContain('This device: Accepted. Saved in myK9Show: Withdrawn.');
   });
 
   it('keeps another status only for an entry-status value no source knows', () => {

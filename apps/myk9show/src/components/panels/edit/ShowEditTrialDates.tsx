@@ -32,8 +32,11 @@ export const ShowEditTrialDates: React.FC<ShowEditTrialDatesProps> = ({
   // Read the context directly (not useEditPanel) so the tab still renders outside a wrapper.
   // Leaving with unsaved edits would skip the wrapper's discard prompt, so the buttons wait.
   const hasChanges = React.useContext(EditPanelContext)?.hasChanges ?? false;
-  // Replica-first read (offline-safe); soft-deleted trials are already excluded.
-  const { data: rows = [] } = useShowTrials(onEditTrial ? (showId ?? null) : null);
+  // Replica-first read (offline-safe); soft-deleted trials are already excluded. Re-read each time
+  // the sheet opens: a day moved or a trial deleted in Edit Trial must show here, not 5 minutes later.
+  const { data: rows = [] } = useShowTrials(onEditTrial ? (showId ?? null) : null, {
+    refetchOnMount: 'always',
+  });
   const trials = rows.map(row => mapDatabaseToTrial(row as unknown as DbTrialWithShow));
   return (
     <>

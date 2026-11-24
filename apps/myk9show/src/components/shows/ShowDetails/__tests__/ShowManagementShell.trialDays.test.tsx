@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useNavigate } from 'react-router-dom';
 import { render, screen, waitFor } from '@/test/utils/testUtils';
 import { ShowManagementShell, type ShowManagementShellProps } from '../ShowManagementShell';
 import { buildShowManagementTabDefs } from '@/pages/ShowDetailsPage.tabDefs';
@@ -14,8 +14,10 @@ import { useTrialStore } from '@/store/trialStore';
 
 const dataMocks = vi.hoisted(() => ({ trialRows: [] as unknown[] }));
 
-vi.mock('@/hooks/queries/useShowTrials', () => ({
-  useShowTrials: () => ({ data: dataMocks.trialRows }),
+// The real useShowTrials runs (with its cache); only the replica read under it is stubbed.
+vi.mock('@/services/database/trials', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/database/trials')>()),
+  getTrialsByShow: vi.fn(async () => ({ data: dataMocks.trialRows, error: null })),
 }));
 vi.mock('@/hooks/queries/useJudgesWithQualifications', () => ({
   useJudgesWithQualifications: () => ({ data: [] }),
@@ -137,11 +139,21 @@ function props(): ShowManagementShellProps {
   };
 }
 
+/** An in-app link to Edit Show, the way the header's Edit show item reaches it. */
+function ReopenEditShow() {
+  const navigate = useNavigate();
+  return (
+    <button type="button" onClick={() => navigate('/shows/show-1?edit=true')}>
+      Reopen Edit Show
+    </button>
+  );
+}
+
 function renderShell() {
   return render(
     <Routes>
       <Route path="/shows/:id" element={<ShowManagementShell {...props()} />}>
-        <Route index element={<div>section</div>} />
+        <Route index element={<ReopenEditShow />} />
       </Route>
     </Routes>,
     { initialRoute: '/shows/show-1?edit=true' }
@@ -171,6 +183,22 @@ describe('ShowManagementShell: Edit Show trial day buttons', () => {
     // The Edit Show sheet is gone: its dates text and buttons no longer render.
     expect(screen.queryByTestId('show-dates-text')).not.toBeInTheDocument();
     expect(screen.queryAllByRole('button', { name: /Change day$/ })).toHaveLength(0);
+  });
+  it('shows the new day when Edit Show is reopened after a trial changed', async () => {
+    const { user } = renderShell();
+    await user.click(await screen.findByRole('button', { name: /^Sunday Trial 2 .*Dec 13, 2026/ }));
+    await screen.findByText('Edit Trial');
+
+    // What an Edit Trial save leaves behind: the trial's day moved, and a trial deleted.
+    dataMocks.trialRows = [{ ...ROWS[1], date: '2026-12-20' }];
+    await user.click(screen.getByRole('button', { name: /cancel/i }));
+    await user.click(screen.getByRole('button', { name: 'Reopen Edit Show' }));
+
+    expect(
+      await screen.findByRole('button', { name: /^Sunday Trial 2 .*Dec 20, 2026/ })
+    ).toBeVisible();
+    expect(screen.queryByRole('button', { name: /Dec 13, 2026/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Saturday Trial 1/ })).not.toBeInTheDocument();
   });
 
   it('offers exactly one button on a one-trial show', async () => {

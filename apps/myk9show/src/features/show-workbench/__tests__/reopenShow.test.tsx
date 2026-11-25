@@ -10,6 +10,11 @@ const updateClassMock = vi.hoisted(() => vi.fn());
 const getTrialsMock = vi.hoisted(() => vi.fn());
 const getClassesMock = vi.hoisted(() => vi.fn());
 const saveReasonMock = vi.hoisted(() => vi.fn());
+const readReasonMock = vi.hoisted(() => vi.fn());
+const authMock = vi.hoisted(() => ({
+  full_name: 'Jane Secretary' as string | undefined,
+  email: 'jane@example.com',
+}));
 const manageScopeMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/replication', () => ({
@@ -19,16 +24,17 @@ vi.mock('@/services/replication', () => ({
 }));
 vi.mock('@/services/database/showCloseNotes', () => ({
   saveReopenReason: saveReasonMock,
+  readReopenReason: readReasonMock,
   saveClosedOpenLines: vi.fn(),
 }));
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
-    user: { id: 'u1', email: 'jane@example.com' },
+    user: { id: 'u1', email: authMock.email },
     userWithRoles: {
       id: 'u1',
-      email: 'jane@example.com',
+      email: authMock.email,
       roles: ['secretary'],
-      user_metadata: { full_name: 'Jane Secretary' },
+      user_metadata: { full_name: authMock.full_name },
     },
   }),
 }));
@@ -43,6 +49,9 @@ beforeEach(() => {
   updateTrialMock.mockResolvedValue('m');
   updateClassMock.mockResolvedValue('m');
   saveReasonMock.mockResolvedValue(undefined);
+  readReasonMock.mockResolvedValue(null);
+  authMock.full_name = 'Jane Secretary';
+  authMock.email = 'jane@example.com';
   manageScopeMock.mockReturnValue({ status: 'resolved', canManage: true });
   getTrialsMock.mockResolvedValue([
     { id: 'trial-a', status: 'completed', statusBeforeClose: 'in_progress' },
@@ -87,6 +96,18 @@ describe('reopenShow', () => {
       closedAt: null,
       reopenedAt: '2026-11-25T18:30:00.000Z',
     });
+  });
+
+  it('keeps the first reason when the show is reopened a second time', async () => {
+    const first = 'First reason\n\nReopened by Pat at 2026-11-20T10:00:00.000Z';
+    readReasonMock.mockResolvedValue(first);
+
+    await reopenShow({ showId: 'show-1', reason: 'Second reason', person: 'Jane', now: NOW });
+
+    expect(saveReasonMock).toHaveBeenCalledWith(
+      'show-1',
+      `Second reason\n\nReopened by Jane at 2026-11-25T18:30:00.000Z\n\n${first}`
+    );
   });
 
   it('changes nothing when the reason cannot be saved', async () => {
@@ -135,6 +156,43 @@ describe('ReopenShowAction', () => {
       'show-1',
       expect.stringMatching(/^Scores to fix\n\nReopened by Jane Secretary at \d{4}-\d{2}-\d{2}T/)
     );
+  });
+
+  it('never records a blank person: an empty full name falls back to the email, then Secretary', async () => {
+    authMock.full_name = '   ';
+    const first = render(<ReopenShowAction showId="show-1" />);
+    await first.user.click(screen.getByRole('button', { name: 'Reopen show' }));
+    await first.user.type(await screen.findByLabelText('Why are you reopening it?'), 'Fix');
+    let buttons = screen.getAllByRole('button', { name: 'Reopen show' });
+    await first.user.click(buttons[buttons.length - 1]!);
+    await waitFor(() => expect(saveReasonMock).toHaveBeenCalledTimes(1));
+    expect(saveReasonMock.mock.calls[0]![1]).toMatch(/Reopened by jane@example.com at /);
+    first.unmount();
+
+    authMock.email = '';
+    const second = render(<ReopenShowAction showId="show-1" />);
+    await second.user.click(screen.getByRole('button', { name: 'Reopen show' }));
+    await second.user.type(await screen.findByLabelText('Why are you reopening it?'), 'Fix');
+    buttons = screen.getAllByRole('button', { name: 'Reopen show' });
+    await second.user.click(buttons[buttons.length - 1]!);
+    await waitFor(() => expect(saveReasonMock).toHaveBeenCalledTimes(2));
+    expect(saveReasonMock.mock.calls[1]![1]).toMatch(/Reopened by Secretary at /);
+  });
+
+  it('does not close the dialog while it is reopening', async () => {
+    let finish: () => void = () => undefined;
+    saveReasonMock.mockReturnValue(new Promise<void>(resolve => (finish = resolve)));
+    const { user } = render(<ReopenShowAction showId="show-1" />);
+
+    await user.click(screen.getByRole('button', { name: 'Reopen show' }));
+    await user.type(await screen.findByLabelText('Why are you reopening it?'), 'Fix');
+    const buttons = screen.getAllByRole('button', { name: 'Reopen show' });
+    await user.click(buttons[buttons.length - 1]!);
+    await user.keyboard('{Escape}');
+
+    expect(screen.getByLabelText('Why are you reopening it?')).toBeInTheDocument();
+    finish();
+    await waitFor(() => expect(updateShowMock).toHaveBeenCalledTimes(1));
   });
 
   it('says plainly that reopening needs a connection when the note cannot be saved', async () => {

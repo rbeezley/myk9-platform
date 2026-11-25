@@ -155,21 +155,15 @@ export function CloseOutShowAction({
 
     // The note of what was still open is online-only (staff-only table, not replicated). The
     // close itself is already queued and works offline, so a failed note is said plainly.
-    let noteSaved = true;
-    try {
-      await saveClosedOpenLines(targets.showId, [...readiness.openLines]);
-    } catch {
-      noteSaved = false;
-    }
-
+    // It runs after the close UI has finished, so a stalled request never holds the dialog.
     setIsClosing(false);
     setIsConfirmOpen(false);
     toast.success('Show closed.');
-    if (!noteSaved) {
+    saveClosedOpenLines(targets.showId, [...readiness.openLines]).catch(() => {
       toast.warning(
         'The list of what was still open could not be saved. It needs a connection; the show is closed.'
       );
-    }
+    });
   }
 
   if (showClosed) {

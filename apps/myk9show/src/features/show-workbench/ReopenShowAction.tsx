@@ -15,7 +15,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
-import { getAnnouncementAuthor } from '@/types/announcement-types';
 import { ReopenNoteError, reopenShow } from './reopenShow';
 
 const OFFLINE_MESSAGE =
@@ -39,11 +38,16 @@ export function ReopenShowAction({ showId }: { showId: string }) {
   if (!canManage) return null;
 
   async function submit() {
-    const author = getAnnouncementAuthor(user, userWithRoles, 'Secretary');
+    const fullName = userWithRoles?.user_metadata?.full_name;
+    const person =
+      (typeof fullName === 'string' ? fullName.trim() : '') ||
+      userWithRoles?.email?.trim() ||
+      user?.email?.trim() ||
+      'Secretary';
     setIsReopening(true);
     setError(null);
     try {
-      await reopenShow({ showId, reason, person: author.name });
+      await reopenShow({ showId, reason, person });
     } catch (caught) {
       setIsReopening(false);
       // The note is the online-only step and runs first: when it fails nothing was changed.
@@ -59,7 +63,7 @@ export function ReopenShowAction({ showId }: { showId: string }) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={next => !isReopening && setOpen(next)}>
       <DialogTrigger asChild>
         <Button type="button" variant="outline" className="mt-3 w-full sm:w-auto">
           <RotateCcw className="h-4 w-4" aria-hidden="true" />

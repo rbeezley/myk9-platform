@@ -163,6 +163,19 @@ describe('CloseOutShowAction', () => {
     expect(toast.success).toHaveBeenCalledWith('Show closed.');
   });
 
+  it('finishes closing before the note save settles', async () => {
+    const { toast } = await import('sonner');
+    saveOpenLinesMock.mockReturnValue(new Promise(() => undefined));
+    const { user } = render(<CloseOutShowAction {...baseProps} />);
+
+    await user.click(screen.getByRole('button', { name: 'Close the show' }));
+    await user.click(await screen.findByRole('button', { name: 'Close the show' }));
+
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Show closed.'));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    expect(saveOpenLinesMock).toHaveBeenCalledTimes(1);
+  });
+
   it('reports a failed parent closeout after child updates queue', async () => {
     const { toast } = await import('sonner');
     updateShowMock.mockRejectedValueOnce(new Error('offline queue unavailable'));

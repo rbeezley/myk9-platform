@@ -28,3 +28,14 @@ export function saveClosedOpenLines(showId: string, lines: ClosedOpenLine[]): Pr
 export function saveReopenReason(showId: string, note: string): Promise<void> {
   return upsertNote(showId, { reopen_reason: note });
 }
+
+/** The reopen note already kept for the show, or null when it was never reopened. */
+export async function readReopenReason(showId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('show_close_notes')
+    .select('reopen_reason')
+    .eq('show_id', showId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data?.reopen_reason ?? null;
+}

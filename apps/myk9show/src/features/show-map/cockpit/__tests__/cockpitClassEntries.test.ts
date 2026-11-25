@@ -6,6 +6,7 @@ import {
   countClassEntries,
   hiddenEntryCount,
   entriesUnread,
+  runQueuePreview,
   runStatusDisplay,
 } from '../cockpitClassEntries';
 
@@ -113,10 +114,35 @@ const CASES: Case[] = [
   { name: 'absent status', fields: { entry_status: 'absent' }, listed: true, counted: false },
   { name: 'moved', fields: { entry_status: 'moved' }, listed: false, counted: false },
   { name: 'rejected', fields: { entry_status: 'not_accepted' }, listed: false, counted: false },
-  { name: 'pending', fields: { entry_status: 'pending' }, listed: false, counted: false },
-  { name: 'submitted', fields: { entry_status: 'submitted' }, listed: false, counted: false },
-  { name: 'draft', fields: { entry_status: 'draft' }, listed: false, counted: false },
-  { name: 'paid (stays pending)', fields: { entry_status: 'paid' }, listed: false, counted: false },
+  {
+    name: 'pending',
+    fields: { entry_status: 'pending' },
+    listed: true,
+    counted: false,
+    state: 'pending',
+    result: null,
+  },
+  {
+    name: 'submitted',
+    fields: { entry_status: 'submitted' },
+    listed: true,
+    counted: false,
+    state: 'pending',
+  },
+  {
+    name: 'draft',
+    fields: { entry_status: 'draft' },
+    listed: true,
+    counted: false,
+    state: 'pending',
+  },
+  {
+    name: 'paid (stays pending)',
+    fields: { entry_status: 'paid' },
+    listed: true,
+    counted: false,
+    state: 'pending',
+  },
   {
     name: 'deleted',
     fields: { deleted_at: '2026-07-01T00:00:00Z' },
@@ -212,7 +238,7 @@ describe('classEntriesForClass', () => {
     });
   });
 
-  it('orders by run order and numbers only the dogs still in line, skipping a withdrawn dog ahead', () => {
+  it('orders by run order and numbers only the dogs still in line, listing a withdrawn dog last', () => {
     const { rows } = rowsFor([
       entryRow('Third', { run_order: 4 }),
       entryRow('Withdrawn', { run_order: 1, entry_status: 'withdrawn' }),
@@ -221,12 +247,36 @@ describe('classEntriesForClass', () => {
       entryRow('Ring', { run_order: 5, check_in_status: 'in-ring' }),
     ]);
     expect(rows.map(row => [row.dogName, row.place])).toEqual([
-      ['Withdrawn', null],
       ['Scored', null],
       ['Second', 1],
       ['Third', 2],
       ['Ring', null],
+      ['Withdrawn', null],
     ]);
+  });
+
+  it('lists a class mixing running, pending, withdrawn and pulled dogs, the non-running last with no order (MYK9-2388)', () => {
+    const { rows } = rowsFor([
+      entryRow('Pulled', { armband: '100', check_in_status: 'pulled' }),
+      entryRow('Withdrawn', { armband: '101', entry_status: 'withdrawn' }),
+      entryRow('Pending', { armband: '102', entry_status: 'pending' }),
+      entryRow('Rejected', { armband: '103', entry_status: 'not_accepted' }),
+      entryRow('Moved', { armband: '104', entry_status: 'moved' }),
+      entryRow('Accepted', { armband: '105', entry_status: 'accepted' }),
+      entryRow('Scored', { armband: '106', is_scored: true, result_status: 'qualified' }),
+    ]);
+    expect(rows.map(row => [row.dogName, runStatusDisplay(row).label, row.place])).toEqual([
+      ['Accepted', 'Not checked in', 1],
+      ['Scored', 'Scored', null],
+      ['Pulled', 'Pulled', null],
+      ['Withdrawn', 'Withdrawn', null],
+      ['Pending', 'Pending', null],
+    ]);
+    expect(runStatusDisplay(rows[4]!).kind).toBe('muted');
+    // Pending never counts as entered, never needs check-in, never enters the queue or is editable.
+    expect(countClassEntries(rows)).toEqual({ entered: 2, scored: 1, notCheckedIn: 1 });
+    expect(runQueuePreview(rows).nextUp.map(row => row.dogName)).toEqual(['Accepted']);
+    expect(rows[4]!.deskEditable).toBe(false);
   });
 
   it('labels each state for the table', () => {
@@ -239,16 +289,18 @@ describe('classEntriesForClass', () => {
       entryRow('F', { result_status: 'absent' }),
       entryRow('G', { check_in_status: ' In-Ring ' }),
       entryRow('H', { check_in_status: 'checked-in' }),
+      entryRow('I', { entry_status: 'pending' }),
     ]);
     expect(rows.map(row => runStatusDisplay(row).label)).toEqual([
       'Scored',
       'In ring',
       'Not checked in',
-      'Pulled',
-      'Withdrawn',
       'Absent',
       'In ring',
       'Waiting',
+      'Pulled',
+      'Withdrawn',
+      'Pending',
     ]);
     // Only the dog that has not turned up is drawn as an outline.
     expect(rows.filter(row => runStatusDisplay(row).outlined).map(row => row.dogName)).toEqual([

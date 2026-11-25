@@ -145,8 +145,8 @@ const JudgeQualificationsCard: React.FC<JudgeQualificationsCardProps> = ({
             </div>
             <h3 className="text-xl font-semibold text-foreground mb-3">No Judge Qualifications</h3>
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              This user has no judge qualifications on record. Add qualifications to enable judging
-              privileges.
+              This person has no judge qualifications on record. Add one to list them as a judge for
+              that organization's shows.
             </p>
             {canManageQualifications && (
               <Button

@@ -9,6 +9,8 @@
 
 > **For volunteers:** This page is meant to print on a single sheet. Steps only. Keep your eyes on the dog — the app stays out of your way.
 
+> **Watch before show day:** [Score on your phone (2 min 17 s)](https://youtu.be/ArI51_l_2pg) The video needs a signal. Scoring at the ring does not.
+
 ---
 
 ## Get into ringside
@@ -62,7 +64,7 @@ Tapping a class opens its entry list — the dogs in run order, on the **Pending
 
 1. Each entry shows the **armband number**, the **dog's call name**, the **breed**, and the **handler**.
 2. **Stewards:** this list is yours to read. Use it to call dogs to the line. If you tap an entry, the scoresheet shows **No Scoring Access**, because stewards view ringside but do not score. Tap **Entries** to go back.
-3. **Judges and others allowed to score:** tap anywhere on an entry's card to open its scoresheet. The check-in control on the right of the card only changes the dog's check-in status.
+3. **Judges and others allowed to score:** tap anywhere on an entry's card to open its scoresheet. The check-in control on the right of the card only changes the dog's check-in status. It opens **Change Status**, a grid with a tile for each status you can set (a steward uses it to check a dog in); tap **Close** to leave it unchanged.
 
 ![Entry list — dogs in run order with armband number, call name, breed, and handler; Pending and Completed tabs (tablet)](../screenshots/J-03.png)
 
@@ -77,11 +79,11 @@ This section is for the judge, or anyone the secretary has given scoring access.
 1. Tap the entry to open the scoresheet.
 2. Tap **Start** when the dog begins.
 3. Tap **Stop** when the dog finishes or time is called.
-4. Choose the result: **Qualified**, **NQ**, **Absent**, **Excused** or **DQ**.
+4. Choose the result: **Qualified**, **NQ**, **Absent**, **Excused** or **DQ**. After you choose **Qualified**, a **Faults** counter with **-** and **+** appears; set the faults before you save.
 5. Tap **Save**.
 6. Check the **Score Confirmation** screen, then tap **Confirm & Submit**. **Cancel** takes you back to fix it.
 
-After you confirm, you are back on the entry list. A line at the top says what was saved, for example **Saved: 100 Willow · Qualified · 0:04.35**. If the score has not reached the secretary yet, the line adds **on this device, not sent yet**, and the note goes once it has been sent. The line stays until you open another dog.
+After you confirm, you are back on the entry list. A line at the top says what was saved, for example **Saved: 100 Willow · Qualified · 0:04.35**. If the score has not reached the secretary yet, the line adds **on this device, not sent yet**, and the note goes once it has been sent, with a **Scores sent** message when they go through. The line stays until you open another dog.
 
 - **Correct** on that line reopens the sheet with what you entered, so you can fix it.
 - The app never picks the next dog for you. Tap whichever dog comes in the ring.
@@ -101,7 +103,7 @@ The entry list updates to show the saved result. The secretary sees it once it s
 A class with two or three areas shows one time field per area under the timer, labelled with the area's name. Time each area on its own:
 
 1. For each area, tap **Start**, then **Stop** when that area is finished.
-2. Tap **Record Area 1 time** (then **Record Area 2 time**, and so on; the button names the area). Stopping the timer alone does not put the time on the sheet. You can also type a time into an area's field.
+2. Tap **Record Area 1 time** (then **Record Area 2 time**, and so on; the button names the area). Stopping the timer alone does not put the time on the sheet. You can also type a time into an area's field. A time field can show **Max** and **Use max time**, which fills in the class's time limit. A class with one area can read **Area 1 time** too.
 3. Before you tap **Save**, check that every area's field has a time.
 4. Choose the result and tap **Save**. On the **Score Confirmation** screen, check each area time and the total before **Confirm & Submit**. An area showing "--" was not recorded: tap **Cancel** and fix it.
 
@@ -112,9 +114,9 @@ A class with two or three areas shows one time field per area under the timer, l
 Show venues often have weak signal. The app is built for it.
 
 - Scoring and viewing the run order **keep working offline**.
-- The sync label at the top reads **Offline**, then **Not sent yet** while scores are waiting to be sent. This is normal at most venues.
-- A chip at the top reads **Offline ready** once the show is saved on the device, and **Preparing offline copy…** until then.
-- Your work is saved on the device and **is sent automatically** when signal returns. The label changes to **All sent**.
+- The sync label at the top reads **Offline**, then **Not sent yet** while scores are waiting to be sent. This is normal at most venues. On a phone the label shrinks to an icon: the words are still there for a screen reader, so look for the icon rather than the words.
+- A chip at the top reads **Offline ready** once the show is saved on the device, and **Preparing offline copy…** until then. On a phone the **Offline ready** chip is hidden; on a tablet or larger screen it shows.
+- Your work is saved on the device and **is sent automatically** when signal returns. A **Scores sent** message shows when they go through. On a larger screen the label changes to **All sent**; a phone may show only the message.
 - On the class list, **Offline copy: saved on this device** means the show is stored on your device. A line such as **1 score not sent yet** under a class means that score has not reached the secretary yet.
 
 **Scores not showing for the secretary after signal returns?** Reload the page once you have a solid connection. If entries are still missing, find the trial secretary.

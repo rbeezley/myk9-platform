@@ -7,6 +7,8 @@
 
 > **Note:** This is a QA-draft guide — written against the live app as a testing instrument. Ready screenshots are embedded; shots marked `blocked:` in the checklist below require specific seed data or conditions before they can be captured. Do not publish to customers until status is `verified`.
 
+> **Watch:** [Run your trials without the paperwork (2 min 28 s)](https://youtu.be/bAQBMxBGSkw)
+
 ---
 
 ## What this guide covers
@@ -33,7 +35,7 @@ Your club receives entry fees through a payment processor called Stripe. Here is
 
 ### If you asked for a new club
 
-You ask for a club once, on the myK9Show home page. Choose **Add your club**, sign in or create a free account, and fill in the form: club name, organization (AKC, UKC or ASCA), at least one club number and your contact details. Then choose **Add my club**.
+You ask for a club once, on the myK9Show home page. Choose **Add your club**, sign in or create a free account, and fill in the form: club name, organization (AKC, UKC or ASCA), at least one club number and your contact details. When you are signed in, your name and email are already filled in; change them if they are wrong. Then choose **Add my club**.
 
 The club exists right away, and you are its **Club Admin** and its **Show secretary**. You can build a show and connect the club's bank account the same day. The screen reads "Your club is waiting for myK9Show approval." Nothing is public until myK9Show approves the club, usually within a day. You get an email when you ask and another when the club is approved or not.
 
@@ -41,7 +43,7 @@ If the form says "A club with this name is already on myK9Show", the club is alr
 
 These permissions apply only to your club. They do not give you access to another club's shows.
 
-**What happens next:** your home page shows a card titled with your club's name, for example **Get Heartland Scent Work Club's first show published**, that lists what is left. It goes away after your club publishes its first show. [Section 2](#section-2--your-clubs-shows) explains the list on each draft show.
+**What happens next:** after **Add my club** you land on your dashboard. It shows a card titled with your club's name, for example **Get Heartland Scent Work Club's first show published**, with a **Before you can publish** list of what is left. Your home page shows a card titled with your club's name, for example **Get Heartland Scent Work Club's first show published**, that lists what is left. It goes away after your club publishes its first show. [Section 2](#section-2--your-clubs-shows) explains the list on each draft show.
 
 **If your club is already on myK9Show,** do not ask for it again. Ask its club admin to add you (see [Section 3](#section-3--appoint-a-show-secretary), and [Section 7](#section-7--club-members) for adding an admin).
 
@@ -120,7 +122,7 @@ When you appoint someone to show access, they can manage any of your club's show
 
 **The person does not need to be a club member.** Appointment is the grant, and club membership is not checked, so you can appoint a hired or professional secretary who is not on your roster. A member whose membership lapses, is suspended, or is resigned keeps show access until you revoke it.
 
-**To appoint anyone with a myK9Show account:** open **My Club** → **Members**, go to the **Show secretaries** tab, click **Appoint show secretary**, search for the person by name or email, select them, and click **Appoint**.
+**To appoint anyone with a myK9Show account:** open **My Club** → **Members**, go to the **Show secretaries** tab, click **Appoint show secretary**, search for the person by name or email, select them, and click **Appoint**. A person who is not on your member list shows a **Not a club member** badge. That is only a note: you can still appoint them.
 
 **To appoint someone already on your member list:**
 
@@ -157,8 +159,8 @@ Before your club can receive entry fee revenue, a treasurer needs to complete St
 **Steps:**
 
 1. In the sidebar, open **My Club**, then **Payments**. Your club's page opens on its **Payments** tab, in a card called **Bank account**.
-2. Click **Connect bank account**.
-3. Review the checklist on screen — confirm you have everything listed above.
+2. The card reads "No bank account is connected yet, so your club can't receive entry fees. Connecting takes about 10 minutes." Click **Connect bank account**.
+3. Review the checklist on screen — confirm you have everything listed above. It says myK9Show never sees or stores the identity details, and that this takes about 10 minutes; you can stop and resume later.
 4. Click **Continue to Stripe** → you leave myK9Show and enter Stripe's onboarding form.
 5. Fill in your club's details as prompted. When you finish, Stripe returns you to myK9Show.
 

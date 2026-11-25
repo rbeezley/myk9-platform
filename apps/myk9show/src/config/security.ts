@@ -63,7 +63,7 @@ export function generateCSPPolicy(environment: string): string {
     "media-src 'self' blob:",
     "worker-src 'self' blob:",
     "child-src 'self'",
-    "frame-src 'self' blob: https://challenges.cloudflare.com",
+    "frame-src 'self' blob: https://challenges.cloudflare.com https://www.youtube-nocookie.com",
     "form-action 'self'",
     "base-uri 'self'",
     "manifest-src 'self'",

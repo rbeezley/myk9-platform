@@ -7,6 +7,8 @@
 
 > **Note:** This is a QA-draft guide — written against the live app as a testing instrument. Ready screenshots are embedded; shots marked `blocked:` in the checklist below require specific seed data or conditions before they can be captured. Do not publish to customers until status is `verified`.
 
+> **Watch:** [Enter in minutes, know where to be (2 min 56 s)](https://youtu.be/oPArgY21hw4)
+
 ---
 
 ## What this guide covers
@@ -112,8 +114,8 @@ Your dog now appears in your list and is ready to enter shows. The confirmation 
 
 **Step 3 — Payment:**
 
-6. Review the fees, then choose a payment method. **Credit/Debit Card (Online Payment)** is offered when the show takes online payment. **Check (pay at show)** and **Cash (pay at show)** appear only if the show accepts them.
-7. Read and accept the entry agreement, then click the button at the bottom. It names what happens next: **Submit & pay** for card, **Submit — pay cash at show** or **Submit — bring check to show**.
+6. Review the fees, then choose a payment method. **Credit/Debit Card (Online Payment)** is offered when the show takes online payment, and is already chosen for you. The total shows the service fee, so paying by card costs more than the same entries paid by check (for example $64.20 against $60.00). **Check (pay at show)** and **Cash (pay at show)** appear only if the show accepts them.
+7. Read and accept the entry agreement, then click the button at the bottom. It names what happens next: **Pay** and the amount (for example **Pay $64.20**) for card, **Submit, pay cash at show** or **Submit, bring check to show**.
 8. For card, complete payment in the secure checkout screen. Your spots are held for 30 minutes while you pay, and if checkout times out first your cart is saved and checking out again re-checks the spots.
 
 **Step 4 — Receipt:**
@@ -173,7 +175,7 @@ On show day, a **Go to show day** button appears. Tap it, then **See all classes
 
 ![E-12: Class detail — the "Your dogs in this class" box with each dog's armband number](../screenshots/E-12.png)
 
-**Armband numbers** are assigned by the secretary and may not appear until close to show day.
+**Armband numbers** are assigned for you when the secretary accepts your entry, with no extra step on their side. Until then an entry has no armband.
 
 Once the secretary has set the order and the trial day has arrived, your dog shows its place in line: **Next up**, **2nd up**, **3rd up** and so on, with how many dogs are ahead of you. The dog in the ring is not counted, so **Next up** means you go after the dog running now. When it is running or has finished, it shows **In ring** or **Done**. Without an internet connection the app cannot count the line, so your dog shows **Waiting** until you are back online; watch the ring and the Message Center for your turn. The app does not estimate a wait time. Before the secretary sets an order, the row reads **Order not set yet**.
 
@@ -193,11 +195,11 @@ On show day, a green banner reading **Show day is here** appears near the top of
 
 ![E-13: My Shows — green "Show Day Is Here" banner at top with first-class time, entry count, and "Go to show day"](../screenshots/E-13.png)
 
-Tap **Go to show day** to open Ringside for that show. A **Where to be today** bar on the show also takes you there.
+Tap **Go to show day** to open that show in Ringside. A **Where to be today** bar on the show also takes you there.
 
 **Check in:**
 
-On the day of the trial, a class that is open for check-in shows a **Check in** link on its row, and the dog's card shows a **Check in for** button with the day's name. Tap either, and the dog is checked in. If check-in is not open for a class, its row reads **check in with the secretary**. Before the day, it reads **Check in on the day**.
+On the day of the trial, a class that is open for check-in shows a **Check in** link on its row, and the dog's card shows a **Check in for** button with the day's name. Tap either, and the dog is checked in. The same check-in is on **Where to be today** and on the entry's row on the class page, where **View class** and your place in line are also shown. If check-in is not open for a class, its row reads **check in with the secretary**. Before the day, it reads **Check in on the day**.
 
 ![E-14: Entry card — a class row with the Check in link and the Check in for button](../screenshots/E-14.png)
 
@@ -222,6 +224,8 @@ Each scored class shows:
 - Your search time
 
 A result you have not opened yet shows a **New result** button. Tap it to reveal the result. After that, a **Result card** button opens it again. To see the whole class, open the class from the show page's **Results** tab.
+
+The first time a result is released, My Shows asks **Show your results publicly?** under the class. **Show publicly** shows all your dogs' results publicly, at every show; **Keep private** leaves them as they were. You can change it later in your account.
 
 ![E-17: Class results page — placement table with scored entries](../screenshots/E-17.png)
 

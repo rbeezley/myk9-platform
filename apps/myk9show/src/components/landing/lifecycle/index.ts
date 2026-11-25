@@ -2,6 +2,7 @@ export { LandingHeader } from './LandingHeader';
 export { LandingHero } from './LandingHero';
 export { LifecycleTimeline } from './LifecycleTimeline';
 export { TrustSection } from './TrustSection';
+export { ClubOverviewVideo } from './ClubOverviewVideo';
 export { PricingSection } from './PricingSection';
 export { FaqSection } from './FaqSection';
 export { LandingClose } from './LandingClose';

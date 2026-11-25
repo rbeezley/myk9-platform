@@ -78,6 +78,21 @@ describe('the guides carry each how-to video in its own section', () => {
     expect(html.match(/<iframe /g)).toHaveLength(1);
   });
 
+  // MYK9-2374: each role's overview video sits above its guide's first section.
+  it.each([
+    ['secretary-guide.md', 'BsFynPKdU7o'],
+    ['judge-steward-quickstart.md', 'ArI51_l_2pg'],
+    ['exhibitor-guide.md', 'oPArgY21hw4'],
+    ['club-admin-guide.md', 'bAQBMxBGSkw'],
+  ])('%s opens with its overview video', (file, id) => {
+    const markdown = guide(file);
+    const top = markdown.slice(0, markdown.indexOf('\n## '));
+    const html = embedGuideVideos(top);
+    expect(html).toContain(`https://www.youtube-nocookie.com/embed/${id}`);
+    expect(html.match(/<iframe /g)).toHaveLength(1);
+    expect(markdown.split(`youtu.be/${id}`).length - 1).toBe(1);
+  });
+
   it('prints the address in place of the player', () => {
     const css = readFileSync(
       resolve(import.meta.dirname, '../../../../docs/src/styles/global.css'),

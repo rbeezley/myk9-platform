@@ -187,12 +187,12 @@ a merge of `origin/main`. It waits up to 20 minutes while the walk is unfinished
 walk exits 0. A withdrawal is never blocked. Run the command by hand to see where the
 walk stands, and before a long review when you would rather know early.
 
-| Exit | Means                         | Do                                                                                                                    |
-| ---- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| 0    | not required, or green        | Nothing; the poster posts.                                                                                            |
-| 1    | the walk failed               | Download the `isolated-batch3-proof` artifact, read the screenshots and trace, fix, push, start Step 3 again.         |
-| 2    | could not decide (not a pass) | Move the path list with the code (same PR), push so the PR head is local HEAD, or retry once git/`gh` work.           |
-| 3    | not finished (not a verdict)  | The poster waits, then refuses; re-run the poster command it printed once the walk is green. The review was not lost. |
+| Exit | Means                         | Do                                                                                                                                                                                                                                      |
+| ---- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0    | not required, or green        | Nothing; the poster posts.                                                                                                                                                                                                              |
+| 1    | the walk failed               | Download the `isolated-batch3-proof` artifact, read the screenshots and trace, fix, push, start Step 3 again.                                                                                                                           |
+| 2    | could not decide (not a pass) | Fix what the message names: move the path list with the code (same PR), restore the walk spec or workflow step, push so the PR head is local HEAD, or retry once git/`gh` work.                                                         |
+| 3    | not finished (not a verdict)  | The poster waits up to 20 minutes, then refuses (exit 2). The review was not lost: once the walk is green, run `post-review-gate.sh` by hand for the same head with the wrapper's saved log (`.logs/<reviewer>-review-<head-sha>.log`). |
 
 ### Step 4: Independent Review Gate — BEFORE merge
 
@@ -228,12 +228,12 @@ Two preconditions. Push first: `/code-review` reads the **remote** PR head while
 
 Both wrappers behave identically:
 
-| Exit | Means                                                       | Do                                                                                                                                                                     |
-| ---- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0    | clean; with `--post`, evidence posted for THIS head         | Without `--post` nothing was recorded. A clean re-run does not check earlier rounds: verify each earlier finding was fixed yourself.                                   |
-| 1    | findings, posted as a non-evidence comment                  | Fix, commit, push, re-run for the NEW head. With `--post` any clean evidence for this head was withdrawn (`<N> findings, not addressed`); without it, nothing changed. |
-| 2    | not a verdict: did not complete, or evidence was not posted | Read the last lines. Posted findings are real: fix them, and confirm older clean evidence was withdrawn before merging. Reviewer unavailable: Step 3a owner override.  |
-| 3    | (`--wait` only) still running                               | Call `--wait` again.                                                                                                                                                   |
+| Exit | Means                                                                                   | Do                                                                                                                                                                                                                             |
+| ---- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 0    | clean (a finished run or `--wait` result); with `--post`, evidence posted for THIS head | `--detach` returning 0 only means the review started: poll with `--wait` for the verdict. Without `--post` nothing was recorded. A clean re-run does not check earlier rounds: verify each earlier finding was fixed yourself. |
+| 1    | findings, posted as a non-evidence comment                                              | Fix, commit, push, re-run for the NEW head. With `--post` any clean evidence for this head was withdrawn (`<N> findings, not addressed`); without it, nothing changed.                                                         |
+| 2    | not a verdict: did not complete, or evidence was not posted                             | Read the last lines. Posted findings are real: fix them, and confirm older clean evidence was withdrawn before merging. Reviewer unavailable: Step 3a owner override.                                                          |
+| 3    | (`--wait` only) still running                                                           | Call `--wait` again.                                                                                                                                                                                                           |
 
 The reviewer CLI's own exit code is never the verdict (it exits 0 on interrupts, usage limits and findings alike), which is why the wrappers read the log and only the poster writes evidence. Never call `codex review --commit`: it reviews one commit and can vacuously pass on a docs-only tip.
 
@@ -294,15 +294,15 @@ Reading the rollup — three traps from the instruction file's LESSONS:
 The watcher also settles a lone red `Review gate` and a superseded `CANCELLED` `Evaluate review
 evidence` check itself (MYK9-1946); do not judge those by hand.
 
-| Exit | Means                                          | Do                                                                                                                                                                                          |
-| ---- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0    | every REQUIRED check green                     | Path A. If it printed `STILL OUTSTANDING (non-required, may yet fail): ...`, apply the exit-5 judgement to each name first.                                                                 |
-| 1    | a REQUIRED check failed (names the first only) | STOP, not a slower Path B. Read the whole rollup; never arm auto-merge to get past a red.                                                                                                   |
-| 2    | head moved                                     | STOP. Gate and watch the new head.                                                                                                                                                          |
-| 3    | timeout (NOT a verdict)                        | Path B.                                                                                                                                                                                     |
-| 4    | self-test failed or the ruleset was unreadable | Believe nothing it printed; fix and re-run.                                                                                                                                                 |
-| 5    | required green, a non-required check red       | Merge only if EVERY failed context is a Vercel preview whose `targetUrl` ends `upgradeToPro=build-rate-limit` AND this diff does not need the preview for visual QA. Say which you checked. |
-| 6    | PR conflicts with its base                     | Merge `origin/main` in and push: a new head, so the gate runs again.                                                                                                                        |
+| Exit | Means                                                                                 | Do                                                                                                                                                                                                                                                   |
+| ---- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0    | every REQUIRED check green                                                            | Path A. If it printed `STILL OUTSTANDING (non-required, may yet fail): ...`, decide for each name whether this diff needs its result before merging.                                                                                                 |
+| 1    | a REQUIRED check failed (names the first only)                                        | STOP, not a slower Path B. Read the whole rollup; never arm auto-merge to get past a red.                                                                                                                                                            |
+| 2    | head moved                                                                            | STOP. Gate and watch the new head.                                                                                                                                                                                                                   |
+| 3    | timeout (NOT a verdict)                                                               | Path B.                                                                                                                                                                                                                                              |
+| 4    | could not start: self-test failed, `jq` missing, or the ruleset or PR head unreadable | Believe nothing it printed. Fix what the message names (install `jq`, check the PR number and access) and re-run.                                                                                                                                    |
+| 5    | required green, a non-required check red                                              | Inspect each failure. A Vercel preview whose `targetUrl` ends `upgradeToPro=build-rate-limit` is the account quota: non-blocking if this diff does not need the preview for visual QA. Judge any other failure on its merits. Say which you checked. |
+| 6    | PR conflicts with its base                                                            | Merge `origin/main` in and push: a new head, so the gate runs again.                                                                                                                                                                                 |
 
 **Path A — the watcher exited 0.**
 

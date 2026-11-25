@@ -23,6 +23,7 @@ import { getUserFriendlyError } from '@/utils/errorMessages';
 import { UserRole } from '@/types/auth-types';
 import { User as UserType } from '@/types/user-types';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { canWriteJudgeQualifications } from '@/features/judges/canWriteJudgeQualifications';
 import { useCanEditPerson } from '@/hooks/queries/useCanEditPerson';
 import { useRoleBasedPeople } from '@/hooks/useRoleBasedData';
 import { RecordPageLayout } from '@/components/layout/record';
@@ -190,6 +191,8 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   const [isSavingPhoto, setIsSavingPhoto] = useState(false);
   const photoSaveInFlight = useRef(false);
 
+  // MYK9-2382: the role list can hide a judge from a secretary, so writers always see the card.
+  const canAddQualifications = canWriteJudgeQualifications(role => getUserRoles().includes(role));
   const canManageQualifications = () => {
     if (hasPermission('admin:manage')) return true;
     if (hasPermission('show:manage')) return true;
@@ -365,7 +368,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   // Center content: judge cards + tabs
   const centerContent = (
     <div className="space-y-6">
-      {person.roles?.includes(UserRole.JUDGE) && (
+      {(person.roles?.includes(UserRole.JUDGE) || canAddQualifications) && (
         <JudgeQualificationsCard
           personId={person.id}
           canManageQualifications={canManageQualifications()}

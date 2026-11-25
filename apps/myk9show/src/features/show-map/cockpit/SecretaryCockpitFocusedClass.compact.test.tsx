@@ -4,13 +4,14 @@ import { describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 
 import { SecretaryCockpitFocusedClass } from './SecretaryCockpitFocusedClass';
+import type { FocusedClassEditAction } from './FocusedClassActionsMenu';
 import { expectedStartValue } from './focusedClassTiming';
 import type { FocusedClassPinMode } from '@/components/shows/ShowDetails/showStickyLayout';
 import type { FocusedClassModel, SecretaryCockpitClass } from './secretaryCockpitTypes';
 
 /**
  * MYK9-1989: where the class header pins (from lg), it is compact so a laptop shows the entries.
- * The settings fold behind Class settings and the entries come before the In ring tile and checklist. Below lg (pinMode none) the card keeps its full layout.
+ * The settings live in Edit class (MYK9-2379) and the entries come before the In ring tile and checklist. Below lg (pinMode none) the card keeps its full layout.
  */
 
 // The Requirements row reads the class replica; these tests do not exercise it.
@@ -70,7 +71,11 @@ const sourceClass: SecretaryCockpitClass = {
   entryRows: [],
 };
 
-function renderClass(pinMode: FocusedClassPinMode, model: FocusedClassModel = focused) {
+function renderClass(
+  pinMode: FocusedClassPinMode,
+  model: FocusedClassModel = focused,
+  editClass?: FocusedClassEditAction
+) {
   return render(
     <SecretaryCockpitFocusedClass
       showId="show-1"
@@ -82,6 +87,7 @@ function renderClass(pinMode: FocusedClassPinMode, model: FocusedClassModel = fo
       pinMode={pinMode}
       canManageShow
       onCommand={vi.fn()}
+      editClass={editClass}
     />
   );
 }
@@ -91,8 +97,8 @@ const before = (a: Element, b: Element) =>
   Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
 
 describe('SecretaryCockpitFocusedClass compact header (MYK9-1989)', () => {
-  it('pinned, shows the values on one line and folds the settings behind Class settings', async () => {
-    const { user } = renderClass('panel');
+  it('pinned, is one line: the name, the status and the buttons, with no settings drawer', () => {
+    renderClass('panel', focused, { disabled: false, onSelect: vi.fn() });
     expect(screen.getByTestId('focused-class-header')).toHaveAttribute('data-compact', 'true');
 
     const summary = screen.getByTestId('focused-class-summary');
@@ -101,19 +107,17 @@ describe('SecretaryCockpitFocusedClass compact header (MYK9-1989)', () => {
     expect(summary).toHaveTextContent('Not started');
     expect(summary).toHaveTextContent('Judge Pat Donovan');
     expect(summary).toHaveTextContent(`Expected ${expected}`);
-    expect(screen.queryByText('Expected start')).not.toBeInTheDocument();
+    // The status sits on the name's own row (MYK9-2379), not on a second line under it.
+    expect(screen.getByRole('heading', { level: 2 }).parentElement?.contains(summary)).toBe(true);
 
-    const toggle = screen.getByRole('button', { name: 'Class settings' });
-    expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    await user.click(toggle);
-    expect(toggle).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByText('Expected start')).toBeVisible();
-    expect(screen.getByText('Actual timing')).toBeVisible();
-    expect(screen.getByRole('button', { name: /^Status: Not started/ })).toBeInTheDocument();
-
-    await user.click(toggle);
-    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('button', { name: 'Class settings' })).not.toBeInTheDocument();
     expect(screen.queryByText('Expected start')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Edit class Container Novice' })).toBeEnabled();
+  });
+
+  it('locks Edit class while a class edit is resolving or open', () => {
+    renderClass('panel', focused, { disabled: true, onSelect: vi.fn() });
+    expect(screen.getByRole('button', { name: 'Edit class Container Novice' })).toBeDisabled();
   });
 
   it('pinned, puts the entries before the In ring tile and the checklist', () => {
@@ -150,36 +154,15 @@ describe('SecretaryCockpitFocusedClass compact header (MYK9-1989)', () => {
     expect(screen.getByRole('button', { name: 'Show all steps' })).toBeInTheDocument();
   });
 
-  it('a newly picked class opens with its settings closed', async () => {
-    const { user, rerender } = renderClass('panel');
-    await user.click(screen.getByRole('button', { name: 'Class settings' }));
-    expect(screen.getByText('Expected start')).toBeInTheDocument();
-    rerender(
-      <SecretaryCockpitFocusedClass
-        showId="show-1"
-        focused={{ ...focused, id: 'class-2', name: 'Interior Novice' }}
-        sourceClass={{ ...sourceClass, id: 'class-2', name: 'Interior Novice' }}
-        trial={{ id: 'trial-1', date: '2026-07-20', number: '1', order: 0 }}
-        attention={[]}
-        timeZone={TZ}
-        pinMode="panel"
-        canManageShow
-        onCommand={vi.fn()}
-      />
-    );
-    expect(screen.getByRole('button', { name: 'Class settings' })).toHaveAttribute(
-      'aria-expanded',
-      'false'
-    );
-    expect(screen.queryByText('Expected start')).not.toBeInTheDocument();
-  });
-
-  it('unpinned (below lg), keeps the full card: fields shown, checklist before the entries', () => {
-    renderClass('none');
+  it('unpinned (below lg), keeps the full card: Edit class, no fields, checklist before the entries', () => {
+    renderClass('none', focused, { disabled: false, onSelect: vi.fn() });
     expect(screen.getByTestId('focused-class-header')).not.toHaveAttribute('data-compact');
     expect(screen.queryByRole('button', { name: 'Class settings' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Checklist' })).not.toBeInTheDocument();
-    expect(screen.getByText('Expected start')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Edit class Container Novice' })).toBeEnabled();
+    expect(screen.queryByText('Expected start')).not.toBeInTheDocument();
+    // The judge is a fact on the card now: nothing else says it below lg.
+    expect(screen.getByTestId('focused-class-header')).toHaveTextContent('Judge Pat Donovan');
     const entries = screen.getByRole('heading', { name: 'Entries in run order' });
     const checklist = screen.getByRole('heading', { name: 'Class checklist' });
     expect(before(checklist, entries)).toBe(true);
@@ -201,20 +184,14 @@ describe('SecretaryCockpitFocusedClass header beside its schedule card', () => {
         cardListed
         canManageShow={canManageShow}
         onCommand={vi.fn()}
-        {...(canManageShow && { judgeControl: <span>Judge picker</span> })}
       />
     );
   }
 
-  it('pinned, keeps the status badge and drops the count, the judge and the times', async () => {
-    const { user } = renderListed('panel', true);
+  it('pinned, keeps the status badge and drops the count, the judge and the times', () => {
+    renderListed('panel', true);
     const summary = screen.getByTestId('focused-class-summary');
     expect(summary).toHaveTextContent(/^Not started$/);
-
-    // The settings that hold them are still one click away.
-    await user.click(screen.getByRole('button', { name: 'Class settings' }));
-    expect(screen.getByText('Expected start')).toBeVisible();
-    expect(screen.getByText('Judge picker')).toBeVisible();
   });
 
   it('unpinned, shows no facts line under the name', () => {

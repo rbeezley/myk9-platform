@@ -30,8 +30,11 @@ import {
   formDataToTrialClass,
   isScentWorkNovice,
   hasLoadedCapacity,
+  withoutLiveSettings,
 } from './ClassEditPanel.helpers';
 import { ClassEditForm } from './ClassEditForm';
+import { ClassLiveSettingsCard } from './ClassLiveSettingsCard';
+import { useLiveJudgeSync } from './useLiveJudgeSync';
 import { ClassWaitlistFields } from './ClassWaitlistFields';
 import { ClassEntryFeeField } from './ClassEntryFeeField';
 import { usePanelValidationNavigation } from './usePanelValidationNavigation';
@@ -40,7 +43,7 @@ import { NoJudgesNotice } from '@/components/shows/NoJudgesNotice';
 import { getJudgeNameById } from '@/utils/buildAssignedJudges';
 import { formatJudgeAvailabilityWindow } from '@/utils/classJudgeDisplay';
 import { JudgeChangeWarning } from '@/components/classes/JudgeChangeWarning';
-import type { OutgoingJudge } from './ClassEditPanel.types';
+import type { CurrentClassJudge, OutgoingJudge } from './ClassEditPanel.types';
 
 // Cast schemas to match the pre-existing form data interfaces.
 // Needed because exactOptionalPropertyTypes causes structural mismatch
@@ -68,7 +71,18 @@ const TrialClassEditForm: React.FC<{
   classId?: string;
   capacityLoaded: boolean;
   outgoingJudge: OutgoingJudge;
-}> = ({ showId, classId, capacityLoaded, outgoingJudge }) => {
+  liveSettings?: React.ReactNode;
+  liveJudge: boolean;
+  currentJudge: CurrentClassJudge | undefined;
+}> = ({
+  showId,
+  classId,
+  capacityLoaded,
+  outgoingJudge,
+  liveSettings,
+  liveJudge,
+  currentJudge,
+}) => {
   const { data, form } = useEditPanel<TrialClassEditFormData>();
   const { shows } = useShowStore();
 
@@ -89,11 +103,17 @@ const TrialClassEditForm: React.FC<{
     [form, assignedJudges]
   );
 
+  useLiveJudgeSync(currentJudge, data.judgeId, (id, name) => {
+    form?.setValue('judgeId', id);
+    form?.setValue('judgeName', name);
+  });
+
   const judgeError = form?.getError('judgeId');
   const statusError = form?.getError('status');
 
   return (
     <div className="space-y-6 p-6">
+      {liveSettings && <ClassLiveSettingsCard>{liveSettings}</ClassLiveSettingsCard>}
       <Card>
         <CardHeader>
           <CardTitle>Class Details</CardTitle>
@@ -135,72 +155,76 @@ const TrialClassEditForm: React.FC<{
           </div>
 
           <div className="grid grid-cols-3 gap-4">
-            <FormField label="Judge" fieldId="judgeId" error={judgeError}>
-              {/*
+            {!liveJudge && (
+              <FormField label="Judge" fieldId="judgeId" error={judgeError}>
+                {/*
                 F12: the same dead end as the full form -- a DISABLED
                 "No judges assigned to this show" option, naming the problem inside the
                 control that cannot solve it. Which of the two forms renders is decided
                 by the shape of `initialClassData`, so both need the way out.
               */}
-              {showId && assignedJudges.length === 0 && (
-                <NoJudgesNotice
-                  showId={showId}
-                  message="No judges on this show yet, so there is nobody to assign to this class."
-                  className="mb-2"
-                />
-              )}
-              {/* See the note in ClassEditForm: a stale assignment still needs TBD. */}
-              {(assignedJudges.length > 0 || !!data.judgeId) && (
-                <Select value={data.judgeId} onValueChange={handleSelectChange('judgeId')}>
-                  <SelectTrigger
-                    id="judgeId"
-                    className={cn(judgeError && 'border-destructive')}
-                    aria-invalid={!!judgeError}
-                    aria-describedby={judgeError ? 'judgeId-error' : undefined}
-                  >
-                    <SelectValue placeholder="Select a judge">
-                      {/* Resolve UUID → name explicitly: Radix doesn't re-resolve
+                {showId && assignedJudges.length === 0 && (
+                  <NoJudgesNotice
+                    showId={showId}
+                    message="No judges on this show yet, so there is nobody to assign to this class."
+                    className="mb-2"
+                  />
+                )}
+                {/* See the note in ClassEditForm: a stale assignment still needs TBD. */}
+                {(assignedJudges.length > 0 || !!data.judgeId) && (
+                  <Select value={data.judgeId} onValueChange={handleSelectChange('judgeId')}>
+                    <SelectTrigger
+                      id="judgeId"
+                      className={cn(judgeError && 'border-destructive')}
+                      aria-invalid={!!judgeError}
+                      aria-describedby={judgeError ? 'judgeId-error' : undefined}
+                    >
+                      <SelectValue placeholder="Select a judge">
+                        {/* Resolve UUID → name explicitly: Radix doesn't re-resolve
                         the SelectItem display when assignedJudges loads after
                         the form mounts, so the trigger would otherwise show the
                         raw judgeId. */}
-                      {resolveJudgeDisplay(data.judgeId, data.judgeName, assignedJudges)}
-                    </SelectValue>
+                        {resolveJudgeDisplay(data.judgeId, data.judgeName, assignedJudges)}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {assignedJudges.map(judge => (
+                        <SelectItem key={judge.judgeId} value={judge.judgeId}>
+                          {judge.judgeName}
+                          {formatJudgeAvailabilityWindow(judge) && (
+                            <span className="text-xs text-muted-foreground ml-2">
+                              {formatJudgeAvailabilityWindow(judge)}
+                            </span>
+                          )}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value="TBD">TBD</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+                <JudgeChangeWarning {...outgoingJudge} selectedJudgeId={data.judgeId} />
+              </FormField>
+            )}
+            {!liveSettings && (
+              <FormField label="Status" fieldId="trialStatus" required error={statusError}>
+                <Select value={data.status} onValueChange={handleSelectChange('status')}>
+                  <SelectTrigger
+                    id="trialStatus"
+                    className={cn(statusError && 'border-destructive')}
+                    aria-invalid={!!statusError}
+                    aria-describedby={statusError ? 'trialStatus-error' : undefined}
+                  >
+                    <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
-                    {assignedJudges.map(judge => (
-                      <SelectItem key={judge.judgeId} value={judge.judgeId}>
-                        {judge.judgeName}
-                        {formatJudgeAvailabilityWindow(judge) && (
-                          <span className="text-xs text-muted-foreground ml-2">
-                            {formatJudgeAvailabilityWindow(judge)}
-                          </span>
-                        )}
-                      </SelectItem>
-                    ))}
-                    <SelectItem value="TBD">TBD</SelectItem>
+                    <SelectItem value="Upcoming">Upcoming</SelectItem>
+                    <SelectItem value="In Progress">In Progress</SelectItem>
+                    <SelectItem value="Completed">Completed</SelectItem>
+                    <SelectItem value="Cancelled">Cancelled</SelectItem>
                   </SelectContent>
                 </Select>
-              )}
-              <JudgeChangeWarning {...outgoingJudge} selectedJudgeId={data.judgeId} />
-            </FormField>
-            <FormField label="Status" fieldId="trialStatus" required error={statusError}>
-              <Select value={data.status} onValueChange={handleSelectChange('status')}>
-                <SelectTrigger
-                  id="trialStatus"
-                  className={cn(statusError && 'border-destructive')}
-                  aria-invalid={!!statusError}
-                  aria-describedby={statusError ? 'trialStatus-error' : undefined}
-                >
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Upcoming">Upcoming</SelectItem>
-                  <SelectItem value="In Progress">In Progress</SelectItem>
-                  <SelectItem value="Completed">Completed</SelectItem>
-                  <SelectItem value="Cancelled">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
-            </FormField>
+              </FormField>
+            )}
           </div>
 
           <div className="grid grid-cols-3 gap-4">
@@ -236,6 +260,9 @@ export const ClassEditPanel: React.FC<ClassEditPanelProps> = ({
   showId,
   mode = 'full',
   onDelete,
+  liveSettings,
+  liveJudge = false,
+  currentJudge,
 }) => {
   // A failed Save moves to the tab holding the first invalid field (MYK9-931).
   const { activeTab, setActiveTab, handleValidationFail } =
@@ -260,21 +287,35 @@ export const ClassEditPanel: React.FC<ClassEditPanelProps> = ({
   };
 
   const capacityLoaded = hasLoadedCapacity(initialClassData as CapacitySourceLike);
-  const initialRecord = (initialClassData ?? {}) as Partial<ClassData> & Partial<TrialClass>;
+  // The class as it is now: the judge and status may have moved since the panel opened.
+  const initialRecord = {
+    ...(initialClassData ?? {}),
+    ...(currentJudge && {
+      judgeId: currentJudge.id ?? '',
+      judge: currentJudge.name ?? '',
+      judgeName: currentJudge.name ?? '',
+    }),
+  } as Partial<ClassData> & Partial<TrialClass>;
   // The judge this panel opened with: the one a change replaces (MYK9-2015).
   const outgoingJudge: OutgoingJudge = {
     classId,
-    classStatus: initialRecord.status,
+    classStatus: currentJudge?.status ?? initialRecord.status,
     outgoingJudgeId: initialRecord.judgeId,
     outgoingJudgeName: initialRecord.judgeName || initialRecord.judge,
   };
 
   if (isSimpleMode) {
-    const initialFormData = trialClassToFormData(initialClassData as Partial<TrialClass>);
+    const initialFormData = trialClassToFormData(initialRecord);
 
     const handleSave = async (formData: TrialClassEditFormData) => {
       const classData = formDataToTrialClass(formData);
-      if (onSave) await onSave(classData);
+      // The live settings saved themselves: only a judge picked in this form is still unsaved.
+      const judgeEdited = formData.judgeId !== initialFormData.judgeId;
+      if (onSave) {
+        await onSave(
+          liveSettings ? withoutLiveSettings(classData, { keepJudge: judgeEdited }) : classData
+        );
+      }
     };
 
     return (
@@ -288,17 +329,26 @@ export const ClassEditPanel: React.FC<ClassEditPanelProps> = ({
           classId={classId}
           capacityLoaded={capacityLoaded}
           outgoingJudge={outgoingJudge}
+          liveSettings={liveSettings}
+          liveJudge={liveJudge}
+          currentJudge={currentJudge}
           {...(showId !== undefined && { showId })}
         />
       </EditPanelWrapper>
     );
   }
 
-  const initialFormData = classToFormData(initialClassData as Partial<ClassData>);
+  const initialFormData = classToFormData(initialRecord);
 
   const handleSave = async (formData: ClassEditFormData) => {
     const classData = formDataToClass(formData);
-    if (onSave) await onSave(classData);
+    // The live settings saved themselves: only a judge picked in this form is still unsaved.
+    const judgeEdited = formData.judgeId !== initialFormData.judgeId;
+    if (onSave) {
+      await onSave(
+        liveSettings ? withoutLiveSettings(classData, { keepJudge: judgeEdited }) : classData
+      );
+    }
   };
 
   return (
@@ -315,6 +365,9 @@ export const ClassEditPanel: React.FC<ClassEditPanelProps> = ({
         outgoingJudge={outgoingJudge}
         onTabChange={setActiveTab}
         capacityLoaded={capacityLoaded}
+        liveSettings={liveSettings}
+        liveJudge={liveJudge}
+        currentJudge={currentJudge}
         {...(showId !== undefined && { showId })}
       />
     </EditPanelWrapper>

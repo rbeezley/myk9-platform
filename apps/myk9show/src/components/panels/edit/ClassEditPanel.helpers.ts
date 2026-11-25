@@ -167,3 +167,19 @@ export const formDataToTrialClass = (formData: TrialClassEditFormData): Partial<
   ...editedCapacityPatch(formData),
   ...entryFeePatch(formData),
 });
+
+/**
+ * The patch without what the live settings own (MYK9-2379): status and judge were saved when
+ * changed, and the form's copy is as old as the panel, so writing it back would undo them. A judge
+ * picked in the form itself (the Officials tab, which is how a started class's judge changes)
+ * is still unsaved, so `keepJudge` leaves it in.
+ */
+export function withoutLiveSettings<T extends object>(
+  data: T,
+  { keepJudge }: { keepJudge: boolean }
+): Partial<T> {
+  const patch: Partial<T> = { ...data };
+  const owned = keepJudge ? ['status'] : ['status', 'judge', 'judgeId', 'judgeName'];
+  for (const key of owned) delete patch[key as keyof T];
+  return patch;
+}

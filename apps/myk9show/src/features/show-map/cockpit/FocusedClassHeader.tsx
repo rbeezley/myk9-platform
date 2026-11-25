@@ -37,12 +37,12 @@ export function FocusedClassHeader({
   menu?: ReactNode;
   /**
    * Where the header pins (a laptop's height is scarce): the name, the eyebrow and the controls on
-   * one line, the values on the next, so the class's entries start right under it (MYK9-1989).
+   * one line (MYK9-1989, MYK9-2379), so the class's entries start right under it.
    */
   compact?: boolean;
-  /** Compact only: buttons on the name's line, before the menu. */
+  /** Buttons on the name's line, before the menu. */
   actions?: ReactNode;
-  /** Compact only: the one line of values under the name, in place of `facts`. */
+  /** The status and values under the name: in place of `facts` when compact, after them otherwise. */
   summary?: ReactNode;
   children?: ReactNode;
 }) {
@@ -65,12 +65,19 @@ export function FocusedClassHeader({
     >
       {compact ? (
         <>
-          {/* Row 1: the name and the actions never wrap under; the name truncates (full name in its title). */}
+          {/* The one row: the name, its status and the actions never wrap under; the name truncates (full name in its title). */}
           <div className="flex flex-nowrap items-center gap-x-2">
             <div className="flex min-w-0 flex-1 items-baseline gap-x-3">
-              <h2 className="min-w-0 truncate text-lg font-semibold tracking-tight" title={title}>
+              <h2
+                className="max-w-[70%] shrink-0 truncate text-lg font-semibold tracking-tight"
+                title={title}
+              >
                 {title}
               </h2>
+              {/* The status badge (and, where no card says them, the values) beside the name: one line. */}
+              {summary && (
+                <div className="min-w-0 shrink self-center whitespace-nowrap">{summary}</div>
+              )}
               <span
                 title={eyebrow}
                 className="min-w-0 shrink-[3] truncate text-xs font-semibold uppercase tracking-[0.12em] text-primary"
@@ -83,8 +90,6 @@ export function FocusedClassHeader({
               {menu}
             </div>
           </div>
-          {/* Row 2: the values. */}
-          {summary}
         </>
       ) : (
         <div className="flex items-start justify-between gap-2">
@@ -94,8 +99,14 @@ export function FocusedClassHeader({
             </div>
             <h2 className="mt-2 text-2xl font-semibold tracking-tight">{title}</h2>
             {facts && <p className="mt-1 text-sm text-muted-foreground">{facts}</p>}
+            {summary && <div className="mt-2">{summary}</div>}
           </div>
-          {menu && <div className="-mr-2 -mt-2 shrink-0">{menu}</div>}
+          {(actions || menu) && (
+            <div className="-mr-2 -mt-2 flex shrink-0 items-center gap-1">
+              {actions}
+              {menu}
+            </div>
+          )}
         </div>
       )}
       {children}

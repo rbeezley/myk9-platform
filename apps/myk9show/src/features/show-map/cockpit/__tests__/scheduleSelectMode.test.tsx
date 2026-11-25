@@ -10,6 +10,14 @@ vi.mock('@/hooks/useElementWidth', () => ({
   useElementWidth: () => ({ ref: { current: null }, width: null }),
 }));
 
+// The class settings sit in Edit class (MYK9-2379); it is open from the start here.
+vi.mock('@/components/shows/tabs/useClassRowActions', async () =>
+  (await import('./editClassSettingsStub')).classRowActionsStub(true)
+);
+vi.mock('@/components/shows/tabs/SetupClassDialogs', async () => ({
+  SetupClassDialogs: (await import('./editClassSettingsStub')).SetupClassDialogsStub,
+}));
+
 const showQuery = vi.hoisted(() => vi.fn());
 vi.mock('@/hooks/queries/useShowsDatabase', () => ({ useShowQuery: showQuery }));
 

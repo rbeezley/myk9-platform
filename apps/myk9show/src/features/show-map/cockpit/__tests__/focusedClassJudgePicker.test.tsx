@@ -11,6 +11,14 @@ vi.mock('@/hooks/useElementWidth', () => ({
   useElementWidth: () => ({ ref: { current: null }, width: null }),
 }));
 
+// The class settings sit in Edit class (MYK9-2379); it is open from the start here.
+vi.mock('@/components/shows/tabs/useClassRowActions', async () =>
+  (await import('./editClassSettingsStub')).classRowActionsStub(true)
+);
+vi.mock('@/components/shows/tabs/SetupClassDialogs', async () => ({
+  SetupClassDialogs: (await import('./editClassSettingsStub')).SetupClassDialogsStub,
+}));
+
 const showQuery = vi.hoisted(() => vi.fn());
 vi.mock('@/hooks/queries/useShowsDatabase', () => ({ useShowQuery: showQuery }));
 
@@ -83,7 +91,7 @@ const renderCockpit = (cls: SecretaryCockpitClass, canManageShow = true) =>
 const header = () => screen.getByTestId('focused-class-header');
 const scheduleRow = () => document.getElementById('cockpit-anchor-class-1') as HTMLElement;
 
-describe('class panel judge picker (MYK9-1323)', () => {
+describe('class panel judge picker (MYK9-1323, in Edit class since MYK9-2379)', () => {
   beforeEach(() => {
     showQuery.mockReturnValue({ data: { id: 'show-1', organization: 'AKC' } });
     judgesQuery.mockReturnValue({ data: [JANE, BOB] });
@@ -206,9 +214,10 @@ describe('class panel judge picker (MYK9-1323)', () => {
   });
 
   it('says a judge is assigned, not "not set", when the name has not resolved', () => {
-    renderCockpit(classOf({ lifecycle: 'in-progress', judgeId: 'judge-9', judgeName: null }));
+    judgesQuery.mockReturnValue({ data: undefined });
+    renderCockpit(classOf({ judgeId: 'judge-9', judgeName: null }));
 
-    const settings = screen.getByTestId('focused-class-header');
+    const settings = screen.getByRole('dialog', { name: 'Edit Class' });
     expect(within(settings).getByText('Judge assigned')).toBeVisible();
   });
 
@@ -221,7 +230,7 @@ describe('class panel judge picker (MYK9-1323)', () => {
     expect(upsertClassJudgeAssignment).toHaveBeenCalledWith('show-1', 'class-1', 'TBD', undefined);
   });
 
-  it('does not repeat the judge in the header facts once the setting shows it', () => {
+  it('does not repeat the judge in the header facts: the schedule card says it', () => {
     renderCockpit(classOf({ judgeId: 'judge-1', judgeName: 'Jane Judge' }));
 
     expect(header()).not.toHaveTextContent('Judge Jane Judge');
@@ -235,24 +244,24 @@ describe('class panel judge picker (MYK9-1323)', () => {
     expect(screen.queryByRole('combobox', { name: /^Judge for/ })).not.toBeInTheDocument();
   });
 
-  it('locks the judge once the class has started', () => {
+  it('leaves a started class to the panel own Judge field: no live control, no lock message', () => {
     renderCockpit(
       classOf({ lifecycle: 'in-progress', judgeId: 'judge-1', judgeName: 'Jane Judge' })
     );
 
+    const panel = screen.getByRole('dialog', { name: 'Edit Class' });
     expect(screen.queryByRole('combobox', { name: /^Judge for/ })).not.toBeInTheDocument();
-    expect(
-      screen.getByText('Locked once the class starts. Use Edit class to change it.')
-    ).toBeVisible();
+    expect(within(panel).queryByText('Judge')).not.toBeInTheDocument();
+    expect(panel).toHaveAttribute('data-live-judge', 'false');
+    expect(screen.queryByText(/Use Edit class/)).not.toBeInTheDocument();
   });
 
-  it('locks a class whose status still reads not-started but already has a scored dog', () => {
+  it('does the same for a class whose status still reads not-started but already has a scored dog', () => {
     renderCockpit(classOf({ scoredCount: 1, judgeId: 'judge-1', judgeName: 'Jane Judge' }));
 
+    const panel = screen.getByRole('dialog', { name: 'Edit Class' });
     expect(screen.queryByRole('combobox', { name: /^Judge for/ })).not.toBeInTheDocument();
-    expect(
-      screen.getByText('Locked once the class starts. Use Edit class to change it.')
-    ).toBeVisible();
+    expect(panel).toHaveAttribute('data-live-judge', 'false');
   });
 
   it('points at adding a judge when none are available and none is assigned', () => {
@@ -268,7 +277,7 @@ describe('class panel judge picker (MYK9-1323)', () => {
     renderCockpit(classOf({ judgeId: 'judge-1', judgeName: 'Jane Judge' }));
 
     expect(screen.queryByRole('combobox', { name: /^Judge for/ })).not.toBeInTheDocument();
-    const settings = screen.getByTestId('focused-class-header');
+    const settings = screen.getByRole('dialog', { name: 'Edit Class' });
     expect(within(settings).getByText('Jane Judge')).toBeVisible();
   });
 

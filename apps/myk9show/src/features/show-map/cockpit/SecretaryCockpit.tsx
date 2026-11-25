@@ -26,10 +26,8 @@ import { CockpitAttentionStrip } from './CockpitAttentionStrip';
 import { SecretaryCockpitFocusedClass } from './SecretaryCockpitFocusedClass';
 import { useFocusedClassSetupActions } from './FocusedClassSetupActions';
 import { useClassJudgeAssignment } from '@/components/classes/useClassJudgeAssignment';
-import { FocusedClassJudge } from './FocusedClassJudge';
-import { FocusedClassStewards } from './FocusedClassStewards';
-import { FocusedClassJudgeScoring, FocusedClassScoringField } from './FocusedClassScoringControls';
-import { judgeLockReason } from './focusedClassJudgeModel';
+import { FocusedClassSettings } from './FocusedClassSettings';
+import { isJudgeChangeLocked } from './focusedClassJudgeModel';
 import { CockpitResultsHandoff } from './CockpitResultsHandoff';
 import { isEveryClassComplete } from './resultsHandoff';
 import { TrialPacketPanel } from './trialPacket/TrialPacketPanel';
@@ -98,7 +96,9 @@ export function SecretaryCockpit({
   // Edit Trial and Trial details on each trial heading (MYK9-956); Delete is in the edit panel.
   const { trialRowMenu, trialDialogs } = useTrialRowActions(snapshot.showId, canManageShow);
   // Held here, not in the panel, so a split/stack switch cannot close an open editor.
-  const { editClassAction, classDialogs } = useFocusedClassSetupActions(snapshot.showId);
+  const { editClassAction, pendingClassId, classDialogs } = useFocusedClassSetupActions(
+    snapshot.showId
+  );
   // Add classes and High in Trial live in the trial's menu (MYK9-1727), so the heading holds
   // only the menu and it stays in the card's top-right corner on a phone.
   const renderTrialActions = (trialId: string, label: string) =>
@@ -193,45 +193,6 @@ export function SecretaryCockpit({
       onRefreshEntries={onRefreshEntries}
       putBackEntries={putBackEntries}
       {...(runOrder !== undefined && { runOrder })}
-      {...(canManageShow &&
-        sourceClass && {
-          judgeControl: (
-            <>
-              <FocusedClassJudge
-                showId={snapshot.showId}
-                classId={sourceClass.id}
-                classLabel={model.focusedClass.name}
-                judgeName={sourceClass.judgeName ?? null}
-                assignedJudgeId={sourceClass.judgeId ?? null}
-                availableJudges={judges.availableJudges}
-                organization={judges.showOrganization}
-                judgeListStatus={judges.judgeListStatus}
-                lockReason={judgeLockReason(model.focusedClass)}
-                classStatus={sourceClass.status ?? null}
-                offerSubstituteEmails
-                onJudgeChange={(_classId, judgeId) => judges.assignJudge(sourceClass, judgeId)}
-              />
-              <FocusedClassJudgeScoring
-                showId={snapshot.showId}
-                sourceClass={sourceClass}
-                classes={snapshot.classes}
-              />
-            </>
-          ),
-          scoringControl: (
-            <FocusedClassScoringField
-              showId={snapshot.showId}
-              sourceClass={sourceClass}
-              className={model.focusedClass.name}
-            />
-          ),
-          // A cancelled class has no ring to staff (MYK9-2328).
-          ...(sourceClass.lifecycle !== 'cancelled' && {
-            stewardControl: (
-              <FocusedClassStewards showId={snapshot.showId} classId={sourceClass.id} />
-            ),
-          }),
-        })}
       {...(canManageShow &&
         trial && {
           editClass: editClassAction(model.focusedClass.id, trial.id),
@@ -409,7 +370,33 @@ export function SecretaryCockpit({
         />
       )}
       {trialDialogs}
-      {canManageShow && classDialogs}
+      {canManageShow &&
+        classDialogs(
+          // The class settings sit in Edit class, not the pinned header (MYK9-2379). The Judge is
+          // one control: the live one while the class has not started, the panel's own after.
+          model.focusedClass && sourceClass && trial && pendingClassId === sourceClass.id ? (
+            <FocusedClassSettings
+              showId={snapshot.showId}
+              focused={model.focusedClass}
+              sourceClass={sourceClass}
+              trial={trial}
+              timeZone={snapshot.timeZone}
+              classes={snapshot.classes}
+              judges={judges}
+              showJudge={!isJudgeChangeLocked(model.focusedClass)}
+            />
+          ) : undefined,
+          model.focusedClass !== null &&
+            pendingClassId === model.focusedClass.id &&
+            !isJudgeChangeLocked(model.focusedClass),
+          pendingClassId === sourceClass?.id
+            ? {
+                id: sourceClass?.judgeId ?? null,
+                name: sourceClass?.judgeName ?? null,
+                status: sourceClass?.status ?? null,
+              }
+            : undefined
+        )}
       {canManageShow && packetTrialId && (
         <TrialPacketPanel
           open

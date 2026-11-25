@@ -4,6 +4,7 @@ import {
   LandingHero,
   LifecycleTimeline,
   TrustSection,
+  ClubOverviewVideo,
   PricingSection,
   FaqSection,
   LandingClose,
@@ -53,6 +54,7 @@ const Home: React.FC = () => {
       )}
       <LandingHero showSignUp={!signedIn} />
       <TrustSection />
+      {audience === 'club' && <ClubOverviewVideo />}
       <LifecycleTimeline audience={audience} onAudienceChange={setAudience} />
       <PricingSection />
       <FaqSection />

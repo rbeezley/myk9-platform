@@ -15,6 +15,8 @@
 
 > **How this guide is organised.** One card per job, in the order you'll do them. Each card tells you where to go, what to do, and what to watch for. If you only need one thing, jump to its card — they don't depend on each other.
 
+> **Watch:** [Your whole show, in one place (2 min 58 s)](https://youtu.be/BsFynPKdU7o)
+
 ---
 
 ## Before you start
@@ -25,13 +27,13 @@
 
 Open a show and you get **one row of five tabs**. Everything in this guide lives on one of them:
 
-| Tab             | What it is                                                                                                                                                                                                          |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Show Desk**   | Your show home: a **Needs attention** strip, the schedule by trial and day, and the selected class's panel with its status, timing, run order and actions. Called Overview before November 2026.                    |
-| **Entry Forms** | One form per mail-in entry set or online checkout, with the dogs and classes they entered. Search and **Filter** find a form; the header **Actions** menu holds the lists (Pulls, Move-ups, Waitlist and the rest). |
-| **Results**     | The show's classes with what each needs next: check the scores, release them, print, collect the judge's initials. **Submit to AKC** (or UKC, ASCA) and **Close the show** sit above the list.                      |
-| **Reports**     | Printing: labels, check-in sheets, score sheets, catalogs and registry reports.                                                                                                                                     |
-| **About**       | The show's facts, read only: where it is, entry fees, the withdrawal policy, officials and judges. The **Premium List** card that publishes the premium list is here. **Edit show** changes anything.               |
+| Tab             | What it is                                                                                                                                                                                                                                                                                                                             |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Show Desk**   | Your show home: a **Needs attention** strip, the schedule by trial and day, and the selected class's panel with its status, timing, run order and actions. Called Overview before November 2026.                                                                                                                                       |
+| **Entry Forms** | One form per mail-in entry set or online checkout, with the dogs and classes they entered. Search and **Filter** find a form; the header **Actions** menu holds the lists (Pulls, Move-ups, Waitlist and the rest).                                                                                                                    |
+| **Results**     | The show's classes with what each needs next: check the scores, release them, print, collect the judge's initials. **Submit to AKC** (or UKC, ASCA) and **Close the show** are rows in the **Finish the show** list above the classes. **Needs me** filters the list to what is waiting on you, and **Show Stats** needs a connection. |
+| **Reports**     | Printing: labels, check-in sheets, score sheets, catalogs and registry reports.                                                                                                                                                                                                                                                        |
+| **About**       | The show's facts, read only: where it is, entry fees, the withdrawal policy, officials and judges. The **Premium List** card that publishes the premium list is here. **Edit show** changes anything.                                                                                                                                  |
 
 The **Actions** button in the top bar changes with the page you are on. On **Show Desk** it holds the show-day and show-logistics tools below. On **Entry Forms** it holds the entry lists instead (card 4).
 
@@ -76,7 +78,7 @@ The wizard creates all three in one pass. **Actions → Add Show** (the Actions 
 
 ![Add Show wizard on Step 1, showing the four steps and the starred required fields](../screenshots/S-02.png)
 
-1. **Step 1 — Show Details.** Name, organization (AKC/UKC/ASCA), host club, time zone, location, dates, entry fee, and the entry open/close dates. The time zone is filled in for you, and so is the host club if you have only one. Change them if they are wrong: the time zone decides when entries close. When you finish typing the location, the pin is placed on the map. If it is not, check the street, city and ZIP, then try **Locate address**. If the map still cannot find the venue, click the map to place the pin yourself, or leave it: the address is saved as you typed it. Add your **Chair**. The **Secretary** is filled in as you. Change it if someone else is the secretary.
+1. **Step 1 — Show Details.** **Clone from a previous show** appears at the top when you have an earlier show to copy: pick one to fill the form from it (dates are left blank). Otherwise start with the form: fill in the name, organization (AKC/UKC/ASCA), host club, time zone, location, dates, entry fee, and the entry open/close dates. The time zone is filled in for you, and so is the host club if you have only one. Change them if they are wrong: the time zone decides when entries close. When you finish typing the location, the pin is placed on the map. If it is not, check the street, city and ZIP, then try **Locate address**. If the map still cannot find the venue, click the map to place the pin yourself, or leave it: the address is saved as you typed it. Add your **Chair**. The **Secretary** is filled in as you. Change it if someone else is the secretary.
 2. **⚠️ Also on Step 1: add every judge** in the _Show Judges_ field. It looks optional. It is not — see the warning below.
 3. **Step 2 — Trials.** One row per trial: date, time, and (for AKC) the event number.
 4. **Step 3 — Classes.** Pick a template, then tick the classes each trial offers. Assign a judge per class. If only one of your judges is qualified for this show's classes, that judge is filled in on any class that has no judge yet.
@@ -148,7 +150,7 @@ The header **Actions** button holds the rest. On **Entry Forms** it lists:
 - **Entry lists**: **Pulls**, **Move-ups**, **Registration number needed**, **Waitlist** and **Check-in desk**. Each opens as its own list, with **Back to entry forms** to return. A count shows beside a list with something waiting, and the same count lights the Actions button.
 - **Add late entry**, under the **Show day** heading (card 6).
 - **Export CSV**, the whole entry list, under the **Entry forms** heading.
-- The show's own items at the top: **Edit show**, **Add entry**, **Add Trial**, **Add classes**, **Select classes** and **Close out show**.
+- The show's own items at the top: **Edit show**, **Add entry**, **Add Trial**, **Add classes**, **Select classes** and **Close the show**.
 
 ![The Actions menu open on Entry Forms, with the Entry lists group](../screenshots/S-23.png)
 
@@ -401,6 +403,7 @@ The **⋯** button at the top right of the class opens **Actions for** that clas
 The **Check-in desk** is the one list of exhibitors, with armband, class, time and check-in state for every dog:
 
 - Open it from **Show Desk → Actions → Check-in desk**, or **Entry Forms → Actions → Entry lists → Check-in desk**. On **Show Desk**, the "Check in N entries" chip in the **Needs attention** strip opens it already filtered to **Not checked in**.
+- An exhibitor who still owes money shows **Owes $…** with the amount, so you can collect it at the desk. A form someone else placed names who owes it.
 - The search box is ready when it opens. Type a name, a dog or an armband. **All exhibitors** and **Not checked in** switch the list.
 - **Check in** on a dog's row checks in that run. **Check in all eligible** on an exhibitor checks in everything of theirs that is ready.
 - Check in is offered only on the trial's own day, for an accepted entry that is not in yet. Other rows say why (for example **Not today**). A dog already at the gate or in the ring shows its ringside status, such as **At Gate** or **In Ring**, and has no **Check in** button.
@@ -412,6 +415,8 @@ On a show day you can also check in from an exhibitor's form on **Entry Forms**.
 For one class, **Show Desk → click the class → View entries and results** opens the class's run sheet, with a check-in status on every dog's row.
 
 **Show Desk → Actions → Self check-in** lets exhibitors check themselves in, by show, trial or class.
+
+**Show Desk → Actions → Message exhibitors** opens the Message Center for this show, to write to its exhibitors.
 
 ## 19 · Change a dog's class
 
@@ -457,7 +462,7 @@ Per dog, record the result (Q, NQ, ABS, EX or DQ), the search time, and any faul
 
 > **Watch:** [How to release results to exhibitors (1 min 42 s)](https://youtu.be/INYaO2cTmgw)
 
-**Results.** The class list sits below the **Finish the show** list at the top of the tab. Each class is a row with a status and the next thing it needs. A class still being scored sends you back to **Show Desk**. Once every dog is scored and the class is marked complete, open it and work down its **Primary work** card:
+**Results.** The class list sits below the **Finish the show** list at the top of the tab. The list opens on **Needs me**, the classes waiting on you; the filter also offers **All classes**, **Needs checking**, **Ready to release**, **Needs printing**, **Released** and **Done**. **Print all ready** applies the **Needs printing** filter. Under the **Finish the show** list, **After-show packet** (one button per trial when there are several) opens the packet to print, and **Show Stats** shows the show's numbers once a dog has a score. Each class is a row with a status and the next thing it needs. A class still being scored sends you back to **Show Desk**. Once every dog is scored and the class is marked complete, open it and work down its **Primary work** card:
 
 1. **Record coin flip** appears only when dogs finished tied for a ribbon. Flip, say who won, then check the scores. With no tie, the class skips this step.
 2. **Check scores** (the card reads **Release the results**): look the scores over, fix anything that is off, then choose **Release results**. That saves your check and makes the scores visible to exhibitors. If scores change after a release, the card reads **Confirm the scores** and the button **Confirm scores**.
@@ -479,7 +484,7 @@ Set the show default (**Immediately**, **After Class** or **After Review**), the
 
 ## 24 · Submit results to the registry
 
-**Results → Submit to AKC (or UKC, or ASCA).** The button sits in the Finish the show row at the top of the Results tab, next to **Close the show**. What you see here depends on the registry.
+**Results → Submit to AKC (or UKC, or ASCA).** It is a row in the **Finish the show** list at the top of the Results tab, in the same list as **Close the show**. What you see here depends on the registry.
 
 ![Submit Results with Send to AKC, Download XML and Mark as submitted](../screenshots/S-22.png)
 
@@ -515,7 +520,7 @@ Each renders the registry's own instructions and layout.
 **Results → Close the show.**
 
 1. Read the reconciliation — entries, day-of entries, collected at the show, waived, and pulled or no-show — and check the totals match what you took.
-2. Choose **Close out show** and confirm.
+2. Choose **Close the show** and confirm.
 
 > If the readiness check has concerns, the confirm button reads **Close anyway**. That's your decision to make, but read what it's flagging first — it's usually results not released, pulls with no refund decision recorded, or reportable incidents.
 

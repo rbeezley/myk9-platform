@@ -1,0 +1,100 @@
+.landing-v2 .lc-video {
+  container: lc-video / inline-size;
+}
+.landing-v2 .lc-video-inner {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: clamp(1.25rem, 3vw, 2.5rem);
+  align-items: center;
+}
+.landing-v2 .lc-video .lc-video-inner {
+  padding-block: clamp(2rem, 5vw, 3.5rem);
+}
+.landing-v2 .lc-video-copy h2 {
+  margin: 0 0 0.75rem;
+  text-wrap: balance;
+}
+.landing-v2 .lc-video-copy p {
+  margin: 0 0 0.5rem;
+  max-width: 46ch;
+}
+.landing-v2 .lc-video-frame {
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--ink-900);
+}
+.landing-v2 .lc-video-frame iframe {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 0;
+}
+.landing-v2 .lc-video-play {
+  display: block;
+  width: 100%;
+  padding: 0;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+.landing-v2 .lc-video-play img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+.landing-v2 .lc-video-play:focus-visible {
+  outline: 3px solid var(--terracotta-600);
+  outline-offset: -3px;
+}
+/* A bar under the poster, so the play control never covers the poster's own title. */
+.landing-v2 .lc-video-play-bar {
+  display: flex;
+  min-height: 56px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  background: var(--terracotta-600);
+  color: #fff;
+  font-weight: 600;
+}
+.landing-v2 .lc-video-play-icon {
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 10px 0 10px 16px;
+  border-color: transparent transparent transparent #fff;
+}
+/* Narrow: a thumbnail beside the words, so the section stays about a fifth of a screen. Once the
+   video plays, it takes the full width under them. */
+@container lc-video (max-width: 760px) {
+  .landing-v2 .lc-video-inner {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    gap: 1rem;
+  }
+  .landing-v2 .lc-video .lc-video-inner {
+    padding-block: 1.25rem;
+  }
+  .landing-v2 .lc-video-copy,
+  .landing-v2 .lc-video-frame {
+    min-width: 0;
+  }
+  .landing-v2 .lc-video-inner:has(iframe) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .landing-v2 .lc-video-copy h2 {
+    margin: 0;
+    font-size: 1.125rem;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+  }
+  .landing-v2 .lc-video-copy .l-eyebrow,
+  .landing-v2 .lc-video-copy p,
+  .landing-v2 .lc-video-long {
+    display: none;
+  }
+  .landing-v2 .lc-video-play-bar {
+    min-height: 44px;
+  }
+}

@@ -1,12 +1,14 @@
 .landing-v2 .lc-video {
   container: lc-video / inline-size;
-  padding: clamp(2rem, 5vw, 3.5rem) 0;
 }
 .landing-v2 .lc-video-inner {
   display: grid;
   grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
   gap: clamp(1.25rem, 3vw, 2.5rem);
   align-items: center;
+}
+.landing-v2 .lc-video .lc-video-inner {
+  padding-block: clamp(2rem, 5vw, 3.5rem);
 }
 .landing-v2 .lc-video-copy h2 {
   margin: 0 0 0.75rem;
@@ -67,26 +69,19 @@
 /* Narrow: a thumbnail beside the words, so the section stays about a fifth of a screen. Once the
    video plays, it takes the full width under them. */
 @container lc-video (max-width: 760px) {
-  .landing-v2 .lc-video {
-    padding: 1.25rem 0;
-  }
   .landing-v2 .lc-video-inner {
-    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
     gap: 1rem;
   }
-  .landing-v2 .lc-video-copy {
-    min-width: 0;
-    order: 2;
+  .landing-v2 .lc-video .lc-video-inner {
+    padding-block: 1.25rem;
   }
+  .landing-v2 .lc-video-copy,
   .landing-v2 .lc-video-frame {
     min-width: 0;
-    order: 1;
   }
   .landing-v2 .lc-video-inner:has(iframe) {
     grid-template-columns: minmax(0, 1fr);
-  }
-  .landing-v2 .lc-video-inner:has(iframe) .lc-video-frame {
-    order: 2;
   }
   .landing-v2 .lc-video-copy h2 {
     margin: 0;

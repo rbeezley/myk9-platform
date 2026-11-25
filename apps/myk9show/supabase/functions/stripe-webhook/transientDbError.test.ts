@@ -35,7 +35,7 @@ interface LinkRow {
 function paymentLinkDispatch(lookup: { data: LinkRow | null; error: DbError | null }) {
   const queueRefundRequest = vi.fn(async () => {});
   const alert = vi.fn(async () => {});
-  const fulfill = vi.fn(async () => {});
+  const fulfill = vi.fn<(link: LinkRow) => Promise<void>>(async () => {});
   const dispatch = async () => {
     const link = paymentLinkRowOrMissing(lookup, 'cs_1');
     if (!link) {

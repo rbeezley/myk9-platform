@@ -41,10 +41,10 @@ export function throwIfSingleReadFailed(error: DbError | null | undefined, what:
  * The lookup is `.maybeSingle()`, which reports no row as `data: null` with no
  * error, so EVERY error here is a failure.
  */
-export function paymentLinkRowOrMissing<TLink>(
-  lookup: { data: TLink | null; error: DbError | null },
+export function paymentLinkRowOrMissing<TData>(
+  lookup: { data: TData; error: DbError | null },
   sessionId: string
-): TLink | null {
+): NonNullable<TData> | null {
   throwIfDbError(lookup.error, `Could not read the payment link for ${sessionId}`);
   return lookup.data ?? null;
 }

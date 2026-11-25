@@ -5,7 +5,6 @@ import { cn } from '@/lib/utils';
 import { ClassRequirementsContent } from '@/features/at-show/slots/ClassRequirementsContent';
 import { classTimeDisplay } from '@/features/at-show/slots/classRequirementsFromClass';
 import { useLiveClasses } from '@/features/at-show/useLiveClasses';
-import { usePerAreaMaxTimes } from '@/features/at-show/usePerAreaMaxTimes';
 import { formatTimeLimitSetAt } from './timeLimitSetAt';
 
 /**
@@ -29,14 +28,7 @@ export function FocusedClassRequirements({
   const panelId = useId();
   const live = useLiveClasses([classId]);
   const cls = live?.[0] ?? null;
-  // Per-area only where the class's scoresheet times each area: the one decision Ringside and
-  // Edit class use (MYK9-2379).
-  const lookup = usePerAreaMaxTimes(
-    cls?.trialId ?? undefined,
-    cls?.name ?? undefined,
-    cls !== null
-  );
-  const perArea = lookup.status === 'ready' && lookup.perArea;
+  const perArea = (cls?.areaCount ?? 1) > 1;
   const time = classTimeDisplay(cls, perArea, registryId);
   const limit = live === null ? 'Loading…' : time.value;
   const setAt = !time.saved ? null : formatTimeLimitSetAt(cls?.timeLimitSetAt, timeZone);

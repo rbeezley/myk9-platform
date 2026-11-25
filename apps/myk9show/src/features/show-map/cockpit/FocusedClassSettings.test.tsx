@@ -20,9 +20,6 @@ vi.mock('./FocusedClassScoringControls', () => ({
   FocusedClassScoringField: () => <div>class scoring</div>,
 }));
 vi.mock('./FocusedClassStewards', () => ({ FocusedClassStewards: () => <div>stewards</div> }));
-vi.mock('./FocusedClassTimeLimit', () => ({
-  FocusedClassTimeLimit: () => <div>time limit control</div>,
-}));
 vi.mock('./ClassOperationalControls', async importOriginal => ({
   ...(await importOriginal<typeof import('./ClassOperationalControls')>()),
   useClassStatusChange: () => ({ isSaving: false, update: vi.fn(), confirmDialog: null }),
@@ -57,7 +54,6 @@ const renderSettings = (showJudge: boolean) =>
       classes={[source]}
       judges={judges}
       showJudge={showJudge}
-      registryId="AKC"
     />
   );
 
@@ -75,10 +71,5 @@ describe('FocusedClassSettings once the class has started (MYK9-2379)', () => {
 
     expect(screen.getByText('live judge picker')).toBeInTheDocument();
     expect(screen.getAllByText('judge scoring choice')).toHaveLength(1);
-  });
-
-  it('shows the time limit control', () => {
-    renderSettings(true);
-    expect(screen.getByText('time limit control')).toBeInTheDocument();
   });
 });

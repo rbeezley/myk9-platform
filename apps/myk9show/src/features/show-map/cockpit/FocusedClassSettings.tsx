@@ -1,7 +1,6 @@
 import { FocusedClassFields } from './FocusedClassFields';
 import { FocusedClassJudge } from './FocusedClassJudge';
 import { judgeLockReason } from './focusedClassJudgeModel';
-import { FocusedClassTimeLimit } from './FocusedClassTimeLimit';
 import { SubstituteJudgeEmailOffer } from './SubstituteJudgeEmailOffer';
 import { FocusedClassStewards } from './FocusedClassStewards';
 import { FocusedClassJudgeScoring, FocusedClassScoringField } from './FocusedClassScoringControls';
@@ -27,7 +26,6 @@ export function FocusedClassSettings({
   classes,
   judges,
   showJudge,
-  registryId,
 }: {
   showId: string;
   focused: FocusedClassModel;
@@ -38,7 +36,6 @@ export function FocusedClassSettings({
   judges: ReturnType<typeof useClassJudgeAssignment>;
   /** False once the live judge control would be locked: Edit class's own Judge field takes over. */
   showJudge: boolean;
-  registryId: string;
 }) {
   return (
     <FocusedClassFields
@@ -93,7 +90,6 @@ export function FocusedClassSettings({
               </>
             ),
           })}
-      timeLimitControl={<FocusedClassTimeLimit classId={sourceClass.id} registryId={registryId} />}
       scoringControl={
         <FocusedClassScoringField
           showId={showId}

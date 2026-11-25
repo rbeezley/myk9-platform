@@ -386,10 +386,8 @@ Volunteers only shows here while its **This show uses…** switch is on (card 3;
 - **Scoring** — whether this class is scored on paper or on a phone.
 - **Expected start** — press the time (or **Set expected start**) to give a revised start when a class runs late or early, then press the check mark (**Save expected start**).
 - **Stewards** — the class's ring jobs from the volunteer list.
-- **Time limit** — the class's max time. Press **Change** to set it (the same Max Time box Ringside uses, with the allowed range for the class). A time the rulebook fixes shows without **Change**.
 
 Press **Save Changes** to keep an entry limit or wait list change.
-
 The actual start and finish times are on the class checklist: press **Class started** to correct the start.
 
 The **⋯** button at the top right of the class opens **Actions for** that class: **Edit class**, **Score this class** (opens paper scoring for the class) and **Auto-sort run order**, plus **Announce a delay** when the class is running late.

@@ -156,7 +156,6 @@ export function FocusedClassFields({
   judgeControl,
   scoringControl,
   stewardControl,
-  timeLimitControl,
   judgeExtras,
 }: {
   focused: FocusedClassModel;
@@ -168,8 +167,6 @@ export function FocusedClassFields({
   scoringControl?: ReactNode;
   /** The class's ring jobs from the volunteer list (MYK9-2328). Managers only. */
   stewardControl?: ReactNode;
-  /** The class's time limit and its Change button (MYK9-2379). Managers only. */
-  timeLimitControl?: ReactNode;
   /** Judge-related actions that stay once the live picker is gone (a started class). */
   judgeExtras?: ReactNode;
 }) {
@@ -190,7 +187,6 @@ export function FocusedClassFields({
             canManageShow={canManageShow}
           />
         </Field>
-        {timeLimitControl && <Field label="Time limit">{timeLimitControl}</Field>}
         {stewardControl && (
           <Field label="Stewards" className="min-w-0 basis-full">
             {stewardControl}

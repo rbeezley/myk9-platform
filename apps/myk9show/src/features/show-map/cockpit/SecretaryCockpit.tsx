@@ -384,7 +384,6 @@ export function SecretaryCockpit({
               classes={snapshot.classes}
               judges={judges}
               showJudge={!isJudgeChangeLocked(model.focusedClass)}
-              registryId={snapshot.registryId ?? ''}
             />
           ) : undefined,
           model.focusedClass !== null &&

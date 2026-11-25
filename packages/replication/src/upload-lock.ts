@@ -69,6 +69,28 @@ export class UploadLock {
     });
   }
 
+  /**
+   * Like `run`, but gives up if the lock is not granted within `timeoutMs`.
+   * A timed-out request leaves the queue and never runs `callback` later.
+   * Once `callback` has started, the timeout no longer applies.
+   */
+  async runWithin<R>(
+    callback: () => Promise<R>,
+    timeoutMs: number
+  ): Promise<{ timedOut: false; value: R } | { timedOut: true }> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const value = await this.run(callback, controller.signal);
+      return { timedOut: false, value };
+    } catch (error) {
+      if (controller.signal.aborted) return { timedOut: true };
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   private runHeld<R>(callback: () => Promise<R>): Promise<R> {
     this.held = true;
     let result: Promise<R>;

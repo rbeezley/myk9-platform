@@ -163,6 +163,11 @@ export class MutationUploadRunner {
     return this.uploadLock.run(work);
   }
 
+  /** `runExclusive` that gives up after `timeoutMs` without running `work`. */
+  runExclusiveWithin<R>(work: () => Promise<R>, timeoutMs: number) {
+    return this.uploadLock.runWithin(work, timeoutMs);
+  }
+
   // eslint-disable-next-line complexity -- branch order is part of queue correctness
   private async runUploadPass(signal?: AbortSignal): Promise<SyncResult[]> {
     // Aborted before the pass could start (or while it waited for the lock):

@@ -16,6 +16,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Logger } from './dependencies';
 import { noopLogger } from './dependencies';
+import { RESTORE_LOCK_TIMEOUT_MS } from './constants';
 import { getMutationQueueCapacity } from './mutation-queue-capacity';
 import { MutationBackupStore } from './MutationBackupStore';
 import { MutationQueueStore } from './MutationQueueStore';
@@ -696,8 +697,20 @@ export class MutationManager {
       // cross-tab upload lock: a flush owns deletion and rewrites the backup
       // before it releases, so restore sees the post-flush backup. A failed
       // upload never blocks recovery (the lock frees either way). Nothing in an
-      // upload calls restore, so taking the lock here cannot wait on itself.
-      await this.uploadRunner.runExclusive(() => this.backupStore.restore());
+      // upload calls restore, so taking the lock here cannot wait on itself;
+      // UploadLock is non-reentrant, so a future caller inside an upload would
+      // wait out the timeout. A hung flush must not wedge restoreInFlight: after
+      // the timeout we skip (never reading the backup outside the lock) and the
+      // next startup, reconnect or recovery trigger restores again.
+      const outcome = await this.uploadRunner.runExclusiveWithin(
+        () => this.backupStore.restore(),
+        RESTORE_LOCK_TIMEOUT_MS
+      );
+      if (outcome.timedOut) {
+        this.logger.warn(
+          '[MutationManager] Restore skipped: the upload lock stayed busy; will retry on the next trigger'
+        );
+      }
     })();
     this.restoreInFlight = restore;
     try {

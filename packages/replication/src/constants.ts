@@ -20,6 +20,11 @@ export const DB_VERSION = 10;
 /** Total number of tables managed by replication system */
 export const TOTAL_REPLICATED_TABLES = 16;
 
+// ==================== Upload Lock ====================
+
+/** Longest a restore waits for the cross-tab upload lock, so a hung flush cannot wedge startup. */
+export const RESTORE_LOCK_TIMEOUT_MS = 15_000;
+
 // ==================== Batch Operations ====================
 
 /** Default chunk size for batch operations */

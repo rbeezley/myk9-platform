@@ -40,6 +40,8 @@ This is the canonical loop: implement → simplify → harden (unless agy review
 
 ## 4. Which review, when
 
+> **Until 2026-12-08 (owner, MYK9-2324): Codex, not agy, is the `independent` gate for Claude-authored work.** Wherever this file says agy, read Codex: run `CODEX_REVIEW_LOG="$PWD/.logs/codex-review-$(git rev-parse HEAD).log" pnpm qa:codex-review --post > .logs/codex-review.log 2>&1; echo "EXIT=$?"` in place of `pnpm qa:agy-review --post`, read `.logs/codex-review.log` for the verdict, record `Codex rounds: M`, and if Codex is unavailable, the PR waits on Codex, not agy. Delete this note on 2026-12-08.
+
 | Situation                                                        | Use                                                                                                                                                                       |
 | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Uncommitted working diff, pre-commit                             | `/code-review` (cleanup order: `/simplify` → `/harden` unless the floor is `independent`, § 2 → commit)                                                                   |

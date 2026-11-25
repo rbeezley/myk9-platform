@@ -5,6 +5,8 @@ description: Use when shipping or merging an existing PR/branch through review-c
 
 # Ship PR
 
+> **Until 2026-12-08 (owner, MYK9-2324): Codex, not agy, is the `independent` gate for Claude-authored work.** Wherever this file says agy, read Codex: run `CODEX_REVIEW_LOG="$PWD/.logs/codex-review-$(git rev-parse HEAD).log" pnpm qa:codex-review --post > .logs/codex-review.log 2>&1; echo "EXIT=$?"` in place of `pnpm qa:agy-review --post`, read `.logs/codex-review.log` for the verdict, record `Codex rounds: M`, and if Codex is unavailable, the PR waits on Codex, not agy. Delete this note on 2026-12-08.
+
 Use when a feature branch is ready to ship — whether it has an open PR or not. Bundles simplify → commit → PR creation (if needed) → review-comment fixes → risk-appropriate review gate (optional for bounded low-risk changes) → squash-merge → close-out → worktree cleanup, in that order.
 
 This file is shared by Claude Code and Codex (`.agents/skills/ship-pr` is a symlink to it). Where the two harnesses differ, both paths are spelled out. "The instruction file" means `CLAUDE.md` for Claude Code and `AGENTS.md` for Codex.
@@ -206,8 +208,6 @@ PR_NUMBER=$(gh pr view --json number -q '.number')
 **Never type an evidence comment by hand.** `scripts/qa/post-review-gate.sh` is the only writer of `Review gate:` comments; both wrappers call it for you. A hand-typed line attests to a review nobody can check — the poster hashes the log it posts and refuses a log that does not carry the reviewer's clean contract sentence.
 
 **Pre-pass (`independent` tier only).** Before the first agy run, dispatch one read-only `sonnet` sub-agent (one Mac heavy job against the orchestrate cap) with `git diff origin/main...HEAD`, told to find defects and never to approve, answering as `- [P<n>] file:line finding` bullets. Fix every finding you agree with and commit, so agy reviews a second draft. It posts nothing and is not gate evidence. Record `pre-pass: N findings fixed` in the PR body, and `Agy rounds: M` once the gate is green.
-
-**Until 2026-12-08 (owner, MYK9-2324): Codex, not agy, is the gate for Claude-authored work.** Run `pnpm qa:codex-review --post > .logs/codex-review.log 2>&1` in place of the agy command below; everything else in this step is the same. Delete this note on 2026-12-08.
 
 **Author is Claude Code → agy reviews.** Run the wrapper from the worktree. An agy run takes 3-8 minutes and prints nothing until it finishes: the main session starts it once with `run_in_background: true` (never under `timeout`) and is notified when it exits; it blocks until the verdict, so never poll it, re-run it, or read its log before then. When it exits, read `.logs/agy-review.log` once for the verdict (the wrapper's own full log is `.logs/agy-review-<head-sha>.log`, the file the poster hashes) (`No actionable defects found.` or the `[P*]` bullets) and act on the exit code below. A sub-agent that must return the verdict runs it in the foreground. Foreground runs in the main session cost 16 h of blocked sessions over Sept–Oct 2026 (MYK9-1483).
 

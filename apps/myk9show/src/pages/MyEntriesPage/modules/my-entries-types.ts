@@ -56,6 +56,8 @@ export interface EntryClass {
   /** Trial discipline (e.g. "Scent Work", "Agility"); gates the jump-height field. */
   trialType?: string | undefined;
   runOrder?: number | undefined;
+  /** MYK9-1970: the class is scored on paper (its own flag, else the show's switch). */
+  scoresOnPaper?: boolean | undefined;
   /** MYK9-632: 'withdrawn' and 'scratched' (a pull) are DIFFERENT acts. */
   status: 'entered' | 'withdrawn' | 'scratched' | 'moved' | 'absent';
   /**

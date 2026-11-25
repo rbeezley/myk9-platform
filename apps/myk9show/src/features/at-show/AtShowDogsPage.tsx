@@ -9,7 +9,7 @@ import { Link, Navigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getStatusDescriptor } from '@/components/status';
-import { formatRunQueueState, stateForClaim } from '@myk9/ringside/run-queue';
+import { formatRunQueueState, runQueueStateNote, stateForClaim } from '@myk9/ringside/run-queue';
 import { cn } from '@/lib/utils';
 import { useAtShowDogFavoritesSynced } from './dogFavoritesSync';
 import { useAtShowStaffDogs } from './useAtShowStaffDogs';
@@ -60,6 +60,9 @@ const ExhibitorClassLines: React.FC<{ dog: StaffDog }> = ({ dog }) => (
           entry.runPosition
             ? formatRunQueueState(stateForClaim(entry.runPosition, entry.runClaimState))
             : null,
+          runQueueStateNote(
+            entry.runPosition ? stateForClaim(entry.runPosition, entry.runClaimState) : null
+          ),
         ]
           .filter(Boolean)
           .join(' · ')}

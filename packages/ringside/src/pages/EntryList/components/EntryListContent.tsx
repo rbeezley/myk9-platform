@@ -139,8 +139,15 @@ export const EntryListContent: React.FC<EntryListContentProps> = ({
 
   // Derived once per entries change, not per card or per render. The cards are
   // memoised, so nothing below may hand them a fresh object or callback.
+  // A paper class has no live order (MYK9-1970): no "Up next" / "Then" headings, the dogs just
+  // run in running order. The server's claim reaches this list as the own dogs' 'paper' state.
+  const isPaperClass = React.useMemo(
+    () => Array.from(ownership?.dogsAheadByEntryId.values() ?? []).some(r => r?.kind === 'paper'),
+    [ownership]
+  );
+  const showLiveOrder = showNowAndNext && !isPaperClass;
   const { inRing, upNext, listEntries } = React.useMemo(() => {
-    if (!showNowAndNext) return { inRing: null, upNext: null, listEntries: entries };
+    if (!showLiveOrder) return { inRing: null, upNext: null, listEntries: entries };
     const ring = findInRingEntry(entries);
     const next = pendingByRunOrder(entries)[0] ?? null;
     return {
@@ -148,7 +155,7 @@ export const EntryListContent: React.FC<EntryListContentProps> = ({
       upNext: next,
       listEntries: entries.filter(entry => entry.id !== ring?.id && entry.id !== next?.id),
     };
-  }, [entries, showNowAndNext]);
+  }, [entries, showLiveOrder]);
   // SortableContext re-notifies every useSortable consumer when `items` changes
   // identity, so a fresh array per render re-rendered all 60 cards.
   const entryIds = React.useMemo(() => entries.map(entry => entry.id), [entries]);
@@ -247,8 +254,8 @@ export const EntryListContent: React.FC<EntryListContentProps> = ({
           offsets against the wrong axis, so cards jumped to visibly wrong slots
           and reorder was unusable on every layout except one column. */}
       <SortableContext items={entryIds} strategy={rectSortingStrategy}>
-        {!showNowAndNext && <h2 className="sr-only">Entries</h2>}
-        {showNowAndNext && (
+        {!showLiveOrder && <h2 className="sr-only">Entries</h2>}
+        {showLiveOrder && (
           <div className="mb-4 flex flex-col">
             {sectionLabel('In the ring')}
             {inRing ? (

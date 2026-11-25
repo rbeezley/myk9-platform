@@ -124,7 +124,12 @@ export function AtShowClassRow({
   // every render from the class status, so changing the status back restores the card.
   const isCancelled = entry.is_cancelled === true;
   const status = getEffectiveClassStatus(entry);
-  const showNextUp = !isCancelled && isLiveNextUpStatus(status) && !isEmptyNextUpPreview(nextUp);
+  // MYK9-1970: a paper class has no live order, so no "Next up" whatever the status says.
+  const showNextUp =
+    !isCancelled &&
+    entry.scores_on_paper !== true &&
+    isLiveNextUpStatus(status) &&
+    !isEmptyNextUpPreview(nextUp);
 
   return (
     <li data-class-id={entry.id} data-day-bucket={dayBucket}>

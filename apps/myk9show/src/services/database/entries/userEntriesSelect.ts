@@ -66,6 +66,7 @@ const USER_ENTRIES_SELECT_BASE = `
         location,
         city,
         state,
+        uses_device_scoring,
         trials:trials (
           id,
           date,
@@ -78,6 +79,7 @@ const USER_ENTRIES_SELECT_BASE = `
         class_number,
         start_time,
         scored_count,
+        scores_on_paper,
         trial:trial_id (
           id,
           name,

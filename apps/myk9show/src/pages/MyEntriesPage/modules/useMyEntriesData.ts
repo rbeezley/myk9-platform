@@ -4,6 +4,7 @@
  * @module MyEntriesPage/hooks
  */
 
+import { isClassScoredOnPaper } from '@/utils/showEntryRunQueue';
 import type { ExpectedCheckIn } from '@/services/show-day/checkInStatus';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { CLASS_NOT_PUBLISHED_LABEL, CLASS_DETAILS_UNAVAILABLE_LABEL } from './myShowsCopy';
@@ -251,6 +252,7 @@ export function useMyEntriesData({
       location?: string | null;
       city?: string;
       state?: string;
+      uses_device_scoring?: boolean | null;
     } | null;
     // Each entry row from getUserEntries represents one dog in one class.
     // The class data is available via the `class` join (class:class_id).
@@ -261,6 +263,8 @@ export function useMyEntriesData({
       start_time?: string | null;
       /** Server-kept count of dogs scored in the class: the "of N" of a placement (MYK9-2138). */
       scored_count?: number | null;
+      /** MYK9-1970: null follows the show's device-scoring switch. */
+      scores_on_paper?: boolean | null;
       trial?: EntryRowTrial | null;
     } | null;
     // Discipline gates the jump-height field. Prefer entries.trial_id, but fall
@@ -331,6 +335,8 @@ export function useMyEntriesData({
         jumpHeight: (entry.jump_height as string) || undefined,
         trialType: trialData?.trial_type || classData?.trial?.trial_type || undefined,
         runOrder: (entry.run_order as number) || undefined,
+        // MYK9-1970: the same claim rule every other exhibitor screen reads.
+        scoresOnPaper: isClassScoredOnPaper(classData?.scores_on_paper, show?.uses_device_scoring),
         status: mapClassEntryStatus(entry.entry_status as string),
         // MYK9-632: WHICH withdrawal, for the Edit Entry sheet's badge.
         withdrawalReasonCode: (entry.withdrawal_reason_code as string | null) ?? undefined,

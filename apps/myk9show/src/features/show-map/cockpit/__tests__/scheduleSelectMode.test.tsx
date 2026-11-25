@@ -142,6 +142,13 @@ describe('Select classes on the schedule (MYK9-1324)', () => {
     expect(screen.getByRole('combobox', { name: /^Judge for / })).toBeInTheDocument();
   });
 
+  it('offers Set entry fee for the ticked classes (MYK9-1931)', async () => {
+    const { user } = renderCockpit('/shows/show-1?select=classes&focus=class-1');
+    await user.click(tick('Container Novice'));
+
+    expect(screen.getByRole('button', { name: 'Set entry fee' })).toBeEnabled();
+  });
+
   it('hides the inline class panel while selecting, so it never sits inside the tick list', () => {
     renderCockpit('/shows/show-1?select=classes&focus=class-1');
 

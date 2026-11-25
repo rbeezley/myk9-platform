@@ -15,6 +15,9 @@ vi.mock('@/hooks/useAuthContext', () => ({
 }));
 vi.mock('@/services/replication', () => ({
   replicatedPaperworkPrintsTable: { confirmPrinted: vi.fn(), voidPrint: vi.fn() },
+  // The schedule's own-fee read (MYK9-1931): no class here has a fee of its own.
+  replicatedClassesTable: { subscribe: () => () => undefined, getClassesByTrial: async () => [] },
+  replicatedTrialsTable: { getTrialsByShow: async () => [] },
 }));
 vi.mock('@/lib/undoToast', () => ({ showUndoToast: vi.fn() }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));

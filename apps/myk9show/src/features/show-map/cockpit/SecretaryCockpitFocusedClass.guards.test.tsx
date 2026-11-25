@@ -7,6 +7,7 @@ import { render } from '@/test/utils/testUtils';
 import { applyManualClassStatus } from '@/services/show-day/classStatusMutations';
 import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
 
+import { FocusedClassFields } from './FocusedClassFields';
 import { SecretaryCockpitFocusedClass } from './SecretaryCockpitFocusedClass';
 import type { SecretaryCockpitClassEntry } from './cockpitClassEntries';
 import { queueFor } from './__tests__/queueFixture';
@@ -127,12 +128,18 @@ describe('SecretaryCockpitFocusedClass guards', () => {
 
   it('asks before marking a class Complete when its entry counts are unknown (MYK9-1801)', async () => {
     render(
-      panel(
-        focusedClass('class-1', 'Container Novice', {
+      <FocusedClassFields
+        focused={focusedClass('class-1', 'Container Novice', {
           progress: { evidence: 'unknown', value: null },
-        }),
-        sourceOf('class-1', 'Container Novice', { entryCount: null, scoredCount: null })
-      )
+        })}
+        sourceClass={sourceOf('class-1', 'Container Novice', {
+          entryCount: null,
+          scoredCount: null,
+        })}
+        trial={{ id: 'trial-1', date: '2026-07-20', number: '1', order: 0 }}
+        timeZone="America/Chicago"
+        canManageShow
+      />
     );
     // A submenu parks pointer-events: none on its parent while open, which user-event would refuse.
     const user = userEvent.setup({ pointerEventsCheck: 0 });

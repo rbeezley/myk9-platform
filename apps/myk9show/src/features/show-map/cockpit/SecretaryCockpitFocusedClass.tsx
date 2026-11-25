@@ -1,4 +1,4 @@
-import { useId, useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -8,7 +8,6 @@ import { buildFocusedClassFacts } from './focusedClassFacts';
 
 import { CockpitActionLink } from './CockpitActionLink';
 import { ClassChecklistSection } from './ClassChecklistSection';
-import { FocusedClassFields } from './FocusedClassFields';
 import { FocusedClassRequirements } from './FocusedClassRequirements';
 import { FocusedClassActionsMenu, type FocusedClassEditAction } from './FocusedClassActionsMenu';
 import { RunOrderUndoNotice } from './RunOrderUndoNotice';
@@ -21,7 +20,7 @@ import type {
   SecretaryCockpitTrial,
 } from './secretaryCockpitTypes';
 import { FocusedClassHeader } from './FocusedClassHeader';
-import { FocusedClassHeaderToggles, FocusedClassSummaryLine } from './FocusedClassCompactBits';
+import { FocusedClassHeaderButtons, FocusedClassSummaryLine } from './FocusedClassCompactBits';
 import {
   actualTimingText,
   expectedStartValue,
@@ -52,9 +51,6 @@ export function SecretaryCockpitFocusedClass({
   onCommand,
   runOrder,
   editClass,
-  judgeControl,
-  scoringControl,
-  stewardControl,
   entryBreakdownByClassId,
   onRefreshEntries,
   putBackEntries,
@@ -78,14 +74,11 @@ export function SecretaryCockpitFocusedClass({
   onCommand: (commandId: string) => void;
   /** Run-order auto-sort for the focused class (F29b phase 2a). */
   runOrder?: SecretaryCockpitRunOrderControls | undefined;
-  /** Edit class, an Actions menu item; the cockpit owns its dialogs (MYK9-956). */
+  /**
+   * Edit class, the header's button and an Actions menu item; the cockpit owns its dialogs
+   * (MYK9-956). The panel it opens holds every class setting (MYK9-2379).
+   */
   editClass?: FocusedClassEditAction | undefined;
-  /** The Judge setting (MYK9-1323); the cockpit owns its pending assignment. Managers only. */
-  judgeControl?: ReactNode;
-  /** The Scoring switch (MYK9-1971). Managers only. */
-  scoringControl?: ReactNode;
-  /** The class's ring jobs from the volunteer list (MYK9-2328). Managers only. */
-  stewardControl?: ReactNode;
   /** Entered/pending per class, the schedule row's own count (MYK9-943); absent until entries are read. */
   entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
   /** Re-reads the page's entries after a Check-in cell write (MYK9-1797). */
@@ -95,10 +88,6 @@ export function SecretaryCockpitFocusedClass({
 }) {
   // Which class's actual-start editor is open; the header's Actual timing field and the Class started step share it.
   const [editingStart, setEditingStart] = useState<string | null>(null);
-  // Compact (pinned) only: which class's Class settings are open. Keyed by class, so a class the
-  // secretary moves to opens with them closed.
-  const [settingsFor, setSettingsFor] = useState<string | null>(null);
-  const settingsId = useId();
   if (!focused || !sourceClass || !trial) {
     return (
       <aside className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">
@@ -139,16 +128,13 @@ export function SecretaryCockpitFocusedClass({
       // The class's schedule card already says the count and the pending entries (MYK9-2143).
       showCount: !cardListed,
     });
-  // With the Judge field in the header, the facts would only repeat it. A viewer has no Judge
-  // field, so the judge stays a fact for them even beside the card.
-  const facts = factsOf(!judgeControl);
-
   // Where the header pins (from lg), a laptop's height goes to the entries (MYK9-1989): the header
-  // is one line of name and controls plus one line of values, the settings fold behind Class
-  // settings, and the entries come before the In ring tile and the checklist. Below lg nothing pins and
-  // the card keeps its full layout.
+  // is one line of name and controls plus one line of values, and the entries come before the In
+  // ring tile and the checklist. Below lg nothing pins and the card keeps its full layout.
   const compact = pinMode !== 'none';
-  const settingsOpen = !compact || settingsFor === focused.id;
+  // Class settings live in Edit class (MYK9-2379), so the header says the judge itself unless
+  // the class's card, beside it, already does.
+  const facts = factsOf(!cardListed || !canManageShow);
   const summaryParts = !compact
     ? []
     : cardListed
@@ -220,19 +206,9 @@ export function SecretaryCockpitFocusedClass({
         facts={facts.join(' · ')}
         pinMode={pinMode}
         compact={compact}
-        actions={
-          compact && (
-            <FocusedClassHeaderToggles
-              settingsOpen={settingsOpen}
-              settingsId={settingsId}
-              onToggleSettings={() => setSettingsFor(settingsOpen ? null : focused.id)}
-            />
-          )
-        }
+        actions={<FocusedClassHeaderButtons editClass={editClass} className={focused.name} />}
         summary={
-          compact && (
-            <FocusedClassSummaryLine lifecycle={focused.lifecycle.value} parts={summaryParts} />
-          )
+          <FocusedClassSummaryLine lifecycle={focused.lifecycle.value} parts={summaryParts} />
         }
         menu={
           <FocusedClassActionsMenu
@@ -247,26 +223,7 @@ export function SecretaryCockpitFocusedClass({
             editClass={editClass}
           />
         }
-      >
-        {/* Keyed by class: an open editor, its unsaved time or a pending status confirmation
-            must never carry onto the next class the secretary clicks. */}
-        <div id={settingsId} hidden={!settingsOpen}>
-          {settingsOpen && (
-            <FocusedClassFields
-              key={focused.id}
-              focused={focused}
-              sourceClass={sourceClass}
-              trial={trial}
-              timeZone={timeZone}
-              canManageShow={canManageShow}
-              judgeControl={judgeControl}
-              scoringControl={scoringControl}
-              stewardControl={stewardControl}
-              onEditActualStart={() => setEditingStart(focused.id)}
-            />
-          )}
-        </div>
-      </FocusedClassHeader>
+      />
 
       <div
         className={cn(

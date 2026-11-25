@@ -48,7 +48,6 @@ function renderFields(
     judgeControl?: React.ReactNode;
   } = {}
 ) {
-  const onEditActualStart = vi.fn();
   render(
     <FocusedClassFields
       focused={{ ...baseFocused, ...props.focused }}
@@ -57,10 +56,8 @@ function renderFields(
       timeZone="America/Chicago"
       canManageShow={props.canManageShow ?? true}
       judgeControl={props.judgeControl}
-      onEditActualStart={onEditActualStart}
     />
   );
-  return { onEditActualStart };
 }
 
 // A submenu parks pointer-events: none on its parent while open, which user-event would refuse.
@@ -73,16 +70,15 @@ describe('FocusedClassFields (MYK9-1867)', () => {
     vi.clearAllMocks();
   });
 
-  it('shows all four fields, with the judge control the cockpit supplies', () => {
+  it('shows the settings, with the judge control the cockpit supplies', () => {
     renderFields({ judgeControl: <span>Judge Judy</span> });
 
-    for (const label of ['Status', 'Judge', 'Expected start', 'Actual timing']) {
+    for (const label of ['Status', 'Judge', 'Expected start']) {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
     expect(screen.getByText('Judge Judy')).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: /^Actual timing: .*Edit actual start$/ })
-    ).toHaveTextContent('Not started');
+    // Actual timing is the checklist's Class started step, not a setting here.
+    expect(screen.queryByText('Actual timing')).toBeNull();
   });
 
   it('is read-only for someone who cannot manage the show', () => {
@@ -90,9 +86,6 @@ describe('FocusedClassFields (MYK9-1867)', () => {
 
     expect(screen.getByText('Not started', { selector: 'span.rounded-full' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Change status/ })).toBeNull();
-    expect(
-      screen.queryByRole('button', { name: /^Actual timing: .*Edit actual start$/ })
-    ).toBeNull();
     expect(screen.getByText(/9:00/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /9:00/ })).toBeNull();
   });
@@ -204,14 +197,11 @@ describe('FocusedClassFields (MYK9-1867)', () => {
     );
   });
 
-  it('names the visible status and time first, so screen readers and voice control hear them', () => {
+  it('names the visible status first, so screen readers and voice control hear it', () => {
     renderFields();
 
     expect(
       screen.getByRole('button', { name: 'Status: Not started. Change status of Container Novice' })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: 'Actual timing: Not started. Edit actual start' })
     ).toBeInTheDocument();
   });
 
@@ -224,33 +214,5 @@ describe('FocusedClassFields (MYK9-1867)', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /^Expected start: / })).toHaveFocus()
     );
-  });
-
-  it('opens the one actual-start editor from the Actual timing field', async () => {
-    const { onEditActualStart } = renderFields();
-    const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: /^Actual timing: .*Edit actual start$/ }));
-
-    expect(onEditActualStart).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not offer the actual-start editor on a cancelled class, which has none', () => {
-    renderFields({
-      focused: { lifecycle: { evidence: 'recorded', value: 'cancelled' } },
-      source: { lifecycle: 'cancelled' },
-    });
-
-    expect(
-      screen.queryByRole('button', { name: /^Actual timing: .*Edit actual start$/ })
-    ).toBeNull();
-  });
-
-  it('says a class that ran has no recorded start, and shows started and finished times', () => {
-    renderFields({
-      canManageShow: false,
-      source: { lifecycle: 'complete' },
-      focused: { actualFinish: { evidence: 'recorded', value: '2026-07-20T17:30:00.000Z' } },
-    });
-    expect(screen.getByText(/^Start not recorded · Finished 12:30/)).toBeInTheDocument();
   });
 });

@@ -1,5 +1,6 @@
 import type { ClassData } from '@/components/classes/types/classTypes';
 import type { TrialClass } from '@/components/trials/types/trial.types';
+import type { ReactNode } from 'react';
 import type { ClassStatusValue } from '@myk9/core';
 
 import type { JudgeChangeWarningProps } from '@/components/classes/JudgeChangeWarning';
@@ -19,6 +20,25 @@ export interface ClassEditPanelProps {
   mode?: 'full' | 'simple'; // 'full' for ClassData with tabs, 'simple' for TrialClass
   /** "Delete class" in the footer. Omit for a viewer who cannot delete. */
   onDelete?: EditPanelDeleteOption | undefined;
+  /**
+   * Show Desk's class settings (MYK9-2379): live-saving controls that replace the panel's own
+   * Status and Judge fields and are never part of Save Changes.
+   */
+  liveSettings?: ReactNode;
+  /** The settings hold the live Judge control, so the panel's own Judge field is hidden. */
+  liveJudge?: boolean;
+  /**
+   * The class's judge and status as they are NOW (Show Desk's live data). The class handed in is
+   * as old as the panel: a live judge change, or the class starting, while it is open must not
+   * leave the form's Judge field, the judge-change warning or the save on the old judge.
+   */
+  currentJudge?: CurrentClassJudge | undefined;
+}
+
+export interface CurrentClassJudge {
+  id: string | null;
+  name: string | null;
+  status: string | null;
 }
 
 /** The judge the edit panel opened with, for the judge-change warning (MYK9-2015). */

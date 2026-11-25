@@ -1,3 +1,6 @@
+import type { ReactNode } from 'react';
+
+import type { CurrentClassJudge } from '@/components/panels/edit/ClassEditPanel.types';
 import { SetupClassDialogs } from '@/components/shows/tabs/SetupClassDialogs';
 import { useClassRowActions } from '@/components/shows/tabs/useClassRowActions';
 import type { FocusedClassEditAction } from './FocusedClassActionsMenu';
@@ -10,8 +13,9 @@ import type { FocusedClassEditAction } from './FocusedClassActionsMenu';
  * A hook, held by the cockpit rather than the panel: the focused panel moves
  * between the inline and split layouts, which remounts it, and an
  * editor living inside it would close and lose its edits on a tablet rotation
- * (Codex review of #2691). The Edit class menu item renders in the panel; the pending
- * action and the dialogs stay with the cockpit.
+ * (Codex review of #2691). The Edit class button renders in the panel; the pending
+ * action and the dialogs stay with the cockpit. `classDialogs` takes the class settings the
+ * panel shows (MYK9-2379), for the class they belong to, and whether they hold the Judge control.
  */
 export function useFocusedClassSetupActions(showId: string) {
   const { pendingAction, setPendingAction, hydratingClassId, openClassAction } =
@@ -24,19 +28,28 @@ export function useFocusedClassSetupActions(showId: string) {
     onSelect: () => void openClassAction({ id: classId, trialId }),
   });
 
-  const classDialogs = pendingAction ? (
-    <SetupClassDialogs
-      key={pendingAction.requestId}
-      showId={showId}
-      pending={pendingAction}
-      // Tied to THIS action: a late close from an earlier one must not clear a newer one.
-      onClose={() =>
-        setPendingAction(current =>
-          current?.requestId === pendingAction.requestId ? null : current
-        )
-      }
-    />
-  ) : null;
+  const pendingClassId = pendingAction?.classSnapshot.id ?? null;
+  const classDialogs = (
+    liveSettings?: ReactNode,
+    liveJudge = false,
+    currentJudge?: CurrentClassJudge
+  ) =>
+    pendingAction ? (
+      <SetupClassDialogs
+        liveSettings={liveSettings}
+        liveJudge={liveJudge}
+        currentJudge={currentJudge}
+        key={pendingAction.requestId}
+        showId={showId}
+        pending={pendingAction}
+        // Tied to THIS action: a late close from an earlier one must not clear a newer one.
+        onClose={() =>
+          setPendingAction(current =>
+            current?.requestId === pendingAction.requestId ? null : current
+          )
+        }
+      />
+    ) : null;
 
-  return { editClassAction, classDialogs };
+  return { editClassAction, pendingClassId, classDialogs };
 }

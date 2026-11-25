@@ -45,16 +45,21 @@ async function open(
     'data-cockpit-layout',
     layout
   );
+  // The checklist folds to one line (MYK9-2380); the fixture class has no entries, so open all
+  // the steps to give the class the height a real one has.
+  const steps = page.getByRole('button', { name: 'Show all steps' });
+  await steps.click();
+  await expect(page.getByRole('button', { name: 'Hide steps' })).toBeVisible();
   return heading;
 }
 
 /**
- * From lg the pinned header is compact and the settings fold behind Class settings (MYK9-1989), so
- * the fixture's class (no entries) no longer overflows its panel. Opening them gives the class the
- * height the scroll checks below need, as a class with entries has.
+ * From lg the pinned header is one line (MYK9-1989, MYK9-2379), so the fixture's class (no entries)
+ * no longer overflows its panel. Opening Requirements gives the class the height the scroll checks
+ * below need, as a class with entries has.
  */
 async function openClassSettings(page: Page) {
-  const toggle = page.getByRole('button', { name: 'Class settings' });
+  const toggle = page.getByTestId('focused-class-requirements').getByRole('button').first();
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
 }

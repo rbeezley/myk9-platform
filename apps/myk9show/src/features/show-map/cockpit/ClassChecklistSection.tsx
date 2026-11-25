@@ -189,17 +189,12 @@ export function ClassChecklistSection({
     <>
       {items.length > 0 && (
         <section aria-labelledby="class-checklist-heading">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h3 id="class-checklist-heading" className={HEADING_CLASS}>
-              Class checklist
-            </h3>
-            <span className="text-xs font-medium text-muted-foreground">
-              {summary.done} of {summary.total} done
-              {summary.unknown > 0 ? ` · ${summary.unknown} unknown` : ''}
-            </span>
-          </div>
+          <h3 id="class-checklist-heading" className="sr-only">
+            Class checklist
+          </h3>
           <ClassStepBar
             steps={steps}
+            summary={summary}
             actionFor={actionFor}
             onPrint={reportId => setPrintIds([reportId])}
             onOpenRecords={showRecords}

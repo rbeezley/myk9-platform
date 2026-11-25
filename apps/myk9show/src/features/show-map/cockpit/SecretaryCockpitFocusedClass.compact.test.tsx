@@ -130,6 +130,26 @@ describe('SecretaryCockpitFocusedClass compact header (MYK9-1989)', () => {
     expect(screen.getByTestId('class-checklist-summary')).toBeInTheDocument();
   });
 
+  it('a newly picked class opens with its checklist steps hidden (MYK9-2380)', async () => {
+    const { user, rerender } = renderClass('panel');
+    await user.click(screen.getByRole('button', { name: 'Show all steps' }));
+    expect(screen.getByRole('button', { name: 'Hide steps' })).toBeInTheDocument();
+    rerender(
+      <SecretaryCockpitFocusedClass
+        showId="show-1"
+        focused={{ ...focused, id: 'class-2', name: 'Interior Novice' }}
+        sourceClass={{ ...sourceClass, id: 'class-2', name: 'Interior Novice' }}
+        trial={{ id: 'trial-1', date: '2026-07-20', number: '1', order: 0 }}
+        attention={[]}
+        timeZone={TZ}
+        pinMode="panel"
+        canManageShow
+        onCommand={vi.fn()}
+      />
+    );
+    expect(screen.getByRole('button', { name: 'Show all steps' })).toBeInTheDocument();
+  });
+
   it('a newly picked class opens with its settings closed', async () => {
     const { user, rerender } = renderClass('panel');
     await user.click(screen.getByRole('button', { name: 'Class settings' }));

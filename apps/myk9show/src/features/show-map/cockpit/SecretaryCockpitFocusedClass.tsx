@@ -191,9 +191,11 @@ export function SecretaryCockpitFocusedClass({
     <RunOrderUndoNotice classId={focused.id} runOrder={runOrder} />
   );
   const work = (
-    <div className="space-y-5 outline-none" data-testid="focused-class-work">
+    <div className="space-y-5" data-testid="focused-class-work">
       <InRingTile entries={focused.entries} unread={unread} />
       <ClassChecklistSection
+        // Keyed by class: the "Show all steps" state belongs to one class (MYK9-2380).
+        key={focused.id}
         showId={showId}
         sourceClass={sourceClass}
         paperwork={focused.paperwork}

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { fromPartial } from '@total-typescript/shoehorn';
 
@@ -252,6 +253,58 @@ describe('class step bar (MYK9-1783)', () => {
       expect(screen.getByLabelText('Start time for Novice Container')).toHaveFocus();
       await user.click(screen.getByRole('button', { name: 'Cancel' }));
       expect(action).toHaveFocus();
+    });
+
+    it('opens the Next print step from the line for that one report', async () => {
+      const { user } = renderBar({
+        collapsed: true,
+        source: {
+          ...sourceClass,
+          lifecycle: 'complete',
+          scoredCount: 4,
+          actualStart: '2026-07-20T14:00:00.000Z',
+        },
+        paperwork: printable.map(row =>
+          row.reportId === 'check-in-sheet' || row.reportId === 'scoresheet'
+            ? { ...row, state: 'current' as const }
+            : row
+        ),
+      });
+      expect(within(summary()).getByText('Next: Preliminary results')).toBeVisible();
+      await user.click(
+        within(summary()).getByRole('button', { name: 'Open print preview: Preliminary results' })
+      );
+      expect(await screen.findByText('Print Preliminary results')).toBeInTheDocument();
+      expect(screen.queryByText('Print Result labels')).toBeNull();
+    });
+
+    it('returns focus to Show all steps when an editor opened elsewhere closes and no step holds it', async () => {
+      function Harness() {
+        const [editing, setEditing] = useState<string | null>(null);
+        return (
+          <>
+            <button type="button" onClick={() => setEditing('c1')}>
+              Open start editor
+            </button>
+            <ClassChecklistSection
+              showId="show-1"
+              sourceClass={sourceClass}
+              paperwork={printable}
+              timeZone="America/New_York"
+              onCommand={vi.fn()}
+              printTrackingInUse={false}
+              canManageShow
+              trialDate="2026-07-20"
+              editingStart={editing}
+              onEditingStartChange={setEditing}
+            />
+          </>
+        );
+      }
+      const { user } = render(<Harness />);
+      await user.click(screen.getByRole('button', { name: 'Open start editor' }));
+      await user.click(screen.getByRole('button', { name: 'Cancel' }));
+      expect(screen.getByRole('button', { name: 'Show all steps' })).toHaveFocus();
     });
 
     it('says all done and offers no Next action when every step is done', () => {

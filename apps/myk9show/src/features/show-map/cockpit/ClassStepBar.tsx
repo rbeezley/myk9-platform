@@ -76,6 +76,7 @@ export function ClassStepBar({
   recordsOpen,
   onEditStart,
   editorTriggerRef,
+  toggleRef,
 }: {
   steps: readonly ClassStep[];
   /** The checklist items' count (the Print paperwork card stands for several of them). */
@@ -90,6 +91,8 @@ export function ClassStepBar({
   onEditStart: () => void;
   /** Lands on the editor step's button so closing the editor returns focus to it. */
   editorTriggerRef?: Ref<HTMLButtonElement>;
+  /** The Show all steps toggle; focus falls back to it when no step holds the editor trigger. */
+  toggleRef?: Ref<HTMLButtonElement>;
 }) {
   const [expanded, setExpanded] = useState(false);
   const listId = recordsId + '-steps';
@@ -162,6 +165,7 @@ export function ClassStepBar({
           variant="ghost"
           size="sm"
           className="ml-auto min-h-11 gap-1.5 px-2.5"
+          ref={toggleRef}
           aria-expanded={expanded}
           aria-controls={listId}
           onClick={() => setExpanded(open => !open)}

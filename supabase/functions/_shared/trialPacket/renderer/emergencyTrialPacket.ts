@@ -90,6 +90,15 @@ export function compareEntries(a: PacketReportEntry, b: PacketReportEntry): numb
   return runOrderA - runOrderB || compareArmbands(a.armband, b.armband) || compareText(a.id, b.id);
 }
 
+/**
+ * The check-in sheet's order (MYK9-2387): every dog that runs, in `compareEntries` order, then
+ * every dog that will not (Pending, Withdrawn, Pulled, Absent) in the same order. The catalog and
+ * the print fingerprint's scoresheet use `compareEntries` alone.
+ */
+export function compareCheckInEntries(a: PacketReportEntry, b: PacketReportEntry): number {
+  return Number(!!a.notRunningLabel) - Number(!!b.notRunningLabel) || compareEntries(a, b);
+}
+
 function chunks<T>(items: T[], size: number): T[][] {
   if (items.length === 0) return [[]];
   const result: T[][] = [];
@@ -274,7 +283,10 @@ export function buildEmergencyPacketModel(
   const sortedTrials = [...input.trials].sort(compareTrials);
   const sortedClasses = [...input.classes].sort(compareClasses);
   const sortedEntries = [...input.entries].sort(compareEntries);
-  const positions = sheetPositions(sortedEntries);
+  // The catalog: as before MYK9-2387, runners and Pending dogs in `compareEntries` order, each
+  // numbered by its stored run order.
+  const inCatalog = (entry: PacketReportEntry) => !entry.omitFromCatalog;
+  const catalogPositions = sheetPositions(sortedEntries.filter(inCatalog));
   const trialSections = sortedTrials.map(trial => ({
     ...trial,
     classes: sortedClasses.filter(classItem => classItem.trialId === trial.id),
@@ -287,7 +299,8 @@ export function buildEmergencyPacketModel(
     const trialClassIds = new Set(trial.classes.map(classItem => classItem.id));
     const trialEntries = sortedEntries.filter(
       entry =>
-        entry.trialId === trial.id || (entry.classId ? trialClassIds.has(entry.classId) : false)
+        inCatalog(entry) &&
+        (entry.trialId === trial.id || (entry.classId ? trialClassIds.has(entry.classId) : false))
     );
     const context: EmergencyPacketPageContext = {
       showName: input.show.name,
@@ -305,13 +318,18 @@ export function buildEmergencyPacketModel(
           context,
           entries,
           snapshotMarker,
-          positions
+          catalogPositions
         )
       );
     });
 
     for (const classItem of trial.classes) {
-      const classEntries = sortedEntries.filter(entry => entry.classId === classItem.id);
+      // MYK9-2387: the check-in sheet lists every entry, runners first; only runners are numbered
+      // and only runners reach the scoresheet.
+      const classEntries = sortedEntries
+        .filter(entry => entry.classId === classItem.id)
+        .sort(compareCheckInEntries);
+      const checkInPositions = sheetPositions(classEntries.filter(entry => !entry.notRunningLabel));
       const classContext: EmergencyPacketPageContext = {
         ...context,
         ...printedClassHeader(classItem, trial),
@@ -327,7 +345,7 @@ export function buildEmergencyPacketModel(
             classContext,
             entries,
             snapshotMarker,
-            positions
+            checkInPositions
           )
         );
       });
@@ -337,21 +355,26 @@ export function buildEmergencyPacketModel(
       // reason-list lookup nothing ever reads. Keep the `(n/m)` suffix intact:
       // pagination identifies a continuation page by matching it.
       const scoresheetTitle = `${resolveScoresheetConfig(classContext.registryId).orgTitle} Scoresheet`;
-      chunksWithFirst(classEntries, SCORE_ROWS_FIRST_PAGE, SCORE_ROWS_CONTINUATION).forEach(
-        (entries, index, pages) => {
-          const suffix = pages.length > 1 ? ` (${index + 1}/${pages.length})` : '';
-          pendingPages.push(
-            page(
-              input,
-              'score-recording',
-              `${scoresheetTitle}${suffix}`,
-              classContext,
-              entries,
-              snapshotMarker
-            )
-          );
-        }
-      );
+      // MYK9-2387: the scoresheet lists only the dogs that run.
+      const runningEntries = classEntries.filter(entry => !entry.notRunningLabel);
+      // A class that lists dogs but runs none still gets one page, which says so, rather than none.
+      const scorePages =
+        runningEntries.length === 0 && classEntries.length > 0
+          ? [[] as PacketReportEntry[]]
+          : chunksWithFirst(runningEntries, SCORE_ROWS_FIRST_PAGE, SCORE_ROWS_CONTINUATION);
+      scorePages.forEach((entries, index, pages) => {
+        const suffix = pages.length > 1 ? ` (${index + 1}/${pages.length})` : '';
+        pendingPages.push(
+          page(
+            input,
+            'score-recording',
+            `${scoresheetTitle}${suffix}`,
+            classContext,
+            entries,
+            snapshotMarker
+          )
+        );
+      });
     }
 
     pendingPages.push(

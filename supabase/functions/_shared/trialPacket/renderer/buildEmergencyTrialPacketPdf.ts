@@ -542,6 +542,17 @@ function renderCheckIn(doc: jsPDF, page: EmergencyPacketPage): void {
     }
     doc.setDrawColor(150, 150, 150);
     for (const column of CHECK_IN_COLUMNS) {
+      if (entry.notRunningLabel && column.key === 'order') continue;
+      if (entry.notRunningLabel && column.key === 'gate') {
+        // MYK9-2387: a dog that will not run prints its status across the Gate and Order cells
+        // (merged), so the run order stays blank and the row cannot be mistaken for a runner.
+        const merged = column.width + (CHECK_IN_COLUMNS[1]?.width ?? 0);
+        doc.rect(column.x, y, merged, rowHeight);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(CHECK_IN_FONT_PT);
+        doc.text(fitTextToWidth(doc, entry.notRunningLabel, merged - 3), column.x + 1.5, y + 6);
+        continue;
+      }
       doc.rect(column.x, y, column.width, rowHeight);
       // The armband is the number a judge looks for across the room, so it
       // gets its own larger bold size. Its baseline sits lower to stay centred.
@@ -774,6 +785,8 @@ function renderTimeRegion(doc: jsPDF, areaCount: number, y0: number): void {
   });
 }
 
+const NO_RUNNING_DOGS_MESSAGE = 'No dogs are running in this class yet.';
+
 function renderScoreRecording(doc: jsPDF, page: EmergencyPacketPage): void {
   const y0Title = addTitle(doc, page);
   const config = resolveScoresheetConfig(page.context.registryId);
@@ -782,6 +795,13 @@ function renderScoreRecording(doc: jsPDF, page: EmergencyPacketPage): void {
   // `resolveAreaCount` in `buildEmergencyPacketModel`.
   const areaCount = page.context.areaCount ?? 1;
   let y = y0Title;
+  if (page.entries.length === 0) {
+    // MYK9-2387: every dog in the class sits out, so the sheet says so instead of printing blank.
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(12);
+    doc.text(NO_RUNNING_DOGS_MESSAGE, LEFT, y + 6);
+    return;
+  }
   for (const entry of page.entries) {
     doc.setDrawColor(90, 90, 90);
     doc.rect(LEFT, y, RIGHT - LEFT, SCORE_BLOCK_HEIGHT_MM);

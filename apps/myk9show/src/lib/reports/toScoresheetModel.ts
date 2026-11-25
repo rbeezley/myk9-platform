@@ -109,17 +109,23 @@ function reorderPagesByArmband(model: EmergencyPacketModel): EmergencyPacketMode
       j += 1;
     }
     const run = pages.slice(i, j);
+    // A dog that will not run (MYK9-2387) stays below every runner, in armband order, with no order.
     const combined = run
       .flatMap(page => page.entries)
-      .sort((a, b) => compareArmbands(a.armband, b.armband));
+      .sort(
+        (a, b) =>
+          Number(!!a.notRunningLabel) - Number(!!b.notRunningLabel) ||
+          compareArmbands(a.armband, b.armband)
+      );
     // "Order" is the row's position on the sheet (MYK9-992), so it follows the
     // final sort, counted across the page boundaries of this class's run. A dog
     // with no order assigned stays blank, as the builder printed it.
-    const sheetOrder = combined.map((entry, index) =>
-      entry.runOrder == null
-        ? { ...entry, runOrderDisplay: '' }
-        : { ...entry, runOrderDisplay: String(index + 1) }
-    );
+    let position = 0;
+    const sheetOrder = combined.map(entry => {
+      if (entry.notRunningLabel) return { ...entry, runOrderDisplay: '' };
+      position += 1;
+      return { ...entry, runOrderDisplay: entry.runOrder == null ? '' : String(position) };
+    });
     let cursor = 0;
     for (let k = 0; k < run.length; k += 1) {
       const count = run[k].entries.length;

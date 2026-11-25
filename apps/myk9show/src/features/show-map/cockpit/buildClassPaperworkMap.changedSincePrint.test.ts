@@ -178,9 +178,9 @@ describe('classes read changed only when their paperwork changed (MYK9-2074)', (
     );
   });
 
-  it('offers no sheet for a class with no printable dogs and no print', () => {
+  it('offers both sheets for a class whose dogs all sit out: the scoresheet is the one page saying so (MYK9-2387)', () => {
     const gone = [juni, hazel].map(item => ({ ...item, entry_status: 'withdrawn' }) as DbEntry);
-    expect(stateOf([...gone, moss, pip], [])['class-a']).toEqual([undefined, undefined]);
+    expect(stateOf([...gone, moss, pip], [])['class-a']).toEqual(['unconfirmed', 'unconfirmed']);
   });
 
   it('flips the class a dog was withdrawn from, and no other', () => {

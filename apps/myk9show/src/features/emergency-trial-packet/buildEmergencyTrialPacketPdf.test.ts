@@ -201,7 +201,7 @@ async function extractPdfTextForPage(bytes: Uint8Array, pageIndex: number): Prom
  */
 function renderPageOfKind(
   kind: EmergencyPacketPageKind,
-  entryOverrides: Partial<ReportEntry> = {},
+  entryOverrides: Partial<ReportEntry> & { notRunningLabel?: string } = {},
   classOverrides: Partial<EmergencyPacketClass> = {}
 ): { doc: Uint8Array; texts: string[] } {
   const input: EmergencyPacketInput = structuredClone(fixture) as EmergencyPacketInput;
@@ -328,6 +328,24 @@ function checkInColumnGeometry() {
 }
 
 describe('buildEmergencyTrialPacketPdf', () => {
+  it('prints a dog that will not run with its status and no order on the check-in sheet (MYK9-2387)', () => {
+    const { texts } = renderPageOfKind('check-in', {
+      armband: '301',
+      runOrder: null,
+      notRunningLabel: 'Withdrawn',
+    });
+    expect(texts).toContain('Withdrawn');
+    expect(texts).toContain('301');
+  });
+
+  it('says no dogs are running on the scoresheet of a class where every dog sits out (MYK9-2387)', () => {
+    const { texts } = renderPageOfKind('score-recording', {
+      runOrder: null,
+      notRunningLabel: 'Pending',
+    });
+    expect(texts).toContain('No dogs are running in this class yet.');
+  });
+
   it.each(['', 'TBD'])(
     'prints Judge to be announced, not TBD, for a class with judge %j (MYK9-2377)',
     judgeName => {

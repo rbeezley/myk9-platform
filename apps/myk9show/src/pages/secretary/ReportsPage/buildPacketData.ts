@@ -2,7 +2,11 @@ import { formatTrialLabel } from '@myk9/core';
 import { formatRingLabel } from '@/utils/ringLabel';
 import { resolveClassJudgeName } from '@/utils/classJudgeDisplay';
 import { resolveClassSection } from '@/services/entryDisplay/entryDisplaySelectors';
-import { isEntryOnRunSheet } from '@/lib/reports/runSheetEntries';
+import {
+  isEntryListedOnCheckIn,
+  isOmittedFromCatalog,
+  notRunningStatusLabel,
+} from '@/lib/reports/runSheetEntries';
 import type { ReportDbEntry, ReportScope } from '@/lib/reports/types';
 import type { DbClass, DbTrial } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
@@ -66,8 +70,11 @@ export function buildPacketClasses(
 
 /**
  * The packet's entry list: the rows the renderer prints. MYK9-1162: never an entry still
- * awaiting a registration number. MYK9-2082: nor one that will not run in its class (the source
- * of a move-up, withdrawn, declined, scratched or pulled).
+ * awaiting a registration number. MYK9-2082: nor the source of a move-up or a declined entry.
+ * MYK9-2387: every other entry is listed; one that will not run (Pending, Withdrawn, Pulled,
+ * Absent) carries its status label, so the renderer prints it on the check-in sheet below the
+ * runners and leaves it off the scoresheet. Its stored run order is kept for the catalog; the
+ * sheets ignore it.
  */
 export function buildPacketEntries(
   rows: readonly ReportDbEntry[],
@@ -76,9 +83,17 @@ export function buildPacketEntries(
   assignedJudges: ReadonlyArray<ShowJudgeAssignment> = []
 ): PacketData['entries'] {
   const scope: ReportScope = { kind: 'show', showId: '' };
-  return mapScopedReportEntries([...rows], [...trials], [...classes], scope, assignedJudges).filter(
-    entry => !entry.awaitingRegistrationNumber && isEntryOnRunSheet(entry)
-  );
+  return mapScopedReportEntries([...rows], [...trials], [...classes], scope, assignedJudges)
+    .filter(entry => !entry.awaitingRegistrationNumber && isEntryListedOnCheckIn(entry))
+    .map(entry => {
+      const notRunningLabel = notRunningStatusLabel(entry);
+      if (!notRunningLabel) return entry;
+      return {
+        ...entry,
+        notRunningLabel,
+        ...(isOmittedFromCatalog(entry) ? { omitFromCatalog: true } : {}),
+      };
+    });
 }
 
 export function buildEmergencyPacketData(input: {

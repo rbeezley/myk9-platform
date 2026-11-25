@@ -17,6 +17,11 @@ import { isUnsetPacketJudge } from './printedClassHeader.ts';
 /** What one class contributes to a judge's packet, besides the class itself. */
 export interface PacketClassSheets {
   dogCount: number;
+  /**
+   * Dogs the check-in sheet lists, running or not. A class that lists none is left out of the
+   * packet; one whose dogs all sit out (Pending, Withdrawn) keeps its check-in sheet (MYK9-2387).
+   */
+  listedCount: number;
   /** Armbands in the order the dogs run: the order the scoresheet prints them. */
   runOrder: string[];
   checkInPages: number;
@@ -87,6 +92,7 @@ export function summarizeClassSheets(model: EmergencyPacketModel): PacketClassSh
     // The sheets leave off a moved-up source, a withdrawn or pulled dog (MYK9-2082), so the
     // count comes from what prints, not from the class's raw entries.
     dogCount: scoreSheets.reduce((sum, page) => sum + page.entries.length, 0),
+    listedCount: checkIn.reduce((sum, page) => sum + page.entries.length, 0),
     runOrder: scoreSheets.flatMap(page => page.entries.map(entry => entry.armband ?? '')),
     checkInPages: checkIn.length,
     scoreSheetPages: scoreSheets.length,
@@ -155,7 +161,7 @@ export function collateJudgePackets<T = object>(
   let emptyClassCount = 0;
   for (const classItem of trialClasses) {
     const sheets = options.sheetsFor(classItem);
-    if (!sheets || sheets.dogCount === 0) {
+    if (!sheets || sheets.listedCount === 0) {
       emptyClassCount += 1;
       continue;
     }

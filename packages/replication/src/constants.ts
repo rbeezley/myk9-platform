@@ -20,14 +20,6 @@ export const DB_VERSION = 10;
 /** Total number of tables managed by replication system */
 export const TOTAL_REPLICATED_TABLES = 16;
 
-// ==================== Upload Lock ====================
-
-/** Longest a restore waits for the cross-tab upload lock, so a hung flush cannot wedge startup. */
-export const RESTORE_LOCK_TIMEOUT_MS = 15_000;
-
-/** Delay before a restore that timed out on the upload lock tries again. */
-export const RESTORE_RETRY_DELAY_MS = 5_000;
-
 // ==================== Batch Operations ====================
 
 /** Default chunk size for batch operations */
@@ -93,14 +85,6 @@ export const INIT_RETRY_DELAY_MS = 50;
 
 /** Timeout for getAll() operations (milliseconds) */
 export const GET_ALL_TIMEOUT_MS = 15000; // 15 seconds
-
-/** Timeout for deleteDB during recovery (milliseconds) */
-export const DELETE_DB_TIMEOUT_MS = 3000; // 3 seconds
-
-/** Timeout for the best-effort mutation snapshot taken before recovery deletes
- *  the DB. Kept short so a wedged IndexedDB can't block recovery from proceeding
- *  (the continuous localStorage backup is the fallback). */
-export const RECOVERY_SNAPSHOT_TIMEOUT_MS = 2000; // 2 seconds
 
 /** Number of consecutive failures before circuit breaker trips */
 export const CIRCUIT_BREAKER_THRESHOLD = 3;

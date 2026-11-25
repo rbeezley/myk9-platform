@@ -627,7 +627,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
     if (isAuthenticated && isOnline) void adoptHeldRingsideScoresForLiveClaim();
   }, [isAuthenticated, isOnline]);
 
-  // Sync when coming back online + restore localStorage backup
+  // Sync when coming back online
   useEffect(() => {
     if (syncOnReconnect) {
       if (!isOnline) {
@@ -636,11 +636,8 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         wasOffline.current = false;
         // MYK9-1301: events may have been missed while offline, so the next pass counts.
         markRealtimeReconnected();
-        logger.info('Back online - restoring mutations and triggering sync', 'replication');
-        const timer = setTimeout(async () => {
-          await mutationManager.restoreMutationsFromLocalStorage();
-          triggerSyncRef.current?.();
-        }, 0);
+        logger.info('Back online - triggering sync', 'replication');
+        const timer = setTimeout(() => triggerSyncRef.current?.(), 0);
         return () => clearTimeout(timer);
       }
     }
@@ -659,7 +656,6 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       void requestPersistentStorage().then(status =>
         logger.info('Persistent storage status', 'replication', { status })
       );
-      await mutationManager.restoreMutationsFromLocalStorage();
       const pendingCount = await mutationManager.getPendingCount();
       if (pendingCount > 0) {
         logger.info('Startup: flushing pending mutations', 'replication', { pendingCount });
@@ -711,15 +707,8 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       const { reason } = (event as CustomEvent<{ reason: string }>).detail;
       logger.warn('IndexedDB recovery triggered', 'replication', { reason });
       notifications.info("Getting this device's show data back. This can take a moment.");
-      // The circuit breaker deleted and recreated the DB. Restore pending +
-      // failed mutations from the localStorage backup BEFORE the download sync,
-      // so unsynced scores survive the wipe instead of being silently lost.
-      void mutationManager
-        .restoreMutationsFromLocalStorage()
-        .catch(err =>
-          logger.error('Failed to restore mutations after recovery', 'replication', {}, err)
-        )
-        .finally(() => triggerSyncRef.current?.());
+      // The circuit breaker reopened the DB; the queued scores are still in it.
+      triggerSyncRef.current?.();
     };
     window.addEventListener('replication:recovery', handleRecovery);
     return () => window.removeEventListener('replication:recovery', handleRecovery);

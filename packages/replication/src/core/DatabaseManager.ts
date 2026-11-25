@@ -17,8 +17,6 @@ import {
   DB_VERSION,
   DB_INIT_TIMEOUT_MS,
   INIT_RETRY_DELAY_MS,
-  DELETE_DB_TIMEOUT_MS,
-  RECOVERY_SNAPSHOT_TIMEOUT_MS,
   CIRCUIT_BREAKER_THRESHOLD,
 } from '../constants';
 import { withTimeout } from '../mutation-utils';
@@ -29,8 +27,6 @@ import {
   latchStaleSchema,
   resetStaleSchemaLatch,
 } from './staleSchema';
-import { upsertJournalEntries } from '../mutation-backup';
-import type { PendingMutation } from '../types';
 
 /**
  * Object store names for the replication system
@@ -304,7 +300,7 @@ export class DatabaseManager {
         db.close();
         sharedDB = null;
         dbInitPromise = null;
-        // newVersion === null is a deleteDB (another tab's recovery): reconnect
+        // newVersion === null is a deleteDB (another tab clearing a corrupted DB): reconnect
         // on the next call. A number is a newer build upgrading: this build is stale.
         if (event.newVersion !== null) latchStaleSchema('version-change');
       };
@@ -532,59 +528,19 @@ export class DatabaseManager {
   }
 
   /**
-   * Auto-recover: force-close, nuke IndexedDB, re-open, emit event
+   * Auto-recover: force-close, re-open, emit event. Never deletes the database:
+   * it holds the only copy of the queued scores (MYK9-2360).
    */
   private async recover(): Promise<void> {
     // MYK9-1663: the newer build owns this database and its queued scores.
     if (getStaleSchemaLatch()) {
-      this.logger.warn(`[DatabaseManager] Stale schema latched — refusing to delete the database`);
+      this.logger.warn(`[DatabaseManager] Stale schema latched — refusing to reopen the database`);
       return;
     }
     if (this.isRecovering) return;
     this.isRecovering = true;
 
     this.logger.warn(`[DatabaseManager] Starting auto-recovery...`);
-
-    // Snapshot pending + failed mutations to localStorage BEFORE we delete the
-    // DB, so a circuit-breaker wipe cannot destroy unsynced or dead-lettered
-    // scores. Best-effort: the DB may already be failing, so any read error is
-    // swallowed — the continuous backup written on every mutation change is the
-    // primary safety net; this is belt-and-suspenders for the just-changed case.
-    // The matching restore runs after re-open via the 'replication:recovery'
-    // event handler calling restoreMutationsFromLocalStorage().
-    if (sharedDB && typeof window !== 'undefined') {
-      try {
-        // Time-box the reads: recover() runs precisely when IndexedDB may be
-        // wedged, and an un-bounded getAll could hang forever — blocking the
-        // delete/reopen below and the recovery event, leaving the app stuck. On
-        // timeout we skip the snapshot and proceed; the continuous backup written
-        // on every mutation change is the fallback.
-        const [pending, failed] = await withTimeout(
-          Promise.all([
-            sharedDB.getAll(REPLICATION_STORES.PENDING_MUTATIONS),
-            sharedDB.getAll(REPLICATION_STORES.FAILED_MUTATIONS),
-          ]),
-          RECOVERY_SNAPSHOT_TIMEOUT_MS,
-          'recovery-snapshot'
-        );
-        // Add to the journal, never replace it (MYK9-2360). The DB is failing
-        // here, so getAll could return a truncated-but-not-throwing partial set;
-        // upserting by id can only add what it read, never shrink the backup.
-        const snapshot = [...pending, ...failed] as PendingMutation[];
-        if (snapshot.length > 0) {
-          upsertJournalEntries(localStorage, snapshot);
-          this.logger.log(
-            `[DatabaseManager] Snapshotted ${snapshot.length} mutation(s) before recovery ` +
-              `(${pending.length} pending + ${failed.length} failed, added to the journal)`
-          );
-        }
-      } catch (snapshotError) {
-        this.logger.warn(
-          `[DatabaseManager] Could not snapshot mutations before recovery (continuous backup still applies)`,
-          snapshotError
-        );
-      }
-    }
 
     if (sharedDB) {
       try {
@@ -599,16 +555,6 @@ export class DatabaseManager {
     dbInitInProgress = false;
     tableInitQueue = Promise.resolve();
     tablesInitialized = 0;
-
-    // Short timeout — deleteDB hangs when the DB is locked
-    try {
-      await withTimeout(deleteDB(this.dbName), DELETE_DB_TIMEOUT_MS, 'deleteDB');
-      this.logger.log(`[DatabaseManager] IndexedDB deleted successfully`);
-    } catch {
-      this.logger.warn(
-        `[DatabaseManager] deleteDB timed out or failed — proceeding without deletion`
-      );
-    }
 
     try {
       dbInitPromise = this.openDatabaseWithTimeout();

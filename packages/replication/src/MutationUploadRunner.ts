@@ -1,4 +1,3 @@
-import type { IDBPDatabase } from 'idb';
 import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import type { Logger } from './dependencies';
 import { sendAndAcknowledge } from './mutation-send-and-ack';
@@ -58,7 +57,6 @@ export class MutationUploadRunner {
     private readonly retryBackoffBase: number,
     private readonly maxOccAttempts: number,
     private readonly queueStore: MutationQueueStore,
-    private readonly writeBackup: () => Promise<void>,
     private readonly getCurrentUploadContext: () => Promise<MutationUploadAuthContext>,
     private readonly requestRowRefetch?: (tableName: string, rowId: string) => unknown,
     private readonly writtenOverlays?: WrittenFieldOverlayRegistry,
@@ -66,15 +64,10 @@ export class MutationUploadRunner {
     private readonly checkConnectivity?: () => Promise<boolean>,
     /**
      * The owner's upload entry point. Every self-triggered upload (debounce,
-     * backoff retry, follow-up) goes through it so the owner's in-flight and
-     * restore guards are honoured; defaults to this runner's own pass.
+     * backoff retry, follow-up) goes through it so the owner's in-flight
+     * guard is honoured; defaults to this runner's own pass.
      */
-    requestUpload?: () => Promise<SyncResult[]>,
-    /**
-     * Told which queue the pass read (and from which database), so its backup
-     * checkpoints remove only the journal entries of rows it saw (MYK9-2360).
-     */
-    private readonly onQueueRead?: (db: IDBPDatabase, ids: readonly string[]) => void
+    requestUpload?: () => Promise<SyncResult[]>
   ) {
     this.requestUpload = requestUpload ?? (() => this.uploadPendingMutations());
   }
@@ -169,11 +162,6 @@ export class MutationUploadRunner {
     return this.uploadLock.run(work);
   }
 
-  /** `runExclusive` that gives up after `timeoutMs` without running `work`. */
-  runExclusiveWithin<R>(work: () => Promise<R>, timeoutMs: number) {
-    return this.uploadLock.runWithin(work, timeoutMs);
-  }
-
   // eslint-disable-next-line complexity -- branch order is part of queue correctness
   private async runUploadPass(signal?: AbortSignal): Promise<SyncResult[]> {
     // Aborted before the pass could start (or while it waited for the lock):
@@ -196,10 +184,6 @@ export class MutationUploadRunner {
       const passAuthUserId = (await this.getCurrentUploadContext()).authUserId;
       const db = await databaseManager.getDatabase('MutationManager');
       const pending = await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
-      this.onQueueRead?.(
-        db,
-        (pending as PendingMutation[]).map(mutation => mutation.id)
-      );
 
       if (pending.length === 0) {
         this.logger.log('[MutationManager] No pending mutations to upload');
@@ -342,21 +326,8 @@ export class MutationUploadRunner {
             signal,
           });
 
-          // Remove the completed row before the pass-level backup. A concurrent
-          // startup restore can read localStorage while this upload is in flight;
-          // backing up the still-pending row first would let that restore put a
-          // successfully uploaded mutation back after this delete (a zombie
-          // queue item that replays or remains stuck on mobile reloads).
           await db.delete(REPLICATION_STORES.PENDING_MUTATIONS, uploadedMutation.id);
           uploadedMutationIds.add(uploadedMutation.id);
-
-          // Back up each successful delete/version bump so a crash before the
-          // pass-level backup cannot replay an already-uploaded mutation.
-          try {
-            await this.writeBackup();
-          } catch (err) {
-            this.logger.warn('[MutationManager] Per-mutation backup failed:', err);
-          }
 
           uploadedMutations.push(uploadEvents.toUploadedMutation(uploadedMutation));
           results.push({
@@ -503,15 +474,6 @@ export class MutationUploadRunner {
       mutationOwner.warnIfUploadStalled(this.logger, skipped, pending.length, results.length);
 
       uploadEvents.notifyUserOfSyncFailure(this.logger, failedMutations);
-
-      // Persist the post-upload queue immediately. A debounced backup here can
-      // leave localStorage holding already-uploaded mutations if the page
-      // navigates before the timer fires, causing duplicate replays on restore.
-      try {
-        await this.writeBackup();
-      } catch (err) {
-        this.logger.warn('[MutationManager] Post-upload backup failed:', err);
-      }
 
       // Self-schedule a retry pass so backoff-skipped mutations don't sit idle
       // when no other activity triggers the upload debounce timer.

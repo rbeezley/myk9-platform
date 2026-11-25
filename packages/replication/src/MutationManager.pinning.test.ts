@@ -5,7 +5,6 @@ import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import type { Logger } from './dependencies';
 import { MutationManager } from './MutationManager';
 import { createMutationManagerTestDb } from './test-utils/createMutationManagerTestDb';
-import { journalIds } from './test-utils/memoryStorage';
 import type { PendingMutation } from './types';
 
 const TEST_DB_NAME = 'test-mutation-manager-pinning-db';
@@ -230,25 +229,6 @@ describe('MutationManager contract pins', () => {
     manager.requestUpload();
     await vi.advanceTimersByTimeAsync(200);
     expect(await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS)).toHaveLength(0);
-  });
-
-  it('backs up a newly queued mutation together with existing failed work', async () => {
-    await db.put(
-      REPLICATION_STORES.FAILED_MUTATIONS,
-      mutation({ id: 'failed-1', status: 'failed', failedAt: Date.now() })
-    );
-    const queuedId = await manager.queueMutation(
-      'entries',
-      'UPDATE',
-      'entry-2',
-      { id: 'entry-2' },
-      undefined,
-      undefined,
-      undefined,
-      false
-    );
-
-    expect(journalIds(localStorageValues).sort()).toEqual(['failed-1', queuedId].sort());
   });
 
   it('dispatches sync-failed with the permanent failure count', async () => {

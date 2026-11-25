@@ -280,6 +280,28 @@ describe('AtShowDogPage', () => {
     resultsReleased: false,
   });
 
+  it('shows the UKC element time beside the search time, and not when absent', () => {
+    mocks.dogs = [
+      dog({
+        key: 'd1',
+        dogName: 'Zip',
+        entries: [
+          {
+            ...classEntry('e1', 'checked-in'),
+            isScored: true,
+            resultText: 'Q',
+            searchTime: '62.05',
+            elementTime: '30.1',
+          },
+          { ...classEntry('e2', 'checked-in'), isScored: true, resultText: 'Q', searchTime: '40' },
+        ],
+      }),
+    ];
+    renderRoutes('/at-show/s1/dogs/d1');
+    expect(screen.getByText(/Time 62.05 · Element 30.1/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Element/)).toHaveLength(1);
+  });
+
   it('offers no bulk check-in control on the dog page', () => {
     mocks.dogs = [
       dog({

@@ -34,6 +34,8 @@ export default defineConfig({
       'supabase/functions/_shared/*.test.ts',
       // MYK9-2170: the payout run's per-show flow with the transfer calls observed.
       'supabase/functions/cron-process-payouts/*.test.ts',
+      // MYK9-2344: the plan-upgrade ownership check, scoped by Stripe mode.
+      'supabase/functions/stripe-upgrade-subscription/*.test.ts',
       // Same, but for the askq tool layer, which lives in the repo-root
       // `supabase/` (not under apps/myk9show). Scoped to askq/ only — sibling
       // `_shared/http` modules use Deno-only `npm:` imports vitest can't load.

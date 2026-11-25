@@ -2,6 +2,8 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { parsePremiumPriceIds } from '../_shared/premiumPrices.ts';
+import { requireStripeLivemode } from '../_shared/stripeMode.ts';
+import { verifySubscriptionOwnership } from './subscriptionOwnership.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -15,6 +17,8 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 const stripe = new Stripe(stripeSecret, {
   appInfo: { name: 'myK9Show', version: '1.0.0' },
 });
+// Fails closed at boot on a key whose mode is unknown (MYK9-2187).
+const stripeLivemode = requireStripeLivemode(stripeSecret);
 
 // CORS configuration — same origins as stripe-checkout
 const ALLOWED_ORIGINS = [
@@ -111,37 +115,15 @@ Deno.serve(async req => {
       return corsResponse(corsHeaders, { error: 'Invalid plan' }, 400);
     }
 
-    // Look up subscription and verify ownership
-    // Join: stripe_subscriptions → stripe_customers → people → auth_user_id
-    const { data: sub, error: subError } = await supabase
-      .from('stripe_subscriptions')
-      .select('id, customer_id')
-      .eq('stripe_subscription_id', subscriptionId)
-      .single();
+    // Look up subscription and verify ownership, scoped to this key's Stripe mode
+    const ownership = await verifySubscriptionOwnership(supabase, {
+      subscriptionId,
+      authUserId: user.id,
+      stripeLivemode,
+    });
 
-    if (subError || !sub) {
-      return corsResponse(corsHeaders, { error: 'Subscription not found' }, 404);
-    }
-
-    const { data: customer, error: customerError } = await supabase
-      .from('stripe_customers')
-      .select('person_id')
-      .eq('id', sub.customer_id)
-      .single();
-
-    if (customerError || !customer) {
-      return corsResponse(corsHeaders, { error: 'Subscription not found' }, 404);
-    }
-
-    const { data: person, error: personError } = await supabase
-      .from('people')
-      .select('id')
-      .eq('id', customer.person_id)
-      .eq('auth_user_id', user.id)
-      .single();
-
-    if (personError || !person) {
-      return corsResponse(corsHeaders, { error: 'Not authorized' }, 403);
+    if (!ownership.ok) {
+      return corsResponse(corsHeaders, { error: ownership.error }, ownership.status);
     }
 
     // Retrieve Stripe subscription to get the current item ID

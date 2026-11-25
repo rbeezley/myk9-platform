@@ -7,6 +7,10 @@
  * rather than truncating (MYK9-1697), so the pinned part stays well under 15%
  * of a phone screen and the timer, time, result and Save fit one screen.
  *
+ * The dog's call name never breaks mid-word (MYK9-2383): its minimum width is its longest word,
+ * so when the Up control, the offline icon and the armband leave it too little room, the name
+ * drops to a row of its own instead of being squeezed onto three lines ("Wil/lo/w").
+ *
  * The armband badge grows with its digits (4-digit armbands are common at larger
  * trials) instead of squeezing them into a fixed square (MYK9-1086).
  */
@@ -52,7 +56,10 @@ export const ScoresheetHeader: React.FC<ScoresheetHeaderProps> = ({
       >
         <span className="text-xl font-bold tabular-nums text-primary-foreground">{armband}</span>
       </div>
-      <div className="min-w-0 flex-1 break-words text-lg font-semibold leading-tight">
+      <div
+        className="min-w-min flex-1 basis-28 break-words text-lg font-semibold leading-tight"
+        data-testid="scoresheet-dog-name"
+      >
         {dogName}
       </div>
       <p className="order-last m-0 basis-full break-words text-sm leading-tight text-muted-foreground">

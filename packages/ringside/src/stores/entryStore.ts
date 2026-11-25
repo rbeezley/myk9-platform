@@ -25,6 +25,9 @@ export interface Entry {
   /** @deprecated Use status instead */
   checkinStatus?: EntryStatus;
 
+  /** Not yet approved (Pending): holds no place in the running line (MYK9-2391). */
+  awaitingApproval?: boolean;
+
   resultText?: string;
   searchTime?: string;
   /** UKC element time in seconds (string, like searchTime); absent for AKC and ASCA. */

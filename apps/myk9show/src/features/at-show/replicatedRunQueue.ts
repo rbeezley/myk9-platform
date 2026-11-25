@@ -16,12 +16,13 @@
 import {
   compareByRunOrder,
   findInRingEntry,
+  isInQueue,
   nextPendingCandidates,
   pendingByRunOrder,
   type RunQueueEntry,
 } from '@myk9/ringside';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
-import { isRunnableEntry } from '@/features/_shared/entryAccounting';
+import { isAwaitingApproval, isRunnableEntry } from '@/features/_shared/entryAccounting';
 
 /** A replicated row plus the normalized fields the run queue sorts on. */
 export interface ReplicatedQueueEntry extends RunQueueEntry {
@@ -52,6 +53,10 @@ function parseArmband(entry: ReplicatedEntry): number {
  * already settled it. An in-ring flag on a row nobody expects to run is stale
  * data, not a ring state.
  *
+ * A Pending (not yet approved) dog is runnable by that predicate but is not in line: it is flagged
+ * `awaitingApproval` (the one Pending predicate, MYK9-2391) and the queue leaves it out of the
+ * line and the ring, so every reader of the queue agrees. It keeps its run number.
+ *
  * This module holds NO status list of its own; adding one back is how the last
  * three rounds of this bug happened.
  */
@@ -71,6 +76,7 @@ export function toRunQueueEntry(entry: ReplicatedEntry): ReplicatedQueueEntry {
     exhibitorOrder: entry.runOrder ?? null,
     isScored: entry.isScored ?? entry.is_scored ?? false,
     status: queueStatus(entry),
+    awaitingApproval: isAwaitingApproval(entry),
     // A dog sent into the ring on show day may be flagged only by the check-in
     // status, with neither boolean alias set -- but only a RUNNABLE row can be
     // in the ring at all. `isInRingEntry` ORs this flag with the status, so
@@ -87,6 +93,15 @@ export function toRunQueueEntry(entry: ReplicatedEntry): ReplicatedQueueEntry {
 /** Every replicated entry still waiting to run, in run order. */
 export function pendingReplicatedByRunOrder(entries: ReplicatedEntry[]): ReplicatedEntry[] {
   return pendingByRunOrder(entries.map(toRunQueueEntry)).map(row => row.entry);
+}
+
+/**
+ * Dogs still to run in this class, the in-ring dog included: the rows the queue itself calls
+ * waiting or in the ring. The class row's "remaining" reads this, so it counts the very dogs the
+ * queue names as next up (MYK9-2391).
+ */
+export function remainingReplicated(entries: ReplicatedEntry[]): number {
+  return entries.map(toRunQueueEntry).filter(isInQueue).length;
 }
 
 /** The next `limit` replicated entries due to run, in run order. */

@@ -1,3 +1,5 @@
+import { isPendingEntryStatus } from './entryPendingStatus';
+
 /**
  * Canonical answer to "is this entry expected to be scored, and has it been?"
  *
@@ -137,6 +139,21 @@ export function isAccountedFor(entry: EntryAccountingFields): boolean {
 export function isRunnableEntry(entry: EntryAccountingFields): boolean {
   const checkInStatus = normalized(entry.checkInStatus ?? entry.check_in_status);
   return isExpectedEntry(entry) && !isAccountedFor(entry) && checkInStatus !== 'pulled';
+}
+
+/**
+ * True when the entry is not yet approved: Pending (MYK9-2376). The ONE Pending predicate the
+ * running line answers to (MYK9-2391): the run-queue builders pass it as `awaitingApproval`, so
+ * Ringside's queue and Show Desk leave the dog out of the line, and the server's
+ * `entry_queue_places_for_classes` does the same. It is deliberately NOT part of
+ * `isRunnableEntry`: accounting and the badge counts (`classifyEntries`) still count a Pending dog
+ * as expected, and it stays in its Pending tab with its run number.
+ *
+ * A missing (SQL NULL) entry status is not pending and stays runnable.
+ */
+export function isAwaitingApproval(entry: EntryAccountingFields): boolean {
+  const entryStatus = normalized(entry.entryStatus ?? entry.entry_status ?? entry.status);
+  return entryStatus !== '' && isPendingEntryStatus(entryStatus);
 }
 
 /**

@@ -128,7 +128,9 @@ function canonicalEntryStatus(value: unknown): EntryStatus {
     case 'cancelled':
       return 'withdrawn';
     default:
-      return (stringValue(value) ?? 'no-status') as EntryStatus;
+      // A missing (NULL) status is not the literal 'no-status', which is Pending: the server
+      // leaves it runnable and so must the exhibitor's place (MYK9-2391).
+      return (stringValue(value) ?? 'confirmed') as EntryStatus;
   }
 }
 

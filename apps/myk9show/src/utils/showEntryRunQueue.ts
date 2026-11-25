@@ -32,6 +32,7 @@ import {
   type RunQueueEntry,
   type RunQueueState,
 } from '@myk9/ringside/run-queue';
+import { isAwaitingApproval } from '@/features/_shared/entryAccounting';
 import type { ShowEntry } from '@/store/entry-store-types';
 import type { QueuePlace } from '@/hooks/queries/useMyEntryQueuePlaces';
 
@@ -77,6 +78,9 @@ export function toShowEntryQueueRow(entry: ShowEntry): ShowEntryQueueRow {
     isScored: entry.status === 'completed' || !!entry.competitionData,
     status: queueStatus(entry),
     inRing: entry.checkInStatus === 'in-ring',
+    // A Pending (not yet approved) entry has no place in line (MYK9-2376, MYK9-2391): the queue
+    // honors the flag, so `dogsAheadInClass` and `ownEntryQueueState` need no rule of their own.
+    awaitingApproval: isAwaitingApproval({ entryStatus: entry.status }),
     entry,
   };
 }

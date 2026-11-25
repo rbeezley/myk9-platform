@@ -177,11 +177,12 @@ function scoredAfterRemovalOf(state: ClassEntryState, display: ShowMapEntryDispl
 function queueRowOf(
   nodeId: string,
   display: ShowMapEntryDisplay,
-  fields: EntryAccountingFields
+  fields: EntryAccountingFields,
+  pending: boolean
 ): RunQueueEntry {
   const parsed = Number.parseInt(display.armband ?? '', 10);
   // Awaiting approval is runnable by the accounting rules but is not in the run queue (MYK9-2376).
-  const runnable = isRunnableEntry(fields) && !isPendingEntryStatus(display.entryStatus);
+  const runnable = isRunnableEntry(fields) && !pending;
   const checkIn = checkInOf(fields);
   return {
     id: nodeId,
@@ -212,7 +213,7 @@ export function classEntriesForClass(
     const fields = accountingFields(display);
     const entryStatus = display.entryStatus?.trim().toLowerCase();
     if (!isListed(fields, entryStatus, display.awaitingRegistrationNumber)) continue;
-    const queue = queueRowOf(node.id, display, fields);
+    const queue = queueRowOf(node.id, display, fields, isPendingEntryStatus(entryStatus ?? ''));
     const state = stateOf(fields, entryStatus ?? '', queue);
     // An entry awaiting approval is listed but never counted as entered (MYK9-2376).
     const counted = state !== 'pending' && isExpectedEntry(fields);
@@ -233,11 +234,10 @@ export function classEntriesForClass(
         entryId: node.id.slice(getShowMapNodeId('entry', '').length),
         checkInValue,
         deskEditable,
-        lockedReason: deskLockedReason(
-          { isScored: display.isScored ?? null },
-          checkInValue,
-          deskEditable
-        ),
+        lockedReason:
+          state === 'pending'
+            ? 'Awaiting approval, so it cannot be checked in yet'
+            : deskLockedReason({ isScored: display.isScored ?? null }, checkInValue, deskEditable),
         armband: display.armband,
         dogName: display.dogName,
         breed: display.breed,

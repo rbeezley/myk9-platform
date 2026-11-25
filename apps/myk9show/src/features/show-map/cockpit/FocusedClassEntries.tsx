@@ -198,7 +198,10 @@ export function ClassEntriesTable({
     reorder !== undefined && entries.length > 0
   );
   const movable =
-    reorder && placement.waitingIds ? movableEntries(entries, placement.waitingIds) : [];
+    reorder && placement.waitingIds
+      ? // A Pending entry is waiting in the placement model but has no place in line (MYK9-2388).
+        movableEntries(entries, placement.waitingIds).filter(entry => entry.state !== 'pending')
+      : [];
   const canReorder = reorder !== undefined && movable.length >= 2;
   const movableIds = movable.map(entry => entry.nodeId);
   const sensors = useSensors(
@@ -319,7 +322,12 @@ export function ClassEntriesTable({
             );
           }
           return (
-            <TableRow key={entry.nodeId} data-testid="class-entry-row">
+            <TableRow
+              key={entry.nodeId}
+              data-testid="class-entry-row"
+              data-entry-state={entry.state}
+              className={entry.state === 'pending' ? 'text-muted-foreground' : undefined}
+            >
               {canReorder && <TableCell className={CONTROL_CELL} />}
               {cells}
             </TableRow>

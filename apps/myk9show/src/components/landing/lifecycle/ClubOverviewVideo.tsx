@@ -39,7 +39,6 @@ export function ClubOverviewVideo() {
           {playing ? (
             <iframe
               ref={frameRef}
-              tabIndex={-1}
               src={EMBED_URL}
               title={CLUB_OVERVIEW_VIDEO_TITLE}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"

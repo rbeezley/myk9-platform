@@ -43,7 +43,7 @@ If the form says "A club with this name is already on myK9Show", the club is alr
 
 These permissions apply only to your club. They do not give you access to another club's shows.
 
-**What happens next:** after **Add my club** you usually land on your dashboard (if you came from the show wizard, you go back to your draft instead). It shows a card titled with your club's name, for example **Get Heartland Scent Work Club's first show published**, with a **Before you can publish** list of what is left. It goes away after your club publishes its first show. [Section 2](#section-2--your-clubs-shows) explains the list on each draft show.
+**What happens next:** after **Add my club** you usually land on your dashboard (if you came from the show wizard, the confirmation screen shows **Back to your show**: choose it to return to your draft). It shows a card titled with your club's name, for example **Get Heartland Scent Work Club's first show published**, with a **Before you can publish** list of what is left. It goes away after your club publishes its first show. [Section 2](#section-2--your-clubs-shows) explains the list on each draft show.
 
 **If your club is already on myK9Show,** do not ask for it again. Ask its club admin to add you (see [Section 3](#section-3--appoint-a-show-secretary), and [Section 7](#section-7--club-members) for adding an admin).
 

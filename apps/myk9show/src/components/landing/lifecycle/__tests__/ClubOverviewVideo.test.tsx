@@ -27,5 +27,7 @@ describe('ClubOverviewVideo', () => {
     expect(frame?.getAttribute('allow')?.split(/;\s*/)).toContain('autoplay');
     // The button the visitor pressed is gone, so focus moves to the player.
     expect(frame).toHaveFocus();
+    // Still reachable by Tab afterwards: an iframe is focusable by default.
+    expect(frame).not.toHaveAttribute('tabindex', '-1');
   });
 });

@@ -199,7 +199,7 @@ Tap **Go to show day** to open that show in Ringside. A **Where to be today** ba
 
 **Check in:**
 
-On the day of the trial, a class that is open for check-in shows a **Check in** link on its row, and the dog's card shows a **Check in for** button with the day's name. Tap either, and the dog is checked in. **Where to be today** opens the show's Ringside view. Under **Your dogs today** there, each dog's row has a **Check in** button; once the dog is checked in or scored, the row shows **View class** instead. If check-in is not open for a class, its row reads **check in with the secretary**. Before the day, it reads **Check in on the day**.
+On the day of the trial, a class that is open for check-in shows a **Check in** link on its row, and the dog's card shows a **Check in for** button with the day's name. The button on a class row checks in that one class. The **Check in for** button checks in all of the dog's classes that day. If the running order is not posted yet, the row says **Not posted yet**. If check-in is not open for a class, its row reads **check in with the secretary**. Before the day, it reads **Check in on the day**.
 
 ![E-14: Entry card — a class row with the Check in link and the Check in for button](../screenshots/E-14.png)
 
@@ -225,7 +225,7 @@ Each scored class shows:
 
 A result you have not opened yet shows a **New result** button. Tap it to reveal the result. After that, a **Result card** button opens it again. To see the whole class, open the class from the show page's **Results** tab.
 
-When a dog has placed and the result is released, My Shows asks once, under the class, **Show your results publicly?** A result that did not place does not prompt it. **Show publicly** turns on your own account setting for all your dogs, at every show. It does not override anyone else: a result shows publicly only when everyone on the entry (owner, co-owner and handler) has turned the setting on and the club has not made the show private. **Keep private** leaves your setting as it was. You can change it later in your account.
+My Shows may ask whether to show your results publicly. Your answer is your account's setting, and a result appears publicly only if everyone linked to the entry and the show allow it.
 
 ![E-17: Class results page — placement table with scored entries](../screenshots/E-17.png)
 

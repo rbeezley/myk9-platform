@@ -110,9 +110,25 @@ describe('AKC live scoresheet: per-area max time (MYK9-1098)', () => {
     clock.reset = reset;
     renderSheet();
 
-    fireEvent.click(screen.getByTestId('timer-record-area'));
+    const button = screen.getByTestId('timer-record-area');
+    expect(button).toHaveTextContent('Record 0:45.00 to');
+    expect(button).toHaveAccessibleName(/^Record 0:45\.00 to .+/);
+    fireEvent.click(button);
 
     expect(areaInputs()[0]).toHaveValue('0:45.00');
     expect(reset).toHaveBeenCalled();
+  });
+
+  it('hides the record button while the clock runs or sits at 0', () => {
+    clock.time = 45000;
+    clock.isRunning = true;
+    const { unmount } = renderSheet();
+    expect(screen.queryByTestId('timer-record-area')).not.toBeInTheDocument();
+    unmount();
+
+    clock.time = 0;
+    clock.isRunning = false;
+    renderSheet();
+    expect(screen.queryByTestId('timer-record-area')).not.toBeInTheDocument();
   });
 });

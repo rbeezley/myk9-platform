@@ -255,6 +255,7 @@ export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = (
             timedArea={area.timedArea}
             isRunning={stopwatch.isRunning}
             elapsedMs={stopwatch.time}
+            formatTime={stopwatch.formatTime}
             onRecord={handleRecordArea}
           />
         </ScoresheetTimerCard>

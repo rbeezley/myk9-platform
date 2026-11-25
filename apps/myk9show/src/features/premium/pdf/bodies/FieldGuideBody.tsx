@@ -190,7 +190,6 @@ export function FieldGuideBody({ data, tokens }: Props) {
               {trial.classLabels.length > 0 && (
                 <Text style={bodyStyle}>{trial.classLabels.join(' · ')}</Text>
               )}
-              {trial.entryLimit && <Text style={bodyStyle}>{trial.entryLimit}</Text>}
               {trial.classFees && <Text style={bodyStyle}>{trial.classFees}</Text>}
               {trial.waitlist && <Text style={bodyStyle}>{trial.waitlist}</Text>}
             </View>

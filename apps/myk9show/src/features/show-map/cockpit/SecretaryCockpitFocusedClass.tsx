@@ -1,4 +1,4 @@
-import { useId, useRef, useState, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { AlertTriangle } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -99,7 +99,6 @@ export function SecretaryCockpitFocusedClass({
   // secretary moves to opens with them closed.
   const [settingsFor, setSettingsFor] = useState<string | null>(null);
   const settingsId = useId();
-  const workRef = useRef<HTMLDivElement>(null);
   if (!focused || !sourceClass || !trial) {
     return (
       <aside className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">
@@ -160,12 +159,6 @@ export function SecretaryCockpitFocusedClass({
           expectedStart: expectedStartValue(sourceClass, timeZone),
           timing: actualTimingText(focused, sourceClass.lifecycle, timeZone),
         });
-  const jumpToChecklist = () => {
-    const work = workRef.current;
-    if (!work) return;
-    work.focus({ preventScroll: true });
-    work.scrollIntoView?.({ block: 'start', behavior: 'instant' });
-  };
 
   const entriesSection = (
     <section aria-labelledby="focused-class-entries">
@@ -197,16 +190,12 @@ export function SecretaryCockpitFocusedClass({
   const undoNotice = canManageShow && runOrder && (
     <RunOrderUndoNotice classId={focused.id} runOrder={runOrder} />
   );
-  // The Checklist button's target when compact; focusable so it scrolls under the pinned header.
   const work = (
-    <div
-      ref={workRef}
-      tabIndex={compact ? -1 : undefined}
-      className="space-y-5 outline-none"
-      data-testid="focused-class-work"
-    >
+    <div className="space-y-5" data-testid="focused-class-work">
       <InRingTile entries={focused.entries} unread={unread} />
       <ClassChecklistSection
+        // Keyed by class: the "Show all steps" state belongs to one class (MYK9-2380).
+        key={focused.id}
         showId={showId}
         sourceClass={sourceClass}
         paperwork={focused.paperwork}
@@ -237,7 +226,6 @@ export function SecretaryCockpitFocusedClass({
               settingsOpen={settingsOpen}
               settingsId={settingsId}
               onToggleSettings={() => setSettingsFor(settingsOpen ? null : focused.id)}
-              onJumpToChecklist={jumpToChecklist}
             />
           )
         }

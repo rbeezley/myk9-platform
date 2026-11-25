@@ -67,9 +67,9 @@ export function classSheetModel(
     {
       ...input,
       trials: [trial],
-      // The Reports sheets name a class nobody judges "TBD"; the model builder's own word for it
-      // is "Judge unassigned". The packet prints what the Reports sheets print.
-      classes: [{ ...classItem, judgeName: classItem.judgeName || 'TBD' }],
+      // A class nobody judges prints "Judge to be announced" from the model builder, the same
+      // line the Reports sheets print (MYK9-2377).
+      classes: [classItem],
       entries: input.entries.filter(entry => entry.classId === classItem.id),
     },
     { snapshotMarker: false }

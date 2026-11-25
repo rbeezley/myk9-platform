@@ -167,13 +167,15 @@ const scopes: ReportScope[] = [
 // text (names, breed, handler, registration number, the suffixed armband label, the whole class
 // header), not dog id, check-in status, entry status or raw run order. Every earlier value was
 // the old row-field hash, so each one changes by design; a print made before this reads changed once.
+// Trial and show values re-recorded in MYK9-2377: a class with no judge now prints
+// "Judge to be announced" instead of "Judge: TBD", and the header text is fingerprinted.
 const PINNED: Record<string, string> = {
   'check-in-sheet/class': 'fnv1a64:446461969ab96ed5',
-  'check-in-sheet/trial': 'fnv1a64:0c1d47c590eb3b05',
-  'check-in-sheet/show': 'fnv1a64:a63b4a3be1d32361',
+  'check-in-sheet/trial': 'fnv1a64:18861cd3e732947b',
+  'check-in-sheet/show': 'fnv1a64:69841fe5159b193b',
   'scoresheet/class': 'fnv1a64:3e07c7ffeb408b94',
-  'scoresheet/trial': 'fnv1a64:2c1f0cb75c4d3612',
-  'scoresheet/show': 'fnv1a64:4d21293988aaec5b',
+  'scoresheet/trial': 'fnv1a64:6cb2ab573f73393f',
+  'scoresheet/show': 'fnv1a64:747b5b22fca647ee',
 };
 
 describe('app and shared paperwork descriptors agree', () => {

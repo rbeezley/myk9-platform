@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { fromPartial } from '@total-typescript/shoehorn';
 
-import { render, screen, waitFor, within } from '@/test/utils/testUtils';
+import { fireEvent, render, screen, waitFor, within } from '@/test/utils/testUtils';
 
 import { ClassChecklistSection } from './ClassChecklistSection';
 import type { SecretaryCockpitClass, SecretaryCockpitPaperwork } from './secretaryCockpitTypes';
@@ -59,14 +60,18 @@ function sectionFor(
   );
 }
 
+/** Renders the section with its steps shown (the owner's "Show all steps" toggle pressed). */
 function renderBar(
   options: {
     paperwork?: SecretaryCockpitPaperwork[];
     canManageShow?: boolean;
     source?: SecretaryCockpitClass;
+    collapsed?: boolean;
   } = {}
 ) {
-  return render(sectionFor(options.source ?? sourceClass, options));
+  const view = render(sectionFor(options.source ?? sourceClass, options));
+  if (!options.collapsed) fireEvent.click(screen.getByRole('button', { name: /Show all steps/ }));
+  return view;
 }
 
 describe('class step bar (MYK9-1783)', () => {
@@ -193,17 +198,152 @@ describe('class step bar (MYK9-1783)', () => {
     ).toBeInTheDocument();
   });
 
-  it('gives every step card the same fixed height and clips long text to one line', () => {
-    renderBar();
-    const cards = screen.getAllByRole('listitem').map(li => li.firstElementChild as HTMLElement);
-    expect(cards).toHaveLength(6);
-    expect(screen.getAllByRole('listitem')[0]!.closest('ol')).toHaveClass(
-      'grid-cols-[repeat(auto-fill,minmax(10.5rem,1fr))]'
-    );
-    for (const card of cards) {
-      expect(card).toHaveClass('h-[8.25rem]', 'overflow-hidden');
-      expect(card.querySelector('.line-clamp-2')).not.toBeNull();
-    }
+  describe('summary line (MYK9-2380)', () => {
+    const summary = () => screen.getByTestId('class-checklist-summary');
+
+    it('starts collapsed: the count, the next step and its action on one line, no step rows', () => {
+      renderBar({ collapsed: true });
+      expect(screen.queryAllByRole('listitem')).toHaveLength(0);
+      expect(within(summary()).getByText('1 of 7 done')).toBeVisible();
+      expect(within(summary()).getByText('Next: Print paperwork')).toBeVisible();
+      expect(screen.getByRole('button', { name: 'Show all steps' })).toHaveAttribute(
+        'aria-expanded',
+        'false'
+      );
+    });
+
+    it('the Next step action on the line opens the print records, like the step does', async () => {
+      const { user } = renderBar({ collapsed: true });
+      await user.click(
+        within(summary()).getByRole('button', { name: 'Show print records: Print paperwork' })
+      );
+      expect(document.querySelector('details')!.open).toBe(true);
+    });
+
+    it('offers the Next step link on the line when that step opens a page', () => {
+      renderBar({
+        collapsed: true,
+        paperwork: [
+          { ...printable[0]!, state: 'current' },
+          { ...printable[1]!, state: 'current' },
+        ],
+      });
+      expect(within(summary()).getByText('Next: Scoring complete')).toBeVisible();
+      const link = within(summary()).getByRole('link', {
+        name: 'Open paper scoring: Scoring complete',
+      });
+      expect(new URL(link.getAttribute('href')!, 'https://x.test').pathname).toBe(
+        '/scoring/classes/c1/entries'
+      );
+    });
+
+    it('opens the start editor from the line when Class started is next, and returns focus to it', async () => {
+      const { user } = renderBar({
+        collapsed: true,
+        source: { ...sourceClass, lifecycle: 'not-started', scoredCount: 0 },
+        paperwork: [
+          { ...printable[0]!, state: 'current' },
+          { ...printable[1]!, state: 'current' },
+        ],
+      });
+      const action = within(summary()).getByRole('button', {
+        name: 'Set start time: Class started',
+      });
+      await user.click(action);
+      expect(screen.getByLabelText('Start time for Novice Container')).toHaveFocus();
+      await user.click(screen.getByRole('button', { name: 'Cancel' }));
+      expect(action).toHaveFocus();
+    });
+
+    it('opens the Next print step from the line for that one report', async () => {
+      const { user } = renderBar({
+        collapsed: true,
+        source: {
+          ...sourceClass,
+          lifecycle: 'complete',
+          scoredCount: 4,
+          actualStart: '2026-07-20T14:00:00.000Z',
+        },
+        paperwork: printable.map(row =>
+          row.reportId === 'check-in-sheet' || row.reportId === 'scoresheet'
+            ? { ...row, state: 'current' as const }
+            : row
+        ),
+      });
+      expect(within(summary()).getByText('Next: Preliminary results')).toBeVisible();
+      await user.click(
+        within(summary()).getByRole('button', { name: 'Open print preview: Preliminary results' })
+      );
+      expect(await screen.findByText('Print Preliminary results')).toBeInTheDocument();
+      expect(screen.queryByText('Print Result labels')).toBeNull();
+    });
+
+    it('returns focus to Show all steps when an editor opened elsewhere closes and no step holds it', async () => {
+      function Harness() {
+        const [editing, setEditing] = useState<string | null>(null);
+        return (
+          <>
+            <button type="button" onClick={() => setEditing('c1')}>
+              Open start editor
+            </button>
+            <ClassChecklistSection
+              showId="show-1"
+              sourceClass={sourceClass}
+              paperwork={printable}
+              timeZone="America/New_York"
+              onCommand={vi.fn()}
+              printTrackingInUse={false}
+              canManageShow
+              trialDate="2026-07-20"
+              editingStart={editing}
+              onEditingStartChange={setEditing}
+            />
+          </>
+        );
+      }
+      const { user } = render(<Harness />);
+      await user.click(screen.getByRole('button', { name: 'Open start editor' }));
+      await user.click(screen.getByRole('button', { name: 'Cancel' }));
+      expect(screen.getByRole('button', { name: 'Show all steps' })).toHaveFocus();
+    });
+
+    it('says all done and offers no Next action when every step is done', () => {
+      renderBar({
+        collapsed: true,
+        source: {
+          ...sourceClass,
+          lifecycle: 'complete',
+          scoredCount: 4,
+          actualStart: '2026-07-20T14:00:00.000Z',
+          wrapUpStatus: 'signed-by-judge',
+        },
+        paperwork: printable.map(row => ({ ...row, state: 'current' as const })),
+      });
+      expect(within(summary()).getByText('all 7 done')).toBeVisible();
+      expect(within(summary()).queryByRole('button', { name: /: / })).toBeNull();
+    });
+
+    it('expands to one row per step and collapses again', async () => {
+      const { user } = renderBar({ collapsed: true });
+      await user.click(screen.getByRole('button', { name: 'Show all steps' }));
+      expect(screen.getAllByRole('listitem')).toHaveLength(6);
+      const toggle = screen.getByRole('button', { name: 'Hide steps' });
+      expect(toggle).toHaveAttribute('aria-expanded', 'true');
+      await user.click(toggle);
+      expect(screen.queryAllByRole('listitem')).toHaveLength(0);
+    });
+
+    it('keeps every step reachable when expanded: statuses and actions', () => {
+      renderBar();
+      const items = screen.getAllByRole('listitem');
+      expect(items).toHaveLength(6);
+      expect(within(items[0]!).getByRole('button', { name: /^Print paperwork/ })).toBeVisible();
+      expect(within(items[1]!).getByRole('button', { name: /^Class started/ })).toBeVisible();
+      expect(within(items[2]!).getByRole('link', { name: /^Scoring complete/ })).toBeVisible();
+      expect(within(items[3]!).getByRole('button', { name: /^Preliminary results/ })).toBeVisible();
+      expect(within(items[4]!).getByRole('button', { name: /^Result labels/ })).toBeVisible();
+      expect(within(items[5]!).getByRole('link', { name: /Open on Results$/ })).toBeVisible();
+    });
   });
 
   describe('Print paperwork card', () => {

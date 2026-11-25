@@ -1,4 +1,4 @@
-import { ArrowDown, ChevronDown } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -29,20 +29,17 @@ export function FocusedClassSummaryLine({
 }
 
 /**
- * The compact header's buttons: Class settings opens the full fields (status, judge, scoring,
- * expected start, actual timing) under the name; Checklist jumps to the class checklist, which
- * sits under the entries while the header is compact.
+ * The compact header's button: Class settings opens the full fields (status, judge, scoring,
+ * expected start, actual timing) under the name.
  */
 export function FocusedClassHeaderToggles({
   settingsOpen,
   settingsId,
   onToggleSettings,
-  onJumpToChecklist,
 }: {
   settingsOpen: boolean;
   settingsId: string;
   onToggleSettings: () => void;
-  onJumpToChecklist: () => void;
 }) {
   return (
     <>
@@ -60,16 +57,6 @@ export function FocusedClassHeaderToggles({
           className={cn('h-4 w-4 transition-transform', settingsOpen && 'rotate-180')}
           aria-hidden="true"
         />
-      </Button>
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        onClick={onJumpToChecklist}
-        className="min-h-11 gap-1.5 px-2.5"
-      >
-        Checklist
-        <ArrowDown className="h-4 w-4" aria-hidden="true" />
       </Button>
     </>
   );

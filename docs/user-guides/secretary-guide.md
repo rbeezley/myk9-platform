@@ -379,13 +379,17 @@ Volunteers only shows here while its **This show uses…** switch is on (card 3;
 
 > **Watch:** [How to run a class (1 min 9 s)](https://youtu.be/EhwcGfYF93s)
 
-**Show Desk → click the class.** Under the class name, the fields can be changed in place. On a laptop-size screen, press **Class settings** to show them:
+**Show Desk → click the class, then press Edit class** (next to the class name). The **Show day** card at the top of the panel holds the settings. Changes there save right away:
 
 - **Status** — Not started, In progress, Complete, or Cancelled. Press it to choose. Marking a class complete with scores still unentered asks you to confirm.
-- **Judge** — who is judging the class. You can change it here until the class starts; after that, use **Edit class**.
-- **Expected start** — press the time (or **Set expected start**) to give a revised start when a class runs late or early, then press the check mark (**Save expected start**).
+- **Judge** — who is judging the class. Pick one here until the class starts; after that, the **Judge** field lower in the same panel changes it.
 - **Scoring** — whether this class is scored on paper or on a phone.
-- **Actual timing** — when the class started and finished. Press it to correct the start.
+- **Expected start** — press the time (or **Set expected start**) to give a revised start when a class runs late or early, then press the check mark (**Save expected start**).
+- **Stewards** — the class's ring jobs from the volunteer list.
+
+The class's **Time limit** is in the same panel. Exterior and Interior limits are the judge's to set. Container and Buried limits come from the rulebook and show as fixed. Press **Save Changes** to keep a time limit, entry limit or wait list change.
+
+The actual start and finish times are on the class checklist: press **Class started** to correct the start.
 
 The **⋯** button at the top right of the class opens **Actions for** that class: **Edit class**, **Score this class** (opens paper scoring for the class) and **Auto-sort run order**, plus **Announce a delay** when the class is running late.
 

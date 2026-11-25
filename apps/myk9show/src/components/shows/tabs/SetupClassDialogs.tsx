@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 import { ClassEditPanel } from '@/components/panels/edit/ClassEditPanel';
 import { classDeleteDetail } from '@/features/delete';
 import { formatClassTitle } from '@/components/classes/ClassDetailsMain.helpers';
@@ -10,6 +12,10 @@ interface SetupClassDialogsProps {
   showId: string;
   pending: SetupClassAction;
   onClose: () => void;
+  /** Show Desk's live-saving class settings, shown in the panel (MYK9-2379). */
+  liveSettings?: ReactNode;
+  /** The live settings hold the Judge control, so the panel's own Judge field stays hidden. */
+  liveJudge?: boolean;
 }
 
 /**
@@ -21,7 +27,13 @@ interface SetupClassDialogsProps {
  * while an action is pending so the page does not subscribe to class and entry queries it
  * never reads.
  */
-export function SetupClassDialogs({ showId, pending, onClose }: SetupClassDialogsProps) {
+export function SetupClassDialogs({
+  showId,
+  pending,
+  onClose,
+  liveSettings,
+  liveJudge = false,
+}: SetupClassDialogsProps) {
   const { updateClass } = useClassStoreCompat();
   const { saveClass } = useClassEditActions({ showId, updateClass });
   const currentClass = pending.classSnapshot;
@@ -50,9 +62,11 @@ export function SetupClassDialogs({ showId, pending, onClose }: SetupClassDialog
       open
       onClose={onClose}
       classId={currentClass.id}
-      className={currentClass.element || ''}
+      className={target.name}
       initialClassData={currentClass}
       showId={showId}
+      liveSettings={liveSettings}
+      liveJudge={liveJudge}
       onDelete={{ kind: 'class', objectLabel: 'class', targets: [target] }}
       onSave={async classData => handleSave(classData as Partial<ClassData>)}
     />

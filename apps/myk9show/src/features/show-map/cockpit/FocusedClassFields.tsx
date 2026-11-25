@@ -15,7 +15,7 @@ import {
   useClassStatusChange,
 } from './ClassOperationalControls';
 import { SCORING_COPY } from './classScoringModel';
-import { actualTimingText, expectedStartValue } from './focusedClassTiming';
+import { expectedStartValue } from './focusedClassTiming';
 import type {
   FocusedClassModel,
   SecretaryCockpitClass,
@@ -141,11 +141,11 @@ function ExpectedStartField({
 }
 
 /**
- * The focused class's settings, as inline fields under the title in the header card (MYK9-1867,
- * superseding the read-only Class settings card of MYK9-1796). A manager edits each in place:
+ * The focused class's settings, shown in Edit class opened from Show Desk (MYK9-2379; they sat in
+ * the pinned header under Class settings before, MYK9-1867). A manager edits each in place:
  * status through the same confirmed change the Actions menu used, expected start through the
- * existing editor, actual start through the checklist's editor (`onEditActualStart`). The Judge
- * stays the cockpit's own control (MYK9-1323). Everyone else sees the values.
+ * existing editor. The Judge, Scoring and Stewards stay the cockpit's own controls (MYK9-1323,
+ * MYK9-1971, MYK9-2328). Actual timing is the checklist's Class started step. Everyone else sees the values.
  */
 export function FocusedClassFields({
   focused,
@@ -156,7 +156,6 @@ export function FocusedClassFields({
   judgeControl,
   scoringControl,
   stewardControl,
-  onEditActualStart,
 }: {
   focused: FocusedClassModel;
   sourceClass: SecretaryCockpitClass;
@@ -167,14 +166,9 @@ export function FocusedClassFields({
   scoringControl?: ReactNode;
   /** The class's ring jobs from the volunteer list (MYK9-2328). Managers only. */
   stewardControl?: ReactNode;
-  onEditActualStart: () => void;
 }) {
-  const timing = actualTimingText(focused, sourceClass.lifecycle, timeZone);
-  // The editor is mounted by the class checklist, which a cancelled class does not have
-  // (buildClassChecklist returns no items; ClassChecklistSection renders the editor only with items).
-  const editable = canManageShow && sourceClass.lifecycle !== 'cancelled';
   return (
-    <dl className="mt-3 flex flex-wrap items-start gap-x-6 gap-y-2">
+    <dl className="flex flex-wrap items-start gap-x-6 gap-y-2">
       <Field label="Status">
         <StatusField focused={focused} canManageShow={canManageShow} />
       </Field>
@@ -188,20 +182,6 @@ export function FocusedClassFields({
           timeZone={timeZone}
           canManageShow={canManageShow}
         />
-      </Field>
-      <Field label="Actual timing">
-        {editable ? (
-          <button
-            type="button"
-            onClick={onEditActualStart}
-            aria-label={`Actual timing: ${timing}. Edit actual start`}
-            className="min-h-11 text-left font-medium underline-offset-4 hover:underline"
-          >
-            {timing}
-          </button>
-        ) : (
-          <span className="font-medium">{timing}</span>
-        )}
       </Field>
       {stewardControl && (
         <Field label="Stewards" className="min-w-0 basis-full">

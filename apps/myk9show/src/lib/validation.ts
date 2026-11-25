@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import { formatDuration, isUnresolvedDuration, parseDuration } from '@myk9/core';
+import {
+  classDurationRangeIssues,
+  classTimeLimitFields,
+  durationField,
+} from './validation.classDurations';
+
+export { classDurationMaxSeconds } from './validation.classDurations';
 import { canonicalizeWebsiteUrl } from './websiteUrl';
 import { showFormJuniorFeeLimitError } from '@/features/_shared/juniorFeeLimit';
 
@@ -317,48 +323,6 @@ export const clubSchemas = {
 // Zod helper: string that allows empty but never undefined (for required string fields with no min-length)
 const requiredString = z.string();
 
-/** A class duration (m:ss): blank, or text the shared time field can read. */
-const durationField = (label: string) =>
-  z
-    .string()
-    .optional()
-    .or(z.literal(''))
-    .refine(v => !v || !isUnresolvedDuration(v, 'max'), {
-      message: `Please enter ${label} as minutes and seconds, like 4:30`,
-    });
-
-/** Longest class duration the editor accepts: 9:59, or 15:00 for Detective. */
-export function classDurationMaxSeconds(element: string | undefined): number {
-  return element === 'Detective' ? 15 * 60 : 9 * 60 + 59;
-}
-
-const CLASS_DURATIONS = [
-  ['estimatedJudgingTime', 'The estimated judging time'],
-  ['timeLimit1', 'Time limit 1'],
-  ['timeLimit2', 'Time limit 2'],
-  ['timeLimit3', 'Time limit 3'],
-] as const;
-
-/** A readable class duration outside the editor's range is refused, not saved (MYK9-1503). */
-function classDurationRangeIssues(
-  data: { element: string } & Partial<
-    Record<(typeof CLASS_DURATIONS)[number][0], string | undefined>
-  >
-): Array<{ path: string[]; message: string }> {
-  const high = classDurationMaxSeconds(data.element);
-  return CLASS_DURATIONS.flatMap(([field, label]) => {
-    const parsed = parseDuration(data[field] ?? '', 'max');
-    return parsed.ok && (parsed.seconds < 1 || parsed.seconds > high)
-      ? [
-          {
-            path: [field],
-            message: `${label} must be between ${formatDuration(1, 'max')} and ${formatDuration(high, 'max')}`,
-          },
-        ]
-      : [];
-  });
-}
-
 // Class validation schemas
 /** MYK9-1931: the class's own fee. Empty (0) charges the show's fee. */
 const classEntryFeeFields = {
@@ -376,9 +340,7 @@ export const classSchemas = {
       section: requiredString,
       status: z.string().min(1, 'Please select a status'),
       estimatedJudgingTime: durationField('the estimated judging time'),
-      timeLimit1: durationField('time limit 1'),
-      timeLimit2: durationField('time limit 2'),
-      timeLimit3: durationField('time limit 3'),
+      ...classTimeLimitFields,
       judge: commonValidations.optionalString,
       judgeId: commonValidations.optionalString,
       gateSteward: commonValidations.optionalString,
@@ -407,24 +369,34 @@ export const classSchemas = {
     }),
 
   /** Simple mode — TrialClass editing */
-  simple: z.object({
-    element: requiredString,
-    level: requiredString,
-    section: requiredString,
-    judgeId: commonValidations.optionalString,
-    judgeName: commonValidations.optionalString,
-    status: z.string().min(1, 'Please select a status'),
-    entries: z.number(),
-    maxEntries: z
-      .number()
-      .int('Enter a whole number, or leave blank for no limit')
-      .min(1, 'The entry limit must be at least 1, or leave blank for no limit')
-      .nullable()
-      .optional(),
-    allowsWaitlist: z.boolean().nullable().optional(),
-    editedCapacity: z.array(z.enum(['maxEntries', 'allowsWaitlist'])).optional(),
-    ...classEntryFeeFields,
-  }),
+  simple: z
+    .object({
+      element: requiredString,
+      level: requiredString,
+      section: requiredString,
+      judgeId: commonValidations.optionalString,
+      judgeName: commonValidations.optionalString,
+      status: z.string().min(1, 'Please select a status'),
+      entries: z.number(),
+      maxEntries: z
+        .number()
+        .int('Enter a whole number, or leave blank for no limit')
+        .min(1, 'The entry limit must be at least 1, or leave blank for no limit')
+        .nullable()
+        .optional(),
+      allowsWaitlist: z.boolean().nullable().optional(),
+      editedCapacity: z.array(z.enum(['maxEntries', 'allowsWaitlist'])).optional(),
+      timeLimit1: durationField('time limit 1'),
+      timeLimit2: durationField('time limit 2'),
+      timeLimit3: durationField('time limit 3'),
+      timeLimitLoaded: z.boolean().optional(),
+      timeLimitEdited: z.boolean().optional(),
+      ...classEntryFeeFields,
+    })
+    .superRefine((data, ctx) => {
+      for (const issue of classDurationRangeIssues(data))
+        ctx.addIssue({ code: 'custom', ...issue });
+    }),
 };
 
 // Export types for TypeScript

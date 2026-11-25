@@ -12,7 +12,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { DurationInput } from '@myk9/scoring-ui';
 import { classDurationMaxSeconds } from '@/lib/validation';
 import { Clock, UserCheck, ClipboardList, Settings } from 'lucide-react';
 import { useShowStore } from '@/store/showStore';
@@ -20,10 +19,12 @@ import { useUserStore } from '@/store/userStore';
 import { useClassRequirements } from '@/hooks/useClassRequirements';
 import { FormField } from '@/components/common/FormField';
 import { RuleBadge } from '@/components/classes/OfficialsSection';
+import { ClassDurationField, ClassTimeLimitFields } from './ClassTimeLimitFields';
 import { getJudgeNameById } from '@/utils/buildAssignedJudges';
 import { NoJudgesNotice } from '@/components/shows/NoJudgesNotice';
 import { ClassWaitlistFields } from './ClassWaitlistFields';
 import { ClassEntryFeeField } from './ClassEntryFeeField';
+import { ClassLiveSettingsCard } from './ClassLiveSettingsCard';
 import { JudgeChangeWarning } from '@/components/classes/JudgeChangeWarning';
 import type { ClassEditFormData, OutgoingJudge } from './ClassEditPanel.types';
 import { isScentWorkNovice } from './ClassEditPanel.helpers';
@@ -63,36 +64,6 @@ function RequirementField({
   );
 }
 
-/** A class duration (m:ss) typed through the one shared time field (MYK9-1503). */
-function ClassDurationField({
-  id,
-  label,
-  value,
-  onChange,
-  maxSeconds,
-  error,
-}: {
-  id: string;
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  maxSeconds: number;
-  error?: string | undefined;
-}) {
-  return (
-    <FormField label={label} fieldId={id} error={error}>
-      <DurationInput
-        kind="max"
-        id={id}
-        value={value}
-        onChange={onChange}
-        range={{ low: 1, high: maxSeconds }}
-        className="h-11 max-w-32 rounded-md border border-input bg-background px-3 text-center font-mono text-base"
-      />
-    </FormField>
-  );
-}
-
 // Full mode form for ClassData
 export const ClassEditForm: React.FC<{
   showId?: string;
@@ -102,7 +73,20 @@ export const ClassEditForm: React.FC<{
   /** False when the class came from a source that did not load its limit and wait list. */
   capacityLoaded: boolean;
   outgoingJudge: OutgoingJudge;
-}> = ({ showId, classId, activeTab, onTabChange, capacityLoaded, outgoingJudge }) => {
+  /** Show Desk's live-saving settings; they stand in for this form's Status (MYK9-2379). */
+  liveSettings?: React.ReactNode;
+  /** The live Judge control is in the settings card, so this form's own Judge field stays hidden. */
+  liveJudge?: boolean;
+}> = ({
+  showId,
+  classId,
+  activeTab,
+  onTabChange,
+  capacityLoaded,
+  outgoingJudge,
+  liveSettings,
+  liveJudge = false,
+}) => {
   const { data, form } = useEditPanel<ClassEditFormData>();
   const { people } = useUserStore();
   const { shows } = useShowStore();
@@ -170,6 +154,7 @@ export const ClassEditForm: React.FC<{
           value="basic"
           className="space-y-6 animate-in slide-in-from-bottom-2 duration-300 ease-out"
         >
+          {liveSettings && <ClassLiveSettingsCard>{liveSettings}</ClassLiveSettingsCard>}
           <Card>
             <CardHeader>
               <CardTitle>Basic Information</CardTitle>
@@ -207,21 +192,23 @@ export const ClassEditForm: React.FC<{
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <FormField label="Status" fieldId="classStatus">
-                  <Select value={data.status} onValueChange={handleSelectChange('status')}>
-                    <SelectTrigger id="classStatus">
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Scheduled">Scheduled</SelectItem>
-                      <SelectItem value="In Progress">In Progress</SelectItem>
-                      <SelectItem value="Completed">Completed</SelectItem>
-                      <SelectItem value="Cancelled">Cancelled</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FormField>
-              </div>
+              {!liveSettings && (
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField label="Status" fieldId="classStatus">
+                    <Select value={data.status} onValueChange={handleSelectChange('status')}>
+                      <SelectTrigger id="classStatus">
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Scheduled">Scheduled</SelectItem>
+                        <SelectItem value="In Progress">In Progress</SelectItem>
+                        <SelectItem value="Completed">Completed</SelectItem>
+                        <SelectItem value="Cancelled">Cancelled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormField>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -250,54 +237,7 @@ export const ClassEditForm: React.FC<{
 
               <Separator />
 
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                    Time Limits
-                  </h4>
-                  {autoFill?.timeLimitText.ruleValue && (
-                    <RuleBadge
-                      label={
-                        autoFill.timeLimitText.isJudgeSettable
-                          ? `Set by judge (${autoFill.timeLimitText.ruleValue})`
-                          : `Rule: ${autoFill.timeLimitText.ruleValue}`
-                      }
-                    />
-                  )}
-                </div>
-
-                <ClassDurationField
-                  id="timeLimit1"
-                  label="Time Limit 1"
-                  value={data.timeLimit1 || ''}
-                  onChange={value => form?.setValue('timeLimit1', value)}
-                  maxSeconds={classDurationMaxSeconds(data.element)}
-                  error={form?.getError('timeLimit1')}
-                />
-
-                {data.element === 'Interior' &&
-                  (data.level === 'Excellent' || data.level === 'Master') && (
-                    <ClassDurationField
-                      id="timeLimit2"
-                      label="Time Limit 2"
-                      value={data.timeLimit2 || ''}
-                      onChange={value => form?.setValue('timeLimit2', value)}
-                      maxSeconds={classDurationMaxSeconds(data.element)}
-                      error={form?.getError('timeLimit2')}
-                    />
-                  )}
-
-                {data.element === 'Interior' && data.level === 'Master' && (
-                  <ClassDurationField
-                    id="timeLimit3"
-                    label="Time Limit 3"
-                    value={data.timeLimit3 || ''}
-                    onChange={value => form?.setValue('timeLimit3', value)}
-                    maxSeconds={classDurationMaxSeconds(data.element)}
-                    error={form?.getError('timeLimit3')}
-                  />
-                )}
-              </div>
+              <ClassTimeLimitFields showId={showId} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -312,55 +252,60 @@ export const ClassEditForm: React.FC<{
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField label="Judge" fieldId="judgeId">
-                  {/*
+                {!liveJudge && (
+                  <FormField label="Judge" fieldId="judgeId">
+                    {/*
                     F12: this used to offer a DISABLED "No judges assigned to this show"
                     option -- naming the problem inside the very control that could not
                     solve it, with no hint that the roster lives on the show's Edit
                     panel. Link there instead.
                   */}
-                  {showId && assignedJudges.length === 0 && (
-                    <NoJudgesNotice
-                      showId={showId}
-                      message="No judges on this show yet, so there is nobody to assign to this class."
-                      className="mb-2"
-                    />
-                  )}
-                  {/*
+                    {showId && assignedJudges.length === 0 && (
+                      <NoJudgesNotice
+                        showId={showId}
+                        message="No judges on this show yet, so there is nobody to assign to this class."
+                        className="mb-2"
+                      />
+                    )}
+                    {/*
                     Keep the control whenever a judge is still recorded, even with an
                     empty roster: that assignment is now stale (the judge was removed
                     from the show) and TBD is the only way to clear it. Replacing the
                     Select outright stranded it.
                   */}
-                  {(assignedJudges.length > 0 || !!data.judgeId) && (
-                    <Select
-                      value={data.judgeId || ''}
-                      onValueChange={value => {
-                        const finalValue = value === 'none' ? '' : value;
-                        form?.setValue('judgeId', finalValue);
-                        form?.setValue('judge', getJudgeNameById(assignedJudges, finalValue) ?? '');
-                        form?.touchField('judgeId');
-                      }}
-                    >
-                      <SelectTrigger id="judgeId">
-                        <SelectValue placeholder="Select a judge">
-                          {!data.judgeId || data.judgeId === 'TBD'
-                            ? undefined
-                            : data.judge || getJudgeNameById(assignedJudges, data.judgeId)}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {assignedJudges.map((judge: { judgeId: string; judgeName: string }) => (
-                          <SelectItem key={judge.judgeId} value={judge.judgeId}>
-                            {judge.judgeName}
-                          </SelectItem>
-                        ))}
-                        <SelectItem value="TBD">TBD</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
-                  <JudgeChangeWarning {...outgoingJudge} selectedJudgeId={data.judgeId} />
-                </FormField>
+                    {(assignedJudges.length > 0 || !!data.judgeId) && (
+                      <Select
+                        value={data.judgeId || ''}
+                        onValueChange={value => {
+                          const finalValue = value === 'none' ? '' : value;
+                          form?.setValue('judgeId', finalValue);
+                          form?.setValue(
+                            'judge',
+                            getJudgeNameById(assignedJudges, finalValue) ?? ''
+                          );
+                          form?.touchField('judgeId');
+                        }}
+                      >
+                        <SelectTrigger id="judgeId">
+                          <SelectValue placeholder="Select a judge">
+                            {!data.judgeId || data.judgeId === 'TBD'
+                              ? undefined
+                              : data.judge || getJudgeNameById(assignedJudges, data.judgeId)}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {assignedJudges.map((judge: { judgeId: string; judgeName: string }) => (
+                            <SelectItem key={judge.judgeId} value={judge.judgeId}>
+                              {judge.judgeName}
+                            </SelectItem>
+                          ))}
+                          <SelectItem value="TBD">TBD</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                    <JudgeChangeWarning {...outgoingJudge} selectedJudgeId={data.judgeId} />
+                  </FormField>
+                )}
 
                 {/* Steward positions */}
                 {[

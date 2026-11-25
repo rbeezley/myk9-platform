@@ -1,14 +1,13 @@
-import { ChevronDown } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import { ClassStatusBadge } from './ClassOperationalControls';
+import type { FocusedClassEditAction } from './FocusedClassActionsMenu';
 import type { CockpitLifecycle } from './secretaryCockpitTypes';
 
 /**
- * The compact header's one line of values (MYK9-1989): the status badge, then the class's facts,
- * expected start and actual timing. The settings that edit them are one click away, behind
- * Class settings.
+ * The header's status, with the class's values when no card says them (MYK9-1989): the status badge, then the class's facts,
+ * expected start and actual timing. Editing them is Edit class.
  */
 export function FocusedClassSummaryLine({
   lifecycle,
@@ -19,45 +18,48 @@ export function FocusedClassSummaryLine({
 }) {
   return (
     <div
-      className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground"
+      className="flex min-w-0 flex-nowrap items-center gap-x-2 text-sm text-muted-foreground"
       data-testid="focused-class-summary"
     >
-      <ClassStatusBadge lifecycle={lifecycle} />
-      {parts.length > 0 && <span className="min-w-0">{parts.join(' · ')}</span>}
+      <span className="shrink-0 whitespace-nowrap">
+        <ClassStatusBadge lifecycle={lifecycle} />
+      </span>
+      {parts.length > 0 && (
+        <span className="min-w-0 truncate" title={parts.join(' · ')}>
+          {parts.join(' · ')}
+        </span>
+      )}
     </div>
   );
 }
 
 /**
- * The compact header's button: Class settings opens the full fields (status, judge, scoring,
- * expected start, actual timing) under the name.
+ * The header's button (MYK9-2379): Edit class opens the one panel that holds every class setting
+ * (status, judge, scoring, expected start, stewards, time limit).
  */
-export function FocusedClassHeaderToggles({
-  settingsOpen,
-  settingsId,
-  onToggleSettings,
+export function FocusedClassHeaderButtons({
+  editClass,
+  className,
 }: {
-  settingsOpen: boolean;
-  settingsId: string;
-  onToggleSettings: () => void;
+  editClass: FocusedClassEditAction | undefined;
+  className: string;
 }) {
   return (
     <>
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        aria-expanded={settingsOpen}
-        aria-controls={settingsId}
-        onClick={onToggleSettings}
-        className="min-h-11 gap-1.5 px-2.5"
-      >
-        Class settings
-        <ChevronDown
-          className={cn('h-4 w-4 transition-transform', settingsOpen && 'rotate-180')}
-          aria-hidden="true"
-        />
-      </Button>
+      {editClass && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          disabled={editClass.disabled}
+          onClick={editClass.onSelect}
+          aria-label={`Edit class ${className}`}
+          className="min-h-11 gap-1.5 px-2.5"
+        >
+          <Pencil className="h-4 w-4" aria-hidden="true" />
+          Edit class
+        </Button>
+      )}
     </>
   );
 }

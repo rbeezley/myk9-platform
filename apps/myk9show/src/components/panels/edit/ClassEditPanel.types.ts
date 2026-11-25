@@ -1,5 +1,6 @@
 import type { ClassData } from '@/components/classes/types/classTypes';
 import type { TrialClass } from '@/components/trials/types/trial.types';
+import type { ReactNode } from 'react';
 import type { ClassStatusValue } from '@myk9/core';
 
 import type { JudgeChangeWarningProps } from '@/components/classes/JudgeChangeWarning';
@@ -19,6 +20,13 @@ export interface ClassEditPanelProps {
   mode?: 'full' | 'simple'; // 'full' for ClassData with tabs, 'simple' for TrialClass
   /** "Delete class" in the footer. Omit for a viewer who cannot delete. */
   onDelete?: EditPanelDeleteOption | undefined;
+  /**
+   * Show Desk's class settings (MYK9-2379): live-saving controls that replace the panel's own
+   * Status and Judge fields and are never part of Save Changes.
+   */
+  liveSettings?: ReactNode;
+  /** The settings hold the live Judge control, so the panel's own Judge field is hidden. */
+  liveJudge?: boolean;
 }
 
 /** The judge the edit panel opened with, for the judge-change warning (MYK9-2015). */
@@ -88,4 +96,11 @@ export interface TrialClassEditFormData extends Record<string, unknown> {
   entryFee?: number;
   entryFeeLoaded?: boolean;
   entryFeeEdited?: boolean;
+  /** Time limits (m:ss). Shown only when the class came from a source that carried them. */
+  timeLimit1?: string;
+  timeLimit2?: string;
+  timeLimit3?: string;
+  timeLimitLoaded?: boolean;
+  /** Set once a limit is changed in this session; only then are they saved. */
+  timeLimitEdited?: boolean;
 }

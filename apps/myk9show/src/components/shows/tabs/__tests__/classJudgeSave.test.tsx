@@ -134,7 +134,10 @@ describe.each(['Show home Edit class', 'Class Details'])(
       await waitFor(() => expect(mocks.close).toHaveBeenCalledTimes(1));
       expect(mocks.prepare).toHaveBeenCalledWith('s1', 'c1', 'j2', { name: 'Second Judge' });
       expect(mocks.update).toHaveBeenCalledWith('c1', expect.objectContaining({ judgeId: 'j2' }));
-      expect(mocks.success).toHaveBeenCalledWith('Interior saved');
+      // Show Desk's panel names the class in full (MYK9-2379); Class Details keeps the element.
+      expect(mocks.success).toHaveBeenCalledWith(
+        surface === 'Show home Edit class' ? 'Interior Novice A saved' : 'Interior saved'
+      );
     });
   }
 );

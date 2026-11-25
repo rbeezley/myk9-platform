@@ -7,8 +7,8 @@ import { LIVE_SECRETARY_SHOW_ID } from '../uat/shared/seededShows';
  * MYK9-1989: on a laptop, Show Desk with a class selected leaves room for the class's entries,
  * measured as the secretary meets it: the class opened and NOT scrolled. The owner, on a MacBook:
  * the headers stacked above the entries filled about three quarters of the window. From lg the
- * class header is always compact (name and controls on one line, values on the next, settings
- * behind Class settings), the breadcrumb row folds away, "Needs attention" moves into the rail, the class panel starts beside the
+ * class header is always compact (the name, its status and the buttons on one line; the settings
+ * are in Edit class, MYK9-2379), the breadcrumb row folds away, "Needs attention" moves into the rail, the class panel starts beside the
  * schedule heading, and a locked check-in is a lock icon, so every row is one line tall.
  *
  * Without scrolling, the first entry row's top is in the upper half of a 1280x800 and a 1440x900
@@ -104,12 +104,52 @@ for (const viewport of [
     expect(rows.headerPosition).toBe('sticky');
     await expect(page.getByRole('heading', { level: 2, name: CLASS_NAME })).toBeInViewport();
 
-    // Nothing was deleted: the settings are one click away.
-    await page.getByRole('button', { name: 'Class settings' }).click();
-    await expect(page.getByText('Expected start', { exact: true })).toBeVisible();
-    await expect(page.getByText('Actual timing', { exact: true })).toBeVisible();
+    // Nothing was deleted: the settings are one click away, in Edit class.
+    await expect(page.getByRole('button', { name: 'Class settings' })).toHaveCount(0);
+    await page.getByRole('button', { name: `Edit class ${CLASS_NAME}` }).click();
+    const settings = page.getByTestId('class-live-settings');
+    await expect(settings).toBeVisible();
+    for (const label of ['Status', 'Judge', 'Scoring', 'Expected start']) {
+      await expect(settings.getByText(label, { exact: true })).toBeVisible();
+    }
   });
 }
+
+// MYK9-2379: the header is one line, so opening Requirements leaves the class panel its height.
+test('1280x720: with Requirements open the scroll area keeps most of the window (MYK9-2379)', async ({
+  page,
+}) => {
+  await openClass(page, { width: 1280, height: 720 });
+  const header = page.getByTestId('focused-class-header');
+  const headerBox = await header.boundingBox();
+  expect(headerBox, 'the header has a box').not.toBeNull();
+  // One line: the name, the status badge and the buttons.
+  expect(headerBox?.height ?? Number.POSITIVE_INFINITY).toBeLessThan(80);
+
+  const requirements = page.getByTestId('focused-class-requirements').getByRole('button').first();
+  await requirements.click();
+  await expect(requirements).toHaveAttribute('aria-expanded', 'true');
+  await requirements.scrollIntoViewIfNeeded();
+
+  const visible = await requirements.evaluate(el => {
+    const block = document.querySelector<HTMLElement>('[data-testid="focused-class-header"]');
+    // The class's own scroller (split) or the page, whichever scrolls it.
+    let bottom = window.innerHeight;
+    for (let node = el.parentElement; node; node = node.parentElement) {
+      const overflow = getComputedStyle(node).overflowY;
+      if ((overflow === 'auto' || overflow === 'scroll') && node.scrollHeight > node.clientHeight) {
+        bottom = Math.min(bottom, node.getBoundingClientRect().bottom);
+        break;
+      }
+    }
+    return {
+      height: bottom - (block?.getBoundingClientRect().bottom ?? 0),
+      window: window.innerHeight,
+    };
+  });
+  // Below the pinned header, at least half the window is scrollable class content.
+  expect(visible.height).toBeGreaterThanOrEqual(visible.window * 0.5);
+});
 
 test('1280x800: the class name stays in view while the entries scroll (MYK9-1989)', async ({
   page,
@@ -148,6 +188,8 @@ for (const viewport of [
     const header = page.getByTestId('focused-class-header');
     await expect(header).toHaveCSS('position', 'static');
     await expect(header).not.toHaveAttribute('data-compact', 'true');
-    await expect(page.getByText('Expected start', { exact: true })).toBeAttached();
+    // The settings are in Edit class, so the card has the button and no fields (MYK9-2379).
+    await expect(page.getByRole('button', { name: `Edit class ${CLASS_NAME}` })).toBeVisible();
+    await expect(page.getByText('Expected start', { exact: true })).toHaveCount(0);
   });
 }

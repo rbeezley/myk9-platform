@@ -151,12 +151,15 @@ export const trialClassToFormData = (trialClass: Partial<TrialClass>): TrialClas
     allowsWaitlist: (trialClass as Partial<ClassData>).allowsWaitlist ?? null,
     editedCapacity: [],
     ...entryFeeFormFields(trialClass),
+    ...timeLimitFormFields(trialClass as Partial<ClassData>),
   };
 };
 
 // Convert form data back to TrialClass
 // Use conditional spread to satisfy exactOptionalPropertyTypes
-export const formDataToTrialClass = (formData: TrialClassEditFormData): Partial<TrialClass> => ({
+export const formDataToTrialClass = (
+  formData: TrialClassEditFormData
+): Partial<TrialClass> & TimeLimitPatch => ({
   element: formData.element,
   level: formData.level,
   section: formData.section,
@@ -166,4 +169,47 @@ export const formDataToTrialClass = (formData: TrialClassEditFormData): Partial<
   entries: formData.entries,
   ...editedCapacityPatch(formData),
   ...entryFeePatch(formData),
+  ...timeLimitPatch(formData),
 });
+
+/**
+ * The patch without what the live settings own (MYK9-2379): status and judge were saved when
+ * changed, and the form's copy is as old as the panel, so writing it back would undo them. A judge
+ * picked in the form itself (the Officials tab, which is how a started class's judge changes)
+ * is still unsaved, so `keepJudge` leaves it in.
+ */
+export function withoutLiveSettings<T extends object>(
+  data: T,
+  { keepJudge }: { keepJudge: boolean }
+): Partial<T> {
+  const patch: Partial<T> = { ...data };
+  const owned = keepJudge ? ['status'] : ['status', 'judge', 'judgeId', 'judgeName'];
+  for (const key of owned) delete patch[key as keyof T];
+  return patch;
+}
+
+type TimeLimitPatch = { timeLimit1?: string; timeLimit2?: string; timeLimit3?: string };
+
+/**
+ * The time-limit fields' starting state. A source that did not carry `timeLimit1` shows no field
+ * (a blank would read as "no limit" and saving it would clear the real one).
+ */
+function timeLimitFormFields(source: Partial<ClassData>) {
+  return {
+    timeLimitLoaded: source.timeLimit1 !== undefined,
+    timeLimitEdited: false,
+    timeLimit1: source.timeLimit1 ?? '',
+    timeLimit2: source.timeLimit2 ?? '',
+    timeLimit3: source.timeLimit3 ?? '',
+  };
+}
+
+/** The limits, only when one was changed in this session (the form is as old as the panel). */
+export function timeLimitPatch(formData: TrialClassEditFormData): TimeLimitPatch {
+  if (!formData.timeLimitEdited) return {};
+  return {
+    ...(formData.timeLimit1 !== undefined && { timeLimit1: formData.timeLimit1 }),
+    ...(formData.timeLimit2 !== undefined && { timeLimit2: formData.timeLimit2 }),
+    ...(formData.timeLimit3 !== undefined && { timeLimit3: formData.timeLimit3 }),
+  };
+}

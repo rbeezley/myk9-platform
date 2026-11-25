@@ -378,35 +378,28 @@ describe('SecretaryCockpitFocusedClass layout (owner, 2026-10-03)', () => {
     );
   }
 
-  it('shows what the secretary sets as inline fields in the class header', () => {
-    renderPanel(sourceClass);
-
-    const settings = screen.getByTestId('focused-class-header');
-    expect(within(settings).getByText('Status')).toBeInTheDocument();
-    expect(within(settings).getByText('Expected start')).toBeInTheDocument();
-    expect(within(settings).getByText('Actual timing')).toBeInTheDocument();
-  });
-
-  it('closes an open expected-start editor when the secretary moves to another class', async () => {
-    const { user, rerender } = renderPanel(sourceClass);
-    await user.click(
-      within(screen.getByTestId('focused-class-header')).getByRole('button', { name: /9:00/ })
-    );
-    expect(screen.getByRole('button', { name: 'Save expected start' })).toBeInTheDocument();
-
-    rerender(
+  it('keeps the settings out of the header: it has Edit class, not the fields', async () => {
+    const onSelect = vi.fn();
+    const { user } = render(
       <SecretaryCockpitFocusedClass
         showId="show-1"
-        focused={{ ...focused, id: 'class-2', name: 'Container Advanced' }}
-        sourceClass={{ ...sourceClass, id: 'class-2', name: 'Container Advanced' }}
+        focused={focused}
+        sourceClass={sourceClass}
         trial={{ id: 'trial-1', date: '2026-07-20', number: '1', order: 0 }}
         attention={[]}
         timeZone="America/Chicago"
         canManageShow
         onCommand={vi.fn()}
+        editClass={{ disabled: false, onSelect }}
       />
     );
-    expect(screen.queryByRole('button', { name: 'Save expected start' })).not.toBeInTheDocument();
+
+    const header = screen.getByTestId('focused-class-header');
+    expect(within(header).queryByText('Expected start')).toBeNull();
+    expect(within(header).queryByText('Actual timing')).toBeNull();
+    expect(within(header).queryByRole('button', { name: /Change status/ })).toBeNull();
+    await user.click(within(header).getByRole('button', { name: 'Edit class Container Novice' }));
+    expect(onSelect).toHaveBeenCalledTimes(1);
   });
 
   it('heads a started class with its scored count, not a redundant entry count', () => {
@@ -424,17 +417,6 @@ describe('SecretaryCockpitFocusedClass layout (owner, 2026-10-03)', () => {
     const facts = screen.getByRole('heading', { level: 2 }).nextElementSibling;
     expect(facts).toHaveTextContent('8 entries');
     expect(facts).not.toHaveTextContent('scored');
-  });
-
-  it('says a class that ran has no recorded start, rather than "Not started"', () => {
-    renderPanel(
-      { ...sourceClass, lifecycle: 'complete' },
-      { ...focused, lifecycle: { evidence: 'recorded', value: 'complete' } }
-    );
-
-    const settings = screen.getByTestId('focused-class-header');
-    expect(within(settings).getByText('Start not recorded')).toBeInTheDocument();
-    expect(within(settings).queryByText('Not started')).toBeNull();
   });
 
   it('no longer lists "Can change class" apart from the entries table (MYK9-1798)', () => {

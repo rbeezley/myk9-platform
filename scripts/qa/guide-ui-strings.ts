@@ -6,6 +6,14 @@
  * literals and JSX text (apps/myk9show/src and packages/<pkg>/src, tests excluded; comments do not count). A span found nowhere fails with
  * `file:line`. Intentional non-UI quotes live in `guide-ui-strings.allowlist.json`.
  *
+ * Known limits (a tripwire, not a proof; do not keep patching heuristics):
+ *  - Quoted spans over 200 characters are skipped, and a straight-quote pair can mis-pair across a long quote.
+ *  - A removed label can still pass if it survives in a type-only string, a template-literal type
+ *    fragment, or a static fragment of an interpolated import()/require() path.
+ *  - A punctuation-only label such as **?** is not checked.
+ *  - A bold navigation path wrapped across lines reports every missing step at the opening line.
+ * The real fix is checking guides against rendered app text once MYK9-2411 captures it.
+ *
  * Usage: tsx scripts/qa/guide-ui-strings.ts   (exit 1 on any unmatched span)
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs';

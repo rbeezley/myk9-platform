@@ -182,7 +182,8 @@ describe('guide UI strings (matching rules)', () => {
 });
 
 describe('the published guides', () => {
-  it('quote no UI text the app has removed', () => {
+  // Parses every source file with the TypeScript scanner; ~25s on a CI runner, so give it headroom.
+  it('quote no UI text the app has removed', { timeout: 120_000 }, () => {
     const allow = JSON.parse(
       readFileSync(join(repoRoot, 'scripts/qa/guide-ui-strings.allowlist.json'), 'utf8')
     ) as Allowlist;

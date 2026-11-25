@@ -10,6 +10,7 @@ import { getTrialTimezone } from '@/features/registries';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
 import { AtShowClassCardDialogs, type ActiveClassCard } from './AtShowClassCardDialogs';
 import { useAtShowClassFavorites } from './atShowClassFavorites';
+import { usePaperClaims, type PaperClaim } from './usePaperClaims';
 import { useQueuedScoresByClass } from './useQueuedScoresByClass';
 import { scoresNotSentHref } from './scoresNotSent/scoresNotSentPath';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
@@ -26,6 +27,8 @@ function prefersTouchSheet(): boolean {
 
 export interface ClassCardRowProps {
   queuedScoreCount: number;
+  /** MYK9-1970: the paper claim by the one rule; only `not-paper` may show a next-up line. */
+  paperClaim: PaperClaim;
   scoresNotSentHref: string | undefined;
   onToggleFavorite: (entry: ClassEntry) => void;
   onShowDetails: (entry: ClassEntry, anchor: HTMLElement, countsTrusted: boolean) => void;
@@ -39,6 +42,7 @@ export function useAtShowClassCards(showId: string | undefined, groups: AtShowCl
   const trialIds = useMemo(() => groups.map(group => group.trial.id), [groups]);
   const { favoriteClassIds, toggleClassFavorite } = useAtShowClassFavorites(showId, trialIds);
   const queuedByClass = useQueuedScoresByClass(showId);
+  const { claimOf } = usePaperClaims([showId]);
   const { hasPermission } = useRingsideEffectiveRole(showId);
   const canManageClasses = hasPermission('canManageClasses');
 
@@ -90,6 +94,7 @@ export function useAtShowClassCards(showId: string | undefined, groups: AtShowCl
       );
       return {
         queuedScoreCount,
+        paperClaim: claimOf(getClassIds(entry)[0], entry.scores_on_paper),
         scoresNotSentHref: scoresNotSentHref(showId, queuedScoreCount),
         onToggleFavorite: card =>
           void toggleClassFavorite(trialByClassId.get(card.id)?.id, getClassIds(card)),
@@ -108,6 +113,7 @@ export function useAtShowClassCards(showId: string | undefined, groups: AtShowCl
       onOpenRequirements,
       onShowDetails,
       queuedByClass,
+      claimOf,
       showId,
       toggleClassFavorite,
       trialByClassId,

@@ -9,6 +9,7 @@ import {
   statusCarriesTime,
 } from './AtShowClassStatusInfo';
 import { AtShowClassCardFooter } from './AtShowClassCardFooter';
+import type { PaperClaim } from './usePaperClaims';
 import type { RingDayBucket } from './orderRingClassesByDay';
 import {
   isEmptyNextUpPreview,
@@ -38,6 +39,8 @@ export interface AtShowClassRowProps {
    * silently reinstated `0 / 0` (LESSONS last-hop-drop).
    */
   entryCountsAvailable: boolean;
+  /** MYK9-1970: the paper claim; next-up shows only when it is known to be `not-paper`. */
+  paperClaim?: PaperClaim | undefined;
   /**
    * Scores queued on this device for this class (MYK9-1506). Above zero the card
    * shows the upload indicator and the Offline Scoring badge; zero shows neither.
@@ -113,6 +116,7 @@ export function AtShowClassRow({
   dayBucket,
   nextUp,
   entryCountsAvailable,
+  paperClaim = 'not-paper',
   queuedScoreCount = 0,
   scoresNotSentHref,
   onToggleFavorite,
@@ -124,7 +128,12 @@ export function AtShowClassRow({
   // every render from the class status, so changing the status back restores the card.
   const isCancelled = entry.is_cancelled === true;
   const status = getEffectiveClassStatus(entry);
-  const showNextUp = !isCancelled && isLiveNextUpStatus(status) && !isEmptyNextUpPreview(nextUp);
+  // MYK9-1970: a paper class makes no next-up claim.
+  const showNextUp =
+    !isCancelled &&
+    paperClaim === 'not-paper' &&
+    isLiveNextUpStatus(status) &&
+    !isEmptyNextUpPreview(nextUp);
 
   return (
     <li data-class-id={entry.id} data-day-bucket={dayBucket}>

@@ -9,6 +9,7 @@ import type { ComponentType } from 'react';
 import { CHECKIN_STATUSES } from '@myk9/core';
 import type { Entry } from '../../stores/entryStore';
 import type { DogCardProps } from './pageProps';
+import type { ClassInfo } from './types';
 import { getRibbonColor, NEUTRAL_RIBBON } from './ribbonColors';
 import { CompletedResult } from './CompletedResult';
 import { CheckInIndicator, getCheckInPresentation } from './CheckInIndicator';
@@ -213,7 +214,7 @@ const StubDogCard: ComponentType<DogCardProps> = ({ callName, variant }) => (
   </div>
 );
 
-const renderContent = (entries: Entry[], showNowAndNext = true) =>
+const renderContent = (entries: Entry[], showNowAndNext = true, classInfo?: ClassInfo) =>
   render(
     <EntryListContent
       entries={entries}
@@ -228,6 +229,7 @@ const renderContent = (entries: Entry[], showNowAndNext = true) =>
       onDragStart={vi.fn()}
       onDragEnd={vi.fn() as () => Promise<void>}
       showNowAndNext={showNowAndNext}
+      {...(classInfo ? { classInfo } : {})}
       DogCard={StubDogCard}
     />
   );
@@ -267,6 +269,29 @@ describe('EntryListContent now and next (MYK9-1086)', () => {
       ['Maple', ''],
     ]);
   });
+
+  it('shows the Up next and Then headings on a phone-scored class', () => {
+    renderContent(dogs);
+    expect(screen.queryByText('Up next')).not.toBeNull();
+    expect(screen.queryByText('Then')).not.toBeNull();
+  });
+
+  it.each(['paper', 'unknown'] as const)(
+    'renders the plain list, with no now-and-next split, when the claim is %s (MYK9-1970)',
+    paperClaim => {
+      renderContent(dogs, true, { paperClaim } as ClassInfo);
+      expect(screen.queryByText('Up next')).toBeNull();
+      expect(screen.queryByText('Then')).toBeNull();
+      expect(screen.queryByTestId('ring-clear')).toBeNull();
+      expect(screen.queryByText(/Waiting for the next dog|In the ring/)).toBeNull();
+      const cards = screen.getAllByTestId('dog-card');
+      expect(cards.map(c => [c.textContent, c.getAttribute('data-variant')])).toEqual([
+        ['Willow', ''],
+        ['Cooper', ''],
+        ['Maple', ''],
+      ]);
+    }
+  );
 
   it('shows the Ring is clear placeholder when no dog is in the ring', () => {
     renderContent(dogs.slice(1));

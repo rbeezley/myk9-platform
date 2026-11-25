@@ -57,7 +57,7 @@ POSTER="$HERE/post-review-gate.sh"
 . "$HERE/review-verdict.sh"
 # shellcheck source=scripts/qa/review-next-step.sh
 . "$HERE/review-next-step.sh"
-trap 'review_next_step $? "${REVIEW_NEXT_MODE:-}"' EXIT
+trap 'review_next_step $? "${REVIEW_NEXT_MODE:-}" "${POST:-0}"' EXIT
 
 POST=0
 DETACH=0
@@ -202,7 +202,11 @@ if [ -n "$WAIT" ]; then
           exit 2
         fi
         ;;
-      *) REVIEW_NEXT_MODE=relayed; [ -f "$OUT_FILE" ] && cat "$OUT_FILE"; echo "claude-review: detached review for PR #${PR} finished with exit ${st}"; exit "$st" ;;
+      *)
+        # Suppress our own Next: only when the child's replayed output carries one;
+        # a child killed before its trap ran left none (MYK9-2395).
+        grep -q '^Next: ' "$OUT_FILE" 2>/dev/null && REVIEW_NEXT_MODE=relayed
+        [ -f "$OUT_FILE" ] && cat "$OUT_FILE"; echo "claude-review: detached review for PR #${PR} finished with exit ${st}"; exit "$st" ;;
     esac
     if [ "$waited" -ge "$WAIT" ]; then
       echo "claude-review: PR #${PR} review still running (${st}); call --wait again. Exit 3 is not a verdict."

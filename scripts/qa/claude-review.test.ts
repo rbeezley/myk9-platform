@@ -620,6 +620,19 @@ describe('claude-review.sh', () => {
       expect(readFileSync(join(stateDir, 'claude-review-7.status'), 'utf8').trim()).toBe('2');
     });
 
+    // MYK9-2395: a child killed before its own trap ran left no Next: line to relay.
+    it('--wait prints its own Next: line when the child output carries none', () => {
+      const stub = stubClaude('No actionable defects found.');
+      const gh = stubGh();
+      const stateDir = mkdtempSync(join(tmpdir(), 'claude-state-'));
+      dirs.push(stateDir);
+      writeFileSync(join(stateDir, 'claude-review-7.status'), '137\n');
+      writeFileSync(join(stateDir, 'claude-review-7.out'), 'partial output\n');
+      const r = run({ ...stub, stateDir }, gh, ['--wait', '1', '7']);
+      expect(r.code).toBe(137);
+      expect(r.out).toContain('Next: exit 137 is outside the 0-3 contract');
+    });
+
     it('a running marker with no .pid file is a dead spawn, not a review to wait for', () => {
       const stub = stubClaude('No actionable defects found.');
       const gh = stubGh();
@@ -832,7 +845,7 @@ describe('claude-review.sh', () => {
       expect(done.out).toContain('finished with exit 0');
       // The child's own Next: line is relayed once; the poller adds no second one.
       expect(done.out.match(/^Next: /gm)).toHaveLength(1);
-      expect(done.out).toContain('Next: clean for this head');
+      expect(done.out).toContain('Next: clean, but this was a rehearsal');
       expect(readFileSync(join(stub.stateDir, 'claude-review-7.status'), 'utf8').trim()).toBe('0');
     }, 20_000);
 

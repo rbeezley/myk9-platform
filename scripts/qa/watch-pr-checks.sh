@@ -368,6 +368,23 @@ self_test() {
   echo "self-test 11/11 + 7 current-attempt fixtures x2 orders + 4 REST: vercel-state, run-conclusion, all-green, in-flight, partial-rollup, empty-rollup, required-beats-preview, answered-red, stale-conclusion, unknown-conclusion, neutral-and-skipped, draft-ready-stale-skip, draft-ready-both-registered, cancelled-then-success, fresh-failure-beats-old-success, required-cancelled-then-success, single-intentional-skip, fresh-failure-beats-old-skip, rest-failure, rest-status-failure, rest-stale-skip, rest-green"
 }
 
+# What the caller does with each verdict (MYK9-2395), so the ship-pr skill
+# points here instead of carrying its own copy. Never calls `exit`, so the
+# exit status is unchanged. Not installed for --self-test, which CI runs.
+next_step() {
+  case "$1" in
+    0) echo "Next: if STILL OUTSTANDING was listed above, judge each name as for exit 5 first. Then merge from the main repo directory with \`gh pr merge ${PR:-<pr>} --squash\` (never from a worktree, never --delete-branch), if this run is authorized to merge." ;;
+    1) echo "Next: STOP. This names only the first required failure, so read the whole rollup. If the failed run predates a fix on main, merge origin/main in and push: a new head, so the review gate runs again. Never arm auto-merge to get past a red check." ;;
+    2) echo "Next: STOP. The head moved, so the review gate and this watch must both run again for the new head. Never arm auto-merge to get past it." ;;
+    3) echo "Next: no verdict yet. Run the watcher again later. Arm auto-merge only with the user's explicit merge authorization; standing approvals alone never cover it." ;;
+    4) echo "Next: the watcher could not check anything (see above). Fix the cause and run it again; believe nothing it reported." ;;
+    5) echo "Next: merge only after confirming BOTH: the failed check's targetUrl ends upgradeToPro=build-rate-limit, and this diff does not need the preview for visual QA. Say which you checked; otherwise treat it as a stop." ;;
+    6) echo "Next: merge origin/main into the branch and push. That is a new head, so the review gate runs again." ;;
+    *) echo "Next: exit $1 is outside the 0-6 contract (killed or usage error): no verdict. Run the watcher again." ;;
+  esac
+}
+[ "${1:-}" = "--self-test" ] || trap 'next_step $?' EXIT
+
 # Every fixture and poll needs jq; say so once, before any of them runs.
 if ! command -v jq >/dev/null 2>&1; then
   echo "jq is required but not installed. Install: winget install jqlang.jq (Windows), brew install jq (macOS), apt install jq (Linux)." >&2
@@ -380,22 +397,6 @@ if [ "${1:-}" = "--self-test" ]; then
 fi
 
 PR="${1:?usage: watch-pr-checks.sh <pr-number> [pinned-sha] | --self-test}"
-
-# What the caller does with each verdict (MYK9-2395), so the ship-pr skill
-# points here instead of carrying its own copy. Never calls `exit`, so the
-# exit status is unchanged.
-next_step() {
-  case "$1" in
-    0) echo "Next: if STILL OUTSTANDING was listed above, judge each name as for exit 5 first. Then merge from the main repo directory with \`gh pr merge $PR --squash\` (never from a worktree, never --delete-branch), if this run is authorized to merge." ;;
-    1) echo "Next: STOP. This names only the first required failure, so read the whole rollup. If the failed run predates a fix on main, merge origin/main in and push: a new head, so the review gate runs again. Never arm auto-merge to get past a red check." ;;
-    2) echo "Next: STOP. The head moved, so the review gate and this watch must both run again for the new head." ;;
-    3) echo "Next: no verdict yet. Run the watcher again later. Arm auto-merge only with the user's explicit merge authorization; standing approvals alone never cover it." ;;
-    4) echo "Next: the watcher could not check anything (see above). Fix the cause and run it again; believe nothing it reported." ;;
-    5) echo "Next: merge only after confirming BOTH: the failed check's targetUrl ends upgradeToPro=build-rate-limit, and this diff does not need the preview for visual QA. Say which you checked; otherwise treat it as a stop." ;;
-    6) echo "Next: merge origin/main into the branch and push. That is a new head, so the review gate runs again." ;;
-  esac
-}
-trap 'next_step $?' EXIT
 self_test
 
 # The repo's own ruleset is the authority on what "green" means. Fail CLOSED if

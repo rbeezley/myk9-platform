@@ -150,7 +150,7 @@ describe('codex-review.sh', () => {
     output => {
       const r = run(stubCodex(`codex\n${output}`));
       expect(r.code).toBe(0);
-      expect(r.out).toContain('Next: clean for this head');
+      expect(r.out).toContain('Next: clean, but this was a rehearsal');
     }
   );
   it.each([...NEGATED_CLEAN_FORMS, NEGATED_OPENING_ONLY])(

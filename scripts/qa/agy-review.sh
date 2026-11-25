@@ -54,7 +54,7 @@ POSTER="$HERE/post-review-gate.sh"
 . "$HERE/review-verdict.sh"
 # shellcheck source=scripts/qa/review-next-step.sh
 . "$HERE/review-next-step.sh"
-trap 'review_next_step $? "${REVIEW_NEXT_MODE:-}"' EXIT
+trap 'review_next_step $? "${REVIEW_NEXT_MODE:-}" "${POST:-0}"' EXIT
 
 BASE_SHA="$(git rev-parse "$BASE_REF")" || exit 2
 HEAD_SHA="$(git rev-parse HEAD)"

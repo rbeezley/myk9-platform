@@ -171,7 +171,7 @@ export function walkVerdict(
 export function nextStep(code: number): string {
   switch (code) {
     case 0:
-      return 'Next: nothing to do for the walk; the review gate poster can post.';
+      return 'Next: nothing blocks on the walk. Without --pr only the path test ran, so that is not a verdict on any PR head.';
     case 1:
       return 'Next: download the isolated-batch3-proof artifact, read the screenshots and trace, fix, push, and start the review again (ship-pr Step 3). The poster refuses until the walk is green.';
     case 3:

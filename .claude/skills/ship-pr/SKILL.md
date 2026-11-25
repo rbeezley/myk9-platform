@@ -280,7 +280,7 @@ The watcher also settles a lone red `Review gate` and a superseded `CANCELLED` `
 evidence` check itself (MYK9-1946); do not judge those by hand.
 
 **The watcher's last line is a `Next:` line for its exit code; follow it.** Exit 1 or 2 is a STOP,
-not a slower Path B, and exit 5 merges only with both confirmations the `Next:` line names.
+not a slower Path B: never arm auto-merge to get past a red. Exit 5 merges only with both confirmations the `Next:` line names.
 
 **Path A — the watcher exited 0.** Green means the REQUIRED set passed, **not** that the board is
 finished. If it printed `STILL OUTSTANDING (non-required, may yet fail): ...`, apply the exit-5

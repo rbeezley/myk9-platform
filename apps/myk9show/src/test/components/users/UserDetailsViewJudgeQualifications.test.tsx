@@ -90,15 +90,25 @@ describe('UserDetailsView: who sees the Judge Qualifications card', () => {
     expect(card()).toHaveAttribute('data-can-manage', 'true');
   });
 
-  it('hides the card on a removed person, who cannot be edited', () => {
+  it('shows a removed judge read-only, so an admin can still read the credentials', () => {
     viewerRoles = [UserRole.SITE_ADMIN];
     viewerPermissions = ['admin:manage'];
-    render(
-      <UserDetailsView
-        person={person([UserRole.JUDGE], { deletedAt: '2026-11-01T00:00:00Z' } as Partial<User>)}
-      />
-    );
+    const removed = { deletedAt: '2026-11-01T00:00:00Z' } as Partial<User>;
+    render(<UserDetailsView person={person([UserRole.JUDGE], removed)} />);
+    expect(card()).toHaveAttribute('data-can-manage', 'false');
+  });
+
+  it('does not offer a removed exhibitor the card at all', () => {
+    viewerRoles = [UserRole.SECRETARY];
+    const removed = { deletedAt: '2026-11-01T00:00:00Z' } as Partial<User>;
+    render(<UserDetailsView person={person([UserRole.EXHIBITOR], removed)} />);
     expect(card()).not.toBeInTheDocument();
+  });
+
+  it('lets a secretary manage even without show:manage, as the server allows', () => {
+    viewerRoles = [UserRole.SECRETARY];
+    render(<UserDetailsView person={person([UserRole.EXHIBITOR])} />);
+    expect(card()).toHaveAttribute('data-can-manage', 'true');
   });
 
   it('shows a site admin the card on a person with no roles', () => {

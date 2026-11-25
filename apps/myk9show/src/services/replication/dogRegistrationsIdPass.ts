@@ -60,7 +60,9 @@ export async function fetchVisibleRegistrationIds(
     if (error || !data) return null;
 
     for (const row of data) ids.add(String((row as { id: string }).id));
-    if (data.length < DOG_REGISTRATIONS_PAGE_SIZE) return ids;
+    // Only an empty page completes the set (MYK9-2252): a lower hosted max_rows
+    // returns short pages with more ids behind them.
+    if (data.length === 0) return ids;
     lastId = String((data[data.length - 1] as { id: string }).id);
   }
   return null;

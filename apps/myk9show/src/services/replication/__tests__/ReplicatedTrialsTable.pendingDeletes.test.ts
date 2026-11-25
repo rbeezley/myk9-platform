@@ -16,8 +16,22 @@ const server = vi.hoisted(() => ({
 vi.mock('@/services/database/supabaseClient', () => {
   function query(head: boolean) {
     const filters: Array<[string, unknown]> = [];
+    // The keyset pager's `or` cursor: rows strictly after (updated_at, id).
+    const cursors: Array<(row: Record<string, unknown>) => boolean> = [];
     const builder = {
       gt: () => builder,
+      range: () => builder,
+      or: (expression: string) => {
+        const match = /updated_at\.gt\.(.+?),and\(updated_at\.eq\.(.+?),id\.gt\.(.+)\)$/.exec(
+          expression
+        );
+        const [, after, , id] = match!;
+        cursors.push(
+          row =>
+            String(row.updated_at) > after! || (row.updated_at === after && String(row.id) > id!)
+        );
+        return builder;
+      },
       is: () => builder,
       order: () => builder,
       eq: (column: string, value: unknown) => {
@@ -25,7 +39,9 @@ vi.mock('@/services/database/supabaseClient', () => {
         return builder;
       },
       then: (resolve: (value: unknown) => unknown) => {
-        const rows = server.rows.filter(row => filters.every(([col, val]) => row[col] === val));
+        const rows = server.rows.filter(
+          row => filters.every(([col, val]) => row[col] === val) && cursors.every(keep => keep(row))
+        );
         return Promise.resolve(
           head ? { count: server.count, error: null } : { data: rows, error: null }
         ).then(resolve);

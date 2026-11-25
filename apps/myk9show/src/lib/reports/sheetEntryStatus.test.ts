@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { collateTrialPacket } from '@/features/show-map/cockpit/trialPacket/collateTrialPacket';
 import { selectPacketPages, toScoresheetModel } from './toScoresheetModel';
 import type { ReportDataSet } from './types';
+import { getReportById } from './reportRegistry';
+import { printedEntryFacts } from '../../../../../supabase/functions/_shared/paperwork/printedSheet.ts';
 import type { DbClass, DbEntry, DbTrial } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
 
@@ -229,7 +231,7 @@ describe('check-in sheet lists every entry with its status; the scoresheet lists
     expect(judge?.dogTotal).toBe(3);
   });
 
-  it('keeps a class whose dogs all sit out in the judge packet, with a check-in sheet and no scoresheet', () => {
+  it('leaves a class whose dogs all sit out out of the judge packet, as before MYK9-2387', () => {
     const packet = collateTrialPacket({
       show,
       trials: [trial],
@@ -237,12 +239,8 @@ describe('check-in sheet lists every entry with its status; the scoresheet lists
       entries: [entry(3, novice.id, 'withdrawn'), entry(5, novice.id, 'pending')],
       trialId: trial.id,
     });
-    expect(packet?.emptyClassCount).toBe(0);
-    const noviceClass = packet?.judges[0]?.classes[0];
-    expect(noviceClass?.checkInRows).toBe(2);
-    expect(noviceClass?.dogCount).toBe(0);
-    expect(noviceClass?.checkInPages).toBe(1);
-    expect(noviceClass?.scoreSheetPages).toBe(0);
+    expect(packet?.emptyClassCount).toBe(1);
+    expect(packet?.judges).toHaveLength(0);
   });
 
   it('counts a class with nothing to list (a move-up source, a declined entry) as empty, not as a sheet to print', () => {
@@ -255,5 +253,49 @@ describe('check-in sheet lists every entry with its status; the scoresheet lists
     });
     expect(packet?.emptyClassCount).toBe(1);
     expect(packet?.judges).toHaveLength(0);
+  });
+});
+
+describe('what prints when a class has no running dog (MYK9-2387)', () => {
+  it('gives the Reports scoresheet nothing to print, so the preview can say so', () => {
+    const dataset: ReportDataSet = {
+      show,
+      pages: [
+        {
+          trial,
+          classData: novice,
+          entries: [entry(3, novice.id, 'withdrawn'), entry(5, novice.id, 'pending')],
+        },
+      ],
+    };
+    expect(getReportById('scoresheet')?.buildPdf?.(dataset, 'run-order')).toBeNull();
+    expect(getReportById('check-in-sheet')?.buildPdf?.(dataset, 'run-order')).toBeInstanceOf(
+      Uint8Array
+    );
+  });
+});
+
+describe('check-in fingerprint facts (MYK9-2387)', () => {
+  const base = {
+    id: 'e1',
+    classId: 'c1',
+    trialId: 't1',
+    armband: '101',
+    runOrder: 1,
+    callName: 'Moss',
+    breed: 'Beagle',
+    handler: 'Jamie Walker',
+    registrationNumber: null,
+    section: null,
+  };
+
+  it('hashes a running dog exactly as before, with no status key', () => {
+    expect(printedEntryFacts(base, 'check-in', 0, 1)).not.toHaveProperty('status');
+  });
+
+  it('adds the status a non-running dog prints', () => {
+    expect(
+      printedEntryFacts({ ...base, notRunningLabel: 'Pending' }, 'check-in', 1, undefined)
+    ).toMatchObject({ status: 'Pending', order: '' });
   });
 });

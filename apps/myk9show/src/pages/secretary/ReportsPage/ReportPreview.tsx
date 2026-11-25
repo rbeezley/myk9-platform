@@ -431,16 +431,20 @@ export function ReportPreview({
 
   // `rendersWithoutEntries` reports are about the trial's classes, not its entries, so
   // the generic empty state would suppress the very explanation they exist to give.
+  const emptyState = (message: string) => (
+    <div
+      role="status"
+      aria-live="polite"
+      className="flex items-center justify-center p-8 text-muted-foreground"
+    >
+      {message}
+    </div>
+  );
   if (!isLoading && !hasEntries && !report?.rendersWithoutEntries) {
-    return (
-      <div
-        role="status"
-        aria-live="polite"
-        className="flex items-center justify-center p-8 text-muted-foreground"
-      >
-        No entries found for this selection
-      </div>
-    );
+    return emptyState('No entries found for this selection');
+  }
+  if (report?.buildPdf && pdfResult && !pdfResult.bytes && !pdfResult.error) {
+    return emptyState('No dog in this selection is running, so there is no score sheet to print.');
   }
 
   if (report?.buildPdf && pdfResult?.error) {

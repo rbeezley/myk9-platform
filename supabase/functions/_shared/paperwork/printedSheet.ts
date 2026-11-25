@@ -53,8 +53,9 @@ export function printedEntryFacts(
     return {
       row: rowIndex,
       order: position === undefined ? '' : String(position),
-      // MYK9-2387: a dog that will not run prints its status where the order would be.
-      status: entry.notRunningLabel ?? '',
+      // MYK9-2387: a dog that will not run prints its status where the order would be. A runner
+      // has no status key, so a sheet printed before this change keeps its fingerprint.
+      ...(entry.notRunningLabel ? { status: entry.notRunningLabel } : {}),
       armband,
       callName: entry.callName,
       breed: entry.breed,

@@ -62,9 +62,12 @@ export function MergedSheetsPreview({
     if (pages.length === 0) return null;
     const dataSet: ReportDataSet = { show, pages };
     try {
-      return key.split('|').map(id => {
+      return key.split('|').flatMap(id => {
         const report = getReportById(id);
-        return report?.buildPdf?.(dataSet, report.defaultSort ?? 'run-order') ?? null;
+        if (!report?.buildPdf) return [null];
+        // A sheet with nothing to print (no running dogs, MYK9-2387) is left out of the batch.
+        const bytes = report.buildPdf(dataSet, report.defaultSort ?? 'run-order');
+        return bytes ? [bytes] : [];
       });
     } catch {
       return 'error' as const;
@@ -82,7 +85,8 @@ export function MergedSheetsPreview({
     // The inputs changed: whatever the frame holds describes obsolete sheets. Empty it first.
     if (iframe?.getAttribute('src')?.startsWith('blob:')) iframe.src = 'about:blank';
     onReadyChange?.(false);
-    if (!iframe || !parts || parts === 'error' || parts.some(part => part === null)) return;
+    if (!iframe || !parts || parts === 'error' || parts.length === 0) return;
+    if (parts.some(part => part === null)) return;
     let url: string | null = null;
     // Set by the cleanup of this build, so an older merge resolving late is dropped.
     let superseded = false;

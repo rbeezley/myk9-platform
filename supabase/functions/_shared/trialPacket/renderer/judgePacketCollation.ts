@@ -5,6 +5,7 @@ import type {
   EmergencyPacketTrial,
 } from './types.ts';
 import { formatPacketSeconds } from './emergencyTrialPacket.ts';
+import { isUnsetPacketJudge } from './printedClassHeader.ts';
 
 /**
  * Collation of one trial's classes into one packet per judge (MYK9-2085). Pure and runtime
@@ -15,13 +16,8 @@ import { formatPacketSeconds } from './emergencyTrialPacket.ts';
 
 /** What one class contributes to a judge's packet, besides the class itself. */
 export interface PacketClassSheets {
-  /** Dogs that run: the rows on the scoresheet. */
+  /** Dogs that run: the rows on the scoresheet. A class with none is left out of the packet. */
   dogCount: number;
-  /**
-   * Rows on the check-in sheet: the runners plus the Pending, Withdrawn, Pulled and Absent dogs
-   * listed below them (MYK9-2387). A class with any row keeps its check-in sheet in the packet.
-   */
-  checkInRows: number;
   /** Armbands in the order the dogs run: the order the scoresheet prints them. */
   runOrder: string[];
   checkInPages: number;
@@ -72,8 +68,8 @@ export function withJudgeTotals<T>(judge: PacketJudge<T>): PacketJudge<T> {
 }
 
 function judgeKeyOf(name: string): string {
-  const trimmed = name.trim();
-  return trimmed ? trimmed.toLowerCase() : NO_JUDGE_KEY;
+  // A stored "TBD" is an unset judge, so it joins the "No judge assigned" packet (MYK9-2377).
+  return isUnsetPacketJudge(name) ? NO_JUDGE_KEY : name.trim().toLowerCase();
 }
 
 /** The label the check-in sheet gives the class: element, level and a real section. */
@@ -91,7 +87,6 @@ export function summarizeClassSheets(model: EmergencyPacketModel): PacketClassSh
   return {
     // The sheets leave off a moved-up source and a declined dog (MYK9-2082); the scoresheet
     // also leaves off a dog that will not run (MYK9-2387). The counts come from what prints.
-    checkInRows: checkIn.reduce((sum, page) => sum + page.entries.length, 0),
     dogCount: scoreSheets.reduce((sum, page) => sum + page.entries.length, 0),
     runOrder: scoreSheets.flatMap(page => page.entries.map(entry => entry.armband ?? '')),
     checkInPages: checkIn.length,
@@ -161,7 +156,7 @@ export function collateJudgePackets<T = object>(
   let emptyClassCount = 0;
   for (const classItem of trialClasses) {
     const sheets = options.sheetsFor(classItem);
-    if (!sheets || sheets.checkInRows === 0) {
+    if (!sheets || sheets.dogCount === 0) {
       emptyClassCount += 1;
       continue;
     }

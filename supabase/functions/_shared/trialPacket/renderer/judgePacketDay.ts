@@ -81,12 +81,8 @@ export function buildClassSheetParts(
   model: EmergencyPacketModel,
   JsPdf: JsPdfConstructor
 ): Uint8Array[] {
-  return (
-    (['check-in', 'score-recording'] as const)
-      .map(kind => selectPages(model, kind))
-      // A class whose dogs all sit out has a check-in sheet and no scoresheet (MYK9-2387).
-      .filter(selected => selected.pages.length > 0)
-      .map(selected => buildEmergencyTrialPacketPdf(selected, JsPdf))
+  return (['check-in', 'score-recording'] as const).map(kind =>
+    buildEmergencyTrialPacketPdf(selectPages(model, kind), JsPdf)
   );
 }
 

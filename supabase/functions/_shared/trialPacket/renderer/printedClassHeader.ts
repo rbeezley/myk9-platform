@@ -25,7 +25,7 @@ import type {
 export const PACKET_UNSET_JUDGE_LABEL = 'Judge to be announced';
 
 /** The legacy stored text for an unset judge; the Reports mapping still hands it over. */
-function isUnsetPacketJudge(name: string | null | undefined): boolean {
+export function isUnsetPacketJudge(name: string | null | undefined): boolean {
   const trimmed = (name ?? '').trim();
   return trimmed === '' || trimmed === 'TBD';
 }

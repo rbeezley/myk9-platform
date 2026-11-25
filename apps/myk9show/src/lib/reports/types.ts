@@ -388,9 +388,10 @@ export interface ReportDefinition {
   /**
    * Present on the two reports that must also render server-side (check-in
    * sheet, scoresheet). When set, ReportsPage renders this PDF instead of
-   * `component`, so the paper is byte-identical to the trial packet's.
+   * `component`, so the paper is byte-identical to the trial packet's. `null` means the selection
+   * has nothing to print (a scoresheet for a class where no dog runs, MYK9-2387).
    */
-  buildPdf?: (dataset: ReportDataSet, sortOrder: string) => Uint8Array;
+  buildPdf?: (dataset: ReportDataSet, sortOrder: string) => Uint8Array | null;
   /**
    * True for registry forms that are delivered ONLY as a filled PDF -- their
    * `component` is the null-rendering placeholder on purpose, because the

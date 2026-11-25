@@ -179,11 +179,11 @@ const scopes: ReportScope[] = [
 // header), not dog id, check-in status, entry status or raw run order. Every earlier value was
 // the old row-field hash, so each one changes by design; a print made before this reads changed once.
 // MYK9-2387 / MYK9-2377: re-recorded again. The check-in sheet lists the withdrawn dog with its
-// status, and a class nobody judges prints "Judge to be announced" instead of "TBD".
+// status (a running dog has no status key), and a class nobody judges prints "Judge to be announced".
 const PINNED: Record<string, string> = {
-  'check-in-sheet/class': 'fnv1a64:29ea374dd0d6775d',
-  'check-in-sheet/trial': 'fnv1a64:5a8c46f406f0c039',
-  'check-in-sheet/show': 'fnv1a64:3bc7531abb478471',
+  'check-in-sheet/class': 'fnv1a64:4db2ea675f50bb2b',
+  'check-in-sheet/trial': 'fnv1a64:18861cd3e732947b',
+  'check-in-sheet/show': 'fnv1a64:da740880ee4279f9',
   'scoresheet/class': 'fnv1a64:3e07c7ffeb408b94',
   'scoresheet/trial': 'fnv1a64:6cb2ab573f73393f',
   'scoresheet/show': 'fnv1a64:747b5b22fca647ee',

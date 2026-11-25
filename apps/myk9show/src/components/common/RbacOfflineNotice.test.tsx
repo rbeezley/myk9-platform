@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RbacOfflineNotice } from './RbacOfflineNotice';
 
@@ -63,5 +63,63 @@ describe('RbacOfflineNotice', () => {
 
     expect(screen.queryByText(/changes are saved on this device/i)).not.toBeInTheDocument();
     expect(toastDismiss).not.toHaveBeenCalled();
+  });
+
+  describe('hiding the card', () => {
+    const hideButton = () => screen.getByRole('button', { name: 'Hide this notice' });
+
+    it('hides the card when the close button is pressed, and stays hidden on re-render', () => {
+      mockUseAuthContext.mockReturnValue({ rbacFromCacheAt: '2026-08-15T18:30:00.000Z' });
+      const { rerender } = render(<RbacOfflineNotice />);
+
+      fireEvent.click(hideButton());
+      expect(screen.queryByText(/working offline/i)).not.toBeInTheDocument();
+
+      rerender(<RbacOfflineNotice />);
+      expect(screen.queryByText(/working offline/i)).not.toBeInTheDocument();
+    });
+
+    it('only the close button takes pointer events; the rest of the card lets clicks through', () => {
+      mockUseAuthContext.mockReturnValue({ rbacFromCacheAt: '2026-08-15T18:30:00.000Z' });
+      const { container } = render(<RbacOfflineNotice />);
+
+      expect(hideButton()).toHaveClass('pointer-events-auto');
+      expect(container.firstElementChild).toHaveClass('pointer-events-none');
+    });
+
+    it('comes back when the saved-permissions timestamp changes', () => {
+      mockUseAuthContext.mockReturnValue({ rbacFromCacheAt: '2026-08-15T18:30:00.000Z' });
+      const { rerender } = render(<RbacOfflineNotice />);
+      fireEvent.click(hideButton());
+
+      mockUseAuthContext.mockReturnValue({ rbacFromCacheAt: '2026-08-16T09:00:00.000Z' });
+      rerender(<RbacOfflineNotice />);
+
+      expect(screen.getByText(/working offline/i)).toBeInTheDocument();
+    });
+
+    it('keeps the offline toast dismissed after the card is hidden', async () => {
+      vi.useFakeTimers();
+      try {
+        mockOnline = false;
+        mockUseAuthContext.mockReturnValue({ rbacFromCacheAt: '2026-08-15T18:30:00.000Z' });
+        render(<RbacOfflineNotice />);
+        await act(async () => {
+          vi.runAllTimers();
+        });
+        expect(toastDismiss).toHaveBeenCalledTimes(1);
+
+        fireEvent.click(hideButton());
+        await act(async () => {
+          vi.runAllTimers();
+        });
+
+        expect(screen.queryByText(/working offline/i)).not.toBeInTheDocument();
+        // Hiding the card must not re-show the toast: no show call, only the one dismiss.
+        expect(toastDismiss).toHaveBeenCalledTimes(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 });

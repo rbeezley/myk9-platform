@@ -80,11 +80,16 @@ export class UploadLock {
   ): Promise<{ timedOut: false; value: R } | { timedOut: true }> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
+    let started = false;
     try {
-      const value = await this.run(callback, controller.signal);
+      const value = await this.run(() => {
+        clearTimeout(timer);
+        started = true;
+        return callback();
+      }, controller.signal);
       return { timedOut: false, value };
     } catch (error) {
-      if (controller.signal.aborted) return { timedOut: true };
+      if (!started && controller.signal.aborted) return { timedOut: true };
       throw error;
     } finally {
       clearTimeout(timer);

@@ -234,3 +234,45 @@ describe('CreatePersonForm offline with a saved people directory (MYK9-2265)', (
     expect(screen.queryByText(/Can't check for an existing person/)).not.toBeInTheDocument();
   });
 });
+
+describe('CreatePersonForm cold device with one stalled search term (MYK9-2257)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useUserStore.setState({ people: [], users: [], loadUsers: vi.fn() });
+    createUserMock.mockResolvedValue(
+      fromAny({ data: { ...SERVER_ROW, id: 'person-new-1' }, error: null })
+    );
+  });
+
+  afterEach(() => {
+    setOnline(true);
+    vi.restoreAllMocks();
+  });
+
+  it.each([
+    ['email', 'Mailbox'],
+    ['last name', 'molly.mailbox@example.com'],
+  ])(
+    'shows the duplicate notice when the %s search stalls but the other answered',
+    async (_stalled, answeredTerm) => {
+      setOnline(true);
+      searchUsersMock.mockImplementation(term =>
+        term === answeredTerm
+          ? Promise.resolve(fromAny({ data: [SERVER_ROW], error: null }))
+          : new Promise(() => {})
+      );
+      const user = userEvent.setup();
+      render(<CreatePersonForm open onOpenChange={vi.fn()} onExhibitorCreated={vi.fn()} />);
+
+      await typePerson(user);
+      await user.click(await screen.findByRole('button', { name: /Next: Contact/ }));
+      await user.click(await screen.findByRole('button', { name: 'Add Person' }));
+
+      expect(
+        await screen.findByTestId('person-duplicate-notice', {}, { timeout: 8000 })
+      ).toBeInTheDocument();
+      expect(createUserMock).not.toHaveBeenCalled();
+    },
+    15000
+  );
+});

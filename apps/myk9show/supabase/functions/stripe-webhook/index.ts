@@ -12,6 +12,7 @@ import {
 } from '../_shared/entryPaymentReconcile.ts';
 import { reconcileEntryPaymentUpdateOutcome } from '../_shared/entryPaymentUpdateReconcile.ts';
 import { alertAdmin } from '../_shared/alertAdmin.ts';
+import { logReceiptEmail, type ReceiptContent } from './receiptEmailLog.ts';
 import { loadStoredEntryJunior, priceCartItems } from '../_shared/cartItemPricing.ts';
 import { showTimeZoneFromTrials, type ShowTrialZoneRow } from '../_shared/showTimeZone.ts';
 import { recordChargedEntryFee, recordChargedFeesForStamped } from '../_shared/entryFeeRecord.ts';
@@ -2718,14 +2719,16 @@ async function sendEntryConfirmationEmail(
   // True once the provider accepted the message (MYK9-964 receipt marker).
   let providerAccepted = false;
   let recipientEmail: string | null = null;
+  // The rendered receipt, kept beside the email_log row once built (MYK9-2408).
+  let renderedReceipt: ReceiptContent | null = null;
   const recordDeliveryAttempt = async (args: {
     status: 'sent' | 'failed';
     messageId?: string | null;
     errorMessage?: string | null;
   }) => {
-    await supabase
-      .from('email_log')
-      .insert({
+    await logReceiptEmail(
+      supabase as unknown as Parameters<typeof logReceiptEmail>[0],
+      {
         recipient_email: recipientEmail,
         email_type: 'registration_confirmation',
         resend_message_id: args.messageId ?? null,
@@ -2733,10 +2736,9 @@ async function sendEntryConfirmationEmail(
         status_updated_at: new Date().toISOString(),
         error_message: args.errorMessage ?? null,
         show_id: cart.show_id,
-      })
-      .then(({ error }) => {
-        if (error) console.error('Could not log Stripe confirmation email:', error);
-      });
+      },
+      renderedReceipt
+    );
     deliveryAttemptRecorded = true;
   };
 
@@ -2853,6 +2855,11 @@ async function sendEntryConfirmationEmail(
     // This webhook has already resolved the cart, exhibitor, show, entries,
     // and paid totals server-side. Send directly with a stable idempotency key;
     // the generic send-email endpoint intentionally rejects service-role calls.
+    const receipt: ReceiptContent = {
+      subject: `Entry received - ${show.name}`,
+      html: renderStripeEntryConfirmationEmail(emailData),
+    };
+    renderedReceipt = receipt;
     const response = await sendResendEmailWithRetry({
       method: 'POST',
       headers: {
@@ -2863,8 +2870,8 @@ async function sendEntryConfirmationEmail(
       body: JSON.stringify({
         from: FROM_EMAIL,
         to: person.email,
-        subject: `Entry received - ${show.name}`,
-        html: renderStripeEntryConfirmationEmail(emailData),
+        subject: receipt.subject,
+        html: receipt.html,
       }),
     });
 

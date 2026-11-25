@@ -97,15 +97,6 @@ describe('FocusedClassTimeLimit (MYK9-2379)', () => {
     );
   });
 
-  it('shows the resolved rule fixed time when the cached rule is stale and nothing is saved', () => {
-    live.mockReturnValue([{ ...exterior, timeLimitSeconds: undefined }]);
-    range.mockReturnValue({ low: 120, high: 120, fixed: 120, judgeSet: false });
-    render(<FocusedClassTimeLimit classId="class-1" registryId="AKC" />);
-
-    expect(screen.getByText('2:00')).toBeInTheDocument();
-    expect(screen.queryByText('Not set')).not.toBeInTheDocument();
-  });
-
   it('offers no Change until the per-area lookup is ready', () => {
     perArea.mockReturnValue({ status: 'pending' });
     render(<FocusedClassTimeLimit classId="class-1" registryId="AKC" />);

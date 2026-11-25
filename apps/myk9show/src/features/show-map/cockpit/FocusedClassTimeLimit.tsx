@@ -6,7 +6,6 @@ import { classTimeDisplay } from '@/features/at-show/slots/classRequirementsFrom
 import { useMaxTimeRange } from '@/features/at-show/slots/maxTimeRule';
 import { useLiveClasses } from '@/features/at-show/useLiveClasses';
 import { usePerAreaMaxTimes } from '@/features/at-show/usePerAreaMaxTimes';
-import { formatTimeLimitSeconds } from '@myk9/core';
 
 /**
  * The class's time limit in Edit class (MYK9-2379): what Requirements shows, and Change, which
@@ -35,12 +34,9 @@ export function FocusedClassTimeLimit({
   const time = classTimeDisplay(cls, perArea, registryId);
   const known = typeof range === 'object' && range !== null ? range : null;
   const fixed = Boolean(known?.fixed);
-  // The class's cached rule can be stale; the resolved rule's fixed time still applies.
-  const shown =
-    time.value === 'Not set' && known?.fixed ? formatTimeLimitSeconds(known.fixed) : time.value;
   return (
     <div className="flex flex-wrap items-center gap-x-3">
-      <span className="font-medium">{live === null ? 'Loading…' : shown}</span>
+      <span className="font-medium">{live === null ? 'Loading…' : time.value}</span>
       {!fixed && cls && lookup.status === 'ready' && (
         <Button
           type="button"

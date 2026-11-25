@@ -17,6 +17,9 @@ vi.mock('@/services/replication', () => ({
   replicatedClassesTable: { getClassById: replica.getClassById, subscribe: replica.subscribe },
 }));
 
+const perArea = vi.hoisted(() => vi.fn());
+vi.mock('@/features/at-show/usePerAreaMaxTimes', () => ({ usePerAreaMaxTimes: perArea }));
+
 import { FocusedClassRequirements } from './FocusedClassRequirements';
 
 const rule = {
@@ -41,6 +44,7 @@ const rule = {
 describe('FocusedClassRequirements (MYK9-2118)', () => {
   beforeEach(() => {
     replica.rows.clear();
+    perArea.mockReturnValue({ status: 'ready', perArea: false });
   });
 
   it('shows a one-area class its single time limit and its requirements', async () => {
@@ -66,6 +70,7 @@ describe('FocusedClassRequirements (MYK9-2118)', () => {
   });
 
   it("shows a three-area class each area's time limit", async () => {
+    perArea.mockReturnValue({ status: 'ready', perArea: true });
     replica.rows.set('c3', {
       id: 'c3',
       element: 'Interior',
@@ -84,6 +89,23 @@ describe('FocusedClassRequirements (MYK9-2118)', () => {
     fireEvent.click(screen.getByRole('button', { name: /requirements/i }));
     expect(await screen.findByText('Birch, Anise, Clove')).toBeInTheDocument();
     expect(screen.getByText('Blank Area')).toBeInTheDocument();
+  });
+
+  it('shows one limit for a multi-area class whose scoresheet times one timer', async () => {
+    replica.rows.set('c2', {
+      id: 'c2',
+      element: 'Interior',
+      level: 'Master',
+      areaCount: 3,
+      timeLimitSeconds: 90,
+      timeLimitArea2Seconds: 120,
+      timeLimitArea3Seconds: 150,
+      timeLimitRule: rule,
+    });
+    render(<FocusedClassRequirements classId="c2" registryId="UKC" timeZone="America/New_York" />);
+
+    expect(await screen.findByText('Time limit: 1:30')).toBeInTheDocument();
+    expect(screen.queryByText(/Area 2/)).not.toBeInTheDocument();
   });
 
   it('says Not set and that the rules are missing when the class has neither', async () => {

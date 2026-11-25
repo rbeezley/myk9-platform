@@ -61,6 +61,55 @@ describe('guide UI strings (fixture)', () => {
   });
 });
 
+describe('guide UI strings (matching rules)', () => {
+  let dir: string;
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'guide-ui-'));
+    mkdirSync(join(dir, 'guides'));
+    mkdirSync(join(dir, 'src'));
+  });
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  const run = (source: string, guide: string) => {
+    writeFileSync(join(dir, 'src', 'Page.tsx'), source);
+    writeFileSync(join(dir, 'guides', 'fake-guide.md'), guide);
+    return checkGuides(join(dir, 'guides'), [join(dir, 'src')], none).map(f => f.text);
+  };
+
+  it('does not count a label that appears only in a comment', () => {
+    const source = '// Gone Label was removed\n/** Old Panel */\nexport const x = 1;\n';
+    expect(run(source, 'Open **Gone Label** or **Old Panel**.\n')).toEqual([
+      'Gone Label',
+      'Old Panel',
+    ]);
+  });
+
+  it('does not match a short label inside a longer word', () => {
+    const source = "export const a = 'desktop payment';\n";
+    expect(run(source, 'Open **Desk**, then **Pay**.\n')).toEqual(['Desk', 'Pay']);
+    expect(run(source, 'See **desktop** and **payment**.\n')).toEqual([]);
+  });
+
+  it('splits a path only on arrows or a spaced greater-than', () => {
+    const source = "export const a = ['Show Desk', 'Thing'];\n";
+    expect(run(source, 'Go to **Gone > Thing**.\n')).toEqual(['Gone']);
+    expect(run(source, 'Go to **Gone>Thing**.\n')).toEqual(['Gone>Thing']);
+    expect(run(source, 'Go to **Show Desk > Gone**.\n')).toEqual(['Gone']);
+    expect(run(source, 'Go to **Show Desk -> Gone**.\n')).toEqual(['Gone']);
+  });
+
+  it('matches the static text of a template literal and JSX attribute strings', () => {
+    const source =
+      'export const a = (n: number) => `Check in ${n} entries`;\n' +
+      'export const b = <input placeholder="Search dogs" aria-label="Dog name" />;\n';
+    expect(
+      run(source, 'Press **Check in**, **entries**, **Search dogs**, **Dog name**.\n')
+    ).toEqual([]);
+  });
+});
+
 describe('the published guides', () => {
   it('quote no UI text the app has removed', () => {
     const allow = JSON.parse(

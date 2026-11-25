@@ -2,8 +2,8 @@
  * MYK9-2397: fail when a user guide quotes UI text the app no longer has.
  *
  * Guides write UI labels in bold (**Show Desk**) or quotes ("N pending"). Each such span is
- * looked up, case-insensitively and whitespace-normalized, in the app's source text
- * (apps/myk9show/src and packages/<pkg>/src, tests excluded). A span found nowhere fails with
+ * looked up, case-insensitively, whitespace-normalized and at word boundaries, in the app's string
+ * literals and JSX text (apps/myk9show/src and packages/<pkg>/src, tests excluded; comments do not count). A span found nowhere fails with
  * `file:line`. Intentional non-UI quotes live in `guide-ui-strings.allowlist.json`.
  *
  * Usage: tsx scripts/qa/guide-ui-strings.ts   (exit 1 on any unmatched span)
@@ -11,6 +11,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import ts from 'typescript';
 
 export interface Allowlist {
   /** Quotes that are not UI (dog names, sample data, keys, registry names). */
@@ -52,18 +53,65 @@ function walk(dir: string, out: string[]): void {
   }
 }
 
-/** One normalized blob of every source file under the given roots. */
+/** Every string literal, template static part, JSX text and JSX attribute string in a source file. */
+export function collectStrings(fileName: string, text: string): string[] {
+  const kind = fileName.endsWith('x') ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
+  const sf = ts.createSourceFile(fileName, text, ts.ScriptTarget.Latest, false, kind);
+  const out: string[] = [];
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isStringLiteral(node) ||
+      ts.isNoSubstitutionTemplateLiteral(node) ||
+      ts.isTemplateHead(node) ||
+      ts.isTemplateMiddle(node) ||
+      ts.isTemplateTail(node)
+    ) {
+      out.push(node.text);
+    } else if (ts.isJsxText(node)) {
+      out.push(node.text);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+  return out;
+}
+
+/** The normalized UI strings of every source file under the given roots, one per line. */
 export function buildCorpus(roots: string[]): string {
   const files: string[] = [];
   for (const root of roots) walk(root, files);
-  return normalize(files.map(f => readFileSync(f, 'utf8')).join('\n'));
+  const strings: string[] = [];
+  for (const f of files) {
+    for (const str of collectStrings(f, readFileSync(f, 'utf8'))) {
+      const n = normalize(str);
+      if (n) strings.push(n);
+    }
+  }
+  return strings.join('\n');
+}
+
+const isWordChar = (c: string | undefined): boolean => c !== undefined && /[\p{L}\p{N}_]/u.test(c);
+
+/** True when `key` occurs in the corpus with no letter or digit touching either end. */
+export function corpusHas(corpus: string, key: string): boolean {
+  let from = 0;
+  for (;;) {
+    const at = corpus.indexOf(key, from);
+    if (at === -1) return false;
+    const before = at === 0 ? undefined : corpus[at - 1];
+    const after = corpus[at + key.length];
+    const startOk = !isWordChar(key[0]) || !isWordChar(before);
+    const endOk = !isWordChar(key[key.length - 1]) || !isWordChar(after);
+    if (startOk && endOk) return true;
+    from = at + 1;
+  }
 }
 
 /** Candidate label parts of a span: "A → B" is two labels; trailing punctuation is not part. */
 function labelParts(span: string): string[] {
   return span
-    .split(/\s*(?:→|->|>)\s*/)
-    .map(p => p.replace(/^[\s.,;:!?()]+|[\s.,;:!?()]+$/g, ''))
+    .split(/\s*→\s*|\s*->\s*|\s+>\s+/)
+    .map(p => p.replace(/^[\s.,;:!?()"“”]+|[\s.,;:!?()"“”]+$/g, ''))
     .filter(p => /[a-z]/i.test(p) && p.length >= 3 && p.split(/\s+/).length <= 5);
 }
 
@@ -94,7 +142,7 @@ export function checkGuide(
         if (/\?$/.test((m[1] ?? '').trim())) continue;
         for (const part of labelParts(m[1] ?? '')) {
           const key = normalize(part);
-          if (skip.has(key) || headings.has(key) || corpus.includes(key)) continue;
+          if (skip.has(key) || headings.has(key) || corpusHas(corpus, key)) continue;
           findings.push({ file, line: i + 1, text: part });
         }
       }

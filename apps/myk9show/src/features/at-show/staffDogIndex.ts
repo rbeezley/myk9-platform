@@ -37,6 +37,8 @@ export interface StaffDogClassEntry {
   isScored: boolean;
   resultText: string | null;
   searchTime: string | null;
+  /** UKC element time in seconds; null when the run has none. */
+  elementTime?: string | null | undefined;
   faultCount: number | null;
   placement: number | null;
   resultsReleased: boolean;
@@ -129,6 +131,7 @@ export function buildStaffDogs(
       isScored: view.isScored,
       resultText: view.resultText ?? null,
       searchTime: view.searchTime ?? null,
+      elementTime: view.elementTime ?? null,
       faultCount: view.faultCount ?? null,
       placement: view.placement ?? null,
       resultsReleased: Boolean(classInfo?.resultsReleasedAt),

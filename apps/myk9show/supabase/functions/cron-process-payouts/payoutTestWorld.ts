@@ -60,6 +60,10 @@ export interface Scenario {
   payoutsEnabled?: boolean;
   /** The destination check (club_stripe_accounts by stripe_account_id) errors. */
   destinationLookupError?: boolean;
+  /** The club's account read (club_stripe_accounts by club_id) errors. */
+  accountReadError?: boolean;
+  /** The club read (clubs) errors. */
+  clubReadError?: boolean;
   /** The destination Stripe's transfers.create response reports (default: the club's account). */
   createdDestination?: string | null;
 }
@@ -112,13 +116,16 @@ export function run(scenario: Scenario) {
           error: null,
         };
       }
+      if (scenario.accountReadError) return { data: null, error: { message: 'read failed' } };
       return {
         data: [{ ...ACCOUNT, payouts_enabled: scenario.payoutsEnabled ?? true }],
         error: null,
       };
     }
-    if (q.table === 'clubs')
+    if (q.table === 'clubs') {
+      if (scenario.clubReadError) return { data: null, error: { message: 'read failed' } };
       return { data: { name: 'Club', email: 'club@example.test' }, error: null };
+    }
     return { data: null, error: null };
   };
 
@@ -190,19 +197,20 @@ export function run(scenario: Scenario) {
     release,
   }));
 
+  const clubNoticeDeps = vi.fn<ProcessShowDeps['clubNoticeDeps']>(() => ({
+    loadRecipients: async () => {
+      if (scenario.clubEmailError) throw scenario.clubEmailError;
+      return [];
+    },
+    send: vi.fn(async () => undefined),
+  }));
   const deps: ProcessShowDeps = {
     supabase: { from, rpc } as unknown as ProcessShowDeps['supabase'],
     stripe: { transfers: { list, create } },
     stripeLivemode: false,
     brakeOn: scenario.brakeOn ?? true,
     alertAdmin,
-    clubNoticeDeps: () => ({
-      loadRecipients: async () => {
-        if (scenario.clubEmailError) throw scenario.clubEmailError;
-        return [];
-      },
-      send: vi.fn(async () => undefined),
-    }),
+    clubNoticeDeps,
     acquireMoneyLock,
     siteUrl: 'https://example.test',
   };
@@ -221,6 +229,7 @@ export function run(scenario: Scenario) {
     transfer_lookup_errors: 0,
     reconciliation_errors: 0,
     ledger_write_errors: 0,
+    club_read_errors: 0,
   };
   const payoutWrites = () => writes.filter(w => w.table === 'show_payouts');
   return {
@@ -230,6 +239,7 @@ export function run(scenario: Scenario) {
     list,
     rpc,
     alertAdmin,
+    clubNoticeDeps,
     acquireMoneyLock,
     release,
     writes,

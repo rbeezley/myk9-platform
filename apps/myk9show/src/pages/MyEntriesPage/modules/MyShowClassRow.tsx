@@ -29,6 +29,7 @@ import { formatWeekdayMonthDay } from '@/lib/format/dates';
 import { formatTrialLabel } from '@myk9/core';
 import { ClassRequirementsDialog } from '@/features/at-show/slots/RequirementsDialog';
 import { formatStartTime } from '@/components/schedule/schedule-timeline.utils';
+import { runQueueStateNote } from '@myk9/ringside/run-queue';
 import { canLeaveClass } from './leaveClassRow';
 import { canChangeClass } from './changeClassRow';
 import { ClassChangeRowControls } from './ClassChangeRowControls';
@@ -88,6 +89,8 @@ export interface MyShowClassRowProps {
   /** The class's judge, when known; nothing renders otherwise. */
   judgeName?: string | undefined;
   dogName: string;
+  /** MYK9-1970: the class is scored on paper, so its running order carries the paper note. */
+  onPaper?: boolean | undefined;
   /** The order that owns this class row — the dialogs and result card key off it. */
   order: MyEntry | undefined;
   /** Everything the day gate needs; shared across the whole card. */
@@ -123,6 +126,7 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
   cls,
   judgeName,
   dogName,
+  onPaper = false,
   order,
   checkInContext,
   showTrialNumber,
@@ -149,6 +153,7 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
   // Judge and time sit on their own line: both are optional and the judge's
   // name can be long, while the date stays on one line (never "TBD").
   const runOrder = runOrderText(state.kind, cls.runOrder);
+  const paperNote = onPaper ? runQueueStateNote({ kind: 'paper' }) : null;
   const detailParts = [
     judgeName ? `Judge ${judgeName}` : null,
     formatStartTime(cls.startTime ?? null),
@@ -200,6 +205,11 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
             {runOrder && (
               <span className="block whitespace-nowrap" data-testid="class-row-running-order">
                 {runOrder}
+              </span>
+            )}
+            {runOrder && paperNote && (
+              <span className="block" data-testid="class-row-paper-note">
+                {paperNote}
               </span>
             )}
           </span>

@@ -113,7 +113,7 @@ export const EntryListContent: React.FC<EntryListContentProps> = ({
   favorites,
   ownership,
   scoringDisabled = false,
-  showNowAndNext = false,
+  showNowAndNext: showNowAndNextProp = false,
   statusControlFor,
   DogCard,
 }) => {
@@ -135,6 +135,9 @@ export const EntryListContent: React.FC<EntryListContentProps> = ({
     }
   }, [entries.length]);
 
+  // MYK9-1970: a paper class names no next dog, and nothing claims one while the paper claim is
+  // unknown: the plain list in running order, with no ring block or promoted card.
+  const showNowAndNext = showNowAndNextProp && classInfo?.paperClaim === undefined;
   const [heroRef, lastHeroHeight] = useLastHeight<HTMLDivElement>();
 
   // Derived once per entries change, not per card or per render. The cards are

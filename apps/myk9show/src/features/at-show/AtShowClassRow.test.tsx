@@ -3,6 +3,7 @@ import { screen } from '@testing-library/react';
 import type { ClassEntry } from '@myk9/ringside';
 import { render } from '@/test/utils/testUtils';
 import { AtShowClassRow } from './AtShowClassRow';
+import type { PaperClaim } from './usePaperClaims';
 import type { AtShowNextUpPreview } from './atShowNextUpPreview';
 
 function classEntry(overrides: Partial<ClassEntry> = {}): ClassEntry {
@@ -178,6 +179,43 @@ describe('AtShowClassRow cancelled class (MYK9-1847)', () => {
 
     expect(screen.queryByText('Cancelled')).not.toBeInTheDocument();
     expect(screen.getByText(/3 of 4 remaining/)).toBeInTheDocument();
+  });
+});
+
+describe('AtShowClassRow next-up on a paper class (MYK9-1970)', () => {
+  const live = { class_status: 'in_progress' as const };
+  const rowWith = (entry: ClassEntry, paperClaim?: PaperClaim) =>
+    render(
+      <ul>
+        <AtShowClassRow
+          entry={entry}
+          isExhibitorOnly={false}
+          onClick={() => {}}
+          trialTimeZone="America/New_York"
+          nextUp={preview}
+          entryCountsAvailable
+          {...(paperClaim === undefined ? {} : { paperClaim })}
+        />
+      </ul>
+    );
+
+  it('shows the in-ring and next armbands on a phone-scored class', () => {
+    rowWith(classEntry(live), 'not-paper');
+    expect(screen.getByText('#12')).toBeInTheDocument();
+  });
+
+  it.each(['paper', 'unknown'] as const)(
+    'shows no next-up line when the paper claim is %s',
+    claim => {
+      rowWith(classEntry(live), claim);
+      expect(screen.queryByText('#12')).not.toBeInTheDocument();
+      expect(screen.queryByText(/remaining/)).not.toBeInTheDocument();
+    }
+  );
+
+  it('still shows next-up in the offline-scoring phase when the class is not paper', () => {
+    rowWith(classEntry({ class_status: 'offline-scoring' }), 'not-paper');
+    expect(screen.getByText('#12')).toBeInTheDocument();
   });
 });
 

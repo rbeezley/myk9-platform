@@ -17,7 +17,7 @@ vi.mock('@/services/replication', () => ({
     sync: vi.fn(),
     subscribe: vi.fn(() => vi.fn()),
   },
-  replicatedShowsTable: { getShowById: vi.fn() },
+  replicatedShowsTable: { getShowById: vi.fn(), subscribe: vi.fn(() => vi.fn()) },
   replicatedTrialsTable: {
     getTrialsByShow: vi.fn(),
     getTrialById: vi.fn(async () => null),

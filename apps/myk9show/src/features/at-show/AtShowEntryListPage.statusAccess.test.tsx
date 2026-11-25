@@ -38,10 +38,11 @@ vi.mock('@/services/replication', () => ({
     sync: vi.fn(),
     subscribe: vi.fn(() => vi.fn()),
   },
-  replicatedShowsTable: { getShowById: vi.fn() },
+  replicatedShowsTable: { getShowById: vi.fn(), subscribe: vi.fn(() => vi.fn()) },
   replicatedClassesTable: {
     batchDelete: vi.fn(),
     getClassById: vi.fn(),
+    getClassesByTrial: vi.fn(),
     sync: vi.fn(),
     subscribe: vi.fn(() => vi.fn()),
     updateClass: vi.fn(),
@@ -111,6 +112,7 @@ function seed(rows: ReturnType<typeof row>[]) {
     name: 'Spring Trial',
     organization: 'AKC Scent Work',
     startDate: '2026-06-01',
+    usesDeviceScoring: true,
   } as never);
   vi.mocked(replicatedClassesTable.getClassById).mockResolvedValue({
     id: 'class-1',
@@ -129,6 +131,10 @@ function seed(rows: ReturnType<typeof row>[]) {
   } as never);
   vi.mocked(replicatedTrialsTable.getTrialsByShow).mockResolvedValue([
     { id: 'trial-1', showId: 'show-1' },
+  ] as never);
+  // MYK9-1970: a class that follows a device-scored show is known phone-scored, so now-and-next shows.
+  vi.mocked(replicatedClassesTable.getClassesByTrial).mockResolvedValue([
+    { id: 'class-1', scoresOnPaper: null },
   ] as never);
   vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue(rows as never);
 }

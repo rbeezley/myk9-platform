@@ -29,11 +29,11 @@
     "@supabase/supabase-js": "^2.119.2"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "^5.1.1",
+    "@vitest/coverage-v8": "^5.1.2",
     "rimraf": "^6.1.4",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
-    "vitest": "^5.1.0"
+    "vitest": "^5.1.2"
   },
   "engines": {
     "node": ">=18"

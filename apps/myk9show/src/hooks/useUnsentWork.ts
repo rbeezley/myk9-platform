@@ -4,6 +4,7 @@ import {
   readDeviceUnsentWork,
   type UnsentWork,
 } from '@/services/replication/unsentWork';
+import { CONFLICT_SETTLED_EVENT } from '@/features/replication-conflicts/conflictEvents';
 
 // Replication events after which the unsent work may have changed.
 export const UNSENT_WORK_REFRESH_EVENTS = [
@@ -18,6 +19,8 @@ export const UNSENT_WORK_REFRESH_EVENTS = [
   'replication:conflict',
   // A Try again or a removal on the Scores not sent list.
   'replication:unsent-changed',
+  // A held conflict settled (Keep my change / Keep the other change): its change leaves the count.
+  CONFLICT_SETTLED_EVENT,
 ] as const;
 
 /** Tell every count that the list changed the dead letters (Try again, Remove). */

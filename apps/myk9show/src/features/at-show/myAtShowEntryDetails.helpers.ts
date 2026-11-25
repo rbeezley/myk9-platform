@@ -347,7 +347,18 @@ export function deriveAtShowQueueLine(
   detail: AtShowEntryDetail,
   place: QueuePlace | undefined
 ): RunQueueState | { kind: 'pending' } | null {
-  if (detail.isScored || NO_PLACE_STATUSES.has(detail.checkInStatus)) return null;
+  if (detail.isScored) return null;
+  // MYK9-1970 (owner, 2026-11-25): a paper class says so before check-in too. Its position is
+  // the running order, so it needs a posted order; the place itself only follows check-in.
+  if (
+    detail.checkInStatus === 'no-status' &&
+    detail.scoresOnPaper &&
+    detail.hasRunOrder &&
+    detail.isCancelled !== true
+  ) {
+    return { kind: 'paper' };
+  }
+  if (NO_PLACE_STATUSES.has(detail.checkInStatus)) return null;
   // MYK9-1847: a cancelled class never runs, so there is no place in line to wait for.
   if (detail.isCancelled === true) return null;
   if (!detail.hasRunOrder) return { kind: 'pending' };

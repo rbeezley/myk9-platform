@@ -196,7 +196,11 @@ const StubDogCard: ComponentType<DogCardProps> = ({ callName, variant }) => (
   </div>
 );
 
-const renderContent = (entries: Entry[], showNowAndNext = true) =>
+const renderContent = (
+  entries: Entry[],
+  showNowAndNext = true,
+  ownership?: React.ComponentProps<typeof EntryListContent>['ownership']
+) =>
   render(
     <EntryListContent
       entries={entries}
@@ -211,6 +215,7 @@ const renderContent = (entries: Entry[], showNowAndNext = true) =>
       onDragStart={vi.fn()}
       onDragEnd={vi.fn() as () => Promise<void>}
       showNowAndNext={showNowAndNext}
+      {...(ownership ? { ownership } : {})}
       DogCard={StubDogCard}
     />
   );
@@ -298,6 +303,27 @@ describe('EntryListContent now and next (MYK9-1086)', () => {
     } finally {
       globalThis.ResizeObserver = original;
     }
+  });
+
+  it('drops the live-order headings on a paper class and lists dogs in running order (MYK9-1970)', () => {
+    const ownership = {
+      ownEntryIds: new Set(['b']),
+      dogsAheadByEntryId: new Map([['b', { kind: 'paper', place: 2 } as const]]),
+    };
+    renderContent(dogs, true, ownership);
+    expect(screen.queryByText('Up next')).toBeNull();
+    expect(screen.queryByText('Then')).toBeNull();
+    expect(screen.queryByTestId('ring-clear')).toBeNull();
+    expect(screen.getAllByTestId('dog-card')).toHaveLength(dogs.length);
+  });
+
+  it('keeps the live-order headings when the own dog is phone-scored (control)', () => {
+    const ownership = {
+      ownEntryIds: new Set(['b']),
+      dogsAheadByEntryId: new Map([['b', { kind: 'waiting', dogsAhead: 0 } as const]]),
+    };
+    renderContent(dogs, true, ownership);
+    expect(screen.getByText('Up next')).toBeTruthy();
   });
 
   it('renders a plain list when now-and-next is off', () => {

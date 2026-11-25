@@ -624,6 +624,23 @@ describe('place in line on a paper class (MYK9-1970)', () => {
     });
   });
 
+  it('shows the paper line before check-in too; a phone class stays quiet there (MYK9-1970)', () => {
+    const before = { ...detail, checkInStatus: 'no-status' } satisfies AtShowEntryDetail;
+    expect(deriveAtShowQueueLine({ ...before, scoresOnPaper: true }, undefined)).toEqual({
+      kind: 'paper',
+    });
+    expect(
+      deriveAtShowQueueLine({ ...before, scoresOnPaper: true }, { place: 7, claimState: 'paper' })
+    ).toEqual({
+      kind: 'paper',
+      place: 7,
+    });
+    expect(deriveAtShowQueueLine(before, undefined)).toBeNull();
+    expect(
+      deriveAtShowQueueLine({ ...before, scoresOnPaper: true, hasRunOrder: false }, undefined)
+    ).toBeNull();
+  });
+
   it('shows the paper line with no place for a class this device holds as paper', () => {
     expect(deriveAtShowQueueLine({ ...detail, scoresOnPaper: true }, undefined)).toEqual({
       kind: 'paper',

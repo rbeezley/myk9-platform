@@ -93,6 +93,27 @@ describe('SortableEntryCard ownership annotations', () => {
     expect(screen.queryByTestId('own-dog-queue-pill')).toBeNull();
   });
 
+  it('shows the running-order place and the paper line on a paper class (MYK9-1970)', () => {
+    renderCard({ isOwnEntry: true, dogsAhead: { kind: 'paper', place: 7 } });
+    expect(screen.getByTestId('own-dog-queue-pill').textContent).toBe('7th in the running order');
+    expect(screen.getByTestId('own-dog-queue-note').textContent).toBe(
+      'This class is scored on paper. Listen for your number at the ring.'
+    );
+    expect(screen.queryByText(/dogs? ahead|next/i)).toBeNull();
+  });
+
+  it('shows no paper line on a phone-scored class (control)', () => {
+    renderCard({ isOwnEntry: true, dogsAhead: { kind: 'waiting', dogsAhead: 3 } });
+    expect(screen.getByTestId('own-dog-queue-pill').textContent).toBe('3 dogs ahead');
+    expect(screen.queryByTestId('own-dog-queue-note')).toBeNull();
+  });
+
+  it('says the order may be out of date when stale, with no paper line', () => {
+    renderCard({ isOwnEntry: true, dogsAhead: { kind: 'stale' } });
+    expect(screen.getByTestId('own-dog-queue-pill').textContent).toBe('Order may be out of date');
+    expect(screen.queryByTestId('own-dog-queue-note')).toBeNull();
+  });
+
   it('renders the conflict chip only for own entries with a label', () => {
     renderCard({
       isOwnEntry: true,

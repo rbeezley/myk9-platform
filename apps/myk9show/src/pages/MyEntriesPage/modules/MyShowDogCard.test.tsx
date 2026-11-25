@@ -407,6 +407,33 @@ describe('MyShowDogCard — the running order once it is posted (MYK9-2138)', ()
     expect(screen.queryByText(/dogs ahead|next up|in line/i)).not.toBeInTheDocument();
   });
 
+  it('reads a paper class as a position with the paper line, never a countdown (MYK9-1970)', () => {
+    renderRows(
+      rexWith([
+        makeClass({ id: 'later', trialDate: day('2026-10-25'), runOrder: 7, scoresOnPaper: true }),
+      ])
+    );
+
+    expect(screen.getByTestId('class-row-running-order')).toHaveTextContent(
+      '7th in the running order'
+    );
+    expect(screen.getByTestId('class-row-paper-note')).toHaveTextContent(
+      'This class is scored on paper. Listen for your number at the ring.'
+    );
+    expect(screen.queryByText(/dogs ahead|next up|\dth up/i)).not.toBeInTheDocument();
+  });
+
+  it('shows no paper line on a phone-scored class (control)', () => {
+    renderRows(
+      rexWith([
+        makeClass({ id: 'later', trialDate: day('2026-10-25'), runOrder: 7, scoresOnPaper: false }),
+      ])
+    );
+
+    expect(screen.getByTestId('class-row-running-order')).toHaveTextContent('Running order 7');
+    expect(screen.queryByTestId('class-row-paper-note')).not.toBeInTheDocument();
+  });
+
   it('says nothing about the running order until the secretary has posted one', () => {
     renderRows(rexWith([makeClass({ id: 'later', trialDate: day('2026-10-25') })]));
 

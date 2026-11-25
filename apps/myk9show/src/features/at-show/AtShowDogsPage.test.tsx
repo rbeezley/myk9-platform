@@ -223,10 +223,14 @@ describe('AtShowDogsPage as an exhibitor (MYK9-1517)', () => {
     renderRoutes('/at-show/s1/dogs');
     const paper = screen.getByTestId('at-show-dog-armband:7');
     expect(paper).toHaveTextContent('7th in the running order');
+    expect(paper).toHaveTextContent(
+      'This class is scored on paper. Listen for your number at the ring.'
+    );
     expect(paper).not.toHaveTextContent(/\d(st|nd|rd|th) up|ahead/);
     expect(screen.getByTestId('at-show-dog-armband:8')).toHaveTextContent(
       'Order may be out of date'
     );
+    expect(screen.getByTestId('at-show-dog-armband:8')).not.toHaveTextContent('scored on paper');
   });
 
   it("searches, and favorites a friend's dog through the synced favorites", () => {

@@ -93,6 +93,23 @@ describe('AtShowClassRow next-up line', () => {
     expect(screen.getByText('3 of 4 remaining')).toBeInTheDocument();
   });
 
+  it.each(['in_progress', 'offline-scoring'] as const)(
+    'hides the line on a paper class whatever the status (%s) (MYK9-1970)',
+    status => {
+      renderRow(classEntry({ class_status: status, scores_on_paper: true }), preview);
+
+      expect(screen.queryByText('#12')).not.toBeInTheDocument();
+      expect(screen.queryByText(/^Next #/)).not.toBeInTheDocument();
+      expect(screen.queryByText('3 of 4 remaining')).not.toBeInTheDocument();
+    }
+  );
+
+  it('keeps the line on a phone-scored class (control)', () => {
+    renderRow(classEntry({ scores_on_paper: false }), preview);
+
+    expect(screen.getByText('Next #13 · #14')).toBeInTheDocument();
+  });
+
   it('hides the line on a class that is not live', () => {
     renderRow(classEntry({ class_status: 'completed', completed_count: 4 }), preview);
 

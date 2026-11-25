@@ -37,6 +37,7 @@ import {
 import { toast } from 'sonner';
 import { SyncFailureReason } from './SyncFailureReason';
 import { keepMyChange, keepOtherChange } from './conflictChoices';
+import { announceUnsentChanged } from '@/hooks/useUnsentWork';
 import { CONFLICT_SETTLED_EVENT } from '@/features/replication-conflicts/conflictEvents';
 import { showConflictSurfacingEnabled } from '@/features/show-presence/conflictSurfacingFlag';
 import { features } from '@/config/features';
@@ -819,7 +820,9 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
           cancel: {
             label: 'Discard',
             onClick: () => {
-              void Promise.allSettled(ids.map(id => mutationManager.discardFailedMutation(id)));
+              void Promise.allSettled(
+                ids.map(id => mutationManager.discardFailedMutation(id))
+              ).then(announceUnsentChanged);
               clearToastId();
             },
           },

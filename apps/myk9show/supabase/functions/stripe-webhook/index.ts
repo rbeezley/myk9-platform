@@ -53,6 +53,11 @@ import { createPayoutsDisabledDeps, notifyPayoutsTurnedOff } from './payoutsDisa
 import { createResendSender } from '../_shared/clubMoneyEmails.ts';
 import { routePaidSession } from './paidSessionEntry.ts';
 import { buildPaymentLinkOrder } from './paymentLinkOrder.ts';
+import {
+  paymentLinkRowOrMissing,
+  throwIfDbError,
+  throwIfSingleReadFailed,
+} from './transientDbError.ts';
 import { renderStripeEntryConfirmationEmail } from './entryConfirmationEmail.ts';
 import {
   formatVenueLines,
@@ -910,10 +915,9 @@ async function handleAccountUpdated(account: Stripe.Account, eventId: string, li
     .eq('stripe_account_id', account.id)
     .select('id');
 
-  if (error) {
-    console.error(`Error updating club_stripe_accounts for ${account.id}:`, error);
-    return;
-  }
+  // MYK9-2338: a failed write would leave payouts_enabled drifted; Stripe retries.
+  // The notice above already claimed its transition, so a retry does not resend it.
+  throwIfDbError(error, `Could not update club_stripe_accounts for ${account.id}`);
   if (!data || data.length === 0) {
     console.log(`account.updated for ${account.id} matched no club — ignoring`);
     return;
@@ -937,10 +941,8 @@ async function handleAccountDeauthorized(accountId: string | undefined) {
     .eq('stripe_account_id', accountId)
     .eq('livemode', stripeLivemode);
 
-  if (error) {
-    console.error(`Error disabling deauthorized account ${accountId}:`, error);
-    return;
-  }
+  // MYK9-2338: payouts must not stay enabled on a failed write; Stripe retries.
+  throwIfDbError(error, `Could not disable deauthorized account ${accountId}`);
   console.log(`Connect account ${accountId} deauthorized — payouts disabled`);
 }
 
@@ -1195,6 +1197,10 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     .in('id', classIds)
     .eq('trial.show_id', cart.show_id);
 
+  // MYK9-2338: a failed read is not missing data. Nothing is written yet, so
+  // throw and let Stripe retry; only absent rows reach the alert below.
+  throwIfSingleReadFailed(showFeesError, `Could not read show fees for cart ${cartId}`);
+  throwIfDbError(classesError, `Could not read classes for cart ${cartId}`);
   if (freshTotalCents == null || showFeesError || !showFees || classesError || !classRows) {
     console.error(
       `CRITICAL: cannot verify paid amount for cart ${cartId} — ` +
@@ -1259,22 +1265,8 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     supabase,
     pricingItems
   );
-  if (storedJuniorError) {
-    console.error(
-      `CRITICAL: cannot read stored junior fees for cart ${cartId}: ${storedJuniorError.message}`
-    );
-    await alertAdmin(
-      'Paid checkout could not be verified — entries NOT created',
-      `<p>Checkout session <code>${session.id}</code> was PAID, but the stored entry fees
-       needed to verify the amount could not be read, so no entries were created and
-       Stripe will not retry. The cart is untouched.</p>
-       <pre>${storedJuniorError.message}</pre>
-       <p>Recovery: if this was a transient database error, re-send the event from the
-       Stripe dashboard (Developers → Events → Resend).</p>`,
-      { source: 'stripe-webhook', dedupeKey: `checkout-verify-failed-${session.id}` }
-    );
-    return;
-  }
+  // MYK9-2338: the cart is untouched, so a failed read throws and Stripe retries.
+  throwIfDbError(storedJuniorError, `Could not read stored junior fees for cart ${cartId}`);
   const authoritativeByItem = priceCartItems(
     {
       ...showFees,
@@ -2004,16 +1996,21 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
 
   const paymentIntentId = extractPaymentIntentId(session.payment_intent);
 
-  const { data: link, error: linkError } = await supabase
-    .from('entry_payment_links')
-    .select('id, show_id, entry_ids, status')
-    .eq('stripe_checkout_session_id', session.id)
-    .maybeSingle();
+  // MYK9-2338: a failed read throws (5xx, Stripe retries); only a confirmed
+  // missing row reaches the refund request below.
+  const link = paymentLinkRowOrMissing(
+    await supabase
+      .from('entry_payment_links')
+      .select('id, show_id, entry_ids, status')
+      .eq('stripe_checkout_session_id', session.id)
+      .maybeSingle(),
+    session.id
+  );
 
-  if (linkError || !link) {
+  if (!link) {
     // A PAID session with no link row: tampering, or the row was lost. Charge
     // taken, nothing marked paid, no Stripe retry — alert (Task 3.5 refund).
-    console.error('Paid payment-link session has no link row:', linkError);
+    console.error(`Paid payment-link session ${session.id} has no link row`);
     await alertAdmin(
       'Paid payment link has no record — entries NOT marked paid',
       `<p>Checkout session <code>${session.id}</code> (entry_payment_request) was PAID,
@@ -2040,18 +2037,11 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
 
   const entryIds = (link.entry_ids as string[] | null) ?? [];
   const loadedEntries = await loadPaymentReconciliationEntries(entryIds);
-  const entriesError = loadedEntries.error;
-  if (entriesError) {
-    console.error('Failed to load entries for payment link:', entriesError);
-    await alertAdmin(
-      'Payment link paid but entries could not be read',
-      `<p>Session <code>${session.id}</code> was PAID but loading its entries failed:</p>
-       <pre>${entriesError.message}</pre>
-       <p>Recovery: mark entries <code>${entryIds.join(', ')}</code> paid manually.</p>`,
-      { source: 'stripe-webhook', dedupeKey: `payment-link-entries-unreadable-${session.id}` }
-    );
-    return;
-  }
+  // MYK9-2338: nothing is written yet, so a failed read throws and Stripe retries.
+  throwIfDbError(
+    loadedEntries.error,
+    `Could not read the entries of payment link ${link.id} for ${session.id}`
+  );
 
   const {
     entries,
@@ -3066,10 +3056,9 @@ async function syncSubscriptionFromStripe(stripeCustomerId: string, knownSubscri
       }
     );
 
-    if (subError) {
-      console.error('Error syncing subscription:', subError);
-      return;
-    }
+    // MYK9-2338: a failed write throws (the catch below rethrows) so Stripe
+    // retries; the upsert and the profile update are both idempotent.
+    throwIfDbError(subError, `Could not sync subscription ${subscription.id}`);
 
     // Update exhibitor_profiles subscription tier
     const isActive = ['active', 'trialing'].includes(subscription.status);
@@ -3083,9 +3072,7 @@ async function syncSubscriptionFromStripe(stripeCustomerId: string, knownSubscri
       })
       .eq('person_id', stripeCustomer.person_id);
 
-    if (profileError) {
-      console.error('Error updating exhibitor profile:', profileError);
-    }
+    throwIfDbError(profileError, `Could not update the subscription tier for ${stripeCustomerId}`);
 
     console.log(
       `Synced subscription for customer ${stripeCustomerId}: ${subscription.status}, tier: ${subscriptionTier}`

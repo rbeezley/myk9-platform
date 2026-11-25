@@ -3,7 +3,10 @@ import { collateTrialPacket } from '@/features/show-map/cockpit/trialPacket/coll
 import { selectPacketPages, toScoresheetModel } from './toScoresheetModel';
 import type { ReportDataSet } from './types';
 import { getReportById } from './reportRegistry';
-import { printedEntryFacts } from '../../../../../supabase/functions/_shared/paperwork/printedSheet.ts';
+import {
+  buildSheetDescriptorFromPrinted,
+  printedEntryFacts,
+} from '../../../../../supabase/functions/_shared/paperwork/printedSheet.ts';
 import type { DbClass, DbEntry, DbTrial } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
 
@@ -332,5 +335,53 @@ describe('check-in fingerprint facts (MYK9-2387)', () => {
     expect(
       printedEntryFacts({ ...base, notRunningLabel: 'Pending' }, 'check-in', 1, undefined)
     ).toMatchObject({ status: 'Pending', order: '' });
+  });
+});
+
+describe('scoresheet print evidence for a class with no runners (MYK9-2387)', () => {
+  const sitOut = {
+    id: 'e1',
+    classId: 'c1',
+    trialId: 't1',
+    armband: '101',
+    runOrder: null,
+    callName: 'Moss',
+    breed: 'Beagle',
+    handler: 'Jamie Walker',
+    registrationNumber: null,
+    section: null,
+    notRunningLabel: 'Withdrawn',
+  };
+  const input = {
+    reportId: 'scoresheet',
+    scope: { kind: 'class' as const, showId: 's1', trialId: 't1', classId: 'c1' },
+    trials: [{ id: 't1', date: '2026-04-12', name: 'Trial 1', trialNumber: '1' }],
+    classes: [
+      {
+        id: 'c1',
+        trialId: 't1',
+        name: 'Container Novice',
+        element: 'Container',
+        level: 'Novice',
+        section: 'A',
+        judgeName: 'Pat Donovan',
+      },
+    ],
+  };
+
+  it('records the "No dogs are running" page by its class header, not the dog', () => {
+    const descriptor = buildSheetDescriptorFromPrinted({
+      ...input,
+      entries: [sitOut],
+    } as unknown as Parameters<typeof buildSheetDescriptorFromPrinted>[0]);
+    expect(Object.keys(descriptor?.coverage.subjectFingerprints ?? {})).toEqual(['class:c1']);
+  });
+
+  it('records nothing for a class with no listed dog, which prints no page', () => {
+    const descriptor = buildSheetDescriptorFromPrinted({
+      ...input,
+      entries: [],
+    } as unknown as Parameters<typeof buildSheetDescriptorFromPrinted>[0]);
+    expect(Object.keys(descriptor?.coverage.subjectFingerprints ?? {})).toEqual([]);
   });
 });

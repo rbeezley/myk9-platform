@@ -75,7 +75,7 @@ export function printedEntryFacts(
  * Null only when the report is not one of the two paper sheets. When nothing in scope prints, the
  * descriptor is EMPTY (no subjects, a defined fingerprint), never null: a recorded print compares
  * against it and reads changed (the dogs it listed are gone), while a recording path refuses to
- * record a descriptor with no subjects. A class with no printed entry gets no page, so it
+ * record a descriptor with no subjects. A class with no listed entry gets no page, so it
  * contributes no subjects.
  */
 export function buildSheetDescriptorFromPrinted(input: {
@@ -113,7 +113,14 @@ export function buildSheetDescriptorFromPrinted(input: {
     rowByClass.set(classItem.id, rowIndex + 1);
     return [{ entry, classItem, rowIndex }];
   });
-  const classIdsWithRows = new Set(printed.map(item => item.classItem.id));
+  // A class with a page gets its header subject. A scoresheet class that lists dogs but runs none
+  // still prints one "No dogs are running" page (MYK9-2387), so it has a header subject too.
+  const classIdsWithRows = new Set([
+    ...printed.map(item => item.classItem.id),
+    ...input.entries.flatMap(entry =>
+      entry.classId && classById.has(entry.classId) ? [entry.classId] : []
+    ),
+  ]);
   return buildDescriptor(input.reportId, scope, [
     ...printed.map(({ entry, classItem, rowIndex }) => ({
       key: `entry:${entry.id}`,

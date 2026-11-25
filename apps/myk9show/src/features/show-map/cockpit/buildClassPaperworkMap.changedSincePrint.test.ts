@@ -178,9 +178,9 @@ describe('classes read changed only when their paperwork changed (MYK9-2074)', (
     );
   });
 
-  it('lists withdrawn dogs on the check-in sheet but offers no scoresheet when none run (MYK9-2387)', () => {
+  it('offers both sheets for a class whose dogs all sit out: the scoresheet is the one page saying so (MYK9-2387)', () => {
     const gone = [juni, hazel].map(item => ({ ...item, entry_status: 'withdrawn' }) as DbEntry);
-    expect(stateOf([...gone, moss, pip], [])['class-a']).toEqual(['unconfirmed', undefined]);
+    expect(stateOf([...gone, moss, pip], [])['class-a']).toEqual(['unconfirmed', 'unconfirmed']);
   });
 
   it('flips the class a dog was withdrawn from, and no other', () => {

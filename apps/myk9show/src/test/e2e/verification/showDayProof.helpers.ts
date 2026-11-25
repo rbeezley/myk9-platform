@@ -10,6 +10,7 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@myk9/supabase';
 import { createRequire } from 'node:module';
 import { signIn, TEST_USERS } from '../helpers/testUsers';
+import { queueDrainState } from '../../utils/queueDrainState';
 // Root tooling is CommonJS; the app is ESM. Use the runtime's CJS loader on Node 22.12.
 const { resolveIsolatedE2eTarget } = createRequire(import.meta.url)(
   '../../../../../../scripts/qa/isolated-e2e-target.ts'
@@ -248,17 +249,7 @@ export async function queueSnapshot(page: Page) {
  */
 export async function expectDeviceQueueDrained(page: Page, timeout = 30_000) {
   await expect
-    .poll(
-      async () => {
-        const queue = await queueSnapshot(page);
-        const pending = queue.pending_mutations;
-        const failed = queue.failed_mutations;
-        if (!Array.isArray(pending)) return 'queue not readable';
-        if (Array.isArray(failed) && failed.length > 0) return `${failed.length} failed`;
-        return pending.length === 0 ? 'drained' : `${pending.length} pending`;
-      },
-      { timeout }
-    )
+    .poll(async () => queueDrainState(await queueSnapshot(page)), { timeout })
     .toBe('drained');
 }
 

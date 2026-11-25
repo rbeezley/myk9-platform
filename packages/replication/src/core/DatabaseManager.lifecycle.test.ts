@@ -12,7 +12,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import 'fake-indexeddb/auto';
 import { openDB } from 'idb';
-import { DatabaseManager, REPLICATION_STORES } from './DatabaseManager';
+import { DamagedDatabaseError, DatabaseManager, REPLICATION_STORES } from './DatabaseManager';
 import { DB_VERSION } from '../constants';
 
 // ---------------------------------------------------------------------------
@@ -192,9 +192,9 @@ describe('DatabaseManager lifecycle', () => {
   });
 
   // -------------------------------------------------------------------------
-  // 6. A corrupted database is rebuilt with its queue kept (MYK9-2360)
+  // 6. A damaged database is never deleted (MYK9-2360): it may hold the queue
   // -------------------------------------------------------------------------
-  it('rebuilds a database missing its cache store and keeps the queued scores', async () => {
+  it('refuses a database missing its cache store, and keeps it and its queued scores', async () => {
     const name = `lifecycle-missing-store-${Date.now()}-${Math.random()}`;
     // A database at the current version that has the queue stores but lost the cache store.
     const broken = await openDB(name, DB_VERSION, {
@@ -206,16 +206,17 @@ describe('DatabaseManager lifecycle', () => {
     await broken.put(REPLICATION_STORES.PENDING_MUTATIONS, { id: 'queued-score' });
     await broken.put(REPLICATION_STORES.FAILED_MUTATIONS, { id: 'failed-score' });
     broken.close();
+    const deleteSpy = vi.spyOn(indexedDB, 'deleteDatabase');
     const manager = new DatabaseManager({}, name, DB_VERSION);
 
-    await manager.getDatabase('test'); // opens the broken database as is
-    const rebuilt = await manager.getDatabase('test'); // health check fails: rebuild
+    await expect(manager.getDatabase('test')).rejects.toBeInstanceOf(DamagedDatabaseError);
+    expect(manager.isInitialized()).toBe(false);
 
-    expect(rebuilt.objectStoreNames.contains(REPLICATION_STORES.REPLICATED_TABLES)).toBe(true);
-    expect(await rebuilt.getAllKeys(REPLICATION_STORES.PENDING_MUTATIONS)).toEqual([
-      'queued-score',
-    ]);
-    expect(await rebuilt.getAllKeys(REPLICATION_STORES.FAILED_MUTATIONS)).toEqual(['failed-score']);
-    await manager.reset();
+    expect(deleteSpy).not.toHaveBeenCalled();
+    const kept = await openDB(name, DB_VERSION);
+    expect(await kept.getAllKeys(REPLICATION_STORES.PENDING_MUTATIONS)).toEqual(['queued-score']);
+    expect(await kept.getAllKeys(REPLICATION_STORES.FAILED_MUTATIONS)).toEqual(['failed-score']);
+    kept.close();
+    deleteSpy.mockRestore();
   });
 });

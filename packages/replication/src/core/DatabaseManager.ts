@@ -9,7 +9,7 @@
  * - Race condition prevention
  */
 
-import { openDB, deleteDB, IDBPDatabase } from 'idb';
+import { openDB, IDBPDatabase } from 'idb';
 import type { Logger, DatabaseManagerDependencies } from '../dependencies';
 import { noopLogger } from '../dependencies';
 import {
@@ -18,7 +18,6 @@ import {
   DB_INIT_TIMEOUT_MS,
   INIT_RETRY_DELAY_MS,
   CIRCUIT_BREAKER_THRESHOLD,
-  QUEUE_HOLD_TIMEOUT_MS,
 } from '../constants';
 import { withTimeout } from '../mutation-utils';
 import {
@@ -42,18 +41,25 @@ export const REPLICATION_STORES = {
 } as const;
 
 /**
+ * The offline database at this version lacks stores this build needs. It is
+ * never deleted automatically: it may still hold the only copy of queued
+ * scores (MYK9-2360). Clearing site data is the manual fix.
+ */
+export class DamagedDatabaseError extends Error {
+  readonly missingStores: string[];
+  constructor(missingStores: string[]) {
+    super(`Offline database is damaged: missing ${missingStores.join(', ')}`);
+    this.name = 'DamagedDatabaseError';
+    this.missingStores = missingStores;
+  }
+}
+
+/**
  * Database state - singleton pattern
  * CRITICAL: All ReplicatedTable instances MUST share the same DB connection
  * to avoid upgrade transaction deadlocks when multiple tables initialize simultaneously
  */
 let sharedDB: IDBPDatabase | null = null;
-/** Queued mutations read from a corrupted database before it was deleted, for the next open. */
-let queueToPutBack: HeldQueue | null = null;
-
-interface HeldQueue {
-  pending: unknown[];
-  failed: unknown[];
-}
 let dbInitPromise: Promise<IDBPDatabase> | null = null;
 
 /**
@@ -301,6 +307,13 @@ export class DatabaseManager {
       },
     }).then(db => {
       this.logger.log(`[DatabaseManager] openDB() promise resolved!`);
+      const missing = Object.values(REPLICATION_STORES).filter(
+        store => !db.objectStoreNames.contains(store)
+      );
+      if (missing.length > 0) {
+        db.close();
+        throw new DamagedDatabaseError(missing);
+      }
       db.onversionchange = event => {
         this.logger.warn(
           `[DatabaseManager] Another instance requested upgrade — closing connection`
@@ -308,7 +321,7 @@ export class DatabaseManager {
         db.close();
         sharedDB = null;
         dbInitPromise = null;
-        // newVersion === null is a deleteDB (another tab clearing a corrupted DB): reconnect
+        // newVersion === null is a deleteDB (site data cleared): reconnect
         // on the next call. A number is a newer build upgrading: this build is stale.
         if (event.newVersion !== null) latchStaleSchema('version-change');
       };
@@ -316,54 +329,6 @@ export class DatabaseManager {
     });
 
     return withTimeout(openDBPromise, DB_INIT_TIMEOUT_MS, 'Database open');
-  }
-
-  /**
-   * The queued mutations of a database about to be deleted, or null when they
-   * cannot be read in time (then the database must be kept). A database without
-   * the mutation stores holds no queue.
-   */
-  private async holdQueue(db: IDBPDatabase): Promise<HeldQueue | null> {
-    const has = (store: string) => db.objectStoreNames.contains(store);
-    try {
-      const [pending, failed] = await withTimeout(
-        Promise.all([
-          has(REPLICATION_STORES.PENDING_MUTATIONS)
-            ? db.getAll(REPLICATION_STORES.PENDING_MUTATIONS)
-            : [],
-          has(REPLICATION_STORES.FAILED_MUTATIONS)
-            ? db.getAll(REPLICATION_STORES.FAILED_MUTATIONS)
-            : [],
-        ]),
-        QUEUE_HOLD_TIMEOUT_MS,
-        'hold-queue'
-      );
-      return { pending, failed };
-    } catch (error) {
-      this.logger.warn(`[DatabaseManager] Could not read the mutation queue:`, error);
-      return null;
-    }
-  }
-
-  /** Write a held queue into the recreated database, in one transaction. */
-  private async putQueueBack(db: IDBPDatabase, held: HeldQueue): Promise<void> {
-    if (held.pending.length === 0 && held.failed.length === 0) return;
-    try {
-      const tx = db.transaction(
-        [REPLICATION_STORES.PENDING_MUTATIONS, REPLICATION_STORES.FAILED_MUTATIONS],
-        'readwrite'
-      );
-      await Promise.all([
-        ...held.pending.map(m => tx.objectStore(REPLICATION_STORES.PENDING_MUTATIONS).put(m)),
-        ...held.failed.map(m => tx.objectStore(REPLICATION_STORES.FAILED_MUTATIONS).put(m)),
-        tx.done,
-      ]);
-      this.logger.log(
-        `[DatabaseManager] Kept ${held.pending.length} pending + ${held.failed.length} failed mutation(s) through the rebuild`
-      );
-    } catch (error) {
-      this.logger.error(`[DatabaseManager] Could not put the mutation queue back:`, error);
-    }
   }
 
   /**
@@ -404,36 +369,12 @@ export class DatabaseManager {
           );
         }
 
-        const corrupted =
-          errorMsg.includes('Object stores missing') ||
-          errorMsg.includes('object stores was not found');
-        // The queued scores live only in this database (MYK9-2360): hold them
-        // before deleting it, and if they cannot be read, do not delete it.
-        const held = corrupted && sharedDB ? await this.holdQueue(sharedDB) : null;
-
         if (sharedDB) {
           try {
             sharedDB.close();
           } catch {
             // Ignore close errors
           }
-        }
-
-        if (corrupted && held) {
-          this.logger.warn(
-            `[${tableName}] Corrupted database detected - deleting and recreating...`
-          );
-          try {
-            await deleteDB(this.dbName);
-            this.logger.log(`[${tableName}] Corrupted database deleted successfully`);
-            queueToPutBack = held;
-          } catch (deleteError) {
-            this.logger.error(`[${tableName}] Failed to delete corrupted database:`, deleteError);
-          }
-        } else if (corrupted) {
-          this.logger.error(
-            `[${tableName}] Corrupted database kept: its mutation queue could not be read`
-          );
         }
 
         sharedDB = null;
@@ -486,11 +427,6 @@ export class DatabaseManager {
     try {
       dbInitPromise = this.openDatabaseWithTimeout();
       sharedDB = await dbInitPromise;
-      if (queueToPutBack) {
-        const held = queueToPutBack;
-        queueToPutBack = null;
-        await this.putQueueBack(sharedDB, held);
-      }
 
       this.logger.log(`[DatabaseManager] Shared database initialized successfully`);
       dbInitInProgress = false;
@@ -510,6 +446,9 @@ export class DatabaseManager {
         latchStaleSchema('version-error');
         throw error;
       }
+      // Reopening a damaged database cannot repair it, and deleting it would
+      // destroy the queued scores it still holds (MYK9-2360).
+      if (error instanceof DamagedDatabaseError) throw error;
 
       await this.recover();
 

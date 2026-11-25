@@ -110,6 +110,7 @@ export {
 
 // Core classes
 export {
+  DamagedDatabaseError,
   DatabaseManager,
   databaseManager,
   REPLICATION_STORES,

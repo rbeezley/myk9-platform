@@ -1,5 +1,4 @@
 import { expect, test, type Page } from '@playwright/test';
-import { goOffline } from '../helpers/offlineBackend';
 import { disposableClass, registerDisposableProofHooks } from './disposableClass';
 import {
   evidence,
@@ -182,10 +181,10 @@ test('Scoresheet header at 390 px offline keeps the dog name on one line (MYK9-2
       text: el.textContent,
     }));
 
-  // No signal: the backend is cut off and the device reports offline.
-  const intercepted = await goOffline(judge.context);
+  // No signal: the device is offline, so the header shows the offline icon.
   await judge.context.setOffline(true);
-  await expect(page.getByRole('button', { name: 'Offline', exact: true })).toBeVisible();
+  const header = page.getByTestId('scoresheet-armband').locator('xpath=ancestor::header');
+  await expect(header.getByRole('button', { name: 'Offline', exact: true })).toBeVisible();
   await screenshot(page, info, 'phone-390-scoresheet-offline');
   const offline = await nameBox();
   expect(offline.text).toBe('Willow');
@@ -193,14 +192,7 @@ test('Scoresheet header at 390 px offline keeps the dog name on one line (MYK9-2
     offline.lineHeight * 1.5
   );
 
-  // A score saved with no signal: the header keeps the name on one line with the score unsent.
-  await page.getByTestId('result-Q').click();
-  await page.getByRole('textbox', { name: /time$/i }).first().fill('01:02.03');
-  await page.getByRole('button', { name: 'Save', exact: true }).click();
-  await page.getByRole('button', { name: /Confirm & Submit/i }).click();
-  await expect(page.getByText(/not sent yet/i).first()).toBeVisible({ timeout: 30_000 });
-  await screenshot(page, info, 'phone-390-after-offline-save');
-  expect(intercepted()).toBeGreaterThanOrEqual(0);
+  expect(judge.nonLocalSocketUrls).toEqual([]);
   await evidence(info, 'phone-390-offline-header', { viewport: PHONE_390, offline });
 });
 

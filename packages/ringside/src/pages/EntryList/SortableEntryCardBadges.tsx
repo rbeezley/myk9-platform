@@ -11,7 +11,7 @@ import { cn } from '@myk9/ui';
 import type { Entry } from '../../stores/entryStore';
 import { formatDogsAheadInList, type DogsAheadResult } from './dogsAheadInList';
 import { CheckInIndicator, getCheckInPresentation } from './CheckInIndicator';
-import { notRunningLabel } from './runQueue';
+import { notRunningLabel, runQueueStateNote } from './runQueue';
 
 /**
  * Status badge for unscored entries
@@ -126,16 +126,27 @@ export const OwnDogQueuePill: React.FC<{ dogsAhead: DogsAheadResult }> = ({ dogs
 
   const emphasis =
     dogsAhead?.kind === 'in-ring' || (dogsAhead?.kind === 'waiting' && dogsAhead.dogsAhead === 0);
+  // MYK9-1970: a paper class says so beside its position.
+  const note = dogsAhead?.kind === 'paper' ? runQueueStateNote(dogsAhead) : null;
 
   return (
-    <span
-      data-testid="own-dog-queue-pill"
-      className={cn(
-        'whitespace-nowrap text-sm font-bold text-primary',
-        emphasis && 'rounded-full bg-primary px-2 py-0.5 text-primary-foreground'
+    <span data-testid="own-dog-queue-pill" className="flex flex-col">
+      <span
+        className={cn(
+          'whitespace-nowrap text-sm font-bold text-primary',
+          emphasis && 'rounded-full bg-primary px-2 py-0.5 text-primary-foreground'
+        )}
+      >
+        {label}
+      </span>
+      {note && (
+        <span
+          data-testid="own-dog-queue-note"
+          className="text-xs font-normal text-muted-foreground"
+        >
+          {note}
+        </span>
       )}
-    >
-      {label}
     </span>
   );
 };

@@ -20,6 +20,7 @@ function resultLine(entry: StaffDogClassEntry): string | null {
   const parts = [
     entry.resultText,
     entry.searchTime ? `Time ${entry.searchTime}` : null,
+    entry.elementTime ? `Element ${entry.elementTime}` : null,
     entry.faultCount != null
       ? `${entry.faultCount} ${entry.faultCount === 1 ? 'fault' : 'faults'}`
       : null,

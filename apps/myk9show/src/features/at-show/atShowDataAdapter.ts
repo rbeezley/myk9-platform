@@ -207,6 +207,7 @@ export function transformEntry(re: ReplicatedEntry, cls: ReplicatedClass | null)
   const { status, inRing, notRunning, notRunningReason } = ringsideEntryRingState(re);
   const finalPlacement = re.finalPlacement ?? re.final_placement;
   const searchTimeSeconds = re.searchTimeSeconds ?? re.search_time_seconds;
+  const elementTimeSeconds = re.element_time_seconds;
   const resultText = re.resultStatus ?? re.result_status;
   const faultCount = re.totalFaults ?? re.total_faults;
   const totalPoints = re.totalPoints ?? re.total_points;
@@ -262,6 +263,7 @@ export function transformEntry(re: ReplicatedEntry, cls: ReplicatedClass | null)
     ...(checkinStatus != null && { checkinStatus }),
     ...(resultText != null && { resultText }),
     ...(searchTimeSeconds != null && { searchTime: String(searchTimeSeconds) }),
+    ...(elementTimeSeconds != null && { elementTime: String(elementTimeSeconds) }),
     ...(faultCount != null && { faultCount }),
     ...(finalPlacement != null && { placement: Number(finalPlacement) }),
     ...(totalPoints != null && { totalPoints }),

@@ -60,6 +60,7 @@ import { useAtShowDogFavoritesSynced } from './dogFavoritesSync';
 import { useAtShowFavoriteAlertNudge } from './useAtShowFavoriteAlertNudge';
 import { AtShowAddToHomeNudge } from './AtShowAddToHomeNudge';
 import { useOwnEntryClaims } from './useOwnEntryClaims';
+import { useClassInfoOnPaper } from './useClassInfoOnPaper';
 import { ownPillAllowed } from './placeInLineDayGate';
 import { useOwnEntryServerPlaces } from './useOwnEntryServerPlaces';
 import { useMyRingConflicts } from './useMyRingConflicts';
@@ -105,13 +106,21 @@ export const AtShowEntryListPage: React.FC = () => {
     [ringsideRole, showId]
   );
 
-  const { entries, classInfo, isRefreshing, fetchError, refresh } = useEntryListData({
+  const {
+    entries,
+    classInfo: adapterClassInfo,
+    isRefreshing,
+    fetchError,
+    refresh,
+  } = useEntryListData({
     // exactOptionalPropertyTypes: omit `classId` rather than pass an explicit
     // `undefined`; the hook disables its query when classId is absent anyway.
     ...(classId ? { classId } : {}),
     isDraggingRef,
     dependencies,
   });
+
+  const classInfo = useClassInfoOnPaper(showId, adapterClassInfo);
 
   const { refresh: manualRefresh } = useAtShowEntryListRefresh(showId, refresh);
 

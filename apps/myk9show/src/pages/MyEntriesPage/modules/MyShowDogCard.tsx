@@ -35,6 +35,8 @@ export interface MyShowDogCardProps {
   dog: MyShowDog;
   /** classId -> judge name, for the row's "Judge ..." text. */
   judgeByClassId?: JudgeByClassId | undefined;
+  /** MYK9-1970: classes scored on paper. */
+  paperClassIds?: ReadonlySet<string> | undefined;
   /** The show's orders, keyed by id — a dog can span several. */
   ordersById: Record<string, MyEntry>;
   checkInContext: DayCheckInContext;
@@ -62,6 +64,7 @@ export interface MyShowDogCardProps {
 const MyShowDogCardComponent: React.FC<MyShowDogCardProps> = ({
   dog,
   judgeByClassId,
+  paperClassIds,
   ordersById,
   checkInContext,
   isShowCancelled,
@@ -134,6 +137,7 @@ const MyShowDogCardComponent: React.FC<MyShowDogCardProps> = ({
             cls={cls}
             judgeName={cls.classId ? judgeByClassId?.[cls.classId] : undefined}
             dogName={dog.dogName}
+            onPaper={cls.classId ? paperClassIds?.has(cls.classId) === true : false}
             order={ordersById[cls.orderId]}
             checkInContext={checkInContext}
             showTrialNumber={showTrialNumber}

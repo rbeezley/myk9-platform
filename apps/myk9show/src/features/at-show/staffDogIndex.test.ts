@@ -72,6 +72,33 @@ describe('buildStaffDogs', () => {
   });
 });
 
+describe('buildStaffDogs element time', () => {
+  it('carries the UKC element time through, and null when the run has none', () => {
+    const built = buildStaffDogs(
+      [
+        entry({
+          id: 'u1',
+          dogId: 'u',
+          dogCallName: 'Ukc',
+          isScored: true,
+          element_time_seconds: 30.1,
+        }),
+        entry({
+          id: 'u2',
+          dogId: 'v',
+          dogCallName: 'Akc',
+          isScored: true,
+          search_time_seconds: 40,
+        }),
+      ],
+      classes,
+      EMPTY_MAPS
+    );
+    expect(built.find(d => d.key === 'u')?.entries[0]?.elementTime).toBe('30.1');
+    expect(built.find(d => d.key === 'v')?.entries[0]?.elementTime).toBeNull();
+  });
+});
+
 describe('buildStaffDogs eligibility and armbands', () => {
   it('leaves entries the dog is not expected to run off the dog page, but lists a moved one', () => {
     const rows = ['withdrawn', 'scratched', 'not_accepted', 'absent', 'moved', 'confirmed'].map(

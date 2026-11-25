@@ -9,7 +9,7 @@ import { Link, Navigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getStatusDescriptor } from '@/components/status';
-import { formatRunQueueState, stateForClaim } from '@myk9/ringside/run-queue';
+import { formatRunQueueState, runQueueStateNote, stateForClaim } from '@myk9/ringside/run-queue';
 import { cn } from '@/lib/utils';
 import { useAtShowDogFavoritesSynced } from './dogFavoritesSync';
 import { useAtShowStaffDogs } from './useAtShowStaffDogs';
@@ -51,20 +51,28 @@ const DogRowBody: React.FC<{ to: string | null; children: React.ReactNode }> = (
 /** Trial, class and check-in status: the approved exhibitor fields. */
 const ExhibitorClassLines: React.FC<{ dog: StaffDog }> = ({ dog }) => (
   <span className="block text-xs text-muted-foreground">
-    {dog.entries.map(entry => (
-      <span key={entry.entryId} className="block truncate">
-        {[
-          entry.trialLabel,
-          entry.className,
-          entry.notRunningWord ?? getStatusDescriptor('entry', entry.checkInStatus).label,
-          entry.runPosition
-            ? formatRunQueueState(stateForClaim(entry.runPosition, entry.runClaimState))
-            : null,
-        ]
-          .filter(Boolean)
-          .join(' · ')}
-      </span>
-    ))}
+    {dog.entries.map(entry => {
+      const queue = entry.runPosition
+        ? stateForClaim(entry.runPosition, entry.runClaimState)
+        : null;
+      const paperNote = runQueueStateNote(queue);
+      return (
+        <span key={entry.entryId} className="block">
+          <span className="block truncate">
+            {[
+              entry.trialLabel,
+              entry.className,
+              entry.notRunningWord ?? getStatusDescriptor('entry', entry.checkInStatus).label,
+              queue ? formatRunQueueState(queue) : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </span>
+          {/* The note wraps: its instruction ("Listen for your number") must never be cut off. */}
+          {paperNote && <span className="block">{paperNote}</span>}
+        </span>
+      );
+    })}
   </span>
 );
 

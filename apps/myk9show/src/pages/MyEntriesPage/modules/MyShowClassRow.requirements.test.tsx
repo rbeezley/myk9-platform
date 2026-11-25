@@ -16,8 +16,19 @@ const replica = vi.hoisted(() => ({
   getTrialById: vi.fn(),
 }));
 vi.mock('@/services/replication', () => ({
-  replicatedClassesTable: { getClassById: replica.getClassById, subscribe: vi.fn(() => vi.fn()) },
-  replicatedTrialsTable: { getTrialById: replica.getTrialById },
+  replicatedClassesTable: {
+    getClassById: replica.getClassById,
+    getClassesByTrial: vi.fn().mockResolvedValue([]),
+    subscribe: vi.fn(() => vi.fn()),
+  },
+  replicatedTrialsTable: {
+    getTrialById: replica.getTrialById,
+    getTrialsByShow: vi.fn().mockResolvedValue([]),
+  },
+  replicatedShowsTable: {
+    getShowById: vi.fn().mockResolvedValue(null),
+    subscribe: vi.fn(() => vi.fn()),
+  },
 }));
 
 const LIVE_CLASS = {

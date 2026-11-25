@@ -1,7 +1,7 @@
 import '@/test/utils/pageRenderWait';
 import { Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@/test/utils/testUtils';
+import { fireEvent, render, screen, within } from '@/test/utils/testUtils';
 import type { StaffDog } from './staffDogIndex';
 
 const mocks = vi.hoisted(() => ({
@@ -223,10 +223,21 @@ describe('AtShowDogsPage as an exhibitor (MYK9-1517)', () => {
     renderRoutes('/at-show/s1/dogs');
     const paper = screen.getByTestId('at-show-dog-armband:7');
     expect(paper).toHaveTextContent('7th in the running order');
-    expect(paper).not.toHaveTextContent(/\d(st|nd|rd|th) up|ahead/);
+    expect(paper).toHaveTextContent(
+      'This class is scored on paper. Listen for your number at the ring.'
+    );
+    expect(paper).not.toHaveTextContent(/\d(st|nd|rd|th) up|ahead|Next up/);
+    // The note wraps at phone width: no element from it up to the card may truncate it.
+    const note = within(paper).getByText(
+      'This class is scored on paper. Listen for your number at the ring.'
+    );
+    for (let el: HTMLElement | null = note; el && el !== paper; el = el.parentElement) {
+      expect(el.className).not.toMatch(/\btruncate\b/);
+    }
     expect(screen.getByTestId('at-show-dog-armband:8')).toHaveTextContent(
       'Order may be out of date'
     );
+    expect(screen.getByTestId('at-show-dog-armband:8')).not.toHaveTextContent('scored on paper');
   });
 
   it("searches, and favorites a friend's dog through the synced favorites", () => {
@@ -278,6 +289,28 @@ describe('AtShowDogPage', () => {
     faultCount: null,
     placement: null,
     resultsReleased: false,
+  });
+
+  it('shows the UKC element time beside the search time, and not when absent', () => {
+    mocks.dogs = [
+      dog({
+        key: 'd1',
+        dogName: 'Zip',
+        entries: [
+          {
+            ...classEntry('e1', 'checked-in'),
+            isScored: true,
+            resultText: 'Q',
+            searchTime: '62.05',
+            elementTime: '30.1',
+          },
+          { ...classEntry('e2', 'checked-in'), isScored: true, resultText: 'Q', searchTime: '40' },
+        ],
+      }),
+    ];
+    renderRoutes('/at-show/s1/dogs/d1');
+    expect(screen.getByText(/Time 62.05 · Element 30.1/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Element/)).toHaveLength(1);
   });
 
   it('offers no bulk check-in control on the dog page', () => {

@@ -28,6 +28,7 @@ import type { MyShowClass, MyShowDog, MyShowGroup } from './groupEntriesByShow';
 import { MyShowGroupCard } from './MyShowGroup';
 import { firstResultsPromptClassId } from './firstResultsPromptClass';
 import { useResultsPromptableShowIds } from '@/hooks/queries/useShowSettingsDatabase';
+import { usePaperClaims } from '@/features/at-show/usePaperClaims';
 import { useMyShowJudges } from './useMyShowJudges';
 import type { EntryStatusFilter, LeaveClassTarget, MyEntry } from './my-entries-types';
 import { narrowDogsToStatus } from './statusFilterPredicate';
@@ -135,6 +136,8 @@ export const MyShowsList: React.FC<MyShowsListProps> = ({
     [groups]
   );
   const judgeByClassId = useMyShowJudges(judgeTargets);
+  // MYK9-1970: the one paper reader (shows and classes only); no note until the rows load.
+  const { paperClassIds } = usePaperClaims(judgeTargets.map(target => target.showId));
 
   const sections = React.useMemo(() => splitShowsIntoSections(groups, now), [groups, now]);
   // MYK9-1944: one results-public prompt for the whole list, on the first eligible row.
@@ -189,6 +192,7 @@ export const MyShowsList: React.FC<MyShowsListProps> = ({
         now={now}
         selfCheckinByClassId={selfCheckinByClassId}
         judgeByClassId={judgeByClassId}
+        paperClassIds={paperClassIds}
         seenResultReleaseKeys={seenResultReleaseKeys}
         resultsPromptClassId={resultsPromptClassId}
         onCheckInDay={onCheckInDay}

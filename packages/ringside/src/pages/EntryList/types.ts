@@ -60,6 +60,12 @@ export interface ClassInfo {
   registry?: string;
   classStatus?: string;
   /**
+   * MYK9-1970: what the host knows about where the class is scored. 'paper' and 'unknown' (the
+   * claim rows have not loaded) both withhold the now-and-next layout: a paper class names no
+   * next dog, and nothing claims one without the data. Absent means known phone-scored.
+   */
+  paperClaim?: 'paper' | 'unknown' | undefined;
+  /**
    * The class's status in ringside's own eight-value vocabulary (`ClassStatusValue`),
    * for the status dialog's "current" marker. `classStatus` stays the host's stored
    * status, which other consumers read; this is the same state with the ring phase

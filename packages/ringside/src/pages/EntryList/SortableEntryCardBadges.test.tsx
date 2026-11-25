@@ -6,7 +6,8 @@
 import { act, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Entry } from '../../stores/entryStore';
-import { StatusBadge } from './SortableEntryCardBadges';
+import { OwnDogQueuePill, StatusBadge } from './SortableEntryCardBadges';
+import { PAPER_CLASS_NOTE } from './runQueue';
 
 const entry = (status: string): Entry =>
   ({ id: 'e1', callName: 'Rex', status, inRing: false, isScored: false }) as unknown as Entry;
@@ -91,5 +92,25 @@ describe('StatusBadge for a dog that is not running (MYK9-1940)', () => {
     expect(indicator).toHaveTextContent('Moved');
     expect(indicator.className).toContain('text-muted-foreground');
     expect(indicator.className).not.toContain('text-success');
+  });
+});
+
+// MYK9-1970: the own-dog pill never counts dogs ahead on a paper or quiet class.
+describe('OwnDogQueuePill claim wording', () => {
+  it('says the position and the paper note on a paper class', () => {
+    const { container } = render(<OwnDogQueuePill dogsAhead={{ kind: 'paper', place: 7 }} />);
+    expect(container.textContent).toContain('7th in the running order');
+    expect(container.textContent).toContain(PAPER_CLASS_NOTE);
+    expect(container.textContent).not.toMatch(/Next up|\dth up|ahead|You're next/);
+  });
+
+  it('says the order may be out of date on a stale class, with no paper note', () => {
+    const { container } = render(<OwnDogQueuePill dogsAhead={{ kind: 'stale' }} />);
+    expect(container.textContent).toBe('Order may be out of date');
+  });
+
+  it('still counts dogs ahead on a live class', () => {
+    const { container } = render(<OwnDogQueuePill dogsAhead={{ kind: 'waiting', dogsAhead: 3 }} />);
+    expect(container.textContent).toBe('3 dogs ahead');
   });
 });

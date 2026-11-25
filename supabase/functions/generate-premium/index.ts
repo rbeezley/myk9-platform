@@ -83,7 +83,7 @@ handle<GeneratePremiumPayload>(
       .from('shows')
       .select(
         `
-        id, name, organization, start_date, end_date, location, venue_name, address, city, state, zip_code, ${SHOW_STYLE_COLUMN},
+        id, name, organization, start_date, end_date, location, ${SHOW_STYLE_COLUMN},
         entry_open_date, entry_close_date, pre_entry_fee, day_of_show_fee,
         accept_check_payments, accept_cash_payments, max_total_entries, club_id, experience_published_content,
         allow_waitlist, allow_class_changes_after_close,
@@ -92,7 +92,7 @@ handle<GeneratePremiumPayload>(
         clubs(name, logo_url, ${PREMIUM_CLUB_WITHDRAWAL_COLUMNS}),
         trials(
           id, name, date, planned_start_time, event_number, trial_type, registry_id, status,
-          deleted_at, max_total_entries,
+          deleted_at,
           classes(id, name, level, element, section, status, deleted_at, entry_fee, allow_waitlist)
         )
       `
@@ -196,7 +196,6 @@ handle<GeneratePremiumPayload>(
         entry_fee: number | null;
         allow_waitlist: boolean | null;
       }>;
-      max_total_entries: number | null;
     }>;
     const trials = liveTrials.map(trial => ({
       name: trial.name,
@@ -204,8 +203,6 @@ handle<GeneratePremiumPayload>(
       startTime: trial.planned_start_time,
       eventNumber: trial.event_number,
       type: trial.trial_type ?? '',
-      // MYK9-2229: this trial's own entry limit.
-      maxTotalEntries: trial.max_total_entries ?? null,
       judges: premiumTrialJudges(judgeAssignments, trial, liveTrials),
       classes: livePremiumClasses(trial.classes).map(cls => ({
         element: cls.element ?? '',
@@ -251,12 +248,6 @@ handle<GeneratePremiumPayload>(
         startDate: show.start_date,
         endDate: show.end_date,
         venue: show.location,
-        // MYK9-2230: the facts list composes the printed venue from these separate columns.
-        venueName: show.venue_name ?? null,
-        address: show.address ?? null,
-        city: show.city ?? null,
-        state: show.state ?? null,
-        zipCode: show.zip_code ?? null,
         entryOpenDate: show.entry_open_date,
         entryCloseDate: show.entry_close_date,
         preEntryFee: show.pre_entry_fee,

@@ -29,8 +29,7 @@ import { formatLongDate } from '@/lib/format/dates';
 import type { GeneratedPremium, PremiumSupplemental } from '@/types/premium-types';
 import { makeClassComparator } from './pdf/bodies/classOrder';
 import { premiumRecordingFeeText } from './premiumRecordingFeeStatement';
-import { premiumEntryLimitText, premiumTrialEntryLimitText } from './premiumEntryLimit';
-import { composePremiumVenue } from './premiumVenue';
+import { premiumEntryLimitText } from './premiumEntryLimit';
 import {
   premiumClassChangeText,
   premiumTrialClassFeeText,
@@ -324,8 +323,6 @@ export interface PremiumTrialFacts {
   judges: PremiumTrialJudgeFact[];
   /** "Element Level Section" in the registry's progression order. */
   classLabels: string[];
-  /** MYK9-2229: "Trial entry limit: N entries." when this trial has its own limit, else null. */
-  entryLimit: string | null;
   /** MYK9-2231: "Classes taking a waitlist: ..." for this trial, else null. */
   waitlist: string | null;
   /** MYK9-2231: "Class fees (pre-entry): ..." for classes with a fee of their own, else null. */
@@ -420,7 +417,7 @@ export function buildPremiumFacts(
     clubName: club.name,
     club: club.name ?? 'Host Club',
     monogram: buildMonogram(club.name ?? 'Host Club'),
-    venue: composePremiumVenue(show),
+    venue: (show.venue ?? '').trim(),
     startDate: show.startDate,
     fees: {
       preEntry: show.preEntryFee,
@@ -475,7 +472,6 @@ export function buildPremiumFacts(
         eventNumber: trial.eventNumber,
         judges: buildTrialJudgeFacts(trial.judges, classLabels, registry),
         classLabels,
-        entryLimit: premiumTrialEntryLimitText(trial),
         waitlist: premiumTrialWaitlistText(trial, show, comparator),
         classFees: premiumTrialClassFeeText(trial, show, comparator),
       };

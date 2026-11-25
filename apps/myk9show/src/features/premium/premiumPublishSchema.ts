@@ -32,12 +32,6 @@ const generatedPremiumSchema = z.object({
     // clubs.name via a nullable club_id); the PDF templates render them as
     // '—' / 'Host Club'. Requiring them failed publish for sparse drafts.
     venue: nullableText,
-    // MYK9-2230: the address parts; optional so older premiums parse, and listed so zod keeps them.
-    venueName: nullableText.optional(),
-    address: nullableText.optional(),
-    city: nullableText.optional(),
-    state: nullableText.optional(),
-    zipCode: nullableText.optional(),
     entryOpenDate: nullableText,
     entryCloseDate: nullableText,
     preEntryFee: nullableAmount,
@@ -107,8 +101,6 @@ const generatedPremiumSchema = z.object({
       startTime: nullableText,
       eventNumber: nullableText,
       type: z.string(),
-      // MYK9-2229: optional so older premiums parse; without it zod would strip the trial limit.
-      maxTotalEntries: nullableAmount.optional(),
       // MYK9-2067: rows published before residence and classes existed carry neither (they
       // carried `elements`, which is dropped on parse), so both default.
       judges: z.array(

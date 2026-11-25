@@ -9,7 +9,7 @@ import { POSTGREST_MAX_ROWS } from './postgrestMaxRows';
 type DogRow = Database['public']['Tables']['dogs']['Row'];
 
 /**
- * Paged by keyset on (updated_at, id) until a short page, because PostgREST
+ * Paged by keyset on (updated_at, id) until an empty page, because PostgREST
  * caps a response at max_rows and a staff account reads every dog. The owner
  * scope rides on every page. A dog edited while the loop ran shows up again on
  * a later page, so only its newest copy is returned.
@@ -34,9 +34,13 @@ export async function fetchChangedDogs(since: number, ownerId?: string): Promise
     if (error) throw new Error(`Supabase query failed: ${error.message}`);
 
     const page = data ?? [];
-    rows.push(...page);
     const last = page[page.length - 1];
-    if (page.length < POSTGREST_MAX_ROWS || !last?.updated_at || !last.id) break;
+    // Only an empty page ends the read (MYK9-2252): a lower hosted max_rows
+    // returns short pages with more rows behind them. A page ending on the row the
+    // cursor already sits on means the server ignored the cursor: stop.
+    if (!last?.updated_at || !last.id) break;
+    if (String(last.updated_at) === cursorUpdatedAt && String(last.id) === cursorId) break;
+    rows.push(...page);
     cursorUpdatedAt = String(last.updated_at);
     cursorId = String(last.id);
   }

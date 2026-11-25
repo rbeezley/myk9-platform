@@ -81,9 +81,11 @@ handle<GeneratePremiumPayload>(
     // happened above; a miss here is a genuine not-found.
     const { data: show, error: showError } = await userClient
       .from('shows')
+      // venue_name, city and state feed buildPremiumNarratives' venue line (MYK9-2055), not the
+      // printed venue, which is plain location (MYK9-2230).
       .select(
         `
-        id, name, organization, start_date, end_date, location, ${SHOW_STYLE_COLUMN},
+        id, name, organization, start_date, end_date, location, venue_name, city, state, ${SHOW_STYLE_COLUMN},
         entry_open_date, entry_close_date, pre_entry_fee, day_of_show_fee,
         accept_check_payments, accept_cash_payments, max_total_entries, club_id, experience_published_content,
         allow_waitlist, allow_class_changes_after_close,

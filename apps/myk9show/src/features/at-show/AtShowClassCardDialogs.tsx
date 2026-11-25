@@ -7,11 +7,9 @@
  * Statistics lives inside Class Options. Requirements, Set Max Time and Status each
  * open from it and return to the picker on close, as they do on the entry list.
  */
-import { useEffect, useState, type RefObject } from 'react';
-import { toast } from 'sonner';
+import { useState, type RefObject } from 'react';
 import { getClassIds, type ClassEntry } from '@myk9/ringside';
 import { getTrialRegistry } from '@/features/registries';
-import { scoresheetKeyForClass } from '@/pages/scoring/types';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
 import { ClassDetailsPopover } from './slots/ClassDetailsPopoverSlot';
 import {
@@ -26,6 +24,7 @@ import { MaxTimeLookupDialog } from './slots/MaxTimeLookupDialog';
 import { buildRingsideReplication } from './ringsideCapabilities';
 import { toStatusUpdateFields } from './ringsideClassStatusMap';
 import { useLiveClasses } from './useLiveClasses';
+import { usePerAreaMaxTimes, type PerAreaLookup } from './usePerAreaMaxTimes';
 import {
   classDetailsData,
   classMaxTimeData,
@@ -67,46 +66,6 @@ function safeRegistryId(trial: ReplicatedTrial | null): string | undefined {
   }
 }
 
-const LOOKUP_FAILED_MESSAGE =
-  "Couldn't check how this class is timed, so Set Max Time is unavailable.";
-
-type PerAreaLookup = { status: 'pending' | 'failed' } | { status: 'ready'; perArea: boolean };
-
-/** AKC Scent Work and ASCA time each area against its own max (same rule as the entry list). */
-function usePerAreaMaxTimes(
-  trial: ReplicatedTrial | null,
-  className: string | undefined,
-  enabled: boolean,
-  attempt: number
-): PerAreaLookup {
-  const [result, setResult] = useState<({ key: string } & PerAreaLookup) | null>(null);
-  const trialId = trial?.id;
-  const key = `${trialId ?? ''}|${className ?? ''}|${attempt}`;
-  useEffect(() => {
-    if (!enabled || !trialId || !className) return;
-    let cancelled = false;
-    scoresheetKeyForClass(trialId, className)
-      .then(sheet => {
-        if (!cancelled) {
-          setResult({
-            key,
-            status: 'ready',
-            perArea: sheet === 'AKC_SCENT_WORK' || sheet === 'ASCA_SCENT_DETECTION',
-          });
-        }
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setResult({ key, status: 'failed' });
-        toast.error(LOOKUP_FAILED_MESSAGE);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [enabled, trialId, className, key]);
-  return result?.key === key ? result : { status: 'pending' };
-}
-
 export function AtShowClassCardDialogs({
   active,
   anchorRef,
@@ -126,7 +85,7 @@ export function AtShowClassCardDialogs({
   const cardKey = entry ? `${entry.id}:${active?.mode}:${active?.session}` : '';
   const optionsView: OptionsView = view?.cardKey === cardKey ? view.view : 'menu';
   const timingLookup = usePerAreaMaxTimes(
-    active?.trial ?? null,
+    active?.trial?.id,
     live?.name ?? undefined,
     active?.mode === 'options',
     attempt

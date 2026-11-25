@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { goOffline } from '../helpers/offlineBackend';
 import { disposableClass, registerDisposableProofHooks } from './disposableClass';
 import {
   evidence,
@@ -26,6 +27,7 @@ import {
 registerDisposableProofHooks();
 
 const PHONE = { width: 375, height: 812 } as const;
+const PHONE_390 = { width: 390, height: 844 } as const;
 
 async function ringState(client: Client, id: string) {
   const { data, error } = await client
@@ -155,6 +157,51 @@ test('Ringside at 375 px: open, leave unscored, score, reset (MYK9-1762, MYK9-17
     scored,
     afterReset,
   });
+});
+
+test('Scoresheet header at 390 px offline keeps the dog name on one line (MYK9-2383)', async ({
+  browser,
+}, info) => {
+  const client = isolatedClient();
+  const f = await disposableClass(client, 1);
+  const judge = await rolePage(
+    browser,
+    'JUDGE',
+    `/at-show/${f.showId}/class/${f.classId}`,
+    PHONE_390
+  );
+  const page = judge.page;
+  await expect(judgeRow(page, 'Willow')).toBeVisible({ timeout: 60_000 });
+  await judgeRow(page, 'Willow').getByRole('heading', { name: 'Willow', exact: true }).click();
+  await expect(page.getByTestId('scoresheet-action-bar')).toBeVisible({ timeout: 60_000 });
+  const name = page.getByTestId('scoresheet-dog-name');
+  const nameBox = () =>
+    name.evaluate(el => ({
+      height: el.getBoundingClientRect().height,
+      lineHeight: parseFloat(getComputedStyle(el).lineHeight),
+      text: el.textContent,
+    }));
+
+  // No signal: the backend is cut off and the device reports offline.
+  const intercepted = await goOffline(judge.context);
+  await judge.context.setOffline(true);
+  await expect(page.getByRole('button', { name: 'Offline', exact: true })).toBeVisible();
+  await screenshot(page, info, 'phone-390-scoresheet-offline');
+  const offline = await nameBox();
+  expect(offline.text).toBe('Willow');
+  expect(offline.height, 'the dog name wraps onto more than one line').toBeLessThan(
+    offline.lineHeight * 1.5
+  );
+
+  // A score saved with no signal: the header keeps the name on one line with the score unsent.
+  await page.getByTestId('result-Q').click();
+  await page.getByRole('textbox', { name: /time$/i }).first().fill('01:02.03');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await page.getByRole('button', { name: /Confirm & Submit/i }).click();
+  await expect(page.getByText(/not sent yet/i).first()).toBeVisible({ timeout: 30_000 });
+  await screenshot(page, info, 'phone-390-after-offline-save');
+  expect(intercepted()).toBeGreaterThanOrEqual(0);
+  await evidence(info, 'phone-390-offline-header', { viewport: PHONE_390, offline });
 });
 
 test('Check-in desk at 375 px: check in, clear a flagged pull, undo (MYK9-1787)', async ({

@@ -17,6 +17,7 @@ import { DiscardChangesDialog } from './DiscardChangesDialog';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useRBAC } from '@/hooks/useRBAC';
 import { useJudgeQualifications, judgeQueryKeys } from '@/hooks/queries/useJudgeDatabase';
+import { useCanWriteJudgeQualifications } from '@/features/judges/canWriteJudgeQualifications';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryClient';
 import type { JudgeQualification as DbJudgeQualification } from '@/types/judge-management';
@@ -134,11 +135,13 @@ export const JudgeQualificationPanel: React.FC<JudgeQualificationPanelProps> = (
 }) => {
   const { user: currentUser } = useAuthContext();
   const { hasPermission } = useRBAC();
+  const isQualificationWriter = useCanWriteJudgeQualifications();
   const queryClient = useQueryClient();
 
   // Fetch qualifications from DB using shared hook (returns a stable [] when
   // the query is idle so the useMemo dep stays stable).
-  const { data: dbQualifications } = useJudgeQualifications(userId);
+  // MYK9-2382: a save replaces the whole list, so it waits until the list has loaded.
+  const { data: dbQualifications, isSuccess: listLoaded } = useJudgeQualifications(userId);
 
   // Map DB-shaped data to UI-shaped data for form editing.
   const fetchedQualifications = useMemo(
@@ -158,13 +161,13 @@ export const JudgeQualificationPanel: React.FC<JudgeQualificationPanelProps> = (
 
   // Check if current user can edit judge qualifications
   const canEditQualifications = useCallback(() => {
-    if (hasPermission('admin:manage')) return true;
+    if (isQualificationWriter || hasPermission('admin:manage')) return true;
     if (hasPermission('show:manage')) return true;
     if (userId && currentUser?.id === userId) {
       return hasPermission('judge:manage_qualifications') || hasPermission('user:update');
     }
     return false;
-  }, [hasPermission, userId, currentUser?.id]);
+  }, [isQualificationWriter, hasPermission, userId, currentUser?.id]);
 
   // Sync fetched qualifications into local state when query data changes
   useEffect(() => {
@@ -217,6 +220,7 @@ export const JudgeQualificationPanel: React.FC<JudgeQualificationPanelProps> = (
 
   // Save qualifications — panel owns persistence since it always has the full list
   const handleSave = async () => {
+    if (!listLoaded) return;
     try {
       setIsLoading(true);
 
@@ -229,6 +233,8 @@ export const JudgeQualificationPanel: React.FC<JudgeQualificationPanelProps> = (
       queryClient.invalidateQueries({ queryKey: judgeQueryKeys.qualificationsByJudge(userId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(userId) });
+      // Edit show > Judges and Assign judge list judges from this query (MYK9-2382).
+      queryClient.invalidateQueries({ queryKey: ['judges', 'withQualifications'] });
 
       onSaved?.();
       onClose();
@@ -294,7 +300,11 @@ export const JudgeQualificationPanel: React.FC<JudgeQualificationPanelProps> = (
         <Button variant="outline" onClick={handleClose} disabled={isLoading}>
           Cancel
         </Button>
-        <Button onClick={handleSave} disabled={!hasChanges || isLoading} className="gap-2">
+        <Button
+          onClick={handleSave}
+          disabled={!hasChanges || isLoading || !listLoaded}
+          className="gap-2"
+        >
           <Save className="h-4 w-4" />
           Save Changes
         </Button>

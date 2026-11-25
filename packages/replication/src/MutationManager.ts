@@ -691,13 +691,13 @@ export class MutationManager {
     // restoreInFlight must cover the wait on an upload too, so adoption cannot
     // slip between the two and find an empty queue.
     const restore = (async () => {
-      // Never restore a stale backup into a queue that is being flushed. The
-      // flush owns deletion and its pass-level backup; restore follows it.
-      // A failed upload must not prevent startup/reconnect recovery from running.
-      // The upload caller still receives the rejection; restore can inspect the
-      // durable queue and retry on its own.
-      if (this.uploadInFlight) await this.uploadInFlight.catch(() => undefined);
-      await this.backupStore.restore();
+      // Never restore a stale backup into a queue that is being flushed, by this
+      // tab OR another (MYK9-2360). The backup is read only while holding the
+      // cross-tab upload lock: a flush owns deletion and rewrites the backup
+      // before it releases, so restore sees the post-flush backup. A failed
+      // upload never blocks recovery (the lock frees either way). Nothing in an
+      // upload calls restore, so taking the lock here cannot wait on itself.
+      await this.uploadRunner.runExclusive(() => this.backupStore.restore());
     })();
     this.restoreInFlight = restore;
     try {

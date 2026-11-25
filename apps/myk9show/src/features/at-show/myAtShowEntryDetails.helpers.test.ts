@@ -624,6 +624,13 @@ describe('place in line on a paper class (MYK9-1970)', () => {
     });
   });
 
+  it('shows the paper line before check-in too, but not without a posted order (MYK9-1970)', () => {
+    const preCheckIn = { ...detail, checkInStatus: 'no-status' as const, scoresOnPaper: true };
+    expect(deriveAtShowQueueLine(preCheckIn, undefined)).toEqual({ kind: 'paper' });
+    expect(deriveAtShowQueueLine({ ...preCheckIn, hasRunOrder: false }, undefined)).toBeNull();
+    expect(deriveAtShowQueueLine({ ...preCheckIn, scoresOnPaper: false }, undefined)).toBeNull();
+  });
+
   it('shows the paper line with no place for a class this device holds as paper', () => {
     expect(deriveAtShowQueueLine({ ...detail, scoresOnPaper: true }, undefined)).toEqual({
       kind: 'paper',

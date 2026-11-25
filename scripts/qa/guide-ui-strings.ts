@@ -16,8 +16,19 @@ import ts from 'typescript';
 export interface Allowlist {
   /** Quotes that are not UI (dog names, sample data, keys, registry names). */
   nonUi: string[];
-  /** Strings a guide still names that the app removed. Fix the guide, then delete the entry. */
-  knownDrift: string[];
+  /**
+   * Strings a guide still names that the app removed, scoped to the occurrences that exist now.
+   * A new occurrence (another guide, or a higher count) fails. Fix the guide, then delete the entry.
+   */
+  knownDrift: DriftEntry[];
+}
+
+export interface DriftEntry {
+  /** Guide path relative to the repo root, e.g. docs/user-guides/secretary-guide.md. */
+  file: string;
+  text: string;
+  /** How many times the guide quotes it today. */
+  count: number;
 }
 
 export interface Finding {
@@ -26,7 +37,7 @@ export interface Finding {
   text: string;
 }
 
-const SPAN_PATTERNS = [/\*\*([^*\n]+)\*\*/g, /"([^"\n]+)"/g, /“([^”\n]+)”/g];
+const SPAN_PATTERNS = [/\*\*([^*]+)\*\*/g, /"([^"]{1,200})"/g, /“([^”]{1,200})”/g];
 const SKIP_EXT = /\.(test|spec)\.tsx?$|\.d\.ts$/;
 
 /** Lowercase, straighten quotes, drop escapes and entities, collapse whitespace. */
@@ -53,21 +64,40 @@ function walk(dir: string, out: string[]): void {
   }
 }
 
+/** Strings that never render: module specifiers, require()/import() arguments, type positions. */
+function isNonUiString(node: ts.Node): boolean {
+  if (!ts.isStringLiteralLike(node)) return false;
+  const parent = node.parent;
+  if (ts.isImportDeclaration(parent) || ts.isExportDeclaration(parent)) return true;
+  if (ts.isExternalModuleReference(parent) || ts.isModuleDeclaration(parent)) return true;
+  if (ts.isImportAttribute(parent)) return true;
+  if (ts.isCallExpression(parent) && parent.arguments[0] === node) {
+    const callee = parent.expression;
+    if (callee.kind === ts.SyntaxKind.ImportKeyword) return true;
+    if (ts.isIdentifier(callee) && callee.text === 'require') return true;
+  }
+  for (let n: ts.Node | undefined = parent; n; n = n.parent) {
+    if (ts.isTypeNode(n)) return true;
+    if (ts.isStatement(n)) break;
+  }
+  return false;
+}
+
 /** Every string literal, template static part, JSX text and JSX attribute string in a source file. */
 export function collectStrings(fileName: string, text: string): string[] {
   const kind = fileName.endsWith('x') ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
-  const sf = ts.createSourceFile(fileName, text, ts.ScriptTarget.Latest, false, kind);
+  const sf = ts.createSourceFile(fileName, text, ts.ScriptTarget.Latest, true, kind);
   const out: string[] = [];
   const visit = (node: ts.Node): void => {
+    if (isNonUiString(node)) return;
     if (
       ts.isStringLiteral(node) ||
       ts.isNoSubstitutionTemplateLiteral(node) ||
       ts.isTemplateHead(node) ||
       ts.isTemplateMiddle(node) ||
-      ts.isTemplateTail(node)
+      ts.isTemplateTail(node) ||
+      ts.isJsxText(node)
     ) {
-      out.push(node.text);
-    } else if (ts.isJsxText(node)) {
       out.push(node.text);
     }
     ts.forEachChild(node, visit);
@@ -107,13 +137,65 @@ export function corpusHas(corpus: string, key: string): boolean {
   }
 }
 
-/** Candidate label parts of a span: "A → B" is two labels; trailing punctuation is not part. */
+/** Candidate label parts of a span: "A → B" is two labels; edge punctuation is not part. */
 function labelParts(span: string): string[] {
   return span
     .split(/\s*→\s*|\s*->\s*|\s+>\s+/)
     .map(p => p.replace(/^[\s.,;:!?()"“”]+|[\s.,;:!?()"“”]+$/g, ''))
-    .filter(p => /[a-z]/i.test(p) && p.length >= 3 && p.split(/\s+/).length <= 5);
+    .filter(p => p.length > 0);
 }
+
+interface Block {
+  text: string;
+  /** [start offset in text, 1-based guide line] for each source line of the block. */
+  starts: [number, number][];
+}
+
+/**
+ * Group guide lines into Markdown blocks so a span that wraps onto the next line (a soft break,
+ * including after a blockquote "> " prefix) is one span. Headings, table rows, list items,
+ * blank lines and fences end a block. Fenced code and the Status line are dropped.
+ */
+function toBlocks(markdown: string): Block[] {
+  const blocks: Block[] = [];
+  let cur: Block | undefined;
+  let fenced = false;
+  markdown.split('\n').forEach((raw, i) => {
+    if (/^\s*```/.test(raw)) {
+      fenced = !fenced;
+      cur = undefined;
+      return;
+    }
+    // Image alt text and link targets are not UI quotes.
+    const line = raw
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+      .replace(/\]\([^)]*\)/g, ']')
+      .replace(/^\s*(?:>\s?)+/, '');
+    if (fenced || /^\*\*Status:\*\*/.test(line)) {
+      cur = undefined;
+      return;
+    }
+    if (line.trim() === '') {
+      cur = undefined;
+      return;
+    }
+    const startsBlock = /^\s*(?:#{1,6}\s|\||[-*+]\s|\d+[.)]\s)/.test(line);
+    if (!cur || startsBlock) {
+      cur = { text: '', starts: [] };
+      blocks.push(cur);
+    }
+    if (cur.text) cur.text += ' ';
+    cur.starts.push([cur.text.length, i + 1]);
+    cur.text += line.trim();
+  });
+  return blocks;
+}
+
+const lineAt = (block: Block, offset: number): number => {
+  let line = block.starts[0]?.[1] ?? 1;
+  for (const [start, l] of block.starts) if (start <= offset) line = l;
+  return line;
+};
 
 export function checkGuide(
   file: string,
@@ -121,7 +203,15 @@ export function checkGuide(
   corpus: string,
   allow: Allowlist
 ): Finding[] {
-  const skip = new Set([...allow.nonUi, ...allow.knownDrift].map(normalize));
+  const skip = new Set(allow.nonUi.map(normalize));
+  const here = file.replace(/\\/g, '/');
+  const budget = new Map<string, number>();
+  for (const d of allow.knownDrift) {
+    if (here === d.file || here.endsWith('/' + d.file)) {
+      const k = normalize(d.text);
+      budget.set(k, (budget.get(k) ?? 0) + d.count);
+    }
+  }
   // A guide's own headings are cross-references, not app UI.
   const headings = new Set(
     [...markdown.matchAll(/^#{1,6}\s+(.+)$/gm)].map(h =>
@@ -129,25 +219,22 @@ export function checkGuide(
     )
   );
   const findings: Finding[] = [];
-  let fenced = false;
-  markdown.split('\n').forEach((raw, i) => {
-    if (/^\s*```/.test(raw)) fenced = !fenced;
-    // Image alt text and link targets are not UI quotes.
-    const line = raw.replace(/!\[[^\]]*\]\([^)]*\)/g, '').replace(/\]\([^)]*\)/g, ']');
-    if (fenced || /^\*\*Status:\*\*/.test(line)) return;
-    // A line that is only a bold phrase is a sub-heading, a question or a lead-in, not a control.
-    if (/^\s*(?:[-*]\s+)?\*\*[^*]+\*\*[.:]?\s*$/.test(line) && !/^\s*[-*]\s+/.test(line)) return;
+  for (const block of toBlocks(markdown)) {
     for (const pattern of SPAN_PATTERNS) {
-      for (const m of line.matchAll(pattern)) {
-        if (/\?$/.test((m[1] ?? '').trim())) continue;
+      for (const m of block.text.matchAll(pattern)) {
         for (const part of labelParts(m[1] ?? '')) {
           const key = normalize(part);
           if (skip.has(key) || headings.has(key) || corpusHas(corpus, key)) continue;
-          findings.push({ file, line: i + 1, text: part });
+          const left = budget.get(key) ?? 0;
+          if (left > 0) {
+            budget.set(key, left - 1);
+            continue;
+          }
+          findings.push({ file, line: lineAt(block, m.index ?? 0), text: part });
         }
       }
     }
-  });
+  }
   return findings;
 }
 

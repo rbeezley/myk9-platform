@@ -1,5 +1,5 @@
 {
-  "_comment": "nonUi: intentional non-UI quotes (prose, dynamic templates, sample data, URLs). knownDrift: strings a guide still names that the app no longer has; fix the guide, then delete the entry.",
+  "_comment": "nonUi: intentional non-UI quotes (prose, lead-in sentences and questions, dynamic templates, glyphs, sample data, URLs). knownDrift: strings a guide still names that the app no longer has, scoped to the occurrences that exist now (file, text, count); a new occurrence fails. Fix the guide, then delete the entry.",
   "nonUi": [
     "You manage your club's shows",
     "Entering scores from paper",
@@ -67,26 +67,218 @@
     "What the exhibitor sees",
     "Eligibility is all-or-nothing",
     "Delete trial",
-    "N runs to check in"
+    "N runs to check in",
+    "Why Stripe contacts the treasurer directly",
+    "Get Heartland Scent Work Club's first show published",
+    "If your club is already on myK9Show",
+    "Your club is already in the system",
+    "Three jobs stay with the trial secretary",
+    "Typing in entries on someone's behalf",
+    "The person does not need to be a club member",
+    "To appoint anyone with a myK9Show account",
+    "To appoint someone already on your member list",
+    "⋮",
+    "Have this ready before you start",
+    "Why the SSN",
+    "A secretary who is not a club admin cannot connect the bank",
+    "When does the deposit arrive",
+    "What is the deposit amount",
+    "Viewing past payouts",
+    "Need itemized records",
+    "Stripe is asking for my SSN — is this normal",
+    "When will we get paid",
+    "Stripe says our account is under review. What do we do",
+    "How do we update our bank account in Stripe",
+    "What if we need to refund an entry after the show",
+    "What does the service fee cover",
+    "View current members",
+    "Add a member",
+    "Change a member's type or status, or remove them",
+    "Add (their email) as an admin of (your club",
+    "Officers tab",
+    "Entering an AKC show",
+    "Entered the wrong class",
+    "Status meanings",
+    "When the status changes to Accepted",
+    "Don't see a place",
+    "Show day banner",
+    "No Check in link",
+    "Does a Q count toward my title",
+    "Your club is not on myK9Show yet",
+    "Your club already uses myK9Show",
+    "If you are signed in, and the show is on your account",
+    "If the secretary gave you a show passcode, and you are not signed in",
+    "If you are signed in and the secretary gave you a show passcode",
+    "Don't have a passcode",
+    "Classes that run two sections together",
+    "Judges and others allowed to score",
+    "Saved: 100 Willow · Qualified · 0:04.35",
+    "The timer is not the score",
+    "Scores not showing for the secretary after signal returns",
+    "A tool you do not use can be switched off",
+    "Your club is already on myK9Show",
+    "Get (your club's name)'s first show published",
+    "⚠️ Also on Step 1: add every judge",
+    "Host club not listed",
+    "Adding your judges on Step 1 is still the smoothest path",
+    "Entries closing on the show's first day is allowed",
+    "If you are not a club admin",
+    "Add a judge to the show",
+    "Add classes to a show that already exists",
+    "Edit or delete a trial or class",
+    "Change a class's judge, or several classes at once",
+    "A dog needs a registration number",
+    "On a show day, N runs to check in",
+    "Adding a dog that isn't in myK9Show yet",
+    "A mail-in dog at the top is never offered automatically",
+    "Capacity is enforced by the server, not just displayed",
+    "The label tells you how it was paid, when the app knows",
+    "An entry that just says \"Paid\" means the channel was never recorded",
+    "Save an offline copy on the device you will use",
+    "⋯ (Actions",
+    "Drag … to change run order",
+    "It stays out of the way until you use it",
+    "click the class, then press Edit class",
+    "Submit to AKC (or UKC, or ASCA",
+    "If the registry accepts electronic submission (AKC",
+    "If Send to AKC is greyed out",
+    "If the registry files manually (UKC, ASCA",
+    "Mark as submitted records _your_ action",
+    "The show stays open until you do this",
+    "A level only gets a High in Trial if the trial ran more than one element at it",
+    "A tie is shown as a tie",
+    "High Combined Division appears in the same report"
   ],
   "knownDrift": [
-    "Connect payment account",
-    "Credit/Debit Card (Online Payment",
-    "Your dog in this class",
-    "Record Area 1 time",
-    "Record Area 2 time",
-    "Area 1 time",
-    "Paid — recorded by secretary",
-    "View entries and results",
-    "Check in all eligible",
-    "Message the show team",
-    "N pending",
-    "Venue WiFi",
-    "Allow wait lists",
-    "Allow wait list",
-    "Wait list settings",
-    "Entry limit and wait list",
-    "View Wait List",
-    "My Wait List Positions"
+    {
+      "file": "docs/user-guides/club-admin-guide.md",
+      "text": "Onboarding incomplete",
+      "count": 1
+    },
+    {
+      "file": "docs/user-guides/club-admin-guide.md",
+      "text": "Account under review",
+      "count": 1
+    },
+    {
+      "file": "docs/user-guides/club-admin-guide.md",
+      "text": "Connect payment account",
+      "count": 1
+    },
+    {
+      "file": "docs/user-guides/exhibitor-guide.md",
+      "text": "Step 1 — Dogs",
+      "count": 1
+    },
+    {
+      "file": "docs/user-guides/exhibitor-guide.md",
+      "text": "Step 2 — Classes",
+      "count": 1
+    },
+    {
+      "file": "docs/user-guides/exhibitor-guide.md",
+      "text": "Step 3 — Payment",
+      "count": 1
+    },
+    {
+      "file": "docs/user-guides/exhibitor-guide.md",
+      "text": "Credit/Debit Card (Online Payment",
+      "count": 1
+    },
+    {
+      "file": "docs/user-guides/exhibitor-guide.md",
+      "text": "Step 4 — Receipt",
+      "count": 1
+    },
+    {
+      "file": "docs/user-guides/exhibitor-guide.md",
+      "text": "Message the show team",
+      "count": 2
+    },
+    {
+      "file": "docs/user-guides/exhibitor-guide.md",
+      "text": "Your dog in this class",
+      "count": 1
+    },
+    {
+      "file": "docs/user-guides/judge-steward-quickstart.md",
+      "text": "Record Area 1 time",
+      "count": 1
+    },
+    {
+      "file": "docs/user-guides/judge-steward-quickstart.md",
+      "text": "Record Area 2 time",
+      "count": 1
+    },
+    {
+      "file": "docs/user-guides/judge-steward-quickstart.md",
+      "text": "Area 1 time",
+      "count": 1
+    },
+    {
+      "file": "docs/user-guides/secretary-guide.md",
+      "text": "N pending",
+      "count": 1
+    },
+    {
+      "file": "docs/user-guides/secretary-guide.md",
+      "text": "Venue WiFi",
+      "count": 1
+    },
+    {
+      "file": "docs/user-guides/secretary-guide.md",
+      "text": "Registration number needed, see the secretary",
+      "count": 1
+    },
+    {
+      "file": "docs/user-guides/secretary-guide.md",
+      "text": "Allow wait lists",
+      "count": 1
+    },
+    {
+      "file": "docs/user-guides/secretary-guide.md",
+      "text": "Wait list settings",
+      "count": 4
+    },
+    {
+      "file": "docs/user-guides/secretary-guide.md",
+      "text": "Entry limit and wait list",
+      "count": 1
+    },
+    {
+      "file": "docs/user-guides/secretary-guide.md",
+      "text": "Allow wait list",
+      "count": 1
+    },
+    {
+      "file": "docs/user-guides/secretary-guide.md",
+      "text": "View Wait List",
+      "count": 1
+    },
+    {
+      "file": "docs/user-guides/secretary-guide.md",
+      "text": "My Wait List Positions",
+      "count": 1
+    },
+    {
+      "file": "docs/user-guides/secretary-guide.md",
+      "text": "Refunded $X to the exhibitor's card",
+      "count": 1
+    },
+    {
+      "file": "docs/user-guides/secretary-guide.md",
+      "text": "Paid — recorded by secretary",
+      "count": 1
+    },
+    {
+      "file": "docs/user-guides/secretary-guide.md",
+      "text": "Check in all eligible",
+      "count": 1
+    },
+    {
+      "file": "docs/user-guides/secretary-guide.md",
+      "text": "View entries and results",
+      "count": 1
+    }
   ]
 }

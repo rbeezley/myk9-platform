@@ -53,10 +53,9 @@ describe('guide UI strings (fixture)', () => {
     expect(findings.map(f => f.text)).toEqual(['Old Tab']);
   });
 
-  it('ignores outlines, headings echoed in text, code fences and sub-heading lines', () => {
+  it('ignores outlines, headings echoed in text and code fences', () => {
     writeFileSync(join(dir, 'guides', 'x-guide-outline.md'), 'Open **Gone Label**.\n');
-    const guide =
-      '## Status meanings\n\nSee **Status meanings**.\n\n**A lead-in line**\n\n```\n**Fenced**\n```\n';
+    const guide = '## Status meanings\n\nSee **Status meanings**.\n\n```\n**Fenced**\n```\n';
     expect(run(guide)).toEqual([]);
   });
 });
@@ -107,6 +106,78 @@ describe('guide UI strings (matching rules)', () => {
     expect(
       run(source, 'Press **Check in**, **entries**, **Search dogs**, **Dog name**.\n')
     ).toEqual([]);
+  });
+  it('checks short, punctuated and lone-bold labels instead of skipping them by shape', () => {
+    const source = "export const a = 'Show Desk';\n";
+    expect(run(source, 'Tap **NQ** or **+**.\n')).toEqual(['NQ', '+']);
+    expect(run(source, 'Pick **Join this show?** here.\n')).toEqual(['Join this show']);
+    expect(run(source, '**Entry Forms → Actions → Waitlist**\n')).toEqual([
+      'Entry Forms',
+      'Actions',
+      'Waitlist',
+    ]);
+    expect(
+      run("export const a = ['NQ', 'Join this show?'];\n", 'Tap **NQ**, **Join this show?**.\n')
+    ).toEqual([]);
+  });
+
+  it('allows prose only through the nonUi allowlist', () => {
+    writeFileSync(join(dir, 'src', 'Page.tsx'), "export const a = 'Show Desk';\n");
+    writeFileSync(join(dir, 'guides', 'fake-guide.md'), '**A lead-in line**\n');
+    const allow: Allowlist = { nonUi: ['A lead-in line'], knownDrift: [] };
+    expect(checkGuides(join(dir, 'guides'), [join(dir, 'src')], allow)).toEqual([]);
+  });
+
+  it('reads a span that wraps onto the next line, with or without a blockquote prefix', () => {
+    writeFileSync(join(dir, 'src', 'Page.tsx'), "export const a = 'Show Desk';\n");
+    writeFileSync(
+      join(dir, 'guides', 'fake-guide.md'),
+      'Intro.\n\nOpen **Show\nDesk** then **Gone\nLabel** now.\n\n> It shows **Another\n> Gone Label** here.\n'
+    );
+    const findings = checkGuides(join(dir, 'guides'), [join(dir, 'src')], none);
+    expect(findings.map(f => [f.text, f.line])).toEqual([
+      ['Gone Label', 4],
+      ['Another Gone Label', 7],
+    ]);
+  });
+
+  it('ignores strings that are not UI: import paths, require, import() and type positions', () => {
+    const source = [
+      "import x from './Removed Panel';",
+      "export { y } from './Gone Export';",
+      "const z = require('./Old Require');",
+      "const w = import('./Lazy Chunk');",
+      "type T = 'Type Only Label';",
+      "export const ok = 'Show Desk';",
+    ].join('\n');
+    expect(
+      run(
+        source,
+        'See **Removed Panel**, **Gone Export**, **Old Require**, **Lazy Chunk**, **Type Only Label**.\n'
+      )
+    ).toEqual(['Removed Panel', 'Gone Export', 'Old Require', 'Lazy Chunk', 'Type Only Label']);
+  });
+
+  it('tolerates a known-drift label only up to its recorded count, per guide file', () => {
+    writeFileSync(join(dir, 'src', 'Page.tsx'), "export const a = 'Show Desk';\n");
+    const allow: Allowlist = {
+      nonUi: [],
+      knownDrift: [{ file: 'fake-guide.md', text: 'Old Label', count: 2 }],
+    };
+    const check = (guides: Record<string, string>) => {
+      for (const [name, body] of Object.entries(guides))
+        writeFileSync(join(dir, 'guides', name), body);
+      return checkGuides(join(dir, 'guides'), [join(dir, 'src')], allow).map(
+        f => `${f.file.split('/').pop()}:${f.line}`
+      );
+    };
+    expect(check({ 'fake-guide.md': 'A **Old Label** and **Old Label**.\n' })).toEqual([]);
+    expect(
+      check({ 'fake-guide.md': 'A **Old Label** and **Old Label**.\n\nThird **Old Label**.\n' })
+    ).toEqual(['fake-guide.md:3']);
+    expect(
+      check({ 'fake-guide.md': 'One **Old Label**.\n', 'other-guide.md': 'Also **Old Label**.\n' })
+    ).toEqual(['other-guide.md:1']);
   });
 });
 

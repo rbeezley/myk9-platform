@@ -199,7 +199,7 @@ Tap **Go to show day** to open that show in Ringside. A **Where to be today** ba
 
 **Check in:**
 
-On the day of the trial, a class that is open for check-in shows a **Check in** link on its row, and the dog's card shows a **Check in for** button with the day's name. The button on a class row checks in that one class. The **Check in for** button checks in all of the dog's classes that day. If the running order is not posted yet, the row says **Not posted yet**. If check-in is not open for a class, its row reads **check in with the secretary**. Before the day, it reads **Check in on the day**.
+On the day of the trial, a class that is open for check-in shows a **Check in** link on its row, and the dog's card shows a **Check in for** button with the day's name. The **Check in** link checks in that one class. The **Check in for** button checks in each of the dog's classes that day that is open for check-in. If check-in is not open for a class, its row reads **check in with the secretary**. Before the day, it reads **Check in on the day**.
 
 ![E-14: Entry card — a class row with the Check in link and the Check in for button](../screenshots/E-14.png)
 

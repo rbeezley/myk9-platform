@@ -11,6 +11,7 @@ import type { User } from '@/types/dog-types';
 import { UserRole } from '@/types/auth-types';
 
 let viewerRoles: UserRole[] = [];
+let viewerPermissions: string[] = [];
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: { rpc: vi.fn().mockResolvedValue({ data: false, error: null }) },
@@ -22,7 +23,7 @@ vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
     user: { id: 'current-user-id' },
     getUserRoles: () => viewerRoles,
-    hasPermission: () => false,
+    hasPermission: (permission: string) => viewerPermissions.includes(permission),
   }),
 }));
 
@@ -47,15 +48,24 @@ vi.mock('@/components/users/UserDetails/UserDetailsTabs', () => ({ default: () =
 vi.mock('@/components/users/UserDetails/JudgeAvailabilityCard', () => ({ default: () => <div /> }));
 vi.mock('@/components/users/UserDetails/UserDetailsDialogs', () => ({ default: () => <div /> }));
 vi.mock('@/components/users/UserDetails/JudgeQualificationsCard', () => ({
-  default: ({ personId }: { personId: string }) => (
-    <section aria-label="Judge Qualifications">{personId}</section>
+  default: ({
+    personId,
+    canManageQualifications,
+  }: {
+    personId: string;
+    canManageQualifications: boolean;
+  }) => (
+    <section aria-label="Judge Qualifications" data-can-manage={String(canManageQualifications)}>
+      {personId}
+    </section>
   ),
 }));
 
 import UserDetailsView from '@/components/users/UserDetails/UserDetailsView';
 
-const person = (roles: UserRole[]): User =>
+const person = (roles: UserRole[], extra: Partial<User> = {}): User =>
   ({
+    ...extra,
     id: 'p1',
     firstName: 'Ada',
     lastName: 'Lovelace',
@@ -69,18 +79,33 @@ const card = () => screen.queryByRole('region', { name: 'Judge Qualifications' }
 describe('UserDetailsView: who sees the Judge Qualifications card', () => {
   beforeEach(() => {
     viewerRoles = [];
+    viewerPermissions = [];
   });
 
   it('shows a secretary the card on an exhibitor, so she can add a qualification', () => {
     viewerRoles = [UserRole.SECRETARY];
+    viewerPermissions = ['show:manage'];
     render(<UserDetailsView person={person([UserRole.EXHIBITOR])} />);
     expect(card()).toHaveTextContent('p1');
+    expect(card()).toHaveAttribute('data-can-manage', 'true');
+  });
+
+  it('hides the card on a removed person, who cannot be edited', () => {
+    viewerRoles = [UserRole.SITE_ADMIN];
+    viewerPermissions = ['admin:manage'];
+    render(
+      <UserDetailsView
+        person={person([UserRole.JUDGE], { deletedAt: '2026-11-01T00:00:00Z' } as Partial<User>)}
+      />
+    );
+    expect(card()).not.toBeInTheDocument();
   });
 
   it('shows a site admin the card on a person with no roles', () => {
     viewerRoles = [UserRole.SITE_ADMIN];
+    viewerPermissions = ['admin:manage'];
     render(<UserDetailsView person={person([])} />);
-    expect(card()).toBeInTheDocument();
+    expect(card()).toHaveAttribute('data-can-manage', 'true');
   });
 
   it('does not show a club admin the card on an exhibitor (the server would refuse the write)', () => {

@@ -193,7 +193,9 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
 
   // MYK9-2382: the role list can hide a judge from a secretary, so writers always see the card.
   const canAddQualifications = canWriteJudgeQualifications(role => getUserRoles().includes(role));
+  // A removed person cannot be edited, so their qualifications cannot be either.
   const canManageQualifications = () => {
+    if (isRemoved) return false;
     if (hasPermission('admin:manage')) return true;
     if (hasPermission('show:manage')) return true;
     if (person.id && currentUser?.id === person.id) {
@@ -368,7 +370,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   // Center content: judge cards + tabs
   const centerContent = (
     <div className="space-y-6">
-      {(person.roles?.includes(UserRole.JUDGE) || canAddQualifications) && (
+      {!isRemoved && (person.roles?.includes(UserRole.JUDGE) || canAddQualifications) && (
         <JudgeQualificationsCard
           personId={person.id}
           canManageQualifications={canManageQualifications()}

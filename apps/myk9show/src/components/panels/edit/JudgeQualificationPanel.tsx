@@ -229,6 +229,8 @@ export const JudgeQualificationPanel: React.FC<JudgeQualificationPanelProps> = (
       queryClient.invalidateQueries({ queryKey: judgeQueryKeys.qualificationsByJudge(userId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(userId) });
+      // Edit show > Judges and Assign judge list judges from this query (MYK9-2382).
+      queryClient.invalidateQueries({ queryKey: ['judges', 'withQualifications'] });
 
       onSaved?.();
       onClose();

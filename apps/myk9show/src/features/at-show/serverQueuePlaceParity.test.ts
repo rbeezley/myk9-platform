@@ -24,7 +24,7 @@ interface FixtureRow {
   is_scored?: boolean;
   is_in_ring?: boolean;
   check_in_status?: string | null;
-  entry_status?: string;
+  entry_status?: string | null;
   result_status?: string;
   deleted?: boolean;
   expected: number | null;
@@ -52,7 +52,7 @@ function toEntryRow(row: FixtureRow): EntryRow {
     is_scored: row.is_scored ?? false,
     is_in_ring: row.is_in_ring ?? false,
     check_in_status: 'check_in_status' in row ? (row.check_in_status ?? null) : 'no-status',
-    entry_status: row.entry_status ?? 'confirmed',
+    entry_status: 'entry_status' in row ? (row.entry_status ?? null) : 'confirmed',
     result_status: row.result_status ?? 'pending',
     deleted_at: row.deleted ? '2026-10-05T00:00:00Z' : null,
   } as unknown as EntryRow;
@@ -81,7 +81,7 @@ describe('server place in line matches the ringside queue (shared fixture)', () 
     expect(fixture.length).toBeGreaterThanOrEqual(20);
     // Absolute anchors, so a shared mistake on both sides cannot pass.
     expect(fixture.filter(row => row.expected !== null).map(row => row.expected)).toEqual([
-      4, 2, 5, 6, 7, 8, 10, 9, 11, 12, 1,
+      4, 2, 5, 6, 7, 8, 10, 9, 11, 12, 13, 1,
     ]);
   });
 

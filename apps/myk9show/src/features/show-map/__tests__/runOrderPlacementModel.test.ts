@@ -270,3 +270,36 @@ describe('Completed labels', () => {
     expect(notes(entries)).toEqual({ ran: null, done: null, pull: 'Pulled', abs: null });
   });
 });
+
+describe('a Pending entry is not in line but is placed last on a renumber (MYK9-2391)', () => {
+  const entries = [
+    e('p', '5', 1, { entryStatus: 'pending' }),
+    e('a', '10', 2),
+    e('b', '20', 3),
+    e('q', '6', 7, { entryStatus: 'draft' }),
+  ];
+
+  it('keeps Pending off the waiting list and out of the base number', () => {
+    const model = modelOf(entries);
+    expect(model.waiting.map(r => r.id)).toEqual(['a', 'b']);
+    expect(model.awaiting.map(r => r.id)).toEqual(['p', 'q']);
+    expect(model.baseRunOrder).toBe(0);
+  });
+
+  it('a renumber puts Pending after the last waiting dog in its own order, never first', () => {
+    const moves = movePlacement(modelOf(entries), 'b', 1);
+    expect(writes(moves)).toEqual({ b: 1, p: 3, q: 4 });
+    const renumbered = apply(entries, moves);
+    const approved = renumbered.map(x =>
+      x.id === 'p' || x.id === 'q' ? { ...x, entryStatus: 'confirmed' } : x
+    );
+    expect(queueOrder(approved as ReplicatedEntry[])).toEqual(['b', 'a', 'p', 'q']);
+    const numbers = approved.map(x => x.runOrder);
+    expect(new Set(numbers).size).toBe(numbers.length);
+  });
+
+  it('a preset does the same', () => {
+    const moves = planPresetPlacement(modelOf(entries), 'armband-desc');
+    expect(writes(moves)).toEqual({ b: 1, p: 3, q: 4 });
+  });
+});

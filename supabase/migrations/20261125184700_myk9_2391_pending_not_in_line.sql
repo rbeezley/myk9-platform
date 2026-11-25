@@ -7,9 +7,11 @@
 -- the server's one place-in-line rule with the same exclusion, so an exhibitor's "Nth up"
 -- and Ringside's list count the same waiting set.
 --
--- Pending is exactly isPendingEntryStatus: entry_status (trimmed, lower-cased, as the
--- client normalises it) in submitted, pending, draft, no-status, pending-payment, plus
+-- Pending is exactly isPendingEntryStatus: entry_status in submitted, pending, draft, no-status, pending-payment, plus
 -- paid and promotion-expired, which the owner keeps pending (mapEntryStatus override).
+-- entries_entry_status_check admits only canonical lowercase values, so the btrim and lower
+-- below are defensive, not a rule the data needs. A NULL entry_status is not pending and
+-- stays runnable, as on the client.
 --
 -- CREATE OR REPLACE of the 20261114205300 definition: same signature, return type,
 -- SECURITY DEFINER, search_path and ACL (no API role can execute it). Only the one

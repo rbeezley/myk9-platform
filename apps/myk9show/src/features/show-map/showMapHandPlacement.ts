@@ -40,16 +40,20 @@ function toPlacementInput(
   const checkIn = entry.checkInStatus ?? entry.check_in_status;
   const ran =
     Boolean(entry.scoringCompletedAt ?? entry.scoring_completed_at) || checkIn === 'completed';
+  const lifecycle = entry.entryStatus ?? entry.status;
+  const onList = isOnClassRunList({
+    entryStatus: lifecycle,
+    deletedAt: entry.deletedAt ?? entry.deleted_at,
+  });
+  const pending = isAwaitingApproval({ entryStatus: lifecycle });
   return {
     id: entry.id,
     armband: resolveEntryArmband(entry, maps),
     runOrder: entry.runOrder ?? null,
-    // A Pending (not yet approved) entry is not in line: it is neither waiting nor numbered (MYK9-2391).
-    onRunList:
-      isOnClassRunList({
-        entryStatus: entry.entryStatus ?? entry.status,
-        deletedAt: entry.deletedAt ?? entry.deleted_at,
-      }) && !isAwaitingApproval({ entryStatus: entry.entryStatus ?? entry.status }),
+    // A Pending (not yet approved) entry is not in line: not waiting, and kept out of the base
+    // number, but a renumber places it after the last waiting dog (MYK9-2391).
+    onRunList: onList && !pending,
+    awaitingApproval: onList && pending,
     isScored: Boolean(queue.isScored) || ran,
     status: queue.status,
     pulled: checkIn === 'pulled',

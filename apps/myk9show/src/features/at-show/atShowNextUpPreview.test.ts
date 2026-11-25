@@ -263,3 +263,24 @@ describe('selectNextUpForCard', () => {
     expect(isEmptyNextUpPreview(undefined)).toBe(true);
   });
 });
+
+describe('a Pending entry is not remaining (MYK9-2391)', () => {
+  it('two running dogs and one Pending read 2 remaining, matching the named armbands', () => {
+    const preview = buildNextUpPreview([
+      entry({ id: 'p', armband: '5', runOrder: 1, entryStatus: 'pending' }),
+      entry({ id: 'a', armband: '10', runOrder: 2, entryStatus: 'confirmed' }),
+      entry({ id: 'b', armband: '20', runOrder: 3, entryStatus: 'confirmed' }),
+    ]);
+    expect(preview.remaining).toBe(2);
+    expect(preview.nextArmbands).toEqual(['10', '20']);
+  });
+
+  it('only Pending left reads 0 remaining and names no one', () => {
+    const preview = buildNextUpPreview([
+      entry({ id: 'p', armband: '5', runOrder: 1, entryStatus: 'submitted' }),
+    ]);
+    expect(preview.remaining).toBe(0);
+    expect(preview.nextArmbands).toEqual([]);
+    expect(preview.inRingArmband).toBeNull();
+  });
+});

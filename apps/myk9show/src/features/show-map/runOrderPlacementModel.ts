@@ -30,6 +30,11 @@ export interface PlacementInput {
   runOrder: number | null;
   /** On the class run list (not withdrawn, scratched, moved, deleted...). */
   onRunList: boolean;
+  /**
+   * On the class run list but not yet approved (Pending, MYK9-2391). Not waiting and not
+   * counted toward the base number; a renumber places it after the last waiting dog.
+   */
+  awaitingApproval?: boolean;
   /** Scored or otherwise finished. */
   isScored: boolean;
   /** Queue status: 'pulled', 'in-ring', or any other check-in state. */
@@ -55,7 +60,9 @@ export interface RunOrderPlacementModel {
   inRing: PlacementRow[];
   /** On the run list but not waiting and not in the ring: ran, or pulled. */
   finished: PlacementRow[];
-  /** Highest run_order held by any dog that is not waiting, or 0. */
+  /** Pending dogs: off the waiting list, run order unchanged until a renumber moves them last. */
+  awaiting: PlacementRow[];
+  /** Highest run_order held by any dog that is not waiting and not awaiting approval, or 0. */
   baseRunOrder: number;
 }
 
@@ -96,8 +103,13 @@ export function buildRunOrderPlacementModel(
   const queue = inputs.filter(input => input.onRunList).map(toQueueRow);
   const waiting = pendingByRunOrder(queue);
   const waitingIds = new Set(waiting.map(row => row.id));
+  const awaiting = inputs
+    .filter(input => input.awaitingApproval === true && !input.onRunList)
+    .map(toQueueRow)
+    .sort(compareByRunOrder);
+  const awaitingIds = new Set(awaiting.map(row => row.id));
   const baseRunOrder = inputs
-    .filter(input => !waitingIds.has(input.id))
+    .filter(input => !waitingIds.has(input.id) && !awaitingIds.has(input.id))
     .reduce((max, input) => Math.max(max, input.runOrder ?? 0), 0);
   return {
     waiting: waiting.map(toRow),
@@ -109,13 +121,16 @@ export function buildRunOrderPlacementModel(
       .filter(row => !isInQueue(row))
       .sort(compareByRunOrder)
       .map(toRow),
+    awaiting: awaiting.map(toRow),
     baseRunOrder,
   };
 }
 
 /**
  * Renumber the waiting dogs into `orderedIds` (all of them, final order),
- * consecutively after `baseRunOrder`. Returns only the dogs whose number changes.
+ * consecutively after `baseRunOrder`. Dogs awaiting approval follow the last waiting dog, in
+ * their own relative order, so one approved later runs after the placed dogs, never ahead of
+ * them (like a new entry's MAX+1). Returns only the dogs whose number changes.
  */
 export function planRenumber(
   model: RunOrderPlacementModel,
@@ -127,6 +142,12 @@ export function planRenumber(
     const runOrder = model.baseRunOrder + index + 1;
     const priorRunOrder = prior.get(id) ?? null;
     if (priorRunOrder !== runOrder) changes.push({ id, runOrder, priorRunOrder });
+  });
+  model.awaiting.forEach((row, index) => {
+    const runOrder = model.baseRunOrder + orderedIds.length + index + 1;
+    if (row.runOrder !== runOrder) {
+      changes.push({ id: row.id, runOrder, priorRunOrder: row.runOrder });
+    }
   });
   return changes;
 }

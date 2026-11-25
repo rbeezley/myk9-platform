@@ -20,7 +20,7 @@ import {
   type EffectiveClassStatus,
 } from '@myk9/ringside';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
-import { countEntryAccounting } from '@/features/_shared/entryAccounting';
+import { countEntryAccounting, isInRunningLine } from '@/features/_shared/entryAccounting';
 import { inRingReplicated, nextPendingReplicated } from './replicatedRunQueue';
 
 /** How many waiting armbands the row previews (myK9Q showed 3). */
@@ -86,7 +86,9 @@ export function buildNextUpPreview(entries: ReplicatedEntry[]): AtShowNextUpPrev
   return {
     inRingArmband: inRing ? armbandOf(inRing) : null,
     nextArmbands,
-    remaining: counts.expected - counts.accounted,
+    // MYK9-2391: counted by the same rule that names the armbands, so a Pending dog (which
+    // holds no place in line) is neither named nor counted as still to run.
+    remaining: entries.filter(isInRunningLine).length,
     total: counts.expected,
   };
 }

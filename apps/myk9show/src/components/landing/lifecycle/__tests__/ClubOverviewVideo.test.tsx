@@ -23,5 +23,9 @@ describe('ClubOverviewVideo', () => {
       'https://www.youtube-nocookie.com/embed/bAQBMxBGSkw?autoplay=1&cc_load_policy=1&rel=0'
     );
     expect(frame).toHaveAttribute('title', expect.stringContaining('run your trials'));
+    // autoplay=1 is ignored by the browser unless the frame is allowed to autoplay.
+    expect(frame?.getAttribute('allow')?.split(/;\s*/)).toContain('autoplay');
+    // The button the visitor pressed is gone, so focus moves to the player.
+    expect(frame).toHaveFocus();
   });
 });

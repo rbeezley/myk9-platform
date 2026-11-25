@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import './clubOverviewVideo.css';
 
 /** The unlisted "Run your trials without the paperwork" overview (MYK9-2374). */
@@ -14,6 +14,11 @@ const EMBED_URL = `https://www.youtube-nocookie.com/embed/${CLUB_OVERVIEW_VIDEO_
 // they ask for the video. The link under it is for anyone whose browser blocks the player.
 export function ClubOverviewVideo() {
   const [playing, setPlaying] = useState(false);
+  const frameRef = useRef<HTMLIFrameElement>(null);
+  // The play button goes away when pressed, so focus follows the visitor into the player.
+  useEffect(() => {
+    if (playing) frameRef.current?.focus();
+  }, [playing]);
   return (
     <section className="lc-video" id="club-video" aria-labelledby="club-video-title">
       <div className="l-container lc-video-inner">
@@ -33,9 +38,11 @@ export function ClubOverviewVideo() {
         <div className="lc-video-frame">
           {playing ? (
             <iframe
+              ref={frameRef}
+              tabIndex={-1}
               src={EMBED_URL}
               title={CLUB_OVERVIEW_VIDEO_TITLE}
-              allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               referrerPolicy="strict-origin-when-cross-origin"
               allowFullScreen
             />

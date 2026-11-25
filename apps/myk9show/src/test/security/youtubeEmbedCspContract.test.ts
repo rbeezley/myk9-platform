@@ -16,18 +16,20 @@ const frameSrc = (csp: string | undefined) =>
     .map(directive => directive.trim())
     .find(directive => directive.startsWith('frame-src '));
 
+const EXPECTED_FRAME_SRC = [
+  "'self'",
+  'blob:',
+  'https://challenges.cloudflare.com',
+  'https://www.youtube-nocookie.com',
+];
+
 describe('Club overview video deployment contract (MYK9-2374)', () => {
   it.each([
     ['vercel.json', productionCsp],
     ['generateCSPPolicy', generateCSPPolicy('production')],
-  ])(
-    '%s lets the homepage player load from the privacy-enhanced YouTube domain',
-    (_source, csp) => {
-      expect(frameSrc(csp)).toContain('https://www.youtube-nocookie.com');
-    }
-  );
-
-  it('allows no other YouTube host', () => {
-    expect(productionCsp).not.toMatch(/https:\/\/(www\.)?youtube\.com/);
+  ])('%s allows exactly the expected frame sources', (_source, csp) => {
+    const tokens = frameSrc(csp)?.split(/\s+/).slice(1);
+    // youtu.be, youtube.com and ytimg hosts are not needed: the player is the nocookie embed.
+    expect(tokens).toEqual(EXPECTED_FRAME_SRC);
   });
 });

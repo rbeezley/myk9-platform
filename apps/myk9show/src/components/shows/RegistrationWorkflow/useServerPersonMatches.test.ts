@@ -16,8 +16,10 @@ const ROW = {
 };
 const IDENTITY = { firstName: 'Molly', lastName: 'Mailbox', email: 'molly.mailbox@example.com' };
 
-const answer = (data: unknown[]) => Promise.resolve(fromAny({ data, error: null }));
-const never = () => new Promise<never>(() => {});
+type SearchReturn = ReturnType<typeof searchUsers>;
+const answer = (data: unknown[]): SearchReturn =>
+  fromAny<SearchReturn, unknown>(Promise.resolve({ data, error: null }));
+const never = (): SearchReturn => fromAny<SearchReturn, unknown>(new Promise(() => {}));
 
 describe('fetchServerPersonMatches deadline (MYK9-2257)', () => {
   beforeEach(() => {

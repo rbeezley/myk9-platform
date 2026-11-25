@@ -11,6 +11,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import 'fake-indexeddb/auto';
+import { openDB } from 'idb';
 import { DatabaseManager, REPLICATION_STORES } from './DatabaseManager';
 import { DB_VERSION } from '../constants';
 
@@ -188,5 +189,33 @@ describe('DatabaseManager lifecycle', () => {
       'failed-score',
     ]);
     deleteSpy.mockRestore();
+  });
+
+  // -------------------------------------------------------------------------
+  // 6. A corrupted database is rebuilt with its queue kept (MYK9-2360)
+  // -------------------------------------------------------------------------
+  it('rebuilds a database missing its cache store and keeps the queued scores', async () => {
+    const name = `lifecycle-missing-store-${Date.now()}-${Math.random()}`;
+    // A database at the current version that has the queue stores but lost the cache store.
+    const broken = await openDB(name, DB_VERSION, {
+      upgrade(db) {
+        db.createObjectStore(REPLICATION_STORES.PENDING_MUTATIONS, { keyPath: 'id' });
+        db.createObjectStore(REPLICATION_STORES.FAILED_MUTATIONS, { keyPath: 'id' });
+      },
+    });
+    await broken.put(REPLICATION_STORES.PENDING_MUTATIONS, { id: 'queued-score' });
+    await broken.put(REPLICATION_STORES.FAILED_MUTATIONS, { id: 'failed-score' });
+    broken.close();
+    const manager = new DatabaseManager({}, name, DB_VERSION);
+
+    await manager.getDatabase('test'); // opens the broken database as is
+    const rebuilt = await manager.getDatabase('test'); // health check fails: rebuild
+
+    expect(rebuilt.objectStoreNames.contains(REPLICATION_STORES.REPLICATED_TABLES)).toBe(true);
+    expect(await rebuilt.getAllKeys(REPLICATION_STORES.PENDING_MUTATIONS)).toEqual([
+      'queued-score',
+    ]);
+    expect(await rebuilt.getAllKeys(REPLICATION_STORES.FAILED_MUTATIONS)).toEqual(['failed-score']);
+    await manager.reset();
   });
 });

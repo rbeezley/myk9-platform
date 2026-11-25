@@ -86,6 +86,10 @@ export const INIT_RETRY_DELAY_MS = 50;
 /** Timeout for getAll() operations (milliseconds) */
 export const GET_ALL_TIMEOUT_MS = 15000; // 15 seconds
 
+/** Longest a corrupted-database rebuild waits to read the mutation queue before
+ *  it keeps the database instead (deleting it unread would destroy the queue). */
+export const QUEUE_HOLD_TIMEOUT_MS = 2000; // 2 seconds
+
 /** Number of consecutive failures before circuit breaker trips */
 export const CIRCUIT_BREAKER_THRESHOLD = 3;
 

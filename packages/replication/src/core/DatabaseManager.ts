@@ -18,6 +18,7 @@ import {
   DB_INIT_TIMEOUT_MS,
   INIT_RETRY_DELAY_MS,
   CIRCUIT_BREAKER_THRESHOLD,
+  QUEUE_HOLD_TIMEOUT_MS,
 } from '../constants';
 import { withTimeout } from '../mutation-utils';
 import {
@@ -46,6 +47,13 @@ export const REPLICATION_STORES = {
  * to avoid upgrade transaction deadlocks when multiple tables initialize simultaneously
  */
 let sharedDB: IDBPDatabase | null = null;
+/** Queued mutations read from a corrupted database before it was deleted, for the next open. */
+let queueToPutBack: HeldQueue | null = null;
+
+interface HeldQueue {
+  pending: unknown[];
+  failed: unknown[];
+}
 let dbInitPromise: Promise<IDBPDatabase> | null = null;
 
 /**
@@ -311,6 +319,54 @@ export class DatabaseManager {
   }
 
   /**
+   * The queued mutations of a database about to be deleted, or null when they
+   * cannot be read in time (then the database must be kept). A database without
+   * the mutation stores holds no queue.
+   */
+  private async holdQueue(db: IDBPDatabase): Promise<HeldQueue | null> {
+    const has = (store: string) => db.objectStoreNames.contains(store);
+    try {
+      const [pending, failed] = await withTimeout(
+        Promise.all([
+          has(REPLICATION_STORES.PENDING_MUTATIONS)
+            ? db.getAll(REPLICATION_STORES.PENDING_MUTATIONS)
+            : [],
+          has(REPLICATION_STORES.FAILED_MUTATIONS)
+            ? db.getAll(REPLICATION_STORES.FAILED_MUTATIONS)
+            : [],
+        ]),
+        QUEUE_HOLD_TIMEOUT_MS,
+        'hold-queue'
+      );
+      return { pending, failed };
+    } catch (error) {
+      this.logger.warn(`[DatabaseManager] Could not read the mutation queue:`, error);
+      return null;
+    }
+  }
+
+  /** Write a held queue into the recreated database, in one transaction. */
+  private async putQueueBack(db: IDBPDatabase, held: HeldQueue): Promise<void> {
+    if (held.pending.length === 0 && held.failed.length === 0) return;
+    try {
+      const tx = db.transaction(
+        [REPLICATION_STORES.PENDING_MUTATIONS, REPLICATION_STORES.FAILED_MUTATIONS],
+        'readwrite'
+      );
+      await Promise.all([
+        ...held.pending.map(m => tx.objectStore(REPLICATION_STORES.PENDING_MUTATIONS).put(m)),
+        ...held.failed.map(m => tx.objectStore(REPLICATION_STORES.FAILED_MUTATIONS).put(m)),
+        tx.done,
+      ]);
+      this.logger.log(
+        `[DatabaseManager] Kept ${held.pending.length} pending + ${held.failed.length} failed mutation(s) through the rebuild`
+      );
+    } catch (error) {
+      this.logger.error(`[DatabaseManager] Could not put the mutation queue back:`, error);
+    }
+  }
+
+  /**
    * Get the shared database instance
    * SINGLETON PATTERN: All tables share the same DB instance to prevent upgrade deadlocks
    */
@@ -348,6 +404,13 @@ export class DatabaseManager {
           );
         }
 
+        const corrupted =
+          errorMsg.includes('Object stores missing') ||
+          errorMsg.includes('object stores was not found');
+        // The queued scores live only in this database (MYK9-2360): hold them
+        // before deleting it, and if they cannot be read, do not delete it.
+        const held = corrupted && sharedDB ? await this.holdQueue(sharedDB) : null;
+
         if (sharedDB) {
           try {
             sharedDB.close();
@@ -356,19 +419,21 @@ export class DatabaseManager {
           }
         }
 
-        if (
-          errorMsg.includes('Object stores missing') ||
-          errorMsg.includes('object stores was not found')
-        ) {
+        if (corrupted && held) {
           this.logger.warn(
             `[${tableName}] Corrupted database detected - deleting and recreating...`
           );
           try {
             await deleteDB(this.dbName);
             this.logger.log(`[${tableName}] Corrupted database deleted successfully`);
+            queueToPutBack = held;
           } catch (deleteError) {
             this.logger.error(`[${tableName}] Failed to delete corrupted database:`, deleteError);
           }
+        } else if (corrupted) {
+          this.logger.error(
+            `[${tableName}] Corrupted database kept: its mutation queue could not be read`
+          );
         }
 
         sharedDB = null;
@@ -421,6 +486,11 @@ export class DatabaseManager {
     try {
       dbInitPromise = this.openDatabaseWithTimeout();
       sharedDB = await dbInitPromise;
+      if (queueToPutBack) {
+        const held = queueToPutBack;
+        queueToPutBack = null;
+        await this.putQueueBack(sharedDB, held);
+      }
 
       this.logger.log(`[DatabaseManager] Shared database initialized successfully`);
       dbInitInProgress = false;

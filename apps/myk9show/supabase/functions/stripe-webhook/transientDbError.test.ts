@@ -10,6 +10,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import {
   NO_ROW_CODE,
+  paidAtIsoFromEvent,
   paymentLinkRowOrMissing,
   throwIfDbError,
   throwIfSingleReadFailed,
@@ -161,5 +162,33 @@ describe('stripe-webhook wiring (MYK9-2338)', () => {
     const sync = functionBody('syncSubscriptionFromStripe');
     expect(sync).toMatch(/throwIfDbError\(subError,/);
     expect(sync).toMatch(/throwIfDbError\(profileError,/);
+  });
+
+  it('a retried cart is judged at the event time, not the retry clock', () => {
+    const body = functionBody('handleEntryPaymentCompleted');
+    expect(body).toContain('nowIso: paidAtIso,');
+    expect(body).toContain('const nowIso = paidAtIso;');
+    expect(body).not.toContain('new Date().toISOString()');
+    expect(source).toMatch(
+      /handleCheckoutCompleted\(\s*event\.data\.object as Stripe\.Checkout\.Session,\s*paidAtIsoFromEvent\(event\.created\)/
+    );
+  });
+
+  it('account.updated patches from the account as it stands now', () => {
+    const body = functionBody('handleAccountUpdated');
+    expect(body).toContain('stripe.accounts.retrieve(account.id)');
+    expect(body).toContain('accountToRowPatch(current, livemode)');
+  });
+
+  it('the profile tier comes from all of the customer subscriptions', () => {
+    const sync = functionBody('syncSubscriptionFromStripe');
+    expect(sync).toContain('currentEntitlement(');
+    expect(sync).toContain('subscription_tier: entitlement.tier,');
+  });
+});
+
+describe('paidAtIsoFromEvent', () => {
+  it('is the signed event time, the same on every redelivery', () => {
+    expect(paidAtIsoFromEvent(1_764_000_000)).toBe('2025-11-24T16:00:00.000Z');
   });
 });

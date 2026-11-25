@@ -195,7 +195,7 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     );
     expect(entry).toContain('orderExists: () => orderExistsForSession(session.id),');
     expect(entry).toContain('await ensurePaymentLinkRefundAlert(refundQueueDeps, session.id);');
-    expect(entry).toContain('fulfillCart: () => handleEntryPaymentCompleted(session),');
+    expect(entry).toContain('fulfillCart: () => handleEntryPaymentCompleted(session, paidAtIso),');
     // MYK9-964: both replay-first branches send a cart's never-stamped
     // confirmation (behaviour: cartConfirmationReplay.test.ts).
     expect(entry).toContain(

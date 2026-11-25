@@ -33,6 +33,16 @@ export function throwIfSingleReadFailed(error: DbError | null | undefined, what:
 }
 
 /**
+ * The time a paid checkout is judged at: the signed event's own `created`
+ * (epoch seconds), which every redelivery of that event repeats. The retry
+ * clock would refuse a cart that was paid before its expiry, or price it in a
+ * later fee tier, only because Stripe retried after a failure above.
+ */
+export function paidAtIsoFromEvent(eventCreatedSeconds: number): string {
+  return new Date(eventCreatedSeconds * 1000).toISOString();
+}
+
+/**
  * The payment-link row a paid session points at, or null when the lookup
  * CONFIRMED there is none (no error, no row). Only that confirmed absence may
  * queue the full-charge refund request; a failed lookup throws, because a

@@ -54,6 +54,7 @@ import { createResendSender } from '../_shared/clubMoneyEmails.ts';
 import { routePaidSession } from './paidSessionEntry.ts';
 import { buildPaymentLinkOrder } from './paymentLinkOrder.ts';
 import {
+  paidAtIsoFromEvent,
   paymentLinkRowOrMissing,
   throwIfDbError,
   throwIfSingleReadFailed,
@@ -67,6 +68,7 @@ import {
   type JudgeAssignmentNameRow,
 } from '../_shared/exhibitorEmailDetails.ts';
 import { persistNoSubscription } from './noSubscription.ts';
+import { currentEntitlement } from './subscriptionEntitlement.ts';
 import {
   loadPaymentReconciliationEntries as loadPaymentReconciliationEntriesFrom,
   PAYMENT_RECONCILIATION_ENTRY_COLUMNS,
@@ -270,7 +272,10 @@ async function handleEvent(event: Stripe.Event) {
   switch (event.type) {
     case 'checkout.session.completed':
     case 'checkout.session.async_payment_succeeded':
-      await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
+      await handleCheckoutCompleted(
+        event.data.object as Stripe.Checkout.Session,
+        paidAtIsoFromEvent(event.created)
+      );
       break;
 
     case 'checkout.session.async_payment_failed':
@@ -896,8 +901,16 @@ async function alertIfShowRefundEntriesUnstamped(charge: Stripe.Charge, showId: 
  * Mirror a connected account's onboarding/payout flags onto club_stripe_accounts.
  */
 async function handleAccountUpdated(account: Stripe.Account, eventId: string, livemode: boolean) {
-  // The event's own livemode, never a default (MYK9-2187).
-  const patch = accountToRowPatch(account, livemode);
+  // The event's own livemode, never a default (MYK9-2187). The flags come from
+  // the account as it stands NOW: a delivery Stripe retries (MYK9-2338) must
+  // not reapply a stale payload over a newer event's state. If the account
+  // cannot be read (for example the platform was disconnected), fall back to
+  // the payload, as before.
+  const current = await stripe.accounts.retrieve(account.id).catch((readError: unknown) => {
+    console.error(`Could not retrieve account ${account.id}; using the event payload:`, readError);
+    return account;
+  });
+  const patch = accountToRowPatch(current, livemode);
   // MYK9-1986/2191: claims the true -> false transition before the patch below: one club email, one operator alert.
   await notifyPayoutsTurnedOff(
     createPayoutsDisabledDeps(
@@ -987,7 +1000,7 @@ async function stampWithdrawalSnapshot(entryIds: string[], showId: string | null
   }
 }
 
-async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
+async function handleCheckoutCompleted(session: Stripe.Checkout.Session, paidAtIso: string) {
   const checkoutType = session.metadata?.type;
   console.log(`Checkout completed: ${session.id}, type: ${checkoutType}`);
 
@@ -1012,7 +1025,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         }
         if (type === 'entry') await sendCartConfirmationOnce(session);
       },
-      fulfillCart: () => handleEntryPaymentCompleted(session),
+      fulfillCart: () => handleEntryPaymentCompleted(session, paidAtIso),
       fulfillPaymentLink: () => handleEntryPaymentRequestCompleted(session),
       subscription: () => handleSubscriptionCheckoutCompleted(session),
       unexpectedPayment: () =>
@@ -1033,7 +1046,13 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
  * - Creates actual entries from cart items
  * - Creates stripe_orders record
  */
-async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
+/**
+ * `paidAtIso` is the event's own time (paidAtIsoFromEvent): the cart's expiry
+ * and the day-of fee tier are judged at the moment Stripe reported the payment,
+ * so a redelivery after a retryable failure (MYK9-2338) is not refused because
+ * the cart expired, or the tier changed, while Stripe waited to retry.
+ */
+async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session, paidAtIso: string) {
   const cartId = session.metadata?.cart_id;
   if (!cartId) {
     console.error('No cart_id in session metadata');
@@ -1131,7 +1150,7 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     cartTotalCents: cart.total_cents ?? null,
     cartItemCount: cart.items?.length ?? 0,
     cartExpiresAt: cart.expires_at ?? null,
-    nowIso: new Date().toISOString(),
+    nowIso: paidAtIso,
     cartSubtotalCents: cart.subtotal_cents ?? null,
     itemFeesSumCents: (cart.items ?? []).reduce(
       (sum: number, i: { entry_fee_cents: number }) => sum + (i.entry_fee_cents ?? 0),
@@ -1247,7 +1266,7 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
   const feeByClass = new Map<string, number | string | null>(
     classRows.map((c: { id: string; entry_fee: number | string | null }) => [c.id, c.entry_fee])
   );
-  const nowIso = new Date().toISOString();
+  const nowIso = paidAtIso;
   // MYK9-879: priced per LINE, not per class, because the junior-handler
   // declaration is per line. A Finish Payment line is priced from its entry's
   // stored record, a new line from the exhibitor's declaration; no date of birth
@@ -3060,22 +3079,38 @@ async function syncSubscriptionFromStripe(stripeCustomerId: string, knownSubscri
     // retries; the upsert and the profile update are both idempotent.
     throwIfDbError(subError, `Could not sync subscription ${subscription.id}`);
 
-    // Update exhibitor_profiles subscription tier
-    const isActive = ['active', 'trialing'].includes(subscription.status);
+    // The profile tier comes from ALL of the customer's subscriptions as they
+    // stand now, not the one this event names: a retried event about an old,
+    // canceled subscription must not downgrade a replacement (MYK9-2338).
+    const current = await stripe.subscriptions.list({
+      customer: stripeCustomerId,
+      status: 'all',
+      limit: 100,
+    });
+    // The named subscription was just retrieved; include it even if the list lags.
+    const allSubscriptions = current.data.some(sub => sub.id === subscription.id)
+      ? current.data
+      : [...current.data, subscription];
+    const entitlement = currentEntitlement(
+      allSubscriptions.map(sub => ({
+        status: sub.status,
+        priceId: sub.items.data[0]?.price.id,
+        currentPeriodEnd: sub.current_period_end,
+      })),
+      mapPriceToTier
+    );
     const { error: profileError } = await supabase
       .from('exhibitor_profiles')
       .update({
-        subscription_tier: isActive ? subscriptionTier : 'free',
-        subscription_expires_at: isActive
-          ? new Date(subscription.current_period_end * 1000).toISOString()
-          : null,
+        subscription_tier: entitlement.tier,
+        subscription_expires_at: entitlement.expiresAt,
       })
       .eq('person_id', stripeCustomer.person_id);
 
     throwIfDbError(profileError, `Could not update the subscription tier for ${stripeCustomerId}`);
 
     console.log(
-      `Synced subscription for customer ${stripeCustomerId}: ${subscription.status}, tier: ${subscriptionTier}`
+      `Synced subscription for customer ${stripeCustomerId}: ${subscription.status} (${subscriptionTier}); profile tier: ${entitlement.tier}`
     );
   } catch (error) {
     console.error(`Failed to sync subscription for customer ${stripeCustomerId}:`, error);

@@ -34,7 +34,8 @@ import { getShowMapNodeId } from '../showMapTree';
 import type { ShowMapDisplayStatus, ShowMapEntryDisplay, ShowMapTree } from '../showMapTypes';
 
 /** Where a dog stands in its class, from the shared entry-accounting and run-queue rules. */
-export type ClassEntryState = 'waiting' | 'in-ring' | 'scored' | 'pulled' | 'withdrawn' | 'absent';
+export type ClassEntryState =
+  'waiting' | 'in-ring' | 'scored' | 'pulled' | 'withdrawn' | 'absent' | 'pending';
 
 /** The stored run facts of a scored dog, formatted by the run sheet's helpers. */
 export interface ClassEntryRunFacts {
@@ -115,8 +116,9 @@ function isListed(
   // A dog awaiting its registration number cannot run, so it is not on the table to be checked in
   // or scored (MYK9-1162, the rule the class run sheet applied). It is not counted here either.
   if (isHeldEntry({ ...fields, awaitingRegistrationNumber })) return false;
-  // Awaiting approval is reached only through the "N pending" link; rejected and moved never list.
-  if (entryStatus && isPendingEntryStatus(entryStatus)) return false;
+  // MYK9-2376: an entry awaiting approval lists too, muted and labeled Pending with no run order,
+  // so a secretary never wonders why a dog is missing. Rejected and moved never list.
+  if (entryStatus && isPendingEntryStatus(entryStatus)) return true;
   return isExpectedEntry(fields) || isNonRunningEntry(fields) || isPulledEntry(fields);
 }
 
@@ -130,6 +132,7 @@ function stateOf(
   queue: RunQueueEntry
 ): ClassEntryState {
   if (entryStatus === 'withdrawn') return 'withdrawn';
+  if (isPendingEntryStatus(entryStatus)) return 'pending';
   if (isPulledEntry(fields)) return 'pulled';
   if (!isExpectedEntry(fields)) return 'absent';
   if (isAccountedFor(fields)) return 'scored';
@@ -174,10 +177,12 @@ function scoredAfterRemovalOf(state: ClassEntryState, display: ShowMapEntryDispl
 function queueRowOf(
   nodeId: string,
   display: ShowMapEntryDisplay,
-  fields: EntryAccountingFields
+  fields: EntryAccountingFields,
+  pending: boolean
 ): RunQueueEntry {
   const parsed = Number.parseInt(display.armband ?? '', 10);
-  const runnable = isRunnableEntry(fields);
+  // Awaiting approval is runnable by the accounting rules but is not in the run queue (MYK9-2376).
+  const runnable = isRunnableEntry(fields) && !pending;
   const checkIn = checkInOf(fields);
   return {
     id: nodeId,
@@ -208,16 +213,18 @@ export function classEntriesForClass(
     const fields = accountingFields(display);
     const entryStatus = display.entryStatus?.trim().toLowerCase();
     if (!isListed(fields, entryStatus, display.awaitingRegistrationNumber)) continue;
-    const queue = queueRowOf(node.id, display, fields);
+    const queue = queueRowOf(node.id, display, fields, isPendingEntryStatus(entryStatus ?? ''));
     const state = stateOf(fields, entryStatus ?? '', queue);
-    const counted = isExpectedEntry(fields);
+    // An entry awaiting approval is listed but never counted as entered (MYK9-2376).
+    const counted = state !== 'pending' && isExpectedEntry(fields);
     const checkInValue = (display.checkInStatus ?? 'no-status') as CheckInStatus;
-    const deskEditable = deskStatusEditableFor({
-      entryStatus: mapEntryStatus(display.entryStatus),
-      classStatus: mapClassEntryStatus(display.entryStatus),
-      checkInStatus: checkInValue,
-      isScored: display.isScored,
-    });
+    const deskEditable =
+      deskStatusEditableFor({
+        entryStatus: mapEntryStatus(display.entryStatus),
+        classStatus: mapClassEntryStatus(display.entryStatus),
+        checkInStatus: checkInValue,
+        isScored: display.isScored,
+      }) && state !== 'pending';
     listed.push({
       queue,
       fields,
@@ -227,11 +234,10 @@ export function classEntriesForClass(
         entryId: node.id.slice(getShowMapNodeId('entry', '').length),
         checkInValue,
         deskEditable,
-        lockedReason: deskLockedReason(
-          { isScored: display.isScored ?? null },
-          checkInValue,
-          deskEditable
-        ),
+        lockedReason:
+          state === 'pending'
+            ? 'Awaiting approval, so it cannot be checked in yet'
+            : deskLockedReason({ isScored: display.isScored ?? null }, checkInValue, deskEditable),
         armband: display.armband,
         dogName: display.dogName,
         breed: display.breed,
@@ -248,7 +254,16 @@ export function classEntriesForClass(
       },
     });
   }
-  listed.sort((a, b) => compareByRunOrder(a.queue, b.queue));
+  // Dogs that will not run list below the running ones, in armband order, with no place in line.
+  const NOT_RUNNING_STATES: readonly ClassEntryState[] = [
+    'pending',
+    'withdrawn',
+    'pulled',
+    'absent',
+  ];
+  const lastGroup = (row: (typeof listed)[number]) =>
+    NOT_RUNNING_STATES.includes(row.entry.state) ? 1 : 0;
+  listed.sort((a, b) => lastGroup(a) - lastGroup(b) || compareByRunOrder(a.queue, b.queue));
   const queue = listed.map(row => row.queue);
   return listed.map(row => ({ ...row.entry, place: placeInLine(queue, row.queue.id) }));
 }
@@ -285,6 +300,8 @@ export function runStatusDisplay(entry: SecretaryCockpitClassEntry): {
       return { label: 'Pulled', kind: 'muted' };
     case 'withdrawn':
       return { label: 'Withdrawn', kind: 'muted' };
+    case 'pending':
+      return { label: 'Pending', kind: 'muted' };
     case 'absent':
       return { label: 'Absent', kind: 'muted' };
     case 'waiting':

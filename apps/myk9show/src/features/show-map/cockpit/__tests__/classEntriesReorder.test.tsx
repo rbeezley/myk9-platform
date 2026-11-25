@@ -186,4 +186,29 @@ describe('drag a waiting dog to change the run order (MYK9-1872)', () => {
     expect(screen.getByRole('button', { name: /Drag #104 Rex/ })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Drag #103 Juno/ })).toBeNull();
   });
+
+  it('never offers a Pending dog a grip or a drop, though the model counts it waiting (MYK9-2388)', () => {
+    const pending = entry('e6', '106', 'Nova', {
+      state: 'pending',
+      counted: false,
+      deskEditable: false,
+    });
+    placement.waitingIds = ['e1', 'e6', 'e3', 'e5'];
+    const runOrder = controls();
+    renderTable(runOrder, [...rows, pending]);
+    expect(screen.getAllByTestId('run-order-grip')).toHaveLength(3);
+    const row = screen.getByText('Nova').closest('tr');
+    expect(row && within(row).queryByTestId('run-order-grip')).toBeNull();
+    expect(row).toHaveAttribute('data-entry-state', 'pending');
+    expect(row).toHaveClass('text-muted-foreground');
+    drop('e1', 'e6');
+    drop('e6', 'e3');
+    expect(runOrder.onPlaceEntry).not.toHaveBeenCalled();
+  });
+
+  it('turns reordering off when one running dog and one Pending dog wait', () => {
+    placement.waitingIds = ['e1', 'e6'];
+    renderTable(controls(), [rows[0], entry('e6', '106', 'Nova', { state: 'pending' })]);
+    expect(screen.queryByTestId('run-order-grip')).toBeNull();
+  });
 });

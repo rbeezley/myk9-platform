@@ -12,7 +12,11 @@ import { PACKET_REPORT_IDS } from './packetReports';
 export function buildClassSheetParts(
   judgeClass: TrialPacketJudge['classes'][number]
 ): Uint8Array[] {
-  return PACKET_REPORT_IDS.map(reportId => {
+  // A class whose dogs all sit out has a check-in sheet and no scoresheet (MYK9-2387).
+  const reportIds = PACKET_REPORT_IDS.filter(
+    reportId => reportId !== 'scoresheet' || judgeClass.scoreSheetPages > 0
+  );
+  return reportIds.map(reportId => {
     const report = getReportById(reportId);
     const bytes = report?.buildPdf?.(judgeClass.dataSet, report.defaultSort ?? 'run-order');
     if (!bytes) throw new Error(`${reportId} cannot be built as a PDF`);

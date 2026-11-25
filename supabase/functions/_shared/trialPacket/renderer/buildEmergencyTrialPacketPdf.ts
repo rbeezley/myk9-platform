@@ -1,6 +1,7 @@
 import { armbandSortKey, compareArmbands, formatPacketArmband } from './armband.ts';
 import { formatEmergencyPacketPageLabel } from './emergencyTrialPacket.ts';
 import { formatPacketTrialLabel } from './packetClassOrder.ts';
+import { judgeDetailLine } from './printedClassHeader.ts';
 import { resolveScoresheetConfig, type ScoresheetRegistryConfig } from './scoresheetConfig.ts';
 import type { EmergencyPacketEntry, EmergencyPacketModel, EmergencyPacketPage } from './types.ts';
 
@@ -228,7 +229,7 @@ function addTitle(doc: jsPDF, page: EmergencyPacketPage): number {
     isScoreRecording && page.context.distractionCount != null
       ? `Distractions: ${page.context.distractionCount}`
       : undefined,
-    page.context.judgeName ? `Judge: ${page.context.judgeName}` : undefined,
+    judgeDetailLine(page.context.judgeName),
   ];
   const detailLines = layoutDetailLines(
     doc,
@@ -541,6 +542,17 @@ function renderCheckIn(doc: jsPDF, page: EmergencyPacketPage): void {
     }
     doc.setDrawColor(150, 150, 150);
     for (const column of CHECK_IN_COLUMNS) {
+      if (entry.notRunningLabel && column.key === 'order') continue;
+      if (entry.notRunningLabel && column.key === 'gate') {
+        // MYK9-2387: a dog that will not run prints its status across the Gate and Order cells
+        // (merged), so the run order stays blank and the row cannot be mistaken for a runner.
+        const merged = column.width + (CHECK_IN_COLUMNS[1]?.width ?? 0);
+        doc.rect(column.x, y, merged, rowHeight);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(CHECK_IN_FONT_PT);
+        doc.text(fitTextToWidth(doc, entry.notRunningLabel, merged - 3), column.x + 1.5, y + 6);
+        continue;
+      }
       doc.rect(column.x, y, column.width, rowHeight);
       // The armband is the number a judge looks for across the room, so it
       // gets its own larger bold size. Its baseline sits lower to stay centred.

@@ -8,6 +8,12 @@ import type { PacketArmband } from './armband.ts';
  * (MYK9-228 phase 2). The app's `ReportEntry` satisfies this structurally, so
  * every existing caller keeps working without a cast.
  */
+/**
+ * The `notRunningLabel` of a Pending entry. Pending dogs are listed on the check-in sheet with no
+ * order, and (unlike Withdrawn, Pulled or Absent) stay in the entry catalog, as before MYK9-2387.
+ */
+export const PENDING_NOT_RUNNING_LABEL = 'Pending';
+
 export interface PacketReportEntry {
   id: string;
   /**
@@ -18,6 +24,12 @@ export interface PacketReportEntry {
    */
   armband: PacketArmband;
   runOrder: number | null;
+  /**
+   * MYK9-2387: set (to the status the sheet prints, e.g. "Withdrawn") on an entry that is listed
+   * on the class's check-in sheet but will not run: it gets no run order and stays off the
+   * scoresheet. Absent for a running dog, and for every row the server input builds.
+   */
+  notRunningLabel?: string | undefined;
   callName: string;
   breed: string;
   handler: string;

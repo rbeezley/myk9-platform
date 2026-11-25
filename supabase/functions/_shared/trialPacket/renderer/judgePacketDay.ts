@@ -67,9 +67,9 @@ export function classSheetModel(
     {
       ...input,
       trials: [trial],
-      // The Reports sheets name a class nobody judges "TBD"; the model builder's own word for it
-      // is "Judge unassigned". The packet prints what the Reports sheets print.
-      classes: [{ ...classItem, judgeName: classItem.judgeName || 'TBD' }],
+      // A class nobody judges prints "Judge to be announced" from the model builder, the same
+      // line the Reports sheets print (MYK9-2377).
+      classes: [classItem],
       entries: input.entries.filter(entry => entry.classId === classItem.id),
     },
     { snapshotMarker: false }
@@ -81,8 +81,12 @@ export function buildClassSheetParts(
   model: EmergencyPacketModel,
   JsPdf: JsPdfConstructor
 ): Uint8Array[] {
-  return (['check-in', 'score-recording'] as const).map(kind =>
-    buildEmergencyTrialPacketPdf(selectPages(model, kind), JsPdf)
+  return (
+    (['check-in', 'score-recording'] as const)
+      .map(kind => selectPages(model, kind))
+      // A class whose dogs all sit out has a check-in sheet and no scoresheet (MYK9-2387).
+      .filter(selected => selected.pages.length > 0)
+      .map(selected => buildEmergencyTrialPacketPdf(selected, JsPdf))
   );
 }
 

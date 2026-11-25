@@ -60,8 +60,8 @@ function entry(
   } as unknown as DbEntry;
 }
 
-// 1 normal, 2 moved-up source, 3 withdrawn, 4 pulled (scratched + pulled),
-// 5 pending, 6 not accepted, 7 absent (the packet RPC drops it too).
+// 1 confirmed, 2 moved-up source, 3 withdrawn, 4 pulled (scratched + pulled), 5 pending,
+// 6 not accepted, 7 absent, 8 accepted, 9 confirmed but pulled at check-in.
 const noviceEntries = [
   entry(1, novice.id, 'confirmed'),
   entry(2, novice.id, 'moved'),
@@ -70,27 +70,139 @@ const noviceEntries = [
   entry(5, novice.id, 'pending'),
   entry(6, novice.id, 'not_accepted'),
   entry(7, novice.id, 'absent'),
+  entry(8, novice.id, 'accepted'),
+  entry(9, novice.id, 'confirmed', 'pulled'),
 ];
 // The move-up target: the same dog (armband 2) in the next level up.
 const advancedEntries = [entry(2, advanced.id, 'confirmed')];
 
-function armbandsOn(dataset: ReportDataSet, kind: 'check-in' | 'score-recording'): string[] {
-  const model = selectPacketPages(toScoresheetModel(dataset, 'run-order'), kind);
-  return model.pages.flatMap(page => page.entries.map(item => item.armband ?? ''));
+/** One row per printed dog: armband, the printed order, and the status the row prints. */
+function rowsOn(
+  dataset: ReportDataSet,
+  kind: 'check-in' | 'score-recording',
+  sortOrder = 'run-order'
+) {
+  const model = selectPacketPages(toScoresheetModel(dataset, sortOrder), kind);
+  return model.pages.flatMap(page =>
+    page.entries.map(item => [item.armband ?? '', item.runOrderDisplay, item.notRunningLabel ?? ''])
+  );
 }
 
-describe('check-in sheets and scoresheets leave off dogs that will not run (MYK9-2082)', () => {
+function catalogRows(dataset: ReportDataSet) {
+  return toScoresheetModel(dataset, 'run-order')
+    .pages.filter(page => page.kind === 'catalog')
+    .flatMap(page => page.entries.map(item => [item.armband ?? '', item.runOrderDisplay]));
+}
+
+describe('check-in sheet lists every entry with its status; the scoresheet lists only runners (MYK9-2387)', () => {
   const dataset: ReportDataSet = {
     show,
     pages: [{ trial, classData: novice, entries: noviceEntries }],
   };
 
-  it('prints the check-in sheet with only the dogs that run', () => {
-    expect(armbandsOn(dataset, 'check-in')).toEqual(['1', '5']);
+  it('prints the check-in sheet with the runners first in run order, then each other entry with its status and no order', () => {
+    expect(rowsOn(dataset, 'check-in')).toEqual([
+      ['1', '1', ''],
+      ['8', '2', ''],
+      ['3', '', 'Withdrawn'],
+      ['4', '', 'Pulled'],
+      ['5', '', 'Pending'],
+      ['7', '', 'Absent'],
+      ['9', '', 'Pulled'],
+    ]);
+  });
+
+  it('keeps the non-running rows below the runners when sorted by armband, and still counts only runners', () => {
+    expect(rowsOn(dataset, 'check-in', 'armband')).toEqual([
+      ['1', '1', ''],
+      ['8', '2', ''],
+      ['3', '', 'Withdrawn'],
+      ['4', '', 'Pulled'],
+      ['5', '', 'Pending'],
+      ['7', '', 'Absent'],
+      ['9', '', 'Pulled'],
+    ]);
   });
 
   it('prints the scoresheet with only the dogs that run', () => {
-    expect(armbandsOn(dataset, 'score-recording')).toEqual(['1', '5']);
+    expect(rowsOn(dataset, 'score-recording').map(([armband]) => armband)).toEqual(['1', '8']);
+  });
+
+  it('never gives a pending or withdrawn dog Order 1, even when its stored run order is first', () => {
+    const early = {
+      show,
+      pages: [
+        {
+          trial,
+          classData: novice,
+          entries: [
+            { ...entry(1, novice.id, 'pending'), run_order: 1 },
+            { ...entry(2, novice.id, 'withdrawn'), run_order: 2 },
+            { ...entry(3, novice.id, 'confirmed'), run_order: 3 },
+          ] as DbEntry[],
+        },
+      ],
+    } as ReportDataSet;
+    expect(rowsOn(early, 'check-in')).toEqual([
+      ['3', '1', ''],
+      ['1', '', 'Pending'],
+      ['2', '', 'Withdrawn'],
+    ]);
+    expect(rowsOn(early, 'score-recording').map(([armband]) => armband)).toEqual(['3']);
+  });
+
+  it('keeps the entry catalog as it was: runners and Pending dogs mixed in run order, never a withdrawn, pulled or absent one', () => {
+    expect(catalogRows(dataset)).toEqual([
+      ['1', '1'],
+      ['5', '2'],
+      ['8', '3'],
+    ]);
+  });
+
+  it('puts a Pending dog in pure armband order in the catalog before run orders exist', () => {
+    const unordered: ReportDataSet = {
+      show,
+      pages: [
+        {
+          trial,
+          classData: novice,
+          entries: [
+            { ...entry(5, novice.id, 'pending'), run_order: null },
+            { ...entry(8, novice.id, 'confirmed'), run_order: null },
+            { ...entry(3, novice.id, 'withdrawn'), run_order: null },
+          ] as DbEntry[],
+        },
+      ],
+    } as ReportDataSet;
+    expect(catalogRows(unordered)).toEqual([
+      ['5', ''],
+      ['8', ''],
+    ]);
+  });
+
+  it('keeps a Pending dog stored run order in the catalog Order column', () => {
+    const stored: ReportDataSet = {
+      show,
+      pages: [
+        {
+          trial,
+          classData: novice,
+          entries: [
+            { ...entry(9, novice.id, 'pending'), run_order: 1 },
+            { ...entry(4, novice.id, 'confirmed'), run_order: 2 },
+          ] as DbEntry[],
+        },
+      ],
+    } as ReportDataSet;
+    expect(catalogRows(stored)).toEqual([
+      ['9', '1'],
+      ['4', '2'],
+    ]);
+    // The check-in sheet still lists the runner first and leaves the Pending dog unnumbered.
+    expect(rowsOn(stored, 'check-in')).toEqual([
+      ['4', '1', ''],
+      ['9', '', 'Pending'],
+    ]);
   });
 
   it('still shows the dog in the class it moved up to', () => {
@@ -98,8 +210,8 @@ describe('check-in sheets and scoresheets leave off dogs that will not run (MYK9
       show,
       pages: [{ trial, classData: advanced, entries: advancedEntries }],
     };
-    expect(armbandsOn(target, 'check-in')).toEqual(['2']);
-    expect(armbandsOn(target, 'score-recording')).toEqual(['2']);
+    expect(rowsOn(target, 'check-in')).toEqual([['2', '1', '']]);
+    expect(rowsOn(target, 'score-recording')).toEqual([['2', '', '']]);
   });
 
   it('counts only the dogs that run on the judge cover sheet totals', () => {
@@ -113,16 +225,32 @@ describe('check-in sheets and scoresheets leave off dogs that will not run (MYK9
     const judge = packet?.judges[0];
     const noviceClass = judge?.classes.find(item => item.classId === novice.id);
     expect(noviceClass?.dogCount).toBe(2);
-    expect(noviceClass?.runOrder).toEqual(['1', '5']);
+    expect(noviceClass?.runOrder).toEqual(['1', '8']);
     expect(judge?.dogTotal).toBe(3);
   });
 
-  it('counts a class whose every dog left as empty, not as a sheet to print', () => {
+  it('keeps a class whose dogs all sit out in the judge packet, with a check-in sheet and no scoresheet', () => {
     const packet = collateTrialPacket({
       show,
       trials: [trial],
       classes: [novice],
-      entries: [entry(2, novice.id, 'moved'), entry(3, novice.id, 'withdrawn')],
+      entries: [entry(3, novice.id, 'withdrawn'), entry(5, novice.id, 'pending')],
+      trialId: trial.id,
+    });
+    expect(packet?.emptyClassCount).toBe(0);
+    const noviceClass = packet?.judges[0]?.classes[0];
+    expect(noviceClass?.checkInRows).toBe(2);
+    expect(noviceClass?.dogCount).toBe(0);
+    expect(noviceClass?.checkInPages).toBe(1);
+    expect(noviceClass?.scoreSheetPages).toBe(0);
+  });
+
+  it('counts a class with nothing to list (a move-up source, a declined entry) as empty, not as a sheet to print', () => {
+    const packet = collateTrialPacket({
+      show,
+      trials: [trial],
+      classes: [novice],
+      entries: [entry(2, novice.id, 'moved'), entry(6, novice.id, 'not_accepted')],
       trialId: trial.id,
     });
     expect(packet?.emptyClassCount).toBe(1);

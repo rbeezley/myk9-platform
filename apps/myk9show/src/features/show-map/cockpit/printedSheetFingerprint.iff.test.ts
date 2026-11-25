@@ -98,6 +98,9 @@ const ENTRY_FIELDS: Record<keyof PacketReportEntry, EntryMutation> = {
   id: { prints: 'both' },
   armband: { prints: 'both', mutate: () => ({ armband: '101A' }) },
   runOrder: { prints: 'both', mutate: () => ({ runOrder: 5 }) },
+  // MYK9-2387: a dog that will not run prints its status on the check-in sheet and leaves the
+  // scoresheet, so both sheets change.
+  notRunningLabel: { prints: 'both', mutate: () => ({ notRunningLabel: 'Withdrawn' }) },
   callName: { prints: 'both', mutate: () => ({ callName: 'Renamed' }) },
   breed: { prints: 'both', mutate: () => ({ breed: 'Basset Hound' }) },
   handler: { prints: 'both', mutate: () => ({ handler: 'New Handler' }) },

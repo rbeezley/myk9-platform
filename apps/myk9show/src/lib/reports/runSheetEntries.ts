@@ -1,24 +1,48 @@
 import { isSupersededMoveUpEntry } from '@/features/financial/moneyRoot';
-import { getEntryStatusKind, isRemovedStatus } from '@/services/entryDisplay/entryDisplaySelectors';
+import { PENDING_NOT_RUNNING_LABEL } from '@/features/emergency-trial-packet/types';
+import {
+  getEntryStatusKind,
+  getStatusLabel,
+  type EntryStatusKind,
+} from '@/services/entryDisplay/entryDisplaySelectors';
 
 /**
- * MYK9-2082: whether a dog belongs on the check-in sheet and the scoresheet of the class it is
- * entered in. The source half of a move-up, a withdrawn, declined or scratched entry, and a pulled
- * dog will not run there, so the judge's sheet leaves them off. This is the rule the entry-form
- * grids use (`isSupersededMoveUpEntry` + `isRemovedStatus`), plus `check_in_status = 'pulled'`, and
- * it matches what the `emergency_packet_input` RPC already filters server side.
+ * MYK9-2082, MYK9-2376, MYK9-2387: which entries belong on a class's sheets, and which of those run.
  *
- * Pending entries stay on the sheet (as they do on the RPC and the entry forms).
+ * Listed (the Check-in & Running Order sheet): every entry that belongs to the class, so the
+ * secretary sees each one with its status. Only the source half of a move-up and a declined
+ * (rejected) entry stay off both sheets, since they sit in another class or never ran. The
+ * `emergency_packet_input` RPC still filters more strictly; that is MYK9-2389.
+ *
+ * Running (a run order, and the judge's Score Sheet): a listed entry that is not Pending,
+ * Withdrawn, Pulled (scratched or `check_in_status = 'pulled'`) or Absent. A dog that is not
+ * running gets a blank run order and a status label, never "Order 1".
  */
-export function isEntryOnRunSheet(entry: {
+export interface RunSheetEntryInput {
   entryStatus?: string | null | undefined;
   checkInStatus?: string | null | undefined;
-}): boolean {
-  if (entry.checkInStatus === 'pulled') return false;
-  if (isSupersededMoveUpEntry({ entryStatus: entry.entryStatus ?? null })) return false;
-  const kind = getEntryStatusKind(entry.entryStatus);
-  // `absent` is not a "removed" kind (it renders through normal results elsewhere), but the
-  // packet RPC drops it from the run sheet (supabase/migrations/20261014214300_myk9_1162_held_entries.sql),
-  // so the Reports sheets drop it too: one truth for who is on the run sheet.
-  return !isRemovedStatus(kind) && kind !== 'absent';
 }
+
+/** True for an entry the check-in sheet lists, running or not. */
+export function isEntryListedOnCheckIn(entry: RunSheetEntryInput): boolean {
+  if (isSupersededMoveUpEntry({ entryStatus: entry.entryStatus ?? null })) return false;
+  return getEntryStatusKind(entry.entryStatus) !== 'not_accepted';
+}
+
+/**
+ * The status the sheet prints for a listed entry that will not run, or `null` when it runs. The
+ * wording is the app's own (`getStatusLabel`), so the sheet says what every other screen says.
+ */
+export function notRunningStatusLabel(entry: RunSheetEntryInput): string | null {
+  if (entry.checkInStatus === 'pulled') return getStatusLabel('scratched');
+  const kind = getEntryStatusKind(entry.entryStatus);
+  if (kind === 'pending') return PENDING_NOT_RUNNING_LABEL;
+  return NOT_RUNNING_KINDS.has(kind) ? getStatusLabel(kind) : null;
+}
+
+const NOT_RUNNING_KINDS: ReadonlySet<EntryStatusKind> = new Set([
+  'pending',
+  'withdrawn',
+  'scratched',
+  'absent',
+]);

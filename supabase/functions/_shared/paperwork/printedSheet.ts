@@ -1,5 +1,9 @@
 import { formatPacketArmband } from '../trialPacket/renderer/armband.ts';
-import { compareEntries, sheetPositions } from '../trialPacket/renderer/emergencyTrialPacket.ts';
+import {
+  compareCheckInEntries,
+  compareEntries,
+  sheetPositions,
+} from '../trialPacket/renderer/emergencyTrialPacket.ts';
 import {
   printedClassFacts,
   printedClassHeader,
@@ -19,7 +23,7 @@ import { buildDescriptor, type PaperworkDescriptor, type PaperworkScope } from '
  * an entry status the sheet does not print) does not.
  *
  * - One subject per printed entry (`entry:<id>`): the row's text plus where it sits on the sheet.
- *   An entry the renderer leaves out (withdrawn, pulled, held) has no subject, so it dropping off
+ *   An entry the renderer leaves out (held, a move-up's source, a declined one) has no subject, so it dropping off
  *   reads as a change.
  * - One subject per class that prints at least one entry (`class:<id>`): the class header, from
  *   the same `printedClassHeader` the renderer calls.
@@ -49,6 +53,8 @@ export function printedEntryFacts(
     return {
       row: rowIndex,
       order: position === undefined ? '' : String(position),
+      // MYK9-2387: a dog that will not run prints its status where the order would be.
+      status: entry.notRunningLabel ?? '',
       armband,
       callName: entry.callName,
       breed: entry.breed,
@@ -93,8 +99,11 @@ export function buildSheetDescriptorFromPrinted(input: {
           : true)
   );
   const classById = new Map(printedClasses.map(classItem => [classItem.id, classItem] as const));
-  const sorted = [...input.entries].sort(compareEntries);
-  const positions = sheetPositions(sorted);
+  // The scoresheet lists only the dogs that run (MYK9-2387); the check-in sheet lists them all.
+  const sorted = [...input.entries]
+    .filter(entry => kind === 'check-in' || !entry.notRunningLabel)
+    .sort(kind === 'check-in' ? compareCheckInEntries : compareEntries);
+  const positions = sheetPositions(sorted.filter(entry => !entry.notRunningLabel));
   const rowByClass = new Map<string, number>();
   const printed = sorted.flatMap(entry => {
     const classItem = entry.classId ? classById.get(entry.classId) : undefined;

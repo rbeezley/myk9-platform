@@ -62,7 +62,9 @@ export function ClubOverviewVideo() {
               />
               <span className="lc-video-play-bar" aria-hidden="true">
                 <span className="lc-video-play-icon" />
-                Play the video (2 min 28 s)
+                <span>
+                  Play<span className="lc-video-long"> the video (2 min 28 s)</span>
+                </span>
               </span>
             </button>
           )}

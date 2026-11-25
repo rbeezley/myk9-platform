@@ -54,7 +54,7 @@ const Home: React.FC = () => {
       )}
       <LandingHero showSignUp={!signedIn} />
       <TrustSection />
-      <ClubOverviewVideo />
+      {audience === 'club' && <ClubOverviewVideo />}
       <LifecycleTimeline audience={audience} onAudienceChange={setAudience} />
       <PricingSection />
       <FaqSection />

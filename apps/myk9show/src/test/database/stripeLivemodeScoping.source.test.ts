@@ -22,6 +22,17 @@ const paymentLinkSource = readFileSync(
   resolve(__dirname, '../../../supabase/functions/stripe-payment-link/index.ts'),
   'utf8'
 );
+const upgradeSource = readFileSync(
+  resolve(__dirname, '../../../supabase/functions/stripe-upgrade-subscription/index.ts'),
+  'utf8'
+);
+const upgradeOwnershipSource = readFileSync(
+  resolve(
+    __dirname,
+    '../../../supabase/functions/stripe-upgrade-subscription/subscriptionOwnership.ts'
+  ),
+  'utf8'
+);
 // MYK9-2170 moved the per-show flow from index.ts to processShow.ts.
 const payoutSource = ['index.ts', 'processShow.ts']
   .map(file =>
@@ -51,6 +62,18 @@ describe('Stripe persisted-id mode scoping', () => {
   it('scopes customer portal lookup by livemode', () => {
     expect(portalSource).toContain('requireStripeLivemode(stripeSecret)');
     expect(portalSource).toContain(".eq('livemode', stripeLivemode)");
+  });
+
+  it('scopes the subscription upgrade customer lookup by livemode', () => {
+    const customerLookup = requireSlice(
+      upgradeOwnershipSource,
+      ".from('stripe_customers')",
+      '.single()'
+    );
+
+    expect(upgradeSource).toContain('requireStripeLivemode(stripeSecret)');
+    expect(upgradeSource).toContain('stripeLivemode,');
+    expect(customerLookup).toContain(".eq('livemode', stripeLivemode)");
   });
 
   it('scopes connect onboarding reuse and insert by livemode', () => {

@@ -70,6 +70,8 @@ export interface MyShowGroupProps {
   selfCheckinByClassId?: Record<string, boolean> | undefined;
   /** classId -> judge name; a class missing here has no judge we know of. */
   judgeByClassId?: JudgeByClassId | undefined;
+  /** MYK9-1970: classes scored on paper, which say so beside their running order. */
+  paperClassIds?: ReadonlySet<string> | undefined;
   seenResultReleaseKeys: Set<string>;
   /** The one class row (MYK9-1944) that may ask the results-public question. */
   resultsPromptClassId?: string | null | undefined;
@@ -95,6 +97,7 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
   now,
   selfCheckinByClassId,
   judgeByClassId,
+  paperClassIds,
   seenResultReleaseKeys,
   resultsPromptClassId,
   onCheckInDay,
@@ -397,6 +400,7 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
             <MyShowDogCard
               dog={dog}
               judgeByClassId={judgeByClassId}
+              paperClassIds={paperClassIds}
               ordersById={ordersById}
               checkInContext={checkInContext}
               isShowCancelled={group.isShowCancelled}

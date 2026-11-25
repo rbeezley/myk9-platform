@@ -25,9 +25,8 @@
  * dialog via `applyCombinedRunOrder`.
  */
 
-import { mergeSectionCancellation } from '@myk9/ringside/run-queue';
 import { useClassCancelledStatus, useHoldTapUntilKnown } from './cancelledClassGuard';
-import { isCancelledClassStatus } from './ringsideClassStatusMap';
+import { useCombinedHeaderClassInfo } from './useCombinedHeaderClassInfo';
 import { RingsideMenu } from './menu/RingsideMenu';
 import { useRingsideListSnapshot } from './menu/useRingsideListSnapshot';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -122,20 +121,13 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
 
   // MYK9-1847: each entry is judged by its own class, so one cancelled section blocks only itself.
   const { isClassCancelled, known: cancelledKnown } = useClassCancelledStatus([classIdA, classIdB]);
-  // The header carries section A's status. Cancelled reads for the pair only when every section is
-  // cancelled; with just A cancelled the header drops it rather than call B's dogs cancelled too.
-  const allSectionsCancelled = mergeSectionCancellation(
-    { section: 'A', is_cancelled: !!classIdA && isClassCancelled(classIdA) },
-    { section: 'B', is_cancelled: !!classIdB && isClassCancelled(classIdB) }
-  ).allCancelled;
-  const headerClassInfo = useMemo(() => {
-    if (!classInfo) return classInfo;
-    if (allSectionsCancelled) return { ...classInfo, classStatus: 'cancelled' };
-    if (!isCancelledClassStatus(classInfo.classStatus)) return classInfo;
-    const withoutStatus = { ...classInfo };
-    delete withoutStatus.classStatus;
-    return withoutStatus;
-  }, [classInfo, allSectionsCancelled]);
+  const headerClassInfo = useCombinedHeaderClassInfo(
+    showId,
+    classInfo,
+    classIdA,
+    classIdB,
+    isClassCancelled
+  );
 
   const { refresh: manualRefresh } = useAtShowEntryListRefresh(showId, refresh);
 

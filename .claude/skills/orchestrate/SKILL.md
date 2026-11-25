@@ -273,7 +273,8 @@ the pipeline.
   needs one stops short of it, parks the issue `needs:operator` with the reason, and says so.
 - Owner questions go to Linear (`needs:decision` / `needs:operator`) and the run moves on; it does
   not wait in chat.
-- The `independent` floor is met only by the other harness (`pnpm qa:agy-review --post`).
+- The `independent` floor is met only by the other harness (`pnpm qa:agy-review --post`;
+  until 2026-12-08, `pnpm qa:codex-review --post`, per the owner on MYK9-2324).
   A same-harness reviewer never substitutes. If agy is unavailable, the PR waits, open and
   unmerged, and the run reports it.
 

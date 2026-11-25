@@ -72,7 +72,12 @@ describe('MYK9-2145: an unconfirmed pull flag at close', () => {
       flaggedPulls: NO_FLAGS,
     });
 
-    expect(readiness).toEqual({ concerns: [], concernItems: [], hasConcerns: false });
+    expect(readiness).toEqual({
+      concerns: [],
+      concernItems: [],
+      hasConcerns: false,
+      openLines: [],
+    });
   });
 
   it('reads the same on the summary card, the close action and its confirmation', async () => {

@@ -191,11 +191,9 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   const [isSavingPhoto, setIsSavingPhoto] = useState(false);
   const photoSaveInFlight = useRef(false);
 
-  // MYK9-2382: the role list can hide a judge from a secretary, so writers always see the card.
+  // MYK9-2382: role lists can hide a judge, so writers see the card (not on a removed person).
   const canAddQualifications = canWriteJudgeQualifications(role => getUserRoles().includes(role));
-  // A removed person cannot be edited, so their qualifications cannot be either.
   const canManageQualifications = () => {
-    if (isRemoved) return false;
     if (hasPermission('admin:manage')) return true;
     if (hasPermission('show:manage')) return true;
     if (person.id && currentUser?.id === person.id) {
@@ -367,7 +365,6 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
     return sections;
   }, [accountStatus, person, formData]);
 
-  // Center content: judge cards + tabs
   const centerContent = (
     <div className="space-y-6">
       {!isRemoved && (person.roles?.includes(UserRole.JUDGE) || canAddQualifications) && (

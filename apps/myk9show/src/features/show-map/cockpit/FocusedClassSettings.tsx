@@ -1,6 +1,8 @@
 import { FocusedClassFields } from './FocusedClassFields';
 import { FocusedClassJudge } from './FocusedClassJudge';
 import { judgeLockReason } from './focusedClassJudgeModel';
+import { FocusedClassTimeLimit } from './FocusedClassTimeLimit';
+import { SubstituteJudgeEmailOffer } from './SubstituteJudgeEmailOffer';
 import { FocusedClassStewards } from './FocusedClassStewards';
 import { FocusedClassJudgeScoring, FocusedClassScoringField } from './FocusedClassScoringControls';
 import type { useClassJudgeAssignment } from '@/components/classes/useClassJudgeAssignment';
@@ -25,6 +27,7 @@ export function FocusedClassSettings({
   classes,
   judges,
   showJudge,
+  registryId,
 }: {
   showId: string;
   focused: FocusedClassModel;
@@ -35,6 +38,7 @@ export function FocusedClassSettings({
   judges: ReturnType<typeof useClassJudgeAssignment>;
   /** False once the live judge control would be locked: Edit class's own Judge field takes over. */
   showJudge: boolean;
+  registryId: string;
 }) {
   return (
     <FocusedClassFields
@@ -44,27 +48,52 @@ export function FocusedClassSettings({
       trial={trial}
       timeZone={timeZone}
       canManageShow
-      {...(showJudge && {
-        judgeControl: (
-          <>
-            <FocusedClassJudge
-              showId={showId}
-              classId={sourceClass.id}
-              classLabel={focused.name}
-              judgeName={sourceClass.judgeName ?? null}
-              assignedJudgeId={sourceClass.judgeId ?? null}
-              availableJudges={judges.availableJudges}
-              organization={judges.showOrganization}
-              judgeListStatus={judges.judgeListStatus}
-              lockReason={judgeLockReason(focused)}
-              classStatus={sourceClass.status ?? null}
-              offerSubstituteEmails
-              onJudgeChange={(_classId, judgeId) => judges.assignJudge(sourceClass, judgeId)}
-            />
-            <FocusedClassJudgeScoring showId={showId} sourceClass={sourceClass} classes={classes} />
-          </>
-        ),
-      })}
+      // The live picker is gated on the class not having started; the judge-related actions
+      // keep their own eligibility checks, so they stay after it (MYK9-2379).
+      {...(showJudge
+        ? {
+            judgeControl: (
+              <>
+                <FocusedClassJudge
+                  showId={showId}
+                  classId={sourceClass.id}
+                  classLabel={focused.name}
+                  judgeName={sourceClass.judgeName ?? null}
+                  assignedJudgeId={sourceClass.judgeId ?? null}
+                  availableJudges={judges.availableJudges}
+                  organization={judges.showOrganization}
+                  judgeListStatus={judges.judgeListStatus}
+                  lockReason={judgeLockReason(focused)}
+                  classStatus={sourceClass.status ?? null}
+                  offerSubstituteEmails
+                  onJudgeChange={(_classId, judgeId) => judges.assignJudge(sourceClass, judgeId)}
+                />
+                <FocusedClassJudgeScoring
+                  showId={showId}
+                  sourceClass={sourceClass}
+                  classes={classes}
+                />
+              </>
+            ),
+          }
+        : {
+            judgeExtras: (
+              <>
+                <SubstituteJudgeEmailOffer
+                  classId={sourceClass.id}
+                  classLabel={focused.name}
+                  assignedJudgeId={sourceClass.judgeId ?? null}
+                  judgeName={sourceClass.judgeName ?? null}
+                />
+                <FocusedClassJudgeScoring
+                  showId={showId}
+                  sourceClass={sourceClass}
+                  classes={classes}
+                />
+              </>
+            ),
+          })}
+      timeLimitControl={<FocusedClassTimeLimit classId={sourceClass.id} registryId={registryId} />}
       scoringControl={
         <FocusedClassScoringField
           showId={showId}

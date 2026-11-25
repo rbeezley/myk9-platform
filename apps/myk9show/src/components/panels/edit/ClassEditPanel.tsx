@@ -35,7 +35,6 @@ import {
 import { ClassEditForm } from './ClassEditForm';
 import { ClassLiveSettingsCard } from './ClassLiveSettingsCard';
 import { useLiveJudgeSync } from './useLiveJudgeSync';
-import { ClassTimeLimitFields, hasFixedTimeLimit } from './ClassTimeLimitFields';
 import { ClassWaitlistFields } from './ClassWaitlistFields';
 import { ClassEntryFeeField } from './ClassEntryFeeField';
 import { usePanelValidationNavigation } from './usePanelValidationNavigation';
@@ -242,17 +241,6 @@ const TrialClassEditForm: React.FC<{
           </div>
         </CardContent>
       </Card>
-
-      {data.timeLimitLoaded && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Time limit</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ClassTimeLimitFields showId={showId} fixed={hasFixedTimeLimit(data.element)} />
-          </CardContent>
-        </Card>
-      )}
 
       {capacityLoaded && <ClassWaitlistFields showId={showId} />}
       {data.entryFeeLoaded && <ClassEntryFeeField showId={showId} classId={classId} />}

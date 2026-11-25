@@ -7,9 +7,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { ClassEditPanel } from '../ClassEditPanel';
-import { classSchemas } from '@/lib/validation';
-import { timeLimitPatch, withoutLiveSettings } from '../ClassEditPanel.helpers';
-import type { TrialClassEditFormData } from '../ClassEditPanel.types';
+import { withoutLiveSettings } from '../ClassEditPanel.helpers';
 import type { ClassData } from '@/components/classes/types/classTypes';
 
 vi.mock('@/store/showStore', () => ({ useShowStore: () => ({ shows: [] }) }));
@@ -159,57 +157,6 @@ describe('ClassEditPanel with Show Desk class settings, simple form', () => {
     expect(screen.getByText('Judge')).toBeInTheDocument();
     expect(screen.queryByTestId('class-live-settings')).not.toBeInTheDocument();
   });
-
-  it('lets an Exterior time limit be edited and saves it, with no status or judge', async () => {
-    const { user, onSave } = renderPanel(
-      <span>Settings</span>,
-      simple({ timeLimit1: '3:00' }),
-      true
-    );
-    const limit = await screen.findByLabelText('Time Limit 1');
-    expect(limit).toBeEnabled();
-    await user.clear(limit);
-    await user.type(limit, '430');
-    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
-
-    await waitFor(() => expect(onSave).toHaveBeenCalled());
-    const patch = onSave.mock.calls[0]![0] as Record<string, unknown>;
-    expect(patch).toEqual(expect.objectContaining({ timeLimit1: '4:30' }));
-    for (const key of ['status', 'judge', 'judgeId', 'judgeName']) {
-      expect(patch).not.toHaveProperty(key);
-    }
-  });
-
-  it('shows Interior Excellent areas 1 and 2, editable', async () => {
-    renderPanel(
-      <span>Settings</span>,
-      simple({ element: 'Interior', level: 'Excellent', timeLimit1: '3:00', timeLimit2: '4:00' }),
-      true
-    );
-
-    expect(await screen.findByLabelText('Time Limit 1')).toBeEnabled();
-    expect(screen.getByLabelText('Time Limit 2')).toHaveValue('4:00');
-    expect(screen.queryByLabelText('Time Limit 3')).not.toBeInTheDocument();
-  });
-
-  it.each(['Container', 'Buried'])(
-    'shows a %s time limit as fixed, with nothing to edit',
-    async element => {
-      renderPanel(<span>Settings</span>, simple({ element, timeLimit1: '3:00' }), true);
-
-      const fixed = await screen.findByTestId('class-time-limit-fixed');
-      expect(fixed).toHaveTextContent('3:00');
-      expect(screen.queryByLabelText('Time Limit 1')).not.toBeInTheDocument();
-    }
-  );
-
-  it('shows no time limit for a class whose source did not carry it', async () => {
-    renderPanel(<span>Settings</span>, simpleClass() as unknown as Partial<ClassData>, true);
-
-    await screen.findByTestId('class-live-settings');
-    expect(screen.queryByLabelText('Time Limit 1')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('class-time-limit-fixed')).not.toBeInTheDocument();
-  });
 });
 
 describe('withoutLiveSettings', () => {
@@ -231,7 +178,12 @@ describe('withoutLiveSettings', () => {
 
 describe('ClassEditPanel when the live judge changes while it is open', () => {
   const simple = (judgeId: string, judgeName: string) =>
-    ({ ...simpleClass(), judgeId, judgeName, timeLimit1: '3:00' }) as unknown as Partial<ClassData>;
+    ({
+      ...simpleClass(),
+      judgeId,
+      judgeName,
+      allowsWaitlist: false,
+    }) as unknown as Partial<ClassData>;
   const panel = (
     judge: { id: string; name: string },
     onSave = vi.fn().mockResolvedValue(undefined)
@@ -255,9 +207,7 @@ describe('ClassEditPanel when the live judge changes while it is open', () => {
     expect(await screen.findByText('Jane Judge')).toBeInTheDocument();
 
     // An unsaved edit in the form: the baseline reset alone would not re-seed it.
-    const limit = screen.getByLabelText('Time Limit 1');
-    await user.clear(limit);
-    await user.type(limit, '430');
+    await user.click(screen.getByRole('switch', { name: 'Allow waitlist' }));
 
     rerender(panel({ id: 'judge-2', name: 'Bob Barker' }, onSave));
     expect(await screen.findByText('Bob Barker')).toBeInTheDocument();
@@ -265,73 +215,7 @@ describe('ClassEditPanel when the live judge changes while it is open', () => {
     await user.click(screen.getByRole('button', { name: 'Save Changes' }));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     const patch = onSave.mock.calls[0]![0] as Record<string, unknown>;
-    expect(patch).toEqual(expect.objectContaining({ timeLimit1: '4:30' }));
+    expect(patch).toEqual(expect.objectContaining({ allowsWaitlist: true }));
     expect(patch).not.toHaveProperty('judgeId');
-  });
-});
-
-describe('time limits: only what was shown and changed', () => {
-  it('saves Interior Excellent area 1 without writing area 2 the user did not change', async () => {
-    const { user, onSave } = renderPanel(undefined, {
-      ...(simpleClass() as unknown as Partial<ClassData>),
-      element: 'Interior',
-      level: 'Excellent',
-      timeLimit1: '3:00',
-      timeLimit2: '4:00',
-    } as Partial<ClassData>);
-    const limit = await screen.findByLabelText('Time Limit 1');
-    await user.clear(limit);
-    await user.type(limit, '330');
-    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
-    await waitFor(() => expect(onSave).toHaveBeenCalled());
-    const patch = onSave.mock.calls[0]![0] as Record<string, unknown>;
-    expect(patch).toEqual(expect.objectContaining({ timeLimit1: '3:30' }));
-    expect(patch).not.toHaveProperty('timeLimit2');
-  });
-
-  it('shows a Container time limit as fixed in the full form too', async () => {
-    const { user } = renderPanel(undefined, fullClass({ element: 'Container' }));
-    await user.click(await screen.findByRole('tab', { name: /Timing/ }));
-    expect(await screen.findByTestId('class-time-limit-fixed')).toHaveTextContent('3:00');
-    expect(screen.queryByLabelText('Time Limit 1')).not.toBeInTheDocument();
-  });
-
-  it.each(['simple', 'full'] as const)(
-    'does not let a stored out-of-range fixed limit block Save (%s schema)',
-    form => {
-      const schema = classSchemas[form];
-      const base = {
-        element: 'Container',
-        level: 'Novice',
-        section: '',
-        status: 'Scheduled',
-        entries: 0,
-        timeLimit1: '20:00',
-      };
-      expect(schema.safeParse(base).success).toBe(true);
-      expect(schema.safeParse({ ...base, editedTimeLimits: ['timeLimit1'] }).success).toBe(false);
-    }
-  );
-});
-
-describe('timeLimitPatch', () => {
-  const form = {
-    timeLimit1: '3:00',
-    timeLimit2: '',
-    timeLimit3: '',
-  } as unknown as TrialClassEditFormData;
-
-  it('sends nothing for limits nobody touched', () => {
-    expect(timeLimitPatch({ ...form, editedTimeLimits: [] })).toEqual({});
-  });
-
-  it('sends the limits once one was changed', () => {
-    expect(
-      timeLimitPatch({ ...form, editedTimeLimits: ['timeLimit1', 'timeLimit2', 'timeLimit3'] })
-    ).toEqual({
-      timeLimit1: '3:00',
-      timeLimit2: '',
-      timeLimit3: '',
-    });
   });
 });

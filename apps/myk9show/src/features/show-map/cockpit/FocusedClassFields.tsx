@@ -156,6 +156,8 @@ export function FocusedClassFields({
   judgeControl,
   scoringControl,
   stewardControl,
+  timeLimitControl,
+  judgeExtras,
 }: {
   focused: FocusedClassModel;
   sourceClass: SecretaryCockpitClass;
@@ -166,28 +168,36 @@ export function FocusedClassFields({
   scoringControl?: ReactNode;
   /** The class's ring jobs from the volunteer list (MYK9-2328). Managers only. */
   stewardControl?: ReactNode;
+  /** The class's time limit and its Change button (MYK9-2379). Managers only. */
+  timeLimitControl?: ReactNode;
+  /** Judge-related actions that stay once the live picker is gone (a started class). */
+  judgeExtras?: ReactNode;
 }) {
   return (
-    <dl className="flex flex-wrap items-start gap-x-6 gap-y-2">
-      <Field label="Status">
-        <StatusField focused={focused} canManageShow={canManageShow} />
-      </Field>
-      {judgeControl && <Field label="Judge">{judgeControl}</Field>}
-      {scoringControl && <Field label={SCORING_COPY.fieldLabel}>{scoringControl}</Field>}
-      <Field label="Expected start">
-        <ExpectedStartField
-          focused={focused}
-          sourceClass={sourceClass}
-          trial={trial}
-          timeZone={timeZone}
-          canManageShow={canManageShow}
-        />
-      </Field>
-      {stewardControl && (
-        <Field label="Stewards" className="min-w-0 basis-full">
-          {stewardControl}
+    <>
+      <dl className="flex flex-wrap items-start gap-x-6 gap-y-2">
+        <Field label="Status">
+          <StatusField focused={focused} canManageShow={canManageShow} />
         </Field>
-      )}
-    </dl>
+        {judgeControl && <Field label="Judge">{judgeControl}</Field>}
+        {scoringControl && <Field label={SCORING_COPY.fieldLabel}>{scoringControl}</Field>}
+        <Field label="Expected start">
+          <ExpectedStartField
+            focused={focused}
+            sourceClass={sourceClass}
+            trial={trial}
+            timeZone={timeZone}
+            canManageShow={canManageShow}
+          />
+        </Field>
+        {timeLimitControl && <Field label="Time limit">{timeLimitControl}</Field>}
+        {stewardControl && (
+          <Field label="Stewards" className="min-w-0 basis-full">
+            {stewardControl}
+          </Field>
+        )}
+      </dl>
+      {judgeExtras && <div className="mt-3 space-y-2">{judgeExtras}</div>}
+    </>
   );
 }

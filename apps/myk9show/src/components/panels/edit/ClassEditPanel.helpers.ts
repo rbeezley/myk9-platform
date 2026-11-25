@@ -1,6 +1,5 @@
 import type { ClassData } from '@/components/classes/types/classTypes';
 import type { TrialClass } from '@/components/trials/types/trial.types';
-import type { TimeLimitField } from './ClassTimeLimitFields';
 import type {
   CapacityControl,
   ClassEditFormData,
@@ -37,7 +36,6 @@ export const classToFormData = (classItem: Partial<ClassData>): ClassEditFormDat
     maxEntries: classItem.maxEntries ?? null,
     allowsWaitlist: classItem.allowsWaitlist ?? null,
     editedCapacity: [],
-    editedTimeLimits: [] as TimeLimitField[],
     ...entryFeeFormFields(classItem),
   };
 };
@@ -52,7 +50,9 @@ export const formDataToClass = (formData: ClassEditFormData): Partial<ClassData>
   ...(formData.estimatedJudgingTime !== undefined && {
     estimatedJudgingTime: formData.estimatedJudgingTime,
   }),
-  ...timeLimitPatch(formData),
+  ...(formData.timeLimit1 !== undefined && { timeLimit1: formData.timeLimit1 }),
+  ...(formData.timeLimit2 !== undefined && { timeLimit2: formData.timeLimit2 }),
+  ...(formData.timeLimit3 !== undefined && { timeLimit3: formData.timeLimit3 }),
   ...(formData.judge !== undefined && { judge: formData.judge }),
   ...(formData.judgeId !== undefined && { judgeId: formData.judgeId }),
   ...(formData.gateSteward !== undefined && { gateSteward: formData.gateSteward }),
@@ -151,15 +151,12 @@ export const trialClassToFormData = (trialClass: Partial<TrialClass>): TrialClas
     allowsWaitlist: (trialClass as Partial<ClassData>).allowsWaitlist ?? null,
     editedCapacity: [],
     ...entryFeeFormFields(trialClass),
-    ...timeLimitFormFields(trialClass as Partial<ClassData>),
   };
 };
 
 // Convert form data back to TrialClass
 // Use conditional spread to satisfy exactOptionalPropertyTypes
-export const formDataToTrialClass = (
-  formData: TrialClassEditFormData
-): Partial<TrialClass> & TimeLimitPatch => ({
+export const formDataToTrialClass = (formData: TrialClassEditFormData): Partial<TrialClass> => ({
   element: formData.element,
   level: formData.level,
   section: formData.section,
@@ -169,7 +166,6 @@ export const formDataToTrialClass = (
   entries: formData.entries,
   ...editedCapacityPatch(formData),
   ...entryFeePatch(formData),
-  ...timeLimitPatch(formData),
 });
 
 /**
@@ -185,36 +181,5 @@ export function withoutLiveSettings<T extends object>(
   const patch: Partial<T> = { ...data };
   const owned = keepJudge ? ['status'] : ['status', 'judge', 'judgeId', 'judgeName'];
   for (const key of owned) delete patch[key as keyof T];
-  return patch;
-}
-
-type TimeLimitPatch = { timeLimit1?: string; timeLimit2?: string; timeLimit3?: string };
-
-/**
- * The time-limit fields' starting state. A source that did not carry `timeLimit1` shows no field
- * (a blank would read as "no limit" and saving it would clear the real one).
- */
-function timeLimitFormFields(source: Partial<ClassData>) {
-  return {
-    timeLimitLoaded: source.timeLimit1 !== undefined,
-    editedTimeLimits: [] as TimeLimitField[],
-    timeLimit1: source.timeLimit1 ?? '',
-    timeLimit2: source.timeLimit2 ?? '',
-    timeLimit3: source.timeLimit3 ?? '',
-  };
-}
-
-/** Only the limits whose inputs were shown and changed in this session; never one the user did not see. */
-export function timeLimitPatch(formData: {
-  editedTimeLimits?: TimeLimitField[] | undefined;
-  timeLimit1?: string | undefined;
-  timeLimit2?: string | undefined;
-  timeLimit3?: string | undefined;
-}): TimeLimitPatch {
-  const patch: TimeLimitPatch = {};
-  for (const field of formData.editedTimeLimits ?? []) {
-    const value = formData[field];
-    if (value !== undefined) patch[field] = value;
-  }
   return patch;
 }

@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { DurationInput } from '@myk9/scoring-ui';
 import { classDurationMaxSeconds } from '@/lib/validation';
 import { Clock, UserCheck, ClipboardList, Settings } from 'lucide-react';
 import { useShowStore } from '@/store/showStore';
@@ -19,11 +20,6 @@ import { useUserStore } from '@/store/userStore';
 import { useClassRequirements } from '@/hooks/useClassRequirements';
 import { FormField } from '@/components/common/FormField';
 import { RuleBadge } from '@/components/classes/OfficialsSection';
-import {
-  ClassDurationField,
-  ClassTimeLimitFields,
-  hasFixedTimeLimit,
-} from './ClassTimeLimitFields';
 import { getJudgeNameById } from '@/utils/buildAssignedJudges';
 import { NoJudgesNotice } from '@/components/shows/NoJudgesNotice';
 import { ClassWaitlistFields } from './ClassWaitlistFields';
@@ -66,6 +62,36 @@ function RequirementField({
         readOnly={hasRule && !autoFillMeta.isJudgeSettable}
       />
     </div>
+  );
+}
+
+/** A class duration (m:ss) typed through the one shared time field (MYK9-1503). */
+function ClassDurationField({
+  id,
+  label,
+  value,
+  onChange,
+  maxSeconds,
+  error,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  maxSeconds: number;
+  error?: string | undefined;
+}) {
+  return (
+    <FormField label={label} fieldId={id} error={error}>
+      <DurationInput
+        kind="max"
+        id={id}
+        value={value}
+        onChange={onChange}
+        range={{ low: 1, high: maxSeconds }}
+        className="h-11 max-w-32 rounded-md border border-input bg-background px-3 text-center font-mono text-base"
+      />
+    </FormField>
   );
 }
 
@@ -249,7 +275,54 @@ export const ClassEditForm: React.FC<{
 
               <Separator />
 
-              <ClassTimeLimitFields showId={showId} fixed={hasFixedTimeLimit(data.element)} />
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                    Time Limits
+                  </h4>
+                  {autoFill?.timeLimitText.ruleValue && (
+                    <RuleBadge
+                      label={
+                        autoFill.timeLimitText.isJudgeSettable
+                          ? `Set by judge (${autoFill.timeLimitText.ruleValue})`
+                          : `Rule: ${autoFill.timeLimitText.ruleValue}`
+                      }
+                    />
+                  )}
+                </div>
+
+                <ClassDurationField
+                  id="timeLimit1"
+                  label="Time Limit 1"
+                  value={data.timeLimit1 || ''}
+                  onChange={value => form?.setValue('timeLimit1', value)}
+                  maxSeconds={classDurationMaxSeconds(data.element)}
+                  error={form?.getError('timeLimit1')}
+                />
+
+                {data.element === 'Interior' &&
+                  (data.level === 'Excellent' || data.level === 'Master') && (
+                    <ClassDurationField
+                      id="timeLimit2"
+                      label="Time Limit 2"
+                      value={data.timeLimit2 || ''}
+                      onChange={value => form?.setValue('timeLimit2', value)}
+                      maxSeconds={classDurationMaxSeconds(data.element)}
+                      error={form?.getError('timeLimit2')}
+                    />
+                  )}
+
+                {data.element === 'Interior' && data.level === 'Master' && (
+                  <ClassDurationField
+                    id="timeLimit3"
+                    label="Time Limit 3"
+                    value={data.timeLimit3 || ''}
+                    onChange={value => form?.setValue('timeLimit3', value)}
+                    maxSeconds={classDurationMaxSeconds(data.element)}
+                    error={form?.getError('timeLimit3')}
+                  />
+                )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

@@ -151,6 +151,32 @@ test('1280x720: with Requirements open the scroll area keeps most of the window 
   expect(visible.height).toBeGreaterThanOrEqual(visible.window * 0.5);
 });
 
+// MYK9-2379: with the class's trial collapsed the header says the judge, counts and times too;
+// that summary shrinks and truncates, and never runs under Edit class or the menu.
+test('1280x800: a long summary stays left of Edit class and the Actions menu (MYK9-2379)', async ({
+  page,
+}) => {
+  await openClass(page, { width: 1280, height: 800 });
+  await page
+    .getByRole('button', { name: /^Collapse Trial 1/ })
+    .first()
+    .click();
+  const summary = page.getByTestId('focused-class-summary');
+  await expect(summary).toContainText('·');
+  const summaryBox = await summary.boundingBox();
+  const editBox = await page
+    .getByRole('button', { name: `Edit class ${CLASS_NAME}` })
+    .boundingBox();
+  const menuBox = await page
+    .getByRole('button', { name: `Actions for ${CLASS_NAME}` })
+    .boundingBox();
+  expect(summaryBox && editBox && menuBox, 'all three have boxes').toBeTruthy();
+  expect((summaryBox?.x ?? 0) + (summaryBox?.width ?? 0)).toBeLessThanOrEqual(
+    (editBox?.x ?? 0) + 1
+  );
+  expect((editBox?.x ?? 0) + (editBox?.width ?? 0)).toBeLessThanOrEqual((menuBox?.x ?? 0) + 1);
+});
+
 test('1280x800: the class name stays in view while the entries scroll (MYK9-1989)', async ({
   page,
 }) => {

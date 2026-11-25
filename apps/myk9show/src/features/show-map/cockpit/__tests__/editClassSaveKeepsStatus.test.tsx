@@ -22,7 +22,7 @@ vi.mock('@/components/shows/tabs/useClassRowActions', async () =>
     judgeName: 'Jane Judge',
     status: 'Upcoming',
     entries: 4,
-    timeLimit1: '3:00',
+    allowsWaitlist: false,
   })
 );
 const saveClass = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
@@ -99,14 +99,12 @@ describe('Edit class from Show Desk: a live change survives Save Changes (MYK9-2
     await user.click(await screen.findByRole('menuitem', { name: 'In progress' }));
     expect(applyManualClassStatus).toHaveBeenCalledWith('class-1', CLASS_STATUS.IN_PROGRESS);
 
-    const limit = within(panel).getByLabelText('Time Limit 1');
-    await user.clear(limit);
-    await user.type(limit, '430');
+    await user.click(within(panel).getByRole('switch', { name: 'Allow waitlist' }));
     await user.click(within(panel).getByRole('button', { name: 'Save Changes' }));
 
     await waitFor(() => expect(saveClass).toHaveBeenCalled());
     const patch = saveClass.mock.calls[0]![1] as Record<string, unknown>;
-    expect(patch).toEqual(expect.objectContaining({ timeLimit1: '4:30' }));
+    expect(patch).toEqual(expect.objectContaining({ allowsWaitlist: true }));
     expect(patch).not.toHaveProperty('status');
     expect(patch).not.toHaveProperty('judgeId');
   });

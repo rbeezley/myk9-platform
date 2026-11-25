@@ -76,7 +76,7 @@ export function FocusedClassHeader({
               </h2>
               {/* The status badge (and, where no card says them, the values) beside the name: one line. */}
               {summary && (
-                <div className="min-w-0 shrink-0 self-center whitespace-nowrap">{summary}</div>
+                <div className="min-w-0 shrink self-center whitespace-nowrap">{summary}</div>
               )}
               <span
                 title={eyebrow}

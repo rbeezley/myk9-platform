@@ -6,8 +6,6 @@ import type { ClassStatusValue } from '@myk9/core';
 import type { JudgeChangeWarningProps } from '@/components/classes/JudgeChangeWarning';
 import type { EditPanelDeleteOption } from './EditPanelDelete';
 
-import type { TimeLimitField } from './ClassTimeLimitFields';
-
 export type CapacityControl = 'maxEntries' | 'allowsWaitlist';
 
 export interface ClassEditPanelProps {
@@ -59,8 +57,6 @@ export interface ClassEditFormData extends Record<string, unknown> {
   timeLimit1?: string;
   timeLimit2?: string;
   timeLimit3?: string;
-  /** The limits changed in THIS session; only these are saved (and range-checked). */
-  editedTimeLimits?: TimeLimitField[];
 
   // Officials
   judge?: string;
@@ -112,11 +108,4 @@ export interface TrialClassEditFormData extends Record<string, unknown> {
   entryFee?: number;
   entryFeeLoaded?: boolean;
   entryFeeEdited?: boolean;
-  /** Time limits (m:ss). Shown only when the class came from a source that carried them. */
-  timeLimit1?: string;
-  timeLimit2?: string;
-  timeLimit3?: string;
-  timeLimitLoaded?: boolean;
-  /** The limits changed in THIS session; only these are saved (and range-checked). */
-  editedTimeLimits?: TimeLimitField[];
 }

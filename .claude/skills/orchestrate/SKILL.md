@@ -5,7 +5,7 @@ description: Use when the user says /orchestrate or /opsx-orchestrate, asks to "
 
 # Orchestrate
 
-> **Until 2026-12-08 (owner, MYK9-2324): Codex, not agy, is the `independent` gate for Claude-authored work.** Wherever this file says agy, read Codex: run `CODEX_REVIEW_LOG="$PWD/.logs/codex-review-$(git rev-parse HEAD).log" pnpm qa:codex-review --post > .logs/codex-review.log 2>&1; echo "EXIT=$?"` in place of `pnpm qa:agy-review --post`, read `.logs/codex-review.log` for the verdict, record `Codex rounds: M`, and if Codex is unavailable, the PR waits on Codex, not agy. Delete this note on 2026-12-08.
+> **Until 2026-12-08 (owner, MYK9-2324): Codex, not agy, is the `independent` gate for Claude-authored work.** Wherever this file says agy, read Codex: run `CODEX_REVIEW_LOG="$PWD/.logs/codex-review-$(git rev-parse HEAD).log" pnpm qa:codex-review --post > .logs/codex-review.log 2>&1; echo "EXIT=$?"` in place of `pnpm qa:agy-review --post`, read `.logs/codex-review.log` for the verdict, record `Codex rounds: M`, and if Codex is unavailable, treat it as an unavailable reviewer (`ship-pr` Step 4: wait, or an owner override the maintainer authorizes), not as agy being down. Delete this note on 2026-12-08.
 
 **You are the orchestrator and reviewer. Implementer sub-agents on a cheaper model write the
 code.** Quality comes from your review gate, not from the implementer, so keep your own context

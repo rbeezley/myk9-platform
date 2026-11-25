@@ -6,6 +6,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { databaseManager, REPLICATION_STORES, type PendingMutation } from '@myk9/replication';
 import { RINGSIDE_RPC_FUNCTION } from '@/services/replication/ringsideEntryRpc';
+import { CONFLICT_SETTLED_EVENT } from '@/features/replication-conflicts/conflictEvents';
 import { announceUnsentChanged, useUnsentWork, useUnsentWorkState } from './useUnsentWork';
 
 // The replication database stays open across tests; empty its queue stores so no row leaks.
@@ -43,6 +44,19 @@ describe('useUnsentWork', () => {
     });
     await waitFor(() => expect(result.current.total).toBe(2));
     expect(result.current.scores.map(s => s.entryId)).toEqual(['e1', 'e2']);
+  });
+
+  it('refreshes at once when a held conflict settles, without waiting for the poll', async () => {
+    const db = await databaseManager.getDatabase('useUnsentWork.test');
+    await db.put(REPLICATION_STORES.PENDING_MUTATIONS, scoreRow('p1', 'e1', 'pending'));
+    const { result } = renderHook(() => useUnsentWork(10_000_000));
+    await waitFor(() => expect(result.current.total).toBe(1));
+
+    await db.clear(REPLICATION_STORES.PENDING_MUTATIONS);
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent(CONFLICT_SETTLED_EVENT));
+    });
+    await waitFor(() => expect(result.current.total).toBe(0));
   });
 });
 

@@ -17,6 +17,25 @@ import type {
   EmergencyPacketTrial,
 } from './types.ts';
 
+/**
+ * What a class nobody judges prints (MYK9-2377). The same wording the app uses for an unset
+ * judge (`UNSET_JUDGE_LABEL`); it reads as a whole line, so the sheet prints it without a
+ * "Judge: " prefix. Duplicated here because this module has no app imports.
+ */
+export const PACKET_UNSET_JUDGE_LABEL = 'Judge to be announced';
+
+/** The legacy stored text for an unset judge; the Reports mapping still hands it over. */
+export function isUnsetPacketJudge(name: string | null | undefined): boolean {
+  const trimmed = (name ?? '').trim();
+  return trimmed === '' || trimmed === 'TBD';
+}
+
+/** The sheet's judge line: "Judge: Name", or the whole-line "Judge to be announced". */
+export function judgeDetailLine(judgeName: string | undefined): string | undefined {
+  if (!judgeName) return undefined;
+  return judgeName === PACKET_UNSET_JUDGE_LABEL ? judgeName : `Judge: ${judgeName}`;
+}
+
 export function formatPacketSeconds(seconds?: number | null): string {
   if (!seconds || seconds === 0) return '';
   const mins = Math.floor(seconds / 60);
@@ -130,8 +149,8 @@ export type PrintedClassHeader = Required<
   >;
 
 /**
- * The class header the renderer prints. A class with no judge prints "Judge unassigned"; the
- * class's own registry (falling back to the trial's) picks the scoresheet's title wording.
+ * The class header the renderer prints. A class with no judge (blank, or the legacy "TBD")
+ * prints "Judge to be announced"; the class's own registry (falling back to the trial's) picks the scoresheet's title wording.
  */
 export function printedClassHeader(
   classItem: EmergencyPacketClass,
@@ -142,7 +161,9 @@ export function printedClassHeader(
     trialDate: trial.date,
     ringLabel: classItem.ringLabel || undefined,
     classLabel: classLabel(classItem),
-    judgeName: classItem.judgeName || 'Judge unassigned',
+    judgeName: isUnsetPacketJudge(classItem.judgeName)
+      ? PACKET_UNSET_JUDGE_LABEL
+      : classItem.judgeName.trim(),
     timeLimitLabel: formatClassTimeLimits(classItem),
     areaCount: resolveAreaCount(classItem),
     registryId: classItem.registryId ?? trial.registryId,

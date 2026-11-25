@@ -50,6 +50,14 @@ describe('judge packet pages', () => {
     expect((await recordPackets(CLASSES, ENTRIES)).record).toMatchSnapshot();
   });
 
+  it('never prints TBD on a class nobody judges; the line reads Judge to be announced (MYK9-2377)', async () => {
+    const { record } = await recordPackets(CLASSES, ENTRIES);
+    const printed = Object.values(record).flat().join(' ');
+    expect(printed).toContain('Buried Novice · Judge to be announced');
+    expect(printed).not.toContain('Judge: Judge');
+    expect(printed).not.toMatch(/\bTBD\b/);
+  });
+
   it('keeps the edges too: cancelled, ties, no start, midnight and noon, no time limit, judge spelling', async () => {
     const judge = (first: string, last: string) => [
       { people: { first_name: first, last_name: last } },

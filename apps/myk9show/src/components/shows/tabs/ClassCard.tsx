@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 import { Users, Clock, Hash } from 'lucide-react';
 import { type ClassStatusValue } from '@myk9/core';
 import { shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers';
-import { StatusBadge, StatusIcon } from '@/components/status';
+import { StatusBadge } from '@/components/status';
 
 interface ClassInfo {
   id: string;
@@ -18,30 +18,13 @@ interface ClassInfo {
   userHasEntry?: boolean;
 }
 
-interface LiveData {
-  totalEntries: number;
-  completedEntries: number;
-  inRingArmband?: string;
-  nextArmbands?: string[];
-}
-
 interface ClassCardProps {
   classInfo: ClassInfo;
   hideRing?: boolean;
-  liveData?: LiveData;
   onClick?: () => void;
 }
 
-const LIVE_STATUSES = new Set(['In Progress', 'Paused']);
-
-export function ClassCard({ classInfo, hideRing, liveData, onClick }: ClassCardProps) {
-  const isLive = LIVE_STATUSES.has(classInfo.status) && liveData;
-  const progressPct =
-    isLive && liveData.totalEntries > 0
-      ? (liveData.completedEntries / liveData.totalEntries) * 100
-      : 0;
-  const remaining = isLive ? liveData.totalEntries - liveData.completedEntries : 0;
-
+export function ClassCard({ classInfo, hideRing, onClick }: ClassCardProps) {
   return (
     <div
       data-class-id={classInfo.id}
@@ -98,50 +81,6 @@ export function ClassCard({ classInfo, hideRing, liveData, onClick }: ClassCardP
           </span>
         )}
       </div>
-
-      {/* Progress bar — live classes only */}
-      {isLive && (
-        <div className="space-y-1">
-          <div
-            role="progressbar"
-            aria-valuenow={liveData.completedEntries}
-            aria-valuemin={0}
-            aria-valuemax={liveData.totalEntries}
-            className="h-2 bg-muted rounded-full overflow-hidden"
-          >
-            <div
-              className="h-full bg-primary rounded-full transition-all duration-500"
-              style={{ width: `${progressPct}%` }}
-            />
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {remaining > 0 ? `${remaining} of ${liveData.totalEntries} remaining` : 'All complete'}
-          </p>
-        </div>
-      )}
-
-      {/* In ring + next up — live classes only */}
-      {isLive &&
-        (liveData.inRingArmband || (liveData.nextArmbands && liveData.nextArmbands.length > 0)) && (
-          <div className="flex items-center gap-3 text-sm">
-            {liveData.inRingArmband && (
-              <div className="flex items-center gap-1.5">
-                <StatusIcon family="entry" status="in-ring" size="sm" decorative />
-                <span className="font-semibold">#{liveData.inRingArmband}</span>
-              </div>
-            )}
-            {liveData.nextArmbands && liveData.nextArmbands.length > 0 && (
-              <div className="flex items-center gap-1 text-muted-foreground">
-                <span className="text-xs">Next:</span>
-                {liveData.nextArmbands.map(a => (
-                  <span key={a} className="px-1.5 py-0.5 bg-muted rounded text-xs font-medium">
-                    #{a}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
 
       {/* Entry count footer */}
       <div className="flex items-center gap-1 text-xs text-muted-foreground pt-1 border-t border-border/30">

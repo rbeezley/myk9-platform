@@ -338,6 +338,14 @@ describe('buildEmergencyTrialPacketPdf', () => {
     expect(texts).toContain('301');
   });
 
+  it('says no dogs are running on the scoresheet of a class where every dog sits out (MYK9-2387)', () => {
+    const { texts } = renderPageOfKind('score-recording', {
+      runOrder: null,
+      notRunningLabel: 'Pending',
+    });
+    expect(texts).toContain('No dogs are running in this class yet.');
+  });
+
   it.each(['', 'TBD'])(
     'prints Judge to be announced, not TBD, for a class with judge %j (MYK9-2377)',
     judgeName => {

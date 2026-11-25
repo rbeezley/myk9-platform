@@ -2,7 +2,11 @@ import { formatTrialLabel } from '@myk9/core';
 import { formatRingLabel } from '@/utils/ringLabel';
 import { resolveClassJudgeName } from '@/utils/classJudgeDisplay';
 import { resolveClassSection } from '@/services/entryDisplay/entryDisplaySelectors';
-import { isEntryListedOnCheckIn, notRunningStatusLabel } from '@/lib/reports/runSheetEntries';
+import {
+  isEntryListedOnCheckIn,
+  isOmittedFromCatalog,
+  notRunningStatusLabel,
+} from '@/lib/reports/runSheetEntries';
 import type { ReportDbEntry, ReportScope } from '@/lib/reports/types';
 import type { DbClass, DbTrial } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
@@ -83,7 +87,12 @@ export function buildPacketEntries(
     .filter(entry => !entry.awaitingRegistrationNumber && isEntryListedOnCheckIn(entry))
     .map(entry => {
       const notRunningLabel = notRunningStatusLabel(entry);
-      return notRunningLabel ? { ...entry, notRunningLabel } : entry;
+      if (!notRunningLabel) return entry;
+      return {
+        ...entry,
+        notRunningLabel,
+        ...(isOmittedFromCatalog(entry) ? { omitFromCatalog: true } : {}),
+      };
     });
 }
 

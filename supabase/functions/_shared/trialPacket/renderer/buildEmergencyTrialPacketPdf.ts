@@ -785,6 +785,8 @@ function renderTimeRegion(doc: jsPDF, areaCount: number, y0: number): void {
   });
 }
 
+const NO_RUNNING_DOGS_MESSAGE = 'No dogs are running in this class yet.';
+
 function renderScoreRecording(doc: jsPDF, page: EmergencyPacketPage): void {
   const y0Title = addTitle(doc, page);
   const config = resolveScoresheetConfig(page.context.registryId);
@@ -793,6 +795,13 @@ function renderScoreRecording(doc: jsPDF, page: EmergencyPacketPage): void {
   // `resolveAreaCount` in `buildEmergencyPacketModel`.
   const areaCount = page.context.areaCount ?? 1;
   let y = y0Title;
+  if (page.entries.length === 0) {
+    // MYK9-2387: every dog in the class sits out, so the sheet says so instead of printing blank.
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(12);
+    doc.text(NO_RUNNING_DOGS_MESSAGE, LEFT, y + 6);
+    return;
+  }
   for (const entry of page.entries) {
     doc.setDrawColor(90, 90, 90);
     doc.rect(LEFT, y, RIGHT - LEFT, SCORE_BLOCK_HEIGHT_MM);

@@ -8,7 +8,6 @@ import { compareArmbands } from './armband.ts';
 import { printedClassHeader } from './printedClassHeader.ts';
 import {
   EMERGENCY_PACKET_MARKER,
-  PENDING_NOT_RUNNING_LABEL,
   type EmergencyPacketAvailability,
   type EmergencyPacketClass,
   type EmergencyPacketEntry,
@@ -286,8 +285,7 @@ export function buildEmergencyPacketModel(
   const sortedEntries = [...input.entries].sort(compareEntries);
   // The catalog: as before MYK9-2387, runners and Pending dogs in `compareEntries` order, each
   // numbered by its stored run order.
-  const inCatalog = (entry: PacketReportEntry) =>
-    !entry.notRunningLabel || entry.notRunningLabel === PENDING_NOT_RUNNING_LABEL;
+  const inCatalog = (entry: PacketReportEntry) => !entry.omitFromCatalog;
   const catalogPositions = sheetPositions(sortedEntries.filter(inCatalog));
   const trialSections = sortedTrials.map(trial => ({
     ...trial,
@@ -359,21 +357,24 @@ export function buildEmergencyPacketModel(
       const scoresheetTitle = `${resolveScoresheetConfig(classContext.registryId).orgTitle} Scoresheet`;
       // MYK9-2387: the scoresheet lists only the dogs that run.
       const runningEntries = classEntries.filter(entry => !entry.notRunningLabel);
-      chunksWithFirst(runningEntries, SCORE_ROWS_FIRST_PAGE, SCORE_ROWS_CONTINUATION).forEach(
-        (entries, index, pages) => {
-          const suffix = pages.length > 1 ? ` (${index + 1}/${pages.length})` : '';
-          pendingPages.push(
-            page(
-              input,
-              'score-recording',
-              `${scoresheetTitle}${suffix}`,
-              classContext,
-              entries,
-              snapshotMarker
-            )
-          );
-        }
-      );
+      // A class that lists dogs but runs none still gets one page, which says so, rather than none.
+      const scorePages =
+        runningEntries.length === 0 && classEntries.length > 0
+          ? [[] as PacketReportEntry[]]
+          : chunksWithFirst(runningEntries, SCORE_ROWS_FIRST_PAGE, SCORE_ROWS_CONTINUATION);
+      scorePages.forEach((entries, index, pages) => {
+        const suffix = pages.length > 1 ? ` (${index + 1}/${pages.length})` : '';
+        pendingPages.push(
+          page(
+            input,
+            'score-recording',
+            `${scoresheetTitle}${suffix}`,
+            classContext,
+            entries,
+            snapshotMarker
+          )
+        );
+      });
     }
 
     pendingPages.push(

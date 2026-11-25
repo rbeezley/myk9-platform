@@ -29,7 +29,6 @@ export function MergedSheetsPreview({
   ready,
   iframeRef,
   onReadyChange,
-  labelOf = id => id,
 }: {
   reportIds: readonly string[];
   show: Show | null | undefined;
@@ -45,15 +44,13 @@ export function MergedSheetsPreview({
    * otherwise, so a stale merge can never print under the current sheets' fingerprints.
    */
   onReadyChange?: (ready: boolean) => void;
-  /** The sheet's name as the panel shows it, for the note about a sheet left out of the batch. */
-  labelOf?: (reportId: string) => string;
 }) {
   // The build the failure belongs to, so a new build starts clean without resetting state in an effect.
   const [failedFor, setFailedFor] = useState<unknown>(null);
   // Bumped by Try again so the sheets are built afresh.
   const [attempt, setAttempt] = useState(0);
   const key = reportIds.join('|');
-  const built = useMemo(() => {
+  const parts = useMemo(() => {
     if (!ready || !show) return null;
     const pages = buildPages(
       trialId,
@@ -65,25 +62,16 @@ export function MergedSheetsPreview({
     if (pages.length === 0) return null;
     const dataSet: ReportDataSet = { show, pages };
     try {
-      const skipped: string[] = [];
-      const bytesList = key.split('|').flatMap(id => {
+      return key.split('|').map(id => {
         const report = getReportById(id);
-        if (!report?.buildPdf) return [null];
-        // A sheet with nothing to print (no running dogs, MYK9-2387) is left out of the batch.
-        const bytes = report.buildPdf(dataSet, report.defaultSort ?? 'run-order');
-        if (!bytes) skipped.push(id);
-        return bytes ? [bytes] : [];
+        return report?.buildPdf?.(dataSet, report.defaultSort ?? 'run-order') ?? null;
       });
-      return { parts: bytesList, skipped };
     } catch {
       return 'error' as const;
     }
     // `attempt` is not read in the body; it forces a fresh build after Try again.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, show, trialId, classId, trials, classes, entries, key, attempt]);
-
-  const parts = built === 'error' ? 'error' : (built?.parts ?? null);
-  const skipped = built === 'error' || !built ? [] : built.skipped;
 
   // A layout effect, not a passive one: the caller's Print button must go disabled in the same
   // commit that empties the frame. A passive effect leaves a gap (a task or more, longer under
@@ -94,8 +82,7 @@ export function MergedSheetsPreview({
     // The inputs changed: whatever the frame holds describes obsolete sheets. Empty it first.
     if (iframe?.getAttribute('src')?.startsWith('blob:')) iframe.src = 'about:blank';
     onReadyChange?.(false);
-    if (!iframe || !parts || parts === 'error' || parts.length === 0) return;
-    if (parts.some(part => part === null)) return;
+    if (!iframe || !parts || parts === 'error' || parts.some(part => part === null)) return;
     let url: string | null = null;
     // Set by the cleanup of this build, so an older merge resolving late is dropped.
     let superseded = false;
@@ -122,12 +109,6 @@ export function MergedSheetsPreview({
 
   return (
     <div className="w-full">
-      {skipped.length > 0 && (
-        <p role="status" className="mb-2 text-sm text-muted-foreground">
-          {skipped.map(labelOf).join(', ')} will not print: no dog in this class is running.
-          {parts !== 'error' && parts?.length === 0 ? ' There is nothing to print.' : ''}
-        </p>
-      )}
       {failed && (
         <p role="alert" className="mb-2 text-sm text-destructive">
           These sheets could not be combined. Try again, or print them one at a time.

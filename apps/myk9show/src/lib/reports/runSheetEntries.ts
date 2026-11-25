@@ -33,6 +33,12 @@ export function isEntryListedOnCheckIn(entry: RunSheetEntryInput): boolean {
   return stateOf(entry).listed;
 }
 
+/** True when the entry catalog leaves the dog out (lifecycle or check-in status, never a result). */
+export function isOmittedFromCatalog(entry: RunSheetEntryInput): boolean {
+  const state = stateOf(entry);
+  return state.listed && !state.inCatalog;
+}
+
 /** The status the sheet prints for a listed entry that will not run, or `null` when it runs. */
 export function notRunningStatusLabel(entry: RunSheetEntryInput): string | null {
   return stateOf(entry).notRunningLabel;

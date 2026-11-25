@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { notRunningLabel, notRunningReasonOf } from '@myk9/ringside/run-queue';
 import { getEntryStatusKind, getStatusLabel } from '@/services/entryDisplay/entryDisplaySelectors';
 import { PENDING_NOT_RUNNING_LABEL } from '@/features/emergency-trial-packet/types';
-import { isSupersededMoveUpEntry } from '@/features/financial/moneyRoot';
+import { isPendingEntryStatus } from '@/features/entry-operations/classEntryBreakdown';
 import {
   sheetEntryState,
   SHEET_ABSENT_LABEL,
@@ -64,14 +64,16 @@ describe('shared sheet entry rule agrees with the app and Show Desk (MYK9-2387)'
       const canonical = kind === 'withdrawn' ? 'withdrawn' : entryStatus;
       const reason = notRunningReasonOf(canonical, checkInStatus);
 
+      // A declined entry (rejected, not accepted) and the source of a move-up are not listed.
+      // `promotion-expired` is NOT declined: it stays Pending (owner decision).
       expect(state.listed).toBe(
-        !isSupersededMoveUpEntry({ entryStatus }) && kind !== 'not_accepted'
+        entryStatus !== 'moved' && !['not_accepted', 'rejected'].includes(entryStatus ?? '')
       );
       if (!state.listed) {
         expect(state.notRunningLabel).toBeNull();
       } else if (reason) {
         expect(state.notRunningLabel).toBe(notRunningLabel(reason));
-      } else if (kind === 'pending') {
+      } else if (isPendingEntryStatus(entryStatus)) {
         expect(state.notRunningLabel).toBe(PENDING_NOT_RUNNING_LABEL);
       } else {
         expect(state.notRunningLabel).toBeNull();
@@ -79,10 +81,36 @@ describe('shared sheet entry rule agrees with the app and Show Desk (MYK9-2387)'
     }
   );
 
+  it.each(['paid', 'promotion-expired'])(
+    'lists %s as Pending, not running, in the catalog',
+    status => {
+      expect(isPendingEntryStatus(status)).toBe(true);
+      expect(sheetEntryState({ entryStatus: status })).toEqual({
+        listed: true,
+        notRunningLabel: 'Pending',
+        inCatalog: true,
+      });
+    }
+  );
+
+  it('keeps the catalog on lifecycle and check-in status: a result alone never drops a dog', () => {
+    expect(sheetEntryState({ entryStatus: 'confirmed', resultStatus: 'absent' }).inCatalog).toBe(
+      true
+    );
+    expect(sheetEntryState({ entryStatus: 'confirmed', resultStatus: 'withdrawn' }).inCatalog).toBe(
+      true
+    );
+    expect(sheetEntryState({ entryStatus: 'withdrawn' }).inCatalog).toBe(false);
+    expect(sheetEntryState({ entryStatus: 'confirmed', checkInStatus: 'pulled' }).inCatalog).toBe(
+      false
+    );
+  });
+
   it('treats a recorded absent or withdrawn result as not running, and withdrawn beats a pull', () => {
     expect(sheetEntryState({ entryStatus: 'confirmed', resultStatus: 'absent' })).toEqual({
       listed: true,
       notRunningLabel: 'Absent',
+      inCatalog: true,
     });
     expect(
       sheetEntryState({

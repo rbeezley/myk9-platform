@@ -76,11 +76,10 @@ export const reportRegistry: ReportDefinition[] = [
     // deleted in Task 7.
     component: PlaceholderReport,
     enabled: true,
-    buildPdf: (dataset, sortOrder) => {
-      const model = selectPacketPages(toScoresheetModel(dataset, sortOrder), 'score-recording');
-      // MYK9-2387: only running dogs reach the scoresheet; with none there is nothing to print.
-      return model.pages.length > 0 ? renderEmergencyTrialPacketPdf(model) : null;
-    },
+    buildPdf: (dataset, sortOrder) =>
+      renderEmergencyTrialPacketPdf(
+        selectPacketPages(toScoresheetModel(dataset, sortOrder), 'score-recording')
+      ),
   },
   {
     id: 'results-sheet',

@@ -42,7 +42,7 @@ export interface CollatedTrialPacket {
   trialLabel: string;
   registryName: string;
   judges: TrialPacketJudge[];
-  /** Classes with no running dog (none entered, or all Pending, Withdrawn or Pulled): nothing to judge, so no sheets are printed for them. */
+  /** Classes with no dogs entered: nothing to judge, so no sheets are printed for them. */
   emptyClassCount: number;
   /** Cancelled classes: the cockpit lists no paperwork for them, so none is printed or marked. */
   cancelledClassCount: number;

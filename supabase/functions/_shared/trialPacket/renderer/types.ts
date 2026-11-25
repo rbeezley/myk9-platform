@@ -30,6 +30,12 @@ export interface PacketReportEntry {
    * scoresheet. Absent for a running dog, and for every row the server input builds.
    */
   notRunningLabel?: string | undefined;
+  /**
+   * MYK9-2387: true on a dog the entry catalog leaves out (withdrawn, pulled or absent by its
+   * lifecycle or check-in status). Separate from `notRunningLabel`: a dog only RECORDED absent or
+   * withdrawn in its result still prints in the catalog, as it did before.
+   */
+  omitFromCatalog?: boolean | undefined;
   callName: string;
   breed: string;
   handler: string;

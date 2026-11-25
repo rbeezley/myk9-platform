@@ -34,8 +34,6 @@ export interface ReportPreviewBodyProps {
   onRetry: () => void;
   iframeRef: React.RefObject<HTMLIFrameElement | null>;
   onArmbandDescriptorChange?: (descriptor: PaperworkDescriptor | null) => void;
-  /** True while the sheet has no running dog, so the page can leave Print off (MYK9-2387). */
-  onEmptySheetChange?: (empty: boolean) => void;
   /** The armband labels open on this entry's dog and day (a dog's row, MYK9-2073). */
   armbandPresetEntryId?: string | undefined;
 }
@@ -109,7 +107,6 @@ export function ReportPreviewBody(props: ReportPreviewBodyProps) {
         downloadBlockedReason={props.downloadBlockedReason}
         onRetry={props.onRetry}
         iframeRef={iframeRef}
-        {...(props.onEmptySheetChange ? { onEmptySheetChange: props.onEmptySheetChange } : {})}
       />
     </div>
   );

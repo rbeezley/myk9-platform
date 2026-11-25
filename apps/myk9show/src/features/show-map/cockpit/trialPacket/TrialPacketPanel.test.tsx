@@ -133,7 +133,7 @@ describe('TrialPacketPanel', () => {
     expect(screen.getByRole('button', { name: /Pat Donovan/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Sam Lee/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /No judge assigned/ })).toBeInTheDocument();
-    expect(screen.getByText(/1 class has no dogs running yet and is left out/)).toBeInTheDocument();
+    expect(screen.getByText(/1 class has no dogs yet and is left out/)).toBeInTheDocument();
   });
 
   it.each([

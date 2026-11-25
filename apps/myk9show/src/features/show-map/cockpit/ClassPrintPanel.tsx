@@ -171,11 +171,8 @@ function ClassPrintPanelBody({
   >(undefined);
   // The labels choice left nothing (a dog with no label yet, or all already printed): the report
   // above says why, and there is no paper to send.
-  // A sheet with no running dog (MYK9-2387) has no paper either: the preview says why.
-  const [emptySheet, setEmptySheet] = useState(false);
   const nothingToPrint =
-    !batch &&
-    ((items[0]?.reportId === 'armband-labels' && armbandDescriptor === null) || emptySheet);
+    !batch && items[0]?.reportId === 'armband-labels' && armbandDescriptor === null;
   const cannotMerge = batch ? unmergeableReportIds(items.map(item => item.reportId)) : [];
   const labelOf = (id: string) => items.find(item => item.reportId === id)?.label ?? id;
 
@@ -266,7 +263,6 @@ function ClassPrintPanelBody({
             classId={classId}
             ready={!blockedMessage}
             onReadyChange={setMergedReady}
-            labelOf={labelOf}
             iframeRef={mergedFrame}
           />
         </section>
@@ -297,7 +293,6 @@ function ClassPrintPanelBody({
                 onRetry={() => refetch()}
                 iframeRef={frames.get(item.reportId)!}
                 onArmbandDescriptorChange={setArmbandDescriptor}
-                onEmptySheetChange={setEmptySheet}
                 armbandPresetEntryId={presetEntryId}
               />
             </div>

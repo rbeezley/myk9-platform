@@ -260,7 +260,7 @@ function TrialPacketBody({ showId, trialId }: { showId: string; trialId: string 
   if (packet.judges.length === 0 && !emptyView) {
     return (
       <p className="p-4 text-sm">
-        {packet.trialLabel} has no dogs running yet, so there is nothing to print.
+        {packet.trialLabel} has no dogs entered yet, so there is nothing to print.
       </p>
     );
   }
@@ -276,7 +276,7 @@ function TrialPacketBody({ showId, trialId }: { showId: string; trialId: string 
       </p>
       {packet.emptyClassCount > 0 && (
         <p className="rounded-md border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-          {plural(packet.emptyClassCount, 'class has', 'classes have')} no dogs running yet and{' '}
+          {plural(packet.emptyClassCount, 'class has', 'classes have')} no dogs yet and{' '}
           {packet.emptyClassCount === 1 ? 'is' : 'are'} left out.
         </p>
       )}

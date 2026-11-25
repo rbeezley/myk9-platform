@@ -101,6 +101,8 @@ const ENTRY_FIELDS: Record<keyof PacketReportEntry, EntryMutation> = {
   // MYK9-2387: a dog that will not run prints its status on the check-in sheet and leaves the
   // scoresheet, so both sheets change.
   notRunningLabel: { prints: 'both', mutate: () => ({ notRunningLabel: 'Withdrawn' }) },
+  // The entry catalog's own flag; neither the check-in sheet nor the scoresheet prints it.
+  omitFromCatalog: { prints: 'none', mutate: () => ({ omitFromCatalog: true }) },
   callName: { prints: 'both', mutate: () => ({ callName: 'Renamed' }) },
   breed: { prints: 'both', mutate: () => ({ breed: 'Basset Hound' }) },
   handler: { prints: 'both', mutate: () => ({ handler: 'New Handler' }) },

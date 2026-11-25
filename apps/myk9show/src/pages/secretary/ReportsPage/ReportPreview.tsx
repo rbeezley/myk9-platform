@@ -24,7 +24,6 @@ import type { ReportDataState } from '@/hooks/queries/useReportData';
 import { resolveClassJudgeName } from '@/utils/classJudgeDisplay';
 import { officialFormJudgeBlock } from './reportJudgeGate';
 import { JudgeBlockedNotice } from './JudgeBlockedNotice';
-import { ReportUnavailableNotice } from './ReportUnavailableNotice';
 
 export interface ReportPreviewProps {
   reportType: string;
@@ -69,8 +68,6 @@ export interface ReportPreviewProps {
   downloadBlockedReason?: string | undefined;
   onRetry?: () => void;
   iframeRef?: React.RefObject<HTMLIFrameElement | null>;
-  /** True while the sheet is built but has no running dog to print (MYK9-2387). */
-  onEmptySheetChange?: (empty: boolean) => void;
 }
 
 export function ReportPreview({
@@ -92,7 +89,6 @@ export function ReportPreview({
   downloadBlockedReason,
   onRetry,
   iframeRef: externalIframeRef,
-  onEmptySheetChange,
 }: ReportPreviewProps) {
   const internalIframeRef = useRef<HTMLIFrameElement>(null);
   const iframeRef = externalIframeRef ?? internalIframeRef;
@@ -129,14 +125,6 @@ export function ReportPreview({
     // about the selection changed after a transient renderer failure.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pdfDataSet, report, sortOrder, pdfRetryKey]);
-
-  // The frame is gone for a sheet with nothing to print, so the page's Print would only say the
-  // preview is still building. Tell it, and clear the flag when the selection changes or unmounts.
-  const emptySheet = Boolean(pdfResult && !pdfResult.bytes && !pdfResult.error);
-  useEffect(() => {
-    onEmptySheetChange?.(emptySheet);
-    return () => onEmptySheetChange?.(false);
-  }, [emptySheet, onEmptySheetChange]);
 
   // Renders the built PDF into the same iframe the markup path uses. Revokes
   // the previous object URL on every change and on unmount so a re-render
@@ -327,10 +315,43 @@ export function ReportPreview({
     return <ForeignReportNotice reportName={report.name} />;
   }
 
-  if (dataState === 'unavailable')
-    return <ReportUnavailableNotice source="entries" onRetry={onRetry} />;
+  if (dataState === 'unavailable') {
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex flex-col items-center justify-center gap-3 p-8 text-center"
+      >
+        <p className="font-medium">This show's entries could not be checked.</p>
+        <p className="max-w-prose text-sm text-muted-foreground">
+          There is no connection right now, so the app has not been able to ask how many dogs are
+          entered. That is different from the class being empty. Reconnect and this will fill in.
+        </p>
+        {onRetry && (
+          <Button type="button" variant="outline" onClick={onRetry}>
+            Try again
+          </Button>
+        )}
+      </div>
+    );
+  }
 
-  if (hostedState === 'unavailable') return <ReportUnavailableNotice source="details" />;
+  if (hostedState === 'unavailable') {
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex flex-col items-center justify-center gap-3 p-8 text-center"
+      >
+        <p className="font-medium">This report's details could not be checked.</p>
+        <p className="max-w-prose text-sm text-muted-foreground">
+          There is no connection right now, and this report needs details that are not stored on
+          this device. That is different from there being nothing to print. Reconnect and this will
+          fill in.
+        </p>
+      </div>
+    );
+  }
 
   if (isLoading || hostedState === 'loading' || hostedState === 'stale') {
     return (
@@ -410,20 +431,16 @@ export function ReportPreview({
 
   // `rendersWithoutEntries` reports are about the trial's classes, not its entries, so
   // the generic empty state would suppress the very explanation they exist to give.
-  const emptyState = (message: string) => (
-    <div
-      role="status"
-      aria-live="polite"
-      className="flex items-center justify-center p-8 text-muted-foreground"
-    >
-      {message}
-    </div>
-  );
   if (!isLoading && !hasEntries && !report?.rendersWithoutEntries) {
-    return emptyState('No entries found for this selection');
-  }
-  if (report?.buildPdf && pdfResult && !pdfResult.bytes && !pdfResult.error) {
-    return emptyState('No dog in this selection is running, so there is no score sheet to print.');
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex items-center justify-center p-8 text-muted-foreground"
+      >
+        No entries found for this selection
+      </div>
+    );
   }
 
   if (report?.buildPdf && pdfResult?.error) {

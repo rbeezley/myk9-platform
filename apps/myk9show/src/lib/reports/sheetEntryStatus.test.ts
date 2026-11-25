@@ -231,7 +231,7 @@ describe('check-in sheet lists every entry with its status; the scoresheet lists
     expect(judge?.dogTotal).toBe(3);
   });
 
-  it('leaves a class whose dogs all sit out out of the judge packet, as before MYK9-2387', () => {
+  it('keeps a class whose dogs all sit out in the judge packet, with its check-in sheet and the one No dogs are running page', () => {
     const packet = collateTrialPacket({
       show,
       trials: [trial],
@@ -239,8 +239,11 @@ describe('check-in sheet lists every entry with its status; the scoresheet lists
       entries: [entry(3, novice.id, 'withdrawn'), entry(5, novice.id, 'pending')],
       trialId: trial.id,
     });
-    expect(packet?.emptyClassCount).toBe(1);
-    expect(packet?.judges).toHaveLength(0);
+    expect(packet?.emptyClassCount).toBe(0);
+    const only = packet?.judges[0]?.classes[0];
+    expect(only).toMatchObject({ dogCount: 0, listedCount: 2, runOrder: [] });
+    expect(only?.checkInPages).toBe(1);
+    expect(only?.scoreSheetPages).toBe(1);
   });
 
   it('counts a class with nothing to list (a move-up source, a declined entry) as empty, not as a sheet to print', () => {
@@ -257,21 +260,53 @@ describe('check-in sheet lists every entry with its status; the scoresheet lists
 });
 
 describe('what prints when a class has no running dog (MYK9-2387)', () => {
-  it('gives the Reports scoresheet nothing to print, so the preview can say so', () => {
-    const dataset: ReportDataSet = {
+  const dataset: ReportDataSet = {
+    show,
+    pages: [
+      {
+        trial,
+        classData: novice,
+        entries: [entry(3, novice.id, 'withdrawn'), entry(5, novice.id, 'pending')],
+      },
+    ],
+  };
+
+  it('lists both dogs on the check-in sheet with their status and no order', () => {
+    expect(rowsOn(dataset, 'check-in')).toEqual([
+      ['3', '', 'Withdrawn'],
+      ['5', '', 'Pending'],
+    ]);
+  });
+
+  it('gives the scoresheet a single page with no dog rows, which says nobody is running', () => {
+    const model = selectPacketPages(toScoresheetModel(dataset, 'run-order'), 'score-recording');
+    expect(model.pages).toHaveLength(1);
+    expect(model.pages[0]?.entries).toEqual([]);
+    const bytes = getReportById('scoresheet')?.buildPdf?.(dataset, 'run-order');
+    expect(bytes).toBeInstanceOf(Uint8Array);
+  });
+
+  it('keeps a dog recorded absent or withdrawn only in its result in the catalog', () => {
+    const recorded: ReportDataSet = {
       show,
       pages: [
         {
           trial,
           classData: novice,
-          entries: [entry(3, novice.id, 'withdrawn'), entry(5, novice.id, 'pending')],
+          entries: [
+            { ...entry(1, novice.id, 'confirmed'), result_status: 'absent' },
+            { ...entry(2, novice.id, 'confirmed'), result_status: 'withdrawn' },
+            entry(3, novice.id, 'withdrawn'),
+          ] as DbEntry[],
         },
       ],
-    };
-    expect(getReportById('scoresheet')?.buildPdf?.(dataset, 'run-order')).toBeNull();
-    expect(getReportById('check-in-sheet')?.buildPdf?.(dataset, 'run-order')).toBeInstanceOf(
-      Uint8Array
-    );
+    } as ReportDataSet;
+    expect(catalogRows(recorded).map(([armband]) => armband)).toEqual(['1', '2']);
+    expect(rowsOn(recorded, 'check-in')).toEqual([
+      ['1', '', 'Absent'],
+      ['2', '', 'Withdrawn'],
+      ['3', '', 'Withdrawn'],
+    ]);
   });
 });
 

@@ -56,6 +56,9 @@ function mockQuery(supabaseFrom: { mockReturnValue: (value: never) => unknown })
     rowReads: string[][];
   } = { data: [], pages: [], count: undefined, rowReads: [] };
   let countOnly = false;
+  // A read carrying the `or` keyset cursor is a follow-up page: with no page queued
+  // it finds nothing more, which is the empty page that ends the read (MYK9-2252).
+  let followUp = false;
   let filters: string[] = [];
   const record =
     (method: string) =>
@@ -72,17 +75,22 @@ function mockQuery(supabaseFrom: { mockReturnValue: (value: never) => unknown })
     eq: vi.fn(record('eq')),
     gt: vi.fn(record('gt')),
     order: vi.fn(record('order')),
-    or: vi.fn(record('or')),
+    or: vi.fn((...args: unknown[]) => {
+      followUp = true;
+      return record('or')(...args);
+    }),
     range: vi.fn(record('range')),
     // A count reads no rows; a row read takes a queued page first, otherwise `data`.
     then: (resolve: (value: unknown) => unknown) => {
       if (!countOnly) state.rowReads.push(filters);
+      const continuation = followUp;
+      followUp = false;
       return Promise.resolve(
         countOnly
           ? { count: state.count, data: null, error: null }
           : {
               count: state.count,
-              data: state.pages.length > 0 ? state.pages.shift() : state.data,
+              data: state.pages.length > 0 ? state.pages.shift() : continuation ? [] : state.data,
               error: null,
             }
       ).then(resolve);
@@ -304,7 +312,8 @@ describe('ReplicatedArmbandsTable incremental sync (MYK9-1300)', () => {
 
     expect((await table.sync()).success).toBe(true);
 
-    expect(state.rowReads).toHaveLength(2);
+    // Two pages, then the empty page that ends the read (MYK9-2252).
+    expect(state.rowReads).toHaveLength(3);
     expect(state.rowReads[0]).toContain('eq("is_available",false)');
     expect(state.rowReads[0]!.some(call => call.startsWith('or('))).toBe(false);
     expect(state.rowReads[1]).toContain('eq("is_available",false)');
@@ -336,7 +345,8 @@ describe('ReplicatedArmbandsTable incremental sync (MYK9-1300)', () => {
 
     expect((await table.sync()).operation).toBe('incremental-sync');
 
-    expect(state.rowReads).toHaveLength(2);
+    // Two pages, then the empty page that ends the read (MYK9-2252).
+    expect(state.rowReads).toHaveLength(3);
     expect(state.rowReads[0]).toContain(
       `gt("updated_at",${JSON.stringify(new Date(Date.parse(T2) - REPLICATION_INCREMENTAL_BUFFER_MS).toISOString())})`
     );

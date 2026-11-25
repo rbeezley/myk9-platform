@@ -43,14 +43,27 @@ function mockServerRows(
   count = rows.length
 ) {
   const chain: Record<string, unknown> = {};
+  // The pager asks for a second page after the first and stops on its empty answer
+  // (MYK9-2252); that follow-up read is not a second delta read, so it is not recorded.
+  let followUp = false;
   for (const step of ['select', 'gt', 'or', 'order', 'eq', 'range', 'in']) {
     chain[step] = vi.fn((...args: unknown[]) => {
       if (step === 'select') selects.push(args);
+      // The `or` cursor marks this select as the follow-up page: forget it.
+      if (step === 'or') {
+        followUp = true;
+        selects.pop();
+      }
       return chain;
     });
   }
-  chain.then = (resolve: (value: unknown) => unknown) =>
-    Promise.resolve({ data: error ? null : rows, error: error ?? null, count }).then(resolve);
+  chain.then = (resolve: (value: unknown) => unknown) => {
+    const page = followUp ? [] : rows;
+    followUp = false;
+    return Promise.resolve({ data: error ? null : page, error: error ?? null, count }).then(
+      resolve
+    );
+  };
   vi.mocked(supabase.from).mockReturnValue(chain as never);
   return chain;
 }

@@ -138,7 +138,9 @@ function bodies(callsPath: string): string[] {
 
 describe('codex-review.sh', () => {
   it('treats the #3003 review (negated opening plus JSON findings) as findings, exit 1 (MYK9-1209)', () => {
-    expect(run(stubCodex(`codex\n${REVIEW_3003}`)).code).toBe(1);
+    const r = run(stubCodex(`codex\n${REVIEW_3003}`));
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('Next: fix the findings above');
   });
   it('a clean-looking opening over a valid findings array is findings (exit 1)', () => {
     expect(run(stubCodex(`codex\n${CLEAN_OPENING_WITH_FINDINGS_ARRAY}`)).code).toBe(1);
@@ -146,7 +148,9 @@ describe('codex-review.sh', () => {
   it.each(CLEAN_WITH_NOISE)(
     'still certifies a clean verdict with a JSON snippet or validation caveat: %j',
     output => {
-      expect(run(stubCodex(`codex\n${output}`)).code).toBe(0);
+      const r = run(stubCodex(`codex\n${output}`));
+      expect(r.code).toBe(0);
+      expect(r.out).toContain('Next: clean for this head');
     }
   );
   it.each([...NEGATED_CLEAN_FORMS, NEGATED_OPENING_ONLY])(

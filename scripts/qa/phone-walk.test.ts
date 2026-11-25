@@ -14,6 +14,7 @@ import {
   WALK_WORKFLOW,
   configRunsWalk,
   missingPaths,
+  nextStep,
   readFlag,
   walkMatches,
   walkVerdict,
@@ -190,5 +191,16 @@ describe('workflowRunsWalkStep', () => {
     const base = `      - name: ${WALK_STEP}\n        run: pnpm exec playwright test ringsidePhoneWalk\n      - name: next\n`;
     const withCoe = base.replace('        run:', '        continue-on-error: true\n        run:');
     expect(workflowRunsWalkStep(withCoe)).toBe(false);
+  });
+});
+
+describe('nextStep (MYK9-2395)', () => {
+  it('gives each exit code its own next step', () => {
+    const lines = [0, 1, 2, 3].map(nextStep);
+    for (const line of lines) expect(line).toMatch(/^Next: /);
+    expect(new Set(lines).size).toBe(4);
+    expect(nextStep(1)).toContain('isolated-batch3-proof');
+    expect(nextStep(3)).toContain('not a verdict');
+    expect(nextStep(2)).toContain('not a pass');
   });
 });

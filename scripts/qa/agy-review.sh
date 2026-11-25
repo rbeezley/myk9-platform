@@ -52,6 +52,9 @@ ROOT="$(git rev-parse --show-toplevel)"
 POSTER="$HERE/post-review-gate.sh"
 # shellcheck source=scripts/qa/review-verdict.sh
 . "$HERE/review-verdict.sh"
+# shellcheck source=scripts/qa/review-next-step.sh
+. "$HERE/review-next-step.sh"
+trap 'review_next_step $? "${REVIEW_NEXT_MODE:-}"' EXIT
 
 BASE_SHA="$(git rev-parse "$BASE_REF")" || exit 2
 HEAD_SHA="$(git rev-parse HEAD)"

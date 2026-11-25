@@ -815,6 +815,8 @@ describe('claude-review.sh', () => {
       expect(detached.code).toBe(0);
       expect(Date.now() - started).toBeLessThan(3000); // did not wait for the 4s stub
       expect(detached.out).toContain('detached PR #7 review');
+      expect(detached.out).toContain('Next: the review is running in the background');
+      expect(detached.out).not.toContain('Next: clean');
       expect(readFileSync(join(stub.stateDir, 'claude-review-7.status'), 'utf8')).toMatch(
         /^running since=/
       );
@@ -822,11 +824,15 @@ describe('claude-review.sh', () => {
       const early = run(stub, gh, ['--wait', '1', '7']);
       expect(early.code).toBe(3);
       expect(early.out).toContain('still running');
+      expect(early.out).toContain('Next: the review is still running. Call --wait again');
 
       const done = run(stub, gh, ['--wait', '30', '7']);
       expect(done.code).toBe(0);
       expect(done.out).toContain('No actionable defects found.');
       expect(done.out).toContain('finished with exit 0');
+      // The child's own Next: line is relayed once; the poller adds no second one.
+      expect(done.out.match(/^Next: /gm)).toHaveLength(1);
+      expect(done.out).toContain('Next: clean for this head');
       expect(readFileSync(join(stub.stateDir, 'claude-review-7.status'), 'utf8').trim()).toBe('0');
     }, 20_000);
 

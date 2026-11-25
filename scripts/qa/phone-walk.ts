@@ -167,6 +167,20 @@ export function walkVerdict(
   };
 }
 
+/** What the caller does with each exit code (MYK9-2395); the ship-pr skill points here. */
+export function nextStep(code: number): string {
+  switch (code) {
+    case 0:
+      return 'Next: nothing to do for the walk; the review gate poster can post.';
+    case 1:
+      return 'Next: download the isolated-batch3-proof artifact, read the screenshots and trace, fix, push, and start the review again (ship-pr Step 3). The poster refuses until the walk is green.';
+    case 3:
+      return 'Next: not a verdict. post-review-gate.sh waits for the walk itself; run this again to see where it stands. If the poster gave up waiting, re-run the command it printed once the walk is green.';
+    default:
+      return 'Next: not a pass. Fix the cause above (move PHONE_WALK_PATHS with the code, push so the PR head is local HEAD, or retry once git/gh work) and run again.';
+  }
+}
+
 /** A flag's value, undefined when the flag is absent. A flag with no value is an error. */
 export function readFlag(argv: readonly string[], name: string): string | undefined {
   const index = argv.indexOf(name);
@@ -260,5 +274,6 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     console.error(`phone walk: could not decide: ${(error as Error).message.split('\n')[0]}`);
     code = 2;
   }
+  console.log(nextStep(code));
   process.exit(code);
 }

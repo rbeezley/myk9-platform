@@ -53,6 +53,9 @@ POSTER="$HERE/post-review-gate.sh"
 # One definition of "clean verdict" for both wrappers and the poster.
 # shellcheck source=scripts/qa/review-verdict.sh
 . "$HERE/review-verdict.sh"
+# shellcheck source=scripts/qa/review-next-step.sh
+. "$HERE/review-next-step.sh"
+trap 'review_next_step $? "${REVIEW_NEXT_MODE:-}"' EXIT
 CODEX="${CODEX_BIN:-codex}"
 MODEL="${CODEX_REVIEW_MODEL:-}"
 MODEL_ARGS=()

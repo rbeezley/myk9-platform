@@ -341,6 +341,7 @@ describe('watch-pr-checks harness', () => {
 
     expect(result.status, result.stdout + result.stderr).toBe(2);
     expect(result.stdout).toContain('head moved deadbeef -> cafef00d');
+    expect(result.stdout).toContain('Next: STOP. The head moved');
   });
 
   // MYK9-1710: a conflicting PR gets no workflow runs, so only the Vercel context
@@ -357,6 +358,7 @@ describe('watch-pr-checks harness', () => {
 
       expect(result.status, result.stdout + result.stderr).toBe(6);
       expect(result.stdout).toContain('PR conflicts with its base; merge the base in');
+      expect(result.stdout).toContain('Next: merge origin/main into the branch and push');
     });
 
     it('keeps waiting (times out, exit 3) while mergeable is null (not computed yet)', () => {
@@ -582,6 +584,13 @@ describe('watch-pr-checks harness', () => {
       '6  PR conflicts with its base',
     ]) {
       expect(source).toContain(code);
+    }
+  });
+
+  // MYK9-2395: every verdict exit tells the caller what to do next.
+  it('has a Next: line for every exit code', () => {
+    for (const code of ['0', '1', '2', '3', '4', '5', '6']) {
+      expect(source).toMatch(new RegExp(`^    ${code}\\) echo "Next: `, 'm'));
     }
   });
 });

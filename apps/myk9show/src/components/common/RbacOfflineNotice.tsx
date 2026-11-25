@@ -40,15 +40,7 @@ export const RbacOfflineNotice: React.FC = () => {
 
   return (
     <div className="pointer-events-none fixed bottom-24 left-4 right-4 z-50 md:left-auto md:right-4 md:max-w-sm">
-      <Alert className="pointer-events-none relative border-orange-200 bg-orange-50 pr-10">
-        <button
-          type="button"
-          aria-label="Hide this notice"
-          onClick={() => setHiddenFor(rbacFromCacheAt)}
-          className="pointer-events-auto absolute right-1 top-1 flex h-9 w-9 items-center justify-center rounded-md text-orange-800 hover:bg-orange-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-600"
-        >
-          <X className="h-4 w-4" aria-hidden="true" />
-        </button>
+      <Alert className="pointer-events-none relative border-orange-200 bg-orange-50 pr-12">
         <ShieldAlert className="h-4 w-4 text-orange-600" />
         <AlertDescription>
           <div className="font-medium text-orange-800">Working offline</div>
@@ -60,6 +52,17 @@ export const RbacOfflineNotice: React.FC = () => {
             <div className="text-sm text-orange-800">{OFFLINE_SAVED_MESSAGE}</div>
           )}
         </AlertDescription>
+        {/* After the message, so a screen reader reads the notice before the button. Hiding is the
+            person's choice: show pages keep their header offline line, and the toast stays
+            dismissed (MYK9-2014), so no second floating card replaces this one. */}
+        <button
+          type="button"
+          aria-label="Hide this notice"
+          onClick={() => setHiddenFor(rbacFromCacheAt)}
+          className="pointer-events-auto absolute right-0 top-0 flex h-11 w-11 items-center justify-center rounded-md text-orange-800 hover:bg-orange-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-600"
+        >
+          <X className="h-4 w-4" aria-hidden="true" />
+        </button>
       </Alert>
     </div>
   );

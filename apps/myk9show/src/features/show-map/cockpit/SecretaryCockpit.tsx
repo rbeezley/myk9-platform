@@ -388,7 +388,14 @@ export function SecretaryCockpit({
           ) : undefined,
           model.focusedClass !== null &&
             pendingClassId === model.focusedClass.id &&
-            !isJudgeChangeLocked(model.focusedClass)
+            !isJudgeChangeLocked(model.focusedClass),
+          pendingClassId === sourceClass?.id
+            ? {
+                id: sourceClass?.judgeId ?? null,
+                name: sourceClass?.judgeName ?? null,
+                status: sourceClass?.status ?? null,
+              }
+            : undefined
         )}
       {canManageShow && packetTrialId && (
         <TrialPacketPanel

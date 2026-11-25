@@ -3,6 +3,7 @@ import {
   classDurationRangeIssues,
   classTimeLimitFields,
   durationField,
+  editedTimeLimitsField,
 } from './validation.classDurations';
 
 export { classDurationMaxSeconds } from './validation.classDurations';
@@ -341,6 +342,7 @@ export const classSchemas = {
       status: z.string().min(1, 'Please select a status'),
       estimatedJudgingTime: durationField('the estimated judging time'),
       ...classTimeLimitFields,
+      editedTimeLimits: editedTimeLimitsField,
       judge: commonValidations.optionalString,
       judgeId: commonValidations.optionalString,
       gateSteward: commonValidations.optionalString,
@@ -390,7 +392,7 @@ export const classSchemas = {
       timeLimit2: durationField('time limit 2'),
       timeLimit3: durationField('time limit 3'),
       timeLimitLoaded: z.boolean().optional(),
-      timeLimitEdited: z.boolean().optional(),
+      editedTimeLimits: editedTimeLimitsField,
       ...classEntryFeeFields,
     })
     .superRefine((data, ctx) => {

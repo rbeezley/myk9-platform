@@ -6,6 +6,8 @@ import type { ClassStatusValue } from '@myk9/core';
 import type { JudgeChangeWarningProps } from '@/components/classes/JudgeChangeWarning';
 import type { EditPanelDeleteOption } from './EditPanelDelete';
 
+import type { TimeLimitField } from './ClassTimeLimitFields';
+
 export type CapacityControl = 'maxEntries' | 'allowsWaitlist';
 
 export interface ClassEditPanelProps {
@@ -27,6 +29,18 @@ export interface ClassEditPanelProps {
   liveSettings?: ReactNode;
   /** The settings hold the live Judge control, so the panel's own Judge field is hidden. */
   liveJudge?: boolean;
+  /**
+   * The class's judge and status as they are NOW (Show Desk's live data). The class handed in is
+   * as old as the panel: a live judge change, or the class starting, while it is open must not
+   * leave the form's Judge field, the judge-change warning or the save on the old judge.
+   */
+  currentJudge?: CurrentClassJudge | undefined;
+}
+
+export interface CurrentClassJudge {
+  id: string | null;
+  name: string | null;
+  status: string | null;
 }
 
 /** The judge the edit panel opened with, for the judge-change warning (MYK9-2015). */
@@ -45,6 +59,8 @@ export interface ClassEditFormData extends Record<string, unknown> {
   timeLimit1?: string;
   timeLimit2?: string;
   timeLimit3?: string;
+  /** The limits changed in THIS session; only these are saved (and range-checked). */
+  editedTimeLimits?: TimeLimitField[];
 
   // Officials
   judge?: string;
@@ -101,6 +117,6 @@ export interface TrialClassEditFormData extends Record<string, unknown> {
   timeLimit2?: string;
   timeLimit3?: string;
   timeLimitLoaded?: boolean;
-  /** Set once a limit is changed in this session; only then are they saved. */
-  timeLimitEdited?: boolean;
+  /** The limits changed in THIS session; only these are saved (and range-checked). */
+  editedTimeLimits?: TimeLimitField[];
 }

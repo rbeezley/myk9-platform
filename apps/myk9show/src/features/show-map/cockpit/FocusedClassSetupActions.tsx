@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 
+import type { CurrentClassJudge } from '@/components/panels/edit/ClassEditPanel.types';
 import { SetupClassDialogs } from '@/components/shows/tabs/SetupClassDialogs';
 import { useClassRowActions } from '@/components/shows/tabs/useClassRowActions';
 import type { FocusedClassEditAction } from './FocusedClassActionsMenu';
@@ -28,11 +29,16 @@ export function useFocusedClassSetupActions(showId: string) {
   });
 
   const pendingClassId = pendingAction?.classSnapshot.id ?? null;
-  const classDialogs = (liveSettings?: ReactNode, liveJudge = false) =>
+  const classDialogs = (
+    liveSettings?: ReactNode,
+    liveJudge = false,
+    currentJudge?: CurrentClassJudge
+  ) =>
     pendingAction ? (
       <SetupClassDialogs
         liveSettings={liveSettings}
         liveJudge={liveJudge}
+        currentJudge={currentJudge}
         key={pendingAction.requestId}
         showId={showId}
         pending={pendingAction}

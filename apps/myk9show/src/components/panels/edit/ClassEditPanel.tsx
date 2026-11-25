@@ -34,6 +34,7 @@ import {
 } from './ClassEditPanel.helpers';
 import { ClassEditForm } from './ClassEditForm';
 import { ClassLiveSettingsCard } from './ClassLiveSettingsCard';
+import { useLiveJudgeSync } from './useLiveJudgeSync';
 import { ClassTimeLimitFields, hasFixedTimeLimit } from './ClassTimeLimitFields';
 import { ClassWaitlistFields } from './ClassWaitlistFields';
 import { ClassEntryFeeField } from './ClassEntryFeeField';
@@ -43,7 +44,7 @@ import { NoJudgesNotice } from '@/components/shows/NoJudgesNotice';
 import { getJudgeNameById } from '@/utils/buildAssignedJudges';
 import { formatJudgeAvailabilityWindow } from '@/utils/classJudgeDisplay';
 import { JudgeChangeWarning } from '@/components/classes/JudgeChangeWarning';
-import type { OutgoingJudge } from './ClassEditPanel.types';
+import type { CurrentClassJudge, OutgoingJudge } from './ClassEditPanel.types';
 
 // Cast schemas to match the pre-existing form data interfaces.
 // Needed because exactOptionalPropertyTypes causes structural mismatch
@@ -73,7 +74,16 @@ const TrialClassEditForm: React.FC<{
   outgoingJudge: OutgoingJudge;
   liveSettings?: React.ReactNode;
   liveJudge: boolean;
-}> = ({ showId, classId, capacityLoaded, outgoingJudge, liveSettings, liveJudge }) => {
+  currentJudge: CurrentClassJudge | undefined;
+}> = ({
+  showId,
+  classId,
+  capacityLoaded,
+  outgoingJudge,
+  liveSettings,
+  liveJudge,
+  currentJudge,
+}) => {
   const { data, form } = useEditPanel<TrialClassEditFormData>();
   const { shows } = useShowStore();
 
@@ -93,6 +103,11 @@ const TrialClassEditForm: React.FC<{
     },
     [form, assignedJudges]
   );
+
+  useLiveJudgeSync(currentJudge, data.judgeId, (id, name) => {
+    form?.setValue('judgeId', id);
+    form?.setValue('judgeName', name);
+  });
 
   const judgeError = form?.getError('judgeId');
   const statusError = form?.getError('status');
@@ -259,6 +274,7 @@ export const ClassEditPanel: React.FC<ClassEditPanelProps> = ({
   onDelete,
   liveSettings,
   liveJudge = false,
+  currentJudge,
 }) => {
   // A failed Save moves to the tab holding the first invalid field (MYK9-931).
   const { activeTab, setActiveTab, handleValidationFail } =
@@ -283,17 +299,25 @@ export const ClassEditPanel: React.FC<ClassEditPanelProps> = ({
   };
 
   const capacityLoaded = hasLoadedCapacity(initialClassData as CapacitySourceLike);
-  const initialRecord = (initialClassData ?? {}) as Partial<ClassData> & Partial<TrialClass>;
+  // The class as it is now: the judge and status may have moved since the panel opened.
+  const initialRecord = {
+    ...(initialClassData ?? {}),
+    ...(currentJudge && {
+      judgeId: currentJudge.id ?? '',
+      judge: currentJudge.name ?? '',
+      judgeName: currentJudge.name ?? '',
+    }),
+  } as Partial<ClassData> & Partial<TrialClass>;
   // The judge this panel opened with: the one a change replaces (MYK9-2015).
   const outgoingJudge: OutgoingJudge = {
     classId,
-    classStatus: initialRecord.status,
+    classStatus: currentJudge?.status ?? initialRecord.status,
     outgoingJudgeId: initialRecord.judgeId,
     outgoingJudgeName: initialRecord.judgeName || initialRecord.judge,
   };
 
   if (isSimpleMode) {
-    const initialFormData = trialClassToFormData(initialClassData as Partial<TrialClass>);
+    const initialFormData = trialClassToFormData(initialRecord);
 
     const handleSave = async (formData: TrialClassEditFormData) => {
       const classData = formDataToTrialClass(formData);
@@ -319,13 +343,14 @@ export const ClassEditPanel: React.FC<ClassEditPanelProps> = ({
           outgoingJudge={outgoingJudge}
           liveSettings={liveSettings}
           liveJudge={liveJudge}
+          currentJudge={currentJudge}
           {...(showId !== undefined && { showId })}
         />
       </EditPanelWrapper>
     );
   }
 
-  const initialFormData = classToFormData(initialClassData as Partial<ClassData>);
+  const initialFormData = classToFormData(initialRecord);
 
   const handleSave = async (formData: ClassEditFormData) => {
     const classData = formDataToClass(formData);
@@ -354,6 +379,7 @@ export const ClassEditPanel: React.FC<ClassEditPanelProps> = ({
         capacityLoaded={capacityLoaded}
         liveSettings={liveSettings}
         liveJudge={liveJudge}
+        currentJudge={currentJudge}
         {...(showId !== undefined && { showId })}
       />
     </EditPanelWrapper>

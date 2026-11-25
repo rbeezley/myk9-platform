@@ -7,6 +7,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { ClassEditPanel } from '../ClassEditPanel';
+import { classSchemas } from '@/lib/validation';
 import { timeLimitPatch, withoutLiveSettings } from '../ClassEditPanel.helpers';
 import type { TrialClassEditFormData } from '../ClassEditPanel.types';
 import type { ClassData } from '@/components/classes/types/classTypes';
@@ -228,6 +229,91 @@ describe('withoutLiveSettings', () => {
   });
 });
 
+describe('ClassEditPanel when the live judge changes while it is open', () => {
+  const simple = (judgeId: string, judgeName: string) =>
+    ({ ...simpleClass(), judgeId, judgeName, timeLimit1: '3:00' }) as unknown as Partial<ClassData>;
+  const panel = (
+    judge: { id: string; name: string },
+    onSave = vi.fn().mockResolvedValue(undefined)
+  ) => (
+    <ClassEditPanel
+      open
+      onClose={vi.fn()}
+      classId="cls-1"
+      className="Exterior Excellent"
+      initialClassData={simple('judge-1', 'Jane Judge')}
+      onSave={onSave}
+      liveSettings={<span>Settings</span>}
+      liveJudge={false}
+      currentJudge={{ id: judge.id, name: judge.name, status: 'in_progress' }}
+    />
+  );
+
+  it('moves the form Judge to the live one, and saves nothing about the judge', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const { user, rerender } = render(panel({ id: 'judge-1', name: 'Jane Judge' }, onSave));
+    expect(await screen.findByText('Jane Judge')).toBeInTheDocument();
+
+    // An unsaved edit in the form: the baseline reset alone would not re-seed it.
+    const limit = screen.getByLabelText('Time Limit 1');
+    await user.clear(limit);
+    await user.type(limit, '430');
+
+    rerender(panel({ id: 'judge-2', name: 'Bob Barker' }, onSave));
+    expect(await screen.findByText('Bob Barker')).toBeInTheDocument();
+    expect(screen.queryByText('Jane Judge')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const patch = onSave.mock.calls[0]![0] as Record<string, unknown>;
+    expect(patch).toEqual(expect.objectContaining({ timeLimit1: '4:30' }));
+    expect(patch).not.toHaveProperty('judgeId');
+  });
+});
+
+describe('time limits: only what was shown and changed', () => {
+  it('saves Interior Excellent area 1 without writing area 2 the user did not change', async () => {
+    const { user, onSave } = renderPanel(undefined, {
+      ...(simpleClass() as unknown as Partial<ClassData>),
+      element: 'Interior',
+      level: 'Excellent',
+      timeLimit1: '3:00',
+      timeLimit2: '4:00',
+    } as Partial<ClassData>);
+    const limit = await screen.findByLabelText('Time Limit 1');
+    await user.clear(limit);
+    await user.type(limit, '330');
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const patch = onSave.mock.calls[0]![0] as Record<string, unknown>;
+    expect(patch).toEqual(expect.objectContaining({ timeLimit1: '3:30' }));
+    expect(patch).not.toHaveProperty('timeLimit2');
+  });
+
+  it('shows a Container time limit as fixed in the full form too', async () => {
+    const { user } = renderPanel(undefined, fullClass({ element: 'Container' }));
+    await user.click(await screen.findByRole('tab', { name: /Timing/ }));
+    expect(await screen.findByTestId('class-time-limit-fixed')).toHaveTextContent('3:00');
+    expect(screen.queryByLabelText('Time Limit 1')).not.toBeInTheDocument();
+  });
+
+  it.each(['simple', 'full'] as const)(
+    'does not let a stored out-of-range fixed limit block Save (%s schema)',
+    form => {
+      const schema = classSchemas[form];
+      const base = {
+        element: 'Container',
+        level: 'Novice',
+        section: '',
+        status: 'Scheduled',
+        entries: 0,
+        timeLimit1: '20:00',
+      };
+      expect(schema.safeParse(base).success).toBe(true);
+      expect(schema.safeParse({ ...base, editedTimeLimits: ['timeLimit1'] }).success).toBe(false);
+    }
+  );
+});
+
 describe('timeLimitPatch', () => {
   const form = {
     timeLimit1: '3:00',
@@ -236,11 +322,13 @@ describe('timeLimitPatch', () => {
   } as unknown as TrialClassEditFormData;
 
   it('sends nothing for limits nobody touched', () => {
-    expect(timeLimitPatch({ ...form, timeLimitEdited: false })).toEqual({});
+    expect(timeLimitPatch({ ...form, editedTimeLimits: [] })).toEqual({});
   });
 
   it('sends the limits once one was changed', () => {
-    expect(timeLimitPatch({ ...form, timeLimitEdited: true })).toEqual({
+    expect(
+      timeLimitPatch({ ...form, editedTimeLimits: ['timeLimit1', 'timeLimit2', 'timeLimit3'] })
+    ).toEqual({
       timeLimit1: '3:00',
       timeLimit2: '',
       timeLimit3: '',

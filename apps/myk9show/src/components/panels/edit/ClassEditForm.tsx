@@ -19,14 +19,19 @@ import { useUserStore } from '@/store/userStore';
 import { useClassRequirements } from '@/hooks/useClassRequirements';
 import { FormField } from '@/components/common/FormField';
 import { RuleBadge } from '@/components/classes/OfficialsSection';
-import { ClassDurationField, ClassTimeLimitFields } from './ClassTimeLimitFields';
+import {
+  ClassDurationField,
+  ClassTimeLimitFields,
+  hasFixedTimeLimit,
+} from './ClassTimeLimitFields';
 import { getJudgeNameById } from '@/utils/buildAssignedJudges';
 import { NoJudgesNotice } from '@/components/shows/NoJudgesNotice';
 import { ClassWaitlistFields } from './ClassWaitlistFields';
 import { ClassEntryFeeField } from './ClassEntryFeeField';
 import { ClassLiveSettingsCard } from './ClassLiveSettingsCard';
+import { useLiveJudgeSync } from './useLiveJudgeSync';
 import { JudgeChangeWarning } from '@/components/classes/JudgeChangeWarning';
-import type { ClassEditFormData, OutgoingJudge } from './ClassEditPanel.types';
+import type { ClassEditFormData, CurrentClassJudge, OutgoingJudge } from './ClassEditPanel.types';
 import { isScentWorkNovice } from './ClassEditPanel.helpers';
 import type { ClassTabValue } from './ClassEditPanel.validationTab';
 
@@ -77,6 +82,7 @@ export const ClassEditForm: React.FC<{
   liveSettings?: React.ReactNode;
   /** The live Judge control is in the settings card, so this form's own Judge field stays hidden. */
   liveJudge?: boolean;
+  currentJudge?: CurrentClassJudge | undefined;
 }> = ({
   showId,
   classId,
@@ -86,6 +92,7 @@ export const ClassEditForm: React.FC<{
   outgoingJudge,
   liveSettings,
   liveJudge = false,
+  currentJudge,
 }) => {
   const { data, form } = useEditPanel<ClassEditFormData>();
   const { people } = useUserStore();
@@ -96,6 +103,11 @@ export const ClassEditForm: React.FC<{
     const currentShow = shows.find((show: { id: string }) => show.id === showId);
     return currentShow?.assignedJudges || [];
   }, [shows, showId]);
+
+  useLiveJudgeSync(currentJudge, data.judgeId, (id, name) => {
+    form?.setValue('judgeId', id);
+    form?.setValue('judge', name);
+  });
 
   // Fetch class requirements for auto-fill
   const { autoFill } = useClassRequirements({
@@ -237,7 +249,7 @@ export const ClassEditForm: React.FC<{
 
               <Separator />
 
-              <ClassTimeLimitFields showId={showId} />
+              <ClassTimeLimitFields showId={showId} fixed={hasFixedTimeLimit(data.element)} />
             </CardContent>
           </Card>
         </TabsContent>

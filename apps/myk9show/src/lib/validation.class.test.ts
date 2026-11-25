@@ -22,9 +22,9 @@ describe('classSchemas.simple', () => {
 // range; the schema refuses both so neither clears or oversets a limit.
 describe('classSchemas.full durations', () => {
   const base = { element: 'Interior', level: 'Novice', section: 'A', status: 'Scheduled' };
-  const check = (extra: Record<string, string>) =>
+  const check = (extra: Record<string, unknown>) =>
     classSchemas.full.safeParse({ ...base, ...extra });
-  const messages = (extra: Record<string, string>) =>
+  const messages = (extra: Record<string, unknown>) =>
     check(extra).error?.issues.map(issue => issue.message) ?? [];
 
   it.each(['', '4:30', '05:00', '9:59'])('accepts %j', value => {
@@ -37,8 +37,15 @@ describe('classSchemas.full durations', () => {
     ]);
   });
 
+  // Only a limit the user changed is range-checked: a stored one must not block Save.
+  const edited = ['timeLimit1', 'timeLimit2', 'timeLimit3'];
+
+  it('does not range-check a time limit nobody changed', () => {
+    expect(check({ timeLimit3: '12:00' }).success).toBe(true);
+  });
+
   it('refuses a readable time outside the range, per field', () => {
-    expect(messages({ timeLimit3: '12:00' })).toEqual([
+    expect(messages({ timeLimit3: '12:00', editedTimeLimits: edited })).toEqual([
       'Time limit 3 must be between 0:01 and 9:59',
     ]);
     expect(messages({ estimatedJudgingTime: '10:00' })).toEqual([
@@ -47,9 +54,11 @@ describe('classSchemas.full durations', () => {
   });
 
   it('lets Detective run to 15:00 and no further', () => {
-    expect(check({ element: 'Detective', timeLimit1: '15:00' }).success).toBe(true);
-    expect(messages({ element: 'Detective', timeLimit1: '15:01' })).toEqual([
-      'Time limit 1 must be between 0:01 and 15:00',
-    ]);
+    expect(
+      check({ element: 'Detective', timeLimit1: '15:00', editedTimeLimits: edited }).success
+    ).toBe(true);
+    expect(
+      messages({ element: 'Detective', timeLimit1: '15:01', editedTimeLimits: edited })
+    ).toEqual(['Time limit 1 must be between 0:01 and 15:00']);
   });
 });

@@ -1,5 +1,6 @@
 import type { ClassData } from '@/components/classes/types/classTypes';
 import type { TrialClass } from '@/components/trials/types/trial.types';
+import type { TimeLimitField } from './ClassTimeLimitFields';
 import type {
   CapacityControl,
   ClassEditFormData,
@@ -36,6 +37,7 @@ export const classToFormData = (classItem: Partial<ClassData>): ClassEditFormDat
     maxEntries: classItem.maxEntries ?? null,
     allowsWaitlist: classItem.allowsWaitlist ?? null,
     editedCapacity: [],
+    editedTimeLimits: [] as TimeLimitField[],
     ...entryFeeFormFields(classItem),
   };
 };
@@ -50,9 +52,7 @@ export const formDataToClass = (formData: ClassEditFormData): Partial<ClassData>
   ...(formData.estimatedJudgingTime !== undefined && {
     estimatedJudgingTime: formData.estimatedJudgingTime,
   }),
-  ...(formData.timeLimit1 !== undefined && { timeLimit1: formData.timeLimit1 }),
-  ...(formData.timeLimit2 !== undefined && { timeLimit2: formData.timeLimit2 }),
-  ...(formData.timeLimit3 !== undefined && { timeLimit3: formData.timeLimit3 }),
+  ...timeLimitPatch(formData),
   ...(formData.judge !== undefined && { judge: formData.judge }),
   ...(formData.judgeId !== undefined && { judgeId: formData.judgeId }),
   ...(formData.gateSteward !== undefined && { gateSteward: formData.gateSteward }),
@@ -197,19 +197,24 @@ type TimeLimitPatch = { timeLimit1?: string; timeLimit2?: string; timeLimit3?: s
 function timeLimitFormFields(source: Partial<ClassData>) {
   return {
     timeLimitLoaded: source.timeLimit1 !== undefined,
-    timeLimitEdited: false,
+    editedTimeLimits: [] as TimeLimitField[],
     timeLimit1: source.timeLimit1 ?? '',
     timeLimit2: source.timeLimit2 ?? '',
     timeLimit3: source.timeLimit3 ?? '',
   };
 }
 
-/** The limits, only when one was changed in this session (the form is as old as the panel). */
-export function timeLimitPatch(formData: TrialClassEditFormData): TimeLimitPatch {
-  if (!formData.timeLimitEdited) return {};
-  return {
-    ...(formData.timeLimit1 !== undefined && { timeLimit1: formData.timeLimit1 }),
-    ...(formData.timeLimit2 !== undefined && { timeLimit2: formData.timeLimit2 }),
-    ...(formData.timeLimit3 !== undefined && { timeLimit3: formData.timeLimit3 }),
-  };
+/** Only the limits whose inputs were shown and changed in this session; never one the user did not see. */
+export function timeLimitPatch(formData: {
+  editedTimeLimits?: TimeLimitField[] | undefined;
+  timeLimit1?: string | undefined;
+  timeLimit2?: string | undefined;
+  timeLimit3?: string | undefined;
+}): TimeLimitPatch {
+  const patch: TimeLimitPatch = {};
+  for (const field of formData.editedTimeLimits ?? []) {
+    const value = formData[field];
+    if (value !== undefined) patch[field] = value;
+  }
+  return patch;
 }

@@ -36,6 +36,8 @@ export function ClassDurationField({
   );
 }
 
+export type TimeLimitField = 'timeLimit1' | 'timeLimit2' | 'timeLimit3';
+
 /** What the time-limit fields read and write; both class forms carry these. */
 interface TimeLimitFormData extends Record<string, unknown> {
   element: string;
@@ -43,6 +45,7 @@ interface TimeLimitFormData extends Record<string, unknown> {
   timeLimit1?: string;
   timeLimit2?: string;
   timeLimit3?: string;
+  editedTimeLimits?: TimeLimitField[];
 }
 
 /**
@@ -54,8 +57,8 @@ export const hasFixedTimeLimit = (element: string): boolean =>
 
 /**
  * The class's time limits (MYK9-1503): Time Limit 1, and the extra areas Interior Excellent and
- * Master have. `fixed` shows them as read-only text (Container, Buried). An edit also marks
- * `timeLimitEdited`, so a form that saves only what changed (Edit class from Show Desk) sends them.
+ * Master have. `fixed` shows them as read-only text (Container, Buried). An edit also records which
+ * limit in `editedTimeLimits`, so a save sends only limits that were shown and changed.
  */
 export function ClassTimeLimitFields({
   showId,
@@ -71,9 +74,11 @@ export function ClassTimeLimitFields({
     showId,
   });
   const maxSeconds = classDurationMaxSeconds(data.element);
-  const edit = (field: 'timeLimit1' | 'timeLimit2' | 'timeLimit3') => (value: string) => {
+  const edit = (field: TimeLimitField) => (value: string) => {
     form?.setValue(field, value);
-    form?.setValue('timeLimitEdited', true);
+    form?.setValue('editedTimeLimits', (previous: unknown) => [
+      ...new Set([...((previous as TimeLimitField[] | undefined) ?? []), field]),
+    ]);
   };
   const interiorAreas = data.element === 'Interior';
   const rule = autoFill?.timeLimitText;

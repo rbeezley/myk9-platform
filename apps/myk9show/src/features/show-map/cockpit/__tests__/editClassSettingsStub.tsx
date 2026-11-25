@@ -8,25 +8,25 @@ import type { SetupClassAction } from '@/components/shows/tabs/setupClassSnapsho
  * from the replica and `SetupClassDialogs` mounts the panel; both are replaced so a test opens
  * it with a click on Edit class and finds the settings the cockpit hands it.
  */
-export function classRowActionsStub(openAtStart: boolean) {
+export function classRowActionsStub(openAtStart: boolean, snapshot?: Record<string, unknown>) {
   return {
     useClassRowActions: () => {
       const [pendingAction, setPendingAction] = useState<SetupClassAction | null>(
-        openAtStart ? stubAction() : null
+        openAtStart ? stubAction(snapshot) : null
       );
       return {
         pendingAction,
         setPendingAction,
         hydratingClassId: null,
-        openClassAction: async () => setPendingAction(stubAction()),
+        openClassAction: async () => setPendingAction(stubAction(snapshot)),
       };
     },
   };
 }
 
-function stubAction(): SetupClassAction {
+function stubAction(snapshot?: Record<string, unknown>): SetupClassAction {
   return {
-    classSnapshot: { id: 'class-1' } as SetupClassAction['classSnapshot'],
+    classSnapshot: { id: 'class-1', ...snapshot } as SetupClassAction['classSnapshot'],
     trialId: 'trial-1',
     requestId: 1,
   };

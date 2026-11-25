@@ -25,12 +25,15 @@ const CLASS_DURATIONS = [
 
 /** A readable class duration outside the editor's range is refused, not saved (MYK9-1503). */
 export function classDurationRangeIssues(
-  data: { element: string } & Partial<
+  data: { element: string; editedTimeLimits?: string[] | undefined } & Partial<
     Record<(typeof CLASS_DURATIONS)[number][0], string | undefined>
   >
 ): Array<{ path: string[]; message: string }> {
   const high = classDurationMaxSeconds(data.element);
+  // A time limit nobody changed is not checked: a stored out-of-range value must not block Save.
+  const edited = data.editedTimeLimits ?? [];
   return CLASS_DURATIONS.flatMap(([field, label]) => {
+    if (field.startsWith('timeLimit') && !edited.includes(field)) return [];
     const parsed = parseDuration(data[field] ?? '', 'max');
     return parsed.ok && (parsed.seconds < 1 || parsed.seconds > high)
       ? [
@@ -49,3 +52,8 @@ export const classTimeLimitFields = {
   timeLimit2: durationField('time limit 2'),
   timeLimit3: durationField('time limit 3'),
 };
+
+/** Which time limits the user changed in this session (see `editedTimeLimits`). */
+export const editedTimeLimitsField = z
+  .array(z.enum(['timeLimit1', 'timeLimit2', 'timeLimit3']))
+  .optional();

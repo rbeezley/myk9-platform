@@ -286,20 +286,35 @@ describe('a Pending entry is not in line but is placed last on a renumber (MYK9-
     expect(model.baseRunOrder).toBe(0);
   });
 
-  it('a renumber puts Pending after the last waiting dog in its own order, never first', () => {
+  it('a renumber moves a Pending dog that would sort ahead to after everything, never first', () => {
     const moves = movePlacement(modelOf(entries), 'b', 1);
-    expect(writes(moves)).toEqual({ b: 1, p: 3, q: 4 });
+    expect(writes(moves)).toEqual({ b: 1, p: 8 });
     const renumbered = apply(entries, moves);
     const approved = renumbered.map(x =>
       x.id === 'p' || x.id === 'q' ? { ...x, entryStatus: 'confirmed' } : x
     );
-    expect(queueOrder(approved as ReplicatedEntry[])).toEqual(['b', 'a', 'p', 'q']);
+    expect(queueOrder(approved as ReplicatedEntry[])).toEqual(['b', 'a', 'q', 'p']);
     const numbers = approved.map(x => x.runOrder);
     expect(new Set(numbers).size).toBe(numbers.length);
   });
 
   it('a preset does the same', () => {
     const moves = planPresetPlacement(modelOf(entries), 'armband-desc');
-    expect(writes(moves)).toEqual({ b: 1, p: 3, q: 4 });
+    expect(writes(moves)).toEqual({ b: 1, p: 8 });
+  });
+});
+
+describe('a renumber leaves a Pending dog alone unless it would sort inside the block (MYK9-2391)', () => {
+  const entries = [
+    e('a', '10', 1),
+    e('b', '20', 2),
+    e('n', '5', null, { entryStatus: 'pending' }),
+    e('late', '6', 9, { entryStatus: 'draft' }),
+    e('low', '7', 1, { entryStatus: 'submitted' }),
+  ];
+
+  it('writes neither the null-numbered nor the already-after Pending dog, and moves the low one past both', () => {
+    const moves = movePlacement(modelOf(entries), 'b', 1);
+    expect(writes(moves)).toEqual({ b: 1, a: 2, low: 10 });
   });
 });

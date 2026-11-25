@@ -80,11 +80,12 @@ from jsonb_array_elements($fixture$
   {"key": "a25", "class": "A", "armband": "201",  "run_order": 13,   "expected": 9},
   {"key": "a26", "class": "A", "armband": "126",  "run_order": 14,   "check_in_status": null, "expected": 11},
   {"key": "a23", "class": "A", "armband": "123",  "run_order": 15,   "result_status": "qualified", "expected": 12},
-  {"key": "a27", "class": "A", "armband": "127",  "run_order": 4,    "entry_status": "pending", "expected": null},
+  {"key": "a27", "class": "A", "armband": "127",  "run_order": 4,    "entry_status": "no-status", "expected": null},
   {"key": "a28", "class": "A", "armband": "128",  "run_order": 6,    "entry_status": "paid", "expected": null},
   {"key": "a29", "class": "A", "armband": "129",  "run_order": 8,    "entry_status": "promotion-expired", "expected": null},
   {"key": "a30", "class": "A", "armband": "130",  "run_order": 16,   "entry_status": null, "expected": 13},
   {"key": "a31", "class": "A", "armband": "131",  "run_order": 17,   "entry_status": "submitted", "expected": null},
+  {"key": "a32", "class": "A", "armband": "132",  "run_order": 11,   "entry_status": "pending-payment", "expected": null},
   {"key": "b2",  "class": "B", "armband": "302",  "run_order": 2,    "expected": 1}
 ]
 $fixture$::jsonb) with ordinality as f(row, ord)

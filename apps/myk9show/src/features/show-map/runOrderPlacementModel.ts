@@ -143,11 +143,16 @@ export function planRenumber(
     const priorRunOrder = prior.get(id) ?? null;
     if (priorRunOrder !== runOrder) changes.push({ id, runOrder, priorRunOrder });
   });
-  model.awaiting.forEach((row, index) => {
-    const runOrder = model.baseRunOrder + orderedIds.length + index + 1;
-    if (row.runOrder !== runOrder) {
-      changes.push({ id: row.id, runOrder, priorRunOrder: row.runOrder });
-    }
+  // A Pending dog is only moved when its stored number would sort inside or ahead of the
+  // waiting block; a null number, or one already after the block, is left as it is. The moved
+  // ones start after the block and after any Pending dog left in place, so nothing collides.
+  const blockEnd = model.baseRunOrder + orderedIds.length;
+  const needsMove = (row: PlacementRow) => row.runOrder !== null && row.runOrder <= blockEnd;
+  const start = model.awaiting
+    .filter(row => !needsMove(row))
+    .reduce((max, row) => Math.max(max, row.runOrder ?? 0), blockEnd);
+  model.awaiting.filter(needsMove).forEach((row, index) => {
+    changes.push({ id: row.id, runOrder: start + index + 1, priorRunOrder: row.runOrder });
   });
   return changes;
 }

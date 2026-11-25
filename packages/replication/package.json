@@ -31,12 +31,12 @@
     "@myk9/core": "workspace:*",
     "@myk9/supabase": "workspace:*",
     "@myk9/test-utils": "workspace:*",
-    "@vitest/coverage-v8": "^5.1.1",
+    "@vitest/coverage-v8": "^5.1.2",
     "fake-indexeddb": "^6.2.8",
     "rimraf": "^6.1.4",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
-    "vitest": "^5.1.0"
+    "vitest": "^5.1.2"
   },
   "peerDependencies": {
     "@supabase/supabase-js": ">=2.0.0"

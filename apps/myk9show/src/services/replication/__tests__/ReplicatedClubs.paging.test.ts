@@ -103,4 +103,27 @@ describe('ReplicatedClubsTable paging (MYK9-2252)', () => {
     expect(removed).toBe(1);
     expect(await table.getAll()).toHaveLength(1299);
   });
+
+  it('prunes nothing when the server ignores the id cursor and the ids read fall short of the count', async () => {
+    serve(1300, 500);
+    const table = new ReplicatedClubsTable();
+    await table.sync();
+    server.rows.splice(1250, 1);
+    const real = createFakePostgrestTable(server.rows, 500);
+    server.table = {
+      requests: real.requests,
+      from: () => {
+        const builder = real.from();
+        builder.gt = () => builder;
+        return builder;
+      },
+    };
+
+    const removed = await table.reconcileVisibility();
+
+    // One page, then the same page again: the read stops at 500 of 1,299 and prunes nothing.
+    expect(removed).toBe(0);
+    expect(await table.getAll()).toHaveLength(1300);
+    expect(real.requests).toHaveLength(2);
+  });
 });

@@ -73,6 +73,23 @@ describe('fetchKeysetPages', () => {
     expect(table.requests[4]).toMatch(/-> 0$/);
   });
 
+  it('stops instead of looping when the server ignores the cursor', async () => {
+    const rows = makeRows(3, i => new Date(T0 + i).toISOString());
+    const table = createFakePostgrestTable(rows);
+    const ignoringCursor = () => {
+      const builder = table.from();
+      builder.gt = () => builder;
+      builder.or = () => builder;
+      return builder;
+    };
+
+    const result = await fetchKeysetPages({ base: ignoringCursor, since: 0 });
+
+    // The repeated page is dropped, not appended, and the read ends after it.
+    expect(result.map(row => row.id)).toEqual(rows.map(row => row.id));
+    expect(table.requests).toHaveLength(2);
+  });
+
   it('returns only rows newer than `since`', async () => {
     const rows = makeRows(10, i => new Date(T0 + i * 1000).toISOString());
     const table = createFakePostgrestTable(rows);

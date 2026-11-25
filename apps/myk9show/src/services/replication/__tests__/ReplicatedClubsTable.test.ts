@@ -1836,7 +1836,7 @@ describe('ReplicatedClubsTable', () => {
       expect(await table.get('club-a')).not.toBeNull();
     });
 
-    it('fetches at most 1000 ids once the count probe confirms no truncation', async () => {
+    it('reads the ids in pages of 1000', async () => {
       await table.set('club-a', { id: 'club-a', name: 'Club A', email: 'a@club.com', phone: '1' });
 
       const { countSelect, dataSelect, mockLimit } = mockCountAndFetch(1, [{ id: 'club-a' }]);

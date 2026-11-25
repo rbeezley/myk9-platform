@@ -36,6 +36,8 @@ const seed = {
 
 /** Every `select(...)` the view chain received; the delta read is the one that selects `*`. */
 const selects: unknown[][] = [];
+/** Empty-page follow-up reads (MYK9-2252): the accepted cost of stopping only on an empty page. */
+let followUpReads = 0;
 
 function mockServerRows(
   rows: Record<string, unknown>[],
@@ -52,6 +54,7 @@ function mockServerRows(
       // The `or` cursor marks this select as the follow-up page: forget it.
       if (step === 'or') {
         followUp = true;
+        followUpReads += 1;
         selects.pop();
       }
       return chain;
@@ -113,6 +116,7 @@ describe('entries incremental pull probes entry_results_changed_since (MYK9-1369
     vi.mocked(supabase.rpc).mockReset();
     vi.mocked(supabase.rpc).mockResolvedValue(answer as never);
     selects.length = 0;
+    followUpReads = 0;
     return table.sync(SHOW, { forceFullSync: options.forceFullSync });
   }
 
@@ -173,6 +177,22 @@ describe('entries incremental pull probes entry_results_changed_since (MYK9-1369
     ]);
     expect(viewReads()).toHaveLength(0);
     expect((await table.get(ID))?.resultStatus).toBe('pending');
+  });
+
+  it('a delta with rows costs exactly one empty follow-up read; an empty delta costs none (MYK9-2252)', async () => {
+    await pass(W, quiet(SETTLED));
+    const changed: Answer = {
+      data: { changed: true, server_now: iso(SETTLED + 60_000) },
+      error: null,
+    };
+    await pass(W, changed);
+    expect(viewReads()).toHaveLength(1);
+    expect(followUpReads).toBe(0);
+
+    mockServerRows([serverRow]);
+    await pass(W, changed);
+    expect(viewReads()).toHaveLength(1);
+    expect(followUpReads).toBe(1);
   });
 
   it('reads the view when the settled probe says changed', async () => {

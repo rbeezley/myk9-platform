@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { render } from '@/test/utils/testUtils';
@@ -117,6 +117,7 @@ describe('Continue on Results with the show not using the checklist yet (MYK9-16
 describe('unused print tracking and checklist on the real cockpit shape (MYK9-1620)', () => {
   it('shows no "Not confirmed printed" but keeps the checklist expanded with its count (MYK9-1783)', () => {
     renderCockpit({ printTrackingInUse: false, checklistInUse: false });
+    fireEvent.click(screen.getByRole('button', { name: 'Show all steps' }));
 
     expect(screen.queryByText('Not confirmed printed')).toBeNull();
     expect(screen.queryByTestId('class-checklist-disclosure')).toBeNull();
@@ -131,6 +132,7 @@ describe('unused print tracking and checklist on the real cockpit shape (MYK9-16
 
   it('shows the status text and an open checklist once in use', () => {
     renderCockpit({ printTrackingInUse: true, checklistInUse: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Show all steps' }));
 
     // The row no longer draws the step strip (MYK9-1782); the class page holds the checklist.
     expect(screen.queryByTestId('class-checklist-strip')).toBeNull();

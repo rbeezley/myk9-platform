@@ -1,5 +1,5 @@
 import { screen } from '@testing-library/react';
-import { describe, expect, it, onTestFinished, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { render } from '@/test/utils/testUtils';
 
@@ -10,8 +10,7 @@ import type { FocusedClassModel, SecretaryCockpitClass } from './secretaryCockpi
 
 /**
  * MYK9-1989: where the class header pins (from lg), it is compact so a laptop shows the entries.
- * The settings fold behind Class settings, the entries come before the In ring tile and checklist, and
- * Checklist jumps to them. Below lg (pinMode none) the card keeps its full layout.
+ * The settings fold behind Class settings and the entries come before the In ring tile and checklist. Below lg (pinMode none) the card keeps its full layout.
  */
 
 // The Requirements row reads the class replica; these tests do not exercise it.
@@ -125,22 +124,30 @@ describe('SecretaryCockpitFocusedClass compact header (MYK9-1989)', () => {
     expect(before(entries, screen.getByTestId('focused-class-work'))).toBe(true);
   });
 
-  it('Checklist scrolls the In ring tile and checklist into view and moves focus there', async () => {
-    // jsdom has no scrollIntoView; give the prototype one for this test only.
-    const scrollIntoView = vi.fn();
-    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
-      configurable: true,
-      value: scrollIntoView,
-    });
-    onTestFinished(() => {
-      delete (HTMLElement.prototype as { scrollIntoView?: unknown }).scrollIntoView;
-    });
-    const { user } = renderClass('panel');
-    await user.click(screen.getByRole('button', { name: 'Checklist' }));
-    const work = screen.getByTestId('focused-class-work');
-    expect(work).toHaveFocus();
-    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'start', behavior: 'instant' });
-    expect(scrollIntoView.mock.contexts.at(-1)).toBe(work);
+  it('has no Checklist jump button: the checklist is one compact line now (MYK9-2380)', () => {
+    renderClass('panel');
+    expect(screen.queryByRole('button', { name: 'Checklist' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('class-checklist-summary')).toBeInTheDocument();
+  });
+
+  it('a newly picked class opens with its checklist steps hidden (MYK9-2380)', async () => {
+    const { user, rerender } = renderClass('panel');
+    await user.click(screen.getByRole('button', { name: 'Show all steps' }));
+    expect(screen.getByRole('button', { name: 'Hide steps' })).toBeInTheDocument();
+    rerender(
+      <SecretaryCockpitFocusedClass
+        showId="show-1"
+        focused={{ ...focused, id: 'class-2', name: 'Interior Novice' }}
+        sourceClass={{ ...sourceClass, id: 'class-2', name: 'Interior Novice' }}
+        trial={{ id: 'trial-1', date: '2026-07-20', number: '1', order: 0 }}
+        attention={[]}
+        timeZone={TZ}
+        pinMode="panel"
+        canManageShow
+        onCommand={vi.fn()}
+      />
+    );
+    expect(screen.getByRole('button', { name: 'Show all steps' })).toBeInTheDocument();
   });
 
   it('a newly picked class opens with its settings closed', async () => {

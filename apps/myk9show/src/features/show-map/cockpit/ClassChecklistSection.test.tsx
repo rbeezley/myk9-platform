@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fromPartial } from '@total-typescript/shoehorn';
-import { render, screen } from '@/test/utils/testUtils';
+import { fireEvent, render, screen } from '@/test/utils/testUtils';
 
 import { readResultsTabUrlState } from '@/features/results-tab/resultsTabRoutes';
 import { TrialSecretaryAccessProvider } from '@/features/actions/TrialSecretaryAccessContext';
@@ -36,8 +36,8 @@ describe('ClassChecklistSection after-scoring items (MYK9-1032)', () => {
     printable('result-labels', 'Result labels'),
   ];
 
-  const renderSection = (sourceClass: SecretaryCockpitClass) =>
-    render(
+  const renderSection = (sourceClass: SecretaryCockpitClass) => {
+    const view = render(
       <ClassChecklistSection
         showId="show-1"
         sourceClass={sourceClass}
@@ -49,6 +49,9 @@ describe('ClassChecklistSection after-scoring items (MYK9-1032)', () => {
         trialDate="2026-07-20"
       />
     );
+    fireEvent.click(screen.getByRole('button', { name: 'Show all steps' }));
+    return view;
+  };
 
   it('offers one Continue on Results handoff for a complete class, beside the Judge signature step (MYK9-1319, MYK9-1783)', () => {
     renderSection(completeClass);
@@ -114,6 +117,7 @@ describe('ClassChecklistSection after-scoring items (MYK9-1032)', () => {
         />
       </TrialSecretaryAccessProvider>
     );
+    fireEvent.click(screen.getByRole('button', { name: 'Show all steps' }));
     expect(container.querySelector('a[href^="/scoring/"]')).toBeNull();
     const step = screen.getByRole('group', {
       name: /^Scoring complete.*Trial secretary access only$/,

@@ -126,6 +126,9 @@ export function ClassChecklistSection({
   // Same reset as the ticks above: the editor must not reopen on returning to a class.
   if (!onEditingStartChange && localStart !== null && localStart !== classId) setLocalStart(null);
   const startStepRef = useRef<HTMLButtonElement>(null);
+  // Where focus lands when the editor closes and no step control holds it (opened from Class
+  // settings while the steps are hidden and Class started is not the Next step).
+  const stepsToggleRef = useRef<HTMLButtonElement>(null);
   const labelFor = new Map<string, string>(items.map(item => [item.id, item.label]));
   const panelItems = printable
     .filter(item => printIds?.includes(item.reportId))
@@ -189,17 +192,12 @@ export function ClassChecklistSection({
     <>
       {items.length > 0 && (
         <section aria-labelledby="class-checklist-heading">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h3 id="class-checklist-heading" className={HEADING_CLASS}>
-              Class checklist
-            </h3>
-            <span className="text-xs font-medium text-muted-foreground">
-              {summary.done} of {summary.total} done
-              {summary.unknown > 0 ? ` · ${summary.unknown} unknown` : ''}
-            </span>
-          </div>
+          <h3 id="class-checklist-heading" className="sr-only">
+            Class checklist
+          </h3>
           <ClassStepBar
             steps={steps}
+            summary={summary}
             actionFor={actionFor}
             onPrint={reportId => setPrintIds([reportId])}
             onOpenRecords={showRecords}
@@ -207,6 +205,7 @@ export function ClassChecklistSection({
             recordsOpen={recordsOpen}
             onEditStart={() => setEditingStart(classId)}
             editorTriggerRef={startStepRef}
+            toggleRef={stepsToggleRef}
           />
           {canManageShow && (
             <ClassActualStartEditor
@@ -219,7 +218,7 @@ export function ClassChecklistSection({
               onOpenChange={next => {
                 setEditingStart(next ? classId : null);
                 // Closing (save, clear or cancel) hands the keyboard back to the step that opened it.
-                if (!next) startStepRef.current?.focus();
+                if (!next) (startStepRef.current ?? stepsToggleRef.current)?.focus();
               }}
             />
           )}

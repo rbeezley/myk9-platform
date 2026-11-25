@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { render } from '@/test/utils/testUtils';
@@ -185,7 +185,7 @@ describe('SecretaryCockpitFocusedClass paperwork', () => {
 
 describe('SecretaryCockpitFocusedClass checklist (MYK9-948)', () => {
   function renderChecklist(source: SecretaryCockpitClass, model: FocusedClassModel = focused) {
-    return render(
+    const view = render(
       <SecretaryCockpitFocusedClass
         showId="show-1"
         focused={model}
@@ -197,6 +197,8 @@ describe('SecretaryCockpitFocusedClass checklist (MYK9-948)', () => {
         onCommand={vi.fn()}
       />
     );
+    fireEvent.click(screen.getByRole('button', { name: 'Show all steps' }));
+    return view;
   }
 
   it('lists all seven items with a done count, opening print from print items', () => {

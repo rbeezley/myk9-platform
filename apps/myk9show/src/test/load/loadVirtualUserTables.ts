@@ -81,26 +81,6 @@ async function countedDelta<T>(
   return rows;
 }
 
-/** A delta read with no pagination, filtered by `narrow`, advancing the watermark. */
-async function readDelta<T extends TimestampedRow>(
-  ctx: ReaderContext,
-  table: string,
-  select: string,
-  bufferMs: number,
-  narrow: Narrow = q => q
-): Promise<T[] | null> {
-  const out = await ctx.request<T>(table, () =>
-    narrow(ctx.client.from(table).select(select))
-      .gt('updated_at', ctx.sinceIso(table, bufferMs))
-      .order('updated_at', { ascending: true })
-      .abortSignal(ctx.signal)
-  );
-  if (!out.ok) return null;
-  ctx.advance(table, out.rows);
-  ctx.tally(out.rows.length);
-  return out.rows;
-}
-
 /**
  * Keyset-paged delta on (updated_at, id), as the keyset pager (MYK9-2252) and the
  * judge_assignments and dog_registrations readers do.
@@ -130,9 +110,12 @@ async function readKeysetDelta<T extends TimestampedRow>(
         .abortSignal(ctx.signal);
     });
     if (!page.ok) return null;
-    rows.push(...page.rows);
+    // Only an empty page ends the read, as the app's pagers do (MYK9-2252); a page
+    // ending on the row the cursor already sits on is a server ignoring it: stop.
     const last = page.rows.at(-1);
-    if (page.rows.length < KEYSET_PAGE_SIZE || !last?.updated_at || !last.id) break;
+    if (!last?.updated_at || !last.id) break;
+    if (String(last.updated_at) === cursor?.updatedAt && String(last.id) === cursor.id) break;
+    rows.push(...page.rows);
     cursor = { updatedAt: String(last.updated_at), id: String(last.id) };
   }
   ctx.advance(table, rows);
@@ -142,7 +125,7 @@ async function readKeysetDelta<T extends TimestampedRow>(
 
 /**
  * Every visible id, keyset-paged on id, as the dogs and registrations id scans
- * read. True when the scan completed (a short page); a failed page or the page
+ * read. True when the scan completed (an empty page); a failed page or the page
  * cap leaves it incomplete, and the app then leaves its cadence debt owed.
  */
 async function scanIds(
@@ -158,7 +141,8 @@ async function scanIds(
       return query.order('id', { ascending: true }).limit(KEYSET_PAGE_SIZE).abortSignal(ctx.signal);
     });
     if (!out.ok) return false;
-    if (out.rows.length < KEYSET_PAGE_SIZE) return true;
+    // Only an empty page completes the scan (MYK9-2252).
+    if (out.rows.length === 0) return true;
     lastId = String(out.rows[out.rows.length - 1].id);
   }
   return false;
@@ -221,20 +205,32 @@ async function syncDogRegistrations(ctx: ReaderContext): Promise<void> {
 }
 
 async function syncClubs(ctx: ReaderContext): Promise<void> {
-  const rows = await readDelta(ctx, 'clubs', '*', INCREMENTAL_BUFFER_MS, live);
+  const rows = await readKeysetDelta(ctx, 'clubs', '*', INCREMENTAL_BUFFER_MS, live);
   if (!rows) return;
-  // reconcileVisibility, when the id-scan cadence says it is due: a count to
-  // prove the id set is not truncated, then the ids.
+  // reconcileVisibility, when the id-scan cadence says it is due: a count, then the
+  // ids keyset-paged until an empty page; a set short of the count is partial.
   const gate = ctx.idScanGate('clubs');
   if (!gate.scan) return;
   const out = await ctx.request('clubs (count)', () =>
     live(ctx.client.from('clubs').select('id', COUNT)).abortSignal(ctx.signal)
   );
-  if (!out.ok || out.count === null || out.count > KEYSET_PAGE_SIZE) return;
-  const ids = await ctx.request('clubs (id scan)', () =>
-    live(ctx.client.from('clubs').select('id')).limit(KEYSET_PAGE_SIZE).abortSignal(ctx.signal)
-  );
-  if (ids.ok) gate.record();
+  if (!out.ok || out.count === null) return;
+  let seen = 0;
+  let lastId: string | undefined;
+  for (let page = 0; page < ID_SCAN_MAX_PAGES; page++) {
+    const ids = await ctx.request<{ id: string }>('clubs (id scan)', () => {
+      let query = live(ctx.client.from('clubs').select('id'));
+      if (lastId !== undefined) query = query.gt('id', lastId);
+      return query.order('id', { ascending: true }).limit(KEYSET_PAGE_SIZE).abortSignal(ctx.signal);
+    });
+    if (!ids.ok) return;
+    if (ids.rows.length === 0) {
+      if (seen >= out.count) gate.record();
+      return;
+    }
+    seen += ids.rows.length;
+    lastId = String(ids.rows[ids.rows.length - 1].id);
+  }
 }
 
 async function syncJudgeAssignments(ctx: ReaderContext): Promise<void> {
@@ -283,10 +279,11 @@ async function syncArmbands(ctx: ReaderContext): Promise<void> {
       // A failed page fails the pass with nothing applied, as the engine's throw
       // does, so the next pass is cold again.
       if (!page.ok) return null;
+      const last = page.rows.at(-1);
+      if (!last?.updated_at || !last.id) break;
+      if (String(last.updated_at) === cursor?.updatedAt && String(last.id) === cursor.id) break;
       if (!cursor) firstPage = page.rows;
       rows.push(...page.rows);
-      const last = page.rows.at(-1);
-      if (page.rows.length < KEYSET_PAGE_SIZE || !last?.updated_at || !last.id) break;
       cursor = { updatedAt: String(last.updated_at), id: String(last.id) };
     }
     ctx.advance('armbands', firstPage);

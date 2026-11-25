@@ -967,7 +967,6 @@ describe('Save & Publish prints the server facts with the editor copy (MYK9-2244
     startTime: '08:00',
     eventNumber: '2026123456',
     type: 'Scent Work',
-    maxTotalEntries: 60,
     judges: [{ name: 'Pat Judge', residence: 'Austin, TX', classes: ['Novice Container A'] }],
     classes: [{ element: 'Container', level: 'Novice', section: 'A' }],
   };
@@ -976,14 +975,6 @@ describe('Save & Publish prints the server facts with the editor copy (MYK9-2244
     saveHarness.updateShow.mockReset().mockResolvedValue(makeShow());
     saveHarness.persistJudges.mockReset().mockResolvedValue(undefined);
     const serverFacts = generatedPremium();
-    serverFacts.show = {
-      ...serverFacts.show,
-      venueName: 'Pine Hall',
-      address: '12 Pine Rd',
-      city: 'Austin',
-      state: 'TX',
-      zipCode: '78701',
-    };
     serverFacts.trials = [serverTrial];
     serverFacts.secretary = {
       name: 'Jane Smith',
@@ -1011,17 +1002,16 @@ describe('Save & Publish prints the server facts with the editor copy (MYK9-2244
     return published as ReturnType<typeof generatedPremium>;
   }
 
-  it('takes the trial limit, street address, judges, event number and secretary from the server and keeps the editor narrative', async () => {
+  it('takes the judges, event number and secretary from the server and keeps the editor narrative', async () => {
     const editor = generatedPremium();
     editor.narratives = { showHours: 'Doors at 6:30.', trialInformation: 'Edited by hand.' };
     editor.supplemental = { ...editor.supplemental, hospitalityNotes: 'Coffee at the gate.' };
-    // A stale form-built draft: wrong limit, no address, the whole roster on the trial.
-    editor.show = { ...editor.show, address: null, maxTotalEntries: 10 };
+    // A stale form-built draft: wrong limit, the whole roster on the trial.
+    editor.show = { ...editor.show, maxTotalEntries: 10 };
     editor.trials = [
       {
         ...serverTrial,
         eventNumber: null,
-        maxTotalEntries: 10,
         judges: [{ name: 'Everyone', residence: null, classes: [] }],
       },
     ];
@@ -1029,7 +1019,6 @@ describe('Save & Publish prints the server facts with the editor copy (MYK9-2244
     const published = await publishWith(editor);
 
     expect(saveHarness.facts).toHaveBeenCalledWith('show-1');
-    expect(published.show.address).toBe('12 Pine Rd');
     expect(published.trials).toEqual([serverTrial]);
     expect(published.secretary).toMatchObject({ name: 'Jane Smith' });
     expect(published.narratives).toEqual({

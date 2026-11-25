@@ -37,7 +37,7 @@ describe('fetchPremiumFacts (MYK9-2244, MYK9-2055)', () => {
 describe('applyEditorCopyToPremium', () => {
   it('overlays only the narratives, supplemental fields and style', () => {
     const facts = generatedPremium();
-    facts.show = { ...facts.show, address: '12 Pine Rd', maxTotalEntries: 60 };
+    facts.show = { ...facts.show, maxTotalEntries: 60 };
     const copy = {
       style: 'poster',
       narratives: { showHours: 'Edited hours', trialInformation: 'Edited info' },

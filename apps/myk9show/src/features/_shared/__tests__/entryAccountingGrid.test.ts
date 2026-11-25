@@ -22,11 +22,14 @@
 import { describe, it, expect } from 'vitest';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import {
+  classifyEntries,
   classifyEntry,
   countEntryAccounting,
   isAccountedFor,
   isExpectedEntry,
+  isInRunningLine,
   isRunnableEntry,
+  type EntryAccountingFields,
 } from '../entryAccounting';
 import {
   inRingReplicated,
@@ -173,10 +176,32 @@ describe('entry accounting — one rule across the whole status grid (MYK9-645)'
       const hasRunAtGate =
         (row.checkInStatus ?? row.check_in_status ?? row.entryStatus ?? row.entry_status) ===
         'completed';
-      const shouldQueue = isRunnableEntry(row) && !hasRunAtGate;
+      // MYK9-2391: and a Pending (not yet approved) dog holds no place either.
+      const shouldQueue = isInRunningLine(row) && !hasRunAtGate;
       return queued || inRing ? !shouldQueue : shouldQueue;
     }).map(c => c.label);
     expect(mismatches).toEqual([]);
+  });
+
+  it('a Pending entry stays counted and badged as pending, though it is not in the running line (MYK9-2391)', () => {
+    const pendingRows = [
+      'pending',
+      'submitted',
+      'draft',
+      'no-status',
+      'pending-payment',
+      'paid',
+      'promotion-expired',
+    ].map(
+      (entryStatus, index) =>
+        ({ id: `p${index}`, entryStatus }) as EntryAccountingFields & { id: string }
+    );
+    const groups = classifyEntries(pendingRows);
+    expect(Object.values(groups)).toEqual(pendingRows.map(() => 'pending'));
+    expect(countEntryAccounting(pendingRows).expected).toBe(pendingRows.length);
+    expect(pendingRows.filter(isInRunningLine)).toEqual([]);
+    expect(pendingRows.filter(isRunnableEntry)).toEqual(pendingRows);
+    expect(isInRunningLine({ entryStatus: 'confirmed' })).toBe(true);
   });
 
   it('never announces a non-runnable row as the dog in the ring', () => {

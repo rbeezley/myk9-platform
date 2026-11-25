@@ -32,6 +32,7 @@ import {
   type RunQueueEntry,
   type RunQueueState,
 } from '@myk9/ringside/run-queue';
+import { isAwaitingApproval } from '@/features/_shared/entryAccounting';
 import type { ShowEntry } from '@/store/entry-store-types';
 import type { QueuePlace } from '@/hooks/queries/useMyEntryQueuePlaces';
 
@@ -61,6 +62,8 @@ function queueStatus(entry: ShowEntry): string | undefined {
   // The shared precedence (MYK9-1940): a lifecycle absent, moved or withdrawn beats a check-in pulled.
   const reason = notRunningReasonOf(entry.status, checkIn);
   if (reason) return reason;
+  // A Pending (not yet approved) entry has no place in line (MYK9-2376, MYK9-2391).
+  if (isAwaitingApproval({ entryStatus: entry.status })) return 'pulled';
   if (checkIn === 'in-ring') return checkIn;
   return checkIn ?? entry.status;
 }
@@ -124,6 +127,8 @@ export function ownEntryQueueState(entry: ShowEntry, onPaper = false): RunQueueS
   // `toShowEntryQueueRow` folds every not-running lifecycle onto 'pulled' for
   // queue membership; a withdrawal is a different act and keeps its own label.
   if (entry.status === 'withdrawn') return { kind: 'withdrawn' };
+  // Awaiting approval: no place, no label (the queue row folds it onto 'pulled' for membership).
+  if (isAwaitingApproval({ entryStatus: entry.status })) return null;
   const state = runQueueStateOf([toShowEntryQueueRow(entry)], entry.id);
   if (state?.kind !== 'waiting') return state;
   if ((entry.registrationData?.runOrder ?? 0) <= 0) return null;

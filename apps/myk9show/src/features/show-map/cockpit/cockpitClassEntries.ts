@@ -14,7 +14,7 @@ import {
   isExpectedEntry,
   isNonRunningEntry,
   isPulledEntry,
-  isRunnableEntry,
+  isInRunningLine,
   type EntryAccountingFields,
 } from '@/features/_shared/entryAccounting';
 import {
@@ -173,16 +173,15 @@ function scoredAfterRemovalOf(state: ClassEntryState, display: ShowMapEntryDispl
 }
 
 /** The run queue's view of a row; anything not runnable is folded to `pulled`, as the at-show
- * adapter does, so membership stays `isRunnableEntry` and nothing else. */
+ * adapter does, so membership stays `isInRunningLine` and nothing else. */
 function queueRowOf(
   nodeId: string,
   display: ShowMapEntryDisplay,
-  fields: EntryAccountingFields,
-  pending: boolean
+  fields: EntryAccountingFields
 ): RunQueueEntry {
   const parsed = Number.parseInt(display.armband ?? '', 10);
   // Awaiting approval is runnable by the accounting rules but is not in the run queue (MYK9-2376).
-  const runnable = isRunnableEntry(fields) && !pending;
+  const runnable = isInRunningLine(fields);
   const checkIn = checkInOf(fields);
   return {
     id: nodeId,
@@ -213,7 +212,7 @@ export function classEntriesForClass(
     const fields = accountingFields(display);
     const entryStatus = display.entryStatus?.trim().toLowerCase();
     if (!isListed(fields, entryStatus, display.awaitingRegistrationNumber)) continue;
-    const queue = queueRowOf(node.id, display, fields, isPendingEntryStatus(entryStatus ?? ''));
+    const queue = queueRowOf(node.id, display, fields);
     const state = stateOf(fields, entryStatus ?? '', queue);
     // An entry awaiting approval is listed but never counted as entered (MYK9-2376).
     const counted = state !== 'pending' && isExpectedEntry(fields);

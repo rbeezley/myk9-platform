@@ -1,5 +1,5 @@
 import { buildShowArmbandMaps, resolveEntryArmband } from '@/features/_shared/entryArmband';
-import { isOnClassRunList } from '@/features/_shared/entryAccounting';
+import { isAwaitingApproval, isOnClassRunList } from '@/features/_shared/entryAccounting';
 import { toRunQueueEntry } from '@/features/at-show/replicatedRunQueue';
 import type { ReplicatedArmband } from '@/services/replication/ReplicatedArmbandsTable';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
@@ -44,10 +44,12 @@ function toPlacementInput(
     id: entry.id,
     armband: resolveEntryArmband(entry, maps),
     runOrder: entry.runOrder ?? null,
-    onRunList: isOnClassRunList({
-      entryStatus: entry.entryStatus ?? entry.status,
-      deletedAt: entry.deletedAt ?? entry.deleted_at,
-    }),
+    // A Pending (not yet approved) entry is not in line: it is neither waiting nor numbered (MYK9-2391).
+    onRunList:
+      isOnClassRunList({
+        entryStatus: entry.entryStatus ?? entry.status,
+        deletedAt: entry.deletedAt ?? entry.deleted_at,
+      }) && !isAwaitingApproval({ entryStatus: entry.entryStatus ?? entry.status }),
     isScored: Boolean(queue.isScored) || ran,
     status: queue.status,
     pulled: checkIn === 'pulled',

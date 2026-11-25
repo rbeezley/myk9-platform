@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import { buildClassPlacement } from '@/features/show-map/showMapHandPlacement';
-import { pendingReplicatedByRunOrder } from './replicatedRunQueue';
+import { nextPendingReplicated, pendingReplicatedByRunOrder } from './replicatedRunQueue';
 
 // MYK9-996: the ringside run queue and the secretary's placement model (the
 // real one, via its adapter) must agree on who is still waiting, or a place
@@ -38,6 +38,21 @@ describe('run queue and placement model agree on who is waiting', () => {
     expect(pendingReplicatedByRunOrder(rows).map(r => r.id)).toEqual(['x', 'ref']);
     expect(buildClassPlacement(rows, []).model.waiting.map(r => r.id)).toEqual(['x', 'ref']);
   });
+
+  // MYK9-2391: a Pending (not yet approved) entry holds a run order but is not in line.
+  it.each(['pending', 'submitted', 'draft', 'paid', 'promotion-expired'])(
+    'a %s entry between two running dogs is waiting in neither and is never next up',
+    entryStatus => {
+      const rows = [
+        { id: 'p', classId: 'c', armband: '3', runOrder: 1, entryStatus },
+        { id: 'a', classId: 'c', armband: '1', runOrder: 2, entryStatus: 'confirmed' },
+        { id: 'b', classId: 'c', armband: '2', runOrder: 3, entryStatus: 'confirmed' },
+      ] as ReplicatedEntry[];
+      expect(pendingReplicatedByRunOrder(rows).map(r => r.id)).toEqual(['a', 'b']);
+      expect(buildClassPlacement(rows, []).model.waiting.map(r => r.id)).toEqual(['a', 'b']);
+      expect(nextPendingReplicated(rows, 1).map(r => r.id)).toEqual(['a']);
+    }
+  );
 
   it('check-in completed is not waiting in either', () => {
     const rows = [

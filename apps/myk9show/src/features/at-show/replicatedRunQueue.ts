@@ -21,7 +21,7 @@ import {
   type RunQueueEntry,
 } from '@myk9/ringside';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
-import { isRunnableEntry } from '@/features/_shared/entryAccounting';
+import { isInRunningLine } from '@/features/_shared/entryAccounting';
 
 /** A replicated row plus the normalized fields the run queue sorts on. */
 export interface ReplicatedQueueEntry extends RunQueueEntry {
@@ -43,7 +43,8 @@ function parseArmband(entry: ReplicatedEntry): number {
  * test for `pulled` / `in-ring`, so every state meaning "won't run" is folded
  * onto `pulled` and a single field answers queue membership.
  *
- * MEMBERSHIP IS `isRunnableEntry`, AND NOTHING ELSE DECIDES IT (MYK9-645).
+ * MEMBERSHIP IS `isInRunningLine` (`isRunnableEntry` minus a Pending entry, MYK9-2391),
+ * AND NOTHING ELSE DECIDES IT (MYK9-645).
  * The check-in axis is read only AFTER that predicate says yes, because the
  * two orderings are not equivalent: a withdrawn row carrying a stale
  * `check_in_status: 'in-ring'` (`entries.94db1b95` on staging) was announced as
@@ -56,7 +57,7 @@ function parseArmband(entry: ReplicatedEntry): number {
  * three rounds of this bug happened.
  */
 function queueStatus(entry: ReplicatedEntry): string | undefined {
-  if (!isRunnableEntry(entry)) return 'pulled';
+  if (!isInRunningLine(entry)) return 'pulled';
 
   const checkIn = entry.checkInStatus ?? entry.check_in_status;
   return checkIn ?? entry.status ?? entry.entryStatus;
@@ -77,7 +78,7 @@ export function toRunQueueEntry(entry: ReplicatedEntry): ReplicatedQueueEntry {
     // leaving it ungated would re-announce exactly the stale row `queueStatus`
     // just excluded.
     inRing:
-      isRunnableEntry(entry) &&
+      isInRunningLine(entry) &&
       ((entry.isInRing ?? entry.is_in_ring ?? false) ||
         (entry.checkInStatus ?? entry.check_in_status) === 'in-ring'),
     entry,

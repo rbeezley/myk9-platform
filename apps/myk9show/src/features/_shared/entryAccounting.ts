@@ -1,3 +1,5 @@
+import { isPendingEntryStatus } from './entryPendingStatus';
+
 /**
  * Canonical answer to "is this entry expected to be scored, and has it been?"
  *
@@ -137,6 +139,24 @@ export function isAccountedFor(entry: EntryAccountingFields): boolean {
 export function isRunnableEntry(entry: EntryAccountingFields): boolean {
   const checkInStatus = normalized(entry.checkInStatus ?? entry.check_in_status);
   return isExpectedEntry(entry) && !isAccountedFor(entry) && checkInStatus !== 'pulled';
+}
+
+/**
+ * Is this dog in the running line: runnable AND not awaiting approval (MYK9-2391)?
+ *
+ * The owner's rule (MYK9-2376): a Pending entry does not run, so it has no place in
+ * line. Ringside's queue, the placement model's waiting list, Show Desk and the
+ * server's `entry_queue_places_for_classes` all answer to this. `isRunnableEntry` is
+ * deliberately unchanged: accounting and the badge counts (`classifyEntries`) still
+ * count a Pending dog as expected.
+ */
+export function isInRunningLine(entry: EntryAccountingFields): boolean {
+  return isRunnableEntry(entry) && !isAwaitingApproval(entry);
+}
+
+/** True when the entry is not yet approved (the Pending rule `isInRunningLine` excludes). */
+export function isAwaitingApproval(entry: EntryAccountingFields): boolean {
+  return isPendingEntryStatus(normalized(entry.entryStatus ?? entry.entry_status ?? entry.status));
 }
 
 /**

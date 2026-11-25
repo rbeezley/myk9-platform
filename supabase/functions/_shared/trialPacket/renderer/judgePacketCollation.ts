@@ -5,6 +5,7 @@ import type {
   EmergencyPacketTrial,
 } from './types.ts';
 import { formatPacketSeconds } from './emergencyTrialPacket.ts';
+import { isUnsetPacketJudge } from './printedClassHeader.ts';
 
 /**
  * Collation of one trial's classes into one packet per judge (MYK9-2085). Pure and runtime
@@ -66,8 +67,8 @@ export function withJudgeTotals<T>(judge: PacketJudge<T>): PacketJudge<T> {
 }
 
 function judgeKeyOf(name: string): string {
-  const trimmed = name.trim();
-  return trimmed ? trimmed.toLowerCase() : NO_JUDGE_KEY;
+  // A stored "TBD" is an unset judge, so it joins the "No judge assigned" packet (MYK9-2377).
+  return isUnsetPacketJudge(name) ? NO_JUDGE_KEY : name.trim().toLowerCase();
 }
 
 /** The label the check-in sheet gives the class: element, level and a real section. */

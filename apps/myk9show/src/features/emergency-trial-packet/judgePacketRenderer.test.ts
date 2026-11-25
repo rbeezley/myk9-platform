@@ -157,6 +157,37 @@ describe('collateJudgePackets', () => {
     expect(every).not.toContain('empty');
   });
 
+  it('puts a class whose stored judge is "TBD" in the unassigned packet (MYK9-2377)', () => {
+    const input: EmergencyPacketInput = {
+      ...INPUT,
+      classes: [
+        packetClass('nobody', { judgeName: '' }),
+        packetClass('legacy', { judgeName: 'TBD' }),
+      ],
+      entries: [dog('e1', 'nobody', '301', 1), dog('e2', 'legacy', '302', 1)],
+    };
+    const packet = collateJudgePackets(input, {
+      trialId: 't1',
+      trialLabel: 'Trial 1',
+      registryName: 'American Kennel Club',
+      parseStartMinutes: parseMinutes,
+      compareProgression: () => 0,
+      sheetsFor: classItem =>
+        summarizeClassSheets(
+          buildEmergencyPacketModel(
+            {
+              ...input,
+              classes: [classItem],
+              entries: input.entries.filter(entry => entry.classId === classItem.id),
+            },
+            { snapshotMarker: false }
+          )
+        ),
+    });
+    expect(packet?.judges).toHaveLength(1);
+    expect(packet?.judges[0]).toMatchObject({ key: 'no-judge', judgeName: null });
+  });
+
   it('returns nothing for a trial that is not in the input', () => {
     expect(
       collateJudgePackets(INPUT, {

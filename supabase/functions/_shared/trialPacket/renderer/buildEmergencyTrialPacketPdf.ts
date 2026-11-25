@@ -1,6 +1,7 @@
 import { armbandSortKey, compareArmbands, formatPacketArmband } from './armband.ts';
 import { formatEmergencyPacketPageLabel } from './emergencyTrialPacket.ts';
 import { formatPacketTrialLabel } from './packetClassOrder.ts';
+import { judgeDetailLine } from './printedClassHeader.ts';
 import { resolveScoresheetConfig, type ScoresheetRegistryConfig } from './scoresheetConfig.ts';
 import type { EmergencyPacketEntry, EmergencyPacketModel, EmergencyPacketPage } from './types.ts';
 
@@ -228,7 +229,7 @@ function addTitle(doc: jsPDF, page: EmergencyPacketPage): number {
     isScoreRecording && page.context.distractionCount != null
       ? `Distractions: ${page.context.distractionCount}`
       : undefined,
-    page.context.judgeName ? `Judge: ${page.context.judgeName}` : undefined,
+    judgeDetailLine(page.context.judgeName),
   ];
   const detailLines = layoutDetailLines(
     doc,

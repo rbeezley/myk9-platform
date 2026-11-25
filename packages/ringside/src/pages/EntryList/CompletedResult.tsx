@@ -53,6 +53,8 @@ export const CompletedResult: React.FC<{
   const codeIsTheReason = code === 'EX' || code === 'DQ' || code === 'ABS' || code === 'WD';
   const formattedTime = entry.searchTime ? formatTimeForDisplay(entry.searchTime) : '';
   const hasTime = formattedTime !== '' && !/^0+:0+(\.0+)?$/.test(formattedTime);
+  const formattedElement = entry.elementTime ? formatTimeForDisplay(entry.elementTime) : '';
+  const hasElement = formattedElement !== '' && !/^0+:0+(\.0+)?$/.test(formattedElement);
 
   let badge: React.ReactNode = null;
   if (showPlace) {
@@ -88,6 +90,11 @@ export const CompletedResult: React.FC<{
       {qualified && entry.showTime !== false && hasTime ? (
         <span className="text-[0.9375rem] font-semibold tabular-nums text-foreground">
           {formattedTime}
+        </span>
+      ) : null}
+      {qualified && entry.showTime !== false && hasElement ? (
+        <span className="text-sm font-semibold tabular-nums text-muted-foreground">
+          Element {formattedElement}
         </span>
       ) : null}
       {qualified && entry.showFaults !== false && faults > 0 ? (

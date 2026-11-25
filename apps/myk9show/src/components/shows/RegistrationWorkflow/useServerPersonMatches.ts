@@ -42,12 +42,23 @@ export function serverMatchKey(data: Partial<PersonRecord>): string {
 export async function fetchServerPersonMatches(
   data: Partial<PersonRecord>
 ): Promise<ServerMatchResult> {
+  try {
+    return await lookupServerPeople(data);
+  } catch {
+    return { people: [], failed: true };
+  }
+}
+
+type SearchAnswer = Awaited<ReturnType<typeof searchUsers>>;
+
+/** One term's search, bounded on its own so a stalled term never discards another's answer. */
+async function searchTermWithDeadline(term: string): Promise<SearchAnswer> {
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const deadline = new Promise<ServerMatchResult>(resolve => {
-    timer = setTimeout(() => resolve({ people: [], failed: true }), LOOKUP_DEADLINE_MS);
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error('person search timed out')), LOOKUP_DEADLINE_MS);
   });
   try {
-    return await Promise.race([lookupServerPeople(data), deadline]);
+    return await Promise.race([searchUsers(term), deadline]);
   } finally {
     clearTimeout(timer);
   }
@@ -58,11 +69,11 @@ async function lookupServerPeople(data: Partial<PersonRecord>): Promise<ServerMa
   if (terms.length === 0) return { people: [], failed: false };
   if (!onlineManager.isOnline() || !navigator.onLine) return { people: [], failed: true };
   try {
-    const settled = await Promise.allSettled(terms.map(term => searchUsers(term)));
+    const settled = await Promise.allSettled(terms.map(searchTermWithDeadline));
     const results = settled.flatMap(item =>
       item.status === 'fulfilled' && !item.value.error ? [item.value] : []
     );
-    // Rows from a term that answered still count; failed only when none did.
+    // Rows from a term that answered in time still count; failed only when none did.
     if (results.length === 0) return { people: [], failed: true };
     const byId = new Map<string, User>();
     for (const result of results) {

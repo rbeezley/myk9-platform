@@ -27,6 +27,8 @@ export interface Entry {
 
   resultText?: string;
   searchTime?: string;
+  /** UKC element time in seconds (string, like searchTime); absent for AKC and ASCA. */
+  elementTime?: string;
   faultCount?: number;
   placement?: number;
   classId: string;

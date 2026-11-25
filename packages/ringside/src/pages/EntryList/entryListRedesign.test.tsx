@@ -60,6 +60,23 @@ describe('CompletedResult', () => {
     expect(screen.getByTestId('completed-result').textContent).toContain('Q');
   });
 
+  it('shows the UKC element time beside the search time', () => {
+    render(
+      <CompletedResult
+        entry={entry({ isScored: true, resultText: 'Q', searchTime: '62.05', elementTime: '30.1' })}
+        registry="UKC"
+      />
+    );
+    expect(screen.getByTestId('completed-result').textContent).toContain('Element 00:30.10');
+  });
+
+  it('shows no element time when the run has none', () => {
+    render(
+      <CompletedResult entry={entry({ isScored: true, resultText: 'Q', searchTime: '62.05' })} />
+    );
+    expect(screen.getByTestId('completed-result').textContent).not.toContain('Element');
+  });
+
   it('shows no fault line when there are no faults', () => {
     render(
       <CompletedResult

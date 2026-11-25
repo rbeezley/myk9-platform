@@ -5,6 +5,8 @@ description: Use when shipping or merging an existing PR/branch through review-c
 
 # Ship PR
 
+> **Until 2026-12-08 (owner, MYK9-2324): Codex, not agy, is the `independent` gate for Claude-authored work.** Wherever this file says agy, read Codex: run `CODEX_REVIEW_LOG="$PWD/.logs/codex-review-$(git rev-parse HEAD).log" pnpm qa:codex-review --post > .logs/codex-review.log 2>&1; echo "EXIT=$?"` in place of `pnpm qa:agy-review --post`, read `.logs/codex-review.log` for the verdict, record `Codex rounds: M`, and if Codex is unavailable, treat it as an unavailable reviewer (`ship-pr` Step 4: wait, or an owner override the maintainer authorizes), not as agy being down. Delete this note on 2026-12-08.
+
 Use when a feature branch is ready to ship — whether it has an open PR or not. Bundles simplify → commit → PR creation (if needed) → review-comment fixes → risk-appropriate review gate (optional for bounded low-risk changes) → squash-merge → close-out → worktree cleanup, in that order.
 
 This file is shared by Claude Code and Codex (`.agents/skills/ship-pr` is a symlink to it). Where the two harnesses differ, both paths are spelled out. "The instruction file" means `CLAUDE.md` for Claude Code and `AGENTS.md` for Codex.

@@ -80,6 +80,8 @@ interface ReportControlsBarProps {
   onPrint: () => void;
   /** The report is for a registry outside this scope: nothing may be printed. */
   printDisabled?: boolean;
+  /** The sheet has no running dog, so there is no paper; the preview says so (MYK9-2387). */
+  noRunningDogs?: boolean;
   officialPdfAction?: OfficialPdfAction | undefined;
   judgeDay?: JudgeDayControl | undefined;
 }
@@ -100,6 +102,7 @@ export function ReportControlsBar({
   onSortChange,
   onPrint,
   printDisabled = false,
+  noRunningDogs = false,
   officialPdfAction,
   judgeDay,
 }: ReportControlsBarProps) {
@@ -281,7 +284,7 @@ export function ReportControlsBar({
         {!isPdfOnlyReport && (
           <Button
             onClick={onPrint}
-            disabled={printDisabled}
+            disabled={printDisabled || noRunningDogs}
             aria-describedby={printDisabled ? FOREIGN_REPORT_NOTICE_ID : undefined}
             className="w-full sm:w-auto"
           >

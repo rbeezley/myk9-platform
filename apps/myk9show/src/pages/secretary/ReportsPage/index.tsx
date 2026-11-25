@@ -86,6 +86,8 @@ export default function ReportsPage() {
     () => nonEmptyParam(searchParams, 'financialsTrial') ?? 'all'
   );
   const { user } = useAuthContext();
+  // MYK9-2387: the selected sheet has no running dog, so it has no paper to print.
+  const [emptySheet, setEmptySheet] = useState(false);
   const [armbandDescriptor, setArmbandDescriptor] = useState<PaperworkDescriptor | null>(null);
   const effectiveScope = useMemo<ReportScope>(
     () => resolveReportScope({ showId: showId ?? '', trialId, classId }),
@@ -427,6 +429,7 @@ export default function ReportsPage() {
           onSortChange={setSortOrder}
           onPrint={handlePrint}
           printDisabled={isForeignReport}
+          noRunningDogs={emptySheet}
           officialPdfAction={officialPdfAction}
           judgeDay={judgeDay.control && { ...judgeDay.control, onChange: handleJudgeDayChange }}
         />
@@ -465,6 +468,7 @@ export default function ReportsPage() {
           }}
           iframeRef={iframeRef}
           onArmbandDescriptorChange={setCurrentArmbandDescriptor}
+          onEmptySheetChange={setEmptySheet}
         />
       </div>
     </div>

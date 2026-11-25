@@ -20,6 +20,17 @@ describe('matchPeopleByName', () => {
     expect(matchPeopleByName(directory, 'JO SMITH').map(p => p.id)).toEqual(['1', '3']);
   });
 
+  it('finds the same owner for "Smith Mary", "Smith, Mary" and "(Smith)"', () => {
+    const mary = person('7', 'Mary', 'Smith');
+    for (const query of ['Smith Mary', 'Smith, Mary', '(Smith)']) {
+      expect(matchPeopleByName([mary, directory[1]], query).map(p => p.id)).toEqual(['7']);
+    }
+  });
+
+  it('returns nothing when the query is only separators', () => {
+    expect(matchPeopleByName(directory, ',()')).toEqual([]);
+  });
+
   it('returns nothing for a blank query or a name nobody has', () => {
     expect(matchPeopleByName(directory, '   ')).toEqual([]);
     expect(matchPeopleByName(directory, 'zzz')).toEqual([]);

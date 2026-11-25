@@ -1,4 +1,5 @@
 import type { User } from '@/types/user-types';
+import { searchTermWords } from '@/utils/searchTermWords';
 
 /** The list stays short on purpose: a secretary who needs more types more of the name. */
 export const PEOPLE_MATCH_LIMIT = 5;
@@ -22,7 +23,7 @@ export function matchPeopleByName(
   query: string,
   limit: number = PEOPLE_MATCH_LIMIT
 ): User[] {
-  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const words = searchTermWords(query.toLowerCase());
   if (words.length === 0) return [];
   const matches: User[] = [];
   for (const person of people) {

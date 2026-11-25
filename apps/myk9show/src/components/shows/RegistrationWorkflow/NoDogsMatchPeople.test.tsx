@@ -57,6 +57,18 @@ describe('NoDogsMatchPeople', () => {
     );
   });
 
+  it.each(['Smith Mary', 'Smith, Mary', '(Smith)'])(
+    'finds a dogless owner for "%s" and opens Add Dog with her existing id',
+    async query => {
+      useUserStore.setState({ people: [{ id: 'p7', firstName: 'Mary', lastName: 'Smith' }] });
+      const { user } = render(<NoDogsMatchPeople query={query} {...props} />);
+      await user.click(screen.getByRole('button', { name: /Mary Smith/ }));
+      expect(addDogPanel).toHaveBeenLastCalledWith(
+        expect.objectContaining({ open: true, currentUserPersonId: 'p7' })
+      );
+    }
+  );
+
   it('renders nothing when no person matches', () => {
     render(<NoDogsMatchPeople query="zzz" {...props} />);
     expect(screen.queryByTestId('no-dogs-match-people')).toBeNull();

@@ -37,7 +37,7 @@ values
   ('00000000-0000-0000-0000-000000238921', '00000000-0000-0000-0000-000000238911', '00000000-0000-0000-0000-000000238905', '00000000-0000-0000-0000-000000238902', '00000000-0000-0000-0000-000000238903', 'confirmed', '1', 1, 'no-status', null, null),
   ('00000000-0000-0000-0000-000000238922', '00000000-0000-0000-0000-000000238912', '00000000-0000-0000-0000-000000238905', '00000000-0000-0000-0000-000000238902', '00000000-0000-0000-0000-000000238903', 'withdrawn', '2', 2, 'no-status', null, null),
   ('00000000-0000-0000-0000-000000238923', '00000000-0000-0000-0000-000000238913', '00000000-0000-0000-0000-000000238905', '00000000-0000-0000-0000-000000238902', '00000000-0000-0000-0000-000000238903', 'confirmed', '3', 3, 'pulled', null, null),
-  ('00000000-0000-0000-0000-000000238924', '00000000-0000-0000-0000-000000238914', '00000000-0000-0000-0000-000000238905', '00000000-0000-0000-0000-000000238902', '00000000-0000-0000-0000-000000238903', 'pending', '4', 4, 'no-status', null, null),
+  ('00000000-0000-0000-0000-000000238924', '00000000-0000-0000-0000-000000238914', '00000000-0000-0000-0000-000000238905', '00000000-0000-0000-0000-000000238902', '00000000-0000-0000-0000-000000238903', 'submitted', '4', 4, 'no-status', null, null),
   ('00000000-0000-0000-0000-000000238925', '00000000-0000-0000-0000-000000238915', '00000000-0000-0000-0000-000000238905', '00000000-0000-0000-0000-000000238902', '00000000-0000-0000-0000-000000238903', 'confirmed', '5', 5, 'no-status', 'absent', null),
   ('00000000-0000-0000-0000-000000238926', '00000000-0000-0000-0000-000000238916', '00000000-0000-0000-0000-000000238905', '00000000-0000-0000-0000-000000238902', '00000000-0000-0000-0000-000000238903', 'confirmed', '6', 6, 'no-status', null, now());
 
@@ -48,31 +48,31 @@ declare
 begin
   packet := public.emergency_packet_input('00000000-0000-0000-0000-000000238902', current_date);
 
-  if jsonb_array_length(packet->'entries') <> 5 then
+  if jsonb_array_length(packet->'entries') IS DISTINCT FROM 5 then
     raise exception 'FAIL expected the 5 live entries, got %', jsonb_array_length(packet->'entries');
   end if;
 
   select item into row_of from jsonb_array_elements(packet->'entries') item
    where item->>'id' = '00000000-0000-0000-0000-000000238922';
-  if row_of is null or row_of->>'entryStatus' <> 'withdrawn' then
+  if row_of is null or row_of->>'entryStatus' IS DISTINCT FROM 'withdrawn' then
     raise exception 'FAIL a withdrawn entry was not returned with entryStatus withdrawn: %', row_of;
   end if;
 
   select item into row_of from jsonb_array_elements(packet->'entries') item
    where item->>'id' = '00000000-0000-0000-0000-000000238923';
-  if row_of is null or row_of->>'checkInStatus' <> 'pulled' then
+  if row_of is null or row_of->>'checkInStatus' IS DISTINCT FROM 'pulled' then
     raise exception 'FAIL a pulled entry was not returned with checkInStatus pulled: %', row_of;
   end if;
 
   select item into row_of from jsonb_array_elements(packet->'entries') item
    where item->>'id' = '00000000-0000-0000-0000-000000238924';
-  if row_of is null or row_of->>'entryStatus' <> 'pending' then
-    raise exception 'FAIL a pending entry was not returned with entryStatus pending: %', row_of;
+  if row_of is null or row_of->>'entryStatus' IS DISTINCT FROM 'submitted' then
+    raise exception 'FAIL a pending entry was not returned with entryStatus submitted: %', row_of;
   end if;
 
   select item into row_of from jsonb_array_elements(packet->'entries') item
    where item->>'id' = '00000000-0000-0000-0000-000000238925';
-  if row_of is null or row_of->>'resultStatus' <> 'absent' then
+  if row_of is null or row_of->>'resultStatus' IS DISTINCT FROM 'absent' then
     raise exception 'FAIL a recorded-absent entry was not returned with resultStatus absent: %', row_of;
   end if;
 

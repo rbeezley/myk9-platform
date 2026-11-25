@@ -39,7 +39,7 @@ const CASES: ReadonlyArray<[number, string, string, string | null]> = [
   [2, 'moved', 'no-status', null],
   [3, 'withdrawn', 'no-status', null],
   [4, 'scratched', 'pulled', null],
-  [5, 'pending', 'no-status', null],
+  [5, 'submitted', 'no-status', null],
   [6, 'not_accepted', 'no-status', null],
   [7, 'absent', 'no-status', null],
   [8, 'paid', 'no-status', null],
@@ -48,7 +48,7 @@ const CASES: ReadonlyArray<[number, string, string, string | null]> = [
   [11, 'confirmed', 'no-status', 'absent'],
   [12, 'confirmed', 'checked-in', 'withdrawn'],
   [13, 'withdrawn', 'pulled', null],
-  [14, 'accepted', 'checked-in', 'qualified'],
+  [14, 'confirmed', 'checked-in', 'qualified'],
 ];
 
 const appRows = CASES.map(

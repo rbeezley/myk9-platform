@@ -246,6 +246,7 @@ const launchCriticalSqlTests = [
   'myk9_731_restore_show_day_fixture_containment_test.sql',
   'myk9_1162_registry_identity_taken_test.sql',
   'myk9_1162_held_entries_packet_test.sql',
+  'myk9_2389_packet_input_entry_statuses_test.sql',
   'myk9_1162_held_entries_ringside_test.sql',
   'myk9_1162_lifecycle_registration_number_needed_test.sql',
   'myk9_1212_claim_registration_number_needed_job_test.sql',

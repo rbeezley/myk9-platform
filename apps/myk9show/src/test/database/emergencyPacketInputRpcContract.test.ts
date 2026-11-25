@@ -11,15 +11,15 @@ import { describe, expect, it } from 'vitest';
  * MYK9-228.
  */
 // `emergency_packet_input` is rebuilt in full by each successive
-// `CREATE OR REPLACE`; the latest is `20260922220537` (handler identity,
-// MYK9-603). Every assertion about that function's body must read the LATEST
+// `CREATE OR REPLACE`; the latest is `20261125053700` (entry statuses,
+// MYK9-2389). Every assertion about that function's body must read the LATEST
 // definition — asserting against a superseded file passes against text that no
 // longer describes the deployed function. This path is the one thing here that
 // MUST be updated whenever the function is rebuilt again.
 const sql = readFileSync(
   resolve(
     __dirname,
-    '../../../../../supabase/migrations/20260922220537_myk9_603_emergency_packet_handler_identity.sql'
+    '../../../../../supabase/migrations/20261125053700_myk9_2389_packet_input_entry_statuses.sql'
   ),
   'utf8'
 );
@@ -143,31 +143,17 @@ describe('emergency_packet_input contract', () => {
     expect(sql.match(/public\.emergency_packet_section\(/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
   });
 
-  it('leaves entries that are not running off the paperwork', () => {
-    // Withdrawn and scratched entries are NOT soft-deleted; that is the normal
-    // lifecycle. `replicatedRunQueue`'s NOT_RUNNING_LIFECYCLE excludes exactly
-    // these three, and paper that disagrees hands a judge a row for a dog that
-    // is not competing.
-    // Union of isRunnableScheduleStatus and the run queue's set, in the RAW
-    // spellings the column holds. `moved` is the sharpest: a move-up leaves
-    // the ORIGINAL row behind, so including it prints the dog twice.
-    for (const raw of [
-      'withdrawn',
-      'cancelled',
-      'not_accepted',
-      'rejected',
-      'promotion-expired',
-      'scratched',
-      'moved',
-      'absent',
-    ]) {
-      expect(sql).toContain(`'${raw}'`);
-    }
-    // Two axes, and the check-in one wins: `pulled` only ever lives on
-    // `check_in_status`, so a lifecycle-only filter leaves a dog pulled at the
-    // gate on the sheet. `in-ring` must NOT be excluded — that dog is running.
-    expect(sql).toMatch(/COALESCE\(e\.check_in_status, ''\) <> 'pulled'/);
-    expect(sql).not.toMatch(/check_in_status[^\n]*'in-ring'/);
+  it('returns every live entry with its raw statuses for the shared sheet rule (MYK9-2389)', () => {
+    // The RPC no longer decides which dogs print. The edge builder applies
+    // `applySheetEntryRule` (`sheetEntryState`), the rule the Reports sheets use:
+    // it drops a declined entry and a move-up's source row, and lists a
+    // withdrawn, absent, pulled or pending dog with its status and no order.
+    // `serverPacketParity.test.ts` pins the two paths to each other.
+    expect(sql).not.toMatch(/entry_status, ''\) NOT IN/);
+    expect(sql).not.toMatch(/check_in_status, ''\) <> 'pulled'/);
+    expect(sql).toContain("'entryStatus', e.entry_status");
+    expect(sql).toContain("'checkInStatus', e.check_in_status");
+    expect(sql).toContain("'resultStatus', e.result_status");
   });
 
   it('drops a cancelled trial or class, which soft-delete does not cover', () => {

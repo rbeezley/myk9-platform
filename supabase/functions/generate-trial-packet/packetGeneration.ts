@@ -14,6 +14,7 @@ import {
   splitPacketInputByTrialDay,
 } from '../_shared/trialPacket/renderer/emergencyTrialPacket.ts';
 import type { RenderedPacket } from '../_shared/trialPacket/renderer/judgePacketDay.ts';
+import { applySheetEntryRule } from '../_shared/trialPacket/renderer/packetInputEntries.ts';
 import type { EmergencyPacketInput } from '../_shared/trialPacket/renderer/types.ts';
 import { shouldReclaimStalePacketClaim } from './packetClaim.ts';
 import { withPacketLookups } from './packetLookups.ts';
@@ -165,7 +166,12 @@ export async function generateTrialPackets(
     p_trial_date: request.trialDate ?? null,
   });
   if (error) throw new HttpError(500, 'Failed to load the packet source data.');
-  const input = await withPacketLookups(supabase, request.showId, assertPacketInput(data));
+  // MYK9-2389: the same entry rule as the Reports sheets (listed, running, catalog).
+  const input = await withPacketLookups(
+    supabase,
+    request.showId,
+    applySheetEntryRule(assertPacketInput(data))
+  );
 
   const generatedAt = now().toISOString();
   const summary: GeneratePacketSummary = {

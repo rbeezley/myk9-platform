@@ -131,8 +131,6 @@ describe('agy-review.sh', () => {
     const r = run(stubAgy(CLEAN));
     expect(r.code).toBe(0);
     expect(r.out).toMatch(/^Review gate: agy reviewed [0-9a-f]{9}\.\.[0-9a-f]{9} — no findings$/m);
-    // Without --post nothing was recorded, and the Next: line says so.
-    expect(r.out.trimEnd().split('\n').at(-1)).toMatch(/^Next: clean, but this was a rehearsal/);
   });
 
   it('runs agy read-only: plan mode, the session allow list, flags before -p, no skip-permissions', () => {
@@ -171,8 +169,6 @@ describe('agy-review.sh', () => {
     const r = run(stubAgy('- [P2] a.ts:1 something is wrong\n'));
     expect(r.code).toBe(1);
     expect(r.out).not.toContain('Review gate: agy reviewed');
-    expect(r.out).toContain('Next: fix the findings above');
-    expect(r.out).toContain('older clean evidence for this head still stands');
   });
 
   it.each([
@@ -323,14 +319,12 @@ esac
     const r = run(stubAgy(CLEAN), ['HEAD']);
     expect(r.code).toBe(2);
     expect(r.out).toContain('nothing to review');
-    expect(r.out).toContain('Next: NOT a verdict.');
   });
 
   it('--post on a clean review posts agy evidence through the poster', () => {
     const gh = stubGh();
     const r = run(stubAgy(CLEAN), ['HEAD~1', '--post'], gh);
     expect(r.code).toBe(0);
-    expect(r.out).toContain('Next: clean for this head.');
     const posted = bodies(gh.calls);
     expect(posted).toHaveLength(1);
     expect(posted[0]).toMatch(
@@ -343,7 +337,6 @@ esac
     const gh = stubGh();
     const r = run(stubAgy('- [P2] a.ts:1 something is wrong\n'), ['HEAD~1', '--post'], gh);
     expect(r.code).toBe(1);
-    expect(r.out).toContain('has been withdrawn');
     const posted = bodies(gh.calls);
     expect(posted[0]).toMatch(/^Agy findings for [0-9a-f]{9} \(not gate evidence\):/);
     expect(posted[0]?.split('\n')[0]).not.toMatch(/^Review gate:/);

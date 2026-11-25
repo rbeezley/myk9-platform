@@ -185,8 +185,12 @@ a merge of `origin/main`. It waits up to 20 minutes while the walk is unfinished
 walk exits 0. A withdrawal is never blocked. Run the command by hand to see where the
 walk stands, and before a long review when you would rather know early.
 
-Exit 0 is the only pass (not required, or green); 1 failed, 2 could not decide, 3 not
-finished. The command's last line is a `Next:` line saying what to do for its code.
+| Exit | Means                         | Do                                                                                                                    |
+| ---- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| 0    | not required, or green        | Nothing; the poster posts.                                                                                            |
+| 1    | the walk failed               | Download the `isolated-batch3-proof` artifact, read the screenshots and trace, fix, push, start Step 3 again.         |
+| 2    | could not decide (not a pass) | Move the path list with the code (same PR), push so the PR head is local HEAD, or retry once git/`gh` work.           |
+| 3    | not finished (not a verdict)  | The poster waits, then refuses; re-run the poster command it printed once the walk is green. The review was not lost. |
 
 ### Step 4: Independent Review Gate — BEFORE merge
 
@@ -220,7 +224,16 @@ bash scripts/qa/claude-review.sh --wait 240 $PR_NUMBER           # ordinary deta
 
 Two preconditions. Push first: `/code-review` reads the **remote** PR head while the evidence names your local HEAD, so the wrapper refuses (exit 2) when the two differ rather than attesting to a commit the reviewer never saw. And the wrapper lives in the tree: if `scripts/qa/claude-review.sh` is missing on your branch, your base predates it — `git merge origin/main` (that is a new head; push, then gate the new head).
 
-Both wrappers behave identically: 0 clean and evidence posted for THIS head, 1 findings (posted as a non-evidence comment, and any clean evidence for this head withdrawn), 2 not a verdict. The wrapper's last line is a `Next:` line saying what to do for its code; follow it. The reviewer CLI's own exit code is never the verdict (it exits 0 on interrupts, usage limits and findings alike), which is why the wrappers read the log and only the poster writes evidence. Drop `--post` to rehearse without writing to the PR. Never call `codex review --commit`: it reviews one commit and can vacuously pass on a docs-only tip.
+Both wrappers behave identically:
+
+| Exit | Means                                                       | Do                                                                                                                                                                     |
+| ---- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0    | clean; with `--post`, evidence posted for THIS head         | Without `--post` nothing was recorded. A clean re-run does not check earlier rounds: verify each earlier finding was fixed yourself.                                   |
+| 1    | findings, posted as a non-evidence comment                  | Fix, commit, push, re-run for the NEW head. With `--post` any clean evidence for this head was withdrawn (`<N> findings, not addressed`); without it, nothing changed. |
+| 2    | not a verdict: did not complete, or evidence was not posted | Read the last lines. Posted findings are real: fix them, and confirm older clean evidence was withdrawn before merging. Reviewer unavailable: Step 3a owner override.  |
+| 3    | (`--wait` only) still running                               | Call `--wait` again.                                                                                                                                                   |
+
+The reviewer CLI's own exit code is never the verdict (it exits 0 on interrupts, usage limits and findings alike), which is why the wrappers read the log and only the poster writes evidence. Never call `codex review --commit`: it reviews one commit and can vacuously pass on a docs-only tip.
 
 `.github/workflows/review-gate.yml` parses the comment's FIRST line into the `Review gate` commit status on the head. Concrete example — this exact line is what the checker's contract test parses, so keep one here:
 
@@ -279,12 +292,17 @@ Reading the rollup — three traps from the instruction file's LESSONS:
 The watcher also settles a lone red `Review gate` and a superseded `CANCELLED` `Evaluate review
 evidence` check itself (MYK9-1946); do not judge those by hand.
 
-**The watcher's last line is a `Next:` line for its exit code; follow it.** Exit 1 or 2 is a STOP,
-not a slower Path B: never arm auto-merge to get past a red. Exit 5 merges only with both confirmations the `Next:` line names.
+| Exit | Means                                          | Do                                                                                                                                                                                          |
+| ---- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0    | every REQUIRED check green                     | Path A. If it printed `STILL OUTSTANDING (non-required, may yet fail): ...`, apply the exit-5 judgement to each name first.                                                                 |
+| 1    | a REQUIRED check failed (names the first only) | STOP, not a slower Path B. Read the whole rollup; never arm auto-merge to get past a red.                                                                                                   |
+| 2    | head moved                                     | STOP. Gate and watch the new head.                                                                                                                                                          |
+| 3    | timeout (NOT a verdict)                        | Path B.                                                                                                                                                                                     |
+| 4    | self-test failed or the ruleset was unreadable | Believe nothing it printed; fix and re-run.                                                                                                                                                 |
+| 5    | required green, a non-required check red       | Merge only if EVERY failed context is a Vercel preview whose `targetUrl` ends `upgradeToPro=build-rate-limit` AND this diff does not need the preview for visual QA. Say which you checked. |
+| 6    | PR conflicts with its base                     | Merge `origin/main` in and push: a new head, so the gate runs again.                                                                                                                        |
 
-**Path A — the watcher exited 0.** Green means the REQUIRED set passed, **not** that the board is
-finished. If it printed `STILL OUTSTANDING (non-required, may yet fail): ...`, apply the exit-5
-judgement to each name before merging.
+**Path A — the watcher exited 0.**
 
 ```bash
 gh pr merge $PR_NUMBER --squash

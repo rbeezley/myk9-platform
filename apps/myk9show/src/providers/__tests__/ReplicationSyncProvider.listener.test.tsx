@@ -289,6 +289,24 @@ describe('ReplicationSyncProvider — replication:sync-failed listener', () => {
     expect(toast.dismiss).toHaveBeenCalledWith('sync-failed:mut-1');
   });
 
+  it('Discard tells the header at once, not at the next poll', async () => {
+    const heard = vi.fn();
+    window.addEventListener('replication:unsent-changed', heard);
+    renderProvider();
+
+    act(() => {
+      dispatchSyncFailed();
+    });
+
+    const options = vi.mocked(toast.error).mock.calls[0]?.[1] as ToastOptions;
+    act(() => {
+      options.cancel!.onClick();
+    });
+
+    await vi.waitFor(() => expect(heard).toHaveBeenCalledTimes(1));
+    window.removeEventListener('replication:unsent-changed', heard);
+  });
+
   it('Discard removes the failed mutations and dismisses the toast', () => {
     renderProvider();
 

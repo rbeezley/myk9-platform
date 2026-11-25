@@ -149,8 +149,8 @@ export type PrintedClassHeader = Required<
   >;
 
 /**
- * The class header the renderer prints. A class with no judge (blank, or the legacy "TBD") prints "Judge to be announced"; the
- * class's own registry (falling back to the trial's) picks the scoresheet's title wording.
+ * The class header the renderer prints. A class with no judge (blank, or the legacy "TBD")
+ * prints "Judge to be announced"; the class's own registry (falling back to the trial's) picks the scoresheet's title wording.
  */
 export function printedClassHeader(
   classItem: EmergencyPacketClass,

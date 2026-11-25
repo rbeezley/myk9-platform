@@ -23,6 +23,7 @@ import { getUserFriendlyError } from '@/utils/errorMessages';
 import { UserRole } from '@/types/auth-types';
 import { User as UserType } from '@/types/user-types';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { canWriteJudgeQualifications } from '@/features/judges/canWriteJudgeQualifications';
 import { useCanEditPerson } from '@/hooks/queries/useCanEditPerson';
 import { useRoleBasedPeople } from '@/hooks/useRoleBasedData';
 import { RecordPageLayout } from '@/components/layout/record';
@@ -190,8 +191,11 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   const [isSavingPhoto, setIsSavingPhoto] = useState(false);
   const photoSaveInFlight = useRef(false);
 
+  // MYK9-2382: role lists can hide a judge, so writers see the card; a removed person's is read-only.
+  const canAddQualifications = canWriteJudgeQualifications(role => getUserRoles().includes(role));
   const canManageQualifications = () => {
-    if (hasPermission('admin:manage')) return true;
+    if (isRemoved) return false;
+    if (canAddQualifications || hasPermission('admin:manage')) return true;
     if (hasPermission('show:manage')) return true;
     if (person.id && currentUser?.id === person.id) {
       return hasPermission('judge:manage_qualifications') || hasPermission('user:update');
@@ -362,10 +366,9 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
     return sections;
   }, [accountStatus, person, formData]);
 
-  // Center content: judge cards + tabs
   const centerContent = (
     <div className="space-y-6">
-      {person.roles?.includes(UserRole.JUDGE) && (
+      {(person.roles?.includes(UserRole.JUDGE) || (!isRemoved && canAddQualifications)) && (
         <JudgeQualificationsCard
           personId={person.id}
           canManageQualifications={canManageQualifications()}

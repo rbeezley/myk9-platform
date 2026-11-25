@@ -84,7 +84,8 @@ export function ClassEntryRowMenu({
   // The paper scoring route for this one dog, as the class run sheet's row button opened it: a
   // dog that can still have a result (not pulled or withdrawn) gets Enter result, or Edit result
   // once scored. Locked to the trial secretary like Score this class.
-  const canScore = entry.state !== 'pulled' && entry.state !== 'withdrawn';
+  const canScore =
+    entry.state !== 'pulled' && entry.state !== 'withdrawn' && entry.state !== 'pending';
   const scoreLabel = entry.state === 'scored' ? 'Edit result' : 'Enter result';
   const personHref = PEOPLE_ROUTE_ROLES.some(role => hasRole(role)) ? entry.handlerHref : undefined;
   const showOpenLinks = Boolean(entry.dogHref || personHref);

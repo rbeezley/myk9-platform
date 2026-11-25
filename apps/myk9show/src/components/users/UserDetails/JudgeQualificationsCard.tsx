@@ -17,7 +17,15 @@ const JudgeQualificationsCard: React.FC<JudgeQualificationsCardProps> = ({
   canManageQualifications,
   onManageQualifications,
 }) => {
-  const { data: dbQualifications = [], isLoading } = useJudgeQualifications(personId);
+  const {
+    data: dbQualifications = [],
+    isLoading,
+    isError,
+    isSuccess,
+    refetch,
+  } = useJudgeQualifications(personId);
+  // MYK9-2382: a save replaces the whole list, so editing waits until the list has loaded.
+  const canManage = canManageQualifications && isSuccess;
 
   return (
     <Card
@@ -41,7 +49,7 @@ const JudgeQualificationsCard: React.FC<JudgeQualificationsCardProps> = ({
             </h3>
           </div>
 
-          {canManageQualifications && (
+          {canManage && (
             <Button
               variant="outline"
               size="sm"
@@ -56,7 +64,16 @@ const JudgeQualificationsCard: React.FC<JudgeQualificationsCardProps> = ({
           )}
         </div>
 
-        {isLoading ? (
+        {isError ? (
+          <div role="alert" className="flex flex-col items-center gap-3 py-8 text-center">
+            <p className="text-muted-foreground">
+              Couldn't load this person's judge qualifications.
+            </p>
+            <Button variant="outline" size="sm" onClick={() => void refetch()}>
+              Try again
+            </Button>
+          </div>
+        ) : isLoading ? (
           <div className="space-y-4">
             {[1, 2].map(i => (
               <div
@@ -145,10 +162,10 @@ const JudgeQualificationsCard: React.FC<JudgeQualificationsCardProps> = ({
             </div>
             <h3 className="text-xl font-semibold text-foreground mb-3">No Judge Qualifications</h3>
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              This user has no judge qualifications on record. Add qualifications to enable judging
-              privileges.
+              This person has no judge qualifications on record. Add one to list them as a judge for
+              that organization's shows.
             </p>
-            {canManageQualifications && (
+            {canManage && (
               <Button
                 variant="outline"
                 onClick={onManageQualifications}

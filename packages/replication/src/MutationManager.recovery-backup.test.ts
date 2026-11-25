@@ -15,6 +15,7 @@ import type { IDBPDatabase } from 'idb';
 import { MutationManager, type MutationManagerOptions } from './MutationManager';
 import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import type { Logger } from './dependencies';
+import { readMutationJournal } from './mutation-backup';
 import type { PendingMutation } from './types';
 import { createMutationManagerTestDb } from './test-utils/createMutationManagerTestDb';
 
@@ -79,8 +80,10 @@ describe('MutationManager recovery backup (pending + failed durability)', () => 
         clear: () => {
           localStorageMock = {};
         },
-        length: 0,
-        key: () => null,
+        get length() {
+          return Object.keys(localStorageMock).length;
+        },
+        key: (index: number) => Object.keys(localStorageMock)[index] ?? null,
       },
       writable: true,
       configurable: true,
@@ -113,7 +116,7 @@ describe('MutationManager recovery backup (pending + failed durability)', () => 
   });
 
   it('restores a dead-lettered mutation into the FAILED store (not the active queue) after a wipe', async () => {
-    // Backup as written by writeCurrentMutationsBackup: pending + failed together.
+    // A pre-journal single-key snapshot: pending + failed together.
     const pending = makeMutation({ id: 'pending-1', rowId: 'entry-pending' });
     const failed = makeMutation({
       id: 'failed-1',
@@ -214,15 +217,15 @@ describe('MutationManager recovery backup (pending + failed durability)', () => 
       failedAt: 1,
     });
     await mockDb.put(REPLICATION_STORES.FAILED_MUTATIONS, failed);
-    // Seed the backup as writeCurrentMutationsBackup would (includes failed).
+    // Seed a pre-journal single-key snapshot (includes failed).
     localStorageMock[BACKUP_KEY] = JSON.stringify([failed]);
 
     await manager.discardFailedMutation('failed-discard');
 
     // Gone from the failed store AND from the backup.
     expect(await mockDb.getAll(REPLICATION_STORES.FAILED_MUTATIONS)).toHaveLength(0);
-    const backup = localStorageMock[BACKUP_KEY];
-    expect(backup === undefined || !backup.includes('failed-discard')).toBe(true);
+    const journal = readMutationJournal(localStorage);
+    expect([...journal.mutations, ...journal.failedMutations]).toEqual([]);
   });
 
   it('keeps the score durably queued when the localStorage backup write throws', async () => {

@@ -4,6 +4,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { MutationManager, type MutationManagerOptions } from './MutationManager';
 import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import type { Logger } from './dependencies';
+import { JOURNAL_ENTRY_PREFIX } from './mutation-backup';
 import { createMutationManagerTestDb } from './test-utils/createMutationManagerTestDb';
 import type { PendingMutation } from './types';
 
@@ -119,8 +120,10 @@ describe('MutationManager authenticated ownership', () => {
 
     const pending = (await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS)) as PendingMutation[];
     expect(pending[0]).toMatchObject({ rowId: 'entry-1', authUserId: 'user-a' });
-    const backup = vi.mocked(localStorage.setItem).mock.calls.at(-1)?.[1];
-    expect(JSON.parse(backup ?? '[]')[0]).toMatchObject({ authUserId: 'user-a' });
+    const backup = vi
+      .mocked(localStorage.setItem)
+      .mock.calls.find(([key]) => key === JOURNAL_ENTRY_PREFIX + pending[0]!.id)?.[1];
+    expect(JSON.parse(backup ?? '{}')).toMatchObject({ authUserId: 'user-a' });
   });
 
   it.each([null, '', '   '])(

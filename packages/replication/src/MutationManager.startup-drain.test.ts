@@ -6,6 +6,7 @@ import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import type { Logger } from './dependencies';
 import type { PendingMutation } from './types';
 import { createMutationManagerTestDb } from './test-utils/createMutationManagerTestDb';
+import { journalIds } from './test-utils/memoryStorage';
 
 const TEST_DB_NAME = 'test-mutation-manager-startup-drain-db';
 const BACKUP_KEY = 'replication_mutation_backup';
@@ -101,8 +102,10 @@ describe('MutationManager startup drain (reload-restored queue)', () => {
         clear: () => {
           localStorageMock = {};
         },
-        length: 0,
-        key: () => null,
+        get length() {
+          return Object.keys(localStorageMock).length;
+        },
+        key: (index: number) => Object.keys(localStorageMock)[index] ?? null,
       },
       writable: true,
       configurable: true,
@@ -201,7 +204,7 @@ describe('MutationManager startup drain (reload-restored queue)', () => {
     });
     firstManager.destroy();
 
-    expect(localStorageMock[BACKUP_KEY]).toBeDefined();
+    expect(journalIds(localStorageMock)).toHaveLength(1);
     await expect(mockDb.getAll(REPLICATION_STORES.PENDING_MUTATIONS)).resolves.toHaveLength(1);
 
     const { client, select } = createMockSupabaseClient();
@@ -214,7 +217,7 @@ describe('MutationManager startup drain (reload-restored queue)', () => {
       expect(results[0]!.success).toBe(true);
       expect(select).toHaveBeenCalledTimes(1);
       await expect(mockDb.getAll(REPLICATION_STORES.PENDING_MUTATIONS)).resolves.toHaveLength(0);
-      expect(localStorageMock[BACKUP_KEY]).toBeUndefined();
+      expect(journalIds(localStorageMock)).toEqual([]);
     } finally {
       secondManager.destroy();
     }

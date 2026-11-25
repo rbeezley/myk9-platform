@@ -23,6 +23,8 @@ import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import type { IDBPDatabase } from 'idb';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createMutationManagerTestDb } from './test-utils/createMutationManagerTestDb';
+import { journalIds, seedJournal } from './test-utils/memoryStorage';
+import { readMutationJournal } from './mutation-backup';
 
 const TEST_DB_NAME = 'test-mutation-manager-db';
 const TEST_AUTH_USER_ID = 'test-user';
@@ -86,6 +88,12 @@ describe('MutationManager', () => {
   let mockLogger: Logger;
   let localStorageMock: Record<string, string>;
 
+  /** Ids the backup would restore: live entries, plus legacy ones not yet tombstoned. */
+  const liveBackupIds = () => {
+    const journal = readMutationJournal(localStorage);
+    return [...journal.mutations, ...journal.failedMutations].map(m => m.id);
+  };
+
   beforeEach(async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
 
@@ -108,8 +116,10 @@ describe('MutationManager', () => {
         clear: () => {
           localStorageMock = {};
         },
-        length: 0,
-        key: () => null,
+        get length() {
+          return Object.keys(localStorageMock).length;
+        },
+        key: (index: number) => Object.keys(localStorageMock)[index] ?? null,
       },
       writable: true,
       configurable: true,
@@ -460,7 +470,7 @@ describe('MutationManager', () => {
 
       expect(results).toHaveLength(1);
       expect(results[0]!.success).toBe(true);
-      expect(localStorageMock['replication_mutation_backup']).toBeUndefined();
+      expect(liveBackupIds()).toEqual([]);
     });
 
     it('should dispatch upload-complete event with affected table names', async () => {
@@ -1909,22 +1919,15 @@ describe('MutationManager', () => {
 
       await manager.backupMutationsToLocalStorage();
 
-      const backup = localStorageMock['replication_mutation_backup'];
-      expect(backup).toBeDefined();
-
-      const parsed = JSON.parse(backup!);
-      expect(parsed).toHaveLength(1);
-      expect(parsed[0].id).toBe('mut-backup-1');
+      expect(journalIds(localStorageMock)).toEqual(['mut-backup-1']);
     });
 
-    it('should remove backup when no mutations pending', async () => {
-      localStorageMock['replication_mutation_backup'] = JSON.stringify([
-        { id: 'old-mut', tableName: 'entries' },
-      ]);
+    it('keeps a backed-up mutation IndexedDB no longer holds, for a restore to put back', async () => {
+      seedJournal(localStorageMock, [makeMutation({ id: 'old-mut' })]);
 
       await manager.backupMutationsToLocalStorage();
 
-      expect(localStorageMock['replication_mutation_backup']).toBeUndefined();
+      expect(liveBackupIds()).toEqual(['old-mut']);
     });
 
     it('should restore mutations from localStorage backup', async () => {
@@ -1976,11 +1979,8 @@ describe('MutationManager', () => {
         is_scored: true,
       });
 
-      const backup = localStorageMock['replication_mutation_backup'];
-      expect(backup).toBeDefined();
-      const parsed = JSON.parse(backup!);
-      expect(parsed).toHaveLength(1);
-      expect(parsed[0].rowId).toBe('entry-9');
+      const journal = readMutationJournal(localStorage);
+      expect(journal.mutations.map(m => m.rowId)).toEqual(['entry-9']);
     });
   });
 
@@ -2006,7 +2006,7 @@ describe('MutationManager', () => {
 
       const remaining = await mockDb.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
       expect(remaining).toHaveLength(0);
-      expect(localStorageMock['replication_mutation_backup']).toBeUndefined();
+      expect(liveBackupIds()).toEqual([]);
       const failed = await mockDb.getAll(REPLICATION_STORES.FAILED_MUTATIONS);
       expect(failed).toHaveLength(0);
     });

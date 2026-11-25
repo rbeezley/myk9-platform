@@ -12,9 +12,9 @@ import { MutationManager } from './MutationManager';
 import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import { MutationBackupStore } from './MutationBackupStore';
 import type { MutationUploadRunner } from './MutationUploadRunner';
-import { RESTORE_LOCK_TIMEOUT_MS } from './constants';
+import { RESTORE_LOCK_TIMEOUT_MS, RESTORE_RETRY_DELAY_MS } from './constants';
 import { UPLOAD_LOCK_NAME } from './upload-lock';
-import { MUTATION_BACKUP_STORAGE_KEY as BACKUP_KEY } from './mutation-backup';
+import { MUTATION_BACKUP_STORAGE_KEY as BACKUP_KEY, readMutationJournal } from './mutation-backup';
 import type { PendingMutation } from './types';
 import { createMutationManagerTestDb } from './test-utils/createMutationManagerTestDb';
 
@@ -112,8 +112,10 @@ describe('MutationManager restore under the upload lock (MYK9-2360)', () => {
         clear: () => {
           stored = {};
         },
-        length: 0,
-        key: () => null,
+        get length() {
+          return Object.keys(stored).length;
+        },
+        key: (index: number) => Object.keys(stored)[index] ?? null,
       },
       writable: true,
       configurable: true,
@@ -139,9 +141,10 @@ describe('MutationManager restore under the upload lock (MYK9-2360)', () => {
     });
   });
 
+  /** Live journal ids, sorted (the legacy snapshot counts until it is migrated). */
   function backupIds(): string[] {
-    const raw = stored[BACKUP_KEY];
-    return raw ? (JSON.parse(raw) as Array<{ id: string }>).map(m => m.id) : [];
+    const journal = readMutationJournal(localStorage);
+    return [...journal.mutations, ...journal.failedMutations].map(m => m.id).sort();
   }
 
   async function queuedIds(): Promise<string[]> {
@@ -203,7 +206,7 @@ describe('MutationManager restore under the upload lock (MYK9-2360)', () => {
     expect(pending.map(m => m.id)).toEqual(['mut-2']);
   });
 
-  it('times out while another tab holds the lock: resolves, keeps the backup, and the next pass restores it', async () => {
+  it('times out while another tab holds the lock: resolves, keeps the backup, and retries on its own', async () => {
     stored[BACKUP_KEY] = JSON.stringify([makeMutation('mut-stale')]);
     const releaseOtherTab = await holdLock();
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
@@ -211,28 +214,29 @@ describe('MutationManager restore under the upload lock (MYK9-2360)', () => {
     const restore = manager.restoreMutationsFromLocalStorage();
     await vi.advanceTimersByTimeAsync(RESTORE_LOCK_TIMEOUT_MS);
     await restore;
-    vi.useRealTimers();
 
     // Nothing was read outside the lock, and the backup is untouched.
-    expect(await mockDb.getAll(REPLICATION_STORES.PENDING_MUTATIONS)).toHaveLength(0);
+    expect(await queuedIds()).toEqual([]);
     expect(backupIds()).toEqual(['mut-stale']);
 
-    // restoreInFlight is cleared, so the next upload reaches the runner.
+    // restoreInFlight is cleared, so an upload is not blocked behind it.
     const runnerUpload = vi.spyOn(
       (manager as unknown as { uploadRunner: MutationUploadRunner }).uploadRunner,
       'uploadPendingMutations'
     );
-    const upload = manager.uploadPendingMutations();
-    await new Promise(resolve => setTimeout(resolve, 10));
+    void manager.uploadPendingMutations();
+    await vi.advanceTimersByTimeAsync(10);
     expect(runnerUpload).toHaveBeenCalledTimes(1);
 
-    // Once the lock frees, that pass restores the held backup before it reads the queue.
+    // Once the lock frees, the scheduled retry restores, with no network needed.
     releaseOtherTab();
-    await upload;
-    expect(await queuedIds()).toContain('mut-stale');
+    Object.defineProperty(globalThis.navigator, 'onLine', { value: false, configurable: true });
+    await vi.advanceTimersByTimeAsync(RESTORE_RETRY_DELAY_MS);
+    vi.useRealTimers();
+    await waitFor(async () => (await queuedIds()).includes('mut-stale'));
   });
 
-  it('a score queued after a timed-out restore never replaces the backup, and the old score recovers on its own', async () => {
+  it('a score queued after a timed-out restore is backed up beside the older ones, which recover on their own', async () => {
     stored[BACKUP_KEY] = JSON.stringify([makeMutation('mut-old')]);
     const releaseOtherTab = await holdLock();
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
@@ -240,20 +244,18 @@ describe('MutationManager restore under the upload lock (MYK9-2360)', () => {
     await vi.advanceTimersByTimeAsync(RESTORE_LOCK_TIMEOUT_MS);
     await restore;
 
-    // A judge records another score while the restore is still owed.
+    // A judge records another score while the restore still waits.
     await mockDb.put(REPLICATION_STORES.PENDING_MUTATIONS, makeMutation('mut-new'));
     await manager.announceQueued('entry-mut-new');
-    expect(backupIds()).toEqual(['mut-old']);
+    expect(backupIds()).toEqual(['mut-new', 'mut-old']);
 
-    // No manual restore: the upload the timeout scheduled restores under the lock.
+    // No manual restore: the retry runs once the lock frees.
     releaseOtherTab();
-    // The timeout scheduled that upload on the (fake) debounce timer.
-    await vi.advanceTimersByTimeAsync(200);
+    await vi.advanceTimersByTimeAsync(RESTORE_RETRY_DELAY_MS);
     vi.useRealTimers();
     await waitFor(async () => (await queuedIds()).includes('mut-old'));
-    expect(await queuedIds()).toEqual(expect.arrayContaining(['mut-old', 'mut-new']));
-    await waitFor(async () => backupIds().includes('mut-new'));
-    expect(backupIds()).toEqual(expect.arrayContaining(['mut-old', 'mut-new']));
+    expect((await queuedIds()).sort()).toEqual(['mut-new', 'mut-old']);
+    expect(backupIds()).toEqual(['mut-new', 'mut-old']);
   });
 
   it('a mutation discarded while a restore is owed is not brought back by the restore', async () => {
@@ -265,7 +267,8 @@ describe('MutationManager restore under the upload lock (MYK9-2360)', () => {
     await new Promise(resolve => setTimeout(resolve, 10));
     // "Take theirs" on the row while the restore waits for the lock.
     await manager.discardPendingMutationsForRow('entries', 'entry-mut-gone');
-    expect(backupIds()).toEqual(['mut-kept', 'mut-gone']);
+    // The discard is durable at once, before any restore runs.
+    expect(backupIds()).toEqual(['mut-kept']);
 
     releaseOtherTab();
     await restore;
@@ -346,7 +349,6 @@ describe('MutationManager restore under the upload lock (MYK9-2360)', () => {
     const order: string[] = [];
     vi.spyOn(MutationBackupStore.prototype, 'restoreUnderLock').mockImplementation(async () => {
       order.push('restore');
-      return true;
     });
     vi.spyOn(
       (manager as unknown as { uploadRunner: MutationUploadRunner }).uploadRunner,

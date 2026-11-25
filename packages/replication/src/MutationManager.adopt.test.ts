@@ -4,6 +4,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { MutationManager } from './MutationManager';
 import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import { createMutationManagerTestDb } from './test-utils/createMutationManagerTestDb';
+import { createMemoryStorage } from './test-utils/memoryStorage';
 import type { PendingMutation } from './types';
 
 /**
@@ -147,21 +148,40 @@ describe('MutationManager adoption (MYK9-1205)', () => {
     expect(schedule).toHaveBeenCalledTimes(1);
   });
 
+  it('adopts a score only the backup still holds, restoring it under the lock first', async () => {
+    const stored: Record<string, string> = {};
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: createMemoryStorage(stored),
+    });
+    await queue('e1', 'show-x');
+    // IndexedDB lost the score (eviction); only the localStorage journal has it.
+    await db.clear(REPLICATION_STORES.PENDING_MUTATIONS);
+    user = 'anon-2';
+
+    await expect(
+      manager.adoptHeldMutations({ showId: 'show-x', toAuthUserId: 'anon-2', rpcNames: RPCS })
+    ).resolves.toBe(1);
+    expect((await pending()).map(row => row.authUserId)).toEqual(['anon-2']);
+  });
+
   it('waits for an in-flight backup restore, then adopts the restored scores', async () => {
     let finishRestore!: () => void;
     const internals = manager as unknown as {
-      backupStore: { restoreUnderLock(): Promise<boolean> };
+      backupStore: { restoreUnderLock(): Promise<void> };
     };
-    vi.spyOn(internals.backupStore, 'restoreUnderLock').mockImplementation(async () => {
-      await new Promise<void>(resolve => {
-        finishRestore = resolve;
+    // Adoption restores again under the lock; that second pass finds nothing new.
+    vi.spyOn(internals.backupStore, 'restoreUnderLock')
+      .mockResolvedValue(undefined)
+      .mockImplementationOnce(async () => {
+        await new Promise<void>(resolve => {
+          finishRestore = resolve;
+        });
+        // The restore is what puts the score back into the queue, under the dead session.
+        user = 'anon-1';
+        await queue('e1', 'show-x');
+        user = 'anon-2';
       });
-      // The restore is what puts the score back into the queue, under the dead session.
-      user = 'anon-1';
-      await queue('e1', 'show-x');
-      user = 'anon-2';
-      return true;
-    });
     const restoring = manager.restoreMutationsFromLocalStorage();
     user = 'anon-2';
 
@@ -180,16 +200,18 @@ describe('MutationManager adoption (MYK9-1205)', () => {
 
   it('adopts the restored scores when the restore is itself waiting on an upload in flight', async () => {
     const internals = manager as unknown as {
-      backupStore: { restoreUnderLock(): Promise<boolean> };
+      backupStore: { restoreUnderLock(): Promise<void> };
       uploadInFlight: Promise<never[]> | null;
       uploadRunner: { runExclusive(w: () => Promise<void>): Promise<void> };
     };
-    vi.spyOn(internals.backupStore, 'restoreUnderLock').mockImplementation(async () => {
-      user = 'anon-1';
-      await queue('e1', 'show-x');
-      user = 'anon-2';
-      return true;
-    });
+    // Adoption restores again under the lock; that second pass finds nothing new.
+    vi.spyOn(internals.backupStore, 'restoreUnderLock')
+      .mockResolvedValue(undefined)
+      .mockImplementationOnce(async () => {
+        user = 'anon-1';
+        await queue('e1', 'show-x');
+        user = 'anon-2';
+      });
     // An upload pass: holds the lock and is visible as uploadInFlight.
     let finishUpload!: () => void;
     const gate = new Promise<void>(resolve => (finishUpload = resolve));

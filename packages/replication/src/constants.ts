@@ -25,6 +25,9 @@ export const TOTAL_REPLICATED_TABLES = 16;
 /** Longest a restore waits for the cross-tab upload lock, so a hung flush cannot wedge startup. */
 export const RESTORE_LOCK_TIMEOUT_MS = 15_000;
 
+/** Delay before a restore that timed out on the upload lock tries again. */
+export const RESTORE_RETRY_DELAY_MS = 5_000;
+
 // ==================== Batch Operations ====================
 
 /** Default chunk size for batch operations */

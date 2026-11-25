@@ -1,51 +1,52 @@
+import type { IDBPDatabase } from 'idb';
 import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import type { Logger } from './dependencies';
 import {
-  MUTATION_BACKUP_STORAGE_KEY,
-  parseMutationBackup,
-  writeMutationBackup,
+  compactMutationJournal,
+  type MutationBackupParseResult,
+  readMutationJournal,
+  removeJournalEntries,
+  upsertJournalEntries,
 } from './mutation-backup';
 import type { PendingMutation } from './types';
 
+interface QueuedRows {
+  pending: PendingMutation[];
+  failed: PendingMutation[];
+}
+
+const idsOf = ({ pending, failed }: QueuedRows): Set<string> =>
+  new Set([...pending, ...failed].map(mutation => mutation.id));
+
 /**
- * Keeps IndexedDB pending/failed rows and the localStorage recovery copy aligned.
+ * Keeps IndexedDB pending/failed rows and the localStorage journal aligned
+ * (see mutation-backup.ts for the journal itself, MYK9-2360).
  *
- * The backup is the only copy of a mutation IndexedDB lost (eviction, a
- * recreated database), until a restore merges it back. So a restore request
- * marks the restore OWED, and while it is owed no write outside the upload lock
- * may replace the backup (MYK9-2360): IndexedDB may be missing the very rows the
- * backup still holds. Writes under the lock (the upload pass) are authoritative,
- * and the pass restores an owed backup before it reads the queue. A row this tab
- * removes while the restore is owed is remembered so the restore does not bring
- * back a discarded or cleared mutation.
+ * Adding and updating entries is safe anywhere. An entry is removed only by
+ * name, for a mutation this code saw in IndexedDB and then saw disappear: so a
+ * mutation IndexedDB lost (eviction, a recreated database) keeps its entry until
+ * a restore puts it back.
  */
 export class MutationBackupStore {
-  private restoreOwed = false;
-  private readonly removedWhileOwed = new Set<string>();
+  /** Ids queued when the current upload pass last checked, and the database it read. */
+  private passIds: Set<string> | null = null;
+  private passDb: IDBPDatabase | null = null;
 
   constructor(private readonly logger: Logger) {}
 
-  /** A restore was requested; hold the backup until one succeeds under the lock. */
-  markRestoreOwed(): void {
-    this.restoreOwed = true;
-  }
-
-  /** The upload pass's first step, under the lock: settle an owed restore. */
-  async restoreIfOwedUnderLock(): Promise<void> {
-    if (this.restoreOwed) await this.restoreUnderLock();
-  }
-
-  /**
-   * Backup write for callers OUTSIDE the upload lock. Skipped while a restore is
-   * owed: the restore writes the backup itself once IndexedDB holds every row.
-   */
+  /** Back up every queued mutation (add/update only). */
   async writeCurrent(): Promise<void> {
     if (typeof window === 'undefined') return;
-    if (this.restoreOwed) {
-      this.logger.log('[MutationManager] Backup write held until the owed restore runs');
-      return;
+    this.backUp(await this.readQueued());
+  }
+
+  private backUp({ pending, failed }: QueuedRows): void {
+    upsertJournalEntries(localStorage, [...pending, ...failed]);
+    if (pending.length > 0 || failed.length > 0) {
+      this.logger.log(
+        `[MutationManager] Backed up ${pending.length} pending + ${failed.length} failed mutation(s) to localStorage`
+      );
     }
-    await this.writeUnderLock();
   }
 
   async backupSafely(): Promise<void> {
@@ -57,61 +58,87 @@ export class MutationBackupStore {
   }
 
   /**
-   * Run a queue operation that may delete rows. While a restore is owed, record
-   * the ids it removed so the restore skips them.
+   * Run a queue operation that removes rows, then remove the journal entries of
+   * the rows it removed. Only rows matching `isTarget` that were queued before
+   * the operation count, so a row that vanished for another reason (eviction, a
+   * recreated database) keeps its entry.
    */
-  async trackRemovals<R>(operation: () => Promise<R>): Promise<R> {
-    if (!this.restoreOwed || typeof window === 'undefined') return operation();
-    const before = await this.readQueuedIds();
+  async trackRemovals<R>(
+    operation: () => Promise<R>,
+    isTarget: (mutation: PendingMutation) => boolean
+  ): Promise<R> {
+    if (typeof window === 'undefined') return operation();
+    const db = await this.database();
+    const { pending, failed } = await this.readQueued();
     const result = await operation();
-    const after = await this.readQueuedIds();
-    for (const id of before) if (!after.has(id)) this.removedWhileOwed.add(id);
+    if ((await this.database()) === db) {
+      const after = await this.readQueuedIds();
+      const removed = [...pending, ...failed].filter(m => isTarget(m) && !after.has(m.id));
+      removeJournalEntries(
+        localStorage,
+        removed.map(m => m.id)
+      );
+    }
+    await this.backupSafely();
     return result;
   }
 
-  /**
-   * Merge the backup into IndexedDB, then rewrite the backup from it. Call ONLY
-   * while holding the upload lock. Returns false when IndexedDB failed, in which
-   * case the restore stays owed and the backup is left as it was.
-   */
-  async restoreUnderLock(): Promise<boolean> {
-    if (typeof window === 'undefined') return true;
+  /** Remove the journal entries of one owner, including ones IndexedDB no longer holds. */
+  removeOwnedEntries(authUserId: string): void {
+    if (typeof window === 'undefined') return;
+    const journal = readMutationJournal(localStorage);
+    removeJournalEntries(
+      localStorage,
+      [...journal.mutations, ...journal.failedMutations]
+        .filter(mutation => mutation.authUserId === authUserId)
+        .map(mutation => mutation.id)
+    );
+  }
 
+  /**
+   * Put back every journal entry IndexedDB lacks. Call ONLY while holding the
+   * upload lock, so a flush in any tab has finished removing what it uploaded.
+   */
+  async restoreUnderLock(): Promise<void> {
+    if (typeof window === 'undefined') return;
     try {
-      await this.mergeBackupIntoDatabase();
+      await this.mergeJournalIntoDatabase(compactMutationJournal(localStorage));
     } catch (error) {
       this.logger.error('[MutationManager] Failed to restore mutations from localStorage:', error);
-      return false;
     }
-    this.restoreOwed = false;
-    this.removedWhileOwed.clear();
-    try {
-      await this.writeUnderLock();
-    } catch (error) {
-      this.logger.warn('[MutationManager] Failed to backup mutations to localStorage:', error);
-    }
-    return true;
   }
 
-  clear(): void {
-    if (typeof window !== 'undefined') localStorage.removeItem(MUTATION_BACKUP_STORAGE_KEY);
+  /** An upload pass read this queue, under the lock, from this database. */
+  beginPass(db: IDBPDatabase, ids: readonly string[]): void {
+    this.passDb = db;
+    this.passIds = new Set(ids);
   }
 
-  /** Backup write for callers holding the upload lock (the upload pass). */
-  async writeUnderLock(): Promise<void> {
+  /**
+   * Under the lock, during or after an upload pass: remove the entries of rows
+   * the pass removed since the last check (uploaded, superseded), then back up
+   * the rest. Skipped if the database was replaced meanwhile.
+   */
+  async checkpointUnderLock(): Promise<void> {
     if (typeof window === 'undefined') return;
-    const { pending, failed } = await this.readQueued();
-
-    writeMutationBackup(localStorage, [...pending, ...failed]);
-    if (pending.length > 0 || failed.length > 0) {
-      this.logger.log(
-        `[MutationManager] Backed up ${pending.length} pending + ${failed.length} failed mutation(s) to localStorage`
+    const queued = await this.readQueued();
+    if (this.passIds && this.passDb && (await this.database()) === this.passDb) {
+      const after = idsOf(queued);
+      removeJournalEntries(
+        localStorage,
+        [...this.passIds].filter(id => !after.has(id))
       );
+      this.passIds = after;
     }
+    this.backUp(queued);
   }
 
-  private async readQueued(): Promise<{ pending: PendingMutation[]; failed: PendingMutation[] }> {
-    const db = await databaseManager.getDatabase('MutationManager');
+  private database(): Promise<IDBPDatabase> {
+    return databaseManager.getDatabase('MutationManager');
+  }
+
+  private async readQueued(): Promise<QueuedRows> {
+    const db = await this.database();
     const [pending, failed] = await Promise.all([
       db.getAll(REPLICATION_STORES.PENDING_MUTATIONS),
       db.getAll(REPLICATION_STORES.FAILED_MUTATIONS),
@@ -120,45 +147,39 @@ export class MutationBackupStore {
   }
 
   private async readQueuedIds(): Promise<Set<string>> {
-    const { pending, failed } = await this.readQueued();
-    return new Set([...pending, ...failed].map(mutation => mutation.id));
+    return idsOf(await this.readQueued());
   }
 
-  /** Throws only on an IndexedDB failure; an unreadable backup has nothing to restore. */
-  private async mergeBackupIntoDatabase(): Promise<void> {
-    const backup = localStorage.getItem(MUTATION_BACKUP_STORAGE_KEY);
-    const parsed = parseMutationBackup(backup);
-    if (parsed.error) {
-      this.logger.error(
-        '[MutationManager] Failed to restore mutations from localStorage:',
-        parsed.error
-      );
-      return;
+  private async mergeJournalIntoDatabase(
+    compacted: Pick<MutationBackupParseResult, 'error' | 'malformedCount'>
+  ): Promise<void> {
+    const journal = readMutationJournal(localStorage);
+    const error = compacted.error ?? journal.error;
+    if (error) {
+      this.logger.error('[MutationManager] Failed to restore mutations from localStorage:', error);
     }
-    if (parsed.malformedCount > 0) {
+    const malformedCount = compacted.malformedCount + journal.malformedCount;
+    if (malformedCount > 0) {
       this.logger.warn(
-        `[MutationManager] Discarded ${parsed.malformedCount} malformed mutation(s) from localStorage backup`
+        `[MutationManager] Discarded ${malformedCount} malformed mutation(s) from localStorage backup`
       );
     }
-    if (parsed.mutations.length === 0 && parsed.failedMutations.length === 0) return;
+    if (journal.mutations.length === 0 && journal.failedMutations.length === 0) return;
 
     // A row already queued in EITHER store is IndexedDB's to keep: a retried
     // failed mutation now pending must not come back as failed too.
     const queuedIds = await this.readQueuedIds();
-    const skip = (mutation: PendingMutation) =>
-      queuedIds.has(mutation.id) || this.removedWhileOwed.has(mutation.id);
-
-    const db = await databaseManager.getDatabase('MutationManager');
+    const db = await this.database();
     let restoredCount = 0;
-    for (const mutation of parsed.mutations) {
-      if (skip(mutation)) continue;
+    for (const mutation of journal.mutations) {
+      if (queuedIds.has(mutation.id)) continue;
       await db.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation);
       queuedIds.add(mutation.id);
       restoredCount++;
     }
     let restoredFailedCount = 0;
-    for (const mutation of parsed.failedMutations) {
-      if (skip(mutation)) continue;
+    for (const mutation of journal.failedMutations) {
+      if (queuedIds.has(mutation.id)) continue;
       await db.put(REPLICATION_STORES.FAILED_MUTATIONS, mutation);
       queuedIds.add(mutation.id);
       restoredFailedCount++;

@@ -16,7 +16,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Logger } from './dependencies';
 import { noopLogger } from './dependencies';
-import { RESTORE_LOCK_TIMEOUT_MS } from './constants';
+import { RESTORE_LOCK_TIMEOUT_MS, RESTORE_RETRY_DELAY_MS } from './constants';
 import { getMutationQueueCapacity } from './mutation-queue-capacity';
 import { MutationBackupStore } from './MutationBackupStore';
 import { MutationQueueStore } from './MutationQueueStore';
@@ -36,12 +36,19 @@ import { type PendingMutation, type ReplicationConflictSnapshot, type SyncResult
 import type { MutationManagerOptions, MutationUploadAuthContext } from './mutation-manager-options';
 export type { MutationManagerOptions, MutationUploadAuthContext } from './mutation-manager-options';
 
+/** Matches the queued mutations of one row. */
+const isRow =
+  (tableName: string, rowId: string) =>
+  (mutation: PendingMutation): boolean =>
+    mutation.tableName === tableName && mutation.rowId === rowId;
+
 /**
  * MutationManager - handles all mutation queue concerns
  *
  * Uses dependency injection for SupabaseClient and Logger to support
  * both myK9Q and myK9Show without global imports.
  */
+
 export class MutationManager {
   private logger: Logger;
   private queueStore: MutationQueueStore;
@@ -49,6 +56,8 @@ export class MutationManager {
   private uploadRunner: MutationUploadRunner;
   /** Prevent startup/reconnect restore from racing an active queue flush. */
   private restoreInFlight: Promise<void> | null = null;
+  /** A restore that timed out on the upload lock tries again (MYK9-2360). */
+  private restoreRetryTimer: ReturnType<typeof setTimeout> | null = null;
   private uploadInFlight: Promise<SyncResult[]> | null = null;
   private overlapFollowUpPending = false;
   /** Bumped by destroy() so a deferred overlap follow-up cannot fire on a disposed manager. */
@@ -93,14 +102,14 @@ export class MutationManager {
       options.retryBackoffBase ?? 1000,
       options.maxOccAttempts ?? 50,
       this.queueStore,
-      () => this.backupStore.writeUnderLock(),
+      () => this.backupStore.checkpointUnderLock(),
       () => this.requireCurrentUploadContext(),
       (tableName, rowId) => this.rowRefetchers.request(tableName, rowId),
       this.writtenOverlays,
       this.inFlightWrites,
       options.checkConnectivity,
       () => this.uploadPendingMutations(),
-      () => this.backupStore.restoreIfOwedUnderLock()
+      (db, ids) => this.backupStore.beginPass(db, ids)
     );
   }
 
@@ -333,6 +342,8 @@ export class MutationManager {
     // INSIDE it, immediately before ownership is rewritten.
     const { adopted, conflicts } = await this.uploadRunner.runExclusive(async () => {
       await this.requireSameCurrentUserId(options.toAuthUserId);
+      // Evicted scores come back first, so adoption sees them (MYK9-2360).
+      await this.backupStore.restoreUnderLock();
       return this.adoptUnderLock(options);
     });
     if (adopted === 0) return 0;
@@ -444,17 +455,16 @@ export class MutationManager {
    */
   async discardFailedMutation(mutationId: string): Promise<void> {
     const authUserId = await this.requireCurrentUserId();
-    const discarded = await this.backupStore.trackRemovals(() =>
-      this.queueStore.discardFailedMutation(mutationId, authUserId, () =>
-        this.requireSameCurrentUserId(authUserId)
-      )
+    // The journal entry goes with it, or a circuit-breaker recovery or startup
+    // restore would bring the discarded mutation back.
+    const discarded = await this.backupStore.trackRemovals(
+      () =>
+        this.queueStore.discardFailedMutation(mutationId, authUserId, () =>
+          this.requireSameCurrentUserId(authUserId)
+        ),
+      mutation => mutation.id === mutationId
     );
     if (!discarded) return;
-    // Refresh the localStorage backup: failed mutations are included in it, so
-    // without this a discarded mutation is restored (and re-surfaced) after a
-    // circuit-breaker recovery or startup restore — the discard wouldn't be
-    // durable.
-    await this.backupStore.writeCurrent();
     this.logger.log(`[MutationManager] Discarded failed mutation ${mutationId}`);
   }
 
@@ -467,13 +477,13 @@ export class MutationManager {
    */
   async discardPendingMutationsForRow(tableName: string, rowId: string): Promise<void> {
     const authUserId = await this.requireQueueOwnerUserId();
-    const discarded = await this.backupStore.trackRemovals(() =>
-      this.queueStore.discardPendingMutationsForRow(tableName, rowId, authUserId, () =>
-        this.requireSameQueueOwnerUserId(authUserId)
-      )
+    await this.backupStore.trackRemovals(
+      () =>
+        this.queueStore.discardPendingMutationsForRow(tableName, rowId, authUserId, () =>
+          this.requireSameQueueOwnerUserId(authUserId)
+        ),
+      isRow(tableName, rowId)
     );
-    if (discarded === 0) return;
-    await this.backupStore.writeCurrent();
   }
 
   /**
@@ -536,20 +546,19 @@ export class MutationManager {
     legacyOmittedKeysServerWins?: readonly string[]
   ): Promise<void> {
     const authUserId = await this.requireQueueOwnerUserId();
-    const changed = await this.backupStore.trackRemovals(() =>
-      this.queueStore.reconcilePendingMutationsForRow(
-        tableName,
-        rowId,
-        newServerVersion,
-        authUserId,
-        rebuiltData,
-        legacyOmittedKeysServerWins,
-        () => this.requireSameQueueOwnerUserId(authUserId)
-      )
+    await this.backupStore.trackRemovals(
+      () =>
+        this.queueStore.reconcilePendingMutationsForRow(
+          tableName,
+          rowId,
+          newServerVersion,
+          authUserId,
+          rebuiltData,
+          legacyOmittedKeysServerWins,
+          () => this.requireSameQueueOwnerUserId(authUserId)
+        ),
+      isRow(tableName, rowId)
     );
-    if (changed > 0) {
-      await this.backupStore.writeCurrent();
-    }
   }
 
   /**
@@ -574,10 +583,10 @@ export class MutationManager {
     fields: readonly string[]
   ): Promise<void> {
     const authUserId = await this.requireQueueOwnerUserId();
-    const changed = await this.backupStore.trackRemovals(() =>
-      this.queueStore.dropQueuedFieldsForRow(tableName, rowId, fields, authUserId)
+    await this.backupStore.trackRemovals(
+      () => this.queueStore.dropQueuedFieldsForRow(tableName, rowId, fields, authUserId),
+      isRow(tableName, rowId)
     );
-    if (changed > 0) await this.backupStore.writeCurrent();
   }
 
   // ========================================
@@ -681,6 +690,17 @@ export class MutationManager {
     await this.backupStore.backupSafely();
   }
 
+  /** Try a restore that timed out on the upload lock again, online or not. */
+  private scheduleRestoreRetry(): void {
+    if (this.restoreRetryTimer) return;
+    this.restoreRetryTimer = setTimeout(() => {
+      this.restoreRetryTimer = null;
+      this.restoreMutationsFromLocalStorage().catch(err => {
+        this.logger.error('[MutationManager] Restore retry failed:', err);
+      });
+    }, RESTORE_RETRY_DELAY_MS);
+  }
+
   /**
    * Restore pending mutations from localStorage backup
    *
@@ -690,31 +710,25 @@ export class MutationManager {
   async restoreMutationsFromLocalStorage(): Promise<void> {
     if (this.restoreInFlight) return this.restoreInFlight;
 
-    // From here until a restore succeeds, no write outside the upload lock may
-    // replace the backup: it may hold rows IndexedDB lost (MYK9-2360).
-    this.backupStore.markRestoreOwed();
     // restoreInFlight must cover the wait on an upload too, so adoption cannot
     // slip between the two and find an empty queue.
     const restore = (async () => {
-      // Never restore a stale backup into a queue that is being flushed, by this
-      // tab OR another (MYK9-2360). The backup is read only while holding the
-      // cross-tab upload lock: a flush owns deletion and rewrites the backup
-      // before it releases, so restore sees the post-flush backup. Nothing in an
-      // upload calls restore, so taking the lock here cannot wait on itself;
-      // UploadLock is non-reentrant, so a future caller inside an upload would
-      // wait out the timeout. A hung flush must not wedge restoreInFlight, so the
-      // wait is bounded. On timeout the restore stays owed: the backup is held,
-      // and the next upload pass restores it under the lock before it reads the
-      // queue. Scheduling that pass here means recovery needs no new trigger.
+      // Never restore a stale journal into a queue that is being flushed, by this
+      // tab OR another (MYK9-2360). The journal is read only while holding the
+      // cross-tab upload lock: a flush removes what it uploaded before it
+      // releases. Nothing in an upload calls restore, so taking the lock here
+      // cannot wait on itself. A hung flush must not wedge restoreInFlight, so
+      // the wait is bounded. A timeout loses nothing (the journal only shrinks by
+      // name), and a retry is scheduled whatever the network: restoring is local.
       const outcome = await this.uploadRunner.runExclusiveWithin(
         () => this.backupStore.restoreUnderLock(),
         RESTORE_LOCK_TIMEOUT_MS
       );
       if (outcome.timedOut) {
         this.logger.warn(
-          '[MutationManager] Restore deferred: the upload lock stayed busy; the backup is held for the next upload pass'
+          '[MutationManager] Restore deferred: the upload lock stayed busy; retrying shortly'
         );
-        this.scheduleUpload();
+        this.scheduleRestoreRetry();
       }
     })();
     this.restoreInFlight = restore;
@@ -736,12 +750,15 @@ export class MutationManager {
   async clearAllMutations(): Promise<void> {
     try {
       const authUserId = await this.requireCurrentUserId();
-      await this.backupStore.trackRemovals(() =>
-        this.queueStore.clearMutationsForOwner(authUserId, () =>
-          this.requireSameCurrentUserId(authUserId)
-        )
+      await this.backupStore.trackRemovals(
+        () =>
+          this.queueStore.clearMutationsForOwner(authUserId, () =>
+            this.requireSameCurrentUserId(authUserId)
+          ),
+        mutation => mutation.authUserId === authUserId
       );
-      await this.backupStore.writeCurrent();
+      // Also the owner's entries IndexedDB no longer holds (lost to eviction).
+      this.backupStore.removeOwnedEntries(authUserId);
 
       this.logger.log('[MutationManager] Cleared mutations owned by the active user');
     } catch (error) {
@@ -757,6 +774,8 @@ export class MutationManager {
   destroy(): void {
     this.overlapFollowUpEpoch++;
     this.overlapFollowUpPending = false;
+    if (this.restoreRetryTimer) clearTimeout(this.restoreRetryTimer);
+    this.restoreRetryTimer = null;
     this.uploadRunner.destroy();
     this.logger.log('[MutationManager] Destroyed');
   }

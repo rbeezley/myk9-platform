@@ -5,10 +5,10 @@ import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import type { Logger } from './dependencies';
 import { MutationManager } from './MutationManager';
 import { createMutationManagerTestDb } from './test-utils/createMutationManagerTestDb';
+import { journalIds } from './test-utils/memoryStorage';
 import type { PendingMutation } from './types';
 
 const TEST_DB_NAME = 'test-mutation-manager-pinning-db';
-const BACKUP_KEY = 'replication_mutation_backup';
 const TEST_AUTH_USER_ID = 'test-user';
 
 function createLogger(): Logger {
@@ -248,8 +248,7 @@ describe('MutationManager contract pins', () => {
       false
     );
 
-    const backup = JSON.parse(localStorageValues[BACKUP_KEY]!) as PendingMutation[];
-    expect(backup.map(item => item.id)).toEqual([queuedId, 'failed-1']);
+    expect(journalIds(localStorageValues).sort()).toEqual(['failed-1', queuedId].sort());
   });
 
   it('dispatches sync-failed with the permanent failure count', async () => {

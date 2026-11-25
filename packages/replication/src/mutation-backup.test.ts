@@ -1,10 +1,17 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { PendingMutation } from './types';
 import {
+  compactMutationJournal,
+  JOURNAL_ENTRY_PREFIX,
+  JOURNAL_TOMBSTONE_PREFIX,
+  JOURNAL_TOMBSTONE_TTL_MS,
   MUTATION_BACKUP_STORAGE_KEY,
   parseMutationBackup,
-  writeMutationBackup,
+  readMutationJournal,
+  removeJournalEntries,
+  upsertJournalEntries,
 } from './mutation-backup';
+import { createMemoryStorage, journalIds } from './test-utils/memoryStorage';
 
 function mutation(overrides: Partial<PendingMutation> = {}): PendingMutation {
   return {
@@ -109,32 +116,55 @@ describe('parseMutationBackup', () => {
   );
 });
 
-describe('writeMutationBackup', () => {
-  it('writes pending mutations to storage when the queue is non-empty', () => {
-    const storage = {
-      setItem: vi.fn(),
-      removeItem: vi.fn(),
-    };
-    const mutations = [mutation({ id: 'mut-1' })];
-
-    writeMutationBackup(storage, mutations);
-
-    expect(storage.setItem).toHaveBeenCalledWith(
-      MUTATION_BACKUP_STORAGE_KEY,
-      JSON.stringify(mutations)
-    );
-    expect(storage.removeItem).not.toHaveBeenCalled();
+describe('mutation journal (MYK9-2360)', () => {
+  it('upserts one entry per mutation and never removes others', () => {
+    const stored: Record<string, string> = {};
+    const storage = createMemoryStorage(stored);
+    upsertJournalEntries(storage, [mutation({ id: 'a' })]);
+    upsertJournalEntries(storage, [mutation({ id: 'b' })]);
+    expect(journalIds(stored).sort()).toEqual(['a', 'b']);
   });
 
-  it('removes the backup when the queue is empty', () => {
-    const storage = {
-      setItem: vi.fn(),
-      removeItem: vi.fn(),
+  it('a tombstoned mutation is never written back or read back', () => {
+    const stored: Record<string, string> = {};
+    const storage = createMemoryStorage(stored);
+    upsertJournalEntries(storage, [mutation({ id: 'a' })]);
+    removeJournalEntries(storage, ['a'], 1000);
+    upsertJournalEntries(storage, [mutation({ id: 'a' })]);
+    expect(journalIds(stored)).toEqual([]);
+    expect(stored[JOURNAL_TOMBSTONE_PREFIX + 'a']).toBe('1000');
+    stored[JOURNAL_ENTRY_PREFIX + 'a'] = JSON.stringify(mutation({ id: 'a' }));
+    expect(readMutationJournal(storage).mutations).toEqual([]);
+  });
+
+  it('reads entries and the legacy snapshot, split by status, counting unreadable entries', () => {
+    const stored: Record<string, string> = {
+      [MUTATION_BACKUP_STORAGE_KEY]: JSON.stringify([
+        mutation({ id: 'legacy' }),
+        mutation({ id: 'a' }),
+      ]),
+      [JOURNAL_ENTRY_PREFIX + 'a']: JSON.stringify(mutation({ id: 'a' })),
+      [JOURNAL_ENTRY_PREFIX + 'f']: JSON.stringify(mutation({ id: 'f', status: 'failed' })),
+      [JOURNAL_ENTRY_PREFIX + 'bad']: '{not json',
     };
+    const journal = readMutationJournal(createMemoryStorage(stored));
+    expect(journal.mutations.map(m => m.id).sort()).toEqual(['a', 'legacy']);
+    expect(journal.failedMutations.map(m => m.id)).toEqual(['f']);
+    expect(journal.malformedCount).toBe(1);
+  });
 
-    writeMutationBackup(storage, []);
-
-    expect(storage.removeItem).toHaveBeenCalledWith(MUTATION_BACKUP_STORAGE_KEY);
-    expect(storage.setItem).not.toHaveBeenCalled();
+  it('compaction migrates the legacy snapshot and drops tombstoned entries and old tombstones', () => {
+    const now = 10 * JOURNAL_TOMBSTONE_TTL_MS;
+    const stored: Record<string, string> = {
+      [MUTATION_BACKUP_STORAGE_KEY]: JSON.stringify([mutation({ id: 'legacy' })]),
+      [JOURNAL_ENTRY_PREFIX + 'gone']: JSON.stringify(mutation({ id: 'gone' })),
+      [JOURNAL_TOMBSTONE_PREFIX + 'gone']: String(now - 1),
+      [JOURNAL_TOMBSTONE_PREFIX + 'old']: String(now - JOURNAL_TOMBSTONE_TTL_MS - 1),
+    };
+    compactMutationJournal(createMemoryStorage(stored), now);
+    expect(stored[MUTATION_BACKUP_STORAGE_KEY]).toBeUndefined();
+    expect(journalIds(stored)).toEqual(['legacy']);
+    expect(stored[JOURNAL_TOMBSTONE_PREFIX + 'gone']).toBe(String(now - 1));
+    expect(stored[JOURNAL_TOMBSTONE_PREFIX + 'old']).toBeUndefined();
   });
 });

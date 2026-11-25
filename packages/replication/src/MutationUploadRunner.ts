@@ -1,3 +1,4 @@
+import type { IDBPDatabase } from 'idb';
 import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import type { Logger } from './dependencies';
 import { sendAndAcknowledge } from './mutation-send-and-ack';
@@ -70,11 +71,10 @@ export class MutationUploadRunner {
      */
     requestUpload?: () => Promise<SyncResult[]>,
     /**
-     * Runs at the start of every pass, under the upload lock and before the
-     * queue is read, so a restore that timed out waiting for the lock is
-     * merged in before anything uploads or rewrites the backup (MYK9-2360).
+     * Told which queue the pass read (and from which database), so its backup
+     * checkpoints remove only the journal entries of rows it saw (MYK9-2360).
      */
-    private readonly beforePass?: () => Promise<void>
+    private readonly onQueueRead?: (db: IDBPDatabase, ids: readonly string[]) => void
   ) {
     this.requestUpload = requestUpload ?? (() => this.uploadPendingMutations());
   }
@@ -193,10 +193,13 @@ export class MutationUploadRunner {
     markPerf('replication:flush:start');
 
     try {
-      await this.beforePass?.();
       const passAuthUserId = (await this.getCurrentUploadContext()).authUserId;
       const db = await databaseManager.getDatabase('MutationManager');
       const pending = await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
+      this.onQueueRead?.(
+        db,
+        (pending as PendingMutation[]).map(mutation => mutation.id)
+      );
 
       if (pending.length === 0) {
         this.logger.log('[MutationManager] No pending mutations to upload');

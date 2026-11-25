@@ -74,6 +74,8 @@ describe('adoption moves the replica rows with the queue (MYK9-1205)', () => {
   });
 
   beforeEach(async () => {
+    // The backup journal outlives a database reset, as it would an eviction.
+    localStorage.clear();
     await databaseManager.reset();
     const db = await databaseManager.getDatabase('MutationManager');
     await db.clear(REPLICATION_STORES.PENDING_MUTATIONS);

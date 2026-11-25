@@ -29,11 +29,8 @@ import {
   latchStaleSchema,
   resetStaleSchemaLatch,
 } from './staleSchema';
-import {
-  writeMutationBackup,
-  parseMutationBackup,
-  MUTATION_BACKUP_STORAGE_KEY,
-} from '../mutation-backup';
+import { upsertJournalEntries } from '../mutation-backup';
+import type { PendingMutation } from '../types';
 
 /**
  * Object store names for the replication system
@@ -570,23 +567,15 @@ export class DatabaseManager {
           RECOVERY_SNAPSHOT_TIMEOUT_MS,
           'recovery-snapshot'
         );
-        // UNION with the existing continuous backup rather than overwrite it. The
-        // DB is failing here, so getAll could return a truncated-but-not-throwing
-        // partial set; a plain overwrite would then shrink a more-complete backup
-        // and lose exactly the scores this snapshot protects. Merging by id keeps
-        // every mutation from both sources (replay is idempotent via INSERT/OCC).
-        const existing = parseMutationBackup(localStorage.getItem(MUTATION_BACKUP_STORAGE_KEY));
-        const byId = new Map<string, (typeof pending)[number]>();
-        for (const m of [...existing.mutations, ...existing.failedMutations]) {
-          byId.set((m as { id: string }).id, m as unknown as (typeof pending)[number]);
-        }
-        for (const m of [...pending, ...failed]) byId.set((m as { id: string }).id, m);
-        const union = Array.from(byId.values());
-        if (union.length > 0) {
-          writeMutationBackup(localStorage, union as Parameters<typeof writeMutationBackup>[1]);
+        // Add to the journal, never replace it (MYK9-2360). The DB is failing
+        // here, so getAll could return a truncated-but-not-throwing partial set;
+        // upserting by id can only add what it read, never shrink the backup.
+        const snapshot = [...pending, ...failed] as PendingMutation[];
+        if (snapshot.length > 0) {
+          upsertJournalEntries(localStorage, snapshot);
           this.logger.log(
-            `[DatabaseManager] Snapshotted ${union.length} mutation(s) before recovery ` +
-              `(${pending.length} pending + ${failed.length} failed read, unioned with backup)`
+            `[DatabaseManager] Snapshotted ${snapshot.length} mutation(s) before recovery ` +
+              `(${pending.length} pending + ${failed.length} failed, added to the journal)`
           );
         }
       } catch (snapshotError) {

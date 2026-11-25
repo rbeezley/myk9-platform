@@ -110,8 +110,10 @@ describe('MutationManager: large-queue stress', () => {
         clear: () => {
           localStorageMock = {};
         },
-        length: 0,
-        key: () => null,
+        get length() {
+          return Object.keys(localStorageMock).length;
+        },
+        key: (index: number) => Object.keys(localStorageMock)[index] ?? null,
       },
       writable: true,
       configurable: true,

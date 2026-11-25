@@ -62,8 +62,10 @@ describe('MutationManager upload coordination (MYK9-2345)', () => {
         clear: () => {
           stored = {};
         },
-        length: 0,
-        key: () => null,
+        get length() {
+          return Object.keys(stored).length;
+        },
+        key: (index: number) => Object.keys(stored)[index] ?? null,
       },
       writable: true,
       configurable: true,
@@ -147,7 +149,7 @@ describe('MutationManager upload coordination (MYK9-2345)', () => {
     });
     const restoreSpy = vi
       .spyOn(MutationBackupStore.prototype, 'restoreUnderLock')
-      .mockImplementation(() => restoreGate.then(() => true));
+      .mockImplementation(() => restoreGate);
     const rpc = vi.fn(async () => ({ data: 8, error: null }));
 
     const manager = createManager(rpc);

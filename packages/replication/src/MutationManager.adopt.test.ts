@@ -149,8 +149,10 @@ describe('MutationManager adoption (MYK9-1205)', () => {
 
   it('waits for an in-flight backup restore, then adopts the restored scores', async () => {
     let finishRestore!: () => void;
-    const internals = manager as unknown as { backupStore: { restore(): Promise<void> } };
-    vi.spyOn(internals.backupStore, 'restore').mockImplementation(async () => {
+    const internals = manager as unknown as {
+      backupStore: { restoreUnderLock(): Promise<boolean> };
+    };
+    vi.spyOn(internals.backupStore, 'restoreUnderLock').mockImplementation(async () => {
       await new Promise<void>(resolve => {
         finishRestore = resolve;
       });
@@ -158,6 +160,7 @@ describe('MutationManager adoption (MYK9-1205)', () => {
       user = 'anon-1';
       await queue('e1', 'show-x');
       user = 'anon-2';
+      return true;
     });
     const restoring = manager.restoreMutationsFromLocalStorage();
     user = 'anon-2';
@@ -177,14 +180,15 @@ describe('MutationManager adoption (MYK9-1205)', () => {
 
   it('adopts the restored scores when the restore is itself waiting on an upload in flight', async () => {
     const internals = manager as unknown as {
-      backupStore: { restore(): Promise<void> };
+      backupStore: { restoreUnderLock(): Promise<boolean> };
       uploadInFlight: Promise<never[]> | null;
       uploadRunner: { runExclusive(w: () => Promise<void>): Promise<void> };
     };
-    vi.spyOn(internals.backupStore, 'restore').mockImplementation(async () => {
+    vi.spyOn(internals.backupStore, 'restoreUnderLock').mockImplementation(async () => {
       user = 'anon-1';
       await queue('e1', 'show-x');
       user = 'anon-2';
+      return true;
     });
     // An upload pass: holds the lock and is visible as uploadInFlight.
     let finishUpload!: () => void;

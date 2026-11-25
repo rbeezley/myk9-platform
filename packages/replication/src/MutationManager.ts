@@ -93,13 +93,14 @@ export class MutationManager {
       options.retryBackoffBase ?? 1000,
       options.maxOccAttempts ?? 50,
       this.queueStore,
-      () => this.backupStore.writeCurrent(),
+      () => this.backupStore.writeUnderLock(),
       () => this.requireCurrentUploadContext(),
       (tableName, rowId) => this.rowRefetchers.request(tableName, rowId),
       this.writtenOverlays,
       this.inFlightWrites,
       options.checkConnectivity,
-      () => this.uploadPendingMutations()
+      () => this.uploadPendingMutations(),
+      () => this.backupStore.restoreIfOwedUnderLock()
     );
   }
 
@@ -443,8 +444,10 @@ export class MutationManager {
    */
   async discardFailedMutation(mutationId: string): Promise<void> {
     const authUserId = await this.requireCurrentUserId();
-    const discarded = await this.queueStore.discardFailedMutation(mutationId, authUserId, () =>
-      this.requireSameCurrentUserId(authUserId)
+    const discarded = await this.backupStore.trackRemovals(() =>
+      this.queueStore.discardFailedMutation(mutationId, authUserId, () =>
+        this.requireSameCurrentUserId(authUserId)
+      )
     );
     if (!discarded) return;
     // Refresh the localStorage backup: failed mutations are included in it, so
@@ -464,11 +467,10 @@ export class MutationManager {
    */
   async discardPendingMutationsForRow(tableName: string, rowId: string): Promise<void> {
     const authUserId = await this.requireQueueOwnerUserId();
-    const discarded = await this.queueStore.discardPendingMutationsForRow(
-      tableName,
-      rowId,
-      authUserId,
-      () => this.requireSameQueueOwnerUserId(authUserId)
+    const discarded = await this.backupStore.trackRemovals(() =>
+      this.queueStore.discardPendingMutationsForRow(tableName, rowId, authUserId, () =>
+        this.requireSameQueueOwnerUserId(authUserId)
+      )
     );
     if (discarded === 0) return;
     await this.backupStore.writeCurrent();
@@ -534,14 +536,16 @@ export class MutationManager {
     legacyOmittedKeysServerWins?: readonly string[]
   ): Promise<void> {
     const authUserId = await this.requireQueueOwnerUserId();
-    const changed = await this.queueStore.reconcilePendingMutationsForRow(
-      tableName,
-      rowId,
-      newServerVersion,
-      authUserId,
-      rebuiltData,
-      legacyOmittedKeysServerWins,
-      () => this.requireSameQueueOwnerUserId(authUserId)
+    const changed = await this.backupStore.trackRemovals(() =>
+      this.queueStore.reconcilePendingMutationsForRow(
+        tableName,
+        rowId,
+        newServerVersion,
+        authUserId,
+        rebuiltData,
+        legacyOmittedKeysServerWins,
+        () => this.requireSameQueueOwnerUserId(authUserId)
+      )
     );
     if (changed > 0) {
       await this.backupStore.writeCurrent();
@@ -570,11 +574,8 @@ export class MutationManager {
     fields: readonly string[]
   ): Promise<void> {
     const authUserId = await this.requireQueueOwnerUserId();
-    const changed = await this.queueStore.dropQueuedFieldsForRow(
-      tableName,
-      rowId,
-      fields,
-      authUserId
+    const changed = await this.backupStore.trackRemovals(() =>
+      this.queueStore.dropQueuedFieldsForRow(tableName, rowId, fields, authUserId)
     );
     if (changed > 0) await this.backupStore.writeCurrent();
   }
@@ -689,27 +690,31 @@ export class MutationManager {
   async restoreMutationsFromLocalStorage(): Promise<void> {
     if (this.restoreInFlight) return this.restoreInFlight;
 
+    // From here until a restore succeeds, no write outside the upload lock may
+    // replace the backup: it may hold rows IndexedDB lost (MYK9-2360).
+    this.backupStore.markRestoreOwed();
     // restoreInFlight must cover the wait on an upload too, so adoption cannot
     // slip between the two and find an empty queue.
     const restore = (async () => {
       // Never restore a stale backup into a queue that is being flushed, by this
       // tab OR another (MYK9-2360). The backup is read only while holding the
       // cross-tab upload lock: a flush owns deletion and rewrites the backup
-      // before it releases, so restore sees the post-flush backup. A failed
-      // upload never blocks recovery (the lock frees either way). Nothing in an
+      // before it releases, so restore sees the post-flush backup. Nothing in an
       // upload calls restore, so taking the lock here cannot wait on itself;
       // UploadLock is non-reentrant, so a future caller inside an upload would
-      // wait out the timeout. A hung flush must not wedge restoreInFlight: after
-      // the timeout we skip (never reading the backup outside the lock) and the
-      // next startup, reconnect or recovery trigger restores again.
+      // wait out the timeout. A hung flush must not wedge restoreInFlight, so the
+      // wait is bounded. On timeout the restore stays owed: the backup is held,
+      // and the next upload pass restores it under the lock before it reads the
+      // queue. Scheduling that pass here means recovery needs no new trigger.
       const outcome = await this.uploadRunner.runExclusiveWithin(
-        () => this.backupStore.restore(),
+        () => this.backupStore.restoreUnderLock(),
         RESTORE_LOCK_TIMEOUT_MS
       );
       if (outcome.timedOut) {
         this.logger.warn(
-          '[MutationManager] Restore skipped: the upload lock stayed busy; will retry on the next trigger'
+          '[MutationManager] Restore deferred: the upload lock stayed busy; the backup is held for the next upload pass'
         );
+        this.scheduleUpload();
       }
     })();
     this.restoreInFlight = restore;
@@ -731,8 +736,10 @@ export class MutationManager {
   async clearAllMutations(): Promise<void> {
     try {
       const authUserId = await this.requireCurrentUserId();
-      await this.queueStore.clearMutationsForOwner(authUserId, () =>
-        this.requireSameCurrentUserId(authUserId)
+      await this.backupStore.trackRemovals(() =>
+        this.queueStore.clearMutationsForOwner(authUserId, () =>
+          this.requireSameCurrentUserId(authUserId)
+        )
       );
       await this.backupStore.writeCurrent();
 

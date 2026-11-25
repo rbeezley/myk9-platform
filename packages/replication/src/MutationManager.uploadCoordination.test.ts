@@ -110,7 +110,7 @@ describe('MutationManager upload coordination (MYK9-2345)', () => {
       await rpcGate;
       return { data: 8, error: null };
     });
-    const restoreSpy = vi.spyOn(MutationBackupStore.prototype, 'restore');
+    const restoreSpy = vi.spyOn(MutationBackupStore.prototype, 'restoreUnderLock');
 
     const manager = createManager(rpc);
     try {
@@ -146,8 +146,8 @@ describe('MutationManager upload coordination (MYK9-2345)', () => {
       releaseRestore = resolve;
     });
     const restoreSpy = vi
-      .spyOn(MutationBackupStore.prototype, 'restore')
-      .mockImplementation(() => restoreGate);
+      .spyOn(MutationBackupStore.prototype, 'restoreUnderLock')
+      .mockImplementation(() => restoreGate.then(() => true));
     const rpc = vi.fn(async () => ({ data: 8, error: null }));
 
     const manager = createManager(rpc);

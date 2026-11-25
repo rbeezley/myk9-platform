@@ -68,7 +68,13 @@ export class MutationUploadRunner {
      * backoff retry, follow-up) goes through it so the owner's in-flight and
      * restore guards are honoured; defaults to this runner's own pass.
      */
-    requestUpload?: () => Promise<SyncResult[]>
+    requestUpload?: () => Promise<SyncResult[]>,
+    /**
+     * Runs at the start of every pass, under the upload lock and before the
+     * queue is read, so a restore that timed out waiting for the lock is
+     * merged in before anything uploads or rewrites the backup (MYK9-2360).
+     */
+    private readonly beforePass?: () => Promise<void>
   ) {
     this.requestUpload = requestUpload ?? (() => this.uploadPendingMutations());
   }
@@ -187,6 +193,7 @@ export class MutationUploadRunner {
     markPerf('replication:flush:start');
 
     try {
+      await this.beforePass?.();
       const passAuthUserId = (await this.getCurrentUploadContext()).authUserId;
       const db = await databaseManager.getDatabase('MutationManager');
       const pending = await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS);

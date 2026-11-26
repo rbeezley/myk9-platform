@@ -187,13 +187,22 @@ export function paidAmountMismatchChargeAlert(input: {
   sessionId: string;
   chargedCents: number;
   authoritativeCents: number | null;
+  /** Snapshot only: the sum of Stripe's recorded line items, fee line included. */
+  recordedCents?: number | null;
   snapshotMismatch?: string | null;
 }): AlertCopy {
   if (input.snapshotMismatch) {
-    const worth =
+    // Two figures, each labelled for what it is: the recorded lines carry the
+    // fee line Stripe holds, the expected total the stamped rate's fee.
+    const figures = [
+      input.recordedCents == null
+        ? null
+        : `Stripe's recorded lines add up to $${dollars(input.recordedCents)}`,
       input.authoritativeCents == null
-        ? ''
-        : ` (the recorded prices add up to ${dollars(input.authoritativeCents)} USD)`;
+        ? null
+        : `at the stamped service-fee rate the charge should be $${dollars(input.authoritativeCents)}`,
+    ].filter((figure): figure is string => figure !== null);
+    const worth = figures.length === 0 ? '' : ` (${figures.join('; ')})`;
     return {
       title: 'Paid checkout does not match the prices it was opened with: refund awaiting approval',
       html: `Checkout session <code>${input.sessionId}</code> charged

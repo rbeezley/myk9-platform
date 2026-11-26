@@ -160,6 +160,24 @@ describe('testing phase 4: captured amount or service fee disagrees', () => {
     expect(refusal(verdict)).toContain('service fee line is 300');
   });
 
+  it('reports what Stripe recorded and what the stamped rate expects, apart', () => {
+    // A $50 cart with a $3 fee line recorded, where the stamped 5% rate gives $2.50.
+    const data = [...PAGE_A.data];
+    data[2] = lineItem(300, { ...SERVICE_FEE_LINE_METADATA });
+    const verdict = verify({ page: { data, has_more: false }, freshTotalCents: 5300 });
+    expect(verdict).toEqual({
+      ok: false,
+      expectedCents: 5250,
+      recordedCents: 5300,
+      snapshotMismatch: 'the service fee line is 300 cents but the stamped rate gives 250',
+      detail: {
+        price_snapshot_mismatch: 'the service fee line is 300 cents but the stamped rate gives 250',
+        recorded_line_items_cents: 5300,
+        stamped_rate_total_cents: 5250,
+      },
+    });
+  });
+
   it('refuses a missing service-fee line when the stamped rate charges one', () => {
     const page = { data: PAGE_A.data.slice(0, 2), has_more: false };
     expect(refusal(verify({ page, freshTotalCents: 5000 }))).toContain('no service fee line');
@@ -288,6 +306,7 @@ describe('constraint 2: sessions opened before the rollout keep the re-price che
     expect(verdict).toEqual({
       ok: false,
       expectedCents: 6300,
+      recordedCents: null,
       snapshotMismatch: null,
       detail: { authoritative_cents: 6300 },
     });

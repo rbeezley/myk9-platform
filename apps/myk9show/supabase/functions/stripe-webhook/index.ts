@@ -1365,6 +1365,7 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session, pai
         sessionId: session.id,
         chargedCents: freshTotalCents,
         authoritativeCents: verdict.expectedCents,
+        recordedCents: verdict.recordedCents,
         snapshotMismatch: verdict.snapshotMismatch,
       }),
     });

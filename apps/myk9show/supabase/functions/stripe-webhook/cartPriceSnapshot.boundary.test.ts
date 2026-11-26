@@ -119,7 +119,8 @@ describe('testing phase 2 at the boundary: fees and subtotal raised to $40 toget
       reason: 'paid_amount_mismatch',
       detail: {
         price_snapshot_mismatch: 'cart line ci-1 is stored at 4000 cents but was sold at 2500',
-        snapshot_cents: 5250,
+        recorded_line_items_cents: 5250,
+        stamped_rate_total_cents: 5250,
       },
     });
   });

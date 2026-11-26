@@ -210,20 +210,38 @@ export type CartChargeVerdict =
   | { ok: true; lineAmounts: Record<string, number> }
   | {
       ok: false;
-      /** What the cart is worth by the check that ran, when it could be added up. */
+      /**
+       * What the charge should be by the check that ran: the current pricing for
+       * the re-price check, the stamped service-fee rate over the recorded entry
+       * lines for a snapshot. Null when the line items could not be added up.
+       */
       expectedCents: number | null;
+      /** The sum of Stripe's recorded line items, fee line included; null for the re-price check. */
+      recordedCents: number | null;
       /** Why the snapshot refused; null for the re-price check. */
       snapshotMismatch: string | null;
       /** refund_requests.detail for the unfulfilled-charge queue. */
       detail: Record<string, unknown>;
     };
 
-function snapshotRefusal(mismatch: string, expectedCents: number | null): CartChargeVerdict {
+interface SnapshotTotals {
+  recordedCents: number;
+  expectedCents: number;
+}
+
+function snapshotRefusal(mismatch: string, totals: SnapshotTotals | null): CartChargeVerdict {
+  const recordedCents = totals?.recordedCents ?? null;
+  const expectedCents = totals?.expectedCents ?? null;
   return {
     ok: false,
     expectedCents,
+    recordedCents,
     snapshotMismatch: mismatch,
-    detail: { price_snapshot_mismatch: mismatch, snapshot_cents: expectedCents },
+    detail: {
+      price_snapshot_mismatch: mismatch,
+      recorded_line_items_cents: recordedCents,
+      stamped_rate_total_cents: expectedCents,
+    },
   };
 }
 
@@ -253,35 +271,40 @@ export function verifyCartAgainstSnapshot(input: {
   let subtotal = 0;
   for (const line of lines.values()) subtotal += line.amountCents;
   const dueFee = calculatePlatformFeeCents(subtotal, input.platformFeeRates);
-  const expected = subtotal + dueFee;
+  // Two different figures, never conflated: what Stripe's recorded lines add up
+  // to (whatever fee line it holds), and what the charge should be at the
+  // stamped rate over the recorded entry lines.
+  const totals: SnapshotTotals = {
+    recordedCents: subtotal + (serviceFeeCents ?? 0),
+    expectedCents: subtotal + dueFee,
+  };
 
   if (input.items.length === 0 || lines.size === 0) {
-    return snapshotRefusal('the session or the cart has no cart lines', expected);
+    return snapshotRefusal('the session or the cart has no cart lines', totals);
   }
   const cartIds = new Set(input.items.map(item => item.id));
   if (cartIds.size !== input.items.length) {
-    return snapshotRefusal('the cart lists one cart line twice', expected);
+    return snapshotRefusal('the cart lists one cart line twice', totals);
   }
   for (const id of lines.keys()) {
-    if (!cartIds.has(id))
-      return snapshotRefusal(`line item for ${id} is not on the cart`, expected);
+    if (!cartIds.has(id)) return snapshotRefusal(`line item for ${id} is not on the cart`, totals);
   }
   for (const item of input.items) {
     const line = lines.get(item.id);
-    if (!line) return snapshotRefusal(`cart line ${item.id} has no line item`, expected);
+    if (!line) return snapshotRefusal(`cart line ${item.id} has no line item`, totals);
     const now = cartLineSnapshotMetadata(item);
     for (const field of DETAIL_FIELDS) {
       if (now[field] !== line[field]) {
         return snapshotRefusal(
           `cart line ${item.id} ${field} changed from ${line[field]} to ${now[field]} after checkout opened`,
-          expected
+          totals
         );
       }
     }
     if (item.entry_fee_cents !== line.amountCents) {
       return snapshotRefusal(
         `cart line ${item.id} is stored at ${item.entry_fee_cents} cents but was sold at ${line.amountCents}`,
-        expected
+        totals
       );
     }
   }
@@ -289,26 +312,26 @@ export function verifyCartAgainstSnapshot(input: {
   if (dueFee === 0 && serviceFeeCents !== null) {
     return snapshotRefusal(
       `the session has a ${serviceFeeCents} cent service fee line but no service fee is due`,
-      expected
+      totals
     );
   }
   if (dueFee > 0 && serviceFeeCents === null) {
     return snapshotRefusal(
       `a ${dueFee} cent service fee is due but there is no service fee line`,
-      expected
+      totals
     );
   }
   if (dueFee > 0 && serviceFeeCents !== dueFee) {
     return snapshotRefusal(
       `the service fee line is ${serviceFeeCents} cents but the stamped rate gives ${dueFee}`,
-      expected
+      totals
     );
   }
-  const lineItemSum = subtotal + (serviceFeeCents ?? 0);
+  const lineItemSum = totals.recordedCents;
   if (lineItemSum !== input.freshTotalCents) {
     return snapshotRefusal(
       `Stripe captured ${input.freshTotalCents} cents but the line items add up to ${lineItemSum}`,
-      expected
+      totals
     );
   }
 
@@ -354,6 +377,7 @@ export async function verifyPaidCartCharge(
   return {
     ok: false,
     expectedCents: repriced.expectedCents,
+    recordedCents: null,
     snapshotMismatch: null,
     detail: { authoritative_cents: repriced.expectedCents },
   };

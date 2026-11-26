@@ -79,11 +79,39 @@ describe('REFUND_ALERT_BUILDERS', () => {
 });
 
 describe('paidAmountMismatchChargeAlert for a price snapshot (MYK9-2036)', () => {
-  it.each([3000, null])('names the mismatch and points into the queue (recorded %s)', cents => {
+  it('labels the recorded line items and the stamped-rate total truthfully', () => {
+    // A $50 cart with a $3 fee line recorded, where the stamped rate gives $2.50.
+    const { html } = paidAmountMismatchChargeAlert({
+      sessionId: 'cs_1',
+      chargedCents: 5300,
+      authoritativeCents: 5250,
+      recordedCents: 5300,
+      snapshotMismatch: 'the service fee line is 300 cents but the stamped rate gives 250',
+    });
+    expect(html).toContain("Stripe's recorded lines add up to $53.00");
+    expect(html).toContain('at the stamped service-fee rate the charge should be $52.50');
+    expect(html).not.toContain('the recorded prices add up to');
+  });
+
+  it('keeps the re-price copy for an unversioned session', () => {
+    const { html } = paidAmountMismatchChargeAlert({
+      sessionId: 'cs_1',
+      chargedCents: 5250,
+      authoritativeCents: 6300,
+    });
+    expect(html).toContain('the show/class pricing says this cart is worth\n     63.00 USD');
+    expect(html).not.toContain("Stripe's recorded lines");
+  });
+
+  it.each([
+    [3000, 3000],
+    [null, null],
+  ])('names the mismatch and points into the queue (%s / %s)', (cents, recorded) => {
     const { title, html } = paidAmountMismatchChargeAlert({
       sessionId: 'cs_1',
       chargedCents: 5250,
       authoritativeCents: cents,
+      recordedCents: recorded,
       snapshotMismatch: 'cart line ci-1 is stored at 4000 cents but was sold at 2500',
     });
     expect(title).toContain('prices it was opened with');

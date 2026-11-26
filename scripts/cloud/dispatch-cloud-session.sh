@@ -20,8 +20,9 @@
 # never retries: a timed-out or silent dispatch may still have created a session, and a second
 # dispatch could be a second writer on the branch (lane reference, Step 2). 5 `script(1)` is not
 # installed (Git Bash on Windows has none), so the CLI would see no terminal and refuse; nothing
-# was started. Use the desktop app's cloud session launcher instead (MYK9-2059). `claude --help`
-# lists no flag that lets `--cloud` run without a terminal, so there is no other fallback here.
+# was started. Only the Mac dispatches cloud sessions (shared rules, Machines), so the answer is
+# to hand the dispatch back to the Mac; the desktop-launcher fallback of MYK9-2059 went with
+# MYK9-2463. `claude --help` lists no flag that lets `--cloud` run without a terminal.
 #
 # Environment: CLOUD_MODEL (default sonnet), CLOUD_EXTRA_ARGS (appended, word-split),
 # DISPATCH_TIMEOUT_S (default 90).
@@ -44,8 +45,8 @@ fi
 if ! command -v script >/dev/null 2>&1; then
   {
     echo "dispatch: cloud dispatch needs script(1) to give the CLI a terminal, and this shell"
-    echo "(for example Git Bash on Windows) does not have it. Nothing was started. Use the"
-    echo "desktop app's cloud session launcher instead, and watch for the PR by branch prefix."
+    echo "(for example Git Bash on Windows) does not have it. Nothing was started. Do not start"
+    echo "the session by hand: only the Mac dispatches. Hand this dispatch back to the Mac."
   } >&2
   exit 5
 fi

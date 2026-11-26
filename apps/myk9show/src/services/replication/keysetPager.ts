@@ -37,8 +37,15 @@ export interface KeysetQuery<Q> {
 export interface FetchKeysetPagesOptions<Q extends KeysetQuery<Q>> {
   /** Starts a fresh query: select plus the filters that do not depend on the page. */
   base: () => Q;
-  /** Rows strictly newer than this (ms epoch) on the first page. */
-  since: number;
+  /** Rows strictly newer than this (ms epoch) on the first page. Ignored by `cursor: 'id'`. */
+  since?: number;
+  /**
+   * `'updated_at_id'` (default): keyset on (`updated_at`, `id`), for incremental syncs.
+   * `'id'`: keyset on `id` alone, for a full read of a table whose `updated_at` is
+   * nullable (`people`): a null never matches a cursor comparison, so the timestamp
+   * cursor would drop such a row or throw on it (MYK9-2253).
+   */
+  cursor?: 'updated_at_id' | 'id';
   /** Applied after ordering on every page (scope filters). */
   scope?: (query: Q) => Q;
   /** Rows per request; defaults to PostgREST's `max_rows`. */
@@ -57,7 +64,8 @@ export interface FetchKeysetPagesOptions<Q extends KeysetQuery<Q>> {
  */
 export async function fetchKeysetPages<Q extends KeysetQuery<Q>>({
   base,
-  since,
+  since = 0,
+  cursor = 'updated_at_id',
   scope,
   pageSize = POSTGREST_MAX_ROWS,
   signal,
@@ -70,17 +78,22 @@ export async function fetchKeysetPages<Q extends KeysetQuery<Q>>({
   for (;;) {
     if (signal?.aborted) throw abortReason(signal);
     let query = base();
-    if (cursorUpdatedAt && cursorId && typeof query.or === 'function') {
+    if (cursor === 'id') {
+      if (cursorId) query = query.gt('id', cursorId);
+      query = query.order('id', { ascending: true });
+    } else if (cursorUpdatedAt && cursorId && typeof query.or === 'function') {
       query = query.or(
         `updated_at.gt.${cursorUpdatedAt},and(updated_at.eq.${cursorUpdatedAt},id.gt.${cursorId})`
       );
     } else {
       query = query.gt('updated_at', new Date(since).toISOString());
     }
-    query = query.order('updated_at', { ascending: true });
-    // The guards keep thin test doubles (a chain that ends at the first `order`)
-    // working, exactly as the entries pager does; the real builders have both.
-    if (typeof query.order === 'function') query = query.order('id', { ascending: true });
+    if (cursor !== 'id') {
+      query = query.order('updated_at', { ascending: true });
+      // The guards keep thin test doubles (a chain that ends at the first `order`)
+      // working, exactly as the entries pager does; the real builders have both.
+      if (typeof query.order === 'function') query = query.order('id', { ascending: true });
+    }
     if (scope) query = scope(query);
     if (signal && typeof query.abortSignal === 'function') query = query.abortSignal(signal);
 
@@ -96,16 +109,19 @@ export async function fetchKeysetPages<Q extends KeysetQuery<Q>>({
     if (pageRows.length === 0) return rows;
 
     const lastRow = pageRows[pageRows.length - 1];
-    if (!lastRow?.updated_at || !lastRow.id) {
+    if (!lastRow?.id || (cursor !== 'id' && !lastRow.updated_at)) {
       throw new Error(`${errorPrefix}: a page ended on a row without id or updated_at`);
     }
     // A correct server returns rows strictly after the cursor. A page that ends on the
     // row the cursor already sits on is the server ignoring it: stop, never loop.
-    if (String(lastRow.updated_at) === cursorUpdatedAt && String(lastRow.id) === cursorId) {
+    if (
+      String(lastRow.id) === cursorId &&
+      (cursor === 'id' || String(lastRow.updated_at) === cursorUpdatedAt)
+    ) {
       return rows;
     }
     rows.push(...pageRows);
-    cursorUpdatedAt = String(lastRow.updated_at);
+    cursorUpdatedAt = cursor === 'id' ? null : String(lastRow.updated_at);
     cursorId = String(lastRow.id);
   }
 }

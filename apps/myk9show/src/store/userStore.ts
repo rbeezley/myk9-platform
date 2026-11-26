@@ -52,6 +52,12 @@ interface UserStore {
   people: User[];
   isLoading: boolean;
   error: string | null;
+  /**
+   * MYK9-2253: the last refresh of the directory came back short of the server's
+   * count, or failed, so the saved copy may be missing people. Saved with the copy,
+   * so it is still known after an offline reload; a full load clears it.
+   */
+  directoryIncomplete: boolean;
 
   // Local-First Actions
   addUser: (userData: UserInput) => Promise<User>;
@@ -122,6 +128,7 @@ export const useUserStore = create<UserStore>()(
         people: [], // Backward compatibility property
         isLoading: false,
         error: null,
+        directoryIncomplete: false,
 
         // Database-First Implementation
         addUser: async (userData: UserInput): Promise<User> => {
@@ -279,11 +286,15 @@ export const useUserStore = create<UserStore>()(
         setUsers: users => set({ users, people: users }),
 
         redactContacts: (): Promise<boolean> =>
-          redactDirectoryContacts(useUserStore.persist, get().users, users =>
-            set({ users, people: users })
+          redactDirectoryContacts(
+            useUserStore.persist,
+            { users: get().users, directoryIncomplete: get().directoryIncomplete },
+            users => set({ users, people: users })
           ),
 
         loadUsers: async (options = {}): Promise<void> => {
+          // Read once the removal retry has run; a sign-out after this point voids the load.
+          let generation: number | undefined;
           try {
             // A removal that failed at sign-out runs again before the directory is read.
             if (isRedactionPending()) {
@@ -291,27 +302,35 @@ export const useUserStore = create<UserStore>()(
                 await import('@/services/database/users/signOutPeopleRedaction');
               await retryPendingPeopleRedaction();
             }
-            const generation = currentSignOutGeneration();
+            generation = currentSignOutGeneration();
             set({ isLoading: true, error: null });
 
             // Import here to avoid circular dependencies
             const { getAllUsers } = await import('@/services/database/users');
             const { mapDatabaseToUser } = await import('@/services/mappers/userMappers');
 
-            const { data, error } = await getAllUsers(options);
+            const { data, error, short } = await getAllUsers(options);
+
+            // Signed out while this load ran: it writes nothing back, contact details or flag.
+            if (generation !== currentSignOutGeneration()) {
+              set({ isLoading: false });
+              return;
+            }
 
             if (error) {
               throw error;
             }
 
-            // Map database results to User objects
-            const users = data.map(mapDatabaseToUser);
-
-            // Signed out while this load ran: its contact details must not come back.
-            if (generation !== currentSignOutGeneration()) {
-              set({ isLoading: false });
+            // MYK9-2253: a short load keeps the copy already saved (it may hold people
+            // this read missed) and marks the directory incomplete so Add Person asks the server.
+            if (short) {
+              logger.warn('People directory load came back short', 'store', { data: short });
+              set({ directoryIncomplete: true, isLoading: false, error: null });
               return;
             }
+
+            // Map database results to User objects
+            const users = data.map(mapDatabaseToUser);
 
             // A management load is the one write allowed to bring contact details back,
             // and it also settles any removal still pending (it replaces the directory).
@@ -323,12 +342,19 @@ export const useUserStore = create<UserStore>()(
               people: users,
               isLoading: false,
               error: null,
+              directoryIncomplete: false,
             });
           } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Failed to load users';
             logger.error('💥 Failed to load users:', 'store', {}, error as Error);
             reportStoreError('loadUsers', 'userStore', error);
-            set({ error: errorMessage, isLoading: false });
+            // The saved copy stays; it is no longer known to be current (MYK9-2253).
+            const signedOut = generation !== undefined && generation !== currentSignOutGeneration();
+            set({
+              error: errorMessage,
+              isLoading: false,
+              ...(!signedOut && { directoryIncomplete: true }),
+            });
           }
         },
 
@@ -414,6 +440,7 @@ export const useUserStore = create<UserStore>()(
             people: [], // Reset backward compatibility property too
             isLoading: false,
             error: null,
+            directoryIncomplete: false,
             selectedUser: null,
             isAddUserDialogOpen: false,
             isEditUserDialogOpen: false,
@@ -430,6 +457,7 @@ export const useUserStore = create<UserStore>()(
       // Only persist the users data, not the UI state
       partialize: state => ({
         users: state.users,
+        directoryIncomplete: state.directoryIncomplete,
       }),
       // Sync `people` from `users` after rehydration so the two arrays
       // are always in sync.  `people` is NOT persisted (redundant copy),

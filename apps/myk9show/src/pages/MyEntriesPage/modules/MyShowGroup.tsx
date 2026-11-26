@@ -398,17 +398,21 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
       )}
 
       {resultsPrompt && group.showId !== '' && (
-        <ResultsPublicPrompt
-          showId={group.showId}
-          dogName={resultsPrompt.dogName}
-          className={resultsPrompt.cls.name}
-          placement={resultsPrompt.cls.finalPlacement}
-          handlerName={resultsPrompt.cls.handler}
-          handlerId={resultsPrompt.cls.handlerId}
-          ownerId={resultsPrompt.cls.dogOwnerId}
-          coOwnerId={resultsPrompt.cls.dogCoOwnerId}
-          isReleased={Boolean(resultsPrompt.cls.resultsReleasedAt)}
-        />
+        // Its own block between the show's strips and the dog list (MYK9-2386): the
+        // bottom margin keeps it off the first dog card, which `space-y-4` does not.
+        <div className="mb-4" data-testid="show-results-prompt">
+          <ResultsPublicPrompt
+            showId={group.showId}
+            dogName={resultsPrompt.dogName}
+            className={resultsPrompt.cls.name}
+            placement={resultsPrompt.cls.finalPlacement}
+            handlerName={resultsPrompt.cls.handler}
+            handlerId={resultsPrompt.cls.handlerId}
+            ownerId={resultsPrompt.cls.dogOwnerId}
+            coOwnerId={resultsPrompt.cls.dogCoOwnerId}
+            isReleased={Boolean(resultsPrompt.cls.resultsReleasedAt)}
+          />
+        </div>
       )}
 
       <ul className="space-y-4">

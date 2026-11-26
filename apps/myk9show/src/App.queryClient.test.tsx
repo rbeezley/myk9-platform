@@ -44,9 +44,6 @@ vi.mock('./components/common/NetworkStatusProvider', () => ({
 vi.mock('./context/AudioSettingsContext', () => ({
   AudioSettingsProvider: ({ children }: { children: ReactNode }) => children,
 }));
-vi.mock('./providers/StoreProvider', () => ({
-  StoreProvider: ({ children }: { children: ReactNode }) => children,
-}));
 vi.mock('./providers/ReplicationSyncProvider', () => ({
   ReplicationSyncProvider: ({ children }: { children: ReactNode }) => children,
 }));

@@ -1,6 +1,5 @@
 import { describe, test, expect, beforeEach } from 'vitest';
 import { useTemplateStore } from '@/store/templateStore';
-import { useClassCreationStore } from '@/store/classCreationStore';
 import { createMockTemplates } from '@/test/utils/mockData';
 import { Organization } from '@/types/template.types';
 
@@ -91,75 +90,6 @@ describe('Template System Performance Benchmarks', () => {
           store.getTemplate(templates[250].id);
         },
         20
-      );
-    });
-  });
-
-  describe('Class Creation Store Performance', () => {
-    beforeEach(() => {
-      useClassCreationStore.setState({
-        selectedTemplate: null,
-        selectedClasses: [],
-        fieldOverrides: {},
-        createdClasses: [],
-        currentStep: 1,
-        trialId: null,
-      });
-    });
-
-    test('applies 50 field overrides within 15ms', () => {
-      const store = useClassCreationStore.getState();
-      const overrides = Object.fromEntries(
-        Array.from({ length: 50 }, (_, i) => [`field${i}`, `value${i}`])
-      );
-
-      performanceBenchmark(
-        'Apply 50 field overrides',
-        () => {
-          store.updateFieldOverrides(overrides);
-        },
-        15
-      );
-    });
-
-    test('manages 1000 created classes within 100ms', () => {
-      const store = useClassCreationStore.getState();
-
-      // Simulate having 1000 created classes
-
-      const _createdClasses = Array.from({ length: 500 }, (_, i) => ({
-        id: `class-${i}`,
-        trialId: `trial-${Math.floor(i / 20)}`,
-        runOrder: i % 20,
-        className: `Class ${i}`,
-        templateId: `template-${Math.floor(i / 50)}`,
-        templateVersion: '1.0',
-        element: ['Container', 'Interior', 'Exterior', 'Buried'][i % 4],
-        level: ['Novice', 'Advanced', 'Excellent', 'Master'][Math.floor(i / 125)],
-        status: 'Pending' as const,
-        organization: 'AKC',
-        showType: 'Scent Work',
-        classNumber: `${i}`,
-        fieldValues: {},
-        personnel: {
-          stewards: {},
-        },
-        entries: {
-          maxEntries: 45,
-          currentEntries: Math.floor(Math.random() * 45),
-          waitlistEntries: Math.floor(Math.random() * 10),
-        },
-        createdBy: 'test',
-        createdAt: new Date(),
-      }));
-      expect(_createdClasses).toHaveLength(500);
-
-      performanceBenchmark(
-        'Get classes by trial from 1000 classes',
-        () => {
-          store.getClassesByTrial('trial-1');
-        },
-        100
       );
     });
   });

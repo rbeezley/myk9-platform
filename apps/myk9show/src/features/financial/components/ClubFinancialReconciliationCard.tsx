@@ -1,7 +1,23 @@
 // Club financial reconciliation card (unified-financial-dashboard, MYK9-54,
 // task 3.1/3.2). Enriches the EXISTING /club-admin/payments surface with
-// per-show net, settlement state, charge-verification state, and a copyable
+// per-show money, the payout sentence, charge-verification state, and a copyable
 // Stripe transfer id — it does not create a new /club-admin/financial page.
+//
+// ONE SOURCE FOR MONEY (MYK9-1985, owner decision A on MYK9-2454): each row's
+// Collected, Refunded and Paid, and whether anything is still owed, come only
+// from club_show_payout_figures (useClubShowPayoutFigures), which computes them
+// the way the payout run does. The reconciliation read supplies only what is not
+// money: the charge-coverage badge and the transfer id. Three review rounds found
+// a new stale figure each time the card mixed a stored payout amount, the order
+// net and $0 rows; do not add a second money source back.
+//
+// THE SHOW LIST IS THE UNION of both reads (MYK9-1985, Codex round 4): a show
+// with a real Stripe charge but no figures row still gets its row, with its name
+// and charge badge and no money at all, never a figure derived from its orders.
+// And only a SUCCESSFUL read counts: an offline first read is paused, neither
+// loading nor in error, with no data, so "No shows" or "No Stripe charges" drawn
+// from it states an absence nobody read. Anything short of both reads succeeding
+// is the unavailable state below.
 //
 // INTENT: a treasurer trusts this as an authoritative record they can
 // explain (docs/INTENT.md, Site Admin oversight intent: "I can drill down").
@@ -11,21 +27,156 @@
 // checkmark it cannot back up.
 import { AlertCircle, ScrollText } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { NEUTRAL_STATUS_CHIP } from '@/components/ui/statusChip';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useClubFinancialReconciliation } from '../useClubFinancialReconciliation';
+import type { ClubShowPayoutFigures } from '@/features/payments/clubShowPayoutFigures';
+import type { ClubShowReconciliationRow } from '../clubShowReconciliation';
 import type { PayoutsAccountState } from '@/features/payments/payoutBadge';
+import { resolvePayoutStage } from '@/features/payments/payoutStage';
+import { useClubShowPayoutFigures } from '@/features/payments/useClubShowPayoutFigures';
+import {
+  useShowPayoutSchedules,
+  type ShowPayoutSchedule,
+} from '@/features/payments/useShowPayoutSchedules';
 import { ChargeVerificationBadge } from './ChargeVerificationBadge';
 import { CopyableTransferId } from './CopyableTransferId';
-import { StripeLinkOut } from './StripeLinkOut';
+import { PayoutStageLine } from './PayoutStageLine';
 
 const currencyFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 
 function formatCents(cents: number): string {
   return currencyFormatter.format(cents / 100);
+}
+
+/**
+ * The third figure: what reached, is reaching, or is still to reach the club.
+ *
+ * INTENT: the wording must never claim money moved that has not. Only a sent
+ * payout (a completed one above $0) reads "Paid"; a transfer Stripe holds reads
+ * "Being sent"; anything still owed reads "To transfer" at the live owed figure,
+ * never a parked row's stored amount. Nothing owed and nothing sent shows no
+ * third figure, so a fully refunded show never reads "Paid $0.00".
+ */
+function thirdFigure(
+  figures: ClubShowPayoutFigures
+): { label: string; cents: number; unsent: boolean } | null {
+  if (figures.paid.kind === 'sent') {
+    return { label: 'Paid', cents: figures.paid.cents, unsent: false };
+  }
+  if (figures.paid.kind === 'in-flight') {
+    return { label: 'Being sent', cents: figures.paid.cents, unsent: false };
+  }
+  if (figures.owedCents > 0) {
+    return { label: 'To transfer', cents: figures.owedCents, unsent: true };
+  }
+  return null;
+}
+
+function Amount({ cents, unsent = false }: { cents: number; unsent?: boolean }) {
+  return (
+    <span className="font-medium tabular-nums text-foreground">
+      {formatCents(cents)}
+      {/* The only honest qualifier on an unsent figure, in text: an aria-label on
+          a bare <span> (role="generic") is dropped by the accessibility tree. */}
+      {unsent && <span className="sr-only"> awaiting transfer, not yet sent</span>}
+    </span>
+  );
+}
+
+/** "Collected $1,280.00 · Refunded $32.00 · Paid $1,248.00", as the server computed them. */
+function PayoutFiguresLine({ figures }: { figures: ClubShowPayoutFigures }) {
+  const third = thirdFigure(figures);
+  return (
+    <p className="text-sm text-muted-foreground" data-testid="payout-figures">
+      Collected <Amount cents={figures.collectedCents} />
+      {' · '}Refunded <Amount cents={figures.refundedCents} />
+      {third && (
+        <>
+          {' · '}
+          {third.label} <Amount cents={third.cents} unsent={third.unsent} />
+        </>
+      )}
+    </p>
+  );
+}
+
+/** One show on the card: in the figures read, the reconciliation read, or both. */
+interface CardShow {
+  showId: string;
+  figures: ClubShowPayoutFigures | null;
+  reconciled: ClubShowReconciliationRow | null;
+}
+
+/** Every show either read returned, in the figures read's order, then the charge-only ones. */
+function unionOfShows(
+  figuresRows: ClubShowPayoutFigures[],
+  reconciledRows: ClubShowReconciliationRow[]
+): CardShow[] {
+  const reconciledByShow = new Map(reconciledRows.map(row => [row.showId, row]));
+  const shows: CardShow[] = figuresRows.map(figures => ({
+    showId: figures.showId,
+    figures,
+    reconciled: reconciledByShow.get(figures.showId) ?? null,
+  }));
+  const listed = new Set(figuresRows.map(figures => figures.showId));
+  for (const reconciled of reconciledRows) {
+    if (!listed.has(reconciled.showId)) {
+      shows.push({ showId: reconciled.showId, figures: null, reconciled });
+    }
+  }
+  return shows;
+}
+
+function ShowRow({
+  show,
+  accountState,
+  schedule,
+  now,
+}: {
+  show: CardShow;
+  accountState: PayoutsAccountState;
+  schedule: ShowPayoutSchedule | null;
+  now: Date;
+}) {
+  const { figures, reconciled } = show;
+  // The transfer id belongs to one payout row: shown only when it is the same
+  // row the figures describe.
+  const transferId =
+    figures && reconciled?.settlement && reconciled.settlement.payoutId === figures.payout?.id
+      ? reconciled.settlement.stripeTransferId
+      : null;
+  return (
+    <li className="space-y-2 px-3 py-3">
+      <p className="truncate text-sm font-medium">
+        {figures?.showName ?? reconciled?.showName ?? 'Show'}
+      </p>
+      {figures ? (
+        <PayoutFiguresLine figures={figures} />
+      ) : (
+        /* A charge with no figures row: the server has not answered for this
+           show's money, so the row states none and claims no payout date. */
+        <p className="text-sm text-muted-foreground">Payout figures not available yet.</p>
+      )}
+      <div className="flex flex-wrap items-center gap-2">
+        {/* Both reads succeeded, so a show the reconciliation read has no row
+            for is literally no stripe_orders rows for the show. */}
+        <ChargeVerificationBadge state={reconciled?.chargeVerification ?? 'NoStripeCharges'} />
+      </div>
+      {figures && (
+        <PayoutStageLine stage={resolvePayoutStage({ figures, accountState, schedule, now })} />
+      )}
+      {transferId && (
+        <div className="flex flex-wrap items-center gap-1">
+          {/* No "View in Stripe" link (MYK9-1985): it opened the platform's
+              dashboard, which a club cannot sign in to. The id stays copyable
+              for a support conversation. */}
+          <CopyableTransferId transferId={transferId} />
+        </div>
+      )}
+    </li>
+  );
 }
 
 interface ClubFinancialReconciliationCardProps {
@@ -43,10 +194,22 @@ export function ClubFinancialReconciliationCard({
   clubId,
   accountState,
 }: ClubFinancialReconciliationCardProps) {
-  const { rows, isLoading, isError, refetch } = useClubFinancialReconciliation(
-    clubId,
-    accountState
-  );
+  const figuresQuery = useClubShowPayoutFigures(clubId);
+  const reconciliation = useClubFinancialReconciliation(clubId, accountState);
+  const schedules = useShowPayoutSchedules(clubId);
+  const now = new Date();
+
+  // One state for the card: a figure the server has not answered for is never
+  // rendered as $0 or "nothing owed". Either read still loading is the skeleton;
+  // anything else short of both reads succeeding (failed, or paused offline) is
+  // the unavailable state below.
+  const isLoading = figuresQuery.isLoading || reconciliation.isLoading;
+  const isAnswered = figuresQuery.isSuccess && reconciliation.isSuccess && !!figuresQuery.data;
+  const shows = isAnswered ? unionOfShows(figuresQuery.data ?? [], reconciliation.rows) : [];
+  const refetch = () => {
+    void figuresQuery.refetch();
+    reconciliation.refetch();
+  };
 
   return (
     <Card>
@@ -58,8 +221,8 @@ export function ClubFinancialReconciliationCard({
           </CardTitle>
         </div>
         <CardDescription>
-          Per-show net, how much of it Stripe can account for, and transfer status for your
-          club&apos;s shows.
+          What each show collected, refunded and paid, how much of it Stripe can account for, and
+          when each show&apos;s entry fees are paid to your club.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -70,7 +233,7 @@ export function ClubFinancialReconciliationCard({
           </div>
         )}
 
-        {!isLoading && isError && (
+        {!isLoading && !isAnswered && (
           /* The default Alert is `bg-background text-foreground`, which measures
              1.07:1 light / 1.08:1 dark against the Card it sits on: the one state
              this card's INTENT header insists must read as explicitly unavailable
@@ -115,88 +278,23 @@ export function ClubFinancialReconciliationCard({
           </Alert>
         )}
 
-        {!isLoading && !isError && rows.length === 0 && (
+        {!isLoading && isAnswered && shows.length === 0 && (
           <p className="text-sm text-muted-foreground">
             No shows to reconcile yet. This fills in once your club&apos;s first show collects entry
             fees.
           </p>
         )}
 
-        {!isLoading && !isError && rows.length > 0 && (
+        {!isLoading && isAnswered && shows.length > 0 && (
           <ul className="divide-y rounded-lg border">
-            {rows.map(row => (
-              <li key={row.showId} className="space-y-2 px-3 py-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="truncate text-sm font-medium">{row.showName}</p>
-                  <span className="text-sm font-semibold tabular-nums">
-                    {row.net.status === 'available' ? (
-                      formatCents(row.net.netCents)
-                    ) : (
-                      <Badge variant="secondary" className={NEUTRAL_STATUS_CHIP}>
-                        Net pending
-                        <span className="sr-only"> — awaiting Stripe processing fee capture</span>
-                      </Badge>
-                    )}
-                  </span>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <ChargeVerificationBadge state={row.chargeVerification} />
-                  {row.settlement && (
-                    <Badge
-                      variant={row.settlement.state === 'attention' ? 'destructive' : 'secondary'}
-                      className={
-                        row.settlement.state === 'attention' ? undefined : NEUTRAL_STATUS_CHIP
-                      }
-                    >
-                      {row.settlement.badgeLabel}
-                    </Badge>
-                  )}
-                </div>
-                {row.settlement && (
-                  // The transfer amount, distinct from the entry-fee `net` above.
-                  // Showing both, with the copyable transfer id, is the
-                  // reconciliation view: the treasurer ties this figure to what
-                  // Stripe reports for tr_….
-                  //
-                  // INTENT: the wording must never claim money moved that has not.
-                  // A pending/processing/failed payout still HAS an amount, but it
-                  // is scheduled or owed — not transferred. Only a settled payout
-                  // ('Paid') may be labelled "Transferred" (Codex round-6 finding).
-                  <p className="text-xs text-muted-foreground">
-                    {row.settlement.state === 'settled' ? 'Transferred: ' : 'To transfer: '}
-                    <span className="font-medium tabular-nums text-foreground">
-                      {formatCents(row.settlement.amountCents)}
-                      {/* This qualifier was an aria-label on a bare <span>, i.e.
-                          role="generic", so it was dropped -- and it is the only
-                          honest qualifier on a money figure here. */}
-                      {row.settlement.state !== 'settled' && (
-                        <span className="sr-only"> awaiting transfer, not yet sent</span>
-                      )}
-                    </span>
-                  </p>
-                )}
-                {row.settlement && (
-                  /* Carried over from the "Show payouts" list this card
-                     replaced. A treasurer reconciles against a bank statement,
-                     and a row without a date cannot be tied to a line on it.
-                     <time> so the value is machine-readable, which the old list
-                     never was. */
-                  <p className="text-xs text-muted-foreground">
-                    {row.settlement.completedAt ? 'Paid on ' : 'Started on '}
-                    <time dateTime={row.settlement.completedAt ?? row.settlement.createdAt}>
-                      {new Date(
-                        row.settlement.completedAt ?? row.settlement.createdAt
-                      ).toLocaleDateString()}
-                    </time>
-                  </p>
-                )}
-                {row.settlement?.stripeTransferId && (
-                  <div className="flex flex-wrap items-center gap-1">
-                    <CopyableTransferId transferId={row.settlement.stripeTransferId} />
-                    <StripeLinkOut transferId={row.settlement.stripeTransferId} />
-                  </div>
-                )}
-              </li>
+            {shows.map(show => (
+              <ShowRow
+                key={show.showId}
+                show={show}
+                accountState={accountState}
+                schedule={schedules.get(show.showId) ?? null}
+                now={now}
+              />
             ))}
           </ul>
         )}

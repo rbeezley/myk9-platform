@@ -81,6 +81,21 @@ export function getEmailDeliveryStatusPresentation(status: string): {
   }
 }
 
+/**
+ * MYK9-2403: what the secretary does about a failed email, in plain words, on the entry form.
+ * The Messages list keeps the provider-neutral summary; this is the same status, said as a next step.
+ */
+export function getExhibitorEmailAdvice(status: string): string {
+  switch (normalizeStatus(status)) {
+    case 'bounced':
+      return 'This didn’t arrive. The address may be wrong: check it with the exhibitor.';
+    case 'complained':
+      return 'The exhibitor marked this as spam. Reach them another way before sending more.';
+    default:
+      return 'This couldn’t be sent. Check the address with the exhibitor, then send it again.';
+  }
+}
+
 export function getEmailRecoveryHref(sourceKind: string, showId: string): string | null {
   switch (sourceKind) {
     case 'registration_confirmation':

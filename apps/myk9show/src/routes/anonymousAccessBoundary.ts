@@ -16,5 +16,4 @@ export const ANONYMOUS_PUBLIC_ROUTE_POLICY = [
   { path: '/fees', reason: 'Shareable service-fee explanation.' },
   { path: '/about', reason: 'Public About page linked from both footers.' },
   { path: '/help/credentials', reason: 'Public sign-in recovery help.' },
-  { path: '/prototype/show', reason: 'Development-only prototype route.' },
 ] as const;

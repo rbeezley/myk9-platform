@@ -30,12 +30,7 @@ const SRC = join(__dirname, '../..');
  * Dev-only or intentionally-unshipped surfaces. Each entry needs a reason —
  * "it's just a prototype" is only acceptable while the route is DEV-gated.
  */
-const ALLOWED = new Map<string, string>([
-  [
-    'pages/ShowDetailsPrototype.tsx',
-    'Dev-only route: publicRoutes.tsx renders it behind import.meta.env.DEV, so it never reaches a user.',
-  ],
-]);
+const ALLOWED = new Map<string, string>();
 
 /**
  * A RATCHET, not an allowlist. Every entry carries the same bottom-of-viewport

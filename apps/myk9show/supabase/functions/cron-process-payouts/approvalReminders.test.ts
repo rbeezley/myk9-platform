@@ -37,7 +37,12 @@ function payout(n: number, extra: Partial<Row> = {}): Row {
   };
 }
 
-const OK: ReminderAlertResult = { insertOutcome: 'inserted', emailError: null };
+const OK: ReminderAlertResult = {
+  insertOutcome: 'inserted',
+  emailAttempted: true,
+  emailError: null,
+  emailSent: true,
+};
 
 function world(rows: Row[], alertResult: (p: string) => ReminderAlertResult = () => OK) {
   const lists: Array<{ cutoffIso: string; afterId: string | null; limit: number }> = [];
@@ -152,14 +157,32 @@ describe('remindAwaitingApprovals: failures', () => {
   it('counts a reminder whose alert was not saved or not emailed, and makes it due again', async () => {
     const rows = [payout(1), payout(2), payout(3)];
     const w = world(rows, key => {
-      if (key.endsWith('000000000001')) return { insertOutcome: 'insert_failed', emailError: null };
+      if (key.endsWith('000000000001')) return { ...OK, insertOutcome: 'insert_failed' };
       if (key.endsWith('000000000002'))
-        return { insertOutcome: 'inserted', emailError: new Error('x') };
+        return { ...OK, emailError: new Error('x'), emailSent: false };
       return OK;
     });
     const outcome = await remindAwaitingApprovals(w.deps, NOW);
     expect(outcome).toEqual({ reminded: 1, failed: 2, listFailed: false, deferred: false });
     expect(rows.map(r => r.remindedAt)).toEqual([null, null, new Date(NOW).toISOString()]);
+  });
+
+  it('counts a reminder whose email was skipped (no Resend key), and makes it due again', async () => {
+    const rows = [payout(1), payout(2)];
+    const w = world(rows, key =>
+      key.endsWith('000000000001') ? { ...OK, emailError: null, emailSent: false } : OK
+    );
+    const outcome = await remindAwaitingApprovals(w.deps, NOW);
+    expect(outcome).toEqual({ reminded: 1, failed: 1, listFailed: false, deferred: false });
+    expect(rows.map(r => r.remindedAt)).toEqual([null, new Date(NOW).toISOString()]);
+
+    const rerun = await remindAwaitingApprovals(w.deps, NOW + 60 * 1000);
+    expect(rerun.failed).toBe(1);
+    expect(w.alerts.map(a => a.dedupeKey)).toEqual([
+      awaitingApprovalDedupeKey(rows[0].id),
+      awaitingApprovalDedupeKey(rows[1].id),
+      awaitingApprovalDedupeKey(rows[0].id),
+    ]);
   });
 
   it('counts a claim that errors, and raises nothing for it', async () => {

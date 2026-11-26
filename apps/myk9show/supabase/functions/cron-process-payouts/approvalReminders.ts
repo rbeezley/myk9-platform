@@ -13,13 +13,14 @@
 //   partway leaves the rest due.
 // - Bounded: due payouts are read in batches keyed on id, at most
 //   maxBatches per run; anything past that stays due for the next run.
-// - A reminder that was not saved or not emailed is counted, its stamp is put
+// - A reminder that was not saved, or whose email failed or was skipped (no
+//   RESEND_API_KEY), is counted, its stamp is put
 //   back so the next run tries again, and the run raises one alert with the count.
 //
 // Free of Deno and database imports; approvalReminderStore.ts is the database side.
 
 import { escapeHtml, formatDollars } from '../_shared/clubMoneyEmails.ts';
-import type { InsertOutcome } from '../_shared/alertAdminCore.ts';
+import { alertWasEmailed, type RunAlertAdminResult } from '../_shared/alertAdminCore.ts';
 
 /** Under a day, so a nightly run that starts a little earlier than yesterday's
  * still reminds; over half a day, so a manual re-run the same day does not. */
@@ -46,11 +47,8 @@ export interface WaitingPayout {
   remindedAt: string | null;
 }
 
-/** The part of the shared alertAdmin's result a reminder reads. */
-export interface ReminderAlertResult {
-  insertOutcome: InsertOutcome;
-  emailError: unknown;
-}
+/** The shared alertAdmin's result. */
+export type ReminderAlertResult = RunAlertAdminResult;
 
 export type ReminderAlert = (
   subject: string,
@@ -112,8 +110,10 @@ export function awaitingApprovalAlert(
   };
 }
 
+/** A reminder counts only when its alert was saved and its email really went out:
+ * a skipped send (no RESEND_API_KEY) is a failure too, so it is retried next run. */
 function reminderFailed(result: ReminderAlertResult): boolean {
-  return result.insertOutcome === 'insert_failed' || result.emailError != null;
+  return !alertWasEmailed(result);
 }
 
 /** Remind the operator about each waiting payout that is due. Never throws on a store error. */
@@ -177,7 +177,9 @@ export async function reportReminderFailures(
   const noun = outcome.failed === 1 ? 'reminder' : 'reminders';
   const count =
     outcome.failed > 0
-      ? `<p>${outcome.failed} ${noun} for payouts waiting for approval could not be sent this run.</p>`
+      ? `<p>${outcome.failed} ${noun} for payouts waiting for approval could not be sent this run.
+         A reminder counts as not sent when its alert could not be saved or its email failed or
+         was skipped, for example when RESEND_API_KEY is not set.</p>`
       : '';
   await deps.alertAdmin(
     'Payout approval reminders could not be sent',

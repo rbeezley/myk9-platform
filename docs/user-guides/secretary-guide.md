@@ -164,7 +164,7 @@ Click a form to open it. At the top is the exhibitor's name and a **⋯** menu b
 Under it, **To finish this form** lists only what is left, one card each, with the button that does it:
 
 - **N entries need review**: **Accept** or **Reject**. Accept gives the dog an armband number. The accepted form leaves the **Needs review** view and the next form on the list opens. A message, "Updated all N items", shows with **Undo**.
-- **N entries are missing information**: use **Change handler…** on the entry's menu.
+- **N entries are missing information**: get the missing detail from the exhibitor and correct it. **Change handler…** on the entry's menu changes the handler (or the jump height). The card stays until you click the entry's status and choose **Accept**.
 - **$ due**: **Cash…**, **Check…**, or the more options (**Partial Payment…**, **Paid in Full: Online**). A form that shows a balance with none of these buttons cannot record a payment here.
 - **A dog has no armband**: **Assign**.
 - **A dog needs a registration number**: **Add number**.

@@ -16,7 +16,6 @@ export interface ProceedGatingContext {
   selectedDogsCount: number;
   ownerSelectionOk: boolean;
   hasSelectedClasses: boolean;
-  hasSeparateHandlerStep: boolean;
   entryCount: number;
   unassignedHandlerCount: number;
   /** MYK9-2021: same-class handler questions with no answer yet (Classes step, exhibitor). */
@@ -79,13 +78,9 @@ export function proceedBlockedReason(ctx: ProceedGatingContext): string | null {
       if (ctx.unansweredHandlerClashCount > 0) {
         return "Tell us who will handle the second dog, or choose I'll decide at the show, to continue.";
       }
-      if (!ctx.hasSeparateHandlerStep && ctx.unassignedHandlerCount > 0) {
+      if (ctx.unassignedHandlerCount > 0) {
         return handlerReason(ctx.unassignedHandlerCount);
       }
-      return null;
-    case 'handler-assignment':
-      if (ctx.entryCount === 0) return 'Select at least one class to continue.';
-      if (ctx.unassignedHandlerCount > 0) return handlerReason(ctx.unassignedHandlerCount);
       return null;
     case 'payment':
       // An entry with no classes has nothing to submit or total. The wizard

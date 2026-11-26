@@ -7,7 +7,6 @@ function ctx(overrides: Partial<ProceedGatingContext>): ProceedGatingContext {
     selectedDogsCount: 1,
     ownerSelectionOk: true,
     hasSelectedClasses: true,
-    hasSeparateHandlerStep: false,
     entryCount: 1,
     unassignedHandlerCount: 0,
     unansweredHandlerClashCount: 0,
@@ -72,28 +71,21 @@ describe('proceedBlockedReason', () => {
       ).toBe('Select at least one class to continue.');
     });
 
-    it('blocks when inline handlers are missing (no separate handler step)', () => {
+    it('blocks when a handler is missing', () => {
       expect(
         proceedBlockedReason(
           ctx({
             stepId: 'class-selection',
-            hasSeparateHandlerStep: false,
             unassignedHandlerCount: 2,
           })
         )
       ).toBe('Assign a handler to each entry to continue (2 remaining).');
     });
 
-    it('ignores handler assignment when a separate handler step exists', () => {
+    it('uses singular copy for one unassigned handler', () => {
       expect(
-        proceedBlockedReason(
-          ctx({
-            stepId: 'class-selection',
-            hasSeparateHandlerStep: true,
-            unassignedHandlerCount: 3,
-          })
-        )
-      ).toBeNull();
+        proceedBlockedReason(ctx({ stepId: 'class-selection', unassignedHandlerCount: 1 }))
+      ).toBe('Assign a handler to the remaining entry to continue.');
     });
   });
 
@@ -102,26 +94,6 @@ describe('proceedBlockedReason', () => {
       expect(proceedBlockedReason(ctx({ stepId: 'payment', entryCount: 0 }))).toBe(
         'No classes left. Go back to Classes to pick one.'
       );
-    });
-  });
-
-  describe('handler-assignment', () => {
-    it('blocks with zero entries', () => {
-      expect(proceedBlockedReason(ctx({ stepId: 'handler-assignment', entryCount: 0 }))).toBe(
-        'Select at least one class to continue.'
-      );
-    });
-
-    it('uses singular copy for one unassigned handler', () => {
-      expect(
-        proceedBlockedReason(ctx({ stepId: 'handler-assignment', unassignedHandlerCount: 1 }))
-      ).toBe('Assign a handler to the remaining entry to continue.');
-    });
-
-    it('proceeds when every entry has a handler', () => {
-      expect(
-        proceedBlockedReason(ctx({ stepId: 'handler-assignment', unassignedHandlerCount: 0 }))
-      ).toBeNull();
     });
   });
 

@@ -643,7 +643,6 @@ export function useRegistrationWizardState() {
     ownerSelectionOk: ownerResolution.ok,
     hasSelectedClasses:
       classSelections.length > 0 && classSelections.some(s => s.selectedClasses.length > 0),
-    hasSeparateHandlerStep: currentWorkflowConfig.steps.includes('handler-assignment'),
     entryCount: allEntryKeys.length,
     unansweredHandlerClashCount: handlerClashPending,
     unassignedHandlerCount: allEntryKeys.filter(key => !handlerAssignments[key]?.handlerName)

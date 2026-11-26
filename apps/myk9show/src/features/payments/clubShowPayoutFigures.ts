@@ -60,7 +60,11 @@ export interface ClubShowPayoutFigures {
   collectedCents: number;
   /** Refunded against those entries (sumRefundedCents). */
   refundedCents: number;
-  /** What the payout run sends: each entry's fee less its refund, floored at 0. */
+  /**
+   * What the payout run sends: each entry's fee less its refund, floored at 0, recomputed live
+   * (the ledger's computedNetCents). Deliberately not a parked row's stored amount_cents, which
+   * lags a refund until the next nightly run (owner decision A, MYK9-2454).
+   */
   owedCents: number;
   /** The canonical payout row; null when the show has none. */
   payout: ClubShowPayout | null;

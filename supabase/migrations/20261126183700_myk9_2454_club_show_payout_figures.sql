@@ -21,6 +21,16 @@
 -- No entry or show deleted_at filter: the payout run and the owner ledger have none, and a
 -- soft-deleted show's money is real (show_deleted says so).
 --
+-- owed_cents is ALWAYS the live recompute, never show_payouts.amount_cents (owner decision A on
+-- MYK9-1985 / MYK9-2454, 2026-11-26: "computed the way processShow.ts computes them"). processShow
+-- never trusts a stored amount for an unsent row: it recomputes from entries before routing and
+-- again after the claim, so the live figure is what the club will actually be sent. The owner
+-- ledger shows the same figure as computedNetCents (payoutLedger.ts buildLedgerRows); its
+-- netOwedCents column instead prefers a parked row's stored amount, which the next nightly run
+-- refreshes to this figure. Using the stored amount here would bring back the stale-amount
+-- defect that stopped #4439 after three review rounds. The stored amount is still returned
+-- (payout_amount_cents) for consumers that need it, and paid_cents uses it for sent money.
+--
 -- paid_cents is the canonical row's amount only when it is 'completed' AND above 0. The payout
 -- run closes a fully refunded show's parked row as completed at $0; that is not a payment, and
 -- the tab must not read "Paid $0.00" as though money moved.

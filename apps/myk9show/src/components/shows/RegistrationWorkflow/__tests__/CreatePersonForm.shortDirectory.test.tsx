@@ -61,12 +61,17 @@ describe('CreatePersonForm after a short directory refresh (MYK9-2253)', () => {
 
   it('asks the server for a person missing from the saved copy and holds on the match', async () => {
     setOnline(true);
-    searchUsersMock.mockResolvedValue(fromAny({ data: [SERVER_ROW], error: null }));
+    // The lookup while typing never answers, so only the save-time check can find the match.
+    let saving = false;
+    searchUsersMock.mockImplementation(() =>
+      saving ? Promise.resolve(fromAny({ data: [SERVER_ROW], error: null })) : new Promise(() => {})
+    );
     const user = userEvent.setup();
     render(<CreatePersonForm open onOpenChange={vi.fn()} onExhibitorCreated={vi.fn()} />);
 
     await typePerson(user);
     await user.click(await screen.findByRole('button', { name: /Next: Contact/ }));
+    saving = true;
     await user.click(await screen.findByRole('button', { name: 'Add Person' }));
 
     expect(await screen.findByTestId('person-duplicate-notice')).toBeInTheDocument();

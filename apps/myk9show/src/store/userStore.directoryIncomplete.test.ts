@@ -40,7 +40,7 @@ describe('userStore.directoryIncomplete (MYK9-2253)', () => {
     });
   });
 
-  it('a short load keeps the saved copy and marks it incomplete, saved with the copy', async () => {
+  it('a short load merges what arrived into the saved copy and marks it incomplete', async () => {
     directory.getAllUsers.mockResolvedValue({
       data: [row('a', 'Al'), row('b', 'Bo')],
       error: null,
@@ -50,11 +50,12 @@ describe('userStore.directoryIncomplete (MYK9-2253)', () => {
     await useUserStore.getState().loadUsers();
 
     const state = useUserStore.getState();
-    expect(state.users).toEqual([saved]);
-    expect(state.people).toEqual([saved]);
+    // The rows that arrived are merged into the saved copy; the saved-only person stays.
+    expect(state.users.map(user => user.id)).toEqual(['a', 'b', 'saved-1']);
+    expect(state.people.map(user => user.id)).toEqual(['a', 'b', 'saved-1']);
     expect(state.directoryIncomplete).toBe(true);
     expect(savedState().directoryIncomplete).toBe(true);
-    expect(savedState().users).toEqual([saved]);
+    expect(savedState().users.map((user: User) => user.id)).toEqual(['a', 'b', 'saved-1']);
   });
 
   it('a short load on a device with no saved copy keeps what arrived, still marked incomplete', async () => {
@@ -104,7 +105,6 @@ describe('userStore.directoryIncomplete (MYK9-2253)', () => {
   });
 
   it('the mark is still known after a reload', async () => {
-    useUserStore.setState({ directoryIncomplete: true });
     useUserStore.setState({ directoryIncomplete: false, users: [], people: [] });
     localStorage.setItem(
       STORAGE_KEY,

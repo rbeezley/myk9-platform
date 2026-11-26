@@ -35,12 +35,17 @@ export interface AllPeopleRead {
 }
 
 /** Reads every live person, sorted by last then first name, and reports a short read. */
-export async function readAllPeoplePaged(): Promise<AllPeopleRead> {
-  const { count, error: countError } = await supabase
+async function countLivePeople(): Promise<number> {
+  const { count, error } = await supabase
     .from('people')
     .select('id', { count: 'exact', head: true })
     .is('deleted_at', null);
-  if (countError) throw new Error(`People count failed: ${countError.message}`);
+  if (error) throw new Error(`People count failed: ${error.message}`);
+  return count ?? 0;
+}
+
+export async function readAllPeoplePaged(): Promise<AllPeopleRead> {
+  const countBefore = await countLivePeople();
 
   const rows = (await fetchKeysetPages({
     cursor: 'id',
@@ -53,7 +58,10 @@ export async function readAllPeoplePaged(): Promise<AllPeopleRead> {
   })) as unknown as PeopleRow[];
   rows.sort(byName);
 
-  const serverCount = count ?? 0;
+  // Counted again after the pages: a person deleted mid-read lowers the second count,
+  // so only a read short of both counts is short.
+  const serverCount =
+    rows.length < countBefore ? Math.min(countBefore, await countLivePeople()) : countBefore;
   const short =
     rows.length < serverCount
       ? {

@@ -326,15 +326,18 @@ export const useUserStore = create<UserStore>()(
             // Map database results to User objects
             const users = data.map(mapDatabaseToUser);
 
-            // MYK9-2253: a short load keeps a saved copy (it may hold people this read missed)
-            // and marks the directory incomplete, so Add Person asks the server. A device with
-            // no saved copy takes the partial rows: some people beat none.
+            // MYK9-2253: a short load may miss people the saved copy holds, so the rows that
+            // arrived are merged into it by id (the fresh row wins) and the directory stays
+            // marked incomplete, so Add Person asks the server. With no saved copy, some beat none.
             if (short) {
               logger.warn('People directory load came back short', 'store', { data: short });
-              if (get().users.length > 0) {
-                set({ directoryIncomplete: true, isLoading: false, error: null });
-                return;
-              }
+              const arrived = new Set(users.map(user => user.id));
+              users.push(...get().users.filter(user => !arrived.has(user.id)));
+              users.sort(
+                (a, b) =>
+                  (a.lastName ?? '').localeCompare(b.lastName ?? '') ||
+                  (a.firstName ?? '').localeCompare(b.firstName ?? '')
+              );
             }
 
             // A management load is the one write allowed to bring contact details back,
@@ -481,6 +484,10 @@ export const useUserStore = create<UserStore>()(
           ...persisted,
           ...(users && { users }),
           people: users ?? currentState.users,
+          // A load that failed or came back short before hydration finished keeps its mark (MYK9-2253).
+          directoryIncomplete: Boolean(
+            currentState.directoryIncomplete || persisted.directoryIncomplete
+          ),
         };
       },
       version: 1,

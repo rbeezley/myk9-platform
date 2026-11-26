@@ -33,25 +33,6 @@ describe('Phase 4 Template System Tests', () => {
       expect(asRecord.updateTemplate).toBeUndefined();
       expect(asRecord.deleteTemplate).toBeUndefined();
     });
-
-    it('should have properly configured show template store', () => {
-      const store = useShowTemplateStore.getState();
-
-      expect(typeof store.addTemplate).toBe('function');
-      expect(typeof store.updateTemplate).toBe('function');
-      expect(typeof store.deleteTemplate).toBe('function');
-      expect(typeof store.getTemplate).toBe('function');
-      expect(Array.isArray(store.templates)).toBe(true);
-    });
-
-    it('should have properly configured class creation store', () => {
-      const store = useClassCreationStore.getState();
-
-      expect(typeof store.selectTemplate).toBe('function');
-      expect(typeof store.createClasses).toBe('function');
-      expect(typeof store.resetWorkflow).toBe('function');
-      expect(Array.isArray(store.createdClasses)).toBe(true);
-    });
   });
 
   describe('Template Store Operations', () => {

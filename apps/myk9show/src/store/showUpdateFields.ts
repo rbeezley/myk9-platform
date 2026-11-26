@@ -48,21 +48,25 @@ export function assertStartingArmband(value: number): void {
   }
 }
 
-const feeToNumber = (value: string): number => parseFloat(value);
+const blankToNull = (value: string): string | null => (value.trim() === '' ? null : value);
+
+const blankOrFeeToNumber = (value: string): number | null =>
+  value.trim() === '' ? null : parseFloat(value);
 
 export const SHOW_UPDATE_FIELDS: Record<ShowUpdateKey, ShowUpdateField> = {
   name: copy,
   organization: copy,
   startDate: copy,
   endDate: copy,
-  location: copy,
+  location: { when: 'defined', toReplicated: blankToNull },
   latitude: copy,
   longitude: copy,
   status: copy,
-  entryOpenDate: copy,
-  entryCloseDate: copy,
-  preEntryFee: { when: 'defined', toReplicated: feeToNumber },
-  dayOfShowFee: { when: 'defined', toReplicated: feeToNumber },
+  // MYK9-2433: '' is a cleared box and clears the column.
+  entryOpenDate: { when: 'defined', toReplicated: blankToNull },
+  entryCloseDate: { when: 'defined', toReplicated: blankToNull },
+  preEntryFee: { when: 'defined', toReplicated: blankOrFeeToNumber },
+  dayOfShowFee: { when: 'defined', toReplicated: blankOrFeeToNumber },
   // MYK9-2220/2221: present means the form decides; a cleared box clears the cap.
   maxEntriesPerDog: clearable,
   maxTotalEntries: clearable,

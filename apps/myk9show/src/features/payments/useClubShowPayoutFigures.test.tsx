@@ -21,7 +21,7 @@ function createWrapper() {
 const fullyRefundedRow = {
   show_id: 'show-1',
   show_name: 'Spring Trial',
-  show_end_date: '2026-11-01',
+  show_end_date: '2026-11-01T00:00:00+00:00',
   show_deleted: false,
   collected_cents: 4000,
   refunded_cents: 4000,

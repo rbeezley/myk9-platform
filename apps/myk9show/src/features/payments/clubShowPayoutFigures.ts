@@ -16,6 +16,7 @@ import type { PayoutStatus } from './payoutLedger';
 export interface ClubShowPayoutFiguresRow {
   show_id: string;
   show_name: string | null;
+  /** shows.end_date as stored (timestamptz, midnight UTC of the last trial day). */
   show_end_date: string | null;
   show_deleted: boolean;
   collected_cents: number;

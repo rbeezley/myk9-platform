@@ -40,7 +40,7 @@ CREATE FUNCTION public.club_show_payout_figures(p_club_id uuid)
 RETURNS TABLE (
   show_id uuid,
   show_name text,
-  show_end_date date,
+  show_end_date timestamptz,
   show_deleted boolean,
   collected_cents bigint,
   refunded_cents bigint,
@@ -112,7 +112,7 @@ BEGIN
   )
   SELECT cs.id,
          cs.name::text,
-         cs.end_date::date,
+         cs.end_date,
          cs.deleted_at IS NOT NULL,
          COALESCE(m.collected, 0)::bigint,
          COALESCE(m.refunded, 0)::bigint,

@@ -11,7 +11,7 @@ function row(overrides: Partial<ClubShowPayoutFiguresRow> = {}): ClubShowPayoutF
   return {
     show_id: 'show-1',
     show_name: 'Spring Trial',
-    show_end_date: '2026-11-01',
+    show_end_date: '2026-11-01T00:00:00+00:00',
     show_deleted: false,
     collected_cents: 5000,
     refunded_cents: 0,
@@ -105,7 +105,7 @@ describe('toClubShowPayoutFigures', () => {
     expect(figures).toMatchObject({
       showId: 'show-1',
       showName: 'Spring Trial',
-      showEndDate: '2026-11-01',
+      showEndDate: '2026-11-01T00:00:00+00:00',
       showDeleted: true,
     });
   });

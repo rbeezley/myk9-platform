@@ -16,6 +16,7 @@ import { isStepUpRefusalBody, STEP_UP_REQUIRED_CODE } from '@/features/step-up/s
 import { STEP_UP_REFUSAL_MESSAGE } from '@/features/step-up/edgeStepUpRefusal';
 import { hydrateVisibleRoles } from './roleLabels';
 import { PEOPLE_MAPPER_COLUMNS } from './peopleColumns';
+import { JUDGE_QUALIFICATIONS_SELECT, readAllPeoplePaged } from './allPeoplePaged';
 import type { PersonPrivatePatch } from './personPrivate';
 import type { Json } from '@myk9/supabase';
 import { ilikeContains } from '@/utils/sanitizePostgRESTFilter';
@@ -30,61 +31,36 @@ export type PersonUpdate = DbUserUpdate & PersonPrivatePatch;
 // Re-exported so existing importers keep working; the lists live in peopleColumns.ts.
 export { PEOPLE_MAPPER_COLUMNS } from './peopleColumns';
 
-// Shared select fragment for judge qualifications join
-const JUDGE_QUALIFICATIONS_SELECT = `judge_qualifications(
-  id, organization, qualification_level, disciplines, judge_number,
-  date_obtained, expiration_date, is_active
-)`;
-
 interface GetAllUsersOptions {
   includeRoleLabels?: boolean;
 }
 
-// Get all users (excluding soft-deleted)
+// Get all users (excluding soft-deleted), every page; `short` is set when fewer arrived than the server counts
 export const getAllUsers = async ({ includeRoleLabels = true }: GetAllUsersOptions = {}) => {
   const startTime = Date.now();
 
   try {
-    const { data, error } = await supabase
-      .from('people')
-      .select(`${PEOPLE_MAPPER_COLUMNS}, ${JUDGE_QUALIFICATIONS_SELECT}`)
-      .is('deleted_at', null)
-      .order('last_name', { ascending: true })
-      .order('first_name', { ascending: true });
-
+    const { rows, short } = await readAllPeoplePaged();
     const duration = Date.now() - startTime;
-
-    // Enhanced debug logging
-    logger.debug('🔍 Database query result:', 'database', {
-      data: {
-        data: data?.slice(0, 3), // First 3 for debugging
-        dataLength: data?.length,
-        error: error?.message,
-        tableName: 'user',
-        supabaseUrl: 'hidden_for_security',
-        duration,
-      },
+    logger.debug('Database query result:', 'database', {
+      data: { dataLength: rows.length, tableName: 'user', duration },
     });
+    logQuery('user', 'select_all', duration);
 
-    logQuery('user', 'select_all', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'user', 'select_all');
-    }
-
-    const people = data || [];
+    const people = rows as unknown as Awaited<ReturnType<typeof hydrateVisibleRoles>>;
     return {
       data: includeRoleLabels
         ? await hydrateVisibleRoles(people)
-        : people.map(person => ({ ...person, roles: [] })),
+        : people.map(person => ({ ...person, roles: [] as string[] })),
       error: null,
+      short,
     };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'user', 'select_all');
-    logger.error('💥 Database query failed:', 'database', { data: { error: dbError, duration } });
+    logger.error('Database query failed:', 'database', { data: { error: dbError, duration } });
     logQuery('user', 'select_all', duration, dbError.message);
-    return { data: [], error: dbError };
+    return { data: [], error: dbError, short: null };
   }
 };
 

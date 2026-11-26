@@ -25,10 +25,11 @@ test-clubs:
   - 73406ba3-e675-4e16-9799-489e75a3bc43
   - 4b3f145d-b7d0-4983-9367-6dc29d92eb03
   - fbd2d6a4-9279-4238-8bbb-d0b22fec47f3
+  - e396937c-25e4-41a4-96a5-5a724e62c837
 ```
 
 - `status:` is `ACTIVE` (pre-approvals apply) or `OFF` (ask for everything, as the shared rules say).
-- `test-clubs:` lists every `public.clubs` id, soft-deleted ones included, that the owner has confirmed is a test club. These were captured on 2026-10-29: Darboshea Tervuren Club, Heartland Scent Work Club, Prairie Trail Dog Sports Club, WALK TEST club, Tulsa Agility Club (the Oct 10 test show), American Bloodhound Club, and five soft-deleted test or disposable clubs. Added 2026-11-01 at the owner's request: MYK9-639 TEST 20261101 and MYK9-1393 TEST 20261101, synthetic fixtures Codex created for the MYK9-639 and MYK9-1393 Stripe Connect test-mode rehearsals. Added 2026-11-16 at the owner's request: myK9 Test Club 2046, created by the MYK9-2046 request-a-club browser walk and marked `is_demo`.
+- `test-clubs:` lists every `public.clubs` id, soft-deleted ones included, that the owner has confirmed is a test club. These were captured on 2026-10-29: Darboshea Tervuren Club, Heartland Scent Work Club, Prairie Trail Dog Sports Club, WALK TEST club, Tulsa Agility Club (the Oct 10 test show), American Bloodhound Club, and five soft-deleted test or disposable clubs. Added 2026-11-01 at the owner's request: MYK9-639 TEST 20261101 and MYK9-1393 TEST 20261101, synthetic fixtures Codex created for the MYK9-639 and MYK9-1393 Stripe Connect test-mode rehearsals. Added 2026-11-16 at the owner's request: myK9 Test Club 2046, created by the MYK9-2046 request-a-club browser walk and marked `is_demo`. Added 2026-11-26 at the owner's request: Throw Away Club, which the owner created that day for a hands-on check and confirmed as a test club (MYK9-2463).
 - A club that is not on the list stops every pre-approved action. If it is another test club, a person adds its id here in a PR. If it is a real club, launch (below).
 
 ## Pre-approved actions

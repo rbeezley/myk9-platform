@@ -447,22 +447,6 @@ describe('MutationManager', () => {
       expect(remaining).toHaveLength(0);
     });
 
-    it('removes stale localStorage backup immediately after successful upload', async () => {
-      const mutation = makeMutation({
-        id: 'mut-stale-backup',
-        tableName: 'clubs',
-        operation: 'INSERT',
-      });
-      await mockDb.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation);
-      localStorageMock['replication_mutation_backup'] = JSON.stringify([mutation]);
-
-      const results = await manager.uploadPendingMutations();
-
-      expect(results).toHaveLength(1);
-      expect(results[0]!.success).toBe(true);
-      expect(localStorageMock['replication_mutation_backup']).toBeUndefined();
-    });
-
     it('should dispatch upload-complete event with affected table names', async () => {
       await mockDb.put(
         REPLICATION_STORES.PENDING_MUTATIONS,
@@ -1903,99 +1887,17 @@ describe('MutationManager', () => {
   // BACKUP / RESTORE
   // ========================================
 
-  describe('Backup and Restore', () => {
-    it('should backup mutations to localStorage', async () => {
-      await mockDb.put(REPLICATION_STORES.PENDING_MUTATIONS, makeMutation({ id: 'mut-backup-1' }));
-
-      await manager.backupMutationsToLocalStorage();
-
-      const backup = localStorageMock['replication_mutation_backup'];
-      expect(backup).toBeDefined();
-
-      const parsed = JSON.parse(backup!);
-      expect(parsed).toHaveLength(1);
-      expect(parsed[0].id).toBe('mut-backup-1');
-    });
-
-    it('should remove backup when no mutations pending', async () => {
-      localStorageMock['replication_mutation_backup'] = JSON.stringify([
-        { id: 'old-mut', tableName: 'entries' },
-      ]);
-
-      await manager.backupMutationsToLocalStorage();
-
-      expect(localStorageMock['replication_mutation_backup']).toBeUndefined();
-    });
-
-    it('should restore mutations from localStorage backup', async () => {
-      const backup = [makeMutation({ id: 'mut-restore-1' }), makeMutation({ id: 'mut-restore-2' })];
-
-      localStorageMock['replication_mutation_backup'] = JSON.stringify(backup);
-
-      await manager.restoreMutationsFromLocalStorage();
-
-      const restored = await mockDb.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
-      expect(restored).toHaveLength(2);
-    });
-
-    it('should not restore mutations that already exist', async () => {
-      const existing = makeMutation({ id: 'mut-existing' });
-      await mockDb.put(REPLICATION_STORES.PENDING_MUTATIONS, existing);
-
-      localStorageMock['replication_mutation_backup'] = JSON.stringify([
-        existing,
-        makeMutation({ id: 'mut-new' }),
-      ]);
-
-      await manager.restoreMutationsFromLocalStorage();
-
-      const all = await mockDb.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
-      expect(all).toHaveLength(2); // existing + new, not duplicate
-    });
-
-    it('should handle missing backup gracefully', async () => {
-      await expect(manager.restoreMutationsFromLocalStorage()).resolves.not.toThrow();
-    });
-
-    it('should handle corrupted backup gracefully', async () => {
-      localStorageMock['replication_mutation_backup'] = 'invalid json {{{';
-
-      await expect(manager.restoreMutationsFromLocalStorage()).resolves.not.toThrow();
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        expect.stringContaining('Failed to restore mutations'),
-        expect.any(Error)
-      );
-    });
-
-    it('persists the backup before queueMutation resolves (no debounce window)', async () => {
-      // Regression: a debounced backup left a window where a page reload lost
-      // the newest offline mutations if IndexedDB was later evicted. Queued
-      // scores must reach localStorage before the queueing call resolves.
-      await manager.queueMutation('entries', 'UPDATE', 'entry-9', {
-        id: 'entry-9',
-        is_scored: true,
-      });
-
-      const backup = localStorageMock['replication_mutation_backup'];
-      expect(backup).toBeDefined();
-      const parsed = JSON.parse(backup!);
-      expect(parsed).toHaveLength(1);
-      expect(parsed[0].rowId).toBe('entry-9');
-    });
-  });
-
   // ========================================
   // CLEANUP
   // ========================================
 
   describe('Cleanup', () => {
-    it('should clear all pending mutations and backup', async () => {
+    it('should clear all pending and failed mutations', async () => {
       const mutations = [makeMutation({ id: 'mut-clear-1' }), makeMutation({ id: 'mut-clear-2' })];
 
       for (const m of mutations) {
         await mockDb.put(REPLICATION_STORES.PENDING_MUTATIONS, m);
       }
-      localStorageMock['replication_mutation_backup'] = JSON.stringify(mutations);
       await mockDb.put(REPLICATION_STORES.FAILED_MUTATIONS, {
         ...makeMutation({ id: 'mut-clear-failed' }),
         status: 'failed',
@@ -2006,7 +1908,6 @@ describe('MutationManager', () => {
 
       const remaining = await mockDb.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
       expect(remaining).toHaveLength(0);
-      expect(localStorageMock['replication_mutation_backup']).toBeUndefined();
       const failed = await mockDb.getAll(REPLICATION_STORES.FAILED_MUTATIONS);
       expect(failed).toHaveLength(0);
     });
@@ -2379,42 +2280,6 @@ describe('MutationManager', () => {
   // ========================================
   // BACKUP RESTORE VALIDATION
   // ========================================
-
-  describe('Backup restore validation', () => {
-    it('should discard malformed entries from localStorage backup', async () => {
-      const validMut = makeMutation({ id: 'valid-1' });
-      const malformed = [
-        { id: 'bad-1' }, // missing tableName and operation
-        { tableName: 'entries', operation: 'INSERT' }, // missing id and rowId
-        null,
-        42,
-        { id: 'bad-2', tableName: 'entries', operation: 'UNKNOWN_OP', rowId: 'r1' }, // bad op
-      ];
-
-      localStorageMock['replication_mutation_backup'] = JSON.stringify([validMut, ...malformed]);
-
-      await manager.restoreMutationsFromLocalStorage();
-
-      const restored = await mockDb.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
-      expect(restored).toHaveLength(1);
-      expect(restored[0].id).toBe('valid-1');
-
-      expect(mockLogger.warn).toHaveBeenCalledWith(expect.stringContaining('malformed mutation'));
-    });
-
-    it('should restore a fully valid backup without warnings', async () => {
-      const mutations = [makeMutation({ id: 'v-1' }), makeMutation({ id: 'v-2' })];
-      localStorageMock['replication_mutation_backup'] = JSON.stringify(mutations);
-
-      await manager.restoreMutationsFromLocalStorage();
-
-      const restored = await mockDb.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
-      expect(restored).toHaveLength(2);
-      expect(mockLogger.warn).not.toHaveBeenCalledWith(
-        expect.stringContaining('malformed mutation')
-      );
-    });
-  });
 
   // ========================================
   // BACKOFF RETRY TIMER

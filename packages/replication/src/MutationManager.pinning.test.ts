@@ -8,7 +8,6 @@ import { createMutationManagerTestDb } from './test-utils/createMutationManagerT
 import type { PendingMutation } from './types';
 
 const TEST_DB_NAME = 'test-mutation-manager-pinning-db';
-const BACKUP_KEY = 'replication_mutation_backup';
 const TEST_AUTH_USER_ID = 'test-user';
 
 function createLogger(): Logger {
@@ -230,26 +229,6 @@ describe('MutationManager contract pins', () => {
     manager.requestUpload();
     await vi.advanceTimersByTimeAsync(200);
     expect(await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS)).toHaveLength(0);
-  });
-
-  it('backs up a newly queued mutation together with existing failed work', async () => {
-    await db.put(
-      REPLICATION_STORES.FAILED_MUTATIONS,
-      mutation({ id: 'failed-1', status: 'failed', failedAt: Date.now() })
-    );
-    const queuedId = await manager.queueMutation(
-      'entries',
-      'UPDATE',
-      'entry-2',
-      { id: 'entry-2' },
-      undefined,
-      undefined,
-      undefined,
-      false
-    );
-
-    const backup = JSON.parse(localStorageValues[BACKUP_KEY]!) as PendingMutation[];
-    expect(backup.map(item => item.id)).toEqual([queuedId, 'failed-1']);
   });
 
   it('dispatches sync-failed with the permanent failure count', async () => {

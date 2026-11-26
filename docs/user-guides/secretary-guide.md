@@ -405,7 +405,7 @@ The **Check-in desk** is the one list of exhibitors, with armband, class, time a
 - Open it from **Show Desk → Actions → Check-in desk**, or **Entry Forms → Actions → Entry lists → Check-in desk**. On **Show Desk**, the "Check in N entries" chip in the **Needs attention** strip opens it already filtered to **Not checked in**.
 - An exhibitor who still owes money shows **Owes $…** with the amount, so you can collect it at the desk. A form someone else placed names who owes it.
 - The search box is ready when it opens. Type a name, a dog or an armband. **All exhibitors** and **Not checked in** switch the list.
-- **Check in** on a dog's row checks in that run. **Check in all** appears on an exhibitor with two or more dogs waiting (it shows how many, for example _Check in all 3 dogs_) and checks in everything of theirs that is ready. An exhibitor with one dog has only that dog's **Check in**.
+- **Check in** on a dog's row checks that dog in for all of its runs that are ready today, not just one class. **Check in all** appears on an exhibitor with two or more dogs waiting (it shows how many, for example _Check in all 3 dogs_) and checks in everything of theirs that is ready. An exhibitor with one dog has only that dog's **Check in**.
 - Check in is offered only on the trial's own day, for an accepted entry that is not in yet. Other rows say why (for example **Not today**). A dog already at the gate or in the ring shows its ringside status, such as **At Gate** or **In Ring**, and has no **Check in** button.
 
 ![Check-in desk listing each exhibitor with their dogs, armbands and classes](../screenshots/S-24.png)

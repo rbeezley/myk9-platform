@@ -78,7 +78,7 @@ begin
       (select count(*) from public.show_lifecycle_email_jobs where show_id = v_show and step_type = 'show_changed');
   end if;
   select * into v_after from public.show_lifecycle_email_jobs where id = v_first.id;
-  if v_after.recipient_email <> 'ada@example.test' or v_after.claimed_until is distinct from v_first.claimed_until
+  if v_after.recipient_email is distinct from 'ada@example.test' or v_after.claimed_until is distinct from v_first.claimed_until
      or v_after.attempt_id is null
      or v_after.status <> 'ready' then
     raise exception 'FAIL A the leased job was mutated: %', row_to_json(v_after);
@@ -86,7 +86,7 @@ begin
   select * into v_second from public.show_lifecycle_email_jobs
    where show_id = v_show and step_type = 'show_changed' and id <> v_first.id;
   if v_second.status <> 'ready' or v_second.claimed_until is not null or v_second.attempt_id is not null
-     or v_second.recipient_email <> 'ada.new@example.test' then
+     or v_second.recipient_email is distinct from 'ada.new@example.test' then
     raise exception 'FAIL A the new job is wrong: %', row_to_json(v_second);
   end if;
 
@@ -97,11 +97,11 @@ begin
     raise exception 'FAIL A a further edit should merge into the unleased job, not add a third';
   end if;
   select * into v_after from public.show_lifecycle_email_jobs where id = v_first.id;
-  if v_after.recipient_email <> 'ada@example.test' or v_after.claimed_until is distinct from v_first.claimed_until then
+  if v_after.recipient_email is distinct from 'ada@example.test' or v_after.claimed_until is distinct from v_first.claimed_until then
     raise exception 'FAIL A the further edit touched the leased job: %', row_to_json(v_after);
   end if;
   select * into v_second from public.show_lifecycle_email_jobs where id <> v_first.id and show_id = v_show and step_type = 'show_changed';
-  if v_second.recipient_email <> 'ada.third@example.test' or v_second.claimed_until is not null then
+  if v_second.recipient_email is distinct from 'ada.third@example.test' or v_second.claimed_until is not null then
     raise exception 'FAIL A the further edit did not update the unleased job: %', row_to_json(v_second);
   end if;
   raise notice 'PASS A a show edit during a lease queues a separate job';

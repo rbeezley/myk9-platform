@@ -52,6 +52,25 @@ vi.mock('@myk9/core', () => ({
   },
 }));
 
+/**
+ * A chain for one paged PostgREST read: every builder step returns the chain, and the
+ * terminal `range`/`limit` answers `firstPage` once, then the empty page that ends a
+ * pager (MYK9-2252).
+ */
+function pagedChain(firstPage: unknown, firstError: unknown = null) {
+  const answer = vi
+    .fn()
+    .mockResolvedValueOnce({ data: firstPage, error: firstError })
+    .mockResolvedValue({ data: [], error: null });
+  const chain: Record<string, unknown> = {};
+  for (const step of ['is', 'order', 'or', 'abortSignal', 'eq']) chain[step] = () => chain;
+  const mockGt = vi.fn().mockImplementation(() => chain);
+  chain.gt = mockGt;
+  chain.range = answer;
+  chain.limit = answer;
+  return { chain, mockGt, answer };
+}
+
 describe('ReplicatedClubsTable', () => {
   let table: ReplicatedClubsTable;
 
@@ -901,21 +920,19 @@ describe('ReplicatedClubsTable', () => {
       // head: true` probe before its id fetch, as a THIRD distinct query
       // shape sharing this same mocked `from()` alongside fetchRemoteRows'
       // `.select('*').is().gt().order()` and the id fetch's
-      // `.select('id').is().limit()`. Dispatch on the presence of the
+      // `.select('id').is().order().limit()` (paged until an empty page). Dispatch on the presence of the
       // `head` option so all three keep working through one mock.
       function mockSyncAndReconcile(remoteRows: unknown[], liveIds: { id: string }[]) {
-        const mockOrder = vi.fn().mockResolvedValue({ data: remoteRows, error: null });
-        const mockGt = vi.fn().mockReturnValue({ order: mockOrder });
-        const mockLimit = vi.fn().mockResolvedValue({ data: liveIds, error: null });
+        const delta = pagedChain(remoteRows);
+        const ids = pagedChain(liveIds);
         const countIs = vi.fn().mockResolvedValue({ count: liveIds.length, error: null });
-        const fetchIs = vi.fn().mockReturnValue({ gt: mockGt, limit: mockLimit });
         const mockSelect = vi
           .fn()
-          .mockImplementation((_col: string, opts?: { head?: boolean }) =>
-            opts?.head ? { is: countIs } : { is: fetchIs }
+          .mockImplementation((col: string, opts?: { head?: boolean }) =>
+            opts?.head ? { is: countIs } : col === 'id' ? ids.chain : delta.chain
           );
         vi.mocked(supabaseMock.from).mockReturnValue({ select: mockSelect });
-        return { mockGt };
+        return { mockGt: delta.mockGt };
       }
 
       it('passes forceFullSync on the sync AFTER one that pruned a row', async () => {
@@ -1726,12 +1743,8 @@ describe('ReplicatedClubsTable', () => {
       const countIs = vi.fn().mockResolvedValue({ count, error: null });
       const countSelect = vi.fn().mockReturnValue({ is: countIs });
 
-      const mockLimit = vi.fn().mockResolvedValue({
-        data: rows,
-        error: fetchError ?? null,
-      });
-      const dataIs = vi.fn().mockReturnValue({ limit: mockLimit });
-      const dataSelect = vi.fn().mockReturnValue({ is: dataIs });
+      const { chain, answer: mockLimit } = pagedChain(rows, fetchError ?? null);
+      const dataSelect = vi.fn().mockReturnValue(chain);
 
       return { countSelect, countIs, dataSelect, mockLimit };
     }
@@ -1755,7 +1768,8 @@ describe('ReplicatedClubsTable', () => {
       const { supabase } = await import('@/services/database/supabaseClient');
       vi.mocked(supabase.from)
         .mockReturnValueOnce(fromAny({ select: countSelect }))
-        .mockReturnValueOnce(fromAny({ select: dataSelect }));
+        // Every later read is an id page: the data page, then the empty one.
+        .mockReturnValue(fromAny({ select: dataSelect }));
 
       const removed = await table.reconcileVisibility();
 
@@ -1792,7 +1806,8 @@ describe('ReplicatedClubsTable', () => {
       const { supabase } = await import('@/services/database/supabaseClient');
       vi.mocked(supabase.from)
         .mockReturnValueOnce(fromAny({ select: countSelect }))
-        .mockReturnValueOnce(fromAny({ select: dataSelect }));
+        // Every later read is an id page: the data page, then the empty one.
+        .mockReturnValue(fromAny({ select: dataSelect }));
 
       const removed = await table.reconcileVisibility();
 
@@ -1800,20 +1815,20 @@ describe('ReplicatedClubsTable', () => {
       expect(await table.get('club-a')).not.toBeNull();
     });
 
-    // P2-2 / P3-3: a true count > 1000 means the id fetch would be
-    // truncated — pruning against it would wipe every still-visible club
-    // beyond the first page. Round 4: the count comes from the exact-count
-    // probe, NOT from data.length, since max_rows caps the row fetch at
-    // 1000 regardless of the true total (a real total of 1001 would
-    // otherwise silently read as "exactly 1000, not truncated").
-    it('removes nothing when the true count exceeds 1000 rows (truncation guard)', async () => {
+    // P2-2 / P3-3: a set smaller than the exact-count probe is partial, and pruning
+    // against it would wipe every still-visible club that was not read. MYK9-2252: the
+    // ids are paged, so a set past 1,000 is read whole; only a set that falls short of
+    // the count (here 1 id read of 1001) refuses to prune.
+    it('removes nothing when the ids read fall short of the true count (truncation guard)', async () => {
       await table.set('club-a', { id: 'club-a', name: 'Club A', email: 'a@club.com', phone: '1' });
 
-      const countIs = vi.fn().mockResolvedValue({ count: 1001, error: null });
-      const countSelect = vi.fn().mockReturnValue({ is: countIs });
+      const { countSelect, dataSelect } = mockCountAndFetch(1001, [{ id: 'club-a' }]);
 
       const { supabase } = await import('@/services/database/supabaseClient');
-      vi.mocked(supabase.from).mockReturnValue(fromAny({ select: countSelect }));
+      vi.mocked(supabase.from)
+        .mockReturnValueOnce(fromAny({ select: countSelect }))
+        // Every later read is an id page: the data page, then the empty one.
+        .mockReturnValue(fromAny({ select: dataSelect }));
 
       const removed = await table.reconcileVisibility();
 
@@ -1821,7 +1836,7 @@ describe('ReplicatedClubsTable', () => {
       expect(await table.get('club-a')).not.toBeNull();
     });
 
-    it('fetches at most 1000 ids once the count probe confirms no truncation', async () => {
+    it('reads the ids in pages of 1000', async () => {
       await table.set('club-a', { id: 'club-a', name: 'Club A', email: 'a@club.com', phone: '1' });
 
       const { countSelect, dataSelect, mockLimit } = mockCountAndFetch(1, [{ id: 'club-a' }]);
@@ -1829,7 +1844,8 @@ describe('ReplicatedClubsTable', () => {
       const { supabase } = await import('@/services/database/supabaseClient');
       vi.mocked(supabase.from)
         .mockReturnValueOnce(fromAny({ select: countSelect }))
-        .mockReturnValueOnce(fromAny({ select: dataSelect }));
+        // Every later read is an id page: the data page, then the empty one.
+        .mockReturnValue(fromAny({ select: dataSelect }));
 
       await table.reconcileVisibility();
 

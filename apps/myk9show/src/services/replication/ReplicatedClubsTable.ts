@@ -21,6 +21,8 @@ import {
 } from '@myk9/replication';
 import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
+import { fetchKeysetPages } from './keysetPager';
+import { POSTGREST_MAX_ROWS } from './postgrestMaxRows';
 import { idScanEpoch, idScanKey, markIdScanCompleted, shouldRunIdScan } from './idScanCadence';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 
@@ -219,20 +221,14 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
 
     const adapter: SyncReplicatedTableAdapter<ClubRow, ReplicatedClub> = {
       ...this.getRowRefetchAdapter(),
-      fetchRemoteRows: async ({ since }) => {
-        const { data, error } = await supabase
-          .from('clubs')
-          .select('*')
-          .is('deleted_at', null)
-          .gt('updated_at', new Date(since).toISOString())
-          .order('updated_at', { ascending: true });
-
-        if (error) {
-          throw new Error(`Supabase query failed: ${error.message}`);
-        }
-
-        return (data ?? []) as unknown as ClubRow[];
-      },
+      // MYK9-2252: paged by keyset on (updated_at, id) until an empty page. One
+      // request returned only the oldest 1,000 clubs and never advanced.
+      fetchRemoteRows: async ({ since, signal }) =>
+        (await fetchKeysetPages({
+          base: () => supabase.from('clubs').select('*').is('deleted_at', null),
+          since,
+          signal,
+        })) as unknown as ClubRow[],
       getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
       resolveConflict: (_local, remote) => remote,
     };
@@ -312,20 +308,13 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
    * ReplicatedDogsTable.reconcileDeleted(): fetch the complete set of
    * currently-visible ids and drop any non-dirty local row not in it
    * (removeStaleEntries preserves dirty rows, so a pending local edit is
-   * never wiped). Unlike dogs, this is a single unpaginated `select('id')` —
-   * the clubs table is small, well under PostgREST's page cap — but it still
-   * guards against truncation (round 2, P2-2).
-   *
-   * Round 4 (P3-3): the truncation guard cannot be a `.limit(PAGE_SIZE + 1)`
-   * probe the way ReplicatedDogsTable's is — this project's PostgREST
-   * `max_rows` is 1000 (supabase/config.toml `[api] max_rows`), so a
-   * response can never exceed 1000 rows regardless of what `.limit()` asks
-   * for; `data.length > PAGE_SIZE` could then never fire even when the real
-   * visible set is larger, silently pruning every still-visible club past
-   * row 1000. A separate `count: 'exact', head: true` probe (same filter,
-   * no row body) gets the TRUE total instead — see the count-column LESSON
-   * (docs/lessons/README.md#postgrest-count-column): the column must be
-   * named, never `*`, or an allowlisted table 403s.
+   * never wiped). The ids are keyset-paged on `id` until an empty page
+   * (MYK9-2252), and a `count: 'exact', head: true` probe (same filter, no row
+   * body) gets the TRUE total: a set smaller than the count is partial, so nothing
+   * is pruned. Never trust a short page to mean "done": the hosted `max_rows` can
+   * be lower than the page size. See the count-column LESSON
+   * (docs/lessons/README.md#postgrest-count-column): the column must be named,
+   * never `*`, or an allowlisted table 403s.
    *
    * @returns number of stale rows removed.
    */
@@ -333,7 +322,6 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
     cache: SyncCacheWriter<ReplicatedClub> = new SyncCacheWriter(this)
   ): Promise<number> {
     const { signal } = cache;
-    const PAGE_SIZE = 1000;
     const startedEpoch = idScanEpoch();
 
     let countQuery = supabase.from('clubs').select('id', { count: 'exact', head: true });
@@ -344,24 +332,40 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
       // set could wipe rows that are still perfectly visible.
       return 0;
     }
-    if (count > PAGE_SIZE) {
-      // Truncated: the clubs table has grown past what a single page can
-      // see. Pruning against a partial set would wipe every still-visible
-      // club beyond the first page — bail instead.
+
+    // MYK9-2252: the visible ids are paged by keyset on `id` until an empty page,
+    // so a set past one response (or a hosted max_rows below 1,000) is read whole.
+    const liveIds = new Set<string>();
+    let lastId: string | undefined;
+    for (;;) {
+      let idsQuery = supabase.from('clubs').select('id');
+      if (signal) idsQuery = idsQuery.abortSignal(signal);
+      idsQuery = idsQuery.is('deleted_at', null);
+      if (lastId !== undefined) idsQuery = idsQuery.gt('id', lastId);
+      const { data, error } = await idsQuery
+        .order('id', { ascending: true })
+        .limit(POSTGREST_MAX_ROWS);
+      if (error || !data) return 0;
+      if (data.length === 0) break;
+      for (const row of data) liveIds.add(String((row as { id: string }).id));
+      const pageLastId = String((data[data.length - 1] as { id: string }).id);
+      // A page ending on the id the cursor already sits on means the server ignored it;
+      // the count check below then refuses to prune against whatever was read.
+      if (pageLastId === lastId) break;
+      lastId = pageLastId;
+    }
+
+    // A set smaller than the server's count is partial: pruning against it would
+    // wipe every still-visible club that was not read. (Clubs added during the read
+    // only make the set larger, which is safe.) The count column is named, never
+    // `*`: see the count-column LESSON (docs/lessons/README.md#postgrest-count-column).
+    if (liveIds.size < count) {
       logger.warn(
-        `[${this.getTableName()}] reconcileVisibility: id set exceeds ${PAGE_SIZE}, skipping prune`
+        `[${this.getTableName()}] reconcileVisibility: read ${liveIds.size} of ${count} ids, skipping prune`
       );
       return 0;
     }
 
-    let idsQuery = supabase.from('clubs').select('id');
-    if (signal) idsQuery = idsQuery.abortSignal(signal);
-    const { data, error } = await idsQuery.is('deleted_at', null).limit(PAGE_SIZE);
-    if (error || !data) {
-      return 0;
-    }
-
-    const liveIds = new Set(data.map(row => String((row as { id: string }).id)));
     const removed = await cache.removeStale(liveIds);
     if (!cache.aborted) markIdScanCompleted(idScanKey(this.getTableName()), startedEpoch);
     return removed;

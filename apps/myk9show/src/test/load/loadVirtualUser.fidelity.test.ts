@@ -351,8 +351,12 @@ describe("virtual reader follows the application's id-scan cadence (MYK9-1302)",
       await user.syncOnce();
     }
     const requests = server.requests.map(normalizeRequest);
+    // One scan is one first page; the continuation (`id=gt.<last>`) that ends it is not another.
     const scans = (table: string) =>
-      requests.filter(line => new RegExp(`GET /rest/v1/${table} .*select=id$`).test(line)).length;
+      requests.filter(
+        line =>
+          new RegExp(`GET /rest/v1/${table} .*select=id$`).test(line) && !/[ &]id=gt\./.test(line)
+      ).length;
     return {
       dogs: scans('dogs'),
       dog_registrations: scans('dog_registrations'),

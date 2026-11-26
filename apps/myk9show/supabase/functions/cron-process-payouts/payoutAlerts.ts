@@ -186,6 +186,31 @@ export async function reportLedgerWriteError(
   );
 }
 
+/**
+ * The club or its Stripe account could not be read (MYK9-2339). Read as "no
+ * account", an error would park the payout and tell an onboarded club to
+ * connect Stripe, so nothing is written or sent and the next run tries again.
+ */
+export async function reportClubReadError(
+  deps: AlertDeps,
+  summary: PayoutSummary,
+  show: ShowRef,
+  table: 'club_stripe_accounts' | 'clubs',
+  message: string
+) {
+  summary.club_read_errors++;
+  console.error(`Payout ${table} read failed for show ${show.id}; nothing queued: ${message}`);
+  await deps.alertAdmin(
+    `Payout could not be checked: ${show.name}`,
+    `<p>The payout run could not read ${table} for
+     <strong>${escapeHtml(show.name)}</strong> (show <code>${show.id}</code>), so nothing was
+     recorded, sent or emailed to the club this run.</p>
+     <pre>${escapeHtml(message)}</pre>
+     <p>The next run tries again. If this repeats, read the cron-process-payouts logs.</p>`,
+    { dedupeKey: `payout-club-read-error-${show.id}`, severity: 'error' }
+  );
+}
+
 /** Stripe gave no clear answer to a transfer request; the row stays processing. */
 export async function reportUncertainTransfer(
   deps: AlertDeps,

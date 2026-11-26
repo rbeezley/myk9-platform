@@ -31,7 +31,8 @@ export async function fetchRegistrationsWhere(
 
 /**
  * Rows changed since `since`, paged by keyset on (updated_at, id) until a
- * short page: PostgREST caps a response at max_rows.
+ * empty page: PostgREST caps a response at max_rows, and a hosted cap below the
+ * page size returns short pages with more rows behind them (MYK9-2252).
  */
 export async function fetchChangedRegistrations(since: number): Promise<DogRegistrationRow[]> {
   const rows: DogRegistrationRow[] = [];
@@ -52,10 +53,13 @@ export async function fetchChangedRegistrations(since: number): Promise<DogRegis
     if (error) throw new Error(`Supabase query failed: ${error.message}`);
 
     const page = (data ?? []) as unknown as DogRegistrationRow[];
-    rows.push(...page);
-    if (page.length < DOG_REGISTRATIONS_PAGE_SIZE) return rows;
+    // Only an empty page ends the read (MYK9-2252): a lower hosted max_rows
+    // returns short pages with more rows behind them. A page ending on the row the
+    // cursor already sits on means the server ignored the cursor: stop.
     const last = page[page.length - 1];
     if (!last?.updated_at || !last.id) return rows;
+    if (String(last.updated_at) === cursorUpdatedAt && String(last.id) === cursorId) return rows;
+    rows.push(...page);
     cursorUpdatedAt = String(last.updated_at);
     cursorId = String(last.id);
   }

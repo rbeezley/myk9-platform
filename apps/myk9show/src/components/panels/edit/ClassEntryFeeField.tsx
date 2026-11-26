@@ -5,7 +5,7 @@ import { useShowStore } from '@/store/showStore';
 import { useEntriesByClassQuery } from '@/hooks/queries/useClassesDatabase';
 import { formatFeeDollars } from '@/features/_shared/juniorFeeLimit';
 import { useEditPanel } from './useEditPanel';
-import { classEntryFeeHint, existingEntriesFeeNote } from './classEntryFeeCopy';
+import { classEntryFeeHint, existingEntriesFeeNote, parseShowFee } from './classEntryFeeCopy';
 
 interface ClassEntryFeeFormData extends Record<string, unknown> {
   /** `classes.entry_fee`; 0 or absent is "no fee of its own" (the show's fee is charged). */
@@ -66,9 +66,4 @@ export function ClassEntryFeeField({
       </CardContent>
     </Card>
   );
-}
-
-function parseShowFee(value: string | undefined): number | null {
-  const fee = parseFloat((value ?? '').replace(/[$,]/g, ''));
-  return Number.isFinite(fee) && fee >= 0 ? fee : null;
 }

@@ -18,19 +18,24 @@ function installServer(liveIds: string[]): { idReads: () => number } {
   let idReads = 0;
   vi.mocked(supabase.from).mockImplementation((() => {
     let cols = '';
+    // A read after the first id page carries the `id > last` cursor and finds nothing
+    // more: the empty page that ends the scan (MYK9-2252). It is not another scan.
+    let continuation = false;
     const builder: Record<string, unknown> = {};
     for (const method of ['select', 'gt', 'is', 'eq', 'order', 'limit', 'or', 'range']) {
       builder[method] = (arg?: string, opts?: { head?: boolean }) => {
         if (method === 'select') {
           cols = opts?.head ? 'count' : String(arg);
         }
+        if (method === 'gt' && arg === 'id') continuation = true;
         return builder;
       };
     }
     builder.then = (resolve: (v: unknown) => unknown) => {
-      if (cols === 'id') idReads += 1;
+      if (cols === 'id' && !continuation) idReads += 1;
       if (cols === 'count') return resolve({ count: null, error: { message: 'no count' } });
-      return resolve({ data: cols === 'id' ? liveIds.map(id => ({ id })) : [], error: null });
+      const page = cols === 'id' && !continuation ? liveIds.map(id => ({ id })) : [];
+      return resolve({ data: page, error: null });
     };
     return builder;
   }) as unknown as typeof supabase.from);

@@ -18,8 +18,8 @@ secrets.
 
 > **Notes**
 >
-> - `admin@myk9t.com` and `judge@myk9t.com` do **not** exist in `auth.users` — use the `e2e-admin@` / `e2e-judge@` accounts above.
-> - The duplicate `club@myk9t.com` login was **removed** 2026-06-25; its `people` row remains as a seeded demo official but can no longer sign in. Use `e2e-clubadmin@`.
+> - The table above is the whole list, read from `auth.users` on 2026-11-26. `admin@myk9t.com` does **not** exist: the site admin is `testadmin@myk9t.com`. The older `e2e-admin@`, `e2e-judge@` and `e2e-clubadmin@` role accounts are gone; do not use them.
+> - The duplicate `club@myk9t.com` login was **removed** 2026-06-25; its `people` row remains as a seeded demo official but can no longer sign in. Use `clubadmin@myk9t.com`.
 > - Password source of truth: GitHub Actions secrets (`E2E_*_PASSWORD`) + `apps/myk9show/.env.local`. The shared password was **rotated 2026-06-25** — never spell it out in code or docs; read it from those env sources.
 > - Staging has **HaveIBeenPwned leaked-password protection ON** — GoTrue rejects weak/pwned values (e.g. the former `Test1234!`) on any new password set. Re-provisioning must use a policy-passing password.
 

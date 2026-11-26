@@ -125,7 +125,7 @@ Show venues often have weak signal. The app is built for it. Open your class whi
 
 - Scoring and viewing the run order **keep working offline**.
 - When the signal drops, a short message says you're offline, and that your changes are saved on this device and will be sent when you are back online.
-- The sync label at the top reads **Offline**, then **Not sent yet** while changes are waiting to be sent. The number beside it counts every change waiting on this device, check-ins as well as scores. When scores are among them, tap the number to see which scores. This is normal at most venues. On a phone the label shrinks to an icon: the words are still there for a screen reader, so look for the icon rather than the words.
+- The sync label at the top reads **Offline**, then **Not sent yet** with a number beside it, while work on this device is waiting to be sent. This is normal at most venues. On a phone the label shrinks to an icon: the words are still there for a screen reader, so look for the icon rather than the words.
 - After you save with no signal, the **Saved:** line at the top of the dog list ends with **on this device, not sent yet**.
 - A chip at the top reads **Offline ready** once the show is saved on the device, and **Preparing offline copy…** until then. On a phone the **Offline ready** chip is hidden; on a tablet or larger screen it shows.
 - Your work is saved on the device and **is sent automatically** when signal returns. You do not need to tap anything. A **Scores sent** message shows on the class's dog list when they go through, and **not sent yet** drops off the **Saved:** line. The **Not sent yet** label at the top of the dog list goes away once nothing is waiting.

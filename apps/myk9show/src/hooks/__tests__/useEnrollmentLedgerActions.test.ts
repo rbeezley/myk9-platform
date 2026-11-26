@@ -144,6 +144,7 @@ describe('useEnrollmentLedgerActions', () => {
       method: 'cash' as const,
       amount: 15,
       receivedOn: '2026-09-17',
+      clientPaymentId: '9a4e2c61-0b7d-4f38-8e15-3d6c2a9f7b40',
     };
 
     let outcome = '';

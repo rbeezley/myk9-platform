@@ -65,8 +65,9 @@ const RPC_REFUSAL_CODE = '22023';
 const NOT_AUTHORIZED_CODE = '42501';
 
 const LEDGER_NOT_AUTHORIZED = 'You do not have permission to record payments for this entry.';
-// Anything else, including a lost connection after the server saved it. No
-// client payment id is sent, so a blind retry could record the payment twice.
+// Anything else, including a lost connection after the server saved it. A retry
+// of the same payment from its dialog carries the same id and is recorded once
+// (MYK9-1936); a refund carries no id, so the secretary still checks first.
 const LEDGER_UNCONFIRMED =
   "We could not confirm this was saved. Check the entry's payments: if it is not there, try again.";
 

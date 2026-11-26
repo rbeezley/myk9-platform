@@ -1770,8 +1770,6 @@ export type Database = {
         Row: {
           accommodations: Json
           additional_notes: string | null
-          limited_mobility_notes: string | null
-          rv_hookup_notes: string | null
           awards_description: string | null
           club_id: string
           cover_image_url: string | null
@@ -1779,7 +1777,9 @@ export type Database = {
           hospitality_notes: string | null
           id: string
           is_default: boolean
+          limited_mobility_notes: string | null
           name: string
+          rv_hookup_notes: string | null
           style: string
           trial_type: string | null
           updated_at: string
@@ -1790,8 +1790,6 @@ export type Database = {
         Insert: {
           accommodations?: Json
           additional_notes?: string | null
-          limited_mobility_notes?: string | null
-          rv_hookup_notes?: string | null
           awards_description?: string | null
           club_id: string
           cover_image_url?: string | null
@@ -1799,7 +1797,9 @@ export type Database = {
           hospitality_notes?: string | null
           id?: string
           is_default?: boolean
+          limited_mobility_notes?: string | null
           name: string
+          rv_hookup_notes?: string | null
           style?: string
           trial_type?: string | null
           updated_at?: string
@@ -1810,8 +1810,6 @@ export type Database = {
         Update: {
           accommodations?: Json
           additional_notes?: string | null
-          limited_mobility_notes?: string | null
-          rv_hookup_notes?: string | null
           awards_description?: string | null
           club_id?: string
           cover_image_url?: string | null
@@ -1819,7 +1817,9 @@ export type Database = {
           hospitality_notes?: string | null
           id?: string
           is_default?: boolean
+          limited_mobility_notes?: string | null
           name?: string
+          rv_hookup_notes?: string | null
           style?: string
           trial_type?: string | null
           updated_at?: string
@@ -8922,6 +8922,7 @@ export type Database = {
       show_payouts: {
         Row: {
           amount_cents: number
+          approval_reminded_at: string | null
           approval_reset_reason: string | null
           approved_amount_cents: number | null
           approved_at: string | null
@@ -8933,6 +8934,8 @@ export type Database = {
           failure_reason: string | null
           hold_reason: string | null
           id: string
+          paid_destination_checked: boolean | null
+          paid_stripe_account_id: string | null
           scheduled_date: string | null
           show_id: string
           status: string
@@ -8941,6 +8944,7 @@ export type Database = {
         }
         Insert: {
           amount_cents: number
+          approval_reminded_at?: string | null
           approval_reset_reason?: string | null
           approved_amount_cents?: number | null
           approved_at?: string | null
@@ -8952,6 +8956,8 @@ export type Database = {
           failure_reason?: string | null
           hold_reason?: string | null
           id?: string
+          paid_destination_checked?: boolean | null
+          paid_stripe_account_id?: string | null
           scheduled_date?: string | null
           show_id: string
           status?: string
@@ -8960,6 +8966,7 @@ export type Database = {
         }
         Update: {
           amount_cents?: number
+          approval_reminded_at?: string | null
           approval_reset_reason?: string | null
           approved_amount_cents?: number | null
           approved_at?: string | null
@@ -8971,6 +8978,8 @@ export type Database = {
           failure_reason?: string | null
           hold_reason?: string | null
           id?: string
+          paid_destination_checked?: boolean | null
+          paid_stripe_account_id?: string | null
           scheduled_date?: string | null
           show_id?: string
           status?: string
@@ -13987,11 +13996,11 @@ export type Database = {
         Args: { p_show_id: string; p_subscription_endpoint: string }
         Returns: undefined
       }
+      club_first_show_state: { Args: { p_club_id: string }; Returns: Json }
       club_has_public_show: {
         Args: { check_club_id: string }
         Returns: boolean
       }
-      club_first_show_state: { Args: { p_club_id: string }; Returns: Json }
       club_publish_blockers: { Args: { p_club_id: string }; Returns: Json }
       complete_cart_fulfillment: {
         Args: {
@@ -14071,6 +14080,7 @@ export type Database = {
           deleted_by: string | null
           description: string | null
           email: string | null
+          first_show_published_at: string | null
           id: string
           is_demo: boolean
           license_key: string | null
@@ -14415,6 +14425,7 @@ export type Database = {
           deleted_by: string | null
           description: string | null
           email: string | null
+          first_show_published_at: string | null
           id: string
           is_demo: boolean
           license_key: string | null
@@ -14527,6 +14538,14 @@ export type Database = {
           email: string
         }[]
       }
+      get_club_admins: {
+        Args: { p_club_id: string }
+        Returns: {
+          person_email: string
+          person_id: string
+          person_name: string
+        }[]
+      }
       get_club_officials: {
         Args: { p_club_id: string }
         Returns: {
@@ -14539,14 +14558,6 @@ export type Database = {
         Args: { p_club_id: string }
         Returns: {
           user_id: string
-        }[]
-      }
-      get_club_admins: {
-        Args: { p_club_id: string }
-        Returns: {
-          person_email: string
-          person_id: string
-          person_name: string
         }[]
       }
       get_club_show_managers: {
@@ -14664,6 +14675,7 @@ export type Database = {
           email: string | null
           first_name: string
           id: string
+          judge_affiliation: string | null
           last_name: string
           license_key: string | null
           phone: string | null
@@ -15437,6 +15449,7 @@ export type Database = {
         Returns: string
       }
       official_show_ids: { Args: never; Returns: string[] }
+      person_can_sign_in: { Args: { p_person_id: string }; Returns: boolean }
       person_edit_allowed: {
         Args: {
           p_auth_user_id: string
@@ -15482,10 +15495,15 @@ export type Database = {
         Returns: Json
       }
       queue_entry_changed_email: {
+        Args: { p_entry_id: string; p_events: Json; p_prior_handler_id: string }
+        Returns: undefined
+      }
+      queue_entry_money_email: {
         Args: {
+          p_also_person_id?: string
           p_entry_id: string
-          p_events: Json
-          p_prior_handler_id: string
+          p_event: Json
+          p_step_type: string
         }
         Returns: undefined
       }
@@ -15518,15 +15536,19 @@ export type Database = {
           stripe_payment_intent_id: string
         }[]
       }
+      queue_refund_denied_email: {
+        Args: { p_caller_auth_id: string; p_entry_id: string }
+        Returns: undefined
+      }
       queue_results_available_for_show: {
         Args: { p_show_id: string }
         Returns: undefined
       }
-      queue_show_changed_email_for_show: {
+      queue_show_cancelled_email: {
         Args: { p_show_id: string }
         Returns: undefined
       }
-      queue_show_cancelled_email: {
+      queue_show_changed_email_for_show: {
         Args: { p_show_id: string }
         Returns: undefined
       }
@@ -15931,6 +15953,7 @@ export type Database = {
           email: string | null
           first_name: string
           id: string
+          judge_affiliation: string | null
           last_name: string
           license_key: string | null
           phone: string | null
@@ -16152,15 +16175,6 @@ export type Database = {
         Args: { p_sender_auth_user_id: string; p_waitlist_entry_id: string }
         Returns: string
       }
-      set_show_official_mailing_address: {
-        Args: {
-          p_address: string
-          p_person_id: string
-          p_role_name: string
-          p_show_id: string
-        }
-        Returns: undefined
-      }
       set_class_judge: {
         Args: { p_class_id: string; p_person_id: string }
         Returns: Json
@@ -16175,6 +16189,10 @@ export type Database = {
       }
       set_entry_refund_decision: {
         Args: { p_decision: string; p_entry_id: string; p_reason: string }
+        Returns: undefined
+      }
+      set_judge_affiliation: {
+        Args: { p_affiliation: string; p_person_id: string; p_show_id: string }
         Returns: undefined
       }
       set_judge_day_capacity: {
@@ -16196,16 +16214,21 @@ export type Database = {
         }
         Returns: boolean
       }
-      set_judge_affiliation: {
-        Args: { p_affiliation: string; p_person_id: string; p_show_id: string }
-        Returns: undefined
-      }
       set_own_premium: {
         Args: {
           p_link?: string
           p_public_url?: string
           p_show_id: string
           p_storage_path?: string
+        }
+        Returns: undefined
+      }
+      set_show_official_mailing_address: {
+        Args: {
+          p_address: string
+          p_person_id: string
+          p_role_name: string
+          p_show_id: string
         }
         Returns: undefined
       }
@@ -16254,7 +16277,10 @@ export type Database = {
         Returns: boolean
       }
       show_publish_blockers: { Args: { p_show_id: string }; Returns: Json }
-      shows_card_entries_paused: { Args: { p_show_ids: string[] }; Returns: string[] }
+      shows_card_entries_paused: {
+        Args: { p_show_ids: string[] }
+        Returns: string[]
+      }
       sign_in_email_drift: { Args: never; Returns: Json }
       soft_delete_class: {
         Args: { p_class_id: string; p_override?: boolean; p_reason?: string }
@@ -16288,6 +16314,7 @@ export type Database = {
           email: string | null
           first_name: string
           id: string
+          judge_affiliation: string | null
           last_name: string
           license_key: string | null
           phone: string | null

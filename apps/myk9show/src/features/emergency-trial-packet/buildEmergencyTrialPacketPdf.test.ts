@@ -571,6 +571,16 @@ describe('buildEmergencyTrialPacketPdf', () => {
     expect(text).toContain('Container Novice A');
   });
 
+  it('prints a show name that contains an ISO-looking date verbatim in the footer', async () => {
+    const named = structuredClone(fixture) as EmergencyPacketInput;
+    named.show.name = 'Fall Classic 2027-01-07';
+    const text = await extractPdfText(
+      buildEmergencyTrialPacketPdf(buildEmergencyPacketModel(named))
+    );
+    // The footer itself: show name verbatim, then the trial date as M/D/YYYY.
+    expect(text).toContain('Fall Classic 2027-01-07 · 10/3/2026');
+  });
+
   it('still prints the ring for a sport that has one', async () => {
     const text = await extractPdfText(
       buildEmergencyTrialPacketPdf(buildEmergencyPacketModel(fixture))
@@ -593,18 +603,19 @@ describe('buildEmergencyTrialPacketPdf', () => {
       const saturday = await extractPdfText(
         buildEmergencyTrialPacketPdf(buildEmergencyPacketModel(days[0].input))
       );
-      expect(saturday).toContain('This packet covers: 2026-10-03');
+      expect(saturday).toContain('This packet covers: 10/3/2026');
+      expect(saturday).not.toContain('2026-10-03');
       expect(saturday).toContain('Trials in this packet:');
       expect(saturday).toContain('• Saturday');
       expect(saturday).not.toContain('Sunday');
-      expect(saturday).not.toContain('2026-10-04');
+      expect(saturday).not.toContain('10/4/2026');
     });
 
     it('still prints the whole-show span when the packet holds every day', async () => {
       const text = await extractPdfText(
         buildEmergencyTrialPacketPdf(buildEmergencyPacketModel(fixture))
       );
-      expect(text).toContain('This packet covers: 2026-10-03–2026-10-04');
+      expect(text).toContain('This packet covers: 10/3/2026–10/4/2026');
     });
 
     it('never drops a trial name silently, however many a day holds', async () => {

@@ -264,7 +264,7 @@ describe('ReportsPage', () => {
       expect(within(card).queryByTestId('financial-summary')).not.toBeInTheDocument();
       expect(screen.getByTestId('report-preview')).toHaveAttribute('data-trial-id', 'trial-2');
 
-      await userEvent.click(within(card).getByRole('button', { name: 'Trial 1 · 2026-04-12' }));
+      await userEvent.click(within(card).getByRole('button', { name: 'Trial 1 · 4/12/2026' }));
 
       expect(within(card).getByTestId('financial-summary')).toHaveAttribute(
         'data-trial-id',
@@ -280,7 +280,7 @@ describe('ReportsPage', () => {
       expect(within(card).queryByTestId('financial-summary')).not.toBeInTheDocument();
       expect(within(card).getByText(/Pick a trial/)).toBeInTheDocument();
 
-      await userEvent.click(within(card).getByRole('button', { name: 'Trial 2 · 2026-04-13' }));
+      await userEvent.click(within(card).getByRole('button', { name: 'Trial 2 · 4/13/2026' }));
 
       expect(within(card).getByTestId('financial-summary')).toHaveAttribute(
         'data-trial-id',
@@ -292,12 +292,12 @@ describe('ReportsPage', () => {
       render(<ReportsPage />, { initialRoute: '/shows/show-1/reports?financialsTrial=trial-1' });
 
       const card = screen.getByTestId('trial-financials-card');
-      expect(within(card).getByRole('button', { name: 'Trial 1 · 2026-04-12' })).toHaveAttribute(
+      expect(within(card).getByRole('button', { name: 'Trial 1 · 4/12/2026' })).toHaveAttribute(
         'aria-pressed',
         'true'
       );
 
-      await userEvent.click(within(card).getByRole('button', { name: 'Trial 2 · 2026-04-13' }));
+      await userEvent.click(within(card).getByRole('button', { name: 'Trial 2 · 4/13/2026' }));
 
       expect(within(card).getByTestId('financial-summary')).toHaveAttribute(
         'data-trial-id',

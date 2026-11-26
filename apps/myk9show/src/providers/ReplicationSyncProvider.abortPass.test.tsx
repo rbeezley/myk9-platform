@@ -42,7 +42,6 @@ vi.mock('@/services/database/supabaseClient', async () => ({
 vi.mock('@/services/replication/sharedMutationManager', () => ({
   mutationManager: {
     uploadPendingMutations: mocks.upload,
-    restoreMutationsFromLocalStorage: vi.fn(async () => undefined),
     getPendingCount: vi.fn(async () => 0),
     getFailedMutations: vi.fn(async () => []),
   },

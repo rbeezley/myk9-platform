@@ -1,96 +1,69 @@
-import type { Locator, Page } from '@playwright/test';
-import {
-  classifyCheckout,
-  confirmedUnpaid,
-  describeCheckoutState,
-  type CheckoutSnapshot,
-  type PaymentEvidence,
-} from './stripeCheckoutState';
+import { test, type Locator, type Page } from '@playwright/test';
+import { decidePayFollowUp, type PaymentEvidence } from './stripeCheckoutState';
 
-/** Where a wait-list payer lands after Stripe accepts the payment. */
 const FIRST_WAIT_MS = 20_000;
-const PROCESSING_WAIT_MS = 60_000;
+const LATE_WAIT_MS = 60_000;
 const RETRY_WAIT_MS = 45_000;
+const RETRY_CLICK_MS = 10_000;
+const TEXT_LIMIT = 4_000;
 
 export interface SubmitOptions {
   returnOrigin: string;
   /** Re-resolves the Pay button; the page may have re-rendered since the first click. */
   findPay: () => Promise<Locator>;
-  /** Reads the payment state fresh; a retry happens only if this proves nothing was paid. */
+  /** Reads Stripe's PaymentIntent status fresh; null status means never click again. */
   readPaymentEvidence: () => Promise<PaymentEvidence>;
 }
 
-function roots(page: Page) {
-  return [page, ...page.frames().filter(frame => frame !== page.mainFrame())];
+/**
+ * Diagnostics that survive the artifact upload (trace zips are excluded there: they record typed
+ * passwords). A full-page screenshot and the visible text only; no cookies, no storage. innerText
+ * holds no input values, so the typed email and card number are not in the text.
+ */
+async function attachDiagnostics(page: Page): Promise<void> {
+  const info = test.info();
+  try {
+    await info.attach('stripe-checkout.png', {
+      body: await page.screenshot({ fullPage: true, timeout: 10_000 }),
+      contentType: 'image/png',
+    });
+  } catch {
+    // the page may be gone; the error message still names the state
+  }
+  try {
+    const parts: string[] = [];
+    for (const frame of page.frames()) {
+      const text = await frame
+        .locator('body')
+        .innerText({ timeout: 2_000 })
+        .catch(() => '');
+      if (text.trim()) parts.push(text.trim());
+    }
+    await info.attach('stripe-checkout-text.txt', {
+      body: parts.join('\n---\n').slice(0, TEXT_LIMIT),
+      contentType: 'text/plain',
+    });
+  } catch {
+    // diagnostics never mask the failure they describe
+  }
 }
 
-async function anyVisible(page: Page, build: (root: ReturnType<typeof roots>[number]) => Locator) {
-  for (const root of roots(page)) {
-    try {
-      if (await build(root).first().isVisible({ timeout: 500 })) return true;
-    } catch {
-      // frame navigated or detached mid-check; the next read sees the new state
-    }
-  }
-  return false;
-}
-
-/** Reads the page without changing it. Never throws: an unreadable frame counts as "not shown". */
-export async function readCheckoutSnapshot(page: Page): Promise<CheckoutSnapshot> {
-  let errorText: string | null = null;
-  for (const root of roots(page)) {
-    try {
-      const alert = root.locator('[role="alert"], [class*="Error" i]').first();
-      if (await alert.isVisible({ timeout: 500 })) {
-        const text = ((await alert.innerText({ timeout: 1_000 })) ?? '').trim();
-        if (text) {
-          errorText = text.replace(/\s+/g, ' ').slice(0, 160);
-          break;
-        }
-      }
-    } catch {
-      // see anyVisible
-    }
-  }
-  const linkFrame = page
-    .frames()
-    .some(frame => /link/i.test(frame.name()) || /link\.com|stripe-link/i.test(frame.url()));
-  let emailFocused = false;
-  for (const root of roots(page)) {
-    try {
-      emailFocused = await root
-        .locator('#email, input[name="email"], input[autocomplete="email"]')
-        .first()
-        .evaluate(el => el === el.ownerDocument.activeElement, undefined, { timeout: 500 });
-      if (emailFocused) break;
-    } catch {
-      // no Email field in this root
-    }
-  }
-  const pay = await anyVisible(page, root =>
-    root
-      .getByRole('button', { name: /^Pay(\s+\$[\d,.]+)?$/ })
-      .and(root.locator('[disabled], [aria-busy="true"]'))
+async function fail(
+  page: Page,
+  step: string,
+  status: string | null,
+  detail: string
+): Promise<never> {
+  await attachDiagnostics(page);
+  throw new Error(
+    `Stripe Checkout did not redirect (step: ${step}; PaymentIntent status: ${status ?? 'unknown'}). ${detail}`
   );
-  return {
-    payBusy: pay,
-    spinnerShown: await anyVisible(page, root =>
-      root.locator('[role="progressbar"], [aria-busy="true"], [class*="Spinner" i]')
-    ),
-    errorText,
-    linkOverlay:
-      linkFrame ||
-      (await anyVisible(page, root =>
-        root.getByRole('dialog').or(root.getByText(/verification code|enter the code/i))
-      )),
-    emailFocused,
-  };
 }
 
 /**
- * Clicks Pay and waits for the return redirect. When it does not come, says what the page was
- * doing, and clicks Pay once more only if the page is quiet AND Stripe and the payment link both
- * say nothing was paid. It never clicks a second time on a processing page, so it cannot pay twice.
+ * Clicks Pay and waits for the return redirect. With no redirect after 20s, Stripe's PaymentIntent
+ * decides: in flight or done means wait; unstarted means click Pay once more; anything else fails.
+ * It never clicks a second time unless Stripe shows the payment unstarted, so it cannot pay twice.
  */
 export async function submitPaymentAndAwaitReturn(
   page: Page,
@@ -107,32 +80,40 @@ export async function submitPaymentAndAwaitReturn(
   await pay.click();
   if (await returned(FIRST_WAIT_MS)) return;
 
-  let snapshot = await readCheckoutSnapshot(page);
-  let state = classifyCheckout(snapshot);
+  const evidence = await options.readPaymentEvidence();
+  const status = evidence.paymentIntentStatus;
+  const decision = decidePayFollowUp(evidence);
   console.log(
-    `Stripe Checkout: no redirect ${FIRST_WAIT_MS / 1000}s after Pay; ${describeCheckoutState(state, snapshot)}`
+    `Stripe Checkout: no redirect ${FIRST_WAIT_MS / 1000}s after Pay; PI ${status}, ${decision}`
   );
 
-  if (state === 'processing' && (await returned(PROCESSING_WAIT_MS))) return;
-
-  // Classification only words the error. Clicking again rests on Stripe's PaymentIntent alone.
-  const evidence = await options.readPaymentEvidence();
-  if (!confirmedUnpaid(evidence)) {
-    // Paid, in flight or unknowable: a second click could charge twice, so only wait.
-    if (await returned(PROCESSING_WAIT_MS)) return;
-    snapshot = await readCheckoutSnapshot(page);
-    state = classifyCheckout(snapshot);
-    throw new Error(
-      `Stripe Checkout did not redirect; the page is ${describeCheckoutState(state, snapshot)}, ` +
-        `PaymentIntent status "${evidence.paymentIntentStatus}". Not retried: Stripe does not show the payment as unstarted.`
+  if (decision === 'fail') {
+    return fail(
+      page,
+      'after the first Pay click',
+      status,
+      'Not retried: Stripe does not show the payment as in flight or unstarted.'
     );
   }
-  console.log('Stripe Checkout: PaymentIntent is unstarted; clicking Pay once more');
-  await (await options.findPay()).click();
+  if (decision === 'wait') {
+    if (await returned(LATE_WAIT_MS)) return;
+    return fail(
+      page,
+      'waiting for a late redirect',
+      status,
+      'Stripe has the payment; the return never came.'
+    );
+  }
+  try {
+    await (await options.findPay()).click({ timeout: RETRY_CLICK_MS });
+  } catch (error) {
+    return fail(
+      page,
+      'the Pay retry click',
+      status,
+      `The click failed: ${String(error).slice(0, 300)}`
+    );
+  }
   if (await returned(RETRY_WAIT_MS)) return;
-  snapshot = await readCheckoutSnapshot(page);
-  state = classifyCheckout(snapshot);
-  throw new Error(
-    `Stripe Checkout did not redirect after one Pay retry; the page is ${describeCheckoutState(state, snapshot)}.`
-  );
+  return fail(page, 'after the Pay retry', status, 'One retry was made; none more.');
 }

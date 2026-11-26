@@ -7,6 +7,13 @@ const migration = readFileSync(
   resolve(repoRoot, 'supabase/migrations/20260817160000_show_email_delivery_history.sql'),
   'utf8'
 );
+const recipientFilterMigration = readFileSync(
+  resolve(
+    repoRoot,
+    'supabase/migrations/20261126210900_myk9_2403_email_history_recipient_filter.sql'
+  ),
+  'utf8'
+);
 const behavioralSql = readFileSync(
   resolve(repoRoot, 'supabase/tests/show_email_delivery_history_test.sql'),
   'utf8'
@@ -94,5 +101,32 @@ describe('MYK9-180 email delivery history migration contract', () => {
     expect(behavioralSql).toContain('FAIL lifecycle failure history missing');
     expect(behavioralSql).toContain('FAIL orphan or malformed reference leaked');
     expect(behavioralSql).toContain('FAIL non-failed lifecycle fallback leaked');
+  });
+});
+
+describe('MYK9-2403 recipient filter migration contract', () => {
+  const sig = 'public.get_show_email_delivery_history(uuid, integer, timestamptz, uuid, text)';
+
+  it('replaces the four-argument function and keeps the gate ahead of the filter', () => {
+    expect(recipientFilterMigration).toContain(
+      'DROP FUNCTION IF EXISTS public.get_show_email_delivery_history(uuid, integer, timestamptz, uuid);'
+    );
+    expect(recipientFilterMigration).toContain('p_recipient_email text DEFAULT NULL');
+    expect(recipientFilterMigration).toContain('STABLE');
+    expect(recipientFilterMigration.indexOf('can_manage_show_lifecycle_email')).toBeLessThan(
+      recipientFilterMigration.indexOf('lower(btrim(history.recipient_email))')
+    );
+  });
+
+  it('restates the grants for the new signature: authenticated only', () => {
+    expect(recipientFilterMigration).toContain(
+      `REVOKE ALL ON FUNCTION ${sig}\n  FROM PUBLIC, anon;`
+    );
+    expect(recipientFilterMigration).toContain(
+      `GRANT EXECUTE ON FUNCTION ${sig}\n  TO authenticated;`
+    );
+    expect(behavioralSql).toContain(
+      "get_show_email_delivery_history(uuid,integer,timestamptz,uuid,text)'"
+    );
   });
 });

@@ -410,3 +410,16 @@ describe('trial breakdown label', () => {
     expect(totals.trialBreakdown.map(bucket => bucket.label)).toEqual(['Trial 1 (1/7/2027)']);
   });
 });
+
+describe('trial breakdown order', () => {
+  it('sorts same-named trials by calendar date, not by the printed text', () => {
+    const totals = calculateFinancialReportTotals([
+      entry({ id: 'a', trialName: 'Trial 1', trialNumber: '1', trialDate: '2027-01-10' }),
+      entry({ id: 'b', trialName: 'Trial 1', trialNumber: '1', trialDate: '2027-01-09' }),
+    ]);
+    expect(totals.trialBreakdown.map(bucket => bucket.label)).toEqual([
+      'Trial 1 (1/9/2027)',
+      'Trial 1 (1/10/2027)',
+    ]);
+  });
+});

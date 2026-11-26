@@ -102,7 +102,15 @@ function addPageFrame(doc: jsPDF, page: EmergencyPacketPage, totalPages: number)
 
   doc.setFontSize(8);
   doc.text(
-    fitTextToWidth(doc, formatPacketDateText(formatEmergencyPacketPageLabel(page)), 150),
+    fitTextToWidth(
+      doc,
+      // Only the date is reformatted; a show or class name is printed as written.
+      formatEmergencyPacketPageLabel({
+        ...page,
+        context: { ...page.context, trialDate: formatPacketDateText(page.context.trialDate) },
+      }),
+      150
+    ),
     LEFT,
     PAGE_FOOTER_Y_MM
   );

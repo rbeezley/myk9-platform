@@ -571,6 +571,15 @@ describe('buildEmergencyTrialPacketPdf', () => {
     expect(text).toContain('Container Novice A');
   });
 
+  it('prints a show name that contains an ISO-looking date verbatim in the footer', async () => {
+    const named = structuredClone(fixture) as EmergencyPacketInput;
+    named.show.name = 'Fall Classic 2027-01-07';
+    const text = await extractPdfText(
+      buildEmergencyTrialPacketPdf(buildEmergencyPacketModel(named))
+    );
+    expect(text).toContain('Fall Classic 2027-01-07');
+  });
+
   it('still prints the ring for a sport that has one', async () => {
     const text = await extractPdfText(
       buildEmergencyTrialPacketPdf(buildEmergencyPacketModel(fixture))

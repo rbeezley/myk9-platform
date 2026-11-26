@@ -54,7 +54,7 @@ A proven success settles the matching dead letter and deletes the local record. 
 If the entry insert dead-letters, or lands with no form, the payment reads "Not confirmed: the entry it belongs to was not saved." She reconciles the cash in one of two ways:
 
 - record it again on the entry once the entry exists;
-- **Remove** it, after noting what happened to the cash. This is allowed because the parent's own dead letter proves this payment was never sent, so no ledger row can hold its id.
+- **Remove** it, when the cash is being returned or recorded on another form. The confirm dialog says so. This is allowed because the parent's own dead letter proves this payment was never sent, so no ledger row can hold its id.
 
 A device-only form, which today has no payment control (`components/entries/management/EnrollmentCard.tsx:267-275`), gains Partial Payment only. **This RPC is the plan's one migration and its only server change.**
 

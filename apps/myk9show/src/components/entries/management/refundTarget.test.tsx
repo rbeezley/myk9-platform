@@ -110,10 +110,9 @@ describe('RefundEntryDialog target (MYK9-639)', () => {
     expect(options.body.entry_id).toBe('plain');
   });
 
-  // MYK9-2348: the policy is snapshotted on the row that holds the payment (the
-  // moved-up destination's snapshot is NULL), while the withdrawal is stamped on
-  // the run; the hook needs both ids.
-  it('asks for the policy on the money root and the withdrawal on the run for a moved-up dog', () => {
+  // MYK9-2348: the policy is snapshotted on the row that holds the payment; the
+  // moved-up destination's snapshot is NULL, so asking about it shows nothing.
+  it('asks for the withdrawal policy suggestion on the money root for a moved-up dog', () => {
     render(
       <RefundEntryDialog
         open
@@ -128,6 +127,7 @@ describe('RefundEntryDialog target (MYK9-639)', () => {
       />
     );
 
-    expect(mocks.suggestion).toHaveBeenCalledWith('destination', 3500, true, 'source-moved');
+    expect(mocks.suggestion).toHaveBeenCalledWith('source-moved', 3500, true);
+    expect(mocks.suggestion).not.toHaveBeenCalledWith('destination', 3500, true);
   });
 });

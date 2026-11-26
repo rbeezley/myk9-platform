@@ -11,12 +11,6 @@
  * unavailable (e.g. a legacy entry withdrawn before that column existed). NOT
  * updated_at — that is bumped on every write and would misjudge the cutoff.
  *
- * Moved-up runs (MYK9-2348): the policy is snapshotted on the row that holds the
- * payment (`moneyRootEntryId`), but that row's status becomes 'moved' and never
- * gets a withdrawn_at; the withdrawal is stamped on the run itself. So the
- * snapshot is read from the money root and the withdrawal time and trial
- * timezone from the run (`entryId`).
- *
  * See docs/plan-refund-policy-withdrawal.md (Phase 4, D5).
  */
 
@@ -43,12 +37,10 @@ export interface WithdrawalRefundSuggestion {
 export function useWithdrawalRefundSuggestion(
   entryId: string | null | undefined,
   entryFeeCents: number,
-  enabled = true,
-  moneyRootEntryId?: string | null
+  enabled = true
 ) {
-  const policyEntryId = moneyRootEntryId ?? entryId;
   return useQuery<WithdrawalRefundSuggestion>({
-    queryKey: ['withdrawal-refund-suggestion', entryId, policyEntryId, entryFeeCents],
+    queryKey: ['withdrawal-refund-suggestion', entryId, entryFeeCents],
     enabled: enabled && !!entryId,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -59,17 +51,7 @@ export function useWithdrawalRefundSuggestion(
       if (error) throw error;
 
       const row = data as unknown as Record<string, unknown>;
-      let snapshot = (row.withdrawal_policy_snapshot ?? null) as WithdrawalPolicy | null;
-      if (policyEntryId && policyEntryId !== entryId) {
-        const { data: root, error: rootError } = await supabase
-          .from('entries')
-          .select('withdrawal_policy_snapshot')
-          .eq('id', policyEntryId)
-          .single();
-        if (rootError) throw rootError;
-        snapshot = ((root as unknown as Record<string, unknown>).withdrawal_policy_snapshot ??
-          null) as WithdrawalPolicy | null;
-      }
+      const snapshot = (row.withdrawal_policy_snapshot ?? null) as WithdrawalPolicy | null;
 
       const rawTrial = row.trials;
       const trial = (Array.isArray(rawTrial) ? rawTrial[0] : rawTrial) as {

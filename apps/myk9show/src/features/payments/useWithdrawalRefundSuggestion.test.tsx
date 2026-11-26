@@ -4,9 +4,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ReactNode } from 'react';
 
 const single = vi.fn();
-const eq = vi.fn<(column: string, id: string) => { single: typeof single }>(() => ({ single }));
 vi.mock('@/lib/supabase', () => ({
-  supabase: { from: () => ({ select: () => ({ eq }) }) },
+  supabase: { from: () => ({ select: () => ({ eq: () => ({ single }) }) }) },
 }));
 
 import { useWithdrawalRefundSuggestion } from './useWithdrawalRefundSuggestion';
@@ -88,48 +87,6 @@ describe('useWithdrawalRefundSuggestion', () => {
       refundCents: 3000,
       requiresManual: true,
       reason: 'no_policy',
-    });
-  });
-
-  // MYK9-2348: after a move-up the policy is snapshotted on the payment root, but
-  // the root's status becomes 'moved' (no withdrawn_at); the withdrawal is
-  // stamped on the run. The cutoff must still be judged by the run's time.
-  it('moved-up run: policy from the money root, withdrawal time from the run', async () => {
-    single.mockImplementation(() => {
-      const id = eq.mock.calls.at(-1)?.[1];
-      return Promise.resolve(
-        id === 'root'
-          ? {
-              data: {
-                withdrawal_policy_snapshot: snapshot,
-                withdrawn_at: null,
-                trials: { timezone: 'America/New_York' },
-              },
-              error: null,
-            }
-          : {
-              data: {
-                withdrawal_policy_snapshot: null,
-                withdrawn_at: '2026-06-15T12:00:00Z',
-                trials: { timezone: 'America/New_York' },
-              },
-              error: null,
-            }
-      );
-    });
-    const { result } = renderHook(
-      () => useWithdrawalRefundSuggestion('destination', 3000, true, 'root'),
-      { wrapper: createWrapper() }
-    );
-    await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(eq).toHaveBeenCalledWith('id', 'destination');
-    expect(eq).toHaveBeenCalledWith('id', 'root');
-    expect(result.current.data).toMatchObject({
-      hasPolicy: true,
-      requiresManual: false,
-      reason: 'after_cutoff',
-      refundCents: 2000,
-      retainedCents: 1000,
     });
   });
 });

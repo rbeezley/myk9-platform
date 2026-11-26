@@ -51,9 +51,9 @@ export interface FetchKeysetPagesOptions<Q extends KeysetQuery<Q>> {
 
 /**
  * Reads every row newer than `since` (callers cast to their row type), oldest
- * first. A page shorter than `pageSize` ends the read; `pageSize` is the server's
- * `max_rows`, so a short page is the server running out of rows. A full page whose
- * last row has no cursor values throws: returning it would be a silent short read.
+ * first. Only an EMPTY page ends the read (MYK9-2252): the hosted `max_rows` may be
+ * lower than `pageSize`, so a short page does not mean the server ran out. A page
+ * whose last row has no cursor values throws: returning it would be a silent short read.
  */
 export async function fetchKeysetPages<Q extends KeysetQuery<Q>>({
   base,
@@ -91,13 +91,20 @@ export async function fetchKeysetPages<Q extends KeysetQuery<Q>>({
     if (response.error) throw new Error(`${errorPrefix}: ${response.error.message}`);
 
     const pageRows = (response.data ?? []) as KeysetRow[];
-    rows.push(...pageRows);
-    if (pageRows.length < pageSize) return rows;
+    // Only an empty page ends the read: a page shorter than `pageSize` can be the
+    // server's `max_rows` being lower than `pageSize`, with more rows still behind it.
+    if (pageRows.length === 0) return rows;
 
     const lastRow = pageRows[pageRows.length - 1];
     if (!lastRow?.updated_at || !lastRow.id) {
-      throw new Error(`${errorPrefix}: a full page ended on a row without id or updated_at`);
+      throw new Error(`${errorPrefix}: a page ended on a row without id or updated_at`);
     }
+    // A correct server returns rows strictly after the cursor. A page that ends on the
+    // row the cursor already sits on is the server ignoring it: stop, never loop.
+    if (String(lastRow.updated_at) === cursorUpdatedAt && String(lastRow.id) === cursorId) {
+      return rows;
+    }
+    rows.push(...pageRows);
     cursorUpdatedAt = String(lastRow.updated_at);
     cursorId = String(lastRow.id);
   }

@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 
 import { ClassProgressBar } from '@/components/status';
 import { getClassReviewHref } from '@/features/entry-operations/entryAttentionRoutes';
+import { formatFeeDollars } from '@/features/_shared/juniorFeeLimit';
 import { cn } from '@/lib/utils';
 
 import { ClassStatusBadge } from './ClassOperationalControls';
@@ -75,6 +76,7 @@ export function CockpitScheduleRow({
   classItem,
   showId,
   pendingCount = 0,
+  ownFee,
   focused,
   select,
   onFocusClass,
@@ -83,6 +85,8 @@ export function CockpitScheduleRow({
   showId: string;
   /** Entries still to approve; shown as a link to the class's review list on Entries. */
   pendingCount?: number;
+  /** The class's own entry fee, only when it has one above zero (MYK9-1931); the show's fee otherwise. */
+  ownFee?: number | undefined;
   focused: boolean;
   select: TrialGroupSelect | undefined;
   onFocusClass: (classId: string) => void;
@@ -156,6 +160,14 @@ export function CockpitScheduleRow({
                 the start. */}
             {ran ? (time ? `Expected ${time}` : 'No expected time') : (time ?? 'No time')}
           </span>
+          {ownFee !== undefined && ownFee > 0 && (
+            <span
+              data-testid="class-own-fee"
+              className="shrink-0 whitespace-nowrap text-xs font-medium"
+            >
+              Fee {formatFeeDollars(ownFee)}
+            </span>
+          )}
           {/* The card is the one place the times are compared, so it carries all of them: the
               recorded start and finish, and a start nobody recorded. Each part stays whole, so
               a narrow card breaks the line between them, never inside a time. */}

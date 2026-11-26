@@ -28,9 +28,14 @@ export const getAllClubs = async () => {
       if (error) throw createDatabaseError(error, 'club', 'select_all');
 
       const page = data ?? [];
+      // Only an empty page ends the read: a lower hosted max_rows returns short
+      // pages with more clubs behind them.
+      if (page.length === 0) break;
+      const pageLastId = String(page[page.length - 1]?.id);
+      // A page ending on the id the cursor already sits on means the server ignored it.
+      if (pageLastId === lastId) break;
       rows.push(...page);
-      if (page.length < POSTGREST_MAX_ROWS) break;
-      lastId = String(page[page.length - 1]?.id);
+      lastId = pageLastId;
     }
     // Case-insensitive, nulls last, id as the tiebreak so the order is stable.
     rows.sort((a, b) => {

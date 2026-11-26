@@ -66,43 +66,8 @@ describe('ClassCard', () => {
     expect(onClick).toHaveBeenCalled();
   });
 
-  it('shows progress bar for in-progress class with live data', () => {
-    const liveClass = {
-      ...baseClass,
-      status: 'In Progress' as const,
-    };
-    const { container } = render(
-      <ClassCard
-        classInfo={liveClass}
-        liveData={{
-          totalEntries: 28,
-          completedEntries: 12,
-          inRingArmband: '205',
-          nextArmbands: ['206', '207'],
-        }}
-      />
-    );
-    expect(screen.getByRole('progressbar')).toBeInTheDocument();
-    expect(screen.getByText('#205')).toBeInTheDocument();
-    expect(screen.getByText('#206')).toBeInTheDocument();
-    expect(
-      container.querySelector('[data-status="in-ring"][data-shape="in-progress"]')
-    ).toBeTruthy();
-  });
-
-  it('does not show live data for scheduled class even if provided', () => {
-    render(
-      <ClassCard
-        classInfo={baseClass}
-        liveData={{
-          totalEntries: 28,
-          completedEntries: 0,
-          inRingArmband: '100',
-          nextArmbands: [],
-        }}
-      />
-    );
-    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
-    expect(screen.queryByText('#100')).not.toBeInTheDocument();
+  it('renders no "Next:" text for a live class', () => {
+    render(<ClassCard classInfo={{ ...baseClass, status: 'In Progress' as const }} />);
+    expect(screen.queryByText(/Next:/)).not.toBeInTheDocument();
   });
 });

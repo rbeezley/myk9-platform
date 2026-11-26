@@ -23,8 +23,9 @@ describe('fetchKeysetPages', () => {
 
     const result = await readAll(table);
 
+    // Two full pages, a partial one, then the empty page that ends the read.
     expect(result.map(row => row.id)).toEqual(rows.map(row => row.id));
-    expect(table.requests).toHaveLength(3);
+    expect(table.requests).toHaveLength(4);
   });
 
   it('skips no row when more than one page shares one updated_at', async () => {
@@ -51,11 +52,42 @@ describe('fetchKeysetPages', () => {
     expect(table.requests.every(request => request.includes('order(updated_at,id)'))).toBe(true);
   });
 
-  it('stops after one request when the first page is short', async () => {
+  it('stops only on an empty page, so a short first page costs one more request', async () => {
     const table = createFakePostgrestTable(makeRows(5, i => new Date(T0 + i).toISOString()));
 
     expect(await readAll(table)).toHaveLength(5);
-    expect(table.requests).toHaveLength(1);
+    expect(table.requests).toHaveLength(2);
+    expect(table.requests[1]).toMatch(/-> 0$/);
+  });
+
+  it('reads every row when the server returns fewer rows than the page size (lower hosted max_rows)', async () => {
+    // The pager asks for 1,000 but this server caps a response at 500.
+    const sameInstant = '2026-03-03T12:00:00.000Z';
+    const rows = makeRows(1700, i => (i < 600 ? new Date(T0 + i).toISOString() : sameInstant));
+    const table = createFakePostgrestTable(rows, 500);
+
+    const result = await readAll(table);
+
+    expect(new Set(result.map(row => row.id)).size).toBe(1700);
+    expect(table.requests).toHaveLength(5);
+    expect(table.requests[4]).toMatch(/-> 0$/);
+  });
+
+  it('stops instead of looping when the server ignores the cursor', async () => {
+    const rows = makeRows(3, i => new Date(T0 + i).toISOString());
+    const table = createFakePostgrestTable(rows);
+    const ignoringCursor = () => {
+      const builder = table.from();
+      builder.gt = () => builder;
+      builder.or = () => builder;
+      return builder;
+    };
+
+    const result = await fetchKeysetPages({ base: ignoringCursor, since: 0 });
+
+    // The repeated page is dropped, not appended, and the read ends after it.
+    expect(result.map(row => row.id)).toEqual(rows.map(row => row.id));
+    expect(table.requests).toHaveLength(2);
   });
 
   it('returns only rows newer than `since`', async () => {
@@ -115,7 +147,7 @@ describe('fetchKeysetPages', () => {
     expect(abortSignal).toHaveBeenCalledWith(controller.signal);
   });
 
-  it('throws instead of returning short when a full page ends on a row without id or updated_at', async () => {
+  it('throws instead of returning short when a page ends on a row without id or updated_at', async () => {
     const rows = makeRows(1000, i => new Date(T0 + i).toISOString());
     rows[999] = { id: '', updated_at: rows[999]!.updated_at };
     const table = createFakePostgrestTable(rows);

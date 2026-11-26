@@ -61,7 +61,7 @@ describe('ReplicatedJudgeAssignmentsTable sync', () => {
 // MYK9-776: PostgREST caps a response at max_rows. The cleanup only runs after
 // a fetch that returned the whole server count, so the fetch must page.
 describe('ReplicatedJudgeAssignmentsTable fetch', () => {
-  it('pages by (updated_at, id) until a short page', async () => {
+  it('pages by (updated_at, id) until an empty page', async () => {
     const row = (i: number) => ({ id: `ja-${i}`, updated_at: '2026-09-25T00:00:00Z' });
     db.pages = [
       Array.from({ length: JUDGE_ASSIGNMENTS_PAGE_SIZE }, (_, i) => row(i)),
@@ -78,6 +78,8 @@ describe('ReplicatedJudgeAssignmentsTable fetch', () => {
     expect(db.cursors).toEqual([
       'first',
       `updated_at.gt.2026-09-25T00:00:00Z,and(updated_at.eq.2026-09-25T00:00:00Z,id.gt.ja-${JUDGE_ASSIGNMENTS_PAGE_SIZE - 1})`,
+      // The short second page does not end the read; the empty third page does.
+      `updated_at.gt.2026-09-25T00:00:00Z,and(updated_at.eq.2026-09-25T00:00:00Z,id.gt.ja-${JUDGE_ASSIGNMENTS_PAGE_SIZE})`,
     ]);
   });
 });

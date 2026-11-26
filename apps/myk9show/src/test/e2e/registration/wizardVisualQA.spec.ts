@@ -541,7 +541,7 @@ test.describe('wizard step titles never break mid-word', () => {
     await signInAsSecretary(page, `/secretary/register/${SHOW_ID}`);
     await expect(page.getByTestId('wizard-step-list')).toBeVisible({ timeout: 30000 });
     for (const width of STEP_TITLE_WIDTHS) {
-      await assertStepTitlesFitOneLine(page, width, 5);
+      await assertStepTitlesFitOneLine(page, width, 4);
     }
   });
 });

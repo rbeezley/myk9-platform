@@ -1,8 +1,8 @@
 /**
  * Secretary Entry Creation — E2E
  *
- * Walks the secretary path through the 5-step registration wizard
- * (Select Dogs → Classes → Handlers → Payment → Confirmation).
+ * Walks the secretary path through the 4-step registration wizard
+ * (Select Dogs → Classes → Payment → Confirmation).
  *
  * Prerequisites (seeded in staging DB):
  *  - Secretary fixture (E2E_SECRETARY_EMAIL, agreed_to_tos_at set)
@@ -118,14 +118,7 @@ test.describe('Secretary Entry Creation', () => {
     await page.getByRole('button', { name: /next/i }).click();
     await page.waitForLoadState('networkidle');
 
-    // ── Step 3: Handlers (auto-assigned) ─────────────────────────────────
-    await page.waitForSelector('text=Handlers', { timeout: 8000 });
-    await expect(page.getByText(/all entries have handlers assigned/i)).toBeVisible();
-    await expect(page.getByRole('button', { name: /next/i })).toBeEnabled();
-    await page.getByRole('button', { name: /next/i }).click();
-    await page.waitForLoadState('networkidle');
-
-    // ── Step 4: Payment + AKC agreement ──────────────────────────────────
+    // ── Step 3: Payment (handler defaults to the owner; no Handlers step, MYK9-2020) + AKC agreement ──────────────────────────────────
     await page.waitForSelector('text=Payment Information', { timeout: 8000 });
 
     // Scroll down to reveal the entry agreement section then wait for its label

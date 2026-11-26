@@ -83,7 +83,7 @@ export const ALL_STEP_DEFINITIONS: Record<StepId, Omit<RegistrationStep, 'comple
   // (MYK9-517) — the verb is the half that truncated, and it is the half the
   // step heading on screen ("Select Dogs to Register") already says. The Show
   // Creation wizard's rail has always been one-word ("Trials", "Classes",
-  // "Review"). Do not restore the verbs; they do not fit five steps at 390.
+  // "Review"). Do not restore the verbs; they do not fit the steps at 390.
   'dog-selection': {
     id: 0,
     label: 'Dogs',

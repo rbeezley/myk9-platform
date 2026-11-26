@@ -210,11 +210,6 @@ test('reaches payment with one selected dog and one selected class', async ({ pa
   await selectFirstContainerClass(page);
   await page.getByRole('button', { name: /^Next/ }).click();
 
-  await expect(page.getByText(/All entries have handlers assigned/i)).toBeVisible({
-    timeout: 5000,
-  });
-  await page.getByRole('button', { name: /^Next/ }).click();
-
   await expect(page.getByRole('heading', { name: 'Payment Information' })).toBeVisible();
   await page.getByRole('button', { name: /Secretary Payment \(Already Received\)/i }).click();
   // MYK9-483 (#2210) folded the payment step's fee summary into the one running

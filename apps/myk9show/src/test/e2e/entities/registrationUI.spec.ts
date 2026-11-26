@@ -194,16 +194,7 @@ test.describe('Registration Wizard — Mail-in entry happy path', () => {
 
     await page.getByRole('button', { name: /^Next/ }).click();
 
-    // ─── Step 3: Handler assignment (auto-assigned to dog owner) ───────────
-    // smartDefaults.autoAssignHandler = true for secretary roles, so the
-    // alert reads "All entries have handlers assigned."
-    await expect(page.getByText(/All entries have handlers assigned/i)).toBeVisible({
-      timeout: 5000,
-    });
-
-    await page.getByRole('button', { name: /^Next/ }).click();
-
-    // ─── Step 4: Payment ───────────────────────────────────────────────────
+    // ─── Step 3: Payment (handler defaults to the dog owner; no Handlers step, MYK9-2020) ───────────────────────────────────────────────────
     await expect(page.getByRole('heading', { name: 'Payment Information' })).toBeVisible();
 
     // Fee=0 fallback regression guard (PR #75): the show's pre_entry_fee is $10

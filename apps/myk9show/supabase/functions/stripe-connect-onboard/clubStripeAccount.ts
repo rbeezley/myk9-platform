@@ -59,7 +59,13 @@ export async function findOrCreateClubStripeAccount(
   if (existingId) return { ok: true, stripeAccountId: existingId, created: false };
 
   const createdId = await deps.createAccount();
-  const { error: insertError } = await deps.insertRow(createdId);
+  let insertError: DbError | null;
+  try {
+    ({ error: insertError } = await deps.insertRow(createdId));
+  } catch (thrown) {
+    // A rejected insert (network) must still clean up, or a retry makes a second account.
+    insertError = { message: thrown instanceof Error ? thrown.message : String(thrown) };
+  }
   if (!insertError) return { ok: true, stripeAccountId: createdId, created: true };
 
   deps.logError(`Failed to persist stripe account ${createdId}:`, insertError);

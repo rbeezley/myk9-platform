@@ -107,6 +107,18 @@ describe('findOrCreateClubStripeAccount', () => {
     expect(deps.findExisting).toHaveBeenCalledTimes(1);
   });
 
+  it('deletes the orphan when the insert itself throws', async () => {
+    const deps = makeDeps([{ data: null, error: null }], null);
+    deps.insertRow.mockRejectedValue(new Error('fetch failed'));
+
+    expect(await findOrCreateClubStripeAccount(deps)).toEqual({
+      ok: false,
+      reason: 'persist_failed',
+    });
+    expect(deps.deleteAccount).toHaveBeenCalledWith('acct_new');
+    expect(deps.findExisting).toHaveBeenCalledTimes(1);
+  });
+
   it('still fails cleanly when deleting the orphan throws', async () => {
     const deps = makeDeps([{ data: null, error: null }], { code: '42501' });
     deps.deleteAccount.mockRejectedValue(new Error('stripe down'));

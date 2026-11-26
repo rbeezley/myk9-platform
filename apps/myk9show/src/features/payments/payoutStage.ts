@@ -52,7 +52,13 @@ export interface PayoutStage {
 
 export interface PayoutStageInput {
   /** The show's authoritative payout row, or null when none exists yet. */
-  payout: { status: string; failureReason: string | null; completedAt: string | null } | null;
+  payout: {
+    status: string;
+    failureReason: string | null;
+    completedAt: string | null;
+    /** What the row sends. The payout run closes a $0 row as 'completed', so 0 means nothing moved. */
+    amountCents: number;
+  } | null;
   accountState: PayoutsAccountState;
   /** The show's last day and timezone, or null when the show could not be read. */
   schedule: { lastDay: string; timeZone: string } | null;
@@ -103,6 +109,33 @@ export function resolvePayoutStage({
   const timeline = schedule ? payoutTimeline(schedule.lastDay, timeZone, now) : null;
   const status = payout?.status ?? null;
 
+  if (status === 'failed' && isClubFailure(payout?.failureReason ?? null)) {
+    return stageOf(
+      'failed-club',
+      "Your bank account needs attention. We can't send this payout until it's fixed.",
+      'fix-bank-account'
+    );
+  }
+
+  // Nothing to send: every entry fee was refunded, or the row carries $0. The
+  // payout run never sends $0, and closes a parked row whose show went to $0 as
+  // 'completed' with amount 0 (cron-process-payouts/processShow.ts), so such a
+  // row must never read "Sent", "Paid by" or ask for a bank account. A row
+  // that did send money still reads "Sent": that money moved, whatever came after.
+  const sentMoney = status === 'completed' && (payout?.amountCents ?? 0) > 0;
+  if (fullyRefunded && !sentMoney) {
+    return stageOf(
+      'nothing-to-send',
+      'Nothing to send. Every entry fee for this show was refunded.'
+    );
+  }
+  if (payout && payout.amountCents <= 0) {
+    return stageOf(
+      'nothing-to-send',
+      'Nothing to send. This show has no online entry fees to pay out.'
+    );
+  }
+
   if (status === 'completed') {
     const completedAt = payout?.completedAt ?? null;
     const sentDay = completedAt ? calendarDateInTimeZone(new Date(completedAt), timeZone) : null;
@@ -115,23 +148,6 @@ export function resolvePayoutStage({
       ...(completedAt && label ? { sentOn: { dateTime: completedAt, label } } : {}),
       action: null,
     };
-  }
-
-  if (status === 'failed' && isClubFailure(payout?.failureReason ?? null)) {
-    return stageOf(
-      'failed-club',
-      "Your bank account needs attention. We can't send this payout until it's fixed.",
-      'fix-bank-account'
-    );
-  }
-
-  // A fully refunded show never gets a payout row (the run skips $0), so this
-  // only ever describes a show with nothing to send. It must not read "Paid".
-  if (!payout && fullyRefunded) {
-    return stageOf(
-      'nothing-to-send',
-      'Nothing to send. Every entry fee for this show was refunded.'
-    );
   }
 
   if ((status === null || status === 'pending') && accountState === 'not-enabled') {

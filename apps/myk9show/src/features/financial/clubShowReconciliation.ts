@@ -66,6 +66,22 @@ export interface ClubShowReconciliationRow {
   /** Null when the club has no payout row yet for this show. */
   settlement: PayoutSettlementRow | null;
   orderCount: number;
+  /** Post-hoc refunds across the show's orders: proof a refund actually happened. */
+  refundedCents: number;
+}
+
+/**
+ * Every entry fee was refunded: there are online orders, nothing is owed, and a
+ * refund actually happened. Without the refund, a $0 net is a $0 subtotal, which
+ * is not "refunded" (MYK9-1985).
+ */
+export function isFullyRefundedShow(row: ClubShowReconciliationRow): boolean {
+  return (
+    row.orderCount > 0 &&
+    row.refundedCents > 0 &&
+    row.net.status === 'available' &&
+    row.net.netCents <= 0
+  );
 }
 
 /**
@@ -113,20 +129,23 @@ export function clubNetContributionCents(
 function aggregateShowOrders(orders: FinancialReconciliationOrder[]): {
   net: ClubShowNet;
   chargeVerification: ClubShowChargeVerification;
+  refundedCents: number;
 } {
   if (orders.length === 0) {
     // No stripe_orders rows for this show. Net is unknown rather than a
     // misleading $0. NOTE this is NOT "no charge record": the entries may all
     // have been paid by check at the desk, which is real banked money with no
     // Stripe row behind it.
-    return { net: { status: 'pending' }, chargeVerification: 'NoStripeCharges' };
+    return { net: { status: 'pending' }, chargeVerification: 'NoStripeCharges', refundedCents: 0 };
   }
 
   let netCents = 0;
   let anyPending = false;
   let anyUnverified = false;
+  let refundedCents = 0;
 
   for (const order of orders) {
+    refundedCents += order.refundedCents;
     if (order.stripeProcessingFeeCents == null) anyPending = true;
     // Degrade if ANY order lacks its fee snapshot — never claim show-wide
     // coverage the record cannot back up. The LABEL must stay a coverage
@@ -149,7 +168,7 @@ function aggregateShowOrders(orders: FinancialReconciliationOrder[]): {
   const chargeVerification: ClubShowChargeVerification = anyUnverified
     ? 'SomeFeeBreakdownsMissing'
     : 'AllFeeBreakdowns';
-  return { net, chargeVerification };
+  return { net, chargeVerification, refundedCents };
 }
 
 /** Ordering facts for a reconciliation payout row. */
@@ -198,7 +217,7 @@ export function buildClubShowReconciliationRows(
   const rows: ClubShowReconciliationRow[] = [];
   for (const showId of showIds) {
     const showOrders = ordersByShow.get(showId) ?? [];
-    const { net, chargeVerification } = aggregateShowOrders(showOrders);
+    const { net, chargeVerification, refundedCents } = aggregateShowOrders(showOrders);
     const payout = payoutByShow.get(showId);
     const settlement = payout ? resolvePayoutSettlement(payout, accountState) : null;
 
@@ -209,6 +228,7 @@ export function buildClubShowReconciliationRows(
       chargeVerification,
       settlement,
       orderCount: showOrders.length,
+      refundedCents,
     });
   }
 

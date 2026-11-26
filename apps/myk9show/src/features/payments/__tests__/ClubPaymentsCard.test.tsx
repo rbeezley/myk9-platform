@@ -58,6 +58,7 @@ function showRow(status: string | null, failureReason: string | null = null) {
         )
       : null,
     orderCount: 1,
+    refundedCents: 0,
   };
   mockedReconciliation.mockReturnValue({
     rows: [row],
@@ -291,5 +292,20 @@ describe('ClubPaymentsCard', () => {
       expect(mockedStartOnboarding).toHaveBeenCalledWith('club-1', '/club-admin/payments/club-1');
     });
     expect(window.location.assign).toHaveBeenCalledWith('https://connect.stripe.com/setup/fix');
+  });
+
+  it('a Fix it that fails brings the error into view and focus, never a silent no-op', async () => {
+    mockAccountState(connectedAccount({ onboarding_complete: true, payouts_enabled: true }));
+    showRow('failed', 'club_account:account_closed: The bank account is closed');
+    mockedStartOnboarding.mockRejectedValue(new Error('Confirm your password to continue.'));
+    const user = userEvent.setup();
+    render(<ClubPaymentsCard clubId="club-1" />);
+
+    await user.click(screen.getByRole('button', { name: 'Fix it' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Confirm your password to continue.');
+    await waitFor(() => expect(alert).toHaveFocus());
+    expect(window.location.assign).not.toHaveBeenCalled();
   });
 });

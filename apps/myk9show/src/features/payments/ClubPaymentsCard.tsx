@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -51,6 +51,8 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
   const [isStartingOnboarding, setIsStartingOnboarding] = useState(false);
   const inFlightRef = useRef(false);
   const bankCardRef = useRef<HTMLDivElement>(null);
+  const connectErrorRef = useRef<HTMLDivElement>(null);
+  const revealConnectErrorRef = useRef(false);
 
   // Returning from Stripe (?connect=return|refresh): the account row is written
   // by a webhook, so absence right after the redirect means "not yet", not "no".
@@ -98,6 +100,21 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
   const notConnected = !account;
   const onboardingIncomplete = !!account && !account.onboarding_complete;
   const inReview = !!account && account.onboarding_complete && !account.payouts_enabled;
+
+  // "Fix it" sits on a show row, far below the Bank account card where a failed
+  // Stripe hand-off (a step-up refusal, an edge error) is reported. Bring that
+  // error into view and focus, so a failure never looks like nothing happened.
+  useEffect(() => {
+    if (!connectError || !revealConnectErrorRef.current) return;
+    revealConnectErrorRef.current = false;
+    connectErrorRef.current?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+    connectErrorRef.current?.focus({ preventScroll: true });
+  }, [connectError]);
+
+  const fixBankAccountFromRow = () => {
+    revealConnectErrorRef.current = true;
+    void handleContinueToStripe();
+  };
 
   // A show row waiting on the bank account links here, to the card that
   // already connects it, rather than repeating the flow. With no account yet it
@@ -159,7 +176,7 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
           )}
 
           {connectError && (
-            <Alert variant="destructive">
+            <Alert ref={connectErrorRef} tabIndex={-1} variant="destructive">
               <AlertCircle className="h-4 w-4" aria-hidden="true" />
               <AlertDescription className="space-y-3">
                 <p>{connectError}</p>
@@ -299,7 +316,7 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
       <ClubFinancialReconciliationCard
         clubId={clubId}
         accountState={accountState}
-        onFixBankAccount={handleContinueToStripe}
+        onFixBankAccount={fixBankAccountFromRow}
         onConnectBankAccount={goToBankAccount}
         isOpeningStripe={isStartingOnboarding}
       />

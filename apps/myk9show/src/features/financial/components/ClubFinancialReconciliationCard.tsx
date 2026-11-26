@@ -20,7 +20,7 @@ import { useClubFinancialReconciliation } from '../useClubFinancialReconciliatio
 import type { PayoutsAccountState } from '@/features/payments/payoutBadge';
 import { resolvePayoutStage } from '@/features/payments/payoutStage';
 import { useShowPayoutSchedules } from '@/features/payments/useShowPayoutSchedules';
-import type { ClubShowReconciliationRow } from '../clubShowReconciliation';
+import { isFullyRefundedShow } from '../clubShowReconciliation';
 import { ChargeVerificationBadge } from './ChargeVerificationBadge';
 import { CopyableTransferId } from './CopyableTransferId';
 import { PayoutStageLine, type PayoutStageActions } from './PayoutStageLine';
@@ -29,14 +29,6 @@ const currencyFormatter = new Intl.NumberFormat('en-US', { style: 'currency', cu
 
 function formatCents(cents: number): string {
   return currencyFormatter.format(cents / 100);
-}
-
-/**
- * Every entry fee was refunded: there are online orders and nothing is owed.
- * The payout run skips a $0 payout, so such a show never gets a payout row.
- */
-function isFullyRefunded(row: ClubShowReconciliationRow): boolean {
-  return row.orderCount > 0 && row.net.status === 'available' && row.net.netCents <= 0;
 }
 
 interface ClubFinancialReconciliationCardProps extends PayoutStageActions {
@@ -161,7 +153,7 @@ export function ClubFinancialReconciliationCard({
                     payout: row.settlement,
                     accountState,
                     schedule: schedules.get(row.showId) ?? null,
-                    fullyRefunded: isFullyRefunded(row),
+                    fullyRefunded: isFullyRefundedShow(row),
                     now,
                   })}
                   {...stageActions}

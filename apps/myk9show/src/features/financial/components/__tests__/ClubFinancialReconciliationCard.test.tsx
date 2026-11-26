@@ -61,6 +61,7 @@ function row(overrides: Partial<ClubShowReconciliationRow> = {}): ClubShowReconc
       createdAt: '2026-12-12T08:00:00Z',
     },
     orderCount: 1,
+    refundedCents: 0,
     ...overrides,
   };
 }
@@ -242,7 +243,9 @@ describe('ClubFinancialReconciliationCard', () => {
 
   it('a fully refunded show has nothing to send and never reads Paid', () => {
     mockedHook.mockReturnValue({
-      rows: [row({ net: { status: 'available', netCents: 0 }, settlement: null })],
+      rows: [
+        row({ net: { status: 'available', netCents: 0 }, refundedCents: 10000, settlement: null }),
+      ],
       isLoading: false,
       isError: false,
       refetch: vi.fn(),
@@ -254,6 +257,43 @@ describe('ClubFinancialReconciliationCard', () => {
     );
     expect(screen.queryByText(/^Paid/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Transferred:/)).not.toBeInTheDocument();
+  });
+
+  it('a $0 show with no refund never claims every entry fee was refunded', () => {
+    mockedHook.mockReturnValue({
+      rows: [
+        row({ net: { status: 'available', netCents: 0 }, refundedCents: 0, settlement: null }),
+      ],
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" />);
+
+    expect(screen.getByTestId('payout-stage')).not.toHaveTextContent(/refunded/);
+  });
+
+  it('a $0 completed payout row is nothing to send, never "Sent"', () => {
+    mockedHook.mockReturnValue({
+      rows: [
+        row({
+          net: { status: 'available', netCents: 0 },
+          refundedCents: 10000,
+          settlement: settlementFor('completed', {
+            amountCents: 0,
+            completedAt: '2026-12-12T15:00:00Z',
+          }),
+        }),
+      ],
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" />);
+
+    const line = screen.getByTestId('payout-stage');
+    expect(line).toHaveTextContent('Nothing to send. Every entry fee for this show was refunded.');
+    expect(line).not.toHaveTextContent(/Sent/);
   });
 
   it('a platform failure says we are on it, with no control for the club', () => {

@@ -27,9 +27,10 @@ function stage(overrides: Partial<PayoutStageInput>) {
 function payout(
   status: string,
   failureReason: string | null = null,
-  completedAt: string | null = null
+  completedAt: string | null = null,
+  amountCents = 5000
 ) {
-  return { status, failureReason, completedAt };
+  return { status, failureReason, completedAt, amountCents };
 }
 
 describe('resolvePayoutStage: every show row answers "when do we get paid?"', () => {
@@ -136,6 +137,57 @@ describe('resolvePayoutStage: every show row answers "when do we get paid?"', ()
       expect(result.text).not.toMatch(/December/);
     }
   );
+
+  // The payout run closes a parked row whose show went to $0 as 'completed' with
+  // amount_cents 0 (cron-process-payouts/processShow.ts). That row moved no money.
+  it('a $0 completed row is nothing to send, never "Sent"', () => {
+    const result = stage({
+      payout: payout('completed', null, '2026-12-12T15:00:00Z', 0),
+      fullyRefunded: true,
+    });
+    expect(result).toEqual({
+      kind: 'nothing-to-send',
+      text: 'Nothing to send. Every entry fee for this show was refunded.',
+      action: null,
+    });
+  });
+
+  it('a $0 pending row with no bank account is nothing to send, never "Connect bank account"', () => {
+    expect(
+      stage({ payout: payout('pending', null, null, 0), accountState: 'not-enabled' })
+    ).toEqual({
+      kind: 'nothing-to-send',
+      text: 'Nothing to send. This show has no online entry fees to pay out.',
+      action: null,
+    });
+  });
+
+  it('a $0 row before the due date is nothing to send, never "Paid by"', () => {
+    for (const now of [BEFORE_SHOW_ENDS, AFTER_SHOW_ENDS, AFTER_DUE_DATE]) {
+      const result = stage({ payout: payout('awaiting_approval', null, null, 0), now });
+      expect(result.kind).toBe('nothing-to-send');
+      expect(result.text).not.toMatch(/Paid|December|longer/);
+    }
+  });
+
+  it('a fully refunded show with a payout row still has nothing to send', () => {
+    expect(stage({ payout: payout('pending'), fullyRefunded: true }).kind).toBe('nothing-to-send');
+  });
+
+  it('a payout that did send money still reads Sent, even if the show later reads fully refunded', () => {
+    expect(
+      stage({
+        payout: payout('completed', null, '2026-12-12T15:00:00Z', 5000),
+        fullyRefunded: true,
+      }).kind
+    ).toBe('sent');
+  });
+
+  it("a $0 row that failed for the club's bank account keeps its fix", () => {
+    expect(
+      stage({ payout: payout('failed', 'club_account:account_closed: x', null, 0) }).kind
+    ).toBe('failed-club');
+  });
 
   it('a fully refunded show has nothing to send, and never reads Paid', () => {
     const result = stage({ fullyRefunded: true });

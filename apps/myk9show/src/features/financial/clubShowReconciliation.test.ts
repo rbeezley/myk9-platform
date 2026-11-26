@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildClubShowReconciliationRows,
   clubNetContributionCents,
+  isFullyRefundedShow,
 } from './clubShowReconciliation';
 import type {
   FinancialReconciliationOrder,
@@ -265,5 +266,26 @@ describe('buildClubShowReconciliationRows', () => {
     );
     expect(rows[0].settlement?.state).toBe('attention');
     expect(rows[0].settlement?.badgeLabel).toBe('Needs attention');
+  });
+});
+
+describe('isFullyRefundedShow', () => {
+  const rowFor = (orders: FinancialReconciliationOrder[]) =>
+    buildClubShowReconciliationRows(orders, [], 'enabled')[0]!;
+
+  it('is true when every entry fee was refunded', () => {
+    const row = rowFor([order({ refundedCents: 10000 })]);
+    expect(row.refundedCents).toBe(10000);
+    expect(isFullyRefundedShow(row)).toBe(true);
+  });
+
+  it('is false for a $0 subtotal with no refund: nothing was refunded', () => {
+    const row = rowFor([order({ entrySubtotalCents: 0, refundedCents: 0, amountCents: 0 })]);
+    expect(row.refundedCents).toBe(0);
+    expect(isFullyRefundedShow(row)).toBe(false);
+  });
+
+  it('is false while money is still owed', () => {
+    expect(isFullyRefundedShow(rowFor([order({ refundedCents: 2500 })]))).toBe(false);
   });
 });

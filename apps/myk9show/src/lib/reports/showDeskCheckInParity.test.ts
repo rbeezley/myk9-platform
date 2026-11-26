@@ -57,13 +57,15 @@ function entry(armband: number, fields: Record<string, unknown>): DbEntry {
 
 const MIXED = [
   entry(101, { entry_status: 'withdrawn' }),
-  entry(102, { entry_status: 'pending' }),
-  entry(103, { entry_status: 'accepted' }),
+  entry(102, { entry_status: 'submitted' }),
+  entry(103, { entry_status: 'confirmed' }),
   entry(104, { entry_status: 'withdrawn', check_in_status: 'pulled' }),
   entry(105, { check_in_status: 'pulled' }),
   entry(106, { entry_status: 'confirmed', check_in_status: 'checked-in' }),
   entry(107, { entry_status: 'not_accepted' }),
   entry(108, { entry_status: 'moved' }),
+  // Paid but not yet accepted stays Pending (owner decision, isPendingEntryStatus).
+  entry(109, { entry_status: 'paid' }),
 ];
 
 function showDeskRows(entries: DbEntry[]) {
@@ -99,7 +101,7 @@ describe('Show Desk and the Check-in Sheet list the same dogs (MYK9-2376)', () =
     const desk = showDeskRows(MIXED).map(row => row.armband);
     const sheet = sheetRows(MIXED, 'check-in').map(row => row.armband);
     expect(desk).toEqual(sheet);
-    expect(desk).toEqual(['103', '106', '101', '102', '104', '105']);
+    expect(desk).toEqual(['103', '106', '101', '102', '104', '105', '109']);
   });
 
   it('gives a Pending, Withdrawn or Pulled dog the same status and no place or order on both', () => {
@@ -113,6 +115,7 @@ describe('Show Desk and the Check-in Sheet list the same dogs (MYK9-2376)', () =
       ['102', 'Pending', ''],
       ['104', 'Withdrawn', ''],
       ['105', 'Pulled', ''],
+      ['109', 'Pending', ''],
     ]);
   });
 

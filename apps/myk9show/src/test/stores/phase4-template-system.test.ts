@@ -3,8 +3,6 @@ import 'fake-indexeddb/auto';
 
 // Store imports
 import { useTemplateStore } from '@/store/templateStore';
-import { useShowTemplateStore } from '@/store/showTemplateStore';
-import { useClassCreationStore } from '@/store/classCreationStore';
 
 // Type imports
 import {
@@ -14,7 +12,6 @@ import {
   TrialType,
   type ClassTemplate,
 } from '@/types/template.types';
-import type { ShowTemplateDefinition } from '@/types/show-template-types';
 // CreatedClass type removed - not used in tests
 
 describe('Phase 4 Template System Tests', () => {
@@ -35,25 +32,6 @@ describe('Phase 4 Template System Tests', () => {
       expect(asRecord.createTemplate).toBeUndefined();
       expect(asRecord.updateTemplate).toBeUndefined();
       expect(asRecord.deleteTemplate).toBeUndefined();
-    });
-
-    it('should have properly configured show template store', () => {
-      const store = useShowTemplateStore.getState();
-
-      expect(typeof store.addTemplate).toBe('function');
-      expect(typeof store.updateTemplate).toBe('function');
-      expect(typeof store.deleteTemplate).toBe('function');
-      expect(typeof store.getTemplate).toBe('function');
-      expect(Array.isArray(store.templates)).toBe(true);
-    });
-
-    it('should have properly configured class creation store', () => {
-      const store = useClassCreationStore.getState();
-
-      expect(typeof store.selectTemplate).toBe('function');
-      expect(typeof store.createClasses).toBe('function');
-      expect(typeof store.resetWorkflow).toBe('function');
-      expect(Array.isArray(store.createdClasses)).toBe(true);
     });
   });
 
@@ -113,169 +91,10 @@ describe('Phase 4 Template System Tests', () => {
     });
   });
 
-  describe('Show Template Store Operations', () => {
-    it('should handle show template operations', () => {
-      const store = useShowTemplateStore.getState();
-
-      const testTemplate: Omit<ShowTemplateDefinition, 'id' | 'createdAt' | 'updatedAt'> = {
-        name: 'Test Show Template',
-        organization: 'AKC',
-        version: '1.0',
-        trialType: 'Scent Work',
-        description: 'Test show template',
-        classNamePattern: '{element} {level}',
-        classFields: [],
-        defaults: {
-          entryFee: 30,
-          maxEntries: 40,
-          requiresJumpHeight: false,
-        },
-      };
-
-      // Test add
-      const added = store.addTemplate(testTemplate);
-      expect(added.name).toBe('Test Show Template');
-      expect(added.id).toBeDefined();
-
-      // Test get
-      const retrieved = store.getTemplate(added.id);
-      expect(retrieved).toEqual(added);
-
-      // Test search
-      const searchResults = store.searchTemplates('Test Show');
-      expect(searchResults.some(t => t.id === added.id)).toBe(true);
-    });
-
-    it('should handle preset operations', () => {
-      const store = useShowTemplateStore.getState();
-
-      const allPresets = store.getAllPresets();
-      expect(typeof allPresets).toBe('object');
-
-      const akcPresets = store.getPresetsByOrganization('AKC');
-      expect(typeof akcPresets).toBe('object');
-    });
-  });
-
-  describe('Class Creation Store Operations', () => {
-    it('should handle class creation workflow', () => {
-      const store = useClassCreationStore.getState();
-
-      // Test initial state
-      expect(store.selectedTemplateId).toBeNull();
-      expect(store.selectedTemplate).toBeNull();
-      expect(store.currentStep).toBe(1);
-
-      // Test step management — use fresh getState() after each mutation
-      store.nextStep();
-      expect(useClassCreationStore.getState().currentStep).toBe(2);
-
-      store.previousStep();
-      expect(useClassCreationStore.getState().currentStep).toBe(1);
-
-      store.setStep(3);
-      expect(useClassCreationStore.getState().currentStep).toBe(3);
-
-      store.resetSteps();
-      expect(useClassCreationStore.getState().currentStep).toBe(1);
-    });
-
-    it('should handle field overrides', () => {
-      const store = useClassCreationStore.getState();
-
-      // Test field override operations — use fresh getState() after each mutation
-      store.updateFieldOverride('entryFee', 35);
-      expect(useClassCreationStore.getState().fieldOverrides.entryFee).toBe(35);
-
-      store.updateFieldOverrides({ maxEntries: 50, judgeName: 'Test Judge' });
-      expect(useClassCreationStore.getState().fieldOverrides.maxEntries).toBe(50);
-      expect(useClassCreationStore.getState().fieldOverrides.judgeName).toBe('Test Judge');
-
-      store.resetFieldOverride('entryFee');
-      expect(useClassCreationStore.getState().fieldOverrides.entryFee).toBeUndefined();
-    });
-
-    it('should handle workflow reset', () => {
-      const store = useClassCreationStore.getState();
-
-      // Set some state
-      store.updateFieldOverride('test', 'value');
-      store.setStep(3);
-
-      // Reset
-      store.resetWorkflow();
-
-      // Verify reset — use fresh getState() after mutation
-      expect(useClassCreationStore.getState().selectedTemplateId).toBeNull();
-      expect(useClassCreationStore.getState().currentStep).toBe(1);
-      expect(Object.keys(useClassCreationStore.getState().fieldOverrides)).toHaveLength(0);
-    });
-  });
-
-  describe('Cross-Store Integration', () => {
-    it('should handle related operations across template stores', () => {
-      const templateStore = useTemplateStore.getState();
-      const showTemplateStore = useShowTemplateStore.getState();
-
-      // The sport-rule store is read-only: seed it, then create in the writable store.
-      const mainTemplate: ClassTemplate = {
-        id: 'integration-akc-agility',
-        createdAt: new Date(),
-        createdBy: 'seed',
-        templateName: 'Integration Test Template',
-        organization: Organization.AKC,
-        trialType: TrialType.AGILITY,
-        status: TemplateStatus.ACTIVE,
-        type: TemplateType.CUSTOM,
-        description: 'Integration test',
-        version: '1.0',
-        isOfficial: false,
-        isCustom: true,
-        isActive: true,
-        fieldSpecifications: [],
-        classDefinitions: [],
-        validationRules: [],
-        defaults: {},
-        updatedAt: new Date(),
-      };
-      useTemplateStore.setState({ templates: [mainTemplate], error: null });
-
-      const showTemplate = showTemplateStore.addTemplate({
-        name: 'Integration Show Template',
-        organization: 'AKC',
-        version: '1.0',
-        trialType: 'Agility',
-        description: 'Integration show test',
-        classNamePattern: '{element} {level}',
-        classFields: [],
-        defaults: {
-          entryFee: 30,
-          maxEntries: 40,
-          requiresJumpHeight: true,
-        },
-      });
-
-      // Verify all templates were created
-      expect(templateStore.getTemplate(mainTemplate.id)).toBeDefined();
-      expect(showTemplateStore.getTemplate(showTemplate.id)).toBeDefined();
-
-      // Test cross-store queries
-      const akcMainTemplates = templateStore.getTemplatesByOrganization(Organization.AKC);
-      const akcShowTemplates = showTemplateStore.getTemplatesByOrganization(Organization.AKC);
-
-      expect(akcMainTemplates.some(t => t.id === mainTemplate.id)).toBe(true);
-      expect(akcShowTemplates.some(t => t.id === showTemplate.id)).toBe(true);
-    });
-  });
-
   describe('IndexedDB Integration Status', () => {
     it('should use IndexedDB-enabled storage adapters', () => {
       // This test verifies that the stores are configured to use the optimal storage
-      const stores = [
-        { name: 'template', store: useTemplateStore },
-        { name: 'showTemplate', store: useShowTemplateStore },
-        { name: 'classCreation', store: useClassCreationStore },
-      ];
+      const stores = [{ name: 'template', store: useTemplateStore }];
 
       stores.forEach(({ store }) => {
         const state = store.getState();

@@ -119,13 +119,17 @@ A class with two or three areas shows one time field per area under the timer, l
 
 ## When the signal drops
 
-Show venues often have weak signal. The app is built for it.
+> **Watch before show day:** [How to score with no signal (1 min 23 s)](https://youtu.be/ObID-sB29v4) The video needs a signal. Scoring at the ring does not.
+
+Show venues often have weak signal. The app is built for it. Open your class while you still have a signal, before the first dog.
 
 - Scoring and viewing the run order **keep working offline**.
-- The sync label at the top reads **Offline**, then **Not sent yet** while scores are waiting to be sent. This is normal at most venues. On a phone the label shrinks to an icon: the words are still there for a screen reader, so look for the icon rather than the words.
+- When the signal drops, a short message says you're offline, and that your changes are saved on this device and will be sent when you are back online.
+- The sync label at the top reads **Offline**, then **Not sent yet** with a number beside it, while work on this device is waiting to be sent. This is normal at most venues. On a phone the label shrinks to an icon: the words are still there for a screen reader, so look for the icon rather than the words.
+- After you save with no signal, the **Saved:** line at the top of the dog list ends with **on this device, not sent yet**.
 - A chip at the top reads **Offline ready** once the show is saved on the device, and **Preparing offline copy…** until then. On a phone the **Offline ready** chip is hidden; on a tablet or larger screen it shows.
-- Your work is saved on the device and **is sent automatically** when signal returns. A **Scores sent** message shows when they go through. On a larger screen the label changes to **All sent**; a phone may show only the message.
-- On the class list, **Offline copy: saved on this device** means the show is stored on your device. A line such as **1 score not sent yet** under a class means that score has not reached the secretary yet.
+- Your work is saved on the device and **is sent automatically** when signal returns. You do not need to tap anything. A **Scores sent** message shows on the class's dog list when they go through, and **not sent yet** drops off the **Saved:** line. The **Not sent yet** label at the top of the dog list goes away once nothing is waiting.
+- On the class list, **Offline copy: saved on this device** means the show is stored on your device. A class with scores waiting on this device shows **Offline Scoring** and a line such as **1 score not sent yet**, which means that score has not reached the secretary yet. The line goes away once the scores are sent. **Offline Scoring** can also be the class's own status, so it may stay.
 
 **Scores not showing for the secretary after signal returns?** Reload the page once you have a solid connection. If entries are still missing, find the trial secretary.
 

@@ -88,7 +88,7 @@ Redirect check output to a file and echo the real exit status, because a pipe th
 
 Linear (workspace `myk9-platform`, team **MyK9-platform**, prefix `MYK9-*`) is the tracker of record; rules in `docs/agents/issue-tracker.md`. Every new issue gets a priority at creation (`1` Urgent to `4` Low by launch relevance, default `3`).
 
-**Machines (owner, 2026-11-26):** the Mac is the only machine that builds, merges, pushes migrations and deploys. The Windows PC only verifies In Review issues (Antigravity, with Playwright) and records the owner's decisions in Linear.
+**Machines (owner, 2026-11-26):** only the Mac, and the cloud sessions it dispatches, build; only the Mac merges, pushes migrations and deploys. The Windows PC only verifies In Review issues (Antigravity, with Playwright) and records the owner's decisions in Linear.
 
 ### Gates, in order
 

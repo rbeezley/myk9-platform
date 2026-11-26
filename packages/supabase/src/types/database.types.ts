@@ -15091,6 +15091,7 @@ export type Database = {
           p_before_created_at?: string
           p_before_id?: string
           p_limit?: number
+          p_recipient_email?: string
           p_show_id: string
         }
         Returns: {

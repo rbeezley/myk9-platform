@@ -1,18 +1,13 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { AlertTriangle, CheckCircle2, Clock3, HelpCircle, Mail } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Mail } from 'lucide-react';
 import { supabase } from '@/lib/supabase-client';
-import { ViewEmailButton } from './EmailContentDialog';
+import { DeliveryHistoryRow } from './DeliveryHistoryRow';
 import {
   fetchShowEmailDeliveryHistory,
   type EmailDeliveryCursor,
   type EmailDeliverySupabaseClient,
 } from './api';
-import {
-  getEmailDeliveryStatusPresentation,
-  normalizeEmailDeliveryRow,
-  type EmailDeliveryHistoryRow,
-} from './readModel';
+import { normalizeEmailDeliveryRow } from './readModel';
 
 export function EmailDeliveryHistory({ showId }: { showId: string | null }) {
   const historyQuery = useInfiniteQuery({
@@ -105,62 +100,4 @@ function HistoryHeading() {
       </div>
     </div>
   );
-}
-
-function DeliveryHistoryRow({ row }: { row: EmailDeliveryHistoryRow }) {
-  const presentation = getEmailDeliveryStatusPresentation(row.status);
-  const needsAttention = ['bounced', 'failed', 'complained'].includes(row.status);
-
-  return (
-    <article className="rounded-md border p-3" role="listitem" data-testid="delivery-history-row">
-      <div className="flex items-start gap-3">
-        <StatusIcon status={presentation.kind} />
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-            <h3 className="font-medium">{row.typeLabel}</h3>
-            <time className="text-sm text-muted-foreground" dateTime={row.relevantAt}>
-              {formatAttemptTime(row.relevantAt)}
-            </time>
-          </div>
-          <p className="mt-1 break-words text-sm">{row.recipient}</p>
-          <p className="mt-1 text-sm font-medium">{row.statusLabel}</p>
-          {needsAttention ? (
-            <p className="mt-1 text-sm text-muted-foreground">
-              {row.failureSummary ?? presentation.description}
-            </p>
-          ) : null}
-          {needsAttention && row.recoveryHref ? (
-            <Link
-              to={row.recoveryHref}
-              className="mt-2 inline-flex min-h-11 items-center text-sm font-medium text-primary underline-offset-4 hover:underline"
-            >
-              Review this email
-            </Link>
-          ) : null}
-          <ViewEmailButton emailLogId={row.id} label={row.typeLabel} />
-        </div>
-      </div>
-    </article>
-  );
-}
-
-function StatusIcon({ status }: { status: EmailDeliveryHistoryRow['status'] }) {
-  const Icon =
-    status === 'delivered'
-      ? CheckCircle2
-      : status === 'sent'
-        ? Clock3
-        : status === 'unavailable'
-          ? HelpCircle
-          : AlertTriangle;
-  return <Icon className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />;
-}
-
-function formatAttemptTime(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Time unavailable';
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(date);
 }

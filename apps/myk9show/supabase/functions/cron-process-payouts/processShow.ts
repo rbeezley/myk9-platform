@@ -14,6 +14,7 @@ import {
 import { emailClub } from '../_shared/payoutClubNotices.ts';
 import { claimShowPayoutForSend, exceedsApproval } from '../_shared/payoutSendClaim.ts';
 import {
+  reportClubReadError,
   reportLedgerWriteError,
   reportLookupError,
   reportReconcileError,
@@ -155,11 +156,16 @@ async function payShow(
   }
   const clubId = show.club_id;
 
-  const { data: accounts } = await supabase
+  // A failed read is not "no account" (MYK9-2339): park nothing, email nothing.
+  const { data: accounts, error: accountsError } = await supabase
     .from('club_stripe_accounts')
     .select('id, stripe_account_id, payouts_enabled, onboarding_complete, livemode')
     .eq('club_id', show.club_id)
     .limit(2);
+  if (accountsError) {
+    const table = 'club_stripe_accounts';
+    return reportClubReadError(deps, summary, show, table, accountsError.message);
+  }
   const account = ((accounts ?? []) as ClubStripeAccount[]).find(
     row => row.livemode === stripeLivemode
   );
@@ -167,11 +173,12 @@ async function payShow(
     row => row.livemode !== stripeLivemode
   );
 
-  const { data: club } = await supabase
+  const { data: club, error: clubError } = await supabase
     .from('clubs')
     .select('name, email')
     .eq('id', show.club_id)
     .single();
+  if (clubError) return reportClubReadError(deps, summary, show, 'clubs', clubError.message);
 
   if (!account && mismatchedAccount) {
     summary.mode_mismatch++;

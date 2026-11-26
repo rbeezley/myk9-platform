@@ -14002,6 +14002,25 @@ export type Database = {
         Returns: boolean
       }
       club_publish_blockers: { Args: { p_club_id: string }; Returns: Json }
+      club_show_payout_figures: {
+        Args: { p_club_id: string }
+        Returns: {
+          collected_cents: number
+          owed_cents: number
+          paid_cents: number
+          payout_amount_cents: number
+          payout_completed_at: string
+          payout_created_at: string
+          payout_failure_reason: string
+          payout_id: string
+          payout_status: string
+          refunded_cents: number
+          show_deleted: boolean
+          show_end_date: string
+          show_id: string
+          show_name: string
+        }[]
+      }
       complete_cart_fulfillment: {
         Args: {
           p_amount_cents?: number

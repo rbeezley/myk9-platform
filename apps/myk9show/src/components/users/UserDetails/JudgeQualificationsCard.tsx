@@ -5,6 +5,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useJudgeQualifications } from '@/hooks/queries/useJudgeDatabase';
 import { formatDateOnly } from '@/lib/format/dates';
+import { canEditJudgeQualificationsList } from '@/features/judges/judgeQualificationsListState';
+import {
+  JudgeQualificationsLoadError,
+  JudgeQualificationsLoading,
+} from '@/features/judges/JudgeQualificationsListStatus';
 
 interface JudgeQualificationsCardProps {
   personId: string;
@@ -17,15 +22,10 @@ const JudgeQualificationsCard: React.FC<JudgeQualificationsCardProps> = ({
   canManageQualifications,
   onManageQualifications,
 }) => {
-  const {
-    data: dbQualifications = [],
-    isLoading,
-    isError,
-    isSuccess,
-    refetch,
-  } = useJudgeQualifications(personId);
-  // MYK9-2382: a save replaces the whole list, so editing waits until the list has loaded.
-  const canManage = canManageQualifications && isSuccess;
+  const { data: dbQualifications, listState, refetch } = useJudgeQualifications(personId);
+  // MYK9-2382: a save replaces the whole list, so editing waits until the latest read succeeded.
+  const canManage = canManageQualifications && canEditJudgeQualificationsList(listState);
+  const retry = () => void refetch();
 
   return (
     <Card
@@ -64,30 +64,14 @@ const JudgeQualificationsCard: React.FC<JudgeQualificationsCardProps> = ({
           )}
         </div>
 
-        {isError ? (
-          <div role="alert" className="flex flex-col items-center gap-3 py-8 text-center">
-            <p className="text-muted-foreground">
-              Couldn't load this person's judge qualifications.
-            </p>
-            <Button variant="outline" size="sm" onClick={() => void refetch()}>
-              Try again
-            </Button>
-          </div>
-        ) : isLoading ? (
-          <div className="space-y-4">
-            {[1, 2].map(i => (
-              <div
-                key={i}
-                className="animate-pulse rounded-xl border-l-4 border-amber-500/30 bg-muted/10 p-5"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <div className="h-6 w-16 rounded-full bg-muted" />
-                  <div className="h-6 w-16 rounded-full bg-muted" />
-                </div>
-                <div className="h-4 w-32 rounded bg-muted" />
-              </div>
-            ))}
-          </div>
+        {listState.kind === 'loaded' && listState.refreshFailed && (
+          <JudgeQualificationsLoadError refresh onRetry={retry} />
+        )}
+
+        {listState.kind === 'error' ? (
+          <JudgeQualificationsLoadError onRetry={retry} />
+        ) : listState.kind === 'loading' ? (
+          <JudgeQualificationsLoading offline={listState.offline} />
         ) : dbQualifications.length > 0 ? (
           <div className="space-y-6">
             {dbQualifications.map(qual => (

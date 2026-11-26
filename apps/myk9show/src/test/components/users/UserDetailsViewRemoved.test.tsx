@@ -83,7 +83,8 @@ describe('UserDetailsView — removed people', () => {
 
   it('says nothing for a live person', () => {
     renderView(person());
-    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    // Other cards announce their own loading as a status; only the removal banner matters here.
+    expect(screen.queryByText(/was removed/i)).not.toBeInTheDocument();
   });
 
   it('states the removal on a removed person', () => {

@@ -1,23 +1,23 @@
 /**
- * MYK9-2382: Save replaces the person's whole qualification list, so it must never run on a list
- * that did not load. A failed or pending read would otherwise erase what is on record.
+ * MYK9-2382 / MYK9-2394: Save replaces the person's whole qualification list, so the form only
+ * appears once the latest read succeeded. A failed, pending or offline read shows its state with
+ * no form to fill in, and never says "no qualifications". Drives the real query hook.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@/test/utils/testUtils';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { act } from '@testing-library/react';
+import { onlineManager } from '@tanstack/react-query';
+import { render, screen, createTestQueryClient } from '@/test/utils/testUtils';
+import { judgeQueryKeys } from '@/hooks/queries/useJudgeDatabase';
 import { UserRole } from '@/types/auth-types';
+import type { JudgeQualification } from '@/types/judge-management';
 import { JudgeQualificationPanel } from './JudgeQualificationPanel';
 
-// `data` must be one stable array, as the real hook guarantees, or the panel's sync effect loops.
-const state = vi.hoisted(() => ({
-  query: {} as Record<string, unknown>,
-  replace: vi.fn(),
-  empty: [] as never[],
+const svc = vi.hoisted(() => ({ read: vi.fn(), replace: vi.fn() }));
+vi.mock('@/services/database/judges', async importOriginal => ({
+  ...(await importOriginal<object>()),
+  getJudgeQualificationsByJudgeId: svc.read,
+  replaceJudgeQualifications: svc.replace,
 }));
-vi.mock('@/hooks/queries/useJudgeDatabase', () => ({
-  useJudgeQualifications: () => ({ data: state.empty, ...state.query }),
-  judgeQueryKeys: { qualificationsByJudge: (id: string) => ['judges', 'qualifications', id] },
-}));
-vi.mock('@/services/database/judges', () => ({ replaceJudgeQualifications: state.replace }));
 vi.mock('@/hooks/useRBAC', () => ({ useRBAC: () => ({ hasPermission: () => false }) }));
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
@@ -26,26 +26,76 @@ vi.mock('@/hooks/useAuthContext', () => ({
   }),
 }));
 
-const renderPanel = () =>
-  render(<JudgeQualificationPanel open onClose={vi.fn()} userId="p1" userName="Ada Lovelace" />);
+const akc: JudgeQualification = {
+  id: 'q1',
+  person_id: 'p1',
+  organization: 'AKC',
+  qualification_level: '',
+  disciplines: ['Scent Work'],
+  judge_number: '12345',
+  date_obtained: '2024-01-01',
+  is_active: true,
+  created_at: '2024-01-01T00:00:00Z',
+  updated_at: '2024-01-01T00:00:00Z',
+};
 
-describe('JudgeQualificationPanel: Save waits for the list', () => {
+const renderPanel = (queryClient = createTestQueryClient()) =>
+  render(<JudgeQualificationPanel open onClose={vi.fn()} userId="p1" userName="Ada Lovelace" />, {
+    queryClient,
+  });
+
+const noForm = () => {
+  expect(screen.queryByText('No Qualifications')).toBeNull();
+  expect(screen.queryByRole('button', { name: /Add First Qualification/ })).toBeNull();
+  expect(screen.queryByRole('button', { name: /Add Another Qualification/ })).toBeNull();
+  expect(screen.getByRole('button', { name: /Save Changes/ })).toBeDisabled();
+};
+
+describe('JudgeQualificationPanel: the form waits for the list', () => {
   beforeEach(() => {
-    state.replace.mockReset();
+    svc.read.mockReset();
+    svc.replace.mockReset();
+  });
+  afterEach(() => {
+    onlineManager.setOnline(true);
   });
 
-  it('keeps Save off after adding a qualification while the list failed to load', async () => {
-    state.query = { isSuccess: false, isError: true };
+  it('shows a retry in place of the form when the list failed to load', async () => {
+    svc.read.mockRejectedValue(new Error('network'));
     const { user } = renderPanel();
-    await user.click(screen.getByRole('button', { name: /Add First Qualification/ }));
-    expect(screen.getByRole('button', { name: /Save Changes/ })).toBeDisabled();
-    expect(state.replace).not.toHaveBeenCalled();
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Couldn't load/);
+    noForm();
+    svc.read.mockResolvedValue([]);
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByRole('button', { name: /Add First Qualification/ })).toBeEnabled();
   });
 
-  it('lets a secretary without show:manage save once the list has loaded', async () => {
-    state.query = { isSuccess: true, isError: false };
+  it('shows no form while offline with nothing cached', () => {
+    onlineManager.setOnline(false);
+    renderPanel();
+    expect(screen.getByRole('status')).toHaveTextContent(/offline/i);
+    noForm();
+  });
+
+  it('turns the form off when a refresh fails after a good read', async () => {
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(judgeQueryKeys.qualificationsByJudge('p1', undefined), [akc]);
+    renderPanel(queryClient);
+    expect(screen.getByDisplayValue('12345')).toBeInTheDocument();
+
+    svc.read.mockRejectedValue(new Error('network'));
+    await act(() => queryClient.refetchQueries().catch(() => undefined));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Couldn't refresh/);
+    expect(screen.queryByDisplayValue('12345')).toBeNull();
+    noForm();
+    expect(svc.replace).not.toHaveBeenCalled();
+  });
+
+  it('lets a secretary without show:manage save once an empty list has loaded', async () => {
+    svc.read.mockResolvedValue([]);
     const { user } = renderPanel();
-    await user.click(screen.getByRole('button', { name: /Add First Qualification/ }));
+    await user.click(await screen.findByRole('button', { name: /Add First Qualification/ }));
     expect(screen.getByRole('button', { name: /Save Changes/ })).toBeEnabled();
   });
 });

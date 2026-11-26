@@ -17,6 +17,7 @@ import {
   suspendJudgeQualification,
   updateJudgeQualification,
 } from '@/services/database/judges';
+import { getJudgeQualificationsListState } from '@/features/judges/judgeQualificationsListState';
 import {
   JudgeQualification,
   CreateJudgeQualificationData,
@@ -57,7 +58,13 @@ export const useJudgeQualifications = (judgeId: string, filters?: JudgeQualifica
     },
   });
   const data = useMemo(() => query.data ?? [], [query.data]);
-  return { ...query, data };
+  // MYK9-2394: `data` is [] whenever the list is unknown; screens read `listState` instead.
+  const listState = getJudgeQualificationsListState({
+    hasData: query.data !== undefined,
+    isError: query.isError,
+    fetchStatus: query.fetchStatus,
+  });
+  return { ...query, data, listState };
 };
 
 export const useJudgeQualification = (id: string) => {

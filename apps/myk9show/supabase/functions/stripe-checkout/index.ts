@@ -59,6 +59,9 @@ import {
   linkCartCheckout,
   type CartLease,
 } from '../_shared/cartSpotHold.ts';
+import { CHECKOUT_FAILED_MESSAGE, parseCheckoutBody } from './checkoutRequest.ts';
+import { FEES_HEAL_FAILED_MESSAGE, FEES_HEALED_MESSAGE, healDriftedCart } from './cartFeeHeal.ts';
+import { forgetStaleStripeCustomer } from './staleStripeCustomer.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -183,7 +186,11 @@ Deno.serve(async req => {
     }
 
     // Parse request
-    const body: CheckoutRequest = await req.json();
+    const parsedBody = parseCheckoutBody(await req.text());
+    if (!parsedBody.ok) {
+      return corsResponse(corsHeaders, { error: parsedBody.error }, 400);
+    }
+    const body = parsedBody.value as unknown as CheckoutRequest;
     const { mode, success_url, cancel_url } = body;
 
     if (!mode || !success_url || !cancel_url) {
@@ -250,12 +257,10 @@ Deno.serve(async req => {
 
     return corsResponse(corsHeaders, { error: 'Invalid checkout mode' }, 400);
   } catch (error: unknown) {
-    console.error('Checkout error:', error);
-    return corsResponse(
-      corsHeaders,
-      { error: error instanceof Error ? error.message : 'Unknown error' },
-      500
-    );
+    // MP-20: log the detail (Stripe SDK messages embed customer and session
+    // ids and internal phrasing) but return a generic body to the caller.
+    console.error('Checkout error:', error instanceof Error ? error.message : error);
+    return corsResponse(corsHeaders, { error: CHECKOUT_FAILED_MESSAGE }, 500);
   }
 });
 
@@ -283,14 +288,22 @@ async function getOrCreateStripeCustomer(
   }
 
   if (existing?.stripe_customer_id) {
+    const staleCustomerId = existing.stripe_customer_id;
+    const forgetStale = () =>
+      forgetStaleStripeCustomer(
+        staleCustomerId,
+        () =>
+          supabase
+            .from('stripe_customers')
+            .delete()
+            .eq('person_id', personId)
+            .eq('livemode', stripeLivemode),
+        console.error
+      );
     try {
       const customer = await stripe.customers.retrieve(existing.stripe_customer_id);
       if ('deleted' in customer && customer.deleted === true) {
-        await supabase
-          .from('stripe_customers')
-          .delete()
-          .eq('person_id', personId)
-          .eq('livemode', stripeLivemode);
+        if (!(await forgetStale())) return null;
       } else {
         if (currentEmail && customer.email !== currentEmail) {
           await stripe.customers.update(existing.stripe_customer_id, {
@@ -315,11 +328,7 @@ async function getOrCreateStripeCustomer(
       }
     } catch (error) {
       if (isStripeResourceMissing(error)) {
-        await supabase
-          .from('stripe_customers')
-          .delete()
-          .eq('person_id', personId)
-          .eq('livemode', stripeLivemode);
+        if (!(await forgetStale())) return null;
       } else {
         throw error;
       }
@@ -788,40 +797,38 @@ async function checkoutUnderLease(
       `Cart ${cart_id}: ${driftedItems.length}/${cart.items.length} item fees differ from ` +
         `authoritative pricing — healing and refusing checkout`
     );
-    for (const { item, authoritativeCents } of driftedItems) {
-      await supabase
-        .from('entry_cart_items')
-        .update({ entry_fee_cents: authoritativeCents })
-        .eq('id', item.id);
-    }
     const healedSubtotal = itemsWithAuthoritativeFee.reduce((s, x) => s + x.authoritativeCents, 0);
     const healedFeeCents = calculatePlatformFeeCents(healedSubtotal, platformFeeRates);
-    await supabase
-      .from('entry_carts')
-      .update({
-        subtotal_cents: healedSubtotal,
-        platform_fee_cents: healedFeeCents,
-        total_cents: healedSubtotal + healedFeeCents,
-        // Sever any prior session — it priced the unhealed items.
-        stripe_checkout_session_id: null,
-      })
-      .eq('id', cart_id)
-      // Never heal a cart the webhook just claimed (paid mid-checkout).
-      .eq('status', 'active');
-    if (cart.stripe_checkout_session_id) {
-      try {
-        await stripe.checkout.sessions.expire(cart.stripe_checkout_session_id);
-      } catch {
-        // Already expired/paid/foreign — the severed link above is decisive.
-      }
-    }
-    return corsResponse(
-      corsHeaders,
+    const healPriorSessionId: string | null = cart.stripe_checkout_session_id ?? null;
+    const heal = await healDriftedCart(
+      cart_id,
+      driftedItems.map(({ item, authoritativeCents }) => ({ itemId: item.id, authoritativeCents })),
       {
-        error: 'Entry fees were updated to current show pricing — review your entry and try again.',
-      },
-      409
+        writeLineFee: (itemId, cents) =>
+          supabase.from('entry_cart_items').update({ entry_fee_cents: cents }).eq('id', itemId),
+        writeCartTotals: () =>
+          supabase
+            .from('entry_carts')
+            .update({
+              subtotal_cents: healedSubtotal,
+              platform_fee_cents: healedFeeCents,
+              total_cents: healedSubtotal + healedFeeCents,
+              // Sever any prior session — it priced the unhealed items.
+              stripe_checkout_session_id: null,
+            })
+            .eq('id', cart_id)
+            // Never heal a cart the webhook just claimed (paid mid-checkout).
+            .eq('status', 'active'),
+        expirePriorSession: async () => {
+          if (healPriorSessionId) await stripe.checkout.sessions.expire(healPriorSessionId);
+        },
+        logError: console.error,
+      }
     );
+    if (heal.kind === 'heal_failed') {
+      return corsResponse(corsHeaders, { error: FEES_HEAL_FAILED_MESSAGE }, 500);
+    }
+    return corsResponse(corsHeaders, { error: FEES_HEALED_MESSAGE }, 409);
   }
 
   // Build line items for Stripe. The amount is the AUTHORITATIVE price (the drift

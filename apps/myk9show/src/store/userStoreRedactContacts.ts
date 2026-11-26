@@ -22,12 +22,13 @@ const logFailure = (message: string, error: unknown): void =>
  */
 export async function redactDirectoryContacts(
   persistApi: DirectoryPersist,
-  inMemory: User[],
+  inMemory: { users: User[]; directoryIncomplete: boolean },
   setUsers: (users: User[]) => void
 ): Promise<boolean> {
   const options = persistApi.getOptions();
   const storageName = options.name ?? '';
-  let source = inMemory;
+  let source = inMemory.users;
+  let directoryIncomplete = inMemory.directoryIncomplete;
   // MYK9-2310: a sign-out before hydration (an expired session at app start) sees an
   // empty directory, so strip the stored copy instead and names are never wiped. The
   // storage adapter turns a failed read into null, so no stored copy means "unknown":
@@ -35,9 +36,12 @@ export async function redactDirectoryContacts(
   if (!persistApi.hasHydrated()) {
     try {
       const stored = await options.storage?.getItem(storageName);
-      const storedUsers = (stored?.state as { users?: User[] } | undefined)?.users;
+      const storedState = stored?.state as
+        { users?: User[]; directoryIncomplete?: boolean } | undefined;
+      const storedUsers = storedState?.users;
       if (!storedUsers) return false;
       source = storedUsers;
+      directoryIncomplete = storedState?.directoryIncomplete === true;
     } catch (error) {
       logFailure('Could not read the saved people directory', error);
       return false;
@@ -47,7 +51,8 @@ export async function redactDirectoryContacts(
   setUsers(users);
   try {
     await options.storage?.setItem(storageName, {
-      state: { users },
+      // The incomplete flag outlives the strip: names are still a short copy (MYK9-2253).
+      state: { users, directoryIncomplete },
       version: options.version ?? 0,
     });
     return true;

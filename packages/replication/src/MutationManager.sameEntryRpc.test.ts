@@ -14,7 +14,7 @@ function createLogger(): Logger {
 }
 
 /**
- * MYK9-1940. A handler change and a status change for the same entry, queued before either
+ * MYK9-1940. Two changes to one entry (run order, then check-in), queued before either
  * uploads (a secretary offline at the desk), both go out through `ringside_update_entry`.
  * Each must reach the server, in the order it was made, carrying only its own field, so
  * neither overwrites the other.
@@ -38,7 +38,10 @@ describe('MutationManager: two ringside_update_entry writes for one entry', () =
       configurable: true,
     });
     Object.defineProperty(globalThis, 'navigator', { value: { onLine: true }, configurable: true });
-    supabase = { rpc: vi.fn(() => Promise.resolve({ data: 2, error: null })) } as never;
+    const rpc = vi.fn();
+    rpc.mockResolvedValueOnce({ data: 2, error: null });
+    rpc.mockResolvedValueOnce({ data: 3, error: null });
+    supabase = { rpc } as never;
     manager = new MutationManager(supabase, {
       logger: createLogger(),
       getCurrentUserId: async () => AUTH_USER_ID,
@@ -60,7 +63,7 @@ describe('MutationManager: two ringside_update_entry writes for one entry', () =
       { id: 'entry-1' },
       undefined,
       1,
-      { name: RPC, fields: { handler_id: 'handler-2' } },
+      { name: RPC, fields: { run_order: 7 } },
       false
     );
     await manager.queueMutation(
@@ -70,7 +73,7 @@ describe('MutationManager: two ringside_update_entry writes for one entry', () =
       { id: 'entry-1' },
       undefined,
       1,
-      { name: RPC, fields: { entry_status: 'withdrawn' } },
+      { name: RPC, fields: { check_in_status: 'checked-in' } },
       false
     );
 
@@ -80,12 +83,17 @@ describe('MutationManager: two ringside_update_entry writes for one entry', () =
     expect(calls).toHaveLength(2);
     expect(calls[0]).toEqual([
       RPC,
-      expect.objectContaining({ p_entry_id: 'entry-1', p_fields: { handler_id: 'handler-2' } }),
+      expect.objectContaining({ p_entry_id: 'entry-1', p_fields: { run_order: 7 } }),
     ]);
     expect(calls[1]).toEqual([
       RPC,
-      expect.objectContaining({ p_entry_id: 'entry-1', p_fields: { entry_status: 'withdrawn' } }),
+      expect.objectContaining({
+        p_entry_id: 'entry-1',
+        p_fields: { check_in_status: 'checked-in' },
+      }),
     ]);
+    expect(calls[0]?.[1]).toEqual(expect.objectContaining({ p_expected_version: 1 }));
+    expect(calls[1]?.[1]).toEqual(expect.objectContaining({ p_expected_version: 2 }));
     expect(await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS)).toHaveLength(0);
   });
 });

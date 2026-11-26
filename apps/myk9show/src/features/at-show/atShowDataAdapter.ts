@@ -378,7 +378,11 @@ async function fetchClassData(
   const cls = await replicatedClassesTable.getClassById(classId);
   const rawEntries = await replicatedEntriesTable.getEntriesByClass(classId);
   const armbandMaps = buildShowArmbandMaps(await replicatedArmbandsTable.getByShow(showId));
-  const movedTo = await resolveMovedDestinationNames(rawEntries, showId);
+  // The destination name is a nicety: a failed show-wide read must not lose the entries, so the
+  // badge falls back to the plain "Moved" (MYK9-1940).
+  const movedTo = await resolveMovedDestinationNames(rawEntries, showId).catch(
+    () => new Map<string, string>()
+  );
   const entries = rawEntries.map(re =>
     transformEntry(
       { ...re, armband: resolveEntryArmband(re, armbandMaps) ?? undefined },

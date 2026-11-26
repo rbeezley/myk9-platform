@@ -15,18 +15,33 @@ interface ExpiredOfferRow extends ExpiredWaitlistOffer {
   joined_via: string | null;
 }
 
+// PostgREST silently caps a response at 1,000 rows, so read every page up front
+// (the cron mutates rows out of 'offered' as it works, which would shift a live range).
+export const EXPIRED_OFFERS_PAGE_SIZE = 1_000;
+
 export async function findExpiredOffers(
   supabase: Pick<SupabaseClient, 'from'>,
   nowIso: string,
   errors: string[]
 ): Promise<ExpiredOfferRow[]> {
-  const { data, error } = await supabase
-    .from('waitlist_entries')
-    .select('id, class_id, exhibitor_id, promoted_entry_id, joined_via')
-    .eq('status', 'offered')
-    .lt('offer_expires_at', nowIso);
-  if (error) errors.push(`Fetch expired: ${error.message}`);
-  return data ?? [];
+  const rows: ExpiredOfferRow[] = [];
+  for (let from = 0; ; from += EXPIRED_OFFERS_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from('waitlist_entries')
+      .select('id, class_id, exhibitor_id, promoted_entry_id, joined_via')
+      .eq('status', 'offered')
+      .lt('offer_expires_at', nowIso)
+      .order('offer_expires_at', { ascending: true })
+      .order('id', { ascending: true })
+      .range(from, from + EXPIRED_OFFERS_PAGE_SIZE - 1);
+    if (error) {
+      errors.push(`Fetch expired: ${error.message}`);
+      return rows;
+    }
+    const page = (data ?? []) as ExpiredOfferRow[];
+    rows.push(...page);
+    if (page.length < EXPIRED_OFFERS_PAGE_SIZE) return rows;
+  }
 }
 
 type CronResults = { errors: string[] };

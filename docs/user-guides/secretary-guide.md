@@ -57,7 +57,7 @@ Your home page then shows **Get (your club's name)'s first show published**, a c
 
 ### Reading the schedule
 
-Each class on **Show Desk** is one card: the start time, the class name with its status, the judge and entry count. **Click anywhere on a card** to open that class in the panel on the right. The "N pending" link on the card opens those entries for review.
+Each class on **Show Desk** is one card: the start time, the class name with its status, the judge and entry count. **Click anywhere on a card** to open that class in the panel on the right. The pending link on the card (for example _3 pending_) opens those entries for review.
 
 Once you use the paperwork tracking (print a sheet from the app, or record a judge's initials), each card also shows a row of small squares, one per checklist item (green done, grey not done, amber needs reprint, outlined unknown), over "N of 7 steps done". Until then the cards stay quiet: no "Not done", no "0 of 7". See card 14.
 
@@ -115,7 +115,7 @@ On the show page, open the **status pill** under the show's name and choose **Pu
 - **Show details:** **Actions → Edit show** (the **Actions** button sits in the top bar, left of the bell), or **Edit show** on the **About** tab. The edit panel opens over the page you are on, with tabs **Basic Info**, **Officials**, **Judges**, **Fees**, **Venue & policies** and **Premium**.
 - **Venue & policies:** each card or switch on this tab saves on its own, so the panel's **Save Changes** is not needed for it. The switches save the moment you flip them. The pin, WiFi and policy cards each have their own button (**Save pin**, **Save**, **Save policy**). It holds, in order:
   - **This show uses…** switches for the optional tools: **Exhibitor self check-in**, **Judges score on devices**, **Paper fallback packet**, **Volunteer tracking**, **Public landing page**, and **We publish our own premium list**. A club that never uses a tool can turn it off. A new show has self check-in, judges scoring on devices and the paper packet on, and volunteer tracking, public landing page and own premium list off, so switch on volunteer tracking if you want that row. **Exhibitor self check-in**, **Judges score on devices** and **Volunteer tracking** hide their row in the Show Desk **Actions** menu. **Paper fallback packet** controls the packet myK9 emails the evening before each trial day, the reminder to print it, and the **Saved copy** section of the before-trial packet. **Public landing page** shows or hides the Landing page card and its reminder. **We publish our own premium list** stops the premium list reminder. Nothing is deleted when you turn a tool off. **Exhibitor self check-in** needs a connection to change. In the week before the show, **Ready for show day** (see Getting ready for show day) may offer one quiet suggestion for a tool that is off, such as "Want judges to score on their phones?", with a **Turn it on** link to this tab. The X beside it hides that suggestion on that device.
-  - **Venue Map Pin**, **Venue WiFi** (network name and password, printed on the armband labels) and the **Withdrawal Refund Policy** for this show (**Save policy**). **About** shows the address, Wi-Fi and withdrawal policy read only.
+  - **Venue Map Pin**, **Venue Wi-Fi** (network name and password, printed on the armband labels) and the **Withdrawal Refund Policy** for this show (**Save policy**). **About** shows the address, Wi-Fi and withdrawal policy read only.
 
   ![Edit show on the Venue & policies tab, with the This show uses switches](../screenshots/S-25.png)
 
@@ -200,8 +200,8 @@ When nothing is left it collapses to a green **All set.** line saying what was d
 > supply a number, choose **Pull / Withdraw** to open the entry and decide. Nothing is
 > pulled or withdrawn for you, even on show day.
 >
-> At the ring, a held dog keeps its place in the run order but shows **Registration
-> number needed, see the secretary**, and it cannot be scored until the number is added.
+> At the ring, a held dog keeps its place in the run order but shows **Registration number needed** with the line
+> _See the secretary_, and it cannot be scored until the number is added.
 >
 > Exhibitors entering their own dogs still need the number first.
 >
@@ -223,25 +223,25 @@ When nothing is left it collapses to a green **All set.** line saying what was d
 
 ![The Waitlist list on Entry Forms with a card for each judge-day](../screenshots/S-10.png)
 
-**Turn it on first.** A full class only queues people when wait lists are on for it. One switch covers the whole show: **Allow wait lists**, under **Wait list settings** at the top of this tab. It starts off, so a full class turns new entries away until you switch it on, and it saves the moment you flip it. Every class follows it.
+**Turn it on first.** A full class only queues people when wait lists are on for it. One switch covers the whole show: **Allow waitlists**, under **Waitlist Settings** at the top of this tab. It starts off, so a full class turns new entries away until you switch it on, and it saves the moment you flip it. Every class follows it.
 
-To treat one class differently, click the class on the show home, then **Edit class**, and in **Entry limit and wait list** flip **Allow wait list** for that class (and set an **Entry limit**, or leave it blank for no class limit). The line under the switch says which applies: **Follows show: On** (or Off), or **Set for this class only**. **Use the show setting** hands the class back to the show switch. A class you set on its own keeps its setting when you change the show switch.
+To treat one class differently, click the class on the show home, then **Edit class**, and in **Entry limit and waitlist** flip **Allow waitlist** for that class (and set an **Entry limit**, or leave it blank for no class limit). The line under the switch says which applies: **Follows show: On** (or Off), or **Set for this class only**. **Use the show setting** hands the class back to the show switch. A class you set on its own keeps its setting when you change the show switch.
 
-Whether open spots are offered automatically, the judge's daily capacity, how long an offer lasts, and the mail-in hold are under **Wait list settings** too.
+Whether open spots are offered automatically, the judge's daily capacity, how long an offer lasts, and the mail-in hold are under **Waitlist Settings** too.
 
 1. Each judge-day shows as a card — the judge's name, the date, and how full it is (for example _3 / 200 entries_). A day at or over its limit reads **Full** with 0 spots available. It can read over the limit (for example _3 / 2_) when the limit was lowered after entries came in, or when a late entry was added with the capacity override.
-2. **View Wait List** on a card lists every dog waiting in that judge-day's classes, one block per class in the order people joined, with the day's own numbers (limit, entered, available) above it. **Show every class** goes back to the whole show, which is what the tab lists until you pick a day.
-3. When a spot opens, who offers it depends on **Offer open spots automatically** under **Wait list settings**. It is on for every show until you turn it off, and it saves the moment you flip it.
+2. **View Waitlist** on a card lists every dog waiting in that judge-day's classes, one block per class in the order people joined, with the day's own numbers (limit, entered, available) above it. **Show every class** goes back to the whole show, which is what the tab lists until you pick a day.
+3. When a spot opens, who offers it depends on **Offer open spots automatically** under **Waitlist Settings**. It is on for every show until you turn it off, and it saves the moment you flip it.
    - **On:** within 15 minutes the system offers the spot to the dog at the top of the queue (the order people joined), and you get a notification in the bell naming the dog and the class, with a **View** link back to this tab. It makes one offer per class at a time, and the system never adds a second offer to a class that already has one. You can still offer a spot yourself.
    - **A mail-in dog at the top is never offered automatically.** You get one bell notification, **Mail-in dog needs an offer**, naming the class and the dog, and the class waits for you: the dogs behind it are not offered in its place. Offer it yourself with **Offer Spot**. The notice is sent once, not again at every check.
    - **Off:** nothing is offered for you. Click **Offer Spot** on the dog at the top of the queue (the button only appears while the class has a free spot).
 
-   Either way the dog moves off the queue and the exhibitor gets an email, a push notification and an in-app message; your own offer's message carries a payment link, and an automatic one sends them to My Entries to pay. The spot is held for the offer window (48 hours unless you change it under **Wait list settings**) and counts as taken until it is paid or lapses. Once a trial's date has passed, nobody can offer its spots, you or the system.
+   Either way the dog moves off the queue and the exhibitor gets an email, a push notification and an in-app message; your own offer's message carries a payment link, and an automatic one sends them to My Entries to pay. The spot is held for the offer window (48 hours unless you change it under **Waitlist Settings**) and counts as taken until it is paid or lapses. Once a trial's date has passed, nobody can offer its spots, you or the system.
 
 4. **Offered (N)**, above the queue, lists every open offer: the dog, the class, when it was offered, **Pay by** with the deadline (or **No automatic deadline** for a mail-in dog), and where payment stands. **Withdraw offer** takes an offer back: the payment link stops working, the entry waiting for payment is cancelled, the dog leaves the wait list, and the exhibitor is told no payment is due.
 5. **Remove** takes a waiting dog off the queue for good. The exhibitor is not told.
 
-**What the exhibitor sees.** On My Shows, under **My Wait List Positions**, each dog shows its place in line. An offer reads **Spot offered** with **Claim by** and the deadline in the trial's time zone, and two buttons: **Complete payment** and **Decline**. A mail-in offer instead says the club is holding the spot until they pay the club directly. Declining ends the offer at once, and the spot goes to the next dog the same way a lapsed offer does.
+**What the exhibitor sees.** On My Shows, under **My Waitlist Positions**, each dog shows its place in line. An offer reads **Spot offered** with **Claim by** and the deadline in the trial's time zone, and two buttons: **Complete payment** and **Decline**. A mail-in offer instead says the club is holding the spot until they pay the club directly. Declining ends the offer at once, and the spot goes to the next dog the same way a lapsed offer does.
 
 > **Capacity is enforced by the server, not just displayed.** Since 2026-07-12 an online entry that would put a class or a judge's day over its limit is refused or, where the class takes a wait list, queued. The numbers on the cards are a view of that limit. Only a late entry added with the capacity override, or lowering the limit after entries exist, can take a day past it. A class can also read **Full** for up to 30 minutes while an exhibitor pays for its last spots: those spots are held at checkout and open again if the payment is not finished.
 
@@ -268,7 +268,7 @@ Pull and Withdraw are never the same thing, and neither one refunds anyone by it
 
 Pending and pulled entries sit together. Each pulled entry shows one of:
 
-- **Issue refund** — opens _Refund entry payment_; its **Issue refund** button refunds the exhibitor's card through Stripe straight away ("Refunded $X to the exhibitor's card").
+- **Issue refund** — opens _Refund entry payment_; its **Issue refund** button refunds the exhibitor's card through Stripe straight away (a toast confirms the amount refunded).
 - **Deny refund** — records that you did not refund, per your published policy. No money moves.
 - **Refund issued** — a label, not a button: this entry has already been refunded.
 - **No online payment** — nothing to refund through Stripe (paid by cash or check, for example). Refund those by hand.
@@ -298,7 +298,7 @@ The **Show messages** tab of Message Center lists the show's announcements and m
 
 Payment status shows on every exhibitor's form in **Entry Forms**; **Filter → Status → Payment due** lists the ones still owing. A mail-in form with money owed has a **$ due** card under **To finish this form** with **Cash…** and **Check…** buttons to record what you were handed. An online-checkout form has no such buttons; its status follows Stripe.
 
-> **The label tells you how it was paid, when the app knows.** An entry recorded as a cheque reads **Paid by check**, cash reads **Paid by cash**, and one you marked paid yourself reads **Paid — recorded by secretary**.
+> **The label tells you how it was paid, when the app knows.** An entry recorded as a cheque reads **Paid by check**, cash reads **Paid by cash**, and one you marked paid yourself reads **Paid, recorded by secretary**.
 >
 > **An entry that just says "Paid" means the channel was never recorded** — not that it came through Stripe. Older entries taken before the app captured a method read this way, so don't count a plain "Paid" as an online payment when you reconcile against your payout.
 
@@ -405,14 +405,14 @@ The **Check-in desk** is the one list of exhibitors, with armband, class, time a
 - Open it from **Show Desk → Actions → Check-in desk**, or **Entry Forms → Actions → Entry lists → Check-in desk**. On **Show Desk**, the "Check in N entries" chip in the **Needs attention** strip opens it already filtered to **Not checked in**.
 - An exhibitor who still owes money shows **Owes $…** with the amount, so you can collect it at the desk. A form someone else placed names who owes it.
 - The search box is ready when it opens. Type a name, a dog or an armband. **All exhibitors** and **Not checked in** switch the list.
-- **Check in** on a dog's row checks in that run. **Check in all eligible** on an exhibitor checks in everything of theirs that is ready.
+- **Check in** on a dog's row checks in that run. **Check in all** on an exhibitor (it shows how many dogs, for example _Check in all 3 dogs_) checks in everything of theirs that is ready.
 - Check in is offered only on the trial's own day, for an accepted entry that is not in yet. Other rows say why (for example **Not today**). A dog already at the gate or in the ring shows its ringside status, such as **At Gate** or **In Ring**, and has no **Check in** button.
 
 ![Check-in desk listing each exhibitor with their dogs, armbands and classes](../screenshots/S-24.png)
 
 On a show day you can also check in from an exhibitor's form on **Entry Forms**. **To finish this form** gets a "N runs to check in" card with **Check in all**, and each entry's **⋯** menu has **Check in**.
 
-For one class, **Show Desk → click the class → View entries and results** opens the class's run sheet, with a check-in status on every dog's row.
+For one class, **Show Desk → click the class** lists its entries in the panel on the right, with a check-in status on every dog's row.
 
 **Show Desk → Actions → Self check-in** lets exhibitors check themselves in, by show, trial or class.
 

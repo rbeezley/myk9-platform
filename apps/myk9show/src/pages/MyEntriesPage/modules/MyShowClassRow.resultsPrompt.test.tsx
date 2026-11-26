@@ -98,13 +98,13 @@ describe('My Shows list asks once (MYK9-1944)', () => {
     expect(classRow).not.toBeNull();
     expect(classRow?.contains(prompt)).toBe(false);
     expect(prompt.closest('section')?.contains(classRow)).toBe(true);
-    // Its own block, placed before the dog list rather than inside any dog card.
-    const block = screen.getByTestId('show-results-prompt');
-    expect(block.contains(prompt)).toBe(true);
-    const dogList = classRow?.closest('ul');
-    expect(dogList).not.toBeNull();
+    // In the show block, before the dog list, and inside no dog card or list item.
+    const section = prompt.closest('section');
+    const items = Array.from(section?.querySelectorAll('li') ?? []);
+    expect(items.length).toBeGreaterThan(0);
+    expect(items.some(item => item.contains(prompt))).toBe(false);
     expect(
-      dogList ? block.compareDocumentPosition(dogList) & Node.DOCUMENT_POSITION_FOLLOWING : 0
+      prompt.compareDocumentPosition(items[0] as Node) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
     // The class name keeps a readable width next to the prompt: no prompt inside its row.
     expect(screen.getAllByText('Container Novice A').length).toBeGreaterThan(0);

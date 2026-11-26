@@ -397,10 +397,12 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
         </div>
       )}
 
-      {resultsPrompt && group.showId !== '' && (
-        // Its own block between the show's strips and the dog list (MYK9-2386): the
-        // bottom margin keeps it off the first dog card, which `space-y-4` does not.
-        <div className="mb-4" data-testid="show-results-prompt">
+      {/* The show's one results prompt sits in its own block above the dog list,
+          never inside a class row (MYK9-2386). One spacing container, so the gap
+          exists only when the prompt actually renders: it returns null once the
+          exhibitor has answered, offline, or before the profile settles. */}
+      <div className="space-y-4">
+        {resultsPrompt && group.showId !== '' && (
           <ResultsPublicPrompt
             showId={group.showId}
             dogName={resultsPrompt.dogName}
@@ -412,58 +414,58 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
             coOwnerId={resultsPrompt.cls.dogCoOwnerId}
             isReleased={Boolean(resultsPrompt.cls.resultsReleasedAt)}
           />
-        </div>
-      )}
+        )}
 
-      <ul className="space-y-4">
-        {group.dogs.map(dog => (
-          <li key={dog.dogId}>
-            <MyShowDogCard
-              dog={dog}
-              judgeByClassId={judgeByClassId}
-              paperClassIds={paperClassIds}
-              ordersById={ordersById}
-              checkInContext={checkInContext}
-              isShowCancelled={group.isShowCancelled}
-              showTrialNumber={showTrialNumber}
-              showId={group.showId}
-              refundNote={refunds[dog.dogId]}
-              isPendingReview={
-                !isPastShow &&
-                dog.entryStatus === EntryStatus.PENDING &&
-                (dog.entryStatusKind ?? 'pending') === 'pending'
-              }
-              seenResultReleaseKeys={seenResultReleaseKeys}
-              onCheckInDay={onCheckInDay}
-              onOpenCheckIn={onOpenCheckIn}
-              // The show id lives on the GROUP, not the class row, so the
-              // target is assembled here — one place, rather than a showId
-              // prop threaded through every card and row.
-              onLeaveClass={(leavingDog, cls, classWhen) =>
-                onLeaveClass({
-                  classId: cls.id,
-                  className: cls.name,
-                  // The row's own "when" column, carried so the chooser can
-                  // tell two same-named classes apart (round 1, lens L).
-                  classWhen,
-                  dogName: leavingDog.dogName,
-                  dogId: leavingDog.dogId,
-                  dogCardId: leavingDog.id,
-                  showId: group.showId,
-                  entryFee: cls.fee,
-                  // The RECONCILED status and the recorded method, as the card's own badge reads them.
-                  paidAs: paidAsFromRow({
-                    paymentStatus: cls.paymentStatus,
-                    paymentMethod: cls.paymentMethod,
-                  }),
-                })
-              }
-              onClassChanged={onClassChanged}
-              onResultRevealClick={onResultRevealClick}
-            />
-          </li>
-        ))}
-      </ul>
+        <ul className="space-y-4">
+          {group.dogs.map(dog => (
+            <li key={dog.dogId}>
+              <MyShowDogCard
+                dog={dog}
+                judgeByClassId={judgeByClassId}
+                paperClassIds={paperClassIds}
+                ordersById={ordersById}
+                checkInContext={checkInContext}
+                isShowCancelled={group.isShowCancelled}
+                showTrialNumber={showTrialNumber}
+                showId={group.showId}
+                refundNote={refunds[dog.dogId]}
+                isPendingReview={
+                  !isPastShow &&
+                  dog.entryStatus === EntryStatus.PENDING &&
+                  (dog.entryStatusKind ?? 'pending') === 'pending'
+                }
+                seenResultReleaseKeys={seenResultReleaseKeys}
+                onCheckInDay={onCheckInDay}
+                onOpenCheckIn={onOpenCheckIn}
+                // The show id lives on the GROUP, not the class row, so the
+                // target is assembled here — one place, rather than a showId
+                // prop threaded through every card and row.
+                onLeaveClass={(leavingDog, cls, classWhen) =>
+                  onLeaveClass({
+                    classId: cls.id,
+                    className: cls.name,
+                    // The row's own "when" column, carried so the chooser can
+                    // tell two same-named classes apart (round 1, lens L).
+                    classWhen,
+                    dogName: leavingDog.dogName,
+                    dogId: leavingDog.dogId,
+                    dogCardId: leavingDog.id,
+                    showId: group.showId,
+                    entryFee: cls.fee,
+                    // The RECONCILED status and the recorded method, as the card's own badge reads them.
+                    paidAs: paidAsFromRow({
+                      paymentStatus: cls.paymentStatus,
+                      paymentMethod: cls.paymentMethod,
+                    }),
+                  })
+                }
+                onClassChanged={onClassChanged}
+                onResultRevealClick={onResultRevealClick}
+              />
+            </li>
+          ))}
+        </ul>
+      </div>
 
       {calendarOpen && (
         <AddToCalendarDialog

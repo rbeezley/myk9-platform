@@ -41,8 +41,8 @@ function ItemLabel({ label, reason }: { label: string; reason: string | undefine
  * order, each only when it applies and this viewer may do it:
  * - Change class: the engine's answer for "allowed today for this entry" (the snapshot's
  *   entryRows, resolved by `ShowDeskPanel.runCommand`), never re-derived here.
- * - Change handler: a link to the entry's sheet on Entry Management (the sheet's one field for a
- *   scent work entry is the handler). Change class and Change handler need a connection, so
+ * - Change handler: opens the entry sheet in place (the sheet's one field for a scent work entry
+ *   is the handler); a link to Entry Management when the stored entry is not at hand. Change class and Change handler need a connection, so
  *   offline they are disabled with the reason beside them, before she taps (MYK9-1940).
  * - Enter result / Edit result: the paper scoring route opened on this dog, for a dog that can
  *   still have a result.
@@ -63,6 +63,7 @@ export function ClassEntryRowMenu({
   onMarkAbsent,
   onPrintLabel,
   classLifecycle,
+  onChangeHandler,
 }: {
   entry: SecretaryCockpitClassEntry;
   actions: readonly SecretaryCockpitEntryAction[];
@@ -75,6 +76,11 @@ export function ClassEntryRowMenu({
   onPrintLabel: (entry: SecretaryCockpitClassEntry) => void;
   /** The class's lifecycle: Mark absent is offered only while it is open for scoring. */
   classLifecycle: CockpitLifecycle | null;
+  /**
+   * Opens the entry sheet in place (MYK9-1940). Absent when the stored entry is not at hand, and
+   * Change handler then links to the entry's form on Entry Management.
+   */
+  onChangeHandler?: ((entry: SecretaryCockpitClassEntry) => void) | undefined;
 }) {
   const secretaryOnlyReason = useTrialSecretaryOnlyReason();
   const isOnline = useIsOnline();
@@ -122,9 +128,15 @@ export function ClassEntryRowMenu({
           );
         })}
         {isOnline ? (
-          <DropdownMenuItem asChild className="min-h-11">
-            <Link to={editEntryHref}>Change handler</Link>
-          </DropdownMenuItem>
+          onChangeHandler ? (
+            <DropdownMenuItem className="min-h-11" onClick={() => onChangeHandler(entry)}>
+              Change handler
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem asChild className="min-h-11">
+              <Link to={editEntryHref}>Change handler</Link>
+            </DropdownMenuItem>
+          )
         ) : (
           <DropdownMenuItem className="min-h-11" disabled title={CHANGE_HANDLER_OFFLINE_REASON}>
             <ItemLabel label="Change handler" reason={CHANGE_HANDLER_OFFLINE_REASON} />

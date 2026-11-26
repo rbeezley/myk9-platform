@@ -31,6 +31,7 @@ import { ClassEntryResultCell } from './ClassEntryResultCell';
 import { ClassCheckInCell } from './ClassCheckInCell';
 import { useClassCheckIn } from './useClassCheckIn';
 import { ClassEntryRowMenu } from './ClassEntryRowMenu';
+import { ChangeHandlerSheet } from './ChangeHandlerSheet';
 import { entryEditHref } from './entryRowLinks';
 import { useMarkEntryAbsent } from './useMarkEntryAbsent';
 import { dayOfDogLabel } from '../dayOfMessages';
@@ -137,6 +138,7 @@ export function ClassEntriesTable({
   canChangeCheckIn = false,
   onRefreshEntries,
   putBackEntries,
+  showName,
   hidden = 0,
   unread = false,
   rowMenu,
@@ -173,6 +175,7 @@ export function ClassEntriesTable({
   onRefreshEntries?: EntriesRefresh;
   /** The stored entries by id, so a real Pull can be put back from its row (MYK9-2038). */
   putBackEntries?: ReadonlyMap<string, EntryManagementEntry>;
+  showName?: string | undefined;
   /** Entries the data left out; said aloud so a capped list never reads as the whole class. */
   hidden?: number;
   /** The entries have not been read; an empty list then is not "no entries". */
@@ -186,6 +189,7 @@ export function ClassEntriesTable({
     putBackEntries
   );
   const [labelEntryId, setLabelEntryId] = useState<string | null>(null);
+  const [handlerEntryId, setHandlerEntryId] = useState<string | null>(null);
   const markAbsent = useMarkEntryAbsent({
     classId: rowMenu?.classId ?? '',
     className,
@@ -302,6 +306,11 @@ export function ClassEntriesTable({
                     onMarkAbsent={markAbsent.request}
                     onPrintLabel={entry => setLabelEntryId(entry.entryId)}
                     classLifecycle={rowMenu.classLifecycle}
+                    onChangeHandler={
+                      putBackEntries?.has(entry.entryId)
+                        ? row => setHandlerEntryId(row.entryId)
+                        : undefined
+                    }
                     actions={rowMenu.actions.get(entry.nodeId) ?? NO_ACTIONS}
                     onCommand={rowMenu.onCommand}
                   />
@@ -371,6 +380,14 @@ export function ClassEntriesTable({
       )}
       {hiddenNote}
       {checkIn.dialogs}
+      {rowMenu && (
+        <ChangeHandlerSheet
+          entry={handlerEntryId ? (putBackEntries?.get(handlerEntryId) ?? null) : null}
+          onClose={() => setHandlerEntryId(null)}
+          onRefreshEntries={onRefreshEntries}
+          showName={showName}
+        />
+      )}
       {rowMenu && (
         // The one print panel, opened on this dog's armband label (MYK9-2073).
         <ClassPrintPanel

@@ -5,8 +5,9 @@
  * table read. The timezone is the show's first trial's zone through
  * getTrialTimezone (getEntryWindowTimezone), the same rule the server's
  * private.show_time_zone uses. A show the read does not return (not yet
- * synced, soft-deleted) has no schedule, and its row states the promise in
- * words instead of a date.
+ * synced, soft-deleted) has no schedule: resolvePayoutStage then takes the
+ * last day from the server's figures (show_end_date) in the default timezone,
+ * and states the promise in words only when neither has a date.
  */
 import { useMemo } from 'react';
 import { useShowsByClubQuery } from '@/hooks/queries/useShowsDatabase';

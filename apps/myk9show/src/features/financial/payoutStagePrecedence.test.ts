@@ -9,7 +9,7 @@
  *   1. a completed payout with money: Sent (money moved, whatever came after)
  *   2. nothing owed, refunded: Nothing to send (refunded)
  *   3. nothing owed, no fees: Nothing to send (no online entry fees)
- *   4. a club-account failure: Fix it
+ *   4. a club-account failure: the bank account needs attention
  *   5. everything else, unchanged
  */
 import { describe, it, expect } from 'vitest';
@@ -30,8 +30,8 @@ const PAST_DUE = new Date('2026-12-17T15:00:00Z');
 const SENT = 'Sent December 12. Usually in your account the next business day.';
 const REFUNDED = 'Nothing to send. Every entry fee for this show was refunded.';
 const NO_FEES = 'Nothing to send. This show has no online entry fees to pay out.';
-const FIX = "Your bank account needs attention. We can't send this payout until it's fixed.";
-const BANK = "Waiting for your club's bank account.";
+const FIX = 'Your bank account needs attention. See Bank account above.';
+const BANK = "Waiting for your club's bank account. See Bank account above.";
 const CHECKING = 'Being checked by myK9Show. Paid by December 16.';
 const SENDING = 'Being sent now. Paid by December 16.';
 const PAID_BY = 'Paid by December 16.';
@@ -73,7 +73,7 @@ const CASES: Case[] = [
     text: REFUNDED,
   },
   {
-    name: 'Codex (b): a club-account failure whose fees were then refunded: no Fix it forever',
+    name: 'Codex (b): a club-account failure whose fees were then refunded: no bank request forever',
     row: payoutFiguresRowWith('failed', { ...ALL_REFUNDED, payout_failure_reason: CLUB_FAILURE }),
     text: REFUNDED,
   },
@@ -134,7 +134,7 @@ const CASES: Case[] = [
     text: FIX,
   },
   {
-    name: 'a club-account failure past the due date keeps its fix',
+    name: 'a club-account failure past the due date still names the bank account',
     row: payoutFiguresRowWith('failed', { payout_failure_reason: CLUB_FAILURE }),
     now: PAST_DUE,
     text: FIX,

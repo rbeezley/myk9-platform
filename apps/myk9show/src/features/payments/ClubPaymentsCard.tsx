@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -50,9 +50,6 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
   const [connectError, setConnectError] = useState<string | null>(null);
   const [isStartingOnboarding, setIsStartingOnboarding] = useState(false);
   const inFlightRef = useRef(false);
-  const bankCardRef = useRef<HTMLDivElement>(null);
-  const connectErrorRef = useRef<HTMLDivElement>(null);
-  const revealConnectErrorRef = useRef(false);
 
   // Returning from Stripe (?connect=return|refresh): the account row is written
   // by a webhook, so absence right after the redirect means "not yet", not "no".
@@ -101,33 +98,9 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
   const onboardingIncomplete = !!account && !account.onboarding_complete;
   const inReview = !!account && account.onboarding_complete && !account.payouts_enabled;
 
-  // "Fix it" sits on a show row, far below the Bank account card where a failed
-  // Stripe hand-off (a step-up refusal, an edge error) is reported. Bring that
-  // error into view and focus, so a failure never looks like nothing happened.
-  useEffect(() => {
-    if (!connectError || !revealConnectErrorRef.current) return;
-    revealConnectErrorRef.current = false;
-    connectErrorRef.current?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
-    connectErrorRef.current?.focus({ preventScroll: true });
-  }, [connectError]);
-
-  const fixBankAccountFromRow = () => {
-    revealConnectErrorRef.current = true;
-    void handleContinueToStripe();
-  };
-
-  // A show row waiting on the bank account links here, to the card that
-  // already connects it, rather than repeating the flow. With no account yet it
-  // opens the checklist, which the INTENT above keeps in front of Stripe.
-  const goToBankAccount = () => {
-    if (notConnected) setShowChecklist(true);
-    bankCardRef.current?.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
-    bankCardRef.current?.focus({ preventScroll: true });
-  };
-
   return (
     <div className="space-y-6">
-      <Card ref={bankCardRef} tabIndex={-1} className="outline-none">
+      <Card>
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
@@ -176,7 +149,7 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
           )}
 
           {connectError && (
-            <Alert ref={connectErrorRef} tabIndex={-1} variant="destructive">
+            <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" aria-hidden="true" />
               <AlertDescription className="space-y-3">
                 <p>{connectError}</p>
@@ -313,13 +286,9 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
           renders at all. It is deliberately a tri-state: this card sits outside
           the guard above, so it renders while the account query is still in
           flight, and a boolean would assert "not onboarded" the whole time. */}
-      <ClubFinancialReconciliationCard
-        clubId={clubId}
-        accountState={accountState}
-        onFixBankAccount={fixBankAccountFromRow}
-        onConnectBankAccount={goToBankAccount}
-        isOpeningStripe={isStartingOnboarding}
-      />
+      {/* The card's show rows carry no bank control: a row that needs the club
+          says "See Bank account above", and this card owns every bank action. */}
+      <ClubFinancialReconciliationCard clubId={clubId} accountState={accountState} />
     </div>
   );
 }

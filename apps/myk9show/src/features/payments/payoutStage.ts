@@ -29,7 +29,7 @@ import { getTrialTimezone } from '@/features/registries';
 import { calendarDateInTimeZone } from '@/utils/calendarDate';
 import type { ClubShowPayoutFigures } from './clubShowPayoutFigures';
 import type { PayoutsAccountState } from './payoutBadge';
-import { payoutTimeline, type PayoutTimeline } from './payoutDeadline';
+import { payoutTimeline, showCalendarDay, type PayoutTimeline } from './payoutDeadline';
 
 /**
  * Mirror of CLUB_FAILURE_REASON_PREFIX in
@@ -50,27 +50,28 @@ export type PayoutStageKind =
   | 'nothing-to-send'
   | 'unknown';
 
-export type PayoutStageAction = 'fix-bank-account' | 'connect-bank-account';
-
 export interface PayoutStage {
   kind: PayoutStageKind;
   text: string;
   /** A sent payout's instant and the day as the sentence prints it, for a machine-readable <time>. */
   sentOn?: { dateTime: string; label: string };
-  /** The control that fixes it, when the club has something to do. */
-  action: PayoutStageAction | null;
 }
 
 /** The server's figures for one show, as useClubShowPayoutFigures returns them. */
 export type PayoutStageFigures = Pick<
   ClubShowPayoutFigures,
-  'owedCents' | 'payout' | 'paid' | 'fullyRefunded'
+  'owedCents' | 'payout' | 'paid' | 'fullyRefunded' | 'showEndDate'
 >;
 
 export interface PayoutStageInput {
   figures: PayoutStageFigures;
   accountState: PayoutsAccountState;
-  /** The show's last day and timezone, or null when the show could not be read. */
+  /**
+   * The show's last day and timezone from the replicated shows read, or null when that read
+   * does not have the show (not yet synced, or soft-deleted, which the figures RPC keeps).
+   * The last day is the server's `figures.showEndDate` first; this supplies the timezone,
+   * and the last day only when the server sent none.
+   */
   schedule: { lastDay: string; timeZone: string } | null;
   now: Date;
 }
@@ -102,8 +103,8 @@ function deadline(timeline: PayoutTimeline | null): string {
     : UNKNOWN_SHOW_DEADLINE;
 }
 
-function stageOf(kind: PayoutStageKind, text: string, action: PayoutStageAction | null = null) {
-  return { kind, text, action };
+function stageOf(kind: PayoutStageKind, text: string): PayoutStage {
+  return { kind, text };
 }
 
 export function resolvePayoutStage({
@@ -113,7 +114,10 @@ export function resolvePayoutStage({
   now,
 }: PayoutStageInput): PayoutStage {
   const timeZone = schedule?.timeZone ?? getTrialTimezone(undefined);
-  const timeline = schedule ? payoutTimeline(schedule.lastDay, timeZone, now) : null;
+  // The server's end date first: a soft-deleted show has no schedule, and dropping its date
+  // promised "within five business days" to a show months past due.
+  const lastDay = showCalendarDay(figures.showEndDate) ?? schedule?.lastDay ?? null;
+  const timeline = payoutTimeline(lastDay, timeZone, now);
   const { payout, paid } = figures;
   const status = payout?.status ?? null;
 
@@ -129,7 +133,6 @@ export function resolvePayoutStage({
       kind: 'sent',
       text: `${sent} Usually in your account the next business day.`,
       ...(completedAt && label ? { sentOn: { dateTime: completedAt, label } } : {}),
-      action: null,
     };
   }
 
@@ -147,21 +150,17 @@ export function resolvePayoutStage({
         );
   }
 
-  // 4. The club's to fix.
+  // 4. The club's to fix. The row names no control of its own: the Bank account card above
+  // owns every bank action (owner decision A, 2026-11-26).
   if (status === 'failed' && isClubFailure(payout?.failureReason ?? null)) {
-    return stageOf(
-      'failed-club',
-      "Your bank account needs attention. We can't send this payout until it's fixed.",
-      'fix-bank-account'
-    );
+    return stageOf('failed-club', 'Your bank account needs attention. See Bank account above.');
   }
 
   // 5. Everything else.
   if ((status === null || status === 'pending') && accountState === 'not-enabled') {
     return stageOf(
       'bank-not-connected',
-      "Waiting for your club's bank account.",
-      'connect-bank-account'
+      "Waiting for your club's bank account. See Bank account above."
     );
   }
 

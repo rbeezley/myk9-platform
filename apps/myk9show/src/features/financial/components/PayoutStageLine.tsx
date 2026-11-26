@@ -1,18 +1,9 @@
 // One show's payout, as the sentence a club reads (MYK9-1985). The wording and
-// the dates live in features/payments/payoutStage.ts; this only renders them and
-// the control that fixes the club's own problem.
+// the dates live in features/payments/payoutStage.ts; this only renders them.
+// No control on the row: the Bank account card above owns every bank action, and
+// a sentence that needs the club points there (owner decision A, 2026-11-26).
 import { AlertCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import type { PayoutStage } from '@/features/payments/payoutStage';
-
-export interface PayoutStageActions {
-  /** Opens Stripe so the club can fix its bank account. */
-  onFixBankAccount?: (() => void) | undefined;
-  /** Takes the club to the Bank account card to connect one. */
-  onConnectBankAccount?: (() => void) | undefined;
-  /** A Stripe link is already being opened. */
-  isOpeningStripe?: boolean | undefined;
-}
 
 /** The sent sentence with its day as a <time>, so a treasurer's tools can read the date. */
 function SentSentence({
@@ -33,13 +24,8 @@ function SentSentence({
   );
 }
 
-export function PayoutStageLine({
-  stage,
-  onFixBankAccount,
-  onConnectBankAccount,
-  isOpeningStripe = false,
-}: { stage: PayoutStage } & PayoutStageActions) {
-  const clubMustAct = stage.action === 'fix-bank-account';
+export function PayoutStageLine({ stage }: { stage: PayoutStage }) {
+  const clubMustAct = stage.kind === 'failed-club';
   return (
     <div className="flex flex-wrap items-center gap-2" data-testid="payout-stage">
       <p className="flex items-start gap-1.5 text-sm">
@@ -50,21 +36,6 @@ export function PayoutStageLine({
           {stage.sentOn ? <SentSentence stage={stage} sentOn={stage.sentOn} /> : stage.text}
         </span>
       </p>
-      {stage.action === 'fix-bank-account' && onFixBankAccount && (
-        <Button
-          variant="outline"
-          size="touch"
-          onClick={onFixBankAccount}
-          disabled={isOpeningStripe}
-        >
-          {isOpeningStripe ? 'Opening Stripe' : 'Fix it'}
-        </Button>
-      )}
-      {stage.action === 'connect-bank-account' && onConnectBankAccount && (
-        <Button variant="outline" size="touch" onClick={onConnectBankAccount}>
-          Connect bank account
-        </Button>
-      )}
     </div>
   );
 }

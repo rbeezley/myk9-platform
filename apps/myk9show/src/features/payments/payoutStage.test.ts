@@ -44,7 +44,6 @@ describe('resolvePayoutStage: every show row answers "when do we get paid?"', ()
     expect(stage({ now: BEFORE_SHOW_ENDS })).toEqual({
       kind: 'before-due',
       text: 'Paid within five business days of December 9.',
-      action: null,
     });
   });
 
@@ -63,7 +62,6 @@ describe('resolvePayoutStage: every show row answers "when do we get paid?"', ()
       expect(result).toEqual({
         kind: 'checking',
         text: 'Being checked by myK9Show. Paid by December 16.',
-        action: null,
       });
       expect(result.text).not.toMatch(/attention|fail|late|hold|reason/i);
     }
@@ -81,7 +79,6 @@ describe('resolvePayoutStage: every show row answers "when do we get paid?"', ()
       kind: 'sent',
       text: 'Sent December 12. Usually in your account the next business day.',
       sentOn: { dateTime: '2026-12-13T03:00:00Z', label: 'December 12' },
-      action: null,
     });
   });
 
@@ -101,20 +98,18 @@ describe('resolvePayoutStage: every show row answers "when do we get paid?"', ()
       expect(stage({ figures: payout('failed', reason) })).toEqual({
         kind: 'failed-platform',
         text: "We couldn't send this. We're on it, and you don't need to do anything. Paid by December 16.",
-        action: null,
       });
     }
   );
 
-  it("a failure that is the club's to fix names the bank account and carries the fix", () => {
+  it("a failure that is the club's to fix points at the Bank account card", () => {
     expect(
       stage({
         figures: payout('failed', 'club_account:account_closed: The bank account is closed'),
       })
     ).toEqual({
       kind: 'failed-club',
-      text: "Your bank account needs attention. We can't send this payout until it's fixed.",
-      action: 'fix-bank-account',
+      text: 'Your bank account needs attention. See Bank account above.',
     });
   });
 
@@ -124,11 +119,10 @@ describe('resolvePayoutStage: every show row answers "when do we get paid?"', ()
     ).toBe('failed-club');
   });
 
-  it('bank not connected: waiting for the club, with the link that connects it', () => {
+  it('bank not connected: waiting for the club, pointing at the Bank account card', () => {
     expect(stage({ accountState: 'not-enabled', figures: payout('pending') })).toEqual({
       kind: 'bank-not-connected',
-      text: "Waiting for your club's bank account.",
-      action: 'connect-bank-account',
+      text: "Waiting for your club's bank account. See Bank account above.",
     });
     expect(stage({ accountState: 'not-enabled' }).kind).toBe('bank-not-connected');
   });
@@ -143,7 +137,6 @@ describe('resolvePayoutStage: every show row answers "when do we get paid?"', ()
       expect(result).toEqual({
         kind: 'delayed',
         text: "Your payout is taking longer than usual. We'll be in touch by email.",
-        action: null,
       });
       expect(result.text).not.toMatch(/December/);
     }
@@ -162,7 +155,6 @@ describe('resolvePayoutStage: every show row answers "when do we get paid?"', ()
           expect(stage({ figures, now, accountState })).toEqual({
             kind: 'nothing-to-send',
             text: 'Nothing to send. Every entry fee for this show was refunded.',
-            action: null,
           });
         }
       }
@@ -173,16 +165,15 @@ describe('resolvePayoutStage: every show row answers "when do we get paid?"', ()
     expect(stage({ figures: payoutFigures({ collected_cents: 0, owed_cents: 0 }) })).toEqual({
       kind: 'nothing-to-send',
       text: 'Nothing to send. This show has no online entry fees to pay out.',
-      action: null,
     });
   });
 
-  it('nothing owed wins over a club-account failure: no Fix it forever', () => {
+  it('nothing owed wins over a club-account failure: no bank request forever', () => {
     const figures = payoutFiguresWith('failed', {
       ...REFUNDED_ROW,
       payout_failure_reason: 'club_account:account_closed: x',
     });
-    expect(stage({ figures }).action).toBeNull();
+    expect(stage({ figures }).kind).toBe('nothing-to-send');
   });
 
   it('a completed payout with money reads Sent even when nothing is owed now', () => {
@@ -209,20 +200,36 @@ describe('resolvePayoutStage: every show row answers "when do we get paid?"', ()
     expect(stage({ figures }).kind).toBe('nothing-to-send');
   });
 
-  it('without the show dates it still states the deadline, in words', () => {
-    expect(stage({ schedule: null }).text).toBe(
+  it('without any show date it still states the deadline, in words', () => {
+    const undated = { show_end_date: null };
+    expect(stage({ schedule: null, figures: payoutFigures(undated) }).text).toBe(
       "Paid within five business days of the show's last day."
     );
-    expect(stage({ schedule: null, figures: payout('awaiting_approval') }).text).toBe(
-      "Being checked by myK9Show. Paid within five business days of the show's last day."
-    );
+    expect(
+      stage({ schedule: null, figures: payoutFiguresWith('awaiting_approval', undated) }).text
+    ).toBe("Being checked by myK9Show. Paid within five business days of the show's last day.");
+  });
+
+  // The shows read never returns a soft-deleted show, which the figures RPC keeps.
+  it("with no schedule, the server's end date carries the promise", () => {
+    expect(stage({ schedule: null }).text).toBe('Paid by December 16.');
+  });
+
+  it('with no schedule, a show long past its date and nothing paid reports the delay', () => {
+    const figures = payoutFiguresWith('awaiting_approval', {
+      show_end_date: '2026-10-03T00:00:00+00:00',
+      show_deleted: true,
+    });
+    expect(stage({ schedule: null, figures })).toEqual({
+      kind: 'delayed',
+      text: "Your payout is taking longer than usual. We'll be in touch by email.",
+    });
   });
 
   it('never shows a raw status it cannot explain', () => {
     expect(stage({ figures: payout('mystery_status') })).toEqual({
       kind: 'unknown',
       text: "We can't show where this payout is right now.",
-      action: null,
     });
   });
 

@@ -49,6 +49,7 @@ function mockFigures(
     data: state.isLoading || state.isError ? undefined : rows,
     isLoading: state.isLoading ?? false,
     isError: state.isError ?? false,
+    isSuccess: !state.isLoading && !state.isError,
     refetch: state.refetch ?? vi.fn(),
   } as unknown as FiguresResult);
 }
@@ -86,6 +87,7 @@ function mockReconciliation(
     rows,
     isLoading: state.isLoading ?? false,
     isError: state.isError ?? false,
+    isSuccess: !state.isLoading && !state.isError,
     refetch: state.refetch ?? vi.fn(),
   });
 }
@@ -169,6 +171,8 @@ describe('ClubFinancialReconciliationCard: loading and failure', () => {
   });
 
   it('empty: calm explanatory copy, no error styling', () => {
+    // Empty only when both reads are: a charged show alone still gets a row.
+    mockReconciliation([]);
     renderCard();
     expect(screen.getByText(/no shows to reconcile yet/i)).toBeInTheDocument();
   });
@@ -301,7 +305,7 @@ describe('ClubFinancialReconciliationCard: the payout sentence', () => {
 
   it('a show with no readable dates states the promise in words', () => {
     mockedSchedules.mockReturnValue(new Map());
-    mockFigures([payoutFigures()]);
+    mockFigures([payoutFigures({ show_end_date: null })]);
     renderCard();
 
     expect(screen.getByTestId('payout-stage')).toHaveTextContent(
@@ -345,7 +349,7 @@ describe('ClubFinancialReconciliationCard: the payout sentence', () => {
 
   it('Codex (a): a known $0 owed with no refunds and no payout row promises no payment', () => {
     mockFigures([payoutFigures({ collected_cents: 0, owed_cents: 0 })]);
-    renderCard({ accountState: 'not-enabled', onConnectBankAccount: vi.fn() });
+    renderCard({ accountState: 'not-enabled' });
 
     const line = screen.getByTestId('payout-stage');
     expect(line).toHaveTextContent(
@@ -358,11 +362,11 @@ describe('ClubFinancialReconciliationCard: the payout sentence', () => {
     );
   });
 
-  it('Codex (b): a club-account failure whose fees were then refunded: no Fix it, no "To transfer"', () => {
+  it('Codex (b): a club-account failure whose fees were then refunded: no bank request, no "To transfer"', () => {
     mockFigures([
       payoutFiguresWith('failed', { ...ALL_REFUNDED, payout_failure_reason: CLUB_FAILURE }),
     ]);
-    renderCard({ onFixBankAccount: vi.fn() });
+    renderCard();
 
     expect(screen.getByTestId('payout-stage')).toHaveTextContent(
       'Nothing to send. Every entry fee for this show was refunded.'
@@ -393,7 +397,7 @@ describe('ClubFinancialReconciliationCard: the payout sentence', () => {
 
   it('a platform failure says we are on it, with no control for the club', () => {
     mockFigures([payoutFiguresWith('failed', { payout_failure_reason: 'Stripe rate limit' })]);
-    renderCard({ onFixBankAccount: vi.fn(), onConnectBankAccount: vi.fn() });
+    renderCard();
 
     expect(screen.getByTestId('payout-stage')).toHaveTextContent(
       "We couldn't send this. We're on it, and you don't need to do anything. Paid by December 16."
@@ -401,32 +405,25 @@ describe('ClubFinancialReconciliationCard: the payout sentence', () => {
     expect(screen.queryByRole('button', { name: /fix it/i })).not.toBeInTheDocument();
   });
 
-  it('a club failure names the bank account, and Fix it opens the fix', async () => {
-    const onFixBankAccount = vi.fn();
+  // Owner decision A, 2026-11-26: the Bank account card owns every bank action.
+  it('a club failure points at the Bank account card, with no control on the row', () => {
     mockFigures([payoutFiguresWith('failed', { payout_failure_reason: CLUB_FAILURE })]);
-    vi.useRealTimers();
-    const user = userEvent.setup();
-    renderCard({ onFixBankAccount });
+    renderCard();
 
     expect(screen.getByTestId('payout-stage')).toHaveTextContent(
-      "Your bank account needs attention. We can't send this payout until it's fixed."
+      /^Your bank account needs attention\. See Bank account above\.$/
     );
-    await user.click(screen.getByRole('button', { name: 'Fix it' }));
-    expect(onFixBankAccount).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('button', { name: /fix it|connect|bank/i })).not.toBeInTheDocument();
   });
 
-  it('bank not connected: waiting for the bank account, with the link that connects it', async () => {
-    const onConnectBankAccount = vi.fn();
+  it('bank not connected: waiting, pointing at the Bank account card, with no control', () => {
     mockFigures([payoutFigures()]);
-    vi.useRealTimers();
-    const user = userEvent.setup();
-    renderCard({ accountState: 'not-enabled', onConnectBankAccount });
+    renderCard({ accountState: 'not-enabled' });
 
     expect(screen.getByTestId('payout-stage')).toHaveTextContent(
-      "Waiting for your club's bank account."
+      /^Waiting for your club's bank account\. See Bank account above\.$/
     );
-    await user.click(screen.getByRole('button', { name: 'Connect bank account' }));
-    expect(onConnectBankAccount).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('button', { name: /fix it|connect|bank/i })).not.toBeInTheDocument();
   });
 
   // MYK9-2172: a held payout never shows the operator's reason, a failure, or "Paid".

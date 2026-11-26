@@ -37,6 +37,7 @@ vi.mock('@/features/financial/useClubFinancialReconciliation', () => ({
     rows: [],
     isLoading: false,
     isError: false,
+    isSuccess: true,
     refetch: vi.fn(),
   })),
 }));
@@ -47,6 +48,7 @@ vi.mock('../useClubShowPayoutFigures', () => ({
     data: [],
     isLoading: false,
     isError: false,
+    isSuccess: true,
     refetch: vi.fn(),
   })),
 }));

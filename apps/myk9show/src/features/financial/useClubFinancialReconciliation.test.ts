@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query';
 import React from 'react';
 import { useClubFinancialReconciliation } from './useClubFinancialReconciliation';
 import * as reconciliation from './financialReconciliation';
@@ -98,6 +98,7 @@ describe('useClubFinancialReconciliation', () => {
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.isError).toBe(false);
+    expect(result.current.isSuccess).toBe(true);
     expect(result.current.rows).toHaveLength(1);
     expect(result.current.rows[0]).toMatchObject({
       showId: 'show-1',
@@ -187,7 +188,24 @@ describe('useClubFinancialReconciliation', () => {
     });
 
     await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.isSuccess).toBe(false);
     expect(result.current.rows).toEqual([]);
+  });
+
+  // MYK9-1985: an offline first read is paused, neither loading nor in error.
+  it('a paused read is not a success, though it is neither loading nor in error', async () => {
+    onlineManager.setOnline(false);
+    try {
+      const { result } = renderHook(() => useClubFinancialReconciliation('club-1', 'enabled'), {
+        wrapper,
+      });
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      expect(result.current.isError).toBe(false);
+      expect(result.current.isSuccess).toBe(false);
+      expect(mockedOrders).not.toHaveBeenCalled();
+    } finally {
+      onlineManager.setOnline(true);
+    }
   });
 
   it('does not fetch when clubId is undefined', () => {

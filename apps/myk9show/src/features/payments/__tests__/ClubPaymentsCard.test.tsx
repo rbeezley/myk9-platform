@@ -28,6 +28,7 @@ vi.mock('@/features/financial/useClubFinancialReconciliation', () => ({
     rows: [],
     isLoading: false,
     isError: false,
+    isSuccess: true,
     refetch: vi.fn(),
   })),
 }));
@@ -46,6 +47,7 @@ function mockFigureRows(rows: ReturnType<typeof payoutFigures>[]) {
     data: rows,
     isLoading: false,
     isError: false,
+    isSuccess: true,
     refetch: vi.fn(),
   } as unknown as ReturnType<typeof useClubShowPayoutFigures>);
 }
@@ -85,6 +87,7 @@ beforeEach(() => {
     rows: [],
     isLoading: false,
     isError: false,
+    isSuccess: true,
     refetch: vi.fn(),
   });
   mockFigureRows([]);
@@ -251,51 +254,29 @@ describe('ClubPaymentsCard', () => {
     expect(screen.queryByText(/automatic/i)).not.toBeInTheDocument();
   });
 
-  it("a show waiting on the bank account links to the Bank account card's checklist", async () => {
+  // Owner decision A, 2026-11-26: the Bank account card owns every bank action, so a show
+  // row only points at it.
+  it("a show waiting on the bank account points at the Bank account card's one button", () => {
     mockAccountState(null);
     showRow(null);
-    const user = userEvent.setup();
     render(<ClubPaymentsCard clubId="club-1" />);
 
-    expect(screen.getByText("Waiting for your club's bank account.")).toBeInTheDocument();
-    const [bankCardButton, rowButton] = screen.getAllByRole('button', {
-      name: 'Connect bank account',
-    });
-    expect(bankCardButton).toBeDefined();
-    await user.click(rowButton!);
+    expect(
+      screen.getByText("Waiting for your club's bank account. See Bank account above.")
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Connect bank account' })).toHaveLength(1);
+  });
 
-    // The checklist the INTENT keeps in front of Stripe, never a direct redirect.
-    expect(screen.getByText(/before you start/i)).toBeInTheDocument();
+  it('a club-account failure points at the Bank account card, with no Fix it on the row', () => {
+    mockAccountState(connectedAccount({ onboarding_complete: true, payouts_enabled: true }));
+    showRow('failed', 'club_account:account_closed: The bank account is closed');
+    render(<ClubPaymentsCard clubId="club-1" />);
+
+    expect(
+      screen.getByText('Your bank account needs attention. See Bank account above.')
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /fix it/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /connect bank account/i })).not.toBeInTheDocument();
     expect(mockedStartOnboarding).not.toHaveBeenCalled();
-  });
-
-  it("Fix it on a club failure opens Stripe for the club's account", async () => {
-    mockAccountState(connectedAccount({ onboarding_complete: true, payouts_enabled: true }));
-    showRow('failed', 'club_account:account_closed: The bank account is closed');
-    mockedStartOnboarding.mockResolvedValue('https://connect.stripe.com/setup/fix');
-    const user = userEvent.setup();
-    render(<ClubPaymentsCard clubId="club-1" />);
-
-    await user.click(screen.getByRole('button', { name: 'Fix it' }));
-
-    await waitFor(() => {
-      expect(mockedStartOnboarding).toHaveBeenCalledWith('club-1', '/club-admin/payments/club-1');
-    });
-    expect(window.location.assign).toHaveBeenCalledWith('https://connect.stripe.com/setup/fix');
-  });
-
-  it('a Fix it that fails brings the error into view and focus, never a silent no-op', async () => {
-    mockAccountState(connectedAccount({ onboarding_complete: true, payouts_enabled: true }));
-    showRow('failed', 'club_account:account_closed: The bank account is closed');
-    mockedStartOnboarding.mockRejectedValue(new Error('Confirm your password to continue.'));
-    const user = userEvent.setup();
-    render(<ClubPaymentsCard clubId="club-1" />);
-
-    await user.click(screen.getByRole('button', { name: 'Fix it' }));
-
-    const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Confirm your password to continue.');
-    await waitFor(() => expect(alert).toHaveFocus());
-    expect(window.location.assign).not.toHaveBeenCalled();
   });
 });

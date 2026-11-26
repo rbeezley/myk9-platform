@@ -57,6 +57,22 @@ describe('userStore.directoryIncomplete (MYK9-2253)', () => {
     expect(savedState().users).toEqual([saved]);
   });
 
+  it('a short load on a device with no saved copy keeps what arrived, still marked incomplete', async () => {
+    useUserStore.setState({ users: [], people: [] });
+    directory.getAllUsers.mockResolvedValue({
+      data: [row('a', 'Al'), row('b', 'Bo')],
+      error: null,
+      short,
+    });
+
+    await useUserStore.getState().loadUsers();
+
+    const state = useUserStore.getState();
+    expect(state.users.map(user => user.id)).toEqual(['a', 'b']);
+    expect(state.directoryIncomplete).toBe(true);
+    expect(savedState().directoryIncomplete).toBe(true);
+  });
+
   it('a failed load keeps the saved copy and marks it incomplete', async () => {
     directory.getAllUsers.mockResolvedValue({
       data: [],

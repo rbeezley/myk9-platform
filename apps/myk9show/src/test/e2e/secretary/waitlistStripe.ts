@@ -319,30 +319,38 @@ export async function payOnStripeCheckout(page: Page): Promise<string> {
 }
 
 /**
- * The PaymentIntent status of the Checkout Session this page is paying (MYK9-2336). The session id
- * is in the hosted page's path (`/c/pay/cs_test_...`). Null on any failure or when no intent exists,
- * which the retry rule treats as "do not click again". The payment link row cannot stand in: it
- * reads 'open' until the webhook, even after Stripe has the money.
+ * What Stripe says about the Checkout Session this page is paying (MYK9-2336). The session id is
+ * in the hosted page's path (`/c/pay/cs_test_...`). Any failure is `{read: 'failed'}`, which the
+ * retry rule treats as "do not click again"; a missing PaymentIntent on a readable session is a
+ * real answer (nothing confirmed yet). The payment link row cannot stand in: it reads 'open' until
+ * the webhook, even after Stripe has the money.
  */
 async function readPaymentEvidence(page: Page): Promise<PaymentEvidence> {
   const key = stripeTestKey();
   const sessionId = /cs_test_[A-Za-z0-9]+/.exec(page.url())?.[0];
-  if (!key || !sessionId) return { paymentIntentStatus: null };
+  if (!key || !sessionId) return { read: 'failed' };
   try {
     const response = await fetch(
       `${STRIPE_API}/checkout/sessions/${sessionId}?expand[]=payment_intent`,
       { headers: { Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(10_000) }
     );
-    if (!response.ok) return { paymentIntentStatus: null };
+    if (!response.ok) return { read: 'failed' };
     const body = (await response.json()) as {
+      status?: string | null;
+      payment_status?: string | null;
       payment_intent?: { status?: string } | string | null;
     };
     const intent = body.payment_intent;
+    // An unexpanded string id means an intent exists but was not read: not an answer.
+    if (typeof intent === 'string') return { read: 'failed' };
     return {
-      paymentIntentStatus: typeof intent === 'object' && intent ? (intent.status ?? null) : null,
+      read: 'ok',
+      sessionStatus: body.status ?? null,
+      paymentStatus: body.payment_status ?? null,
+      paymentIntentStatus: intent ? (intent.status ?? null) : null,
     };
   } catch {
-    return { paymentIntentStatus: null };
+    return { read: 'failed' };
   }
 }
 

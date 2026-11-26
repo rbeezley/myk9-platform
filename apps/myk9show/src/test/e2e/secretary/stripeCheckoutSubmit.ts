@@ -1,5 +1,5 @@
 import { test, type Locator, type Page } from '@playwright/test';
-import { decidePayFollowUp, type PaymentEvidence } from './stripeCheckoutState';
+import { decidePayFollowUp, describeEvidence, type PaymentEvidence } from './stripeCheckoutState';
 
 const FIRST_WAIT_MS = 20_000;
 const LATE_WAIT_MS = 60_000;
@@ -11,7 +11,7 @@ export interface SubmitOptions {
   returnOrigin: string;
   /** Re-resolves the Pay button; the page may have re-rendered since the first click. */
   findPay: () => Promise<Locator>;
-  /** Reads Stripe's PaymentIntent status fresh; null status means never click again. */
+  /** Reads the Checkout Session and its PaymentIntent fresh; a failed read means never click. */
   readPaymentEvidence: () => Promise<PaymentEvidence>;
 }
 
@@ -48,22 +48,15 @@ async function attachDiagnostics(page: Page): Promise<void> {
   }
 }
 
-async function fail(
-  page: Page,
-  step: string,
-  status: string | null,
-  detail: string
-): Promise<never> {
+async function fail(page: Page, step: string, status: string, detail: string): Promise<never> {
   await attachDiagnostics(page);
-  throw new Error(
-    `Stripe Checkout did not redirect (step: ${step}; PaymentIntent status: ${status ?? 'unknown'}). ${detail}`
-  );
+  throw new Error(`Stripe Checkout did not redirect (step: ${step}; Stripe: ${status}). ${detail}`);
 }
 
 /**
- * Clicks Pay and waits for the return redirect. With no redirect after 20s, Stripe's PaymentIntent
- * decides: in flight or done means wait; unstarted means click Pay once more; anything else fails.
- * It never clicks a second time unless Stripe shows the payment unstarted, so it cannot pay twice.
+ * Clicks Pay and waits for the return redirect. With no redirect after 20s, Stripe's Checkout
+ * Session decides: in flight, done or unreadable means wait; open and unconfirmed means click Pay once
+ * more; anything else fails. It never clicks a second time unless Stripe shows nothing confirmed, so it cannot pay twice.
  */
 export async function submitPaymentAndAwaitReturn(
   page: Page,
@@ -81,10 +74,10 @@ export async function submitPaymentAndAwaitReturn(
   if (await returned(FIRST_WAIT_MS)) return;
 
   const evidence = await options.readPaymentEvidence();
-  const status = evidence.paymentIntentStatus;
+  const status = describeEvidence(evidence);
   const decision = decidePayFollowUp(evidence);
   console.log(
-    `Stripe Checkout: no redirect ${FIRST_WAIT_MS / 1000}s after Pay; PI ${status}, ${decision}`
+    `Stripe Checkout: no redirect ${FIRST_WAIT_MS / 1000}s after Pay; ${status}, ${decision}`
   );
 
   if (decision === 'fail') {
@@ -115,11 +108,11 @@ export async function submitPaymentAndAwaitReturn(
     );
   }
   if (await returned(RETRY_WAIT_MS)) return;
-  const after = (await options.readPaymentEvidence()).paymentIntentStatus;
+  const after = describeEvidence(await options.readPaymentEvidence());
   return fail(
     page,
     'after the Pay retry',
     status,
-    `PaymentIntent before retry: ${status}, now: ${after ?? 'unknown'}. One retry was made; none more.`
+    `Stripe before retry: ${status}, now: ${after}. One retry was made; none more.`
   );
 }

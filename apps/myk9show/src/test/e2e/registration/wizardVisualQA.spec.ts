@@ -381,7 +381,7 @@ async function measureCaptions(page: Page, label: string, scope: string) {
 // Step-title geometry (MYK9-483, spec wizard-progress-indicator)
 //
 // The stepper split titles mid-word from 1024px up — "Pa"/"ym"/"en"/"t" in the
-// exhibitor variant and one character per line in the five-step staff variant.
+// exhibitor variant and one character per line in the four-step staff variant.
 // A class-name assertion cannot see that: the split came from `break-words` on
 // the label combining with a `shrink-0` status pill, and every class involved
 // was "correct". These assertions therefore measure RENDERED line boxes.

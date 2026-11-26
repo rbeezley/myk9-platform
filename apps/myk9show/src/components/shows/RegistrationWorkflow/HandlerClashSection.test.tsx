@@ -35,6 +35,7 @@ interface HarnessProps {
   existing?: { dogId: string; classId: string }[];
   onPending: (count: number) => void;
   onAssign: (next: Record<string, HandlerInfo>) => void;
+  staff?: boolean;
 }
 
 function Harness({
@@ -43,6 +44,7 @@ function Harness({
   existing = [],
   onPending,
   onAssign,
+  staff,
 }: HarnessProps) {
   const [assignments, setAssignments] = useState<Record<string, HandlerInfo>>(() =>
     Object.fromEntries(
@@ -63,6 +65,7 @@ function Harness({
       deferredPairKeys={deferred}
       onDeferredChange={setDeferred}
       onPendingChange={onPending}
+      staff={staff}
     />
   );
 }
@@ -102,6 +105,22 @@ describe('HandlerClashSection (MYK9-2021)', () => {
       )
     ).toBeInTheDocument();
     expect(onPending).toHaveBeenLastCalledWith(1);
+  });
+
+  it('names the owner, not "you", when a secretary keys the entry', () => {
+    render(
+      <Harness
+        staff
+        selections={[pick('willow', 'cNovA'), pick('scout', 'cNovA')]}
+        onPending={vi.fn()}
+        onAssign={vi.fn()}
+      />
+    );
+    expect(
+      screen.getByText(
+        "Pat Owner can't handle both Willow and Scout in Container Novice A. Who handles Scout?"
+      )
+    ).toBeInTheDocument();
   });
 
   it('treats Novice A and Novice B as one class', () => {

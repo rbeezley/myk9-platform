@@ -28,6 +28,8 @@ export interface HandlerClashSectionProps {
   onDeferredChange: (pairKeys: string[]) => void;
   /** How many questions still have no answer; the wizard blocks Continue on it. */
   onPendingChange: (count: number) => void;
+  /** Secretary or admin keying the entry: the question names the owner instead of saying "you". */
+  staff?: boolean;
 }
 
 /**
@@ -45,6 +47,7 @@ export const HandlerClashSection: React.FC<HandlerClashSectionProps> = ({
   deferredPairKeys,
   onDeferredChange,
   onPendingChange,
+  staff = false,
 }) => {
   const { dogs } = useDogStoreCompat();
   const { classes: queryClasses = [] } = useClassStoreCompat();
@@ -128,7 +131,12 @@ export const HandlerClashSection: React.FC<HandlerClashSectionProps> = ({
             <div className="flex items-start gap-2">
               <UserRound className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
               <label htmlFor={inputId} className="text-sm font-medium">
-                {clashQuestion(clash)}
+                {clashQuestion(
+                  clash,
+                  staff
+                    ? { ownerName: dogs.find(d => d.id === clash.subjectDogId)?.ownerName }
+                    : undefined
+                )}
               </label>
             </div>
             <Input

@@ -8,8 +8,8 @@ management surfaces (owner pickers, user management, judge assignment, club
 membership) consume it. Gating the fetch so a plain-exhibitor session never loads
 it removes the client's blind reliance on the `people_select` RLS policy staying
 strict, and avoids shipping the directory to the largest, least-privileged user
-population. The gate is applied at every load site — the login initializer and
-the registration `HandlerSelectionDialog` — and the persisted `userStore` is
+population. The gate is applied at the login initializer (`App.tsx`, via
+`shouldLoadPeopleDirectory`), and the persisted `userStore` is
 purged for a resolved non-management session (robust to async IndexedDB
 rehydration) so a role downgrade on a shared browser cannot retain the directory.
 

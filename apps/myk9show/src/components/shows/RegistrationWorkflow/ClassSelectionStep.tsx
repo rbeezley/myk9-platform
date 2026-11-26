@@ -725,6 +725,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
           deferredPairKeys={handlerClash.deferredPairKeys}
           onDeferredChange={handlerClash.onDeferredChange}
           onPendingChange={handlerClash.onPendingChange}
+          staff={(workflowMode ?? 'exhibitor') !== 'exhibitor'}
         />
       )}
 

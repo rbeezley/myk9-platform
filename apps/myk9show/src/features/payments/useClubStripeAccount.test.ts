@@ -118,6 +118,20 @@ describe('mapConnectOnboardingError', () => {
     );
   });
 
+  it('maps the edge function safe codes to the same copy as the old raw text', () => {
+    expect(mapConnectOnboardingError('stripe_account_unavailable')).toBe(
+      mapConnectOnboardingError('account capability transfers is inactive')
+    );
+    expect(mapConnectOnboardingError('stripe_account_unavailable')).toMatch(
+      /Stripe is still verifying/i
+    );
+    expect(mapConnectOnboardingError('stripe_unavailable')).toBe(
+      mapConnectOnboardingError('Stripe rate limit exceeded')
+    );
+    expect(mapConnectOnboardingError('stripe_unavailable')).toMatch(/reach our payment provider/i);
+    expect(mapConnectOnboardingError('onboarding_failed')).toBe(FALLBACK);
+  });
+
   it('prefers the specific match when patterns could overlap (order matters)', () => {
     // Contains both "authorization" wording and would otherwise be ambiguous;
     // the auth-session matcher is listed first and must win.

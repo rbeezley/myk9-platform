@@ -50,14 +50,7 @@ export const WORKFLOW_CONFIGS: Record<WorkflowMode, WorkflowConfig> = {
     },
   },
   secretary_new: {
-    steps: [
-      'create-exhibitor',
-      'dog-selection',
-      'class-selection',
-      'handler-assignment',
-      'payment',
-      'confirmation',
-    ],
+    steps: ['create-exhibitor', 'dog-selection', 'class-selection', 'payment', 'confirmation'],
     features: {
       bulkSelection: true,
       createNew: true,
@@ -74,14 +67,7 @@ export const WORKFLOW_CONFIGS: Record<WorkflowMode, WorkflowConfig> = {
     },
   },
   club_admin: {
-    steps: [
-      'create-exhibitor',
-      'dog-selection',
-      'class-selection',
-      'handler-assignment',
-      'payment',
-      'confirmation',
-    ],
+    steps: ['create-exhibitor', 'dog-selection', 'class-selection', 'payment', 'confirmation'],
     features: {
       bulkSelection: true,
       createNew: true,
@@ -98,14 +84,7 @@ export const WORKFLOW_CONFIGS: Record<WorkflowMode, WorkflowConfig> = {
     },
   },
   site_admin: {
-    steps: [
-      'create-exhibitor',
-      'dog-selection',
-      'class-selection',
-      'handler-assignment',
-      'payment',
-      'confirmation',
-    ],
+    steps: ['create-exhibitor', 'dog-selection', 'class-selection', 'payment', 'confirmation'],
     features: {
       bulkSelection: true,
       createNew: true,

@@ -177,7 +177,7 @@ test.describe('Number-first Add Dog: a held entry is listed, kept off Show Desk 
       await clickClearOfStickyChrome(page, chip);
       await expect(page.getByText(/1 selected/).first()).toBeVisible();
 
-      // The owner handles this dog, so Next skips Handlers and lands on Payment (MYK9-2020).
+      // Classes goes straight to Payment; the handler defaults to the owner (MYK9-2020).
       await page.getByRole('button', { name: /next/i }).click();
       await expect(page.getByRole('heading', { name: 'Payment Information' })).toBeVisible({
         timeout: 15_000,

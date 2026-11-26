@@ -49,9 +49,6 @@ vi.mock('@/components/shows/RegistrationWorkflow/PaymentStep', () => ({
 vi.mock('@/components/shows/RegistrationWorkflow/ConfirmationStep', () => ({
   ConfirmationStep: () => <div data-testid="confirmation-step" />,
 }));
-vi.mock('@/components/shows/RegistrationWorkflow/HandlerAssignmentStep', () => ({
-  HandlerAssignmentStep: () => <div data-testid="handler-assignment-step" />,
-}));
 
 mockUseShowStore.mockImplementation(() => []);
 mockUseTrialStore.mockImplementation(() => []);

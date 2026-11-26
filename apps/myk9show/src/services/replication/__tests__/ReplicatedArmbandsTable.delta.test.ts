@@ -54,7 +54,14 @@ function mockQuery(supabaseFrom: { mockReturnValue: (value: never) => unknown })
     count: number | undefined;
     /** Every row read's filters, one entry per request: `method(args)`. */
     rowReads: string[][];
-  } = { data: [], pages: [], count: undefined, rowReads: [] };
+    /** The abort signal each row read carried (undefined when it carried none). */
+    rowSignals: (AbortSignal | undefined)[];
+    /** The abort signal each count request carried. */
+    countSignals: (AbortSignal | undefined)[];
+    /** Runs after each row read is served, e.g. to abort between pages. */
+    afterRowRead?: () => void;
+  } = { data: [], pages: [], count: undefined, rowReads: [], rowSignals: [], countSignals: [] };
+  let signal: AbortSignal | undefined;
   let countOnly = false;
   // A read carrying the `or` keyset cursor is a follow-up page: with no page queued
   // it finds nothing more, which is the empty page that ends the read (MYK9-2252).
@@ -70,6 +77,7 @@ function mockQuery(supabaseFrom: { mockReturnValue: (value: never) => unknown })
     select: vi.fn((_columns: string, options?: { head?: boolean }) => {
       countOnly = options?.head === true;
       filters = [];
+      signal = undefined;
       return query;
     }),
     eq: vi.fn(record('eq')),
@@ -80,12 +88,21 @@ function mockQuery(supabaseFrom: { mockReturnValue: (value: never) => unknown })
       return record('or')(...args);
     }),
     range: vi.fn(record('range')),
+    abortSignal: vi.fn((value: AbortSignal) => {
+      signal = value;
+      return record('abortSignal')(value);
+    }),
     // A count reads no rows; a row read takes a queued page first, otherwise `data`.
     then: (resolve: (value: unknown) => unknown) => {
-      if (!countOnly) state.rowReads.push(filters);
+      if (countOnly) {
+        state.countSignals.push(signal);
+      } else {
+        state.rowReads.push(filters);
+        state.rowSignals.push(signal);
+      }
       const continuation = followUp;
       followUp = false;
-      return Promise.resolve(
+      const result = Promise.resolve(
         countOnly
           ? { count: state.count, data: null, error: null }
           : {
@@ -94,6 +111,8 @@ function mockQuery(supabaseFrom: { mockReturnValue: (value: never) => unknown })
               error: null,
             }
       ).then(resolve);
+      if (!countOnly) state.afterRowRead?.();
+      return result;
     },
   };
   supabaseFrom.mockReturnValue(query as never);
@@ -325,6 +344,37 @@ describe('ReplicatedArmbandsTable incremental sync (MYK9-1300)', () => {
     // Only the first page lifts the watermark: a release committed while later
     // pages were read is still after it, so the next delta sees the tombstone.
     expect((await table.getSyncMetadata())?.lastIncrementalSyncAt).toBe(parseUpdatedAtMs(PG_T1));
+  });
+
+  it('hands the sync signal to the count and every page request (MYK9-2420)', async () => {
+    const { supabase } = await import('@/services/database/supabaseClient');
+    const { state } = mockQuery(vi.mocked(supabase.from));
+    state.data = [remoteRow('a', '101', T1)];
+    state.count = 1;
+    const controller = new AbortController();
+
+    expect((await table.sync(undefined, { signal: controller.signal })).success).toBe(true);
+
+    // The count request carries it, and so does every row read, empty terminal page included.
+    expect(state.countSignals.length).toBeGreaterThanOrEqual(1);
+    expect(state.countSignals.every(signal => signal === controller.signal)).toBe(true);
+    expect(state.rowReads.length).toBeGreaterThanOrEqual(2);
+    expect(state.rowSignals).toHaveLength(state.rowReads.length);
+    expect(state.rowSignals.every(signal => signal === controller.signal)).toBe(true);
+  });
+
+  it('never requests page two once the signal aborts after page one (MYK9-2420)', async () => {
+    const { supabase } = await import('@/services/database/supabaseClient');
+    const { state } = mockQuery(vi.mocked(supabase.from));
+    state.pages = [page('r', PG_T1), [remoteRow('zz-last', '9999', PG_T4)]];
+    state.count = POSTGREST_MAX_ROWS + 1;
+    const controller = new AbortController();
+    state.afterRowRead = () => controller.abort();
+
+    const result = await table.sync(undefined, { signal: controller.signal });
+
+    expect(result.success).toBe(false);
+    expect(state.rowReads).toHaveLength(1);
   });
 
   it('keeps only the newest copy of a row that moved to a later page mid-delta', async () => {

@@ -22,6 +22,7 @@
 import { POSTGREST_MAX_ROWS } from './postgrestMaxRows';
 import { ArmbandInUseError } from './armbandInUse';
 import {
+  abortReason,
   ReplicatedTable,
   syncReplicatedTable,
   parseUpdatedAtMs,
@@ -191,7 +192,7 @@ export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> 
       countsTowardRemoteCoverage: remote => remote.is_available === false,
       // No remotePageSize: the fetch below pages to completion, so a full page
       // never means a truncated answer.
-      fetchRemoteRows: async ({ since, forceFullSync, cache }) => {
+      fetchRemoteRows: async ({ since, forceFullSync, cache, signal }) => {
         unwatermarkedIds.clear();
         // Paged by keyset on (updated_at, id), as judge assignments are: every
         // show's armbands can pass PostgREST's max_rows, and stale cleanup only
@@ -200,6 +201,7 @@ export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> 
         let cursorUpdatedAt: string | null = null;
         let cursorId: string | null = null;
         for (;;) {
+          if (signal?.aborted) throw abortReason(signal);
           let query = supabase.from('armbands').select('*');
           if (forceFullSync) query = query.eq('is_available', false);
           if (cursorUpdatedAt && cursorId) {
@@ -209,10 +211,9 @@ export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> 
           } else if (!forceFullSync) {
             query = query.gt('updated_at', new Date(since).toISOString());
           }
-          const { data, error } = await query
-            .order('updated_at', { ascending: true })
-            .order('id', { ascending: true })
-            .range(0, POSTGREST_MAX_ROWS - 1);
+          query = query.order('updated_at', { ascending: true }).order('id', { ascending: true });
+          if (signal) query = query.abortSignal(signal);
+          const { data, error } = await query.range(0, POSTGREST_MAX_ROWS - 1);
 
           if (error) {
             throw new Error(`Supabase query failed: ${error.message}`);
@@ -261,12 +262,14 @@ export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> 
       getRemoteUpdatedAt: remote =>
         unwatermarkedIds.has(String(remote.id)) ? null : parseUpdatedAtMs(remote.updated_at),
       resolveConflict: (_local, remote) => remote,
-      getRemoteRowCount: async () => {
+      getRemoteRowCount: async ({ signal }) => {
         try {
-          const { count, error } = await supabase
+          let countQuery = supabase
             .from('armbands')
             .select('id', { count: 'exact', head: true })
             .eq('is_available', false);
+          if (signal) countQuery = countQuery.abortSignal(signal);
+          const { count, error } = await countQuery;
           return error ? undefined : (count ?? undefined);
         } catch {
           return undefined;

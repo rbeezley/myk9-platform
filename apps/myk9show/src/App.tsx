@@ -24,7 +24,6 @@ import { useNotificationMonitor } from '@/hooks/useNotificationMonitor';
 import { useAccountNotifications } from '@/hooks/useAccountNotifications';
 import { useThemeSyncOnReconnect } from '@/hooks/useThemeSyncOnReconnect';
 import { AudioSettingsProvider } from './context/AudioSettingsContext';
-import { StoreProvider } from './providers/StoreProvider';
 import { ReplicationSyncProvider } from './providers/ReplicationSyncProvider';
 
 import { UnsavedChangesRouteGuardProvider } from './components/navigation/UnsavedChangesRouteGuard';
@@ -192,56 +191,53 @@ function App() {
     }
   }, []);
 
-  // Store rehydration is now handled by StoreProvider
   // Club data initialization is handled by useStoreSubscriptions in ReplicationSyncProvider
 
   return (
     <NetworkStatusProvider>
       <ReplicationSyncProvider autoSync={true} syncOnReconnect={true}>
-        <StoreProvider>
-          <AuthProvider>
-            <UserDataInitializer />
-            <PeopleContactCleanupInitializer />
-            <AnnouncementSubscriptionInitializer />
-            <MessageSubscriptionInitializer />
-            <NotificationMonitorInitializer />
-            <AccountNotificationsInitializer />
-            <ThemeSyncInitializer />
-            <AudioSettingsProvider>
-              <UnsavedChangesRouteGuardProvider>
-                <ExhibitorOnboardingChecker>
-                  <ErrorBoundary
-                    level="page"
-                    context="Application"
-                    fallback={({ error, resetErrorBoundary }) => (
-                      <ErrorFallback error={error} resetErrorBoundary={resetErrorBoundary} />
-                    )}
-                  >
-                    <AppShellMobileNavProvider>
-                      <div className="min-h-screen transition-colors duration-300 bg-background text-foreground">
-                        <PWAInstallBanner />
-                        <RbacOfflineNotice />
-                        <AppHeader />
-                        <StaleSchemaBanner />
-                        <RingsideReturnBar />
-                        <NotificationCenter />
-                        <AppToaster />
-                        <ScoresNotSentNotice />
-                        <ToastContainer />
-                        <StepUpReauthHost />
-                        <Outlet />
-                        {/* After the page, not before: the notice sits in flow at the
+        <AuthProvider>
+          <UserDataInitializer />
+          <PeopleContactCleanupInitializer />
+          <AnnouncementSubscriptionInitializer />
+          <MessageSubscriptionInitializer />
+          <NotificationMonitorInitializer />
+          <AccountNotificationsInitializer />
+          <ThemeSyncInitializer />
+          <AudioSettingsProvider>
+            <UnsavedChangesRouteGuardProvider>
+              <ExhibitorOnboardingChecker>
+                <ErrorBoundary
+                  level="page"
+                  context="Application"
+                  fallback={({ error, resetErrorBoundary }) => (
+                    <ErrorFallback error={error} resetErrorBoundary={resetErrorBoundary} />
+                  )}
+                >
+                  <AppShellMobileNavProvider>
+                    <div className="min-h-screen transition-colors duration-300 bg-background text-foreground">
+                      <PWAInstallBanner />
+                      <RbacOfflineNotice />
+                      <AppHeader />
+                      <StaleSchemaBanner />
+                      <RingsideReturnBar />
+                      <NotificationCenter />
+                      <AppToaster />
+                      <ScoresNotSentNotice />
+                      <ToastContainer />
+                      <StepUpReauthHost />
+                      <Outlet />
+                      {/* After the page, not before: the notice sits in flow at the
                             end of the document so it reserves its own room there and
                             never covers a page's last control (MYK9-1131). */}
-                        <NewRoleStepBanner />
-                      </div>
-                    </AppShellMobileNavProvider>
-                  </ErrorBoundary>
-                </ExhibitorOnboardingChecker>
-              </UnsavedChangesRouteGuardProvider>
-            </AudioSettingsProvider>
-          </AuthProvider>
-        </StoreProvider>
+                      <NewRoleStepBanner />
+                    </div>
+                  </AppShellMobileNavProvider>
+                </ErrorBoundary>
+              </ExhibitorOnboardingChecker>
+            </UnsavedChangesRouteGuardProvider>
+          </AudioSettingsProvider>
+        </AuthProvider>
       </ReplicationSyncProvider>
     </NetworkStatusProvider>
   );

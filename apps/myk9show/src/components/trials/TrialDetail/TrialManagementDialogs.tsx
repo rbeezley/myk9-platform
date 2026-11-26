@@ -2,6 +2,8 @@ import { forwardRef, useImperativeHandle, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { formatTrialLabel } from '@myk9/core';
 import { useTrialStore, type TrialInput } from '@/store/trialStore';
+import { useShowStore } from '@/store/showStore';
+import { offerEntryCloseAfterTrialMove } from './entryCloseOffer';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { TrialEditPanel } from '@/components/panels/edit/TrialEditPanel';
@@ -78,6 +80,7 @@ export const TrialManagementDialogs = forwardRef<
   const navigate = useNavigate();
   const { user } = useAuthContext();
   const { trials, updateTrial } = useTrialStore();
+  const updateShow = useShowStore(state => state.updateShow);
   const { updateClass } = useClassStoreCompat();
   const { saveClass } = useClassEditActions({ showId: parentShow?.id, updateClass });
 
@@ -171,6 +174,14 @@ export const TrialManagementDialogs = forwardRef<
               { ...currentTrial, ...trialData } as Partial<TrialInput>,
               user?.id || 'unknown'
             );
+            // MYK9-2381: a day moved earlier can leave entries closing after the show starts.
+            // Offer the fix in a toast; the save above is never held back or changed by it.
+            if (trialData.trialDate && trialData.trialDate !== currentTrial.trialDate) {
+              void offerEntryCloseAfterTrialMove(
+                trialData.showId || currentTrial.showId,
+                updateShow
+              );
+            }
           }
         }}
       />

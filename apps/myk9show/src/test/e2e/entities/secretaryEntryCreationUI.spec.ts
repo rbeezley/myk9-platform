@@ -72,7 +72,7 @@ test.describe('Secretary Entry Creation', () => {
     await expect(page.locator('[role="checkbox"]')).toHaveCount(2);
   });
 
-  test('wizard: full flow — dog → class → handler → agreement → confirmation', async ({ page }) => {
+  test('wizard: full flow — dog → class → agreement → confirmation', async ({ page }) => {
     const consoleErrors: string[] = [];
     page.on('console', msg => {
       if (msg.type() === 'error') consoleErrors.push(msg.text());

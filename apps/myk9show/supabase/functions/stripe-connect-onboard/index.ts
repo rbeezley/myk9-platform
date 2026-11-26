@@ -3,6 +3,7 @@ import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { requireStripeLivemode } from '../_shared/stripeMode.ts';
 import { stepUpRefusal } from '../_shared/stepUpReauth.ts';
+import { classifyOnboardError } from './classifyOnboardError.ts';
 import { findOrCreateClubStripeAccount } from './clubStripeAccount.ts';
 import { parseOnboardRequest } from './onboardRequest.ts';
 
@@ -193,9 +194,10 @@ Deno.serve(async req => {
     return corsResponse(corsHeaders, { url: accountLink.url });
   } catch (error: unknown) {
     // MP-20 (as stripe-refund-entry): log the detail (Stripe SDK messages embed
-    // account ids and internal phrasing) but return a generic body to the caller.
+    // account ids and internal phrasing) but return a safe error code to the caller.
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('stripe-connect-onboard error:', message);
-    return corsResponse(corsHeaders, { error: 'onboarding_failed' }, 500);
+    // The client maps these codes to its own copy; never raw Stripe text.
+    return corsResponse(corsHeaders, { error: classifyOnboardError(error) }, 500);
   }
 });

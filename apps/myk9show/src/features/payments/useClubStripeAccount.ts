@@ -254,13 +254,15 @@ const CONNECT_ERROR_PATTERNS: Array<{ test: RegExp; message: string }> = [
   {
     // Stripe account isn't ready yet — a capability (card_payments/transfers)
     // is still inactive/pending. Continuing to Stripe is the actual fix.
-    test: /capabilit|transfers .*inactive|account .*(inactive|pending|restricted)/i,
+    // Also the edge function's safe code `stripe_account_unavailable`.
+    test: /capabilit|transfers .*inactive|account .*(inactive|pending|restricted)|stripe_account_unavailable/i,
     message:
       "Stripe is still verifying your club's account. Continue to Stripe to finish the remaining steps — if you've already completed everything, give it a few minutes and try again.",
   },
   {
     // Network / provider reachability (FunctionsFetchError or Stripe API down).
-    test: /failed to send a request|rate limit|timeout|network|connection/i,
+    // Also the edge function's safe code `stripe_unavailable`.
+    test: /failed to send a request|rate limit|timeout|network|connection|stripe_unavailable/i,
     message:
       "We couldn't reach our payment provider just now. Please check your connection and try again in a moment.",
   },

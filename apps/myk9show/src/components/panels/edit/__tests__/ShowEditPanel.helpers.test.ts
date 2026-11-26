@@ -73,6 +73,17 @@ describe('ShowEditPanel helpers', () => {
     expect(result.publishExperience).toBe(false);
   });
 
+  it.each([
+    [{ style: 'poster', landing_style: 'banner' }, 'poster'],
+    [{ style: null, landing_style: 'banner' }, 'banner'],
+    [{ style: 'default' }, 'monogram'],
+    [{ style: null, landing_style: null }, 'monogram'],
+    [{ style: '' }, 'monogram'],
+    [{ style: 'not-a-style' }, 'monogram'],
+  ])('reads the show style of %j as %s', (show, expected) => {
+    expect(showToFormData(show as Parameters<typeof showToFormData>[0]).style).toBe(expected);
+  });
+
   it('round-trips the isNationals flag through form mapping', () => {
     expect(
       showToFormData({

@@ -14,6 +14,7 @@ import { isPulledEntry } from '@/features/_shared/entryAccounting';
 import type { ReplicatedEntry } from '@/services/replication';
 import { UserRole } from '@/types/auth-types';
 import { isTrialDayToday } from '@/pages/MyEntriesPage/modules/dayCheckIn';
+import { getTrialTimezone } from '@/features/registries';
 import { parseShowDate } from '@/pages/MyEntriesPage/modules/myEntriesStats.helpers';
 import type { SelfCheckinState } from '@/hooks/queries/useSelfCheckinEnabled';
 import type { ClassEntry } from '@myk9/ringside';
@@ -216,7 +217,8 @@ export function buildMyAtShowEntryDetails(
 
     const trialId = entry.trialId ?? entry.trial_id;
     const trial = trialId ? (trialsById.get(trialId) ?? null) : null;
-    if (trial && !isTrialDayToday(parseShowDate(trial.date), trial.timezone, now)) continue;
+    if (trial && !isTrialDayToday(parseShowDate(trial.date), getTrialTimezone(trial), now))
+      continue;
 
     const classSummary = entry.classId ? (classesById.get(entry.classId) ?? null) : null;
     // INTENT: the result comes ONLY from the exhibitor's own masked read
@@ -286,7 +288,7 @@ export function buildMyAtShowEntryDetails(
       isCancelled: classSummary?.isCancelled === true,
       scoresOnPaper: classSummary?.scoresOnPaper === true,
       classOrder: classSummary?.classOrder,
-      trialTimezone: trial?.timezone ?? null,
+      trialTimezone: trial ? getTrialTimezone(trial) : null,
     });
   }
 

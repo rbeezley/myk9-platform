@@ -7,7 +7,7 @@
 
 import type { Show } from '@/types/show-types';
 import type { ShowAscaFacts } from '@/services/replication/showAscaFactColumns';
-import type { ShowStyle } from '@/features/registries';
+import { getShowStyle } from '@/features/registries';
 import { readExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import type { ShowEditFormData, ShowEditSaveData } from './ShowEditPanel.types';
 
@@ -72,10 +72,7 @@ export const showToFormData = (show: Partial<Show>): ShowEditFormData => {
     // Read show.style (migration 195) with fallback to landing_style (migration 192).
     // Map 'default' → 'monogram' so legacy rows never produce a value rejected by
     // the new shows_style_check constraint.
-    style: ((): ShowStyle => {
-      const raw = show.style ?? show.landing_style ?? 'monogram';
-      return (raw === 'default' ? 'monogram' : raw) as ShowStyle;
-    })(),
+    style: getShowStyle(show),
     publishExperience: false,
     inkSaver: false,
   };

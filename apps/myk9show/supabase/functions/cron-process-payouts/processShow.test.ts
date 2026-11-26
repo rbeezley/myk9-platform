@@ -174,3 +174,51 @@ describe('failure notices tell the truth in both brake modes', () => {
     }
   );
 });
+
+describe('processShow: a club read that fails changes nothing (MYK9-2339)', () => {
+  it.each([
+    { label: 'club_stripe_accounts', scenario: { accountReadError: true } },
+    { label: 'clubs', scenario: { clubReadError: true } },
+  ])(
+    '$label errors: no payout parked, no club email, counted and alerted',
+    async ({ scenario }) => {
+      const world = run({ amounts: [5000], ...scenario });
+      await world.go();
+      expect(world.payoutWrites()).toEqual([]);
+      expect(world.clubNoticeDeps).not.toHaveBeenCalled();
+      expect(world.rpc).not.toHaveBeenCalled();
+      expect(world.create).not.toHaveBeenCalled();
+      expect(world.summary.pending_not_onboarded).toBe(0);
+      expect(world.summary.club_read_errors).toBe(1);
+      expect(world.alertAdmin).toHaveBeenCalledWith(
+        'Payout could not be checked: Fall Trial',
+        expect.stringContaining('The next run tries again'),
+        { dedupeKey: 'payout-club-read-error-show-1', severity: 'error' }
+      );
+    }
+  );
+
+  it('a parked row whose account read fails keeps its amount', async () => {
+    const world = run({
+      liveRow: { id: 'row-1', status: 'pending' },
+      amounts: [5000],
+      accountReadError: true,
+    });
+    await world.go();
+    expect(world.payoutWrites()).toEqual([]);
+    expect(world.summary.club_read_errors).toBe(1);
+  });
+
+  it('control: payouts off with a clean read still parks and emails the club', async () => {
+    const world = run({ amounts: [5000], payoutsEnabled: false });
+    await world.go();
+    expect(world.payoutWrites()).toContainEqual(
+      expect.objectContaining({
+        op: 'insert',
+        values: expect.objectContaining({ status: 'pending' }),
+      })
+    );
+    expect(world.clubNoticeDeps).toHaveBeenCalledWith('club-1', 'club@example.test');
+    expect(world.summary.club_read_errors).toBe(0);
+  });
+});

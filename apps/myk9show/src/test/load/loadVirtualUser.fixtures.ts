@@ -81,11 +81,18 @@ export function createFakePostgrest(options: FakePostgrestOptions = {}): FakePos
         }))
       );
     }
+    // MYK9-2252: a pager ends on an empty page, so a continuation (the keyset `or`
+    // filter, or the id scan's `id > last`) finds the seeded table drained.
+    const continuation = url.searchParams.has('or') || url.searchParams.has('id');
     if (options.seedCountedTables && method === 'GET' && COUNTED_TABLES.includes(table)) {
-      return json([{ id: `${table}-seed`, updated_at: '2026-01-01T00:00:00.000Z' }]);
+      return continuation
+        ? json([])
+        : json([{ id: `${table}-seed`, updated_at: '2026-01-01T00:00:00.000Z' }]);
     }
     if (options.seedScannedTables && method === 'GET' && SCANNED_TABLES.includes(table)) {
-      return json([{ id: `${table}-seed`, updated_at: '2026-01-01T00:00:00.000Z' }]);
+      return continuation
+        ? json([])
+        : json([{ id: `${table}-seed`, updated_at: '2026-01-01T00:00:00.000Z' }]);
     }
     // Head count: the engine only needs the header.
     if (method === 'HEAD')

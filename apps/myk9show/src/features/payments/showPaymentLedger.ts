@@ -26,7 +26,9 @@ export interface ShowPaymentLedgerRow {
  * One call to `record_enrollment_payment`. Amounts are dollars.
  *
  * - `payment`: THIS payment (a partial adds to what was paid); `amount: null`
- *   pays whatever is still due ("Paid in Full").
+ *   pays whatever is still due ("Paid in Full"). `clientPaymentId` is the
+ *   payment's own id (MYK9-1936): the server records one id once, so a retry
+ *   of a save whose answer was lost does not record the payment twice.
  * - `refund`: money handed back. `method: null` means it went back some other
  *   way (Stripe, other), which the enrollment records and the ledger does not.
  * - `reversal`: "Payment Due", nothing was received after all.
@@ -38,6 +40,7 @@ export type EnrollmentLedgerAction =
       amount: number | null;
       receivedOn: string;
       reference?: string | null | undefined;
+      clientPaymentId: string;
     }
   | {
       kind: 'refund';
@@ -47,6 +50,12 @@ export type EnrollmentLedgerAction =
       notes: string | null;
     }
   | { kind: 'reversal' };
+
+/** A payment as the secretary typed it, before it is given its own id. */
+export type LedgerPaymentDetails = Omit<
+  Extract<EnrollmentLedgerAction, { kind: 'payment' }>,
+  'clientPaymentId'
+>;
 
 /** The enrollment as `record_enrollment_payment` left it. */
 export interface RecordedEnrollmentPayment {
@@ -86,6 +95,7 @@ export function ledgerActionRpcArgs(
         p_method: action.method,
         p_received_on: action.receivedOn,
         p_reference: action.reference?.trim() || null,
+        p_client_payment_id: action.clientPaymentId,
       };
     case 'refund':
       return {

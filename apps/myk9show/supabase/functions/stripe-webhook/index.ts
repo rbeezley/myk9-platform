@@ -99,6 +99,11 @@ import {
   type UnfulfilledChargeInput,
 } from '../_shared/unfulfilledChargeRefund.ts';
 import {
+  loadCartPriceSnapshotLineItems,
+  verifyPaidCartCharge,
+  type CartSnapshotItem,
+} from '../_shared/cartPriceSnapshot.ts';
+import {
   beginCartFulfillment,
   CART_FULFILLMENT_LINE_COLUMNS,
   workCartLines,
@@ -1176,7 +1181,9 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session, pai
   // sources the payer cannot write: a FRESH session retrieve from Stripe's
   // API (modern SDK version — amount_total always present) and authoritative
   // per-item fees recomputed from show/class pricing. Runs BEFORE the claim
-  // so a rejected cart stays active.
+  // so a rejected cart stays active. MYK9-2036: for a session stamped with a
+  // price snapshot, the second source is Stripe's own line items (the prices
+  // sold at checkout) instead of a recomputation; see verifyPaidCartCharge.
   const freshSession = await stripe.checkout.sessions.retrieve(session.id);
   const freshGate = decideFreshSessionGate(freshSession);
   if (freshGate.action === 'skip') {
@@ -1260,39 +1267,6 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session, pai
   const feeByClass = new Map<string, number | string | null>(
     classRows.map((c: { id: string; entry_fee: number | string | null }) => [c.id, c.entry_fee])
   );
-  const nowIso = paidAtIso;
-  // MYK9-879: priced per LINE, not per class, because the junior-handler
-  // declaration is per line. A Finish Payment line is priced from its entry's
-  // stored record, a new line from the exhibitor's declaration; no date of birth
-  // or dog ownership is read. The same function stripe-checkout charged from.
-  const pricingItems = (
-    cart.items as {
-      id: string;
-      dog_id: string;
-      class_id: string;
-      entry_id: string | null;
-      junior_fee_declared: boolean | null;
-    }[]
-  ).map(i => ({ ...i, class_entry_fee: feeByClass.get(i.class_id) ?? null }));
-  const { stored: storedJunior, error: storedJuniorError } = await loadStoredEntryJunior(
-    supabase,
-    pricingItems
-  );
-  // MYK9-2338: the cart is untouched, so a failed read throws and Stripe retries.
-  throwIfDbError(storedJuniorError, `Could not read stored junior fees for cart ${cartId}`);
-  const authoritativeByItem = priceCartItems(
-    {
-      ...showFees,
-      timezone: showTimeZoneFromTrials(showFees.trials as ShowTrialZoneRow[] | null),
-    },
-    pricingItems,
-    storedJunior,
-    nowIso
-  );
-  const authoritativeSubtotal = pricingItems.reduce(
-    (sum, i) => sum + (authoritativeByItem.get(i.id) ?? 0),
-    0
-  );
   // Validate the platform fee against the rate STAMPED on the session at
   // checkout, not a live read — stripe-checkout now charges from the
   // platform_settings row, and a site admin changing that rate between charge
@@ -1308,23 +1282,91 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session, pai
     freshSession.metadata,
     Deno.env.get('PLATFORM_FEE_PERCENT')
   );
-  const authoritativeTotal =
-    authoritativeSubtotal + calculatePlatformFeeCents(authoritativeSubtotal, stampedFeeRates);
-  if (authoritativeTotal !== freshTotalCents) {
+  // MYK9-2036: a VERSIONED session is verified against the prices Stripe recorded
+  // when it was opened (its line items, _shared/cartPriceSnapshot.ts): each stored
+  // line fee against its own snapshot line, the entry details each price was sold
+  // for, the service-fee line and the captured total. It is never re-priced, so
+  // this webhook reads no clock for it and the day-of tier starting at midnight
+  // (after Pay, or before a retried delivery) cannot refuse it. A failed line-item
+  // read THROWS: 5xx, the cart unclaimed, no refund request, Stripe redelivers. An
+  // unversioned session (opened before this shipped) keeps the re-price below.
+  const verdict = await verifyPaidCartCharge(
+    {
+      loadLineItems: () => loadCartPriceSnapshotLineItems(stripe.checkout.sessions, session.id),
+      repriceTotal: async () => {
+        const nowIso = paidAtIso;
+        // MYK9-879: priced per LINE, not per class, because the junior-handler
+        // declaration is per line. A Finish Payment line is priced from its entry's
+        // stored record, a new line from the exhibitor's declaration; no date of birth
+        // or dog ownership is read. The same function stripe-checkout charged from.
+        const pricingItems = (
+          cart.items as {
+            id: string;
+            dog_id: string;
+            class_id: string;
+            entry_id: string | null;
+            junior_fee_declared: boolean | null;
+          }[]
+        ).map(i => ({ ...i, class_entry_fee: feeByClass.get(i.class_id) ?? null }));
+        const { stored: storedJunior, error: storedJuniorError } = await loadStoredEntryJunior(
+          supabase,
+          pricingItems
+        );
+        // MYK9-2338: the cart is untouched, so a failed read throws and Stripe retries.
+        throwIfDbError(storedJuniorError, `Could not read stored junior fees for cart ${cartId}`);
+        const authoritativeByItem = priceCartItems(
+          {
+            ...showFees,
+            timezone: showTimeZoneFromTrials(showFees.trials as ShowTrialZoneRow[] | null),
+          },
+          pricingItems,
+          storedJunior,
+          nowIso
+        );
+        const authoritativeSubtotal = pricingItems.reduce(
+          (sum, i) => sum + (authoritativeByItem.get(i.id) ?? 0),
+          0
+        );
+        return {
+          expectedCents:
+            authoritativeSubtotal +
+            calculatePlatformFeeCents(authoritativeSubtotal, stampedFeeRates),
+          lineAmounts: Object.fromEntries(
+            (cart.items as { id: string; entry_fee_cents: number }[]).map(item => [
+              item.id,
+              authoritativeByItem.get(item.id) ?? item.entry_fee_cents,
+            ])
+          ),
+        };
+      },
+    },
+    {
+      sessionMetadata: freshSession.metadata,
+      items: cart.items as CartSnapshotItem[],
+      freshTotalCents,
+      platformFeeRates: stampedFeeRates,
+    }
+  );
+  if (!verdict.ok) {
     console.error(
-      `CRITICAL: paid total ${freshTotalCents}¢ does not match authoritative pricing ` +
-        `${authoritativeTotal}¢ for cart ${cartId} — entries NOT created`
+      `CRITICAL: paid total ${freshTotalCents}¢ does not match ` +
+        (verdict.snapshotMismatch
+          ? `the prices recorded at checkout (${verdict.snapshotMismatch})`
+          : `authoritative pricing ${verdict.expectedCents}¢`) +
+        ` for cart ${cartId} — entries NOT created`
     );
     await queueUnfulfilledCharge(session, {
       reason: 'paid_amount_mismatch',
       cartId,
       showId: cart.show_id ?? null,
-      detail: { authoritative_cents: authoritativeTotal },
+      detail: verdict.detail,
       chargedCents: freshTotalCents,
       copy: paidAmountMismatchChargeAlert({
         sessionId: session.id,
         chargedCents: freshTotalCents,
-        authoritativeCents: authoritativeTotal,
+        authoritativeCents: verdict.expectedCents,
+        recordedCents: verdict.recordedCents,
+        snapshotMismatch: verdict.snapshotMismatch,
       }),
     });
     return;
@@ -1349,17 +1391,12 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session, pai
     return;
   }
 
-  const lineAmounts: Record<string, number> = Object.fromEntries(
-    (cart.items as { id: string; entry_fee_cents: number }[]).map(item => [
-      item.id,
-      authoritativeByItem.get(item.id) ?? item.entry_fee_cents,
-    ])
-  );
+  // MYK9-2036: a versioned session's line amounts are Stripe's line items.
   const begun = await beginCartFulfillment(refundQueueDeps, {
     cartId,
     sessionId: session.id,
     paymentIntentId,
-    lineAmounts,
+    lineAmounts: verdict.lineAmounts,
   });
   if (begun.outcome === 'completed') {
     // Only a racing first delivery lands here: a redelivery after the latch is

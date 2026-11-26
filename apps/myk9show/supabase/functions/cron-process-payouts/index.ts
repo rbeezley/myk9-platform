@@ -17,6 +17,9 @@
 //   .payouts_require_approval in the same transaction. While it is on, the run
 //   records the payout as 'awaiting_approval' and sends only rows a site admin
 //   approved, never more than the approved amount nor to another account.
+// - Each payout waiting for approval reminds the operator once a day, after
+//   the shows are worked, until it is approved or held (MYK9-2182,
+//   approvalReminders.ts). A reminder that could not be sent is counted and alerted.
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
@@ -31,6 +34,8 @@ import { recoverStaleProcessing } from './payoutReconcile.ts';
 import { loadEligibleShows } from './eligibleShows.ts';
 import { refuseUnknownKeyMode } from './payoutAlerts.ts';
 import type { PayoutAlertOptions } from './payoutTypes.ts';
+import { remindAwaitingApprovals, reportReminderFailures } from './approvalReminders.ts';
+import { createReminderStore } from './approvalReminderStore.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -131,6 +136,9 @@ Deno.serve(async req => {
     club_read_errors: 0,
     // Stripe gave no clear answer to a transfer request; the row stays processing.
     uncertain_transfers: 0,
+    // MYK9-2182: daily reminders for payouts waiting for approval.
+    approval_reminders: 0,
+    approval_reminder_errors: 0,
   };
 
   if ((await refuseUnknownKeyMode({ alertAdmin }, stripeMode)) || !stripeSecret) {
@@ -171,15 +179,29 @@ Deno.serve(async req => {
     // Newest 1,000 date-eligible shows plus every show still owed a payout
     // (eligibleShows.ts), so none falls past the cutoff (MYK9-2183).
     const loaded = await loadEligibleShows(supabase, cutoff);
-    if (!loaded.ok) {
+    if (loaded.ok) {
+      summary.eligible_shows = loaded.shows.length;
+      for (const show of loaded.shows) {
+        await processShow(show, summary, deps);
+      }
+    } else {
       console.error('Eligible-shows query failed:', loaded.error);
-      return Response.json({ error: loaded.error }, { status: 500 });
     }
-    const shows = loaded.shows;
 
-    summary.eligible_shows = shows.length;
-    for (const show of shows) {
-      await processShow(show, summary, deps);
+    // After the shows, so a payout that started waiting this run is reminded
+    // today; also when the shows could not be read, since waiting payouts
+    // still need their reminder.
+    const reminderDeps = { ...createReminderStore(supabase), alertAdmin, siteUrl };
+    const reminders = await remindAwaitingApprovals(reminderDeps, Date.now());
+    summary.approval_reminders = reminders.reminded;
+    summary.approval_reminder_errors = reminders.failed + (reminders.listFailed ? 1 : 0);
+    if (reminders.deferred) {
+      console.log('Payout approval reminders: batch limit reached; the rest go out next run');
+    }
+    await reportReminderFailures(reminderDeps, reminders);
+
+    if (!loaded.ok) {
+      return Response.json({ error: loaded.error, ...summary }, { status: 500 });
     }
 
     console.log('Payout run summary:', JSON.stringify(summary));

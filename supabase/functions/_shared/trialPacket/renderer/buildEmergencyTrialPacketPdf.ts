@@ -1,6 +1,7 @@
 import { armbandSortKey, compareArmbands, formatPacketArmband } from './armband.ts';
 import { formatEmergencyPacketPageLabel } from './emergencyTrialPacket.ts';
 import { formatPacketTrialLabel } from './packetClassOrder.ts';
+import { formatPacketDateText } from './packetDateText.ts';
 import { judgeDetailLine } from './printedClassHeader.ts';
 import { resolveScoresheetConfig, type ScoresheetRegistryConfig } from './scoresheetConfig.ts';
 import type { EmergencyPacketEntry, EmergencyPacketModel, EmergencyPacketPage } from './types.ts';
@@ -100,7 +101,19 @@ function addPageFrame(doc: jsPDF, page: EmergencyPacketPage, totalPages: number)
   doc.line(LEFT, 15, RIGHT, 15);
 
   doc.setFontSize(8);
-  doc.text(fitTextToWidth(doc, formatEmergencyPacketPageLabel(page), 150), LEFT, PAGE_FOOTER_Y_MM);
+  doc.text(
+    fitTextToWidth(
+      doc,
+      // Only the date is reformatted; a show or class name is printed as written.
+      formatEmergencyPacketPageLabel({
+        ...page,
+        context: { ...page.context, trialDate: formatPacketDateText(page.context.trialDate) },
+      }),
+      150
+    ),
+    LEFT,
+    PAGE_FOOTER_Y_MM
+  );
   doc.text(`Page ${page.pageNumber} of ${totalPages}`, RIGHT, PAGE_FOOTER_Y_MM, { align: 'right' });
 }
 
@@ -219,7 +232,7 @@ function addTitle(doc: jsPDF, page: EmergencyPacketPage): number {
   const isScoreRecording = page.kind === 'score-recording';
   const details = [
     page.context.trialLabel,
-    page.context.trialDate,
+    formatPacketDateText(page.context.trialDate),
     page.context.ringLabel,
     page.context.classLabel,
     isScoreRecording ? formatArmbandRange(page.entries) : undefined,
@@ -316,7 +329,7 @@ function renderCover(doc: jsPDF, model: EmergencyPacketModel, page: EmergencyPac
   // Budget upward from the footer at PAGE_HEIGHT - 8 (271.4mm). Four name
   // lines end at 265mm, so this block cannot reach the footer.
   doc.text(`Snapshot generated: ${formatGeneratedAt(page.generatedAt)}`, LEFT, 228);
-  doc.text(`This packet covers: ${page.context.trialDate}`, LEFT, 236);
+  doc.text(`This packet covers: ${formatPacketDateText(page.context.trialDate)}`, LEFT, 236);
   // Name the trials inside, so a secretary holding two evenings' stacks can
   // tell them apart without leafing through. A day can hold several trials,
   // and they can run under different sanctioning bodies.

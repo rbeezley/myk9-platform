@@ -67,6 +67,8 @@ begin
   end if;
 
   perform pg_temp.lease('show_changed');
+  -- Snapshot after leasing, so claimed_until and attempt_id are the leased values.
+  select * into v_first from public.show_lifecycle_email_jobs where id = v_first.id;
   update public.people set email = 'ada.new@example.test' where id = '00000000-0000-0000-0000-000002347021';
   update public.trials set date = current_date + 9 where id = '00000000-0000-0000-0000-000002347003';
 
@@ -88,10 +90,19 @@ begin
     raise exception 'FAIL A the new job is wrong: %', row_to_json(v_second);
   end if;
 
+  update public.people set email = 'ada.third@example.test' where id = '00000000-0000-0000-0000-000002347021';
   update public.trials set date = current_date + 11 where id = '00000000-0000-0000-0000-000002347003';
   if (select count(*) from public.show_lifecycle_email_jobs
        where show_id = v_show and step_type = 'show_changed') <> 2 then
     raise exception 'FAIL A a further edit should merge into the unleased job, not add a third';
+  end if;
+  select * into v_after from public.show_lifecycle_email_jobs where id = v_first.id;
+  if v_after.recipient_email <> 'ada@example.test' or v_after.claimed_until is distinct from v_first.claimed_until then
+    raise exception 'FAIL A the further edit touched the leased job: %', row_to_json(v_after);
+  end if;
+  select * into v_second from public.show_lifecycle_email_jobs where id <> v_first.id and show_id = v_show and step_type = 'show_changed';
+  if v_second.recipient_email <> 'ada.third@example.test' or v_second.claimed_until is not null then
+    raise exception 'FAIL A the further edit did not update the unleased job: %', row_to_json(v_second);
   end if;
   raise notice 'PASS A a show edit during a lease queues a separate job';
 end $$;

@@ -17,8 +17,10 @@
 -- 20261117191300; no later migration replaces them), changing only the above.
 -- A function replace keeps the existing grants; the REVOKEs are repeated anyway.
 --
--- Rollback: recreate both indexes without "AND claimed_until IS NULL" and re-run the two
--- producer bodies from their original migrations.
+-- Rollback: first drain or merge any duplicate ready jobs per (show_id, recipient_person_id,
+-- step_type) (a leased job plus its follow-up is a legal pair now, and would make the old
+-- unique index fail to build), then recreate both indexes without "AND claimed_until IS NULL"
+-- and re-run the two producer bodies from their original migrations.
 
 DROP INDEX IF EXISTS public.show_lifecycle_email_jobs_one_ready_show_changed;
 CREATE UNIQUE INDEX show_lifecycle_email_jobs_one_ready_show_changed

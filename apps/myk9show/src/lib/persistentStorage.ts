@@ -4,10 +4,9 @@
  * Without `navigator.storage.persist()`, all IndexedDB (and localStorage) is
  * "best-effort" and the browser may evict it under pressure. On iOS/Safari,
  * script-writable storage is purged after 7 days of non-use for non-installed
- * web apps — which would destroy a judge's queued scores AND the localStorage
- * backup together. Requesting persistence is the standard mitigation; installing
- * to the home screen is the real fix on iOS (installed PWAs are exempt from the
- * 7-day purge).
+ * web apps — which would destroy a judge's queued scores. Requesting
+ * persistence is the standard mitigation; installing to the home screen is the
+ * real fix on iOS (installed PWAs are exempt from the 7-day purge).
  *
  * This is best-effort and idempotent: the browser may grant silently, prompt,
  * or deny based on engagement heuristics. Never block on the result.

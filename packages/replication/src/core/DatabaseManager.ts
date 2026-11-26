@@ -9,7 +9,7 @@
  * - Race condition prevention
  */
 
-import { openDB, deleteDB, IDBPDatabase } from 'idb';
+import { openDB, IDBPDatabase } from 'idb';
 import type { Logger, DatabaseManagerDependencies } from '../dependencies';
 import { noopLogger } from '../dependencies';
 import {
@@ -17,8 +17,6 @@ import {
   DB_VERSION,
   DB_INIT_TIMEOUT_MS,
   INIT_RETRY_DELAY_MS,
-  DELETE_DB_TIMEOUT_MS,
-  RECOVERY_SNAPSHOT_TIMEOUT_MS,
   CIRCUIT_BREAKER_THRESHOLD,
 } from '../constants';
 import { withTimeout } from '../mutation-utils';
@@ -29,11 +27,6 @@ import {
   latchStaleSchema,
   resetStaleSchemaLatch,
 } from './staleSchema';
-import {
-  writeMutationBackup,
-  parseMutationBackup,
-  MUTATION_BACKUP_STORAGE_KEY,
-} from '../mutation-backup';
 
 /**
  * Object store names for the replication system
@@ -46,6 +39,20 @@ export const REPLICATION_STORES = {
   PREFETCH_CACHE: 'prefetch_cache',
   OFFLINE_QUEUE: 'offline_queue',
 } as const;
+
+/**
+ * The offline database at this version lacks stores this build needs. It is
+ * never deleted automatically: it may still hold the only copy of queued
+ * scores (MYK9-2360). Clearing site data is the manual fix.
+ */
+export class DamagedDatabaseError extends Error {
+  readonly missingStores: string[];
+  constructor(missingStores: string[]) {
+    super(`Offline database is damaged: missing ${missingStores.join(', ')}`);
+    this.name = 'DamagedDatabaseError';
+    this.missingStores = missingStores;
+  }
+}
 
 /**
  * Database state - singleton pattern
@@ -300,6 +307,13 @@ export class DatabaseManager {
       },
     }).then(db => {
       this.logger.log(`[DatabaseManager] openDB() promise resolved!`);
+      const missing = Object.values(REPLICATION_STORES).filter(
+        store => !db.objectStoreNames.contains(store)
+      );
+      if (missing.length > 0) {
+        db.close();
+        throw new DamagedDatabaseError(missing);
+      }
       db.onversionchange = event => {
         this.logger.warn(
           `[DatabaseManager] Another instance requested upgrade — closing connection`
@@ -307,7 +321,7 @@ export class DatabaseManager {
         db.close();
         sharedDB = null;
         dbInitPromise = null;
-        // newVersion === null is a deleteDB (another tab's recovery): reconnect
+        // newVersion === null is a deleteDB (site data cleared): reconnect
         // on the next call. A number is a newer build upgrading: this build is stale.
         if (event.newVersion !== null) latchStaleSchema('version-change');
       };
@@ -360,21 +374,6 @@ export class DatabaseManager {
             sharedDB.close();
           } catch {
             // Ignore close errors
-          }
-        }
-
-        if (
-          errorMsg.includes('Object stores missing') ||
-          errorMsg.includes('object stores was not found')
-        ) {
-          this.logger.warn(
-            `[${tableName}] Corrupted database detected - deleting and recreating...`
-          );
-          try {
-            await deleteDB(this.dbName);
-            this.logger.log(`[${tableName}] Corrupted database deleted successfully`);
-          } catch (deleteError) {
-            this.logger.error(`[${tableName}] Failed to delete corrupted database:`, deleteError);
           }
         }
 
@@ -447,6 +446,9 @@ export class DatabaseManager {
         latchStaleSchema('version-error');
         throw error;
       }
+      // Reopening a damaged database cannot repair it, and deleting it would
+      // destroy the queued scores it still holds (MYK9-2360).
+      if (error instanceof DamagedDatabaseError) throw error;
 
       await this.recover();
 
@@ -535,67 +537,19 @@ export class DatabaseManager {
   }
 
   /**
-   * Auto-recover: force-close, nuke IndexedDB, re-open, emit event
+   * Auto-recover: force-close, re-open, emit event. Never deletes the database:
+   * it holds the only copy of the queued scores (MYK9-2360).
    */
   private async recover(): Promise<void> {
     // MYK9-1663: the newer build owns this database and its queued scores.
     if (getStaleSchemaLatch()) {
-      this.logger.warn(`[DatabaseManager] Stale schema latched — refusing to delete the database`);
+      this.logger.warn(`[DatabaseManager] Stale schema latched — refusing to reopen the database`);
       return;
     }
     if (this.isRecovering) return;
     this.isRecovering = true;
 
     this.logger.warn(`[DatabaseManager] Starting auto-recovery...`);
-
-    // Snapshot pending + failed mutations to localStorage BEFORE we delete the
-    // DB, so a circuit-breaker wipe cannot destroy unsynced or dead-lettered
-    // scores. Best-effort: the DB may already be failing, so any read error is
-    // swallowed — the continuous backup written on every mutation change is the
-    // primary safety net; this is belt-and-suspenders for the just-changed case.
-    // The matching restore runs after re-open via the 'replication:recovery'
-    // event handler calling restoreMutationsFromLocalStorage().
-    if (sharedDB && typeof window !== 'undefined') {
-      try {
-        // Time-box the reads: recover() runs precisely when IndexedDB may be
-        // wedged, and an un-bounded getAll could hang forever — blocking the
-        // delete/reopen below and the recovery event, leaving the app stuck. On
-        // timeout we skip the snapshot and proceed; the continuous backup written
-        // on every mutation change is the fallback.
-        const [pending, failed] = await withTimeout(
-          Promise.all([
-            sharedDB.getAll(REPLICATION_STORES.PENDING_MUTATIONS),
-            sharedDB.getAll(REPLICATION_STORES.FAILED_MUTATIONS),
-          ]),
-          RECOVERY_SNAPSHOT_TIMEOUT_MS,
-          'recovery-snapshot'
-        );
-        // UNION with the existing continuous backup rather than overwrite it. The
-        // DB is failing here, so getAll could return a truncated-but-not-throwing
-        // partial set; a plain overwrite would then shrink a more-complete backup
-        // and lose exactly the scores this snapshot protects. Merging by id keeps
-        // every mutation from both sources (replay is idempotent via INSERT/OCC).
-        const existing = parseMutationBackup(localStorage.getItem(MUTATION_BACKUP_STORAGE_KEY));
-        const byId = new Map<string, (typeof pending)[number]>();
-        for (const m of [...existing.mutations, ...existing.failedMutations]) {
-          byId.set((m as { id: string }).id, m as unknown as (typeof pending)[number]);
-        }
-        for (const m of [...pending, ...failed]) byId.set((m as { id: string }).id, m);
-        const union = Array.from(byId.values());
-        if (union.length > 0) {
-          writeMutationBackup(localStorage, union as Parameters<typeof writeMutationBackup>[1]);
-          this.logger.log(
-            `[DatabaseManager] Snapshotted ${union.length} mutation(s) before recovery ` +
-              `(${pending.length} pending + ${failed.length} failed read, unioned with backup)`
-          );
-        }
-      } catch (snapshotError) {
-        this.logger.warn(
-          `[DatabaseManager] Could not snapshot mutations before recovery (continuous backup still applies)`,
-          snapshotError
-        );
-      }
-    }
 
     if (sharedDB) {
       try {
@@ -610,16 +564,6 @@ export class DatabaseManager {
     dbInitInProgress = false;
     tableInitQueue = Promise.resolve();
     tablesInitialized = 0;
-
-    // Short timeout — deleteDB hangs when the DB is locked
-    try {
-      await withTimeout(deleteDB(this.dbName), DELETE_DB_TIMEOUT_MS, 'deleteDB');
-      this.logger.log(`[DatabaseManager] IndexedDB deleted successfully`);
-    } catch {
-      this.logger.warn(
-        `[DatabaseManager] deleteDB timed out or failed — proceeding without deletion`
-      );
-    }
 
     try {
       dbInitPromise = this.openDatabaseWithTimeout();

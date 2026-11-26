@@ -167,7 +167,7 @@ describe('DatabaseManager stale schema', () => {
     upgraded.close();
   });
 
-  it('recover() itself refuses to delete while stale, whoever calls it', async () => {
+  it('recover() itself refuses to run while stale, whoever calls it', async () => {
     manager = new DatabaseManager({}, DB_NAME, OLDER);
     await manager.getDatabase('entries');
     const upgraded = await openDB(DB_NAME, NEWER);

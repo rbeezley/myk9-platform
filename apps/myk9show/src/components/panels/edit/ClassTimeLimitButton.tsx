@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { MaxTimeDialog } from '@/features/at-show/slots/MaxTimeDialog';
 import { replicatedClassesTable } from '@/services/replication';
 import { scoresheetKeyForClass } from '@/pages/scoring/types';
-import { pairedClassIdOf } from './classTimeLimitPair';
+import { pairedClassOf } from './classTimeLimitPair';
 
 /**
  * Edit Class's one door to a class's time limits (MYK9-2405). The form never carries the limits
@@ -26,13 +26,13 @@ export const ClassTimeLimitButton: React.FC<{ classId: string | undefined }> = (
       const live = await replicatedClassesTable.getClassById(classId);
       if (!live) throw new Error('class not on this device');
       const sheet = await scoresheetKeyForClass(live.trialId, live.name);
-      const pairedClassId = await pairedClassIdOf(live);
+      const pair = await pairedClassOf(live);
       setClassData({
         id: live.id,
         element: live.element ?? '',
         level: live.level ?? '',
-        class_name: live.name,
-        ...(pairedClassId && { pairedClassId }),
+        class_name: pair?.className ?? live.name,
+        ...(pair && { pairedClassId: pair.pairedClassId }),
         per_area_times: sheet === 'AKC_SCENT_WORK' || sheet === 'ASCA_SCENT_DETECTION',
         ...(live.timeLimitSeconds != null && { time_limit_seconds: live.timeLimitSeconds }),
         ...(live.timeLimitArea2Seconds != null && {

@@ -178,7 +178,11 @@ describe('ClassEditPanel: time limits belong to MaxTimeDialog', () => {
     await view.user.click(screen.getByRole('button', { name: /Time limit/ }));
     const dialog = await screen.findByTestId('max-time-dialog');
     expect(JSON.parse(dialog.textContent ?? '')).toEqual(
-      expect.objectContaining({ id: 'cls-1', pairedClassId: 'cls-2' })
+      expect.objectContaining({
+        id: 'cls-1',
+        pairedClassId: 'cls-2',
+        class_name: 'Interior Novice A & B',
+      })
     );
   });
 
@@ -189,6 +193,8 @@ describe('ClassEditPanel: time limits belong to MaxTimeDialog', () => {
     await view.user.click(await screen.findByRole('tab', { name: /Timing/ }));
     await view.user.click(screen.getByRole('button', { name: /Time limit/ }));
     const dialog = await screen.findByTestId('max-time-dialog');
-    expect(JSON.parse(dialog.textContent ?? '')).not.toHaveProperty('pairedClassId');
+    const shown = JSON.parse(dialog.textContent ?? '');
+    expect(shown).not.toHaveProperty('pairedClassId');
+    expect(shown.class_name).toBe('Interior Novice A');
   });
 });

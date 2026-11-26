@@ -16,7 +16,10 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 
-const mocks = vi.hoisted(() => ({ invoke: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  invoke: vi.fn(),
+  suggestion: vi.fn(() => ({ data: null, isLoading: false })),
+}));
 
 // The dialog imports supabase from '@/lib/supabase'.
 vi.mock('@/lib/supabase', () => ({
@@ -36,10 +39,11 @@ vi.mock('@/lib/supabase', () => ({
   },
 }));
 
-// The withdrawal-policy suggestion is a separate concern; stub it so the
-// confirm button's enabled state depends only on the amount.
+// The withdrawal-policy suggestion returns nothing, so the confirm button's
+// enabled state depends only on the amount; the spy records which entry the
+// dialog asked about.
 vi.mock('@/features/payments/useWithdrawalRefundSuggestion', () => ({
-  useWithdrawalRefundSuggestion: () => ({ data: null, isLoading: false }),
+  useWithdrawalRefundSuggestion: mocks.suggestion,
 }));
 
 import { RefundEntryDialog } from './RefundEntryDialog';
@@ -104,5 +108,26 @@ describe('RefundEntryDialog target (MYK9-639)', () => {
     await waitFor(() => expect(mocks.invoke).toHaveBeenCalled());
     const [, options] = mocks.invoke.mock.calls[0] as [string, { body: { entry_id: string } }];
     expect(options.body.entry_id).toBe('plain');
+  });
+
+  // MYK9-2348: the policy is snapshotted on the row that holds the payment; the
+  // moved-up destination's snapshot is NULL, so asking about it shows nothing.
+  it('asks for the withdrawal policy suggestion on the money root for a moved-up dog', () => {
+    render(
+      <RefundEntryDialog
+        open
+        onOpenChange={() => {}}
+        entry={{
+          id: 'destination',
+          dogName: 'Acorn',
+          totalFee: 35,
+          moneyRootEntryId: 'source-moved',
+        }}
+        onRefunded={() => {}}
+      />
+    );
+
+    expect(mocks.suggestion).toHaveBeenCalledWith('source-moved', 3500, true);
+    expect(mocks.suggestion).not.toHaveBeenCalledWith('destination', 3500, true);
   });
 });

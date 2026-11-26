@@ -257,6 +257,7 @@ const launchCriticalSqlTests = [
   'myk9_2124_show_changed_email_jobs_test.sql',
   'myk9_2125_judge_changed_email_jobs_test.sql',
   'myk9_2126_entry_changed_email_jobs_test.sql',
+  'myk9_2347_email_job_lease_guard_test.sql',
   'myk9_2127_show_cancelled_email_jobs_test.sql',
   'myk9_2161_substitute_judge_emails_test.sql',
   'myk9_2160_show_changed_pending_payment_test.sql',

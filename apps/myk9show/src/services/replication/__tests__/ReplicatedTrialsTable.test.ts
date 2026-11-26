@@ -313,6 +313,28 @@ describe('ReplicatedTrialsTable', () => {
         expect(spy.mock.calls[0]?.[3]).toBeUndefined();
       });
 
+      it('does not send status_before_close for a stale edit that never set it (MYK9-2431)', async () => {
+        // This device cached the trial before another device closed the show, so its copy
+        // carries a stale statusBeforeClose. An unrelated rename must not upload it.
+        await table.set('trial-dep', { ...seeded, statusBeforeClose: null });
+        const spy = spyOnWriteAndQueue(table).queue.mockResolvedValue('mutation-6');
+
+        await table.updateTrial('trial-dep', { name: 'Renamed' });
+
+        expect(spy.mock.calls[0]?.[2]).not.toHaveProperty('status_before_close');
+      });
+
+      it('sends status_before_close when the update sets it, including null on reopen', async () => {
+        await table.set('trial-dep', seeded);
+        const spy = spyOnWriteAndQueue(table).queue.mockResolvedValue('mutation-7');
+
+        await table.updateTrial('trial-dep', { statusBeforeClose: 'in_progress' });
+        await table.updateTrial('trial-dep', { statusBeforeClose: null });
+
+        expect(spy.mock.calls[0]?.[2]).toHaveProperty('status_before_close', 'in_progress');
+        expect(spy.mock.calls[1]?.[2]).toHaveProperty('status_before_close', null);
+      });
+
       it('treats an empty dependency array as no dependency', async () => {
         // An empty array would make `dependsOn: []` — harmless for the runner, but it
         // persists a field that reads as "has dependencies" to anything inspecting the queue.

@@ -1,4 +1,4 @@
-import { render, screen } from '@/test/utils/testUtils';
+import { render, screen, within } from '@/test/utils/testUtils';
 import type { ClassAssignment, Volunteer } from '@/types/volunteer';
 import { FocusedClassStewards } from './FocusedClassStewards';
 
@@ -106,5 +106,51 @@ describe('FocusedClassStewards (MYK9-2328)', () => {
     expect(
       screen.getByText("We couldn't load the stewards. Try again when you're back online.")
     ).toBeInTheDocument();
+  });
+
+  describe('handler check gate', () => {
+    it('blocks person-linked volunteers while the check loads, but not walk-ups', async () => {
+      ready([]);
+      stewards.current = { ...stewards.current, conflictsStatus: 'loading' };
+      const { user } = render(<FocusedClassStewards showId="show-1" classId="class-1" />);
+      await user.click(screen.getByRole('button', { name: 'Assign Timer' }));
+      expect(screen.getByText('Checking entries…')).toBeInTheDocument();
+      const options = screen.getAllByTestId('volunteer-option');
+      expect(within(options[0]!).getByText('Sarah Miller')).toBeInTheDocument();
+      expect(options[0]).toBeDisabled();
+      expect(options[1]).toBeEnabled();
+      await user.click(options[0]!);
+      expect(stewards.current.onAssign).not.toHaveBeenCalled();
+    });
+
+    it('blocks person-linked volunteers when the check failed', async () => {
+      ready([]);
+      stewards.current = { ...stewards.current, conflictsStatus: 'unavailable' };
+      const { user } = render(<FocusedClassStewards showId="show-1" classId="class-1" />);
+      await user.click(screen.getByRole('button', { name: 'Assign Timer' }));
+      expect(
+        screen.getByText("We couldn't check which volunteers handle a dog in this class.")
+      ).toBeInTheDocument();
+      expect(screen.getAllByTestId('volunteer-option')[0]).toBeDisabled();
+    });
+
+    it('allows a volunteer who handles a dog here, with the conflict mark', async () => {
+      ready([], new Map([['vol-1', new Set(['class-1'])]]));
+      const { user } = render(<FocusedClassStewards showId="show-1" classId="class-1" />);
+      await user.click(screen.getByRole('button', { name: 'Assign Timer' }));
+      const option = screen.getAllByTestId('volunteer-option')[0]!;
+      expect(option.querySelector('[title*="onflict"]')).not.toBeNull();
+      await user.click(option);
+      expect(stewards.current.onAssign).toHaveBeenCalledWith('vol-1', 'class-1', 'Timer');
+    });
+
+    it('assigns a clear volunteer once the check is ready', async () => {
+      ready([]);
+      const { user } = render(<FocusedClassStewards showId="show-1" classId="class-1" />);
+      await user.click(screen.getByRole('button', { name: 'Assign Timer' }));
+      expect(screen.queryByText('Checking entries…')).not.toBeInTheDocument();
+      await user.click(screen.getAllByTestId('volunteer-option')[0]!);
+      expect(stewards.current.onAssign).toHaveBeenCalledWith('vol-1', 'class-1', 'Timer');
+    });
   });
 });

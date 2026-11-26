@@ -28,28 +28,32 @@ describe('classSchemas.full durations', () => {
     check(extra).error?.issues.map(issue => issue.message) ?? [];
 
   it.each(['', '4:30', '05:00', '9:59'])('accepts %j', value => {
-    expect(check({ timeLimit1: value, estimatedJudgingTime: value }).success).toBe(true);
+    expect(check({ estimatedJudgingTime: value }).success).toBe(true);
   });
 
   it.each(['abc', '4:3x', '4:75', '4:30.5'])('refuses unreadable %j', value => {
-    expect(messages({ timeLimit2: value })).toEqual([
-      'Please enter time limit 2 as minutes and seconds, like 4:30',
+    expect(messages({ estimatedJudgingTime: value })).toEqual([
+      'Please enter the estimated judging time as minutes and seconds, like 4:30',
     ]);
   });
 
   it('refuses a readable time outside the range, per field', () => {
-    expect(messages({ timeLimit3: '12:00' })).toEqual([
-      'Time limit 3 must be between 0:01 and 9:59',
-    ]);
     expect(messages({ estimatedJudgingTime: '10:00' })).toEqual([
       'The estimated judging time must be between 0:01 and 9:59',
     ]);
   });
 
+  // MYK9-2405: time limits are MaxTimeDialog's, so a stored one never blocks a save here.
+  it('does not validate time limits, so an old out-of-range one cannot block Save', () => {
+    expect(check({ timeLimit1: '45:00', timeLimit2: 'abc', timeLimit3: '12:00' }).success).toBe(
+      true
+    );
+  });
+
   it('lets Detective run to 15:00 and no further', () => {
-    expect(check({ element: 'Detective', timeLimit1: '15:00' }).success).toBe(true);
-    expect(messages({ element: 'Detective', timeLimit1: '15:01' })).toEqual([
-      'Time limit 1 must be between 0:01 and 15:00',
+    expect(check({ element: 'Detective', estimatedJudgingTime: '15:00' }).success).toBe(true);
+    expect(messages({ element: 'Detective', estimatedJudgingTime: '15:01' })).toEqual([
+      'The estimated judging time must be between 0:01 and 15:00',
     ]);
   });
 });

@@ -412,9 +412,16 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
       _syncStatus: 'pending',
     };
 
+    // MYK9-2431: the merge above carries this device's cached close record. Unless the caller
+    // set it, leave the server's value alone (a stale copy would wipe what another device
+    // recorded at close, and Reopen show could not restore this trial). Same rule as classes
+    // (stripUnsetServerOwnedKeys) and shows (stripUnsetCloseRecordColumns).
+    const payload = this.toSupabaseRow(updatedTrial);
+    if (!('statusBeforeClose' in updates)) delete payload.status_before_close;
+
     const { mutationId } = await this.writeAndQueue(trialId, updatedTrial, {
       operation: 'UPDATE',
-      payload: this.toSupabaseRow(updatedTrial),
+      payload,
       dependsOn: dependsOn && dependsOn.length > 0 ? dependsOn : undefined,
     });
     this._lastMutationId = mutationId;

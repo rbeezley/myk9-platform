@@ -3,8 +3,6 @@ import { AlertTriangle, RefreshCw, Home, Bug } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ErrorClassificationService } from '@/services/error/ErrorClassificationService';
-import type { ErrorDetails } from '@/services/error/GlobalErrorHandler';
 import { RESTART_THE_APP_LABEL } from '@/lib/offlineCopy';
 import { logger } from '@/services/LoggingService';
 import { captureErrorBoundaryException } from '@/services/observability/sentry';
@@ -22,8 +20,6 @@ interface ErrorBoundaryState {
   error: Error | null;
   errorInfo: ErrorInfo | null;
   errorId: string;
-  classifiedError?:
-    import('@/services/error/ErrorClassificationService').ClassifiedError | undefined;
 }
 
 /**
@@ -33,14 +29,12 @@ interface ErrorBoundaryState {
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   private retryCount = 0;
   private maxRetries = 3;
-  private errorClassificationService = ErrorClassificationService.getInstance();
 
   public override state: ErrorBoundaryState = {
     hasError: false,
     error: null,
     errorInfo: null,
     errorId: '',
-    classifiedError: undefined,
   };
 
   public static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
@@ -53,27 +47,12 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   public override componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Classify the error for better handling
-    const errorDetails: ErrorDetails = {
-      message: error.message,
-      stack: error.stack,
-      timestamp: Date.now(),
-      userAgent: navigator.userAgent,
-      url: window.location.href,
-      sessionId: `session_${Date.now()}`,
-      errorType: 'javascript',
-      severity: 'high',
-    };
-
-    const classifiedError = this.errorClassificationService.classifyError(errorDetails);
-
     // Log the error to our monitoring service
     this.logErrorToService(error, errorInfo);
 
     this.setState({
       error,
       errorInfo,
-      classifiedError,
     });
 
     // Call the optional onError callback
@@ -94,7 +73,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       url: window.location.href,
     };
 
-    logger.error('Error Boundary Caught Error:', 'components', {}, new Error(errorReport.message));
+    logger.error('Error Boundary Caught Error:', 'components', {}, error);
     captureErrorBoundaryException(error, errorInfo, {
       context: errorReport.context,
       level: errorReport.level,
@@ -123,6 +102,11 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         errorId: '',
       });
     }
+  };
+
+  private handleCustomReset = () => {
+    this.retryCount = 0;
+    this.setState({ hasError: false, error: null, errorInfo: null, errorId: '' });
   };
 
   private handleReload = () => {
@@ -167,8 +151,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       if (this.props.fallback) {
         return this.props.fallback({
           error: this.state.error,
-          resetErrorBoundary: () =>
-            this.setState({ hasError: false, error: null, errorInfo: null, errorId: '' }),
+          resetErrorBoundary: this.handleCustomReset,
         });
       }
 

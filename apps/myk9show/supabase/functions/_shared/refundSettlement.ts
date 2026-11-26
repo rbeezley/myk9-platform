@@ -26,6 +26,7 @@ import {
   type SettlingRefund,
 } from './refundRequests.ts';
 import { resolveRefundLedgerAction, type RefundLedgerAction } from './refundLifecycle.ts';
+import { listAllIntentRefunds } from './refundPaging.ts';
 
 export interface RefundListPage {
   data: SettlingRefund[];
@@ -148,28 +149,9 @@ export function findAttemptRefund<T extends SettlingRefund>(
   );
 }
 
-/**
- * Every refund on the intent (Codex P2 on #2689): an attempt's refund must be
- * found even past the first 100.
- */
-export async function listAllIntentRefunds(
-  listPage: RefundPageLoader,
-  paymentIntentId: string,
-  pageSize = 100
-): Promise<SettlingRefund[]> {
-  const all: SettlingRefund[] = [];
-  let startingAfter: string | undefined;
-  for (;;) {
-    const page = await listPage({
-      payment_intent: paymentIntentId,
-      limit: pageSize,
-      ...(startingAfter ? { starting_after: startingAfter } : {}),
-    });
-    all.push(...page.data);
-    if (!page.has_more || page.data.length === 0) return all;
-    startingAfter = page.data[page.data.length - 1].id;
-  }
-}
+// Every refund on the intent (Codex P2 on #2689): an attempt's refund must be
+// found even past the first 100. Shared with the secretary refund functions.
+export { listAllIntentRefunds };
 
 /**
  * Settle one attempt from Stripe. `createdRefundId` is the id the approval's

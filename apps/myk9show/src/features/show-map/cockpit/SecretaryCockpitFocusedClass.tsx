@@ -54,6 +54,7 @@ export function SecretaryCockpitFocusedClass({
   entryBreakdownByClassId,
   onRefreshEntries,
   putBackEntries,
+  showName,
 }: {
   showId: string;
   focused: FocusedClassModel | null;
@@ -85,6 +86,8 @@ export function SecretaryCockpitFocusedClass({
   onRefreshEntries?: EntriesRefresh | undefined;
   /** The stored entries by id, so a real Pull can be put back from its row (MYK9-2038). */
   putBackEntries?: ReadonlyMap<string, EntryManagementEntry> | undefined;
+  /** The show's name, for the in-place Change handler sheet (MYK9-1940). */
+  showName?: string | undefined;
 }) {
   // Which class's actual-start editor is open; the header's Actual timing field and the Class started step share it.
   const [editingStart, setEditingStart] = useState<string | null>(null);
@@ -164,6 +167,7 @@ export function SecretaryCockpitFocusedClass({
         canChangeCheckIn={canManageShow}
         {...(onRefreshEntries && { onRefreshEntries })}
         {...(putBackEntries && { putBackEntries })}
+        {...(showName && { showName })}
         hidden={focused.entriesHidden}
         unread={unread}
         // Managers only; the engine's per-entry answer, joined to the table by nodeId (MYK9-1798).

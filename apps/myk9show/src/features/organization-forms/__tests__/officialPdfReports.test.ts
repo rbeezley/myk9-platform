@@ -59,6 +59,21 @@ describe('getOfficialPdfReportConfig', () => {
     expect(config?.actionLabel).toBe('Download UKC Trial Report PDF');
   });
 
+  it.each([null, undefined, '', '   '])(
+    'reads a %j trial registry as AKC (the helper default)',
+    registryId => {
+      const props = {
+        ...reportProps,
+        trial: { ...reportProps.trial, registryId },
+      } as unknown as ReportProps;
+
+      expect(getOfficialPdfReportConfig('trial-secretary-report', props)?.templateId).toBe(
+        'akc-scent-work-trial-secretary-report'
+      );
+      expect(getOfficialPdfReportConfig('ukc-nosework-trial-report', props)).toBeNull();
+    }
+  );
+
   it('does not dispatch the dedicated UKC report for a non-UKC trial', () => {
     expect(getOfficialPdfReportConfig('ukc-nosework-trial-report', reportProps)).toBeNull();
   });

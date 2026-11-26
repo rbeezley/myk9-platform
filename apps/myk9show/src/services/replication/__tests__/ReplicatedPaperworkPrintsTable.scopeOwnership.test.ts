@@ -14,11 +14,22 @@ const server = vi.hoisted(() => ({
 }));
 
 vi.mock('@/services/database/supabaseClient', () => {
+  // The keyset pager reads the rows, then a follow-up page (carrying the `or` cursor) that ends it.
+  let followUp = false;
   const query = {
     select: () => query,
     eq: () => query,
     gt: () => query,
-    order: () => Promise.resolve({ data: server.rows, error: null }),
+    or: () => {
+      followUp = true;
+      return query;
+    },
+    order: () => query,
+    range: () => {
+      const data = followUp ? [] : server.rows;
+      followUp = false;
+      return Promise.resolve({ data, error: null });
+    },
   };
   return { supabase: { from: () => query, rpc: server.rpc } };
 });

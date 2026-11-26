@@ -34,8 +34,9 @@ describe('stripe-webhook entry_payment_request branch', () => {
 
   it('routes async Checkout payment success through the same paid-session handler', () => {
     expect(source).toContain("case 'checkout.session.async_payment_succeeded':");
-    expect(source).toContain(
-      'await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session)'
+    // MYK9-2338: the handler also takes the signed event's created time (paidAtIso).
+    expect(source).toMatch(
+      /await handleCheckoutCompleted\(\s*event\.data\.object as Stripe\.Checkout\.Session,\s*paidAtIsoFromEvent\(event\.created\)\s*\)/
     );
     expect(source).toContain("case 'checkout.session.async_payment_failed':");
     expect(source).toContain('entries remain pending');

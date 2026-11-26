@@ -332,12 +332,7 @@ export function classDurationMaxSeconds(element: string | undefined): number {
   return element === 'Detective' ? 15 * 60 : 9 * 60 + 59;
 }
 
-const CLASS_DURATIONS = [
-  ['estimatedJudgingTime', 'The estimated judging time'],
-  ['timeLimit1', 'Time limit 1'],
-  ['timeLimit2', 'Time limit 2'],
-  ['timeLimit3', 'Time limit 3'],
-] as const;
+const CLASS_DURATIONS = [['estimatedJudgingTime', 'The estimated judging time']] as const;
 
 /** A readable class duration outside the editor's range is refused, not saved (MYK9-1503). */
 function classDurationRangeIssues(
@@ -376,9 +371,6 @@ export const classSchemas = {
       section: requiredString,
       status: z.string().min(1, 'Please select a status'),
       estimatedJudgingTime: durationField('the estimated judging time'),
-      timeLimit1: durationField('time limit 1'),
-      timeLimit2: durationField('time limit 2'),
-      timeLimit3: durationField('time limit 3'),
       judge: commonValidations.optionalString,
       judgeId: commonValidations.optionalString,
       gateSteward: commonValidations.optionalString,

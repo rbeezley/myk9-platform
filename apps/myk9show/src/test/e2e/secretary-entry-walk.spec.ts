@@ -221,16 +221,10 @@ test.describe('Secretary Entry Walk', () => {
       .click();
     await expect(page.getByText(/1 selected/).first()).toBeVisible();
 
-    // Click Next to step 3 (Handlers)
+    // Click Next to step 3 (Payment; the handler defaults to the owner, MYK9-2020)
     const nextBtn2 = page.getByRole('button', { name: /next/i });
     await expect(nextBtn2).toBeEnabled();
     await nextBtn2.click();
-    await page.waitForSelector('text=Handlers', { timeout: 8000 });
-
-    // ── Step 4: Payment ────────────────────────────────────────────────────
-    const nextBtn3 = page.getByRole('button', { name: /next/i });
-    await expect(nextBtn3).toBeEnabled();
-    await nextBtn3.click();
     await page.waitForSelector('text=Payment Information', { timeout: 8000 });
 
     await page.getByRole('button', { name: /Secretary Payment \(Already Received\)/i }).click();
@@ -243,7 +237,7 @@ test.describe('Secretary Entry Walk', () => {
     const agreement = page.getByRole('checkbox', { name: /entry agreement/i });
     await expect(agreement).toHaveAttribute('aria-checked', 'true', { timeout: 5000 });
 
-    // ── Step 5: Confirmation ───────────────────────────────────────────────
+    // ── Step 4: Confirmation ──
     const submitEntry = page.getByRole('button', { name: /^Submit entry$/ });
     await expect(submitEntry).toBeEnabled();
     await submitEntry.click();

@@ -1096,7 +1096,7 @@ async function handleSubscriptionCheckout(
     return corsResponse(
       corsHeaders,
       {
-        error: 'You already have an active subscription. Visit your account settings to manage it.',
+        error: 'You already have a subscription. Visit your account settings to manage it.',
       },
       400
     );

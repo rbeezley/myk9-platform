@@ -15,6 +15,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Check, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ResultsPublicPrompt } from '@/components/preferences/ResultsPublicPrompt';
 import { AddToCalendarDialog } from '@/features/calendar-subscribe';
 import { formatPaymentCents } from '@/features/payments/moneyPresentation';
 import { formatShortCalendarDate } from '@/lib/format/dates';
@@ -30,6 +31,7 @@ import { indexOrdersById, type MyShowClass, type MyShowDog } from './groupEntrie
 import type { MyShowGroup as MyShowGroupModel } from './groupEntriesByShow';
 import { MyShowActionsMenu } from './MyShowActionsMenu';
 import { MyShowDogCard } from './MyShowDogCard';
+import { findResultsPromptTarget } from './firstResultsPromptClass';
 import type { LeaveClassTarget, MyEntry } from './my-entries-types';
 import { deriveMyEntryCardState } from './myEntryCardState';
 import { formatDogNamesPossessive, formatShowHeaderDateRange } from './myShowHeaderFormat';
@@ -73,7 +75,7 @@ export interface MyShowGroupProps {
   /** MYK9-1970: classes scored on paper, which say so beside their running order. */
   paperClassIds?: ReadonlySet<string> | undefined;
   seenResultReleaseKeys: Set<string>;
-  /** The one class row (MYK9-1944) that may ask the results-public question. */
+  /** The one class (MYK9-1944) whose show block asks the results-public question (MYK9-2386). */
   resultsPromptClassId?: string | null | undefined;
   onCheckInDay: (dog: MyShowDog, classes: MyShowClass[]) => void;
   onOpenCheckIn: (order: MyEntry, cls: MyShowClass) => void;
@@ -120,6 +122,7 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
     [group, now, selfCheckinByClassId]
   );
   const { isPastShow } = checkInContext;
+  const resultsPrompt = findResultsPromptTarget(group, resultsPromptClassId);
   const money = deriveShowMoneyState(group.orders, now, source);
   const moneyUnknown = money.kind === 'unknown';
   const refunds = refundNotesByDog(group.orders, source);
@@ -394,6 +397,20 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
         </div>
       )}
 
+      {resultsPrompt && group.showId !== '' && (
+        <ResultsPublicPrompt
+          showId={group.showId}
+          dogName={resultsPrompt.dogName}
+          className={resultsPrompt.cls.name}
+          placement={resultsPrompt.cls.finalPlacement}
+          handlerName={resultsPrompt.cls.handler}
+          handlerId={resultsPrompt.cls.handlerId}
+          ownerId={resultsPrompt.cls.dogOwnerId}
+          coOwnerId={resultsPrompt.cls.dogCoOwnerId}
+          isReleased={Boolean(resultsPrompt.cls.resultsReleasedAt)}
+        />
+      )}
+
       <ul className="space-y-4">
         {group.dogs.map(dog => (
           <li key={dog.dogId}>
@@ -413,7 +430,6 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
                 (dog.entryStatusKind ?? 'pending') === 'pending'
               }
               seenResultReleaseKeys={seenResultReleaseKeys}
-              resultsPromptClassId={resultsPromptClassId}
               onCheckInDay={onCheckInDay}
               onOpenCheckIn={onOpenCheckIn}
               // The show id lives on the GROUP, not the class row, so the

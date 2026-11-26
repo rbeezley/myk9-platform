@@ -20,14 +20,14 @@ export interface DbError {
 
 export interface ClubStripeAccountDeps {
   /** Select the (club_id, livemode) row's stripe_account_id. */
-  findExisting: () => Promise<{
+  findExisting: () => PromiseLike<{
     data: { stripe_account_id: string | null } | null;
     error: DbError | null;
   }>;
   /** Create a new Express account at Stripe and return its id. */
   createAccount: () => Promise<string>;
   /** Insert the (club_id, livemode, stripe_account_id) row. */
-  insertRow: (stripeAccountId: string) => Promise<{ error: DbError | null }>;
+  insertRow: (stripeAccountId: string) => PromiseLike<{ error: DbError | null }>;
   /** Delete a Stripe account that was never saved. */
   deleteAccount: (stripeAccountId: string) => Promise<void>;
   logError: (message: string, detail?: unknown) => void;

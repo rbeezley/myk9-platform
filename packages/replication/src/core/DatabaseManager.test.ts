@@ -298,6 +298,9 @@ describe('Concurrent init recovery (MYK9-2420)', () => {
     expect(calls).toBe(2);
     expect(waiterA).toBe(winner);
     expect(waiterB).toBe(winner);
+    // Each adopting waiter takes the same queue slot as a waiter on a successful open
+    // (the winner initialises the database and is not queued).
+    expect(dbManager.getStatus().tablesInitialized).toBe(2);
   });
 
   it('still rejects every caller when recovery also fails', async () => {

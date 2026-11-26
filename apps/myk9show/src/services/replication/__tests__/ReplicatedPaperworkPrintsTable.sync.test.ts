@@ -20,6 +20,7 @@ const db = vi.hoisted(() => ({
   pages: [] as unknown[][],
   log: [] as string[],
   signals: [] as AbortSignal[],
+  afterRange: undefined as (() => void) | undefined,
 }));
 
 vi.mock('@/services/database/supabaseClient', () => {
@@ -42,7 +43,11 @@ vi.mock('@/services/database/supabaseClient', () => {
       db.signals.push(signal);
       return query;
     },
-    range: async () => ({ data: db.pages.shift() ?? [], error: null }),
+    range: async () => {
+      const data = db.pages.shift() ?? [];
+      db.afterRange?.();
+      return { data, error: null };
+    },
   };
   return { supabase: { from: () => query } };
 });
@@ -63,6 +68,7 @@ beforeEach(() => {
   db.pages = [];
   db.log = [];
   db.signals = [];
+  db.afterRange = undefined;
 });
 
 // MYK9-2420: the print-history fetch was one unpaged request with no abort signal.
@@ -91,20 +97,28 @@ describe('ReplicatedPaperworkPrintsTable fetch', () => {
     ]);
   });
 
-  it('hands the sync signal to every page request and stops once it aborts', async () => {
+  it('hands the sync signal to every page request, including the terminal empty page', async () => {
     db.pages = [[row(1)]];
     const adapter = await adapterFor('show-1');
     const controller = new AbortController();
 
     await adapter.fetchRemoteRows({ since: 0, forceFullSync: false, signal: controller.signal });
-    expect(db.signals.length).toBeGreaterThan(0);
-    expect(db.signals.every(signal => signal === controller.signal)).toBe(true);
 
-    controller.abort();
-    db.log = [];
+    // One page, then the empty page that ends the read.
+    expect(db.signals).toHaveLength(2);
+    expect(db.signals.every(signal => signal === controller.signal)).toBe(true);
+  });
+
+  it('never requests page two once the signal aborts after page one', async () => {
+    db.pages = [[row(1)], [row(2)]];
+    const adapter = await adapterFor('show-1');
+    const controller = new AbortController();
+    db.afterRange = () => controller.abort();
+
     await expect(
       adapter.fetchRemoteRows({ since: 0, forceFullSync: false, signal: controller.signal })
     ).rejects.toThrow();
-    expect(db.log).toEqual([]);
+
+    expect(db.signals).toHaveLength(1);
   });
 });

@@ -42,9 +42,8 @@ describe('request set', () => {
     await reader(emptyServer(urls)).syncOnce();
 
     const deltas = urls.filter(url => url.includes('updated_at=gt.'));
-    // shows, trials, classes, dogs, clubs, waitlist, dog_registrations; judge assignments
-    // read in full on a cold device and send no filter (MYK9-2420)
-    expect(deltas).toHaveLength(7);
+    // shows, trials, classes, dogs, clubs, waitlist, dog_registrations, judge_assignments
+    expect(deltas).toHaveLength(8);
     for (const url of deltas) expect(url).toContain(`updated_at=gt.${epoch}`);
   });
 

@@ -174,7 +174,7 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
             return undefined;
           }
         },
-        fetchRemoteRows: async ({ since, forceFullSync, signal }) => {
+        fetchRemoteRows: async ({ since, signal }) => {
           // Embed the class/trial snapshot so the globally-synced assignment row
           // is self-sufficient for the offline judge dashboard. To-one embeds via
           // class_id / trial_id, mirroring useJudgeTodayStats' working shape.
@@ -189,14 +189,12 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
           for (;;) {
             if (signal?.aborted) throw abortReason(signal);
             let query = supabase.from('judge_assignments').select(JUDGE_ASSIGNMENT_SELECT);
-            if (cursorUpdatedAt && cursorId) {
-              query = query.or(
-                `updated_at.gt.${cursorUpdatedAt},and(updated_at.eq.${cursorUpdatedAt},id.gt.${cursorId})`
-              );
-            } else if (!forceFullSync) {
-              // A full sync re-reads every row, whatever watermark the caller holds.
-              query = query.gt('updated_at', new Date(since).toISOString());
-            }
+            query =
+              cursorUpdatedAt && cursorId
+                ? query.or(
+                    `updated_at.gt.${cursorUpdatedAt},and(updated_at.eq.${cursorUpdatedAt},id.gt.${cursorId})`
+                  )
+                : query.gt('updated_at', new Date(since).toISOString());
             query = query.order('updated_at', { ascending: true }).order('id', { ascending: true });
             if (signal) query = query.abortSignal(signal);
             const { data, error } = await query.range(0, JUDGE_ASSIGNMENTS_PAGE_SIZE - 1);

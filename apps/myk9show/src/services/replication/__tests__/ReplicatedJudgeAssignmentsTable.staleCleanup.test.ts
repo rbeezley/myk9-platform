@@ -17,6 +17,7 @@ const db = vi.hoisted(() => ({
   pages: [] as unknown[][],
   cursors: [] as string[],
   signals: [] as AbortSignal[],
+  afterRange: undefined as (() => void) | undefined,
 }));
 
 vi.mock('@/services/database/supabaseClient', () => {
@@ -35,7 +36,11 @@ vi.mock('@/services/database/supabaseClient', () => {
       db.signals.push(signal);
       return query;
     },
-    range: async () => ({ data: db.pages.shift() ?? [], error: null }),
+    range: async () => {
+      const data = db.pages.shift() ?? [];
+      db.afterRange?.();
+      return { data, error: null };
+    },
   };
   return { supabase: { from: () => query } };
 });
@@ -52,6 +57,7 @@ beforeEach(() => {
   db.pages = [];
   db.cursors = [];
   db.signals = [];
+  db.afterRange = undefined;
 });
 
 // MYK9-775: judge assignments are hard-deleted, so without this opt-in a judge
@@ -89,43 +95,35 @@ describe('ReplicatedJudgeAssignmentsTable fetch', () => {
     ]);
   });
 
-  // MYK9-2420: a cancelled sync must release the in-flight request, and a full
-  // sync must read from the start whatever watermark it is handed.
-  it('hands the sync signal to every page request and stops once it aborts', async () => {
-    const row = (i: number) => ({ id: `ja-${i}`, updated_at: '2026-09-25T00:00:00Z' });
+  // MYK9-2420: a cancelled sync must release the in-flight request.
+  type SignalFetch = (args: { since: number; signal: AbortSignal }) => Promise<unknown[]>;
+  const row = (i: number) => ({ id: `ja-${i}`, updated_at: '2026-09-25T00:00:00Z' });
+
+  it('hands the sync signal to every page request, including the terminal empty page', async () => {
     db.pages = [[row(1)], [row(2)]];
     await new ReplicatedJudgeAssignmentsTable().sync();
-    const adapter = engine.calls[0] as {
-      fetchRemoteRows: (args: {
-        since: number;
-        forceFullSync: boolean;
-        signal: AbortSignal;
-      }) => Promise<unknown[]>;
-    };
+    const adapter = engine.calls[0] as { fetchRemoteRows: SignalFetch };
     const controller = new AbortController();
 
-    await adapter.fetchRemoteRows({ since: 0, forceFullSync: false, signal: controller.signal });
-    expect(db.signals.length).toBeGreaterThan(0);
-    expect(db.signals.every(signal => signal === controller.signal)).toBe(true);
+    await adapter.fetchRemoteRows({ since: 0, signal: controller.signal });
 
-    controller.abort();
-    db.cursors = [];
-    await expect(
-      adapter.fetchRemoteRows({ since: 0, forceFullSync: false, signal: controller.signal })
-    ).rejects.toThrow();
-    expect(db.cursors).toEqual([]);
+    // Two pages, then the empty page that ends the read.
+    expect(db.signals).toHaveLength(3);
+    expect(db.signals.every(signal => signal === controller.signal)).toBe(true);
   });
 
-  it('ignores the watermark when forceFullSync is set', async () => {
+  it('never requests page two once the signal aborts after page one', async () => {
+    db.pages = [[row(1)], [row(2)]];
     await new ReplicatedJudgeAssignmentsTable().sync();
-    const adapter = engine.calls[0] as {
-      fetchRemoteRows: (args: { since: number; forceFullSync: boolean }) => Promise<unknown[]>;
-    };
+    const adapter = engine.calls[0] as { fetchRemoteRows: SignalFetch };
+    const controller = new AbortController();
+    db.afterRange = () => controller.abort();
 
-    await adapter.fetchRemoteRows({ since: 1_800_000_000_000, forceFullSync: true });
-    expect(db.cursors).toEqual([]);
+    await expect(
+      adapter.fetchRemoteRows({ since: 0, signal: controller.signal })
+    ).rejects.toThrow();
 
-    await adapter.fetchRemoteRows({ since: 1_800_000_000_000, forceFullSync: false });
+    expect(db.signals).toHaveLength(1);
     expect(db.cursors).toEqual(['first']);
   });
 });

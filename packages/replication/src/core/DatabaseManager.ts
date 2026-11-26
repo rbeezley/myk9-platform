@@ -401,7 +401,7 @@ export class DatabaseManager {
         // that handle instead of reporting the original failure to this caller.
         if (initRecovery) await initRecovery.catch(() => undefined);
         if (!sharedDB) throw initError;
-        return sharedDB;
+        db = sharedDB;
       }
       this.logger.log(`[${tableName}] dbInitPromise resolved successfully`);
 

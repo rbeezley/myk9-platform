@@ -90,12 +90,9 @@ async function readKeysetDelta<T extends TimestampedRow>(
   table: string,
   select: string,
   bufferMs: number = INCREMENTAL_BUFFER_MS,
-  narrow: Narrow = q => q,
-  /** The app sends no `updated_at` filter on a full sync (judge assignments, MYK9-2420). */
-  fullReadWhenCold = false
+  narrow: Narrow = q => q
 ): Promise<T[] | null> {
   const rows: T[] = [];
-  const cold = ctx.sinceIso(table, bufferMs) === new Date(0).toISOString();
   let cursor: { updatedAt: string; id: string } | undefined;
   for (;;) {
     const page = await ctx.request<T>(table, () => {
@@ -105,9 +102,7 @@ async function readKeysetDelta<T extends TimestampedRow>(
           ? query.or(
               `updated_at.gt.${cursor.updatedAt},and(updated_at.eq.${cursor.updatedAt},id.gt.${cursor.id})`
             )
-          : fullReadWhenCold && cold
-            ? query
-            : query.gt('updated_at', ctx.sinceIso(table, bufferMs))
+          : query.gt('updated_at', ctx.sinceIso(table, bufferMs))
       )
         .order('updated_at', { ascending: true })
         .order('id', { ascending: true })
@@ -243,15 +238,7 @@ async function syncJudgeAssignments(ctx: ReaderContext): Promise<void> {
     ctx,
     'judge_assignments',
     q => q,
-    () =>
-      readKeysetDelta(
-        ctx,
-        'judge_assignments',
-        JUDGE_ASSIGNMENT_SELECT,
-        INCREMENTAL_BUFFER_MS,
-        q => q,
-        true
-      )
+    () => readKeysetDelta(ctx, 'judge_assignments', JUDGE_ASSIGNMENT_SELECT)
   );
 }
 

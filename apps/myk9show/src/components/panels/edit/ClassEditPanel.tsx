@@ -37,6 +37,7 @@ import { ClassLiveSettingsCard } from './ClassLiveSettingsCard';
 import { useLiveJudgeSync } from './useLiveJudgeSync';
 import { ClassWaitlistFields } from './ClassWaitlistFields';
 import { ClassEntryFeeField } from './ClassEntryFeeField';
+import { ClassTimeLimitButton } from './ClassTimeLimitButton';
 import { usePanelValidationNavigation } from './usePanelValidationNavigation';
 import { locateClassField, type ClassTabValue } from './ClassEditPanel.validationTab';
 import { NoJudgesNotice } from '@/components/shows/NoJudgesNotice';
@@ -244,6 +245,7 @@ const TrialClassEditForm: React.FC<{
 
       {capacityLoaded && <ClassWaitlistFields showId={showId} />}
       {data.entryFeeLoaded && <ClassEntryFeeField showId={showId} classId={classId} />}
+      <ClassTimeLimitButton classId={classId} />
     </div>
   );
 };

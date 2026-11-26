@@ -4,7 +4,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import {
   Select,
   SelectContent,
@@ -24,6 +23,7 @@ import { getJudgeNameById } from '@/utils/buildAssignedJudges';
 import { NoJudgesNotice } from '@/components/shows/NoJudgesNotice';
 import { ClassWaitlistFields } from './ClassWaitlistFields';
 import { ClassEntryFeeField } from './ClassEntryFeeField';
+import { ClassTimeLimitButton } from './ClassTimeLimitButton';
 import { ClassLiveSettingsCard } from './ClassLiveSettingsCard';
 import { useLiveJudgeSync } from './useLiveJudgeSync';
 import { JudgeChangeWarning } from '@/components/classes/JudgeChangeWarning';
@@ -272,57 +272,7 @@ export const ClassEditForm: React.FC<{
                   error={form?.getError('estimatedJudgingTime')}
                 />
               </div>
-
-              <Separator />
-
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                    Time Limits
-                  </h4>
-                  {autoFill?.timeLimitText.ruleValue && (
-                    <RuleBadge
-                      label={
-                        autoFill.timeLimitText.isJudgeSettable
-                          ? `Set by judge (${autoFill.timeLimitText.ruleValue})`
-                          : `Rule: ${autoFill.timeLimitText.ruleValue}`
-                      }
-                    />
-                  )}
-                </div>
-
-                <ClassDurationField
-                  id="timeLimit1"
-                  label="Time Limit 1"
-                  value={data.timeLimit1 || ''}
-                  onChange={value => form?.setValue('timeLimit1', value)}
-                  maxSeconds={classDurationMaxSeconds(data.element)}
-                  error={form?.getError('timeLimit1')}
-                />
-
-                {data.element === 'Interior' &&
-                  (data.level === 'Excellent' || data.level === 'Master') && (
-                    <ClassDurationField
-                      id="timeLimit2"
-                      label="Time Limit 2"
-                      value={data.timeLimit2 || ''}
-                      onChange={value => form?.setValue('timeLimit2', value)}
-                      maxSeconds={classDurationMaxSeconds(data.element)}
-                      error={form?.getError('timeLimit2')}
-                    />
-                  )}
-
-                {data.element === 'Interior' && data.level === 'Master' && (
-                  <ClassDurationField
-                    id="timeLimit3"
-                    label="Time Limit 3"
-                    value={data.timeLimit3 || ''}
-                    onChange={value => form?.setValue('timeLimit3', value)}
-                    maxSeconds={classDurationMaxSeconds(data.element)}
-                    error={form?.getError('timeLimit3')}
-                  />
-                )}
-              </div>
+              <ClassTimeLimitButton classId={classId} />
             </CardContent>
           </Card>
         </TabsContent>

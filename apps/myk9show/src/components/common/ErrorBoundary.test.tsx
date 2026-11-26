@@ -3,16 +3,12 @@ import { fireEvent, render, screen } from '@/test/utils/testUtils';
 import { logger } from '@/services/LoggingService';
 import { ErrorBoundary } from './ErrorBoundary';
 
-let shouldThrow = true;
-
-function Boom() {
-  if (shouldThrow) throw new TypeError('kaboom');
-  return <div>recovered</div>;
+function Boom(): never {
+  throw new TypeError('kaboom');
 }
 
 describe('ErrorBoundary', () => {
   beforeEach(() => {
-    shouldThrow = true;
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
   });
 

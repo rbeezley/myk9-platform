@@ -405,6 +405,55 @@ BEGIN
 END;
 $$;
 
+-- MYK9-1936: a retry that changed the received date or the reference is not the payment
+-- already recorded, so it is refused with its own message and writes nothing.
+DO $$
+DECLARE
+  v_rows integer; v_paid numeric; v_received date;
+BEGIN
+  SELECT received_on INTO v_received FROM public.show_payments
+   WHERE client_payment_id = '00000000-0000-0000-0000-0000006770a1';
+
+  -- The same payment with its recorded date sent explicitly is still a plain retry.
+  PERFORM public.record_enrollment_payment(
+    '00000000-0000-0000-0000-000000677065', 'payment', 30, 'cash', v_received, NULL, NULL,
+    '00000000-0000-0000-0000-0000006770a1');
+
+  BEGIN
+    PERFORM public.record_enrollment_payment(
+      '00000000-0000-0000-0000-000000677065', 'payment', 30, 'cash', v_received - 3, NULL, NULL,
+      '00000000-0000-0000-0000-0000006770a1');
+    RAISE EXCEPTION 'FAIL a client_payment_id was reused with a different received date';
+  EXCEPTION WHEN invalid_parameter_value THEN
+    IF SQLERRM NOT LIKE '%already saved with a different received date or reference' THEN
+      RAISE EXCEPTION 'FAIL a changed received date was refused as: %', SQLERRM;
+    END IF;
+    RAISE NOTICE 'PASS a client_payment_id reused with a different received date is refused';
+  END;
+
+  BEGIN
+    PERFORM public.record_enrollment_payment(
+      '00000000-0000-0000-0000-000000677065', 'payment', 30, 'cash', v_received, ' 1042 ', NULL,
+      '00000000-0000-0000-0000-0000006770a1');
+    RAISE EXCEPTION 'FAIL a client_payment_id was reused with a different reference';
+  EXCEPTION WHEN invalid_parameter_value THEN
+    IF SQLERRM NOT LIKE '%already saved with a different received date or reference' THEN
+      RAISE EXCEPTION 'FAIL a changed reference was refused as: %', SQLERRM;
+    END IF;
+    RAISE NOTICE 'PASS a client_payment_id reused with a different reference is refused';
+  END;
+
+  SELECT count(*) INTO v_rows FROM public.show_payments
+   WHERE enrollment_id = '00000000-0000-0000-0000-000000677065';
+  SELECT paid_amount INTO v_paid
+    FROM public.enrollments WHERE id = '00000000-0000-0000-0000-000000677065';
+  IF v_rows <> 1 OR v_paid <> 30 THEN
+    RAISE EXCEPTION 'FAIL a refused retry wrote: % rows, paid %', v_rows, v_paid;
+  END IF;
+  RAISE NOTICE 'PASS a refused retry leaves one row and paid_amount unchanged';
+END;
+$$;
+
 -- --- entry statuses: the pre-ledger cascade, plus MYK9-773 --------------------
 -- origin/main's updateEnrollmentPaymentStatus set every entry of the enrollment
 -- except 'refunded' and 'waived' ones to the coarse status (paid_* -> paid,

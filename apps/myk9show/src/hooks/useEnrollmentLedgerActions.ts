@@ -86,6 +86,16 @@ const FRIENDLY_REFUSALS: readonly RegExp[] = [
   /^refund \S+ exceeds the \S+ still held \(\S+ paid, \S+ already refunded\)$/,
 ];
 
+/**
+ * MYK9-1936: a retry carried the payment's id with a changed received date or check
+ * number, and the first save had landed. Nothing new is written, but the payment IS on
+ * the form (as first typed), so this is not "not recorded".
+ */
+const CHANGED_RETRY_REFUSAL =
+  /^client_payment_id \S+ was already saved with a different received date or reference$/;
+const LEDGER_CHANGED_RETRY =
+  "This payment may already be saved with the earlier date or check number. Check the entry's payments before saving again.";
+
 // Every 22023 is raised before either RPC writes a row, so "not recorded" is
 // true here; the cause is on our side, not something the secretary typed.
 const LEDGER_REFUSED_TECHNICAL =
@@ -110,6 +120,14 @@ function ledgerFailure(err: unknown): {
 } {
   const code =
     typeof err === 'object' && err !== null ? (err as { code?: unknown }).code : undefined;
+  if (
+    code === RPC_REFUSAL_CODE &&
+    err instanceof Error &&
+    CHANGED_RETRY_REFUSAL.test(err.message)
+  ) {
+    // The dialog then asks to check the form's payments, never "Not saved".
+    return { outcome: 'unconfirmed', message: LEDGER_CHANGED_RETRY };
+  }
   if (code === RPC_REFUSAL_CODE && err instanceof Error) {
     return {
       outcome: 'failed',

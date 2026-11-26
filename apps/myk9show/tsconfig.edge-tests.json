@@ -25,6 +25,7 @@
     "supabase/functions/cron-process-payouts/*.test.ts",
     "supabase/functions/stripe-upgrade-subscription/*.test.ts",
     "supabase/functions/stripe-connect-onboard/*.test.ts",
+    "supabase/functions/stripe-checkout/*.test.ts",
     "../../supabase/functions/_shared/askq/*.test.ts",
     "../../supabase/functions/_shared/pushWebhookAuth.test.ts",
     "../../supabase/functions/_shared/roleValidity.test.ts",

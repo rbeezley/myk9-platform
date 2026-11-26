@@ -1,4 +1,5 @@
 import { formatTrialLabel } from '@myk9/core';
+import { formatReportDate } from '@/lib/reports/reportUtils';
 
 /**
  * One trial's label wherever Reports offers a trial: the report's trial selector and the Trial
@@ -10,5 +11,5 @@ export function formatTrialOptionLabel(trial: {
   date: string;
 }): string {
   const base = formatTrialLabel({ name: trial.name, trialNumber: trial.trial_number });
-  return trial.date ? `${base} · ${trial.date}` : base;
+  return trial.date ? `${base} · ${formatReportDate(trial.date)}` : base;
 }

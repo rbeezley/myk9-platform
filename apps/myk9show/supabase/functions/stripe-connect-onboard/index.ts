@@ -3,6 +3,9 @@ import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { requireStripeLivemode } from '../_shared/stripeMode.ts';
 import { stepUpRefusal } from '../_shared/stepUpReauth.ts';
+import { classifyOnboardError } from './classifyOnboardError.ts';
+import { findOrCreateClubStripeAccount } from './clubStripeAccount.ts';
+import { parseOnboardRequest } from './onboardRequest.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -55,11 +58,6 @@ function corsResponse(
   });
 }
 
-interface OnboardRequest {
-  club_id: string;
-  return_path: string; // app-relative, e.g. "/club-admin/payments"
-}
-
 /** Build an absolute URL on the request's (allowed) origin from an app-relative path. */
 function buildRedirectUrl(requestOrigin: string | null, path: string): string | null {
   const origin = requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin) ? requestOrigin : null;
@@ -94,15 +92,11 @@ Deno.serve(async req => {
       return corsResponse(corsHeaders, { error: 'Authentication failed' }, 401);
     }
 
-    const body: OnboardRequest = await req.json();
-    const { club_id, return_path } = body;
-    if (!club_id || !return_path) {
-      return corsResponse(
-        corsHeaders,
-        { error: 'Missing required parameters: club_id, return_path' },
-        400
-      );
+    const parsedBody = parseOnboardRequest(await req.text());
+    if (!parsedBody.ok) {
+      return corsResponse(corsHeaders, { error: parsedBody.error }, 400);
     }
+    const { club_id, return_path } = parsedBody.value;
 
     // Verify the caller is a club admin for this club (or site admin) using
     // the canonical SQL predicates, evaluated AS THE CALLER so auth.uid()
@@ -137,59 +131,57 @@ Deno.serve(async req => {
       return corsResponse(corsHeaders, { error: 'Invalid return path or origin' }, 400);
     }
 
-    // Reuse the club's existing Express account or create one.
-    const { data: existing } = await supabase
-      .from('club_stripe_accounts')
-      .select('id, stripe_account_id')
-      .eq('club_id', club_id)
-      .eq('livemode', stripeLivemode)
-      .maybeSingle();
-
-    let stripeAccountId = existing?.stripe_account_id;
-    if (!stripeAccountId) {
-      // TODO (pre-launch): Stripe now recommends Accounts v2 (controller-based)
-      // instead of type:'express' for new Connect integrations. Migration path:
-      // drop `type` and pass `controller: { stripe_dashboard: { type: 'express' },
-      // fees: { payer: 'application' }, losses: { payments: 'application' } }`.
-      // Express accounts created here still work but are considered legacy.
-      // Migrate before opening club onboarding to real users.
-      //
-      // Stripe rejects transfers-only capability requests for Express
-      // (capabilities_cannot_have_transfers_without_card_payments_unless_payee);
-      // both must be requested even though clubs never take card payments.
-      const account = await stripe.accounts.create({
-        type: 'express',
-        country: 'US',
-        capabilities: {
-          card_payments: { requested: true },
-          transfers: { requested: true },
-        },
-        metadata: { club_id },
-      });
-      stripeAccountId = account.id;
-
-      const { error: insertError } = await supabase.from('club_stripe_accounts').insert({
-        club_id,
-        stripe_account_id: stripeAccountId,
-        livemode: stripeLivemode,
-      });
-      if (insertError) {
-        console.error(
-          `Failed to persist stripe account ${stripeAccountId} for club ${club_id}:`,
-          insertError
-        );
-        // Delete the just-created Express account so a retry doesn't strand
-        // an orphan in the Stripe dashboard (same cleanup discipline as
-        // getOrCreateStripeCustomer). Nothing is onboarded yet, so deletion
-        // is safe; if it fails we just keep the litter.
-        try {
-          await stripe.accounts.del(stripeAccountId);
-        } catch (delErr) {
-          console.error(`Could not clean up orphaned account ${stripeAccountId}:`, delErr);
-        }
-        return corsResponse(corsHeaders, { error: 'Failed to save payment account' }, 500);
-      }
+    // Reuse the club's existing Express account or create one (MYK9-2445: a failed
+    // lookup never creates a second account; a 23505 insert race uses the saved row).
+    // TODO (pre-launch): Stripe now recommends Accounts v2 (controller-based)
+    // instead of type:'express' for new Connect integrations. Migration path:
+    // drop `type` and pass `controller: { stripe_dashboard: { type: 'express' },
+    // fees: { payer: 'application' }, losses: { payments: 'application' } }`.
+    // Express accounts created here still work but are considered legacy.
+    // Migrate before opening club onboarding to real users.
+    //
+    // Stripe rejects transfers-only capability requests for Express
+    // (capabilities_cannot_have_transfers_without_card_payments_unless_payee);
+    // both must be requested even though clubs never take card payments.
+    const account = await findOrCreateClubStripeAccount({
+      findExisting: () =>
+        supabase
+          .from('club_stripe_accounts')
+          .select('stripe_account_id')
+          .eq('club_id', club_id)
+          .eq('livemode', stripeLivemode)
+          .maybeSingle(),
+      createAccount: async () =>
+        (
+          await stripe.accounts.create({
+            type: 'express',
+            country: 'US',
+            capabilities: {
+              card_payments: { requested: true },
+              transfers: { requested: true },
+            },
+            metadata: { club_id },
+          })
+        ).id,
+      insertRow: stripeAccountId =>
+        supabase.from('club_stripe_accounts').insert({
+          club_id,
+          stripe_account_id: stripeAccountId,
+          livemode: stripeLivemode,
+        }),
+      deleteAccount: async stripeAccountId => {
+        await stripe.accounts.del(stripeAccountId);
+      },
+      logError: (message, detail) => console.error(`[club ${club_id}] ${message}`, detail ?? ''),
+    });
+    if (!account.ok) {
+      const error =
+        account.reason === 'lookup_failed'
+          ? 'Could not read payment account'
+          : 'Failed to save payment account';
+      return corsResponse(corsHeaders, { error }, 500);
     }
+    const stripeAccountId = account.stripeAccountId;
 
     const accountLink = await stripe.accountLinks.create({
       account: stripeAccountId,
@@ -201,8 +193,11 @@ Deno.serve(async req => {
     console.log(`Onboarding link created for club ${club_id} (${stripeAccountId})`);
     return corsResponse(corsHeaders, { url: accountLink.url });
   } catch (error: unknown) {
+    // MP-20 (as stripe-refund-entry): log the detail (Stripe SDK messages embed
+    // account ids and internal phrasing) but return a safe error code to the caller.
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('stripe-connect-onboard error:', message);
-    return corsResponse(corsHeaders, { error: message }, 500);
+    // The client maps these codes to its own copy; never raw Stripe text.
+    return corsResponse(corsHeaders, { error: classifyOnboardError(error) }, 500);
   }
 });

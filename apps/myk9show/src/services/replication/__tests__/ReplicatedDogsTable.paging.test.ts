@@ -95,14 +95,15 @@ describe('fetchChangedDogs', () => {
     const rows = await fetchChangedDogs(0);
     expect(rows).toHaveLength(TOTAL);
     expect(new Set(rows.map(r => r.id)).size).toBe(TOTAL);
-    expect(server.requests).toHaveLength(3);
+    // Two full pages, a partial one, then the empty page that ends the read.
+    expect(server.requests).toHaveLength(4);
     expectPagedRequests(server.requests);
   });
 
   it('keeps the owner scope on every page', async () => {
     const server = installServer(makeDogs(POSTGREST_MAX_ROWS + 3));
     await fetchChangedDogs(0, 'owner-1');
-    expect(server.requests).toHaveLength(2);
+    expect(server.requests).toHaveLength(3);
     expectPagedRequests(server.requests);
     for (const req of server.requests) expect(req.eq).toEqual(['owner_id', 'owner-1']);
   });
@@ -165,15 +166,15 @@ describe('ReplicatedDogsTable sync over more than max_rows dogs', () => {
     const first = await table.sync('');
     expect(first.success).toBe(true);
     expect(stored.size).toBe(TOTAL);
-    expect(server.requests).toHaveLength(3);
+    expect(server.requests).toHaveLength(4);
 
     server.requests.length = 0;
     const second = await table.sync('');
     expect(second.success).toBe(true);
     expect(stored.size).toBe(TOTAL);
-    // Incremental: one short page of changes, not a full re-read.
+    // Incremental: one short page of changes and the empty page after it, not a full re-read.
     expect(stored.size).toBe(TOTAL);
-    expect(server.requests).toHaveLength(1);
+    expect(server.requests).toHaveLength(2);
     expect(new Date(server.requests[0]!.gt as string).getTime()).toBeGreaterThan(0);
   });
 });

@@ -93,7 +93,8 @@ describe('request set', () => {
       await user.syncOnce();
       await user.syncOnce();
 
-      const [cold, warm] = armbandReads(urls);
+      // The cold read ends on its empty second page, so the warm read is the third.
+      const [cold, , warm] = armbandReads(urls);
       expect(cold).toContain('is_available=eq.false');
       expect(cold).not.toContain('updated_at=gt.');
       expect(warm).toContain(
@@ -129,7 +130,8 @@ describe('request set', () => {
       await user.syncOnce();
       await user.syncOnce();
 
-      const warm = armbandReads(urls)[2];
+      // Cold read: two pages and the empty page that ends it; the warm read is the fourth.
+      const warm = armbandReads(urls)[3];
       expect(warm).toContain(
         `updated_at=gt.${encodeURIComponent(new Date(Date.parse(T1) - 60_000).toISOString())}`
       );
@@ -145,7 +147,8 @@ describe('request set', () => {
       await user.syncOnce();
 
       const reads = armbandReads(urls);
-      expect(reads).toHaveLength(3);
+      // Pass one: the full page and the failed one. Pass two: the cold read and its empty page.
+      expect(reads).toHaveLength(4);
       expect(reads[1]).toContain('or=');
       // Nothing applied by the failed pass: the next read is the cold one again.
       expect(reads[2]).toContain('is_available=eq.false');

@@ -724,7 +724,11 @@ describe('ReplicatedDogsTable', () => {
           gt: vi.fn().mockReturnThis(),
           order: vi.fn().mockReturnThis(),
           eq: vi.fn().mockReturnThis(),
-          range: vi.fn().mockResolvedValue({ data: mockRemoteDogs, error: null }),
+          or: vi.fn().mockReturnThis(),
+          range: vi
+            .fn()
+            .mockResolvedValueOnce({ data: mockRemoteDogs, error: null })
+            .mockResolvedValue({ data: [], error: null }),
         };
 
         vi.mocked(supabase.from).mockReturnValue(
@@ -794,7 +798,11 @@ describe('ReplicatedDogsTable', () => {
           gt: vi.fn().mockReturnThis(),
           order: vi.fn().mockReturnThis(),
           eq: vi.fn().mockReturnThis(),
-          range: vi.fn().mockResolvedValue({ data: mockRemoteDogs, error: null }),
+          or: vi.fn().mockReturnThis(),
+          range: vi
+            .fn()
+            .mockResolvedValueOnce({ data: mockRemoteDogs, error: null })
+            .mockResolvedValue({ data: [], error: null }),
         };
 
         vi.mocked(supabase.from).mockReturnValue(
@@ -906,7 +914,11 @@ describe('ReplicatedDogsTable', () => {
           gt: vi.fn().mockReturnThis(),
           order: vi.fn().mockReturnThis(),
           eq: vi.fn().mockReturnThis(),
-          range: vi.fn().mockResolvedValue({ data: [mockRemoteRow], error: null }),
+          or: vi.fn().mockReturnThis(),
+          range: vi
+            .fn()
+            .mockResolvedValueOnce({ data: [mockRemoteRow], error: null })
+            .mockResolvedValue({ data: [], error: null }),
         };
 
         vi.mocked(supabase.from).mockReturnValue(
@@ -959,7 +971,11 @@ describe('ReplicatedDogsTable', () => {
           gt: vi.fn().mockReturnThis(),
           order: vi.fn().mockReturnThis(),
           eq: vi.fn().mockReturnThis(),
-          range: vi.fn().mockResolvedValue({ data: [mockRemoteRow], error: null }),
+          or: vi.fn().mockReturnThis(),
+          range: vi
+            .fn()
+            .mockResolvedValueOnce({ data: [mockRemoteRow], error: null })
+            .mockResolvedValue({ data: [], error: null }),
         };
 
         vi.mocked(supabase.from).mockReturnValue(
@@ -1006,7 +1022,11 @@ describe('ReplicatedDogsTable', () => {
           gt: vi.fn().mockReturnThis(),
           order: vi.fn().mockReturnThis(),
           eq: vi.fn().mockReturnThis(),
-          range: vi.fn().mockResolvedValue({ data: [mockRemoteRow], error: null }),
+          or: vi.fn().mockReturnThis(),
+          range: vi
+            .fn()
+            .mockResolvedValueOnce({ data: [mockRemoteRow], error: null })
+            .mockResolvedValue({ data: [], error: null }),
         };
 
         vi.mocked(supabase.from).mockReturnValue(
@@ -1092,11 +1112,13 @@ describe('ReplicatedDogsTable', () => {
       await dogsTable.reconcileDeleted();
 
       expect(query.order).toHaveBeenCalledWith('id', { ascending: true });
-      expect(query.limit).toHaveBeenCalledTimes(2);
+      // Pages one and two, then the empty page that completes the set (MYK9-2252).
+      expect(query.limit).toHaveBeenCalledTimes(3);
       expect(query.limit).toHaveBeenCalledWith(1000);
-      // First page has no cursor; second page fetches strictly after page 1's last id.
-      expect(query.gt).toHaveBeenCalledTimes(1);
+      // First page has no cursor; later pages fetch strictly after the last id seen.
+      expect(query.gt).toHaveBeenCalledTimes(2);
       expect(query.gt).toHaveBeenCalledWith('id', 'd999');
+      expect(query.gt).toHaveBeenCalledWith('id', 'd1001');
       const liveIds = removeSpy.mock.calls[0]![0];
       expect(liveIds.size).toBe(1002);
       expect(liveIds.has('d0')).toBe(true);
@@ -1270,7 +1292,11 @@ describe('ReplicatedDogsTable', () => {
         gt: vi.fn().mockReturnThis(),
         order: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
-        range: vi.fn().mockResolvedValue({ data: [dbRow], error: null }),
+        or: vi.fn().mockReturnThis(),
+        range: vi
+          .fn()
+          .mockResolvedValueOnce({ data: [dbRow], error: null })
+          .mockResolvedValue({ data: [], error: null }),
       };
 
       vi.mocked(supabase.from).mockReturnValue(
@@ -1331,7 +1357,11 @@ describe('ReplicatedDogsTable', () => {
         gt: vi.fn().mockReturnThis(),
         order: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
-        range: vi.fn().mockResolvedValue({ data: [dbRow], error: null }),
+        or: vi.fn().mockReturnThis(),
+        range: vi
+          .fn()
+          .mockResolvedValueOnce({ data: [dbRow], error: null })
+          .mockResolvedValue({ data: [], error: null }),
       };
 
       vi.mocked(supabase.from).mockReturnValue(

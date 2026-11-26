@@ -127,6 +127,8 @@ Deno.serve(async req => {
     reconciliation_errors: 0,
     // A payout record write failed before any money moved.
     ledger_write_errors: 0,
+    // The club or its Stripe account could not be read; nothing was queued (MYK9-2339).
+    club_read_errors: 0,
     // Stripe gave no clear answer to a transfer request; the row stays processing.
     uncertain_transfers: 0,
   };

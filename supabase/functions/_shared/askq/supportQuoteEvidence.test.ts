@@ -6,8 +6,7 @@ import {
   verifySupportAnswerQuotes,
 } from './supportQuoteEvidence.ts';
 
-const GOOD_QUOTE =
-  'Tap Record Area 1 time (then Record Area 2 time, and so on; the button names the area).';
+const GOOD_QUOTE = "Before you tap Save, check that every area's field has a time.";
 const ANSWER = 'SUPPORT_ANSWER\nTime each area, then tap the Record button for that area.';
 const quoteLine = (id: string, quote: string) => `SUPPORT_QUOTE [${id}]: "${quote}"`;
 const verify = (...lines: string[]) => verifySupportAnswerQuotes(lines.join('\n'), ASKQ_GUIDES);
@@ -118,7 +117,7 @@ describe('verifySupportAnswerQuotes', () => {
       ANSWER,
       quoteLine(
         'judge-steward-quickstart',
-        'Tap **Record Area 1 time** (then Record Area 2 time, and so on; the button names the area).'
+        "Before you tap **Save**, check that every area's field has a time."
       )
     );
     expect(result.ok).toBe(true);
@@ -137,7 +136,7 @@ describe('verifySupportAnswerQuotes', () => {
   });
 
   it('rejects a quote under 8 words', () => {
-    expect(verify(ANSWER, quoteLine('judge-steward-quickstart', 'Record Area 1 time')).ok).toBe(
+    expect(verify(ANSWER, quoteLine('judge-steward-quickstart', 'Before you tap Save')).ok).toBe(
       false
     );
   });
@@ -222,10 +221,7 @@ describe('verifySupportAnswerQuotes tolerance', () => {
   it('accepts curly quotes, dashes and a .md id', () => {
     const result = verify(
       ANSWER,
-      quoteLine(
-        `${ID}.md`,
-        'Tap **Record Area 1 time** (then Record Area 2 time, and so on; the button names the area)'
-      )
+      quoteLine(`${ID}.md`, "Before you tap **Save**, check that every area's field has a time")
     );
     expect(result.ok).toBe(true);
     expect(verify(ANSWER, `SUPPORT_QUOTE [${ID}]: “${GOOD_QUOTE}”`).ok).toBe(true);
@@ -241,10 +237,12 @@ describe('verifySupportAnswerQuotes tolerance', () => {
 
   it('rejects a quote that starts or ends mid-word', () => {
     expect(
-      verify(ANSWER, quoteLine(ID, 'ap Record Area 1 time (then Record Area 2 time, and so on')).ok
+      verify(ANSWER, quoteLine(ID, "efore you tap Save, check that every area's field has a time"))
+        .ok
     ).toBe(false);
     expect(
-      verify(ANSWER, quoteLine(ID, 'Tap Record Area 1 time (then Record Area 2 time, and so o')).ok
+      verify(ANSWER, quoteLine(ID, "Before you tap Save, check that every area's field has a ti"))
+        .ok
     ).toBe(false);
   });
 

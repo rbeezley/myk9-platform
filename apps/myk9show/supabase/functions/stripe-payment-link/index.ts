@@ -17,6 +17,7 @@ import {
   withdrawalDisclosureForShowRow,
 } from '../_shared/withdrawalPolicy.ts';
 import { INACTIVE_ENTRY_STATUSES } from '../_shared/entryPaymentReconcile.ts';
+import { markPriorLinkExpired, PRIOR_LINK_NOT_CLOSED_MESSAGE } from './priorLinkExpiry.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -40,6 +41,7 @@ const stripeLivemode = requireStripeLivemode(stripeSecret);
 // cap (an exact 24h computed before the network hop can be rejected, same
 // lesson as the 30-min floor in stripe-checkout).
 const LINK_LIFETIME_SECONDS = 23 * 60 * 60;
+const PAYMENT_LINK_NOT_CREATED_MESSAGE = 'Could not create the payment link. Please try again.';
 
 const ALLOWED_ORIGINS = [
   'https://myk9show.com',
@@ -446,10 +448,9 @@ Deno.serve(async req => {
         return corsResponse(corsHeaders, { error: justCompleted }, 409);
       }
       if (priorStatus && priorStatus !== 'open') {
-        await supabase
-          .from('entry_payment_links')
-          .update({ status: 'expired', updated_at: nowIso })
-          .eq('id', prior.id);
+        if (!(await markPriorLinkExpired(supabase, prior.id, nowIso))) {
+          return corsResponse(corsHeaders, { error: PRIOR_LINK_NOT_CLOSED_MESSAGE }, 500);
+        }
         continue;
       }
       if (priorStatus !== 'open') {
@@ -487,10 +488,9 @@ Deno.serve(async req => {
           return corsResponse(corsHeaders, { error: justCompleted }, 409);
         }
         if (recheckStatus && recheckStatus !== 'open') {
-          await supabase
-            .from('entry_payment_links')
-            .update({ status: 'expired', updated_at: nowIso })
-            .eq('id', prior.id);
+          if (!(await markPriorLinkExpired(supabase, prior.id, nowIso))) {
+            return corsResponse(corsHeaders, { error: PRIOR_LINK_NOT_CLOSED_MESSAGE }, 500);
+          }
           continue;
         }
         console.log(
@@ -505,10 +505,9 @@ Deno.serve(async req => {
       }
       // Only NOW that Stripe has confirmed the session is expired is it safe to
       // mark the link expired — the webhook will never see a paid-but-expired row.
-      await supabase
-        .from('entry_payment_links')
-        .update({ status: 'expired', updated_at: nowIso })
-        .eq('id', prior.id);
+      if (!(await markPriorLinkExpired(supabase, prior.id, nowIso))) {
+        return corsResponse(corsHeaders, { error: PRIOR_LINK_NOT_CLOSED_MESSAGE }, 500);
+      }
     }
 
     const sessionParams = buildEntryPaymentLinkSession({
@@ -543,11 +542,7 @@ Deno.serve(async req => {
       } catch (expireErr) {
         console.error(`CRITICAL: could not expire orphaned session ${session.id}:`, expireErr);
       }
-      return corsResponse(
-        corsHeaders,
-        { error: 'Could not create the payment link. Please try again.' },
-        500
-      );
+      return corsResponse(corsHeaders, { error: PAYMENT_LINK_NOT_CREATED_MESSAGE }, 500);
     }
 
     console.log(
@@ -566,8 +561,10 @@ Deno.serve(async req => {
       total_cents: amountCents + platformFeeCents,
     });
   } catch (error: unknown) {
+    // MP-20 (as stripe-refund-entry): log the detail (Stripe SDK messages embed
+    // session ids and internal phrasing) but return a generic body to the caller.
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('stripe-payment-link error:', message);
-    return corsResponse(corsHeaders, { error: message }, 500);
+    return corsResponse(corsHeaders, { error: PAYMENT_LINK_NOT_CREATED_MESSAGE }, 500);
   }
 });

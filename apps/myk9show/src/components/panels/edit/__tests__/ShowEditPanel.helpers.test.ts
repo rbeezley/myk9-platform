@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { GeneratedPremium } from '@/types/premium-types';
 import { NOTE_TO_EXHIBITORS_MAX_LENGTH, showSchemas } from '@/lib/validation';
-import { formDataToShow, formDataToShowSaveData, showToFormData } from '../ShowEditPanel.helpers';
+import {
+  changedShowSaveData,
+  formDataToShow,
+  formDataToShowSaveData,
+  hasShowChanges,
+  showToFormData,
+} from '../ShowEditPanel.helpers';
 import type { ShowEditFormData } from '../ShowEditPanel.types';
 
 const generatedPremium: GeneratedPremium = {
@@ -314,6 +320,46 @@ describe('ASCA premium facts (MYK9-2290)', () => {
     ).toBe(false);
     expect(showSchemas.edit.safeParse({ ...baseFormData, spectatorsPolicy: 'yes' }).success).toBe(
       false
+    );
+  });
+});
+
+describe('clearing optional fields (MYK9-2433)', () => {
+  const cleared = {
+    location: '',
+    entryOpenDate: '',
+    entryCloseDate: '',
+    preEntryFee: '',
+    dayOfShowFee: '',
+  };
+
+  it('names every cleared entry date, fee and venue as an empty string', () => {
+    expect(formDataToShow({ ...baseFormData, ...cleared })).toMatchObject(cleared);
+  });
+
+  it('puts only the cleared fields in the save, so Clear dates reaches the update', () => {
+    const changes = changedShowSaveData(baseFormData, { ...baseFormData, ...cleared });
+    expect(changes).toMatchObject(cleared);
+    expect(hasShowChanges(baseFormData, { ...baseFormData, ...cleared })).toBe(true);
+  });
+
+  it('clears just the entry period when only the dates were cleared', () => {
+    const changes = changedShowSaveData(baseFormData, {
+      ...baseFormData,
+      entryOpenDate: '',
+      entryCloseDate: '',
+    });
+    expect(changes.entryOpenDate).toBe('');
+    expect(changes.entryCloseDate).toBe('');
+    expect(changes).not.toHaveProperty('location');
+    expect(changes).not.toHaveProperty('preEntryFee');
+  });
+
+  it('sends nothing for fields that were empty and stay empty', () => {
+    const empty = { ...baseFormData, ...cleared };
+    expect(hasShowChanges(empty, { ...empty })).toBe(false);
+    expect(changedShowSaveData(empty, { ...empty, name: 'Renamed' })).not.toHaveProperty(
+      'entryOpenDate'
     );
   });
 });

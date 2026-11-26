@@ -17,7 +17,7 @@ type NotificationWindowClient = {
 };
 
 export async function routeNotificationClick(
-  clients: NotificationWindowClient[],
+  clients: readonly NotificationWindowClient[],
   targetUrl: string,
   openWindow: (url: string) => Promise<NotificationWindowClient | null>
 ): Promise<unknown> {

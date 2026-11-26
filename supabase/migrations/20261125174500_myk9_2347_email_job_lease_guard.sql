@@ -257,7 +257,32 @@ BEGIN
     RETURN 0;
   END IF;
 
-  WITH ins AS (
+  -- MYK9-2347: a ready job whose lease has expired (a refused send waiting to retry) is outside the
+  -- lease-guarded index, so it is merged here, as the ON CONFLICT merged it before; a second job would
+  -- email the same person twice.
+  WITH merged AS (
+    UPDATE public.show_lifecycle_email_jobs AS j
+       SET due_at = now() + interval '5 minutes',
+           recipient_email = btrim(p.email),
+           recipient_name = nullif(btrim(coalesce(p.first_name, '') || ' ' || coalesce(p.last_name, '')), ''),
+           judge_changes = jsonb_build_object(p_class_id::text, v_from::text) || j.judge_changes
+      FROM public.people p
+     WHERE j.show_id = v_show_id AND j.step_type = 'judge_changed' AND j.status = 'ready'
+       AND j.recipient_person_id = p.id
+       AND j.claimed_until IS NOT NULL AND j.claimed_until <= now()
+       -- A person who also has an unleased waiting job is merged into that one by the insert below.
+       AND NOT EXISTS (
+         SELECT 1 FROM public.show_lifecycle_email_jobs f
+            WHERE f.show_id = v_show_id AND f.step_type = 'judge_changed' AND f.status = 'ready'
+              AND f.recipient_person_id = p.id AND f.claimed_until IS NULL
+       )
+       AND p.id IN (SELECT r.person_id FROM public.substitute_judge_email_recipients(p_class_id, v_show_id) r)
+       AND NOT EXISTS (
+         SELECT 1 FROM public.show_lifecycle_email_attempts att
+          WHERE att.job_id = j.id AND att.resend_message_id IS NOT NULL
+       )
+    RETURNING j.recipient_person_id
+  ), ins AS (
   INSERT INTO public.show_lifecycle_email_jobs AS j (
     show_id, step_id, step_type, status, recipient_scope, recipient_person_id,
     recipient_email, recipient_name, subject, idempotency_key, due_at, auto_send,
@@ -275,12 +300,19 @@ BEGIN
     jsonb_build_object(p_class_id::text, v_from::text)
   FROM public.people p
   WHERE p.id IN (SELECT r.person_id FROM public.substitute_judge_email_recipients(p_class_id, v_show_id) r)
-    -- MYK9-2347: a leased job no longer conflicts, so skip its person here; the offer stays up for another tap.
-    AND NOT EXISTS (
+    -- MYK9-2347: a leased job (live or expired) no longer conflicts. An expired one is merged above; a live one,
+    -- or one the provider already took, is skipped, and the offer stays up for another tap.
+    AND (NOT EXISTS (
       SELECT 1 FROM public.show_lifecycle_email_jobs l
        WHERE l.show_id = v_show_id AND l.step_type = 'judge_changed' AND l.status = 'ready'
-         AND l.recipient_person_id = p.id AND l.claimed_until > now()
+         AND l.recipient_person_id = p.id AND l.claimed_until IS NOT NULL
     )
+    -- ...unless an unleased waiting job is there to merge into.
+    OR EXISTS (
+      SELECT 1 FROM public.show_lifecycle_email_jobs f
+            WHERE f.show_id = v_show_id AND f.step_type = 'judge_changed' AND f.status = 'ready'
+              AND f.recipient_person_id = p.id AND f.claimed_until IS NULL
+    ))
   ON CONFLICT (show_id, recipient_person_id)
     WHERE step_type = 'judge_changed' AND status = 'ready' AND claimed_until IS NULL
       AND recipient_person_id IS NOT NULL
@@ -299,7 +331,8 @@ BEGIN
     )
   RETURNING j.recipient_person_id
   ), queued AS (
-    SELECT coalesce(array_agg(ins.recipient_person_id), '{}'::uuid[]) AS ids FROM ins
+    SELECT coalesce(array_agg(x.recipient_person_id), '{}'::uuid[]) AS ids
+      FROM (SELECT recipient_person_id FROM merged UNION ALL SELECT recipient_person_id FROM ins) x
   )
   -- Only people whose job was really inserted or merged are recorded: a leased one stays offered.
   UPDATE public.class_judge_departures d

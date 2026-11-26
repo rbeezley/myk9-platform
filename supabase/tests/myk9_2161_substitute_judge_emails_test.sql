@@ -298,6 +298,11 @@ BEGIN
      OR pg_temp.t2161_call(v_sec, 'offer', v_class) IS DISTINCT FROM '{}'::jsonb THEN
     RAISE EXCEPTION 'FAIL E.3 the second tap should cover only Ada and resolve the offer';
   END IF;
+  -- MYK9-2347: the expired-lease job was merged into, not joined by a second job.
+  IF (SELECT count(*) FROM public.show_lifecycle_email_jobs
+       WHERE step_type = 'judge_changed' AND status = 'ready' AND recipient_person_id = '00000000-0000-0000-0000-000002161021') <> 1 THEN
+    RAISE EXCEPTION 'FAIL E.4 Ada should have exactly one sendable notice';
+  END IF;
   RAISE NOTICE 'PASS E a claimed job is untouched and the offer waits for another tap';
 END $$;
 
@@ -387,6 +392,10 @@ BEGIN
   IF pg_temp.t2161_call(v_sec, 'queue', v_class) IS DISTINCT FROM '1'::jsonb
      OR pg_temp.t2161_call(v_sec, 'offer', v_class) IS DISTINCT FROM '{}'::jsonb THEN
     RAISE EXCEPTION 'FAIL H.2 tap 2 should queue only Nan and resolve the offer';
+  END IF;
+  IF (SELECT count(*) FROM public.show_lifecycle_email_jobs
+       WHERE step_type = 'judge_changed' AND status = 'ready' AND recipient_person_id = '00000000-0000-0000-0000-000002161024') <> 1 THEN
+    RAISE EXCEPTION 'FAIL H.2b Nan should have exactly one sendable notice';
   END IF;
   IF (SELECT count(*) FROM public.show_lifecycle_email_jobs
        WHERE step_type = 'judge_changed' AND recipient_person_id = v_ada

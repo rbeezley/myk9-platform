@@ -2,16 +2,14 @@
 // (MYK9-2445). Three failure rules:
 //  - a failed lookup fails closed: no Stripe account is created, because an
 //    unread row may exist and a second account would split the club's payouts;
-//  - a 23505 on insert means a concurrent request already saved a row for
-//    (club_id, livemode): the account we just made is deleted and the saved
-//    row is re-read and used;
-//  - any other insert failure deletes the just-made account and fails.
+//  - any insert failure re-reads the (club_id, livemode) row first: our own
+//    id saved (a lost response) is success; another id saved (a 23505 race) is
+//    used and ours deleted; no row deletes ours and fails; a failed re-read
+//    keeps ours, since the saved row may name it.
 // An upsert was rejected: it hides the race and can overwrite a saved account id.
 //
 // Deno-free so it runs under vitest; the edge function injects the Supabase
 // and Stripe calls.
-
-const UNIQUE_VIOLATION = '23505';
 
 export interface DbError {
   code?: string;
@@ -63,26 +61,23 @@ export async function findOrCreateClubStripeAccount(
   try {
     ({ error: insertError } = await deps.insertRow(createdId));
   } catch (thrown) {
-    // A rejected insert (network) must still clean up, or a retry makes a second account.
     insertError = { message: thrown instanceof Error ? thrown.message : String(thrown) };
   }
   if (!insertError) return { ok: true, stripeAccountId: createdId, created: true };
-
   deps.logError(`Failed to persist stripe account ${createdId}:`, insertError);
-  await deleteOrphan(deps, createdId);
 
-  if (insertError.code !== UNIQUE_VIOLATION) return { ok: false, reason: 'persist_failed' };
-
-  // A concurrent request saved the row first: use the account it saved.
+  // Any insert failure is ambiguous until the row is re-read: a timeout can
+  // hide a committed write, and a 23505 means another request saved first.
+  // Delete our account only once the read proves it is not the saved one.
   const reread = await deps.findExisting();
   if (reread.error) {
-    deps.logError('club_stripe_accounts re-read after 23505 failed:', reread.error);
+    // Inconclusive: keep the Stripe account, since the saved row may name it.
+    deps.logError('club_stripe_accounts re-read after a failed insert failed:', reread.error);
     return { ok: false, reason: 'persist_failed' };
   }
-  const winnerId = reread.data?.stripe_account_id;
-  if (!winnerId) {
-    deps.logError('club_stripe_accounts re-read after 23505 found no account id');
-    return { ok: false, reason: 'persist_failed' };
-  }
-  return { ok: true, stripeAccountId: winnerId, created: false };
+  const savedId = reread.data?.stripe_account_id;
+  if (savedId === createdId) return { ok: true, stripeAccountId: createdId, created: true };
+  await deleteOrphan(deps, createdId);
+  if (!savedId) return { ok: false, reason: 'persist_failed' };
+  return { ok: true, stripeAccountId: savedId, created: false };
 }

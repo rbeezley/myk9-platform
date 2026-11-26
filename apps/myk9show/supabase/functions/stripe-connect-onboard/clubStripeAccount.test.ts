@@ -58,69 +58,72 @@ describe('findOrCreateClubStripeAccount', () => {
       { code: '23505', message: 'duplicate key' }
     );
 
-    const result = await findOrCreateClubStripeAccount(deps);
-
-    expect(result).toEqual({ ok: true, stripeAccountId: 'acct_winner', created: false });
+    expect(await findOrCreateClubStripeAccount(deps)).toEqual({
+      ok: true,
+      stripeAccountId: 'acct_winner',
+      created: false,
+    });
     expect(deps.deleteAccount).toHaveBeenCalledWith('acct_new');
-    expect(deps.findExisting).toHaveBeenCalledTimes(2);
   });
 
-  it('on a 23505 whose re-read fails, fails without inventing an account', async () => {
+  it('keeps its account when a lost response hid a committed insert', async () => {
+    const deps = makeDeps(
+      [
+        { data: null, error: null },
+        { data: { stripe_account_id: 'acct_new' }, error: null },
+      ],
+      null
+    );
+    deps.insertRow.mockRejectedValue(new Error('fetch failed'));
+
+    expect(await findOrCreateClubStripeAccount(deps)).toEqual({
+      ok: true,
+      stripeAccountId: 'acct_new',
+      created: true,
+    });
+    expect(deps.deleteAccount).not.toHaveBeenCalled();
+  });
+
+  it('keeps its account and fails when the re-read is inconclusive', async () => {
     const deps = makeDeps(
       [
         { data: null, error: null },
         { data: null, error: { message: 'connection reset' } },
       ],
-      { code: '23505' }
+      { message: 'timeout' }
     );
 
     expect(await findOrCreateClubStripeAccount(deps)).toEqual({
       ok: false,
       reason: 'persist_failed',
     });
-    expect(deps.deleteAccount).toHaveBeenCalledWith('acct_new');
+    expect(deps.deleteAccount).not.toHaveBeenCalled();
   });
 
-  it('on a 23505 whose re-read finds no row, fails', async () => {
+  it('deletes its account and fails when the re-read finds no row', async () => {
     const deps = makeDeps(
       [
         { data: null, error: null },
         { data: null, error: null },
       ],
-      { code: '23505' }
+      { code: '42501', message: 'denied' }
     );
 
     expect(await findOrCreateClubStripeAccount(deps)).toEqual({
       ok: false,
       reason: 'persist_failed',
     });
-  });
-
-  it('on any other insert error, deletes the orphan and fails without a re-read', async () => {
-    const deps = makeDeps([{ data: null, error: null }], { code: '42501', message: 'denied' });
-
-    expect(await findOrCreateClubStripeAccount(deps)).toEqual({
-      ok: false,
-      reason: 'persist_failed',
-    });
     expect(deps.deleteAccount).toHaveBeenCalledWith('acct_new');
-    expect(deps.findExisting).toHaveBeenCalledTimes(1);
-  });
-
-  it('deletes the orphan when the insert itself throws', async () => {
-    const deps = makeDeps([{ data: null, error: null }], null);
-    deps.insertRow.mockRejectedValue(new Error('fetch failed'));
-
-    expect(await findOrCreateClubStripeAccount(deps)).toEqual({
-      ok: false,
-      reason: 'persist_failed',
-    });
-    expect(deps.deleteAccount).toHaveBeenCalledWith('acct_new');
-    expect(deps.findExisting).toHaveBeenCalledTimes(1);
   });
 
   it('still fails cleanly when deleting the orphan throws', async () => {
-    const deps = makeDeps([{ data: null, error: null }], { code: '42501' });
+    const deps = makeDeps(
+      [
+        { data: null, error: null },
+        { data: null, error: null },
+      ],
+      { code: '42501' }
+    );
     deps.deleteAccount.mockRejectedValue(new Error('stripe down'));
 
     expect(await findOrCreateClubStripeAccount(deps)).toEqual({

@@ -454,6 +454,31 @@ BEGIN
 END;
 $$;
 
+-- MYK9-1936: the check is the desk entry point's only. The core, which submit_show_entries
+-- and the late-entry trigger call, still answers a replay of the key with another date
+-- and reference (a replay past midnight) without refusing or writing.
+RESET ROLE;
+DO $$
+DECLARE
+  v_rows integer; v_paid numeric; v_received date;
+BEGIN
+  SELECT received_on INTO v_received FROM public.show_payments
+   WHERE client_payment_id = '00000000-0000-0000-0000-0000006770a1';
+  PERFORM private.record_enrollment_payment_core(
+    '00000000-0000-0000-0000-000000677065', 'payment', 30, 'cash', v_received - 1, '1042', NULL,
+    '00000000-0000-0000-0000-0000006770a1');
+  SELECT count(*) INTO v_rows FROM public.show_payments
+   WHERE enrollment_id = '00000000-0000-0000-0000-000000677065';
+  SELECT paid_amount INTO v_paid
+    FROM public.enrollments WHERE id = '00000000-0000-0000-0000-000000677065';
+  IF v_rows <> 1 OR v_paid <> 30 THEN
+    RAISE EXCEPTION 'FAIL the core replay of a key wrote: % rows, paid %', v_rows, v_paid;
+  END IF;
+  RAISE NOTICE 'PASS the core still answers a replay with another date and reference unrefused';
+END;
+$$;
+SET LOCAL ROLE authenticated;
+
 -- --- entry statuses: the pre-ledger cascade, plus MYK9-773 --------------------
 -- origin/main's updateEnrollmentPaymentStatus set every entry of the enrollment
 -- except 'refunded' and 'waived' ones to the coarse status (paid_* -> paid,

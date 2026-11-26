@@ -5,6 +5,11 @@ import type { ScoringSession, JudgeScore } from '@/types/scoring-types';
 import type { SyncQueueItem } from '@/services/sync/types';
 import { generateId } from '@/utils/idUtils';
 import { withCacheClearWriteLock } from '@/services/cacheClearGate';
+import { logger } from '@/services/LoggingService';
+
+function warnMissingSession(action: string, sessionId: string): void {
+  logger.warn(`${action}: session not found, ignoring`, 'offlineScoring', { sessionId });
+}
 
 interface OfflineScoringStore {
   // State
@@ -22,11 +27,11 @@ interface OfflineScoringStore {
   updateSession: (sessionId: string, updates: Partial<ScoringSession>) => void;
   deleteSession: (sessionId: string) => void;
 
-  addScore: (classId: string, score: JudgeScore) => void;
-  updateScore: (classId: string, scoreId: string, updates: Partial<JudgeScore>) => void;
-  deleteScore: (classId: string, scoreId: string) => void;
+  addScore: (classId: string, score: JudgeScore) => Promise<void>;
+  updateScore: (classId: string, scoreId: string, updates: Partial<JudgeScore>) => Promise<void>;
+  deleteScore: (classId: string, scoreId: string) => Promise<void>;
 
-  addToSyncQueue: (item: SyncQueueItem) => void;
+  addToSyncQueue: (item: SyncQueueItem) => Promise<void>;
   removeFromSyncQueue: (itemId: string) => void;
   updateSyncQueueItem: (itemId: string, updates: Partial<SyncQueueItem>) => void;
 
@@ -44,7 +49,7 @@ interface OfflineScoringStore {
   advanceWorkflowStep: (sessionId: string) => void;
   setCurrentEntry: (sessionId: string, entryId: string) => void;
   getNextEntry: (currentEntryId: string) => string | null;
-  submitScore: (classId: string, score: JudgeScore) => void;
+  submitScore: (classId: string, score: JudgeScore) => Promise<void>;
   setError: (error: string | null) => void;
   addWarning: (warning: string) => void;
   clearWarnings: () => void;
@@ -70,12 +75,14 @@ export const useOfflineScoringStore = create<OfflineScoringStore>()(
         })),
 
       updateSession: (sessionId, updates) =>
-        set(state => ({
-          sessions: {
-            ...state.sessions,
-            [sessionId]: { ...state.sessions[sessionId], ...updates },
-          },
-        })),
+        set(state => {
+          const session = state.sessions[sessionId];
+          if (!session) {
+            warnMissingSession('updateSession', sessionId);
+            return state;
+          }
+          return { sessions: { ...state.sessions, [sessionId]: { ...session, ...updates } } };
+        }),
 
       deleteSession: sessionId =>
         set(state => {
@@ -194,24 +201,34 @@ export const useOfflineScoringStore = create<OfflineScoringStore>()(
       },
 
       endJudgingSession: sessionId => {
-        set(state => ({
-          sessions: {
-            ...state.sessions,
-            [sessionId]: {
-              ...state.sessions[sessionId],
-              status: 'completed',
-              isActive: false,
-              endTime: new Date(),
+        set(state => {
+          const session = state.sessions[sessionId];
+          if (!session) {
+            warnMissingSession('endJudgingSession', sessionId);
+            return state;
+          }
+          return {
+            sessions: {
+              ...state.sessions,
+              [sessionId]: {
+                ...session,
+                status: 'completed',
+                isActive: false,
+                endTime: new Date(),
+              },
             },
-          },
-        }));
+          };
+        });
       },
 
       advanceWorkflowStep: sessionId => {
         const WORKFLOW_STEPS = ['setup', 'entry_list', 'scoring', 'review', 'completed'];
         set(state => {
           const session = state.sessions[sessionId];
-          if (!session) return state;
+          if (!session) {
+            warnMissingSession('advanceWorkflowStep', sessionId);
+            return state;
+          }
           const currentIdx = WORKFLOW_STEPS.indexOf(session.workflowStep || 'setup');
           const nextStep = WORKFLOW_STEPS[Math.min(currentIdx + 1, WORKFLOW_STEPS.length - 1)];
           return {
@@ -224,15 +241,16 @@ export const useOfflineScoringStore = create<OfflineScoringStore>()(
       },
 
       setCurrentEntry: (sessionId, entryId) => {
-        set(state => ({
-          sessions: {
-            ...state.sessions,
-            [sessionId]: {
-              ...state.sessions[sessionId],
-              currentEntryId: entryId,
-            },
-          },
-        }));
+        set(state => {
+          const session = state.sessions[sessionId];
+          if (!session) {
+            warnMissingSession('setCurrentEntry', sessionId);
+            return state;
+          }
+          return {
+            sessions: { ...state.sessions, [sessionId]: { ...session, currentEntryId: entryId } },
+          };
+        });
       },
 
       getNextEntry: currentEntryId => {

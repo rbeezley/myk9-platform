@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { decidePayFollowUp } from '../e2e/secretary/stripeCheckoutState';
 
 describe('decidePayFollowUp (MYK9-2336, never pay twice)', () => {
-  it.each(['processing', 'succeeded'])('waits on %s', status => {
+  it.each(['processing', 'succeeded', null])('waits, never clicks, on %s', status => {
     expect(decidePayFollowUp({ paymentIntentStatus: status })).toBe('wait');
   });
 
@@ -10,7 +10,7 @@ describe('decidePayFollowUp (MYK9-2336, never pay twice)', () => {
     expect(decidePayFollowUp({ paymentIntentStatus: status })).toBe('retry');
   });
 
-  it.each(['requires_action', 'requires_capture', 'canceled', 'something_new', null])(
+  it.each(['requires_action', 'requires_capture', 'canceled', 'something_new'])(
     'fails without clicking on %s',
     status => {
       expect(decidePayFollowUp({ paymentIntentStatus: status })).toBe('fail');

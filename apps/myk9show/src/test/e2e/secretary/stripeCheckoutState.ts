@@ -12,12 +12,14 @@ export interface PaymentEvidence {
 export type PayFollowUp = 'wait' | 'retry' | 'fail';
 
 /**
- * - wait: Stripe has the payment in flight or done; the redirect is only late. Never click.
+ * - wait: Stripe has the payment in flight or done, or could not be read (null: a failed read
+ *   proves nothing); the redirect may only be late. Never click.
  * - retry: Stripe shows the payment unstarted, so the click was dropped. One more click is safe.
- * - fail: anything else (no intent, failed read, canceled, needs action); never click.
+ * - fail: a status that was read and is neither in flight nor unstarted (canceled, needs action); never click.
  */
 export function decidePayFollowUp(evidence: PaymentEvidence): PayFollowUp {
   switch (evidence.paymentIntentStatus) {
+    case null:
     case 'processing':
     case 'succeeded':
       return 'wait';

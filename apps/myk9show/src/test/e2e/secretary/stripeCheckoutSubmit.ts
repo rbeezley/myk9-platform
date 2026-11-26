@@ -92,7 +92,7 @@ export async function submitPaymentAndAwaitReturn(
       page,
       'after the first Pay click',
       status,
-      'Not retried: Stripe does not show the payment as in flight or unstarted.'
+      'Not retried: Stripe shows a status that is neither in flight nor unstarted.'
     );
   }
   if (decision === 'wait') {
@@ -101,7 +101,7 @@ export async function submitPaymentAndAwaitReturn(
       page,
       'waiting for a late redirect',
       status,
-      'Stripe has the payment; the return never came.'
+      'The return never came; no second click was made.'
     );
   }
   try {
@@ -115,5 +115,11 @@ export async function submitPaymentAndAwaitReturn(
     );
   }
   if (await returned(RETRY_WAIT_MS)) return;
-  return fail(page, 'after the Pay retry', status, 'One retry was made; none more.');
+  const after = (await options.readPaymentEvidence()).paymentIntentStatus;
+  return fail(
+    page,
+    'after the Pay retry',
+    status,
+    `PaymentIntent before retry: ${status}, now: ${after ?? 'unknown'}. One retry was made; none more.`
+  );
 }

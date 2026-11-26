@@ -4,7 +4,7 @@ import { useTrialOfficials } from '@/hooks/queries/useTrialOfficials';
 import { useUKCTrialReportContext } from '@/hooks/queries/useUKCTrialReportContext';
 import { buildClassReportProps, buildTrialReportProps } from './reportDataMapping';
 import { getReportById } from '@/lib/reports/reportRegistry';
-import { getTrialRegistry } from '@/features/registries';
+import { resolveConfiguredRegistryId } from '@/features/registries';
 import { useAKCOfficialPdfAction } from './useAKCOfficialPdfAction';
 
 const UKC_TRIAL_REPORT_TYPES = new Set(['ukc-nosework-trial-report', 'trial-secretary-report']);
@@ -43,7 +43,8 @@ export function useOfficialReportDownload(input: {
     const trial = (
       trials as unknown as Array<{ id: string; registry_id?: string | null }> | undefined
     )?.find(t => t.id === trialId);
-    return trial ? getTrialRegistry(trial).id === 'UKC' : false;
+    // The raw row, not mapped props: resolve without the dev-time throw, as readTrialRegistryId does.
+    return resolveConfiguredRegistryId(trial?.registry_id) === 'UKC';
   }, [trials, trialId]);
 
   const ukcTrialReportContextQuery = useUKCTrialReportContext(

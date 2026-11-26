@@ -67,10 +67,11 @@ Tapping a class opens its entry list — the dogs in run order, on the **Pending
 1. Each entry shows the **armband number**, the **dog's call name**, the **breed**, and the **handler**.
 2. **Stewards:** use this list to call dogs to the line and check them in. Stewards do not score, so tapping the card itself does nothing. Use the check-in control on the right of the card. It reads **Not checked in** until someone changes it, and it opens **Change Status**:
    - A handler reports to you: tap **Checked-in**. The card then reads **Checked in**.
-   - To call the next dog: tap **Come to Gate**. The card reads **Come to gate**, and the handler sees it on their **My Shows** page.
+   - To call the next dog: tap **Come to Gate**. The card reads **Come to gate**. The handler sees it on their **My Shows** page once your phone has sent it, which needs a signal. Call the handler out loud as well.
    - **At Gate** marks a handler who is at the gate and ready. **Conflict** marks a handler with a schedule conflict.
-   - **Pulled** asks you to confirm first, because the judge then skips the dog.
-   - Chose the wrong one? Tap the control again and choose the right tile. A card that says **Not running** was scratched or withdrawn by the secretary; only the secretary can bring it back.
+   - **Pulled** asks you to confirm first. The dog then moves to **Not running**, a closed group at the bottom of the list, and the judge skips it. Pulled the wrong dog? Tap **Undo** on the message that appears, or open **Not running** and change that dog's status.
+   - Chose the wrong one? Tap the control again and choose the right tile.
+   - A card that says **Not running** under the dog's name has no check-in control: the dog was scratched, withdrawn or marked absent. Only the secretary can bring it back.
 3. **Judges and others allowed to score:** tap anywhere on an entry's card to open its scoresheet. The check-in control on the right of the card only changes the dog's check-in status. It opens **Change Status**, a grid with a tile for each status you can set (a steward uses it to check a dog in); tap **Close** to leave it unchanged.
 
 ![Entry list — dogs in run order with armband number, call name, breed, and handler; Pending and Completed tabs (tablet)](../screenshots/J-03.png)

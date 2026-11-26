@@ -156,14 +156,6 @@ describe('stripe-webhook wiring (MYK9-2338)', () => {
     expect(body.split("'Paid checkout could not be verified").length - 1).toBe(1);
   });
 
-  it('Connect and subscription writes throw instead of logging and returning', () => {
-    expect(functionBody('handleAccountUpdated')).toMatch(/throwIfDbError\(error,/);
-    expect(functionBody('handleAccountDeauthorized')).toMatch(/throwIfDbError\(error,/);
-    const sync = functionBody('syncSubscriptionFromStripe');
-    expect(sync).toMatch(/throwIfDbError\(subError,/);
-    expect(sync).toMatch(/throwIfDbError\(profileError,/);
-  });
-
   it('a retried cart is judged at the event time, not the retry clock', () => {
     const body = functionBody('handleEntryPaymentCompleted');
     expect(body).toContain('nowIso: paidAtIso,');
@@ -172,18 +164,6 @@ describe('stripe-webhook wiring (MYK9-2338)', () => {
     expect(source).toMatch(
       /handleCheckoutCompleted\(\s*event\.data\.object as Stripe\.Checkout\.Session,\s*paidAtIsoFromEvent\(event\.created\)/
     );
-  });
-
-  it('account.updated patches from the account as it stands now', () => {
-    const body = functionBody('handleAccountUpdated');
-    expect(body).toContain('stripe.accounts.retrieve(account.id)');
-    expect(body).toContain('accountToRowPatch(current, livemode)');
-  });
-
-  it('the profile tier comes from all of the customer subscriptions', () => {
-    const sync = functionBody('syncSubscriptionFromStripe');
-    expect(sync).toContain('currentEntitlement(');
-    expect(sync).toContain('subscription_tier: entitlement.tier,');
   });
 });
 

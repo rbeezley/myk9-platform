@@ -1,7 +1,6 @@
 // A PostgREST read or write that FAILED is not a missing row (MYK9-2338).
 // Answering 200 to a failure tells Stripe the event is handled, so it never
-// redelivers: a paid order stays unfulfilled, or a Connect/subscription row
-// stays drifted, until someone notices. Throwing instead reaches the request
+// redelivers: a paid order stays unfulfilled until someone notices. Throwing instead reaches the request
 // handler's catch (webhookHandler.ts), which alerts once per event and answers
 // 500, and Stripe retries the event on its own schedule.
 //

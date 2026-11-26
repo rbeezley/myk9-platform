@@ -118,3 +118,47 @@ describe('Edit show form keys vs the updateShow field map (MYK9-2222)', () => {
     }
   });
 });
+
+describe('showStore.updateShow cleared optional fields (MYK9-2433)', () => {
+  beforeEach(() => {
+    mockShowsTable.updateShow.mockReset().mockResolvedValue('mutation-1');
+    useShowStore.setState({
+      shows: [
+        {
+          id: 'show-1',
+          name: 'Heartland Classic',
+          entryOpenDate: '2026-04-27',
+          entryCloseDate: '2026-05-21',
+          preEntryFee: '25',
+          dayOfShowFee: '30',
+          location: 'Memorial Coliseum',
+        } as StoreShow,
+      ],
+      error: null,
+      isLoading: false,
+    });
+  });
+
+  it('writes cleared entry dates, fees and venue to the replicated row as null', async () => {
+    await useShowStore.getState().updateShow('show-1', {
+      entryOpenDate: '',
+      entryCloseDate: '',
+      preEntryFee: '',
+      dayOfShowFee: '',
+      location: '',
+    });
+    expect(mockShowsTable.updateShow).toHaveBeenCalledWith(
+      'show-1',
+      expect.objectContaining({
+        entryOpenDate: null,
+        entryCloseDate: null,
+        preEntryFee: null,
+        dayOfShowFee: null,
+        location: null,
+      })
+    );
+    const shown = useShowStore.getState().shows[0];
+    expect(shown?.entryOpenDate).toBeFalsy();
+    expect(shown?.entryCloseDate).toBeFalsy();
+  });
+});

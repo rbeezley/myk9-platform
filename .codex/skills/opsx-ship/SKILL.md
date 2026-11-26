@@ -77,7 +77,7 @@ In unattended or overnight batch mode, proceed without stopping for routine loca
 
 Still stop for explicit approval before shared-system mutations or irreversible actions:
 
-- real `supabase db push`
+- real `supabase db push`, unless `docs/agents/standing-approvals.md` pre-approves it (`status: ACTIVE`, its tripwire, and every step of its push row)
 - Supabase function deploys, secret changes, Management API PATCHes, or production DB writes
 - merging PRs
 - force-pushes

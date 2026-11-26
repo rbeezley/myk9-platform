@@ -160,6 +160,12 @@ CLI 3.x refuses a hosted push without `--yes`; add it only after the owner has c
 source supabase/.env && bash scripts/supabase.sh db push --remote --yes --password "$SUPABASE_DB_PASSWORD"
 ```
 
+A pre-approved push runs the dry run first, and goes no further unless it lists exactly the versions the plain tripwire named (step 3 of the push row in `standing-approvals.md`):
+
+```bash
+source supabase/.env && bash scripts/supabase.sh db push --remote --dry-run --password "$SUPABASE_DB_PASSWORD"
+```
+
 If you get "out of order" errors, add `--include-all`:
 
 ```bash

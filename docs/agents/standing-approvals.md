@@ -43,11 +43,13 @@ Only while `status: ACTIVE`, and only after the tripwire exits 0 in the same ses
 
 **The push row, in order.** Each step is a condition, and a step that fails is a stop: change nothing more, do not retry, and park the issue `needs:operator` with the command's output.
 
-1. Every migration the push will apply is merged to `main`, and its PR passed the review gate with the `migration-auditor` as one lens. The auditor's report for each one says `Existing data: KEEPS` and its verdict is not `DO NOT PUSH`. A migration the auditor marks `REMOVES` or `UNSURE` (a dropped table or column, a `DELETE`, a `TRUNCATE`, an `UPDATE` that rewrites existing rows), or one with no auditor report, is the owner's push.
-2. The push runs from the worktree linked to Supabase, at `origin/main`, through the `db-push` skill.
-3. `pnpm qa:prelaunch-tripwire --db-push` exits 0, right before the push.
-4. `supabase db push --dry-run` lists exactly the versions you expect, and nothing else.
-5. After the push, the grants on every table the migrations created or altered are read from the applied database (`pg_class.relacl`, and `pg_attribute.attacl` for column grants) and match what the migration declares.
+1. Every migration the push will apply is merged to `main`, and its PR passed the review gate with the `migration-auditor` as one lens. The auditor's report for each one says `Existing data: KEEPS` and its verdict is not `DO NOT PUSH`. A migration the auditor marks `REMOVES` or `UNSURE` (a dropped table or column, a `DELETE`, a `TRUNCATE`, an `UPDATE` that rewrites existing rows), or one with no auditor report on its PR's final head, is the owner's push. Quote the report on the PR or the issue, so the next reader can check it.
+2. The push runs from the worktree linked to Supabase, through the `db-push` skill. The CLI pushes every file in that checkout's `supabase/migrations/`, merged or not, so first run `git fetch origin main`, then check that `git rev-parse HEAD` equals `git rev-parse origin/main` and that `git status --short supabase/migrations` prints nothing.
+3. Run the plain `pnpm qa:prelaunch-tripwire`. While a merged migration is unapplied it exits 1 and names each version "not applied to the database": that list, and nothing you worked out yourself, is what this push may apply. Any other exit-1 reason is a stop, and exit 0 means there is nothing to push. Then `pnpm qa:prelaunch-tripwire --db-push` must exit 0, right before the push.
+4. The dry run lists exactly the versions from step 3, and nothing else. It is the `db-push` skill's push command with `--dry-run` in place of `--yes`, and with `--include-all` only if the real push will carry it.
+5. After the push, the grants on every table the migrations created or altered are read from the applied database (`pg_class.relacl`, and `pg_attribute.attacl` for column grants) and match what the migration declares. A failed grant check cannot undo the push: park the issue `needs:operator` at once with the query's output, so the owner sees an exposed table the same day.
+
+In Claude Code's auto mode the classifier may still stop a pre-approved push. `.claude/settings.json` has auto-mode entries for the merge and for Deploy myK9Show and none for the push, and only the owner edits permission settings. A stopped push is a hold like any other, never something to work around.
 
 **This reverses an owner decision of 2026-10-29.** The first version of this file pre-approved the push behind a script that scanned the SQL for destructive statements. Two review rounds found seven ways past that scanner, so the owner took the push off the list: no blocklist over arbitrary SQL can promise a migration keeps data (PR #3393; [`docs/archive/plan-standing-approvals.md`](../archive/plan-standing-approvals.md)). On 2026-11-13, after approving pushes one at a time through an orchestrate run, the owner approved them all, and on 2026-11-26 asked for that to be written here. Nothing here rebuilds the scanner. Step 1 is a reviewer reading the SQL at the PR, the same judgement the review gate already rests on, and "unsure" goes to the owner. The other steps bound what a wrong reading can cost: the tripwire proves every club is a test club, and the dry run shows exactly what will run.
 
@@ -62,6 +64,7 @@ Pre-approval removes the question, not the checks: the review gate, required CI 
 - `git push --force`, and any push to `main` other than the docs-only exception.
 - Vercel or Supabase project settings and secrets; Linear team settings and label definitions.
 - Product and UX decisions.
+- Any shared-system write during an incident: the `incident-triage` skill confirms each one.
 - Any action the tripwire stopped.
 
 ## When something needs the owner

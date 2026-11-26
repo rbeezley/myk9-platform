@@ -75,7 +75,7 @@ jobs:
 
       # MYK9-1527: refuse a frontend that would ship ahead of its schema. Checks
       # the exact commit picked above, so a migration merged after any local
-      # check cannot slip through. `supabase db push` stays owner-only.
+      # check cannot slip through. This workflow never pushes: see docs/agents/standing-approvals.md.
       - uses: actions/setup-node@v7
         if: steps.live.outputs.action == 'deploy'
         with:

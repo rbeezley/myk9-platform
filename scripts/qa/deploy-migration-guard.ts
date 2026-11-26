@@ -68,7 +68,7 @@ export function runDeployMigrationGuard(
   if (missing.length)
     return {
       code: 1,
-      reason: `${commitSha} carries migration(s) not applied to the database: ${missing.join(', ')}; run supabase db push first (owner-authorized), then deploy`,
+      reason: `${commitSha} carries migration(s) not applied to the database: ${missing.join(', ')}; run supabase db push first (owner-authorized, or pre-approved under docs/agents/standing-approvals.md), then deploy`,
     };
   return { code: 0, reason: `every migration on ${commitSha} is applied` };
 }

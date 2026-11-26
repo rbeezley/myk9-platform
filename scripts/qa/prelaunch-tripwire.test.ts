@@ -188,6 +188,14 @@ describe('runTripwire (the CLI core)', () => {
     }
   );
 
+  it('runs every other check under --db-push: OFF still stops it', () => {
+    const { approvalsPath, run } = setup();
+    writeFileSync(approvalsPath, block('ACTIVE'));
+    expect(run(['--db-push']).code).toBe(0);
+    writeFileSync(approvalsPath, block('OFF'));
+    expect(run(['--db-push']).code).toBe(1);
+  });
+
   it('treats a failing query as could-not-decide', () => {
     const { approvalsPath } = setup();
     writeFileSync(approvalsPath, block('ACTIVE'));

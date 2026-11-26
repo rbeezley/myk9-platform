@@ -11,7 +11,7 @@
  *
  * When ready to ship:
  *   npx tsx scripts/import-judges.ts > supabase/migrations/NNN_seed_akc_ukc_judges.sql
- *   then push per .claude/skills/db-push/SKILL.md, Step 2 (owner approval before --yes)
+ *   then push per .claude/skills/db-push/SKILL.md, Step 2 (owner approval or the standing pre-approval before --yes)
  *
  * Schema notes (post migration 070):
  *   - judge_number lives on judge_qualifications (one per org), NOT on people

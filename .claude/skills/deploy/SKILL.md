@@ -48,7 +48,7 @@ Fail-closed secret couplings: several functions require Vault/edge secrets to ma
 
 Invoke the `db-push` skill — it owns migration authoring (14-digit timestamp versions picked against `origin/main` AND the linked DB), the password/linking procedure (password in `supabase/.env`), and the post-push ACL verification. Run push from the worktree linked to Supabase, not the main repo, and never from an unmerged branch.
 
-Consider dispatching the `migration-auditor` agent on any new migration file before pushing.
+Dispatch the `migration-auditor` agent on any new migration file before pushing. A pre-approved push needs its `Existing data: KEEPS` line and the other steps of the push row in [`docs/agents/standing-approvals.md`](../../../docs/agents/standing-approvals.md).
 
 ## Verify (after any deploy)
 

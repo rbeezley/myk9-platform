@@ -9,6 +9,7 @@
 
 import { POSTGREST_MAX_ROWS } from './postgrestMaxRows';
 import {
+  abortReason,
   ReplicatedTable,
   syncReplicatedTable,
   parseUpdatedAtMs,
@@ -146,11 +147,13 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
       {
         ...this.getRowRefetchAdapter(),
         remotePageSize: JUDGE_ASSIGNMENTS_PAGE_SIZE,
-        getRemoteRowCount: async () => {
+        getRemoteRowCount: async ({ signal }) => {
           try {
-            const { count, error } = await supabase
+            let countQuery = supabase
               .from('judge_assignments')
               .select('id', { count: 'exact', head: true });
+            if (signal) countQuery = countQuery.abortSignal(signal);
+            const { count, error } = await countQuery;
 
             if (error) {
               logger.warn(
@@ -171,7 +174,7 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
             return undefined;
           }
         },
-        fetchRemoteRows: async ({ since }) => {
+        fetchRemoteRows: async ({ since, forceFullSync, signal }) => {
           // Embed the class/trial snapshot so the globally-synced assignment row
           // is self-sufficient for the offline judge dashboard. To-one embeds via
           // class_id / trial_id, mirroring useJudgeTodayStats' working shape.
@@ -184,17 +187,19 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
           let cursorUpdatedAt: string | null = null;
           let cursorId: string | null = null;
           for (;;) {
+            if (signal?.aborted) throw abortReason(signal);
             let query = supabase.from('judge_assignments').select(JUDGE_ASSIGNMENT_SELECT);
-            query =
-              cursorUpdatedAt && cursorId
-                ? query.or(
-                    `updated_at.gt.${cursorUpdatedAt},and(updated_at.eq.${cursorUpdatedAt},id.gt.${cursorId})`
-                  )
-                : query.gt('updated_at', new Date(since).toISOString());
-            const { data, error } = await query
-              .order('updated_at', { ascending: true })
-              .order('id', { ascending: true })
-              .range(0, JUDGE_ASSIGNMENTS_PAGE_SIZE - 1);
+            if (cursorUpdatedAt && cursorId) {
+              query = query.or(
+                `updated_at.gt.${cursorUpdatedAt},and(updated_at.eq.${cursorUpdatedAt},id.gt.${cursorId})`
+              );
+            } else if (!forceFullSync) {
+              // A full sync re-reads every row, whatever watermark the caller holds.
+              query = query.gt('updated_at', new Date(since).toISOString());
+            }
+            query = query.order('updated_at', { ascending: true }).order('id', { ascending: true });
+            if (signal) query = query.abortSignal(signal);
+            const { data, error } = await query.range(0, JUDGE_ASSIGNMENTS_PAGE_SIZE - 1);
 
             if (error) {
               throw new Error(`Supabase query failed: ${error.message}`);

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   DatabaseManager,
   REPLICATION_STORES,
@@ -260,5 +260,57 @@ describe('Circuit breaker', () => {
     const status = dbManager.getStatus();
     expect(status.consecutiveFailures).toBe(0);
     expect(status.circuitOpen).toBe(false);
+  });
+});
+
+describe('Concurrent init recovery (MYK9-2420)', () => {
+  let dbManager: DatabaseManager;
+
+  beforeEach(async () => {
+    const { databaseManager: singletonMgr } = await import('./DatabaseManager');
+    await singletonMgr.reset();
+    dbManager = new DatabaseManager({}, 'test-recovery-' + Date.now(), 5);
+  });
+
+  afterEach(async () => {
+    vi.restoreAllMocks();
+    await dbManager.reset();
+  });
+
+  it('resolves concurrent callers with the recovered handle when the first open fails', async () => {
+    const internals = dbManager as unknown as {
+      openDatabaseWithTimeout: () => Promise<unknown>;
+    };
+    const realOpen = internals.openDatabaseWithTimeout.bind(dbManager);
+    let calls = 0;
+    vi.spyOn(internals, 'openDatabaseWithTimeout').mockImplementation(() => {
+      calls++;
+      if (calls === 1) return Promise.reject(new Error('transient open failure'));
+      return realOpen();
+    });
+
+    const [winner, waiterA, waiterB] = await Promise.all([
+      dbManager.getDatabase('table-a'),
+      dbManager.getDatabase('table-b'),
+      dbManager.getDatabase('table-c'),
+    ]);
+
+    expect(calls).toBe(2);
+    expect(waiterA).toBe(winner);
+    expect(waiterB).toBe(winner);
+  });
+
+  it('still rejects every caller when recovery also fails', async () => {
+    const internals = dbManager as unknown as {
+      openDatabaseWithTimeout: () => Promise<unknown>;
+    };
+    vi.spyOn(internals, 'openDatabaseWithTimeout').mockRejectedValue(new Error('open failed'));
+
+    const results = await Promise.allSettled([
+      dbManager.getDatabase('table-a'),
+      dbManager.getDatabase('table-b'),
+    ]);
+
+    expect(results.map(r => r.status)).toEqual(['rejected', 'rejected']);
   });
 });

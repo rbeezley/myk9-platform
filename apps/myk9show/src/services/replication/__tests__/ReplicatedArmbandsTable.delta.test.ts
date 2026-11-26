@@ -80,6 +80,7 @@ function mockQuery(supabaseFrom: { mockReturnValue: (value: never) => unknown })
       return record('or')(...args);
     }),
     range: vi.fn(record('range')),
+    abortSignal: vi.fn(record('abortSignal')),
     // A count reads no rows; a row read takes a queued page first, otherwise `data`.
     then: (resolve: (value: unknown) => unknown) => {
       if (!countOnly) state.rowReads.push(filters);
@@ -325,6 +326,23 @@ describe('ReplicatedArmbandsTable incremental sync (MYK9-1300)', () => {
     // Only the first page lifts the watermark: a release committed while later
     // pages were read is still after it, so the next delta sees the tombstone.
     expect((await table.getSyncMetadata())?.lastIncrementalSyncAt).toBe(parseUpdatedAtMs(PG_T1));
+  });
+
+  it('hands the sync signal to the count and every page request (MYK9-2420)', async () => {
+    const { supabase } = await import('@/services/database/supabaseClient');
+    const { query, state } = mockQuery(vi.mocked(supabase.from));
+    state.data = [remoteRow('a', '101', T1)];
+    state.count = 1;
+    const controller = new AbortController();
+
+    expect((await table.sync(undefined, { signal: controller.signal })).success).toBe(true);
+
+    expect(query.abortSignal).toHaveBeenCalled();
+    expect(query.abortSignal.mock.calls.every(([signal]) => signal === controller.signal)).toBe(
+      true
+    );
+    // The count and each page read carry it: at least one count plus two row reads.
+    expect(query.abortSignal.mock.calls.length).toBeGreaterThanOrEqual(2);
   });
 
   it('keeps only the newest copy of a row that moved to a later page mid-delta', async () => {

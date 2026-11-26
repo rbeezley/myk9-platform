@@ -61,6 +61,8 @@ export class DamagedDatabaseError extends Error {
  */
 let sharedDB: IDBPDatabase | null = null;
 let dbInitPromise: Promise<IDBPDatabase> | null = null;
+/** MYK9-2420: set while the init winner's recover() runs, so waiters can adopt its handle. */
+let initRecovery: Promise<void> | null = null;
 
 /**
  * Table initialization queue to prevent transaction stampede
@@ -389,7 +391,16 @@ export class DatabaseManager {
     if (dbInitPromise) {
       this.logger.log(`[${tableName}] Waiting for dbInitPromise to resolve...`);
 
-      const db = await dbInitPromise;
+      let db: IDBPDatabase;
+      try {
+        db = await dbInitPromise;
+      } catch (initError) {
+        // MYK9-2420: the winner's recover() may have re-opened the database; adopt
+        // that handle instead of reporting the original failure to this caller.
+        if (initRecovery) await initRecovery.catch(() => undefined);
+        if (!sharedDB) throw initError;
+        return sharedDB;
+      }
       this.logger.log(`[${tableName}] dbInitPromise resolved successfully`);
 
       const myTurn = tableInitQueue.then(async () => {
@@ -450,7 +461,12 @@ export class DatabaseManager {
       // destroy the queued scores it still holds (MYK9-2360).
       if (error instanceof DamagedDatabaseError) throw error;
 
-      await this.recover();
+      initRecovery = this.recover();
+      try {
+        await initRecovery;
+      } finally {
+        initRecovery = null;
+      }
 
       // If recover() re-opened successfully, return it
       if (sharedDB) {

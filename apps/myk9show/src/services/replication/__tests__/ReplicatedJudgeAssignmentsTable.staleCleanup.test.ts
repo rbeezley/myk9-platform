@@ -16,6 +16,7 @@ vi.mock('@myk9/replication', async importOriginal => {
 const db = vi.hoisted(() => ({
   pages: [] as unknown[][],
   cursors: [] as string[],
+  signals: [] as AbortSignal[],
 }));
 
 vi.mock('@/services/database/supabaseClient', () => {
@@ -30,6 +31,10 @@ vi.mock('@/services/database/supabaseClient', () => {
       return query;
     },
     order: () => query,
+    abortSignal: (signal: AbortSignal) => {
+      db.signals.push(signal);
+      return query;
+    },
     range: async () => ({ data: db.pages.shift() ?? [], error: null }),
   };
   return { supabase: { from: () => query } };
@@ -46,6 +51,7 @@ beforeEach(() => {
   engine.calls.length = 0;
   db.pages = [];
   db.cursors = [];
+  db.signals = [];
 });
 
 // MYK9-775: judge assignments are hard-deleted, so without this opt-in a judge
@@ -81,5 +87,45 @@ describe('ReplicatedJudgeAssignmentsTable fetch', () => {
       // The short second page does not end the read; the empty third page does.
       `updated_at.gt.2026-09-25T00:00:00Z,and(updated_at.eq.2026-09-25T00:00:00Z,id.gt.ja-${JUDGE_ASSIGNMENTS_PAGE_SIZE})`,
     ]);
+  });
+
+  // MYK9-2420: a cancelled sync must release the in-flight request, and a full
+  // sync must read from the start whatever watermark it is handed.
+  it('hands the sync signal to every page request and stops once it aborts', async () => {
+    const row = (i: number) => ({ id: `ja-${i}`, updated_at: '2026-09-25T00:00:00Z' });
+    db.pages = [[row(1)], [row(2)]];
+    await new ReplicatedJudgeAssignmentsTable().sync();
+    const adapter = engine.calls[0] as {
+      fetchRemoteRows: (args: {
+        since: number;
+        forceFullSync: boolean;
+        signal: AbortSignal;
+      }) => Promise<unknown[]>;
+    };
+    const controller = new AbortController();
+
+    await adapter.fetchRemoteRows({ since: 0, forceFullSync: false, signal: controller.signal });
+    expect(db.signals.length).toBeGreaterThan(0);
+    expect(db.signals.every(signal => signal === controller.signal)).toBe(true);
+
+    controller.abort();
+    db.cursors = [];
+    await expect(
+      adapter.fetchRemoteRows({ since: 0, forceFullSync: false, signal: controller.signal })
+    ).rejects.toThrow();
+    expect(db.cursors).toEqual([]);
+  });
+
+  it('ignores the watermark when forceFullSync is set', async () => {
+    await new ReplicatedJudgeAssignmentsTable().sync();
+    const adapter = engine.calls[0] as {
+      fetchRemoteRows: (args: { since: number; forceFullSync: boolean }) => Promise<unknown[]>;
+    };
+
+    await adapter.fetchRemoteRows({ since: 1_800_000_000_000, forceFullSync: true });
+    expect(db.cursors).toEqual([]);
+
+    await adapter.fetchRemoteRows({ since: 1_800_000_000_000, forceFullSync: false });
+    expect(db.cursors).toEqual(['first']);
   });
 });

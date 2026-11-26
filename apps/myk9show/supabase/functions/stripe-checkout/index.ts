@@ -297,7 +297,10 @@ async function getOrCreateStripeCustomer(
             .from('stripe_customers')
             .delete()
             .eq('person_id', personId)
-            .eq('livemode', stripeLivemode),
+            .eq('livemode', stripeLivemode)
+            // Only the mapping observed stale: a concurrent request may already
+            // have saved its replacement, which must survive.
+            .eq('stripe_customer_id', staleCustomerId),
         console.error
       );
     try {
@@ -799,13 +802,21 @@ async function checkoutUnderLease(
     );
     const healedSubtotal = itemsWithAuthoritativeFee.reduce((s, x) => s + x.authoritativeCents, 0);
     const healedFeeCents = calculatePlatformFeeCents(healedSubtotal, platformFeeRates);
-    const healPriorSessionId: string | null = cart.stripe_checkout_session_id ?? null;
     const heal = await healDriftedCart(
       cart_id,
       driftedItems.map(({ item, authoritativeCents }) => ({ itemId: item.id, authoritativeCents })),
       {
+        releasePriorSession: () =>
+          releasePriorSessionForClassGate(
+            cart.stripe_checkout_session_id ?? null,
+            stripe.checkout.sessions
+          ),
         writeLineFee: (itemId, cents) =>
-          supabase.from('entry_cart_items').update({ entry_fee_cents: cents }).eq('id', itemId),
+          supabase
+            .from('entry_cart_items')
+            .update({ entry_fee_cents: cents })
+            .eq('id', itemId)
+            .select('id'),
         writeCartTotals: () =>
           supabase
             .from('entry_carts')
@@ -818,13 +829,14 @@ async function checkoutUnderLease(
             })
             .eq('id', cart_id)
             // Never heal a cart the webhook just claimed (paid mid-checkout).
-            .eq('status', 'active'),
-        expirePriorSession: async () => {
-          if (healPriorSessionId) await stripe.checkout.sessions.expire(healPriorSessionId);
-        },
+            .eq('status', 'active')
+            .select('id'),
         logError: console.error,
       }
     );
+    if (heal.kind === 'blocked') {
+      return corsResponse(corsHeaders, { error: heal.error }, heal.status);
+    }
     if (heal.kind === 'heal_failed') {
       return corsResponse(corsHeaders, { error: FEES_HEAL_FAILED_MESSAGE }, 500);
     }

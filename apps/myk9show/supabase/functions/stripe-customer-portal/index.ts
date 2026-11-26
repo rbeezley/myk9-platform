@@ -96,7 +96,15 @@ Deno.serve(async req => {
     }
 
     // Parse request
-    const body: PortalRequest = await req.json();
+    let body: PortalRequest | null;
+    try {
+      body = await req.json();
+    } catch {
+      return corsResponse(corsHeaders, { error: 'Invalid JSON body' }, 400);
+    }
+    if (!body || typeof body !== 'object') {
+      return corsResponse(corsHeaders, { error: 'Invalid JSON body' }, 400);
+    }
     const { returnUrl } = body;
 
     if (!returnUrl) {
@@ -141,13 +149,10 @@ Deno.serve(async req => {
 
     return corsResponse(corsHeaders, { url: session.url });
   } catch (error: unknown) {
-    console.error('Customer portal error:', error);
-    return corsResponse(
-      corsHeaders,
-      {
-        error: error instanceof Error ? error.message : 'Unknown error',
-      },
-      502
-    );
+    // MP-20: log the detail (Stripe SDK messages embed customer/subscription
+    // ids and internal phrasing) but return a generic body to the caller.
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('stripe-customer-portal error:', message);
+    return corsResponse(corsHeaders, { error: 'request_failed' }, 500);
   }
 });

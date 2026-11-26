@@ -1,4 +1,5 @@
 import { formatTrialLabel } from '@myk9/core';
+import { formatReportDate } from '@/lib/reports/reportUtils';
 import { PaymentStatus } from '@/types/show-registration-types';
 import {
   financialReportPaymentLabel,
@@ -276,7 +277,7 @@ function getTrialLabel(entry: ReportEntry): string {
     entry.trialName || entry.trialNumber
       ? formatTrialLabel({ name: entry.trialName, trialNumber: entry.trialNumber })
       : 'Unassigned trial';
-  return entry.trialDate ? `${trial} (${entry.trialDate})` : trial;
+  return entry.trialDate ? `${trial} (${formatReportDate(entry.trialDate)})` : trial;
 }
 
 function sortBuckets(a: FinancialReportBucket, b: FinancialReportBucket): number {

@@ -401,3 +401,12 @@ describe('financialReportTotals: card_paid (MYK9-1637)', () => {
     expect(totals.summary.outstanding).toBe(50);
   });
 });
+
+describe('trial breakdown label', () => {
+  it('prints the trial date as a US calendar date, never raw ISO', () => {
+    const totals = calculateFinancialReportTotals([
+      entry({ trialName: 'Trial 1', trialNumber: '1', trialDate: '2027-01-07' }),
+    ]);
+    expect(totals.trialBreakdown.map(bucket => bucket.label)).toEqual(['Trial 1 (1/7/2027)']);
+  });
+});

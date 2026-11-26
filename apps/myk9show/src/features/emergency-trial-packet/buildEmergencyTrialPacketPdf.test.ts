@@ -593,18 +593,19 @@ describe('buildEmergencyTrialPacketPdf', () => {
       const saturday = await extractPdfText(
         buildEmergencyTrialPacketPdf(buildEmergencyPacketModel(days[0].input))
       );
-      expect(saturday).toContain('This packet covers: 2026-10-03');
+      expect(saturday).toContain('This packet covers: 10/3/2026');
+      expect(saturday).not.toContain('2026-10-03');
       expect(saturday).toContain('Trials in this packet:');
       expect(saturday).toContain('• Saturday');
       expect(saturday).not.toContain('Sunday');
-      expect(saturday).not.toContain('2026-10-04');
+      expect(saturday).not.toContain('10/4/2026');
     });
 
     it('still prints the whole-show span when the packet holds every day', async () => {
       const text = await extractPdfText(
         buildEmergencyTrialPacketPdf(buildEmergencyPacketModel(fixture))
       );
-      expect(text).toContain('This packet covers: 2026-10-03–2026-10-04');
+      expect(text).toContain('This packet covers: 10/3/2026–10/4/2026');
     });
 
     it('never drops a trial name silently, however many a day holds', async () => {

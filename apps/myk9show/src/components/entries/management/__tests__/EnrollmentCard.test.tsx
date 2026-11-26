@@ -338,6 +338,7 @@ describe('EnrollmentCard', () => {
         amount: null,
         receivedOn: '2026-09-17',
         reference: null,
+        clientPaymentId: expect.any(String),
       });
       expect(markPaidOnline).not.toHaveBeenCalled();
     });
@@ -357,6 +358,7 @@ describe('EnrollmentCard', () => {
         amount: null,
         receivedOn: '2026-08-27',
         reference: '1042',
+        clientPaymentId: expect.any(String),
       });
     });
 
@@ -375,6 +377,7 @@ describe('EnrollmentCard', () => {
         amount: 35,
         receivedOn: '2026-09-17',
         reference: null,
+        clientPaymentId: expect.any(String),
       });
     });
 

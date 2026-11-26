@@ -38,8 +38,10 @@ describe('record_enrollment_payment arguments (MYK9-677)', () => {
       amount: 35,
       receivedOn: '2026-08-27',
       reference: ' 1042 ',
+      clientPaymentId: 'b6c1f0de-3a52-4d6e-9f1a-7c2e5d8b4a01',
     });
 
+    // MYK9-1936: the payment's own id, so a retry is recorded once.
     expect(mocks.rpc).toHaveBeenCalledWith('record_enrollment_payment', {
       p_enrollment_id: 'enr-1',
       p_kind: 'payment',
@@ -47,6 +49,7 @@ describe('record_enrollment_payment arguments (MYK9-677)', () => {
       p_method: 'check',
       p_received_on: '2026-08-27',
       p_reference: '1042',
+      p_client_payment_id: 'b6c1f0de-3a52-4d6e-9f1a-7c2e5d8b4a01',
     });
   });
 
@@ -56,11 +59,17 @@ describe('record_enrollment_payment arguments (MYK9-677)', () => {
       method: 'cash',
       amount: null,
       receivedOn: '2026-09-17',
+      clientPaymentId: '5d2a9e4c-81f3-4b07-a6d5-0e9c3f7b2a64',
     });
 
     expect(mocks.rpc).toHaveBeenCalledWith(
       'record_enrollment_payment',
-      expect.objectContaining({ p_amount: null, p_method: 'cash', p_reference: null })
+      expect.objectContaining({
+        p_amount: null,
+        p_method: 'cash',
+        p_reference: null,
+        p_client_payment_id: '5d2a9e4c-81f3-4b07-a6d5-0e9c3f7b2a64',
+      })
     );
   });
 

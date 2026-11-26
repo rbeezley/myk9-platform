@@ -1,5 +1,9 @@
 import { PaymentStatus } from '@/types/show-registration-types';
-import type { EnrollmentLedgerAction, LedgerMethod } from '@/features/payments/showPaymentLedger';
+import type {
+  EnrollmentLedgerAction,
+  LedgerMethod,
+  LedgerPaymentDetails,
+} from '@/features/payments/showPaymentLedger';
 import type { EnrollmentGroup } from '@/utils/enrollmentGrouping';
 
 /**
@@ -91,7 +95,7 @@ export function resolvePartialPayment(
   method: LedgerMethod,
   checkNumber: string,
   receivedOn: string
-): Extract<EnrollmentLedgerAction, { kind: 'payment' }> | null {
+): LedgerPaymentDetails | null {
   const amount = parseFloat(amountPaid);
   if (isNaN(amount) || amount <= 0 || !receivedOn) return null;
   return {

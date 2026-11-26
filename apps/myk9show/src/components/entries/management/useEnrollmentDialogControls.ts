@@ -17,6 +17,7 @@ import {
   type PartialDialog,
 } from './enrollmentPayment';
 import { useLedgerDialogSave } from './useLedgerDialogSave';
+import { usePaymentAttemptId } from './usePaymentAttemptId';
 
 /**
  * The form-level dialogs (full payment, partial payment, the paid-online and
@@ -38,6 +39,9 @@ export function useEnrollmentDialogControls(
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const fullSave = useLedgerDialogSave();
   const partialSave = useLedgerDialogSave();
+  // MYK9-1936: each dialog's payment keeps its own id across a retry of the same payment.
+  const fullAttempt = usePaymentAttemptId();
+  const partialAttempt = usePaymentAttemptId();
 
   const enrollmentId = group.enrollmentId ?? '';
   const totalDollars = formTotalDollars(group);
@@ -78,11 +82,13 @@ export function useEnrollmentDialogControls(
   // per payment with the day it was received.
   const openFullPayment = (method: FullPaymentDialog['method']) => {
     fullSave.reset();
+    fullAttempt.clear();
     setFullDialog({ open: true, method, checkNumber: '', receivedOn: today });
   };
 
   const openPartialPayment = () => {
     partialSave.reset();
+    partialAttempt.clear();
     setPartialDialog({
       open: true,
       amountPaid: '',
@@ -96,16 +102,19 @@ export function useEnrollmentDialogControls(
   // keeps it open with what was typed (useLedgerDialogSave).
   const confirmFullPayment = () => {
     if (!enrollmentId || !fullDialog.receivedOn) return;
-    const action = {
+    const action = fullAttempt.withId(enrollmentId, {
       kind: 'payment',
       method: fullDialog.method,
       amount: null,
       receivedOn: fullDialog.receivedOn,
       reference: fullDialog.method === 'check' ? fullDialog.checkNumber : null,
-    } as const;
+    });
     void fullSave.save(
       () => paymentLedger.record(enrollmentId, action),
-      () => setFullDialog(EMPTY_FULL_PAYMENT_DIALOG)
+      () => {
+        fullAttempt.clear();
+        setFullDialog(EMPTY_FULL_PAYMENT_DIALOG);
+      }
     );
   };
 
@@ -117,9 +126,13 @@ export function useEnrollmentDialogControls(
       partialDialog.receivedOn
     );
     if (!result || !enrollmentId) return;
+    const action = partialAttempt.withId(enrollmentId, result);
     void partialSave.save(
-      () => paymentLedger.record(enrollmentId, result),
-      () => setPartialDialog(EMPTY_PARTIAL_DIALOG)
+      () => paymentLedger.record(enrollmentId, action),
+      () => {
+        partialAttempt.clear();
+        setPartialDialog(EMPTY_PARTIAL_DIALOG);
+      }
     );
   };
 

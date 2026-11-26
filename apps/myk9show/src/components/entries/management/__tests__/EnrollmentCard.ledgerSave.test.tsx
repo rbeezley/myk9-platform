@@ -272,6 +272,90 @@ describe('payment and refund dialogs keep what was typed when the save fails (MY
       amount: null,
       receivedOn: '2026-08-27',
       reference: '1042',
+      clientPaymentId: expect.any(String),
     });
+  });
+});
+
+/** The payment id the `call`th ledger write carried (MYK9-1936). */
+function sentPaymentId(record: ReturnType<typeof vi.fn<LedgerRecord>>, call: number) {
+  const action = record.mock.calls[call]?.[1];
+  return action?.kind === 'payment' ? action.clientPaymentId : undefined;
+}
+
+describe('every payment carries its own id, kept for a retry (MYK9-1936)', () => {
+  it('a retry of the same unconfirmed Paid in Full sends the same id', async () => {
+    const record = vi
+      .fn<LedgerRecord>()
+      .mockResolvedValueOnce('unconfirmed')
+      .mockResolvedValueOnce('saved');
+    openCheckPayment(record);
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Confirm' })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+    await waitFor(() => expect(record).toHaveBeenCalledTimes(2));
+
+    const first = sentPaymentId(record, 0);
+    expect(first).toMatch(/^[0-9a-f-]{36}$/);
+    expect(sentPaymentId(record, 1)).toBe(first);
+  });
+
+  it('a retry of the same unconfirmed partial payment sends the same id', async () => {
+    const record = vi
+      .fn<LedgerRecord>()
+      .mockResolvedValueOnce('unconfirmed')
+      .mockResolvedValueOnce('saved');
+    openPartialPayment(record);
+    fireEvent.click(screen.getByRole('button', { name: 'Record Payment' }));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Record Payment' })).toBeEnabled()
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Record Payment' }));
+    await waitFor(() => expect(record).toHaveBeenCalledTimes(2));
+
+    expect(sentPaymentId(record, 0)).toBeDefined();
+    expect(sentPaymentId(record, 1)).toBe(sentPaymentId(record, 0));
+  });
+
+  it('a changed amount after an unconfirmed save is a new payment with a new id', async () => {
+    const record = vi
+      .fn<LedgerRecord>()
+      .mockResolvedValueOnce('unconfirmed')
+      .mockResolvedValueOnce('saved');
+    openPartialPayment(record);
+    fireEvent.click(screen.getByRole('button', { name: 'Record Payment' }));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Record Payment' })).toBeEnabled()
+    );
+    fireEvent.change(screen.getByPlaceholderText('Amount of this payment ($)'), {
+      target: { value: '20' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Record Payment' }));
+    await waitFor(() => expect(record).toHaveBeenCalledTimes(2));
+
+    expect(sentPaymentId(record, 0)).toBeDefined();
+    expect(sentPaymentId(record, 1)).toBeDefined();
+    expect(sentPaymentId(record, 1)).not.toBe(sentPaymentId(record, 0));
+  });
+
+  it('the next payment after a confirmed save gets a new id', async () => {
+    const record = vi.fn<LedgerRecord>().mockResolvedValue('saved');
+    openPartialPayment(record);
+    fireEvent.click(screen.getByRole('button', { name: 'Record Payment' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    // The same amount and method again is a second payment, not a retry.
+    fireEvent.click(screen.getByRole('button', { name: 'Change payment' }));
+    fireEvent.click(screen.getByText('Partial Payment…'));
+    fireEvent.change(screen.getByPlaceholderText('Amount of this payment ($)'), {
+      target: { value: '35' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Check' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Record Payment' }));
+    await waitFor(() => expect(record).toHaveBeenCalledTimes(2));
+
+    expect(sentPaymentId(record, 0)).toBeDefined();
+    expect(sentPaymentId(record, 1)).toBeDefined();
+    expect(sentPaymentId(record, 1)).not.toBe(sentPaymentId(record, 0));
   });
 });

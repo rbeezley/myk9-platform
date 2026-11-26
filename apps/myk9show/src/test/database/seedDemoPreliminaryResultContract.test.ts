@@ -31,3 +31,43 @@ describe('seed-demo preliminary result fixture', () => {
     expect(fixture).toContain('v_released_at IS NOT NULL');
   });
 });
+
+describe('seed-demo lean class list (MYK9-2390)', () => {
+  const start = seed.indexOf('-- 4. Classes (10)');
+  const end = seed.indexOf('-- MYK9-515 FULL-CLASS FIXTURE', start);
+  const block = seed.slice(start, end);
+  const rows = [
+    ...block.matchAll(
+      /\('(dec1a55e-[0-9a-f-]+)',\s*'(dededede-[0-9a-f-]+)',\s*'([^']+)',\s*'([^']+)',\s*'([^']+)',\s*(NULL|'[^']*')/g
+    ),
+  ].map(([, id, trialId, name, level, element, section]) => ({
+    id,
+    trialId,
+    name,
+    level,
+    element,
+    section,
+  }));
+
+  it('parses the class rows', () => {
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    expect(rows.length).toBeGreaterThanOrEqual(11);
+  });
+
+  it('gives the unreleased-results fixture its own class in Trial 1', () => {
+    const fixtureRow = rows.find(row => row.id === 'dec1a55e-0000-0000-0000-000000000040');
+    expect(fixtureRow).toMatchObject({
+      trialId: 'dededede-0000-0000-0000-000000000021',
+      name: 'Buried Excellent',
+      element: 'Buried',
+      level: 'Excellent',
+      section: 'NULL',
+    });
+  });
+
+  it('never repeats an element, level and section within a trial', () => {
+    const keys = rows.map(r => [r.trialId, r.element, r.level, r.section].join('|'));
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+});

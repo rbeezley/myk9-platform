@@ -89,7 +89,7 @@ const HEARTLAND_SATURDAY: SeedClass[] = [
     section: null,
   },
   {
-    id: 'dec1a55e-0000-0000-0000-000000000040',
+    id: 'class-interior-advanced-second',
     name: 'Interior Advanced Preliminary',
     element: 'Interior',
     level: 'Advanced',

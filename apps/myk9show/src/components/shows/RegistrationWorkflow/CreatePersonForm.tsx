@@ -88,7 +88,7 @@ export const CreatePersonForm: React.FC<CreatePersonFormProps> = ({
   variant = 'panel',
   closeRequestRef,
 }) => {
-  const { people, loadUsers } = useUserStore();
+  const { people, loadUsers, directoryIncomplete } = useUserStore();
   // The candidates and the "add anyway" answer belong to ONE identity (name and
   // email). Changing either re-opens the question, so a changed person is re-checked.
   const [duplicates, setDuplicates] = useState<{
@@ -135,9 +135,11 @@ export const CreatePersonForm: React.FC<CreatePersonFormProps> = ({
   ): boolean => {
     const key = keyOf(data);
     if (allowedKey === key) return false;
-    const known = new Set(people.map(person => person.id));
+    // The server's row wins over the saved one for the same person: the saved copy may be
+    // names only, and a returning entrant's contact details come from the server.
+    const answered = new Set(serverMatches.map(person => person.id));
     const candidate = findLikelyDuplicatePersonCandidate(
-      [...people, ...serverMatches.filter(person => !known.has(person.id))],
+      [...serverMatches, ...people.filter(person => !answered.has(person.id))],
       {
         firstName: data.firstName ?? '',
         lastName: data.lastName ?? '',
@@ -160,10 +162,10 @@ export const CreatePersonForm: React.FC<CreatePersonFormProps> = ({
   const handleSave = async (data: Partial<PersonRecord>) => {
     // The card above the tabs explains this; the panel keeps the form open
     // without a failure toast.
-    // The saved directory may be empty on this device; the server answers when it can.
+    // The saved directory may be empty or known to be short (MYK9-2253); the server answers when it can.
     // "Add anyway" was already chosen for this person: do not wait on the lookup again.
     // An answer already settled for this email and last name is reused, not asked again.
-    const needsLookup = people.length === 0 && allowedKey !== keyOf(data);
+    const needsLookup = (people.length === 0 || directoryIncomplete) && allowedKey !== keyOf(data);
     const reusable = settled && settled.key === serverMatchKey(data) ? settled : null;
     const fresh = needsLookup ? (reusable ?? (await check(data))) : null;
     if (holdForDuplicate(data, fresh?.people)) throw new PanelSaveHandledError();

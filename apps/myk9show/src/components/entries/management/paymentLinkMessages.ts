@@ -1,6 +1,6 @@
 /**
- * MYK9-1824: stripe-payment-link answers with an English sentence rather than a code,
- * and its catch-all returns Stripe's own text. Only these exact answers become a
+ * MYK9-1824: stripe-payment-link answers with an English sentence rather than a code
+ * (its catch-all is generic since MYK9-2448). Only these exact answers become a
  * specific message; anything else gets PAYMENT_LINK_FAILED. The keys are pinned to the
  * function's source by test/database/stripePaymentLinkMessages.source.test.ts. Making a
  * link charges nobody, so "no one was charged" is true on every failure.

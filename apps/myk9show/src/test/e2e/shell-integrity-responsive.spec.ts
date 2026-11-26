@@ -34,7 +34,7 @@ interface RouteCheck {
   path: string;
 }
 
-const PUBLIC_ROUTES: RouteCheck[] = [{ label: 'prototype copy link', path: '/prototype/show' }];
+const PUBLIC_ROUTES: RouteCheck[] = [{ label: 'about page', path: '/about' }];
 
 const SECRETARY_ROUTES: RouteCheck[] = [
   {

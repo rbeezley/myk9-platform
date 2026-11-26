@@ -44,8 +44,6 @@
     "src/**/*.test.ts",
     "src/**/*.test.tsx",
 
-    "src/sw-custom.ts",
-
     "src/services/sync/**/*",
     "src/hooks/useBackgroundSync.ts",
 
@@ -74,11 +72,9 @@
     "src/services/database/connection.ts",
     "src/services/database/migrations.ts",
     "src/services/data-scoping/role-profiles.ts",
-    "src/store/compositions/StoreComposition.ts",
 
     "src/pages/BrowseShowsPage.tsx",
 
-    "src/providers/StoreProvider.tsx",
     "src/routes/utils/SuspenseWrapper.tsx",
 
     "src/lib/networkUtils.ts"

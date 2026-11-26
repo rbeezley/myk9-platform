@@ -313,4 +313,32 @@ describe('Concurrent init recovery (MYK9-2420)', () => {
 
     expect(results.map(r => r.status)).toEqual(['rejected', 'rejected']);
   });
+
+  it('a recovery requested while one is running waits for it (MYK9-2420)', async () => {
+    const internals = dbManager as unknown as {
+      openDatabaseWithTimeout: () => Promise<unknown>;
+      recover: () => Promise<void>;
+    };
+    const realOpen = internals.openDatabaseWithTimeout.bind(dbManager);
+    let releaseOpen: (() => void) | undefined;
+    vi.spyOn(internals, 'openDatabaseWithTimeout').mockImplementation(
+      () =>
+        new Promise(resolve => {
+          releaseOpen = () => resolve(realOpen());
+        })
+    );
+
+    const first = internals.recover();
+    let secondDone = false;
+    const second = internals.recover().then(() => {
+      secondDone = true;
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(secondDone).toBe(false);
+
+    releaseOpen?.();
+    await Promise.all([first, second]);
+    expect(secondDone).toBe(true);
+  });
 });

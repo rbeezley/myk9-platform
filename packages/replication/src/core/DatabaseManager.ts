@@ -272,6 +272,8 @@ export class DatabaseManager {
   private consecutiveFailures = 0;
   private circuitOpen = false;
   private isRecovering = false;
+  /** MYK9-2420: the recovery now running, so a second caller can wait for its handle. */
+  private recoveryInFlight: Promise<void> | null = null;
 
   constructor(dependencies: DatabaseManagerDependencies = {}, dbName?: string, dbVersion?: number) {
     this.logger = dependencies.logger ?? noopLogger;
@@ -521,6 +523,7 @@ export class DatabaseManager {
     this.consecutiveFailures = 0;
     this.circuitOpen = false;
     this.isRecovering = false;
+    this.recoveryInFlight = null;
     resetStaleSchemaLatch();
   }
 
@@ -562,9 +565,20 @@ export class DatabaseManager {
       this.logger.warn(`[DatabaseManager] Stale schema latched — refusing to reopen the database`);
       return;
     }
-    if (this.isRecovering) return;
+    // MYK9-2420: a caller that arrives mid-recovery (an init failure overlapping a
+    // circuit-breaker recovery) waits for that one instead of returning at once.
+    if (this.isRecovering) return this.recoveryInFlight ?? undefined;
     this.isRecovering = true;
+    const run = this.runRecovery();
+    this.recoveryInFlight = run;
+    try {
+      await run;
+    } finally {
+      if (this.recoveryInFlight === run) this.recoveryInFlight = null;
+    }
+  }
 
+  private async runRecovery(): Promise<void> {
     this.logger.warn(`[DatabaseManager] Starting auto-recovery...`);
 
     if (sharedDB) {

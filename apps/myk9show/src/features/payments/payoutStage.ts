@@ -69,8 +69,8 @@ export interface PayoutStageInput {
   /**
    * The show's last day and timezone from the replicated shows read, or null when that read
    * does not have the show (not yet synced, or soft-deleted, which the figures RPC keeps).
-   * The last day is the server's `figures.showEndDate` first; this supplies the timezone,
-   * and the last day only when the server sent none.
+   * When present it supplies the last day and the timezone; when null, the last day falls
+   * back to the server's `figures.showEndDate`.
    */
   schedule: { lastDay: string; timeZone: string } | null;
   now: Date;
@@ -114,9 +114,11 @@ export function resolvePayoutStage({
   now,
 }: PayoutStageInput): PayoutStage {
   const timeZone = schedule?.timeZone ?? getTrialTimezone(undefined);
-  // The server's end date first: a soft-deleted show has no schedule, and dropping its date
-  // promised "within five business days" to a show months past due.
-  const lastDay = showCalendarDay(figures.showEndDate) ?? schedule?.lastDay ?? null;
+  // The replicated schedule first: a reschedule updates it at once, while the cached figures
+  // keep the old date until they refetch. The server's end date only when the schedule has no
+  // such show (soft-deleted), where dropping it promised "within five business days" to a show
+  // months past due (owner, 2026-11-26).
+  const lastDay = schedule?.lastDay ?? showCalendarDay(figures.showEndDate) ?? null;
   const timeline = payoutTimeline(lastDay, timeZone, now);
   const { payout, paid } = figures;
   const status = payout?.status ?? null;

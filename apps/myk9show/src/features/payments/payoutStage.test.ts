@@ -226,6 +226,13 @@ describe('resolvePayoutStage: every show row answers "when do we get paid?"', ()
     });
   });
 
+  // A secretary's reschedule updates the replicated schedule at once; the cached figures
+  // keep the old end date until they refetch. The schedule wins whenever it has the show.
+  it("when the schedule and the server's end date disagree, the schedule's date wins", () => {
+    const figures = payoutFigures({ show_end_date: '2026-10-03T00:00:00+00:00' });
+    expect(stage({ figures }).text).toBe('Paid by December 16.');
+  });
+
   it('never shows a raw status it cannot explain', () => {
     expect(stage({ figures: payout('mystery_status') })).toEqual({
       kind: 'unknown',

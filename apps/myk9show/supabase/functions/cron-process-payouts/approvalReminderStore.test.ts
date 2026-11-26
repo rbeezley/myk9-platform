@@ -16,7 +16,7 @@ function fakeClient(answer: (call: Call) => { data: unknown; error: { message: s
     const call: Call = { table, steps: [] };
     calls.push(call);
     const builder: Record<string, unknown> = {};
-    for (const name of ['select', 'update', 'eq', 'gt', 'or', 'order', 'limit']) {
+    for (const name of ['select', 'update', 'eq', 'gt', 'lt', 'or', 'order', 'limit']) {
       builder[name] = (...args: unknown[]) => {
         call.steps.push([name, ...args]);
         return builder;
@@ -41,7 +41,7 @@ const PAYOUT = {
 };
 
 describe('createReminderStore', () => {
-  it('lists due waiting payouts by id after the last one, with the show name', async () => {
+  it('lists due waiting payouts least recently reminded first, with the show name', async () => {
     const { supabase, calls } = fakeClient(() => ({
       data: [
         {
@@ -56,16 +56,16 @@ describe('createReminderStore', () => {
       error: null,
     }));
     const store = createReminderStore(supabase);
-    const listed = await store.listDue({ cutoffIso: CUTOFF, afterId: 'p-0', limit: 50 });
+    const listed = await store.listDue({ cutoffIso: CUTOFF, after: null, limit: 50 });
 
     expect(calls[0].table).toBe('show_payouts');
     expect(calls[0].steps).toEqual([
       ['select', 'id, show_id, amount_cents, approval_reminded_at, shows(name)'],
       ['eq', 'status', 'awaiting_approval'],
       ['or', DUE_FILTER],
+      ['order', 'approval_reminded_at', { ascending: true, nullsFirst: true }],
       ['order', 'id', { ascending: true }],
       ['limit', 50],
-      ['gt', 'id', 'p-0'],
     ]);
     expect(listed).toEqual([
       { id: 'p-1', showId: 's-1', showName: 'Fall Trial', amountCents: 12345, remindedAt: null },
@@ -73,16 +73,36 @@ describe('createReminderStore', () => {
     ]);
   });
 
-  it('starts from the first id when there is no previous batch', async () => {
+  it('after a never-reminded payout, reads the rest of those by id, then every reminded one', async () => {
     const { supabase, calls } = fakeClient(() => ({ data: [], error: null }));
-    await createReminderStore(supabase).listDue({ cutoffIso: CUTOFF, afterId: null, limit: 50 });
-    expect(calls[0].steps.some(step => step[0] === 'gt')).toBe(false);
+    await createReminderStore(supabase).listDue({
+      cutoffIso: CUTOFF,
+      after: { remindedAt: null, id: 'p-0' },
+      limit: 50,
+    });
+    expect(calls[0].steps.filter(step => step[0] === 'or' || step[0] === 'lt')).toEqual([
+      ['or', `and(approval_reminded_at.is.null,id.gt.p-0),approval_reminded_at.lt."${CUTOFF}"`],
+    ]);
+  });
+
+  it('after a reminded payout, reads later stamps, or the same stamp with a later id', async () => {
+    const { supabase, calls } = fakeClient(() => ({ data: [], error: null }));
+    const at = '2026-11-23T07:00:00.123+00:00';
+    await createReminderStore(supabase).listDue({
+      cutoffIso: CUTOFF,
+      after: { remindedAt: at, id: 'p-0' },
+      limit: 50,
+    });
+    expect(calls[0].steps.filter(step => step[0] === 'or' || step[0] === 'lt')).toEqual([
+      ['lt', 'approval_reminded_at', CUTOFF],
+      ['or', `approval_reminded_at.gt."${at}",and(approval_reminded_at.eq."${at}",id.gt.p-0)`],
+    ]);
   });
 
   it('reads a failed list as null, not as nothing due', async () => {
     const { supabase } = fakeClient(() => ({ data: null, error: { message: 'boom' } }));
     const store = createReminderStore(supabase);
-    expect(await store.listDue({ cutoffIso: CUTOFF, afterId: null, limit: 50 })).toBeNull();
+    expect(await store.listDue({ cutoffIso: CUTOFF, after: null, limit: 50 })).toBeNull();
   });
 
   it('claims a payout only while it is still waiting and due', async () => {

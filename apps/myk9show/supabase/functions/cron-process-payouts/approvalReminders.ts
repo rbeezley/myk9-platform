@@ -11,8 +11,12 @@
 //   stamping it, only while it is still waiting and due, right before its
 //   reminder is raised; so two runs never both remind it, and one that stops
 //   partway leaves the rest due.
-// - Bounded: due payouts are read in batches keyed on id, at most
-//   maxBatches per run; anything past that stays due for the next run.
+// - Bounded: due payouts are read least recently reminded first (never
+//   reminded before any), then by id, in batches keyed on that pair, at most
+//   maxBatches per run. Anything past that stays due and comes first next
+//   run, so a backlog bigger than one run never starves its tail. A payout
+//   claimed this run is stamped past the cutoff and one whose reminder failed
+//   is put back behind the cursor, so neither is read twice in a run.
 // - A reminder that was not saved, or whose email failed or was skipped (no
 //   RESEND_API_KEY), is counted, its stamp is put
 //   back so the next run tries again, and the run raises one alert with the count.
@@ -58,11 +62,18 @@ export type ReminderAlert = (
 
 export type ReminderClaim = 'claimed' | 'gone' | 'error';
 
+/** The last payout of a batch, by the stamp it was listed with. */
+export interface ReminderCursor {
+  remindedAt: string | null;
+  id: string;
+}
+
 export interface ReminderDeps {
-  /** Due payouts with an id after `afterId`, by id, at most `limit`. null on a read error. */
+  /** Due payouts ordered by (remindedAt, never reminded first; id), strictly after
+   * `after`, at most `limit`. null on a read error. */
   listDue(input: {
     cutoffIso: string;
-    afterId: string | null;
+    after: ReminderCursor | null;
     limit: number;
   }): Promise<WaitingPayout[] | null>;
   /** Stamp the payout reminded at `stampIso` if it is still waiting and due. */
@@ -128,10 +139,10 @@ export async function remindAwaitingApprovals(
   const cutoffIso = reminderCutoffIso(nowMs);
   const stampIso = new Date(nowMs).toISOString();
   const outcome: ReminderOutcome = { reminded: 0, failed: 0, listFailed: false, deferred: false };
-  let afterId: string | null = null;
+  let after: ReminderCursor | null = null;
 
   for (let batch = 0; batch < limits.maxBatches; batch++) {
-    const due = await deps.listDue({ cutoffIso, afterId, limit: limits.batchSize });
+    const due = await deps.listDue({ cutoffIso, after, limit: limits.batchSize });
     if (!due) {
       outcome.listFailed = true;
       return outcome;
@@ -158,7 +169,8 @@ export async function remindAwaitingApprovals(
       }
     }
     if (due.length < limits.batchSize) return outcome;
-    afterId = due[due.length - 1].id;
+    const last = due[due.length - 1];
+    after = { remindedAt: last.remindedAt, id: last.id };
   }
   outcome.deferred = true;
   return outcome;

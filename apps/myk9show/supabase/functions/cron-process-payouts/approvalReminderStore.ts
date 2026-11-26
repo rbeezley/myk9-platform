@@ -4,11 +4,30 @@
 // The rules are in approvalReminders.ts.
 
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.49.1';
-import type { ReminderDeps, WaitingPayout } from './approvalReminders.ts';
+import type { ReminderCursor, ReminderDeps, WaitingPayout } from './approvalReminders.ts';
 
 /** Never reminded, or last reminded before the cutoff. */
 function dueFilter(cutoffIso: string): string {
   return `approval_reminded_at.is.null,approval_reminded_at.lt."${cutoffIso}"`;
+}
+
+/**
+ * Due and strictly after the cursor in (approval_reminded_at ASC NULLS FIRST, id).
+ * After a never-reminded payout: the rest of those by id, then every reminded
+ * one due. After a reminded one: a later stamp, or the same stamp and a later id.
+ */
+function afterCursor(cutoffIso: string, after: ReminderCursor): { lt: boolean; or: string } {
+  if (after.remindedAt === null) {
+    return {
+      lt: false,
+      or: `and(approval_reminded_at.is.null,id.gt.${after.id}),approval_reminded_at.lt."${cutoffIso}"`,
+    };
+  }
+  const at = after.remindedAt;
+  return {
+    lt: true,
+    or: `approval_reminded_at.gt."${at}",and(approval_reminded_at.eq."${at}",id.gt.${after.id})`,
+  };
 }
 
 interface DueRow {
@@ -28,16 +47,22 @@ export function createReminderStore(
   supabase: SupabaseClient
 ): Pick<ReminderDeps, 'listDue' | 'claim' | 'release'> {
   return {
-    async listDue({ cutoffIso, afterId, limit }) {
+    async listDue({ cutoffIso, after, limit }) {
       let query = supabase
         .from('show_payouts')
         .select('id, show_id, amount_cents, approval_reminded_at, shows(name)')
-        .eq('status', 'awaiting_approval')
-        .or(dueFilter(cutoffIso))
+        .eq('status', 'awaiting_approval');
+      if (after) {
+        const keyset = afterCursor(cutoffIso, after);
+        if (keyset.lt) query = query.lt('approval_reminded_at', cutoffIso);
+        query = query.or(keyset.or);
+      } else {
+        query = query.or(dueFilter(cutoffIso));
+      }
+      const { data, error } = await query
+        .order('approval_reminded_at', { ascending: true, nullsFirst: true })
         .order('id', { ascending: true })
         .limit(limit);
-      if (afterId) query = query.gt('id', afterId);
-      const { data, error } = await query;
       if (error) {
         console.error('Payout approval reminders: due payouts could not be read', error);
         return null;

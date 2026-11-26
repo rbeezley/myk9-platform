@@ -44,20 +44,34 @@ const OK: ReminderAlertResult = {
   emailSent: true,
 };
 
+/** (approval_reminded_at ASC NULLS FIRST, id ASC). */
+function reminderOrder(
+  a: Pick<WaitingPayout, 'remindedAt' | 'id'>,
+  b: Pick<WaitingPayout, 'remindedAt' | 'id'>
+): number {
+  const ka = [a.remindedAt === null ? 0 : 1, a.remindedAt ?? '', a.id].join('|');
+  const kb = [b.remindedAt === null ? 0 : 1, b.remindedAt ?? '', b.id].join('|');
+  return ka < kb ? -1 : ka > kb ? 1 : 0;
+}
+
 function world(rows: Row[], alertResult: (p: string) => ReminderAlertResult = () => OK) {
-  const lists: Array<{ cutoffIso: string; afterId: string | null; limit: number }> = [];
+  const lists: Array<Parameters<ReminderDeps['listDue']>[0]> = [];
   const alerts: Array<{ subject: string; html: string; dedupeKey: string; severity: string }> = [];
   const due = (row: Row, cutoffIso: string) =>
     row.status === 'awaiting_approval' && (row.remindedAt === null || row.remindedAt < cutoffIso);
   const deps: ReminderDeps = {
     listDue: async input => {
       lists.push(input);
-      return rows
-        .filter(row => due(row, input.cutoffIso))
-        .filter(row => input.afterId === null || row.id > input.afterId)
-        .sort((a, b) => (a.id < b.id ? -1 : 1))
-        .slice(0, input.limit)
-        .map(row => ({ ...row }));
+      return (
+        rows
+          .filter(row => due(row, input.cutoffIso))
+          // Least recently reminded first (never reminded before any), then id;
+          // strictly after the cursor, as the store's keyset reads.
+          .filter(row => !input.after || reminderOrder(row, input.after) > 0)
+          .sort(reminderOrder)
+          .slice(0, input.limit)
+          .map(row => ({ ...row }))
+      );
     },
     claim: async (listed, input) => {
       const row = rows.find(r => r.id === listed.id);
@@ -128,16 +142,41 @@ describe('remindAwaitingApprovals: once a day', () => {
 });
 
 describe('remindAwaitingApprovals: bounded batches', () => {
-  it('reads due payouts in batches, each after the last id of the one before', async () => {
+  it('reads due payouts in batches, each after the last one of the batch before', async () => {
     const rows = Array.from({ length: 7 }, (_, i) => payout(i + 1));
     const w = world(rows);
     const outcome = await remindAwaitingApprovals(w.deps, NOW, { batchSize: 3, maxBatches: 10 });
     expect(outcome).toEqual({ reminded: 7, failed: 0, listFailed: false, deferred: false });
-    expect(w.lists.map(l => [l.afterId, l.limit])).toEqual([
+    expect(w.lists.map(l => [l.after, l.limit])).toEqual([
       [null, 3],
-      [rows[2].id, 3],
-      [rows[5].id, 3],
+      [{ remindedAt: null, id: rows[2].id }, 3],
+      [{ remindedAt: null, id: rows[5].id }, 3],
     ]);
+  });
+
+  it('reminds next day the payouts a capped run skipped, before the ones it reached', async () => {
+    const rows = Array.from({ length: 7 }, (_, i) => payout(i + 1));
+    const w = world(rows);
+    const limits = { batchSize: 2, maxBatches: 2 };
+    expect((await remindAwaitingApprovals(w.deps, NOW, limits)).deferred).toBe(true);
+    const firstRun = w.alerts.map(a => a.dedupeKey);
+    expect(firstRun).toEqual(rows.slice(0, 4).map(r => awaitingApprovalDedupeKey(r.id)));
+
+    const nextDay = await remindAwaitingApprovals(w.deps, NOW + 24 * HOUR, limits);
+    expect(nextDay.reminded).toBe(4);
+    expect(w.alerts.slice(4).map(a => a.dedupeKey)).toEqual(
+      [rows[4], rows[5], rows[6], rows[0]].map(r => awaitingApprovalDedupeKey(r.id))
+    );
+  });
+
+  it('does not re-read in the same run a payout whose reminder failed', async () => {
+    const rows = [payout(1, { remindedAt: '2026-11-20T08:00:00.000Z' }), payout(2), payout(3)];
+    const w = world(rows, key =>
+      key === awaitingApprovalDedupeKey(rows[1].id) ? { ...OK, emailSent: false } : OK
+    );
+    const outcome = await remindAwaitingApprovals(w.deps, NOW, { batchSize: 1, maxBatches: 10 });
+    expect(outcome).toEqual({ reminded: 2, failed: 1, listFailed: false, deferred: false });
+    expect(w.alerts).toHaveLength(3);
   });
 
   it('stops after the batch limit and leaves the rest due for the next run', async () => {

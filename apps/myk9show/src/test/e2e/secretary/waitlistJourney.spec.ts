@@ -34,8 +34,6 @@ import {
   routeStripeReturnThroughAllowedOrigin,
   stripeTestKey,
 } from './waitlistStripe';
-import { keepTraceOnFailure, startJourneyTrace } from './waitlistTrace';
-import type { BrowserContext } from '@playwright/test';
 
 /**
  * Suite category: nightly (stateful, seeded Playwright Regression only).
@@ -191,11 +189,13 @@ test.describe('Wait list: join -> offer -> pay -> confirmed entry', () => {
       'the Nightly workflow supplies it from the repository secret.'
   );
   test.describe.configure({ mode: 'serial' });
+  // The runner traces every context, including the browser.newContext() ones signedInPage opens
+  // (MYK9-2336: a failed pay left no trace). Regression passes --retries=0, so keep on failure.
+  test.use({ trace: 'retain-on-failure' });
 
   let admin: SupabaseClient;
   let snapshot: Awaited<ReturnType<typeof prepareFullClass>> | null = null;
   const since = new Date().toISOString();
-  let tracedContext: BrowserContext | null = null;
 
   test.beforeAll(async () => {
     admin = waitlistAdmin();
@@ -206,20 +206,14 @@ test.describe('Wait list: join -> offer -> pay -> confirmed entry', () => {
     if (snapshot) await restoreFullClass(admin, snapshot, since);
   });
 
-  test.afterEach(async () => {
-    await keepTraceOnFailure(tracedContext, test.info(), 'exhibitor-trace');
-  });
-
   test('the exhibitor claims an offered spot by paying, and the entry is confirmed (MYK9-971)', async ({
     browser,
   }) => {
-    test.setTimeout(360_000);
+    test.setTimeout(420_000);
     // First, before any Checkout Session exists: a sandbox that delivers to a shared project fails.
     await test.step('the Stripe sandbox delivers to no shared Supabase project', () =>
       assertSandboxHasNoSharedWebhookEndpoints());
     const exhibitor = await signedInPage(browser, signInAsExhibitor, `/shows/${SHOW_ID}/register`);
-    tracedContext = exhibitor.context();
-    await startJourneyTrace(tracedContext);
     await routeStripeReturnThroughAllowedOrigin(exhibitor);
 
     await test.step('exhibitor joins the full class wait list', () =>
@@ -248,10 +242,7 @@ test.describe('Wait list: join -> offer -> pay -> confirmed entry', () => {
       await offerCard(exhibitor, 'Willow')
         .getByRole('button', { name: 'Complete payment' })
         .click();
-      const returnPath = await payOnStripeCheckout(
-        exhibitor,
-        async () => (await paymentLinkFor(admin, entryId)).status
-      );
+      const returnPath = await payOnStripeCheckout(exhibitor);
       expect(returnPath).toBe(`/exhibitor/entries?waitlistOffer=${willow.id}`);
       expect((await paymentLinkFor(admin, entryId)).status).toBe('open');
     });

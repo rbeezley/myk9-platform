@@ -3,15 +3,14 @@ import {
   classifyCheckout,
   confirmedUnpaid,
   describeCheckoutState,
-  mayRetryPay,
   type CheckoutSnapshot,
   type PaymentEvidence,
 } from './stripeCheckoutState';
 
 /** Where a wait-list payer lands after Stripe accepts the payment. */
 const FIRST_WAIT_MS = 20_000;
-const PROCESSING_WAIT_MS = 70_000;
-const RETRY_WAIT_MS = 60_000;
+const PROCESSING_WAIT_MS = 60_000;
+const RETRY_WAIT_MS = 45_000;
 
 export interface SubmitOptions {
   returnOrigin: string;
@@ -114,30 +113,21 @@ export async function submitPaymentAndAwaitReturn(
     `Stripe Checkout: no redirect ${FIRST_WAIT_MS / 1000}s after Pay; ${describeCheckoutState(state, snapshot)}`
   );
 
-  if (state === 'processing') {
+  if (state === 'processing' && (await returned(PROCESSING_WAIT_MS))) return;
+
+  // Classification only words the error. Clicking again rests on Stripe's PaymentIntent alone.
+  const evidence = await options.readPaymentEvidence();
+  if (!confirmedUnpaid(evidence)) {
+    // Paid, in flight or unknowable: a second click could charge twice, so only wait.
     if (await returned(PROCESSING_WAIT_MS)) return;
     snapshot = await readCheckoutSnapshot(page);
     state = classifyCheckout(snapshot);
     throw new Error(
-      `Stripe Checkout never redirected; the page is ${describeCheckoutState(state, snapshot)}.`
-    );
-  }
-  if (!mayRetryPay(state)) {
-    throw new Error(
-      `Stripe Checkout did not redirect; the page shows ${describeCheckoutState(state, snapshot)}.`
-    );
-  }
-
-  const evidence = await options.readPaymentEvidence();
-  if (!confirmedUnpaid(evidence)) {
-    // Paid (or unknowable): a second click could charge twice, so only wait.
-    if (await returned(PROCESSING_WAIT_MS)) return;
-    throw new Error(
       `Stripe Checkout did not redirect; the page is ${describeCheckoutState(state, snapshot)}, ` +
-        `link status "${evidence.linkStatus}", session payment_status "${evidence.sessionPaymentStatus}". Not retried: payment is not confirmed unpaid.`
+        `PaymentIntent status "${evidence.paymentIntentStatus}". Not retried: Stripe does not show the payment as unstarted.`
     );
   }
-  console.log('Stripe Checkout: confirmed unpaid and idle; clicking Pay once more');
+  console.log('Stripe Checkout: PaymentIntent is unstarted; clicking Pay once more');
   await (await options.findPay()).click();
   if (await returned(RETRY_WAIT_MS)) return;
   snapshot = await readCheckoutSnapshot(page);

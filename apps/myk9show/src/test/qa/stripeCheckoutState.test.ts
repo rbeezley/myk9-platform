@@ -3,7 +3,6 @@ import {
   classifyCheckout,
   confirmedUnpaid,
   describeCheckoutState,
-  mayRetryPay,
   type CheckoutSnapshot,
 } from '../e2e/secretary/stripeCheckoutState';
 
@@ -36,14 +35,6 @@ describe('classifyCheckout (MYK9-2336)', () => {
     );
   });
 
-  it('retries only a quiet page', () => {
-    expect(mayRetryPay('idle')).toBe(true);
-    expect(mayRetryPay('link-focus')).toBe(true);
-    expect(mayRetryPay('processing')).toBe(false);
-    expect(mayRetryPay('validation-error')).toBe(false);
-    expect(mayRetryPay('link-takeover')).toBe(false);
-  });
-
   it('names the error text in the failure description', () => {
     const snapshot = { ...QUIET, errorText: 'Your card was declined.' };
     expect(describeCheckoutState('validation-error', snapshot)).toContain(
@@ -53,16 +44,14 @@ describe('classifyCheckout (MYK9-2336)', () => {
 });
 
 describe('confirmedUnpaid (never pay twice)', () => {
-  it('is true only when the link is open and Stripe says unpaid', () => {
-    expect(confirmedUnpaid({ linkStatus: 'open', sessionPaymentStatus: 'unpaid' })).toBe(true);
+  it.each(['requires_payment_method', 'requires_confirmation'])('retries on %s', status => {
+    expect(confirmedUnpaid({ paymentIntentStatus: status })).toBe(true);
   });
 
-  it.each([
-    [{ linkStatus: 'paid', sessionPaymentStatus: 'unpaid' }],
-    [{ linkStatus: 'open', sessionPaymentStatus: 'paid' }],
-    [{ linkStatus: 'open', sessionPaymentStatus: null }],
-    [{ linkStatus: null, sessionPaymentStatus: 'unpaid' }],
-  ])('is false for %j', evidence => {
-    expect(confirmedUnpaid(evidence)).toBe(false);
-  });
+  it.each(['processing', 'succeeded', 'requires_action', 'requires_capture', 'canceled', null])(
+    'never retries on %s',
+    status => {
+      expect(confirmedUnpaid({ paymentIntentStatus: status })).toBe(false);
+    }
+  );
 });

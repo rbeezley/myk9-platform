@@ -28,21 +28,20 @@ export function classifyCheckout(snapshot: CheckoutSnapshot): CheckoutState {
   return 'idle';
 }
 
-/** Only a page that is quiet may be clicked again; processing, errors and Link are never retried. */
-export function mayRetryPay(state: CheckoutState): boolean {
-  return state === 'idle' || state === 'link-focus';
-}
-
 export interface PaymentEvidence {
-  /** `entry_payment_links.status`; anything but 'open' means a payment landed. */
-  linkStatus: string | null;
-  /** Stripe's `payment_status` for the Checkout Session; null when it could not be read. */
-  sessionPaymentStatus: string | null;
+  /** Stripe's PaymentIntent status for the Checkout Session; null when missing or unreadable. */
+  paymentIntentStatus: string | null;
 }
 
-/** True only when we positively know nothing was paid. Unknown evidence means never retry. */
+/**
+ * Positive evidence that nothing was charged, so the form may be submitted again. A missing
+ * intent, 'processing', 'succeeded' or a failed read all mean never click again.
+ */
 export function confirmedUnpaid(evidence: PaymentEvidence): boolean {
-  return evidence.linkStatus === 'open' && evidence.sessionPaymentStatus === 'unpaid';
+  return (
+    evidence.paymentIntentStatus === 'requires_payment_method' ||
+    evidence.paymentIntentStatus === 'requires_confirmation'
+  );
 }
 
 export function describeCheckoutState(state: CheckoutState, snapshot: CheckoutSnapshot): string {

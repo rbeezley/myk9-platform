@@ -30,6 +30,7 @@ import { withdrawErrorMessage } from '@/services/database/entries/withdrawEligib
 import { useWithdrawEligibility } from './useWithdrawEligibility';
 import { RemoveFromClassDialog } from './RemoveFromClassDialog';
 import { EntryEditClassRow, type EntryClass } from './EntryEditClassRow';
+import { disciplineUsesJumpHeight } from '@/types/template.types';
 import { useShowRegistryId } from './useShowRegistryId';
 import type { RemoveFromClassKind, WithdrawalReasonCode } from '@/features/registries';
 import { saveEntryEdits } from './saveEntryEdits';
@@ -326,6 +327,11 @@ export function EntryEditDialog({
     return classEntry.withdrawalReasonCode;
   };
 
+  // The exhibitor's sheet always names jump height (its menu item is called that); the
+  // secretary's names it only when a class on the entry has one to change (MYK9-1940).
+  const editsJumpHeight =
+    !asShowManager || entry.classes.some(c => disciplineUsesJumpHeight(c.trialType));
+
   return (
     <>
       <Sheet
@@ -339,12 +345,12 @@ export function EntryEditDialog({
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               <Dog className="h-5 w-5" />
-              {asShowManager ? 'Edit Entry' : 'Change handler or jump height'}
+              {editsJumpHeight ? 'Change handler or jump height' : 'Change handler'}
             </SheetTitle>
             <SheetDescription>
-              {asShowManager
-                ? `Modify this entry for ${entry.showName}`
-                : `Change the handler or jump height for ${entry.dogName} at ${entry.showName}`}
+              {editsJumpHeight
+                ? `Change the handler or jump height for ${entry.dogName} at ${entry.showName}`
+                : `Change the handler for ${entry.dogName} at ${entry.showName}`}
             </SheetDescription>
           </SheetHeader>
 

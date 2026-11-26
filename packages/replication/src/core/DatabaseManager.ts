@@ -61,6 +61,8 @@ export class DamagedDatabaseError extends Error {
  */
 let sharedDB: IDBPDatabase | null = null;
 let dbInitPromise: Promise<IDBPDatabase> | null = null;
+/** MYK9-2420: set while the init winner's recover() runs, so waiters can adopt its handle. */
+let initRecovery: Promise<void> | null = null;
 
 /**
  * Table initialization queue to prevent transaction stampede
@@ -270,6 +272,8 @@ export class DatabaseManager {
   private consecutiveFailures = 0;
   private circuitOpen = false;
   private isRecovering = false;
+  /** MYK9-2420: the recovery now running, so a second caller can wait for its handle. */
+  private recoveryInFlight: Promise<void> | null = null;
 
   constructor(dependencies: DatabaseManagerDependencies = {}, dbName?: string, dbVersion?: number) {
     this.logger = dependencies.logger ?? noopLogger;
@@ -389,7 +393,16 @@ export class DatabaseManager {
     if (dbInitPromise) {
       this.logger.log(`[${tableName}] Waiting for dbInitPromise to resolve...`);
 
-      const db = await dbInitPromise;
+      let db: IDBPDatabase;
+      try {
+        db = await dbInitPromise;
+      } catch (initError) {
+        // MYK9-2420: the winner's recover() may have re-opened the database; adopt
+        // that handle instead of reporting the original failure to this caller.
+        if (initRecovery) await initRecovery.catch(() => undefined);
+        if (!sharedDB) throw initError;
+        db = sharedDB;
+      }
       this.logger.log(`[${tableName}] dbInitPromise resolved successfully`);
 
       const myTurn = tableInitQueue.then(async () => {
@@ -450,7 +463,12 @@ export class DatabaseManager {
       // destroy the queued scores it still holds (MYK9-2360).
       if (error instanceof DamagedDatabaseError) throw error;
 
-      await this.recover();
+      initRecovery = this.recover();
+      try {
+        await initRecovery;
+      } finally {
+        initRecovery = null;
+      }
 
       // If recover() re-opened successfully, return it
       if (sharedDB) {
@@ -505,6 +523,7 @@ export class DatabaseManager {
     this.consecutiveFailures = 0;
     this.circuitOpen = false;
     this.isRecovering = false;
+    this.recoveryInFlight = null;
     resetStaleSchemaLatch();
   }
 
@@ -546,9 +565,20 @@ export class DatabaseManager {
       this.logger.warn(`[DatabaseManager] Stale schema latched — refusing to reopen the database`);
       return;
     }
-    if (this.isRecovering) return;
+    // MYK9-2420: a caller that arrives mid-recovery (an init failure overlapping a
+    // circuit-breaker recovery) waits for that one instead of returning at once.
+    if (this.isRecovering) return this.recoveryInFlight ?? undefined;
     this.isRecovering = true;
+    const run = this.runRecovery();
+    this.recoveryInFlight = run;
+    try {
+      await run;
+    } finally {
+      if (this.recoveryInFlight === run) this.recoveryInFlight = null;
+    }
+  }
 
+  private async runRecovery(): Promise<void> {
     this.logger.warn(`[DatabaseManager] Starting auto-recovery...`);
 
     if (sharedDB) {

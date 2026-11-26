@@ -12,6 +12,12 @@ interface AssignVolunteerPopoverProps {
   onAssign: (volunteerId: string) => void;
   /** The job being filled ("Table Steward"); names the trigger for a screen reader. */
   roleLabel?: string | undefined;
+  /**
+   * Whether the handler check has finished (MYK9-2328). Until it is `ready`, a person-linked
+   * volunteer cannot be picked, since they may handle a dog in this class. Omitted on the
+   * Volunteers page, which does not gate.
+   */
+  conflictsStatus?: 'loading' | 'unavailable' | 'ready' | undefined;
 }
 
 /**
@@ -34,6 +40,7 @@ export function AssignVolunteerPopover({
   conflictIds,
   onAssign,
   roleLabel,
+  conflictsStatus = 'ready',
 }: AssignVolunteerPopoverProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -71,6 +78,14 @@ export function AssignVolunteerPopover({
           onChange={e => setSearch(e.target.value)}
           className="mb-2 h-8 text-sm"
         />
+        {conflictsStatus === 'loading' && (
+          <p className="px-1 pb-2 text-xs text-muted-foreground">Checking entries…</p>
+        )}
+        {conflictsStatus === 'unavailable' && (
+          <p className="px-1 pb-2 text-xs text-muted-foreground">
+            We couldn&apos;t check which volunteers handle a dog in this class.
+          </p>
+        )}
         <div className="max-h-48 overflow-y-auto">
           {filtered.length === 0 && (
             <p className="px-1 py-2 text-center text-sm text-muted-foreground">
@@ -82,8 +97,9 @@ export function AssignVolunteerPopover({
               key={vol.id}
               type="button"
               data-testid="volunteer-option"
+              disabled={conflictsStatus !== 'ready' && vol.personId !== null}
               onClick={() => handleSelect(vol.id)}
-              className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent"
+              className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
             >
               {conflictIds.has(vol.id) && (
                 <span title="Conflict: entered in this class">

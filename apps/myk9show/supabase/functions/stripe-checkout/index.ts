@@ -32,6 +32,7 @@ import {
   type OwnerAddressGateLine,
 } from '../_shared/cartOwnerAddressGate.ts';
 import { checkoutLeasedCart } from '../_shared/leasedCheckoutCart.ts';
+import { hasBlockingSubscription } from '../_shared/existingSubscriptionGuard.ts';
 import { formatStatementDescriptorSuffix } from '../_shared/statementDescriptor.ts';
 import {
   cartHasBlockedClass,
@@ -1087,20 +1088,15 @@ async function handleSubscriptionCheckout(
     return corsResponse(corsHeaders, { error: 'Invalid price_id' }, 400);
   }
 
-  // Pre-flight: reject if the customer already has an active subscription.
-  // Without this guard, multi-tab or direct-call scenarios create duplicate
-  // Stripe subscriptions; syncSubscriptionFromStripe's limit:1 query may then
-  // sync the wrong one and silently downgrade the user.
-  const existingActive = await stripe.subscriptions.list({
-    customer: customerId,
-    status: 'active',
-    limit: 1,
-  });
-  if (existingActive.data.length > 0) {
+  // Pre-flight: reject if the customer already has an active, trialing or
+  // past_due subscription (MYK9-2444). Without this guard, multi-tab or
+  // direct-call scenarios create duplicate Stripe subscriptions;
+  // syncSubscriptionFromStripe's limit:1 query may then sync the wrong one.
+  if (await hasBlockingSubscription(stripe, customerId)) {
     return corsResponse(
       corsHeaders,
       {
-        error: 'You already have an active subscription. Visit your account settings to manage it.',
+        error: 'You already have a subscription. Visit your account settings to manage it.',
       },
       400
     );

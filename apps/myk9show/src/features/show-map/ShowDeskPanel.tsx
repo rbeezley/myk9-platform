@@ -223,6 +223,7 @@ export default function ShowDeskPanel({
         entryBreakdownByClassId={entryBreakdownByClassId}
         onRefreshEntries={onRefreshEntries}
         putBackEntries={putBackEntries}
+        showName={show.name}
         snapshot={snapshot}
         canManageShow={canManageShow}
         onCommand={runCommand}

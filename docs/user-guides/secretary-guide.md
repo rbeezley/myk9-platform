@@ -164,7 +164,7 @@ Click a form to open it. At the top is the exhibitor's name and a **⋯** menu b
 Under it, **To finish this form** lists only what is left, one card each, with the button that does it:
 
 - **N entries need review**: **Accept** or **Reject**. Accept gives the dog an armband number. The accepted form leaves the **Needs review** view and the next form on the list opens. A message, "Updated all N items", shows with **Undo**.
-- **N entries are missing information**: use **Edit entry** on the entry's menu.
+- **N entries are missing information**: get the missing detail from the exhibitor and correct it. **Change handler…** on the entry's menu changes the handler (or the jump height). The card stays until you click the entry's status and choose **Accept**.
 - **$ due**: **Cash…**, **Check…**, or the more options (**Partial Payment…**, **Paid in Full: Online**). A form that shows a balance with none of these buttons cannot record a payment here.
 - **A dog has no armband**: **Assign**.
 - **A dog needs a registration number**: **Add number**.
@@ -261,7 +261,7 @@ Three jobs look alike. Pick by the reason, because each one treats the money dif
 
 Pull and Withdraw are never the same thing, and neither one refunds anyone by itself.
 
-- **One entry.** On the exhibitor's form, click the status beside the class (Pending, Accepted and so on). The menu has **Pull** and **Withdraw…**, each with its one-line help. **Remove entry** is in the **⋯** menu beside the dog on that entry's row, next to **Edit entry**, **Check in** and **Change class…**. It asks you to confirm. There is no Delete entry in the edit panel any more.
+- **One entry.** On the exhibitor's form, click the status beside the class (Pending, Accepted and so on). The menu has **Pull** and **Withdraw…**, each with its one-line help. **Remove entry** is in the **⋯** menu beside the dog on that entry's row, next to **Change handler…**, **Check in** and **Change class…**. It asks you to confirm. There is no Delete entry in the edit panel any more.
 - **All of one dog's entries.** Beside the dog's name on the form, the **⋯** menu offers "Pull Maple from all entries" and "Withdraw Maple…" (with the dog's own name). Each asks once, then does every entry of that dog on this form that can still change. The same exhibitor's other forms stay as they are. Entries that have already run or been moved are left as they are, and the box lists them. The Withdraw box shows the refund the premium suggests for each entry, and issues none.
 
 **Entry Forms → Actions → Entry lists → Pulls** (the page heading reads _Pull Management_).

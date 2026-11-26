@@ -897,7 +897,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
 
     const adapter: SyncReplicatedTableAdapter<EnrichedClassRow, ReplicatedClass> = {
       ...this.getRowRefetchAdapter(),
-      getRemoteRowCount: async ({ scope }) => {
+      getRemoteRowCount: async ({ scope, signal }) => {
         try {
           let query = supabase.from('classes').select('id', { count: 'exact', head: true });
 
@@ -905,6 +905,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
             query = query.eq('trial_id', scope.value);
           }
 
+          if (signal) query = query.abortSignal(signal);
           const { count, error } = await query;
           if (error) {
             logger.warn(

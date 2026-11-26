@@ -34,6 +34,11 @@ const h = vi.hoisted(() => ({
   tableResults: new Map<string, () => { data: unknown; error: unknown }>(),
   inserts: [] as Array<{ table: string; row: unknown }>,
   sessionsCreate: vi.fn(),
+  sessionsRetrieve: vi.fn(),
+  sessionsExpire: vi.fn(),
+  /** Every `.update(...)` the function sent, and what each one answers. */
+  updates: [] as Array<{ table: string; values: unknown }>,
+  updateResult: { data: null, error: null } as Result,
   handler: null as null | ((req: Request) => Promise<Response>),
 }));
 
@@ -41,9 +46,16 @@ const h = vi.hoisted(() => ({
 function queryBuilder(table: string) {
   const result = (): Result => h.tableResults.get(table)?.() ?? { data: null, error: null };
   const builder: Record<string, unknown> = {};
-  for (const method of ['select', 'eq', 'in', 'gt', 'overlaps', 'update']) {
+  for (const method of ['select', 'eq', 'in', 'gt', 'overlaps']) {
     builder[method] = () => builder;
   }
+  builder.update = (values: unknown) => {
+    h.updates.push({ table, values });
+    const updateBuilder: Record<string, unknown> = { eq: () => updateBuilder };
+    updateBuilder.then = (resolve: (r: Result) => unknown, reject: (e: unknown) => unknown) =>
+      Promise.resolve(h.updateResult).then(resolve, reject);
+    return updateBuilder;
+  };
   builder.maybeSingle = async () => result();
   builder.single = async () => result();
   builder.insert = async (row: unknown) => {
@@ -68,8 +80,8 @@ vi.mock('npm:stripe@17.7.0', () => ({
     checkout = {
       sessions: {
         create: h.sessionsCreate,
-        retrieve: vi.fn(),
-        expire: vi.fn(),
+        retrieve: h.sessionsRetrieve,
+        expire: h.sessionsExpire,
       },
     };
   },
@@ -119,7 +131,11 @@ beforeEach(() => {
   h.getUser.mockReset();
   h.rpc.mockReset();
   h.sessionsCreate.mockReset();
+  h.sessionsRetrieve.mockReset();
+  h.sessionsExpire.mockReset();
   h.inserts.length = 0;
+  h.updates.length = 0;
+  h.updateResult = { data: null, error: null };
   h.tableResults.clear();
 
   h.getUser.mockImplementation(async (token: string) =>
@@ -267,5 +283,90 @@ describe('stripe-payment-link caller authentication (MYK9-1394)', () => {
 
     expect(res.status).toBe(403);
     expect(h.sessionsCreate).not.toHaveBeenCalled();
+  });
+});
+
+describe('stripe-payment-link closing a prior link (MYK9-2448)', () => {
+  const PRIOR = { id: 'link-prior', stripe_checkout_session_id: 'cs_prior' };
+  const NOT_CLOSED = { error: 'Could not close an existing payment link. Please try again.' };
+  const expiredWrite = {
+    table: 'entry_payment_links',
+    values: expect.objectContaining({ status: 'expired' }),
+  };
+
+  beforeEach(() => {
+    h.tableResults.set('entry_payment_links', () => ({ data: [PRIOR], error: null }));
+  });
+
+  function failTheExpireWrite() {
+    h.updateResult = { data: null, error: { message: 'connection reset', code: '08006' } };
+  }
+
+  it('makes the new link once the prior one is recorded expired (positive control)', async () => {
+    h.sessionsRetrieve.mockResolvedValue({ status: 'open', payment_status: 'unpaid' });
+    h.sessionsExpire.mockResolvedValue({});
+
+    const res = await run(post({ Authorization: `Bearer ${SECRETARY_TOKEN}` }));
+
+    expect(res.status).toBe(200);
+    expect(h.updates).toEqual([expiredWrite]);
+    expect(h.sessionsCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses when a prior session Stripe already closed cannot be recorded expired', async () => {
+    h.sessionsRetrieve.mockResolvedValue({ status: 'expired', payment_status: 'unpaid' });
+    failTheExpireWrite();
+
+    const res = await run(post({ Authorization: `Bearer ${SECRETARY_TOKEN}` }));
+
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual(NOT_CLOSED);
+    expect(h.updates).toEqual([expiredWrite]);
+    expect(h.sessionsCreate).not.toHaveBeenCalled();
+    expect(h.inserts).toEqual([]);
+  });
+
+  it('refuses when the recheck after a failed expire finds it closed but the write fails', async () => {
+    h.sessionsRetrieve
+      .mockResolvedValueOnce({ status: 'open', payment_status: 'unpaid' })
+      .mockResolvedValueOnce({ status: 'expired', payment_status: 'unpaid' });
+    h.sessionsExpire.mockRejectedValue(new Error('session is not open'));
+    failTheExpireWrite();
+
+    const res = await run(post({ Authorization: `Bearer ${SECRETARY_TOKEN}` }));
+
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual(NOT_CLOSED);
+    expect(h.sessionsCreate).not.toHaveBeenCalled();
+    expect(h.inserts).toEqual([]);
+  });
+
+  it('refuses when Stripe expired the prior session but the write fails', async () => {
+    h.sessionsRetrieve.mockResolvedValue({ status: 'open', payment_status: 'unpaid' });
+    h.sessionsExpire.mockResolvedValue({});
+    failTheExpireWrite();
+
+    const res = await run(post({ Authorization: `Bearer ${SECRETARY_TOKEN}` }));
+
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual(NOT_CLOSED);
+    expect(h.sessionsExpire).toHaveBeenCalledWith('cs_prior');
+    expect(h.sessionsCreate).not.toHaveBeenCalled();
+    expect(h.inserts).toEqual([]);
+  });
+});
+
+describe('stripe-payment-link unexpected errors (MYK9-2448, MP-20)', () => {
+  it('answers with a generic sentence, never the raw error text', async () => {
+    h.sessionsCreate.mockRejectedValue(
+      new Error('No such checkout.session: cs_live_secret; request req_internal')
+    );
+
+    const res = await run(post({ Authorization: `Bearer ${SECRETARY_TOKEN}` }));
+
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({
+      error: 'Could not create the payment link. Please try again.',
+    });
   });
 });

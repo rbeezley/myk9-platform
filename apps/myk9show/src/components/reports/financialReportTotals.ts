@@ -283,11 +283,6 @@ function getTrialLabel(entry: ReportEntry): string {
   return entry.trialDate ? `${trial} (${formatReportDate(entry.trialDate)})` : trial;
 }
 
-function getTrialSortKey(entry: ReportEntry): string {
-  // Name first, then the ISO date, so the printed M/D/YYYY text never decides the order.
-  return getTrialName(entry) + '\u0000' + (entry.trialDate ?? '');
-}
-
 function sortBuckets(a: FinancialReportBucket, b: FinancialReportBucket): number {
   return a.label.localeCompare(b.label);
 }
@@ -303,7 +298,7 @@ export function calculateFinancialReportTotals(entries: ReportEntry[]): Financia
   const summary = emptyBucket('Total');
   const paymentMap = new Map<string, FinancialReportBucket>();
   const trialMap = new Map<string, FinancialReportBucket>();
-  const trialSortKeys = new Map<string, string>();
+  const trialSortKeys = new Map<string, { name: string; isoDate: string }>();
 
   for (const line of lines) {
     addLine(summary, line);
@@ -316,7 +311,10 @@ export function calculateFinancialReportTotals(entries: ReportEntry[]): Financia
     const trialBucket = trialMap.get(trialLabel) ?? emptyBucket(trialLabel);
     addLine(trialBucket, line);
     trialMap.set(trialLabel, trialBucket);
-    trialSortKeys.set(trialLabel, getTrialSortKey(line.entry));
+    trialSortKeys.set(trialLabel, {
+      name: getTrialName(line.entry),
+      isoDate: line.entry.trialDate ?? '',
+    });
   }
 
   const countedIds = new Set(lines.map(line => line.entry.id));
@@ -324,9 +322,16 @@ export function calculateFinancialReportTotals(entries: ReportEntry[]): Financia
     lines,
     summary,
     paymentBreakdown: [...paymentMap.values()].sort(sortBuckets),
-    trialBreakdown: [...trialMap.values()].sort((a, b) =>
-      (trialSortKeys.get(a.label) ?? a.label).localeCompare(trialSortKeys.get(b.label) ?? b.label)
-    ),
+    trialBreakdown: [...trialMap.values()].sort((a, b) => {
+      const left = trialSortKeys.get(a.label);
+      const right = trialSortKeys.get(b.label);
+      if (!left || !right) return a.label.localeCompare(b.label);
+      // Name first, then the ISO date, so the printed M/D/YYYY text never decides the order.
+      return (
+        left.name.localeCompare(right.name) ||
+        (left.isoDate < right.isoDate ? -1 : left.isoDate > right.isoDate ? 1 : 0)
+      );
+    }),
     unresolvedMoneyRoots: attribution.unresolved
       .filter(item => item.problem === 'orphaned-supersession' || countedIds.has(item.entryId))
       .map(({ entryId, problem }) => ({ entryId, problem })),

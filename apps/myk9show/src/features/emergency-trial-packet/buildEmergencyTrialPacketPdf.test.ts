@@ -577,7 +577,8 @@ describe('buildEmergencyTrialPacketPdf', () => {
     const text = await extractPdfText(
       buildEmergencyTrialPacketPdf(buildEmergencyPacketModel(named))
     );
-    expect(text).toContain('Fall Classic 2027-01-07');
+    // The footer itself: show name verbatim, then the trial date as M/D/YYYY.
+    expect(text).toContain('Fall Classic 2027-01-07 · 10/3/2026');
   });
 
   it('still prints the ring for a sport that has one', async () => {

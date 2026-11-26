@@ -422,4 +422,15 @@ describe('trial breakdown order', () => {
       'Trial 1 (1/10/2027)',
     ]);
   });
+
+  it('sorts Trial 1 before Trial 10 whatever their dates', () => {
+    const totals = calculateFinancialReportTotals([
+      entry({ id: 'a', trialName: 'Trial 10', trialNumber: '10', trialDate: '2027-01-09' }),
+      entry({ id: 'b', trialName: 'Trial 1', trialNumber: '1', trialDate: '2027-01-10' }),
+    ]);
+    expect(totals.trialBreakdown.map(bucket => bucket.label)).toEqual([
+      'Trial 1 (1/10/2027)',
+      'Trial 10 (1/9/2027)',
+    ]);
+  });
 });

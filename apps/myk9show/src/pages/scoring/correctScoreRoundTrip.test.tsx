@@ -401,7 +401,10 @@ describe('UKC Nosework element time (MYK9-2068)', () => {
 
   it('saving a correction without running the element clock keeps the saved element time', async () => {
     const saved = await save(scored);
-    const again = await runSheet('UKC_NOSEWORK', dual, saved, () => {});
+    const again = await runSheet('UKC_NOSEWORK', dual, saved, () => {
+      // The reopened sheet shows the saved time, not a zeroed clock (live check 2026-11-25).
+      expect(screen.getByTestId('element-timer-display')).toHaveTextContent('0:09.10');
+    });
     expect(again.element).toBe('0:09.10');
     const savedAgain = await save(again);
     expect(savedAgain.element_time_seconds).toBeCloseTo(9.1, 2);

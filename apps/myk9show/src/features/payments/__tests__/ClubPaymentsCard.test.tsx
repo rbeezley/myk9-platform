@@ -5,6 +5,9 @@ import { render } from '@/test/utils/testUtils';
 import { ClubPaymentsCard } from '../ClubPaymentsCard';
 import * as accountModule from '../useClubStripeAccount';
 import type { ClubStripeAccount } from '../useClubStripeAccount';
+import { useClubFinancialReconciliation } from '@/features/financial/useClubFinancialReconciliation';
+import { useClubShowPayoutFigures } from '../useClubShowPayoutFigures';
+import { payoutFigures, payoutFiguresWith } from '../clubShowPayoutFiguresFixtures';
 
 vi.mock('../useClubStripeAccount', async importOriginal => {
   const original = await importOriginal<typeof accountModule>();
@@ -16,21 +19,45 @@ vi.mock('../useClubStripeAccount', async importOriginal => {
 });
 
 // The reconciliation card (MYK9-54 task 3.1) makes its own React Query calls
-// through the shared financial service. This suite is about the bank-account
-// connect/status flow, so the reconciliation hook is stubbed to an empty,
-// settled result — its own behavior (verified/attested/mismatch/pending/
-// unavailable states) is covered by ClubFinancialReconciliationCard.test.tsx.
+// through the shared financial service and the payout-figures RPC. This suite is
+// about the bank-account connect/status flow, so both hooks are stubbed to an
+// empty, settled result — the card's own behavior is covered by
+// ClubFinancialReconciliationCard.test.tsx.
 vi.mock('@/features/financial/useClubFinancialReconciliation', () => ({
   useClubFinancialReconciliation: vi.fn(() => ({
     rows: [],
     isLoading: false,
     isError: false,
+    isSuccess: true,
     refetch: vi.fn(),
   })),
 }));
 
+vi.mock('../useClubShowPayoutFigures', () => ({
+  useClubShowPayoutFigures: vi.fn(),
+}));
+
 const mockedUseAccount = vi.mocked(accountModule.useClubStripeAccount);
 const mockedStartOnboarding = vi.mocked(accountModule.startConnectOnboarding);
+const mockedReconciliation = vi.mocked(useClubFinancialReconciliation);
+const mockedFigures = vi.mocked(useClubShowPayoutFigures);
+
+function mockFigureRows(rows: ReturnType<typeof payoutFigures>[]) {
+  mockedFigures.mockReturnValue({
+    data: rows,
+    isLoading: false,
+    isError: false,
+    isSuccess: true,
+    refetch: vi.fn(),
+  } as unknown as ReturnType<typeof useClubShowPayoutFigures>);
+}
+
+/** One show still owed $50.00 whose payout is in `status`, as the figures RPC returns it. */
+function showRow(status: string | null, failureReason: string | null = null) {
+  mockFigureRows([
+    status ? payoutFiguresWith(status, { payout_failure_reason: failureReason }) : payoutFigures(),
+  ]);
+}
 
 function mockAccountState(data: ClubStripeAccount | null, overrides: Record<string, unknown> = {}) {
   const base = { data, isLoading: false, isError: false, refetch: vi.fn(), ...overrides };
@@ -55,6 +82,15 @@ const connectedAccount = (flags: Partial<ClubStripeAccount>): ClubStripeAccount 
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // A row set by one test must not reach the next (CI shuffles).
+  mockedReconciliation.mockReturnValue({
+    rows: [],
+    isLoading: false,
+    isError: false,
+    isSuccess: true,
+    refetch: vi.fn(),
+  });
+  mockFigureRows([]);
   Object.defineProperty(window, 'location', {
     value: { ...window.location, assign: vi.fn(), search: '' },
     writable: true,
@@ -197,5 +233,50 @@ describe('ClubPaymentsCard', () => {
     render(<ClubPaymentsCard clubId="club-1" />);
 
     expect(screen.queryByRole('button', { name: /pay|checkout|charge/i })).not.toBeInTheDocument();
+  });
+
+  it('the box says when entry fees are sent, and never "automatically"', () => {
+    mockAccountState(connectedAccount({ onboarding_complete: true, payouts_enabled: true }));
+    render(<ClubPaymentsCard clubId="club-1" />);
+
+    expect(
+      screen.getByText(
+        'Entry fees are sent to your club’s bank account within five business days of each show.'
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/automatic/i)).not.toBeInTheDocument();
+  });
+
+  it('an account under review never says "automatically" either', () => {
+    mockAccountState(connectedAccount({ onboarding_complete: true, payouts_enabled: false }));
+    render(<ClubPaymentsCard clubId="club-1" />);
+
+    expect(screen.queryByText(/automatic/i)).not.toBeInTheDocument();
+  });
+
+  // Owner decision A, 2026-11-26: the Bank account card owns every bank action, so a show
+  // row only points at it.
+  it("a show waiting on the bank account points at the Bank account card's one button", () => {
+    mockAccountState(null);
+    showRow(null);
+    render(<ClubPaymentsCard clubId="club-1" />);
+
+    expect(
+      screen.getByText("Waiting for your club's bank account. See Bank account above.")
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Connect bank account' })).toHaveLength(1);
+  });
+
+  it('a club-account failure points at the Bank account card, with no Fix it on the row', () => {
+    mockAccountState(connectedAccount({ onboarding_complete: true, payouts_enabled: true }));
+    showRow('failed', 'club_account:account_closed: The bank account is closed');
+    render(<ClubPaymentsCard clubId="club-1" />);
+
+    expect(
+      screen.getByText('Your bank account needs attention. See Bank account above.')
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /fix it/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /connect bank account/i })).not.toBeInTheDocument();
+    expect(mockedStartOnboarding).not.toHaveBeenCalled();
   });
 });

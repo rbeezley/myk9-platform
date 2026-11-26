@@ -3,13 +3,7 @@
 //
 // Groups the club-scoped reconciliation ORDER rows (stripe_orders, charge
 // facts) and PAYOUT rows (show_payouts, settlement facts) by show so the
-// treasurer sees one row per show with:
-//   - net:               the club's net entry-fee transfer for that show
-//                        (entry subtotal, i.e. charged amount less the
-//                        platform's fee, less any POST-HOC refunded portion — see
-//                        clubNetContributionCents). Independent of payout
-//                        SETTLEMENT timing — a show can be charge-verified
-//                        before its payout settles.
+// treasurer sees, per show:
 //   - chargeVerification: a COVERAGE statement across the show's Stripe orders.
 //                        AllFeeBreakdowns means every order carries the fee
 //                        snapshot; SomeFeeBreakdownsMissing means at least one
@@ -24,9 +18,12 @@
 //                        state, copyable stripe_transfer_id), when the club
 //                        has a payout row for that show.
 //
-// A show's net is PENDING (never $0, never silently 'FeeBreakdown') whenever any
-// of its orders has an uncaptured Stripe processing fee — the same
-// null-means-pending contract as derivePlatformIncome in financialSummary.ts.
+// NO MONEY FIGURES (MYK9-1985). A show's Collected, Refunded, owed and Paid come
+// from the server (club_show_payout_figures, useClubShowPayoutFigures), computed
+// the way the payout run computes them. The per-show net this module used to
+// derive from the order rows was a second, different answer: its refunds include
+// the platform fee on a whole-show refund and its subtotal is the checkout
+// snapshot, so it disagreed with the payout run and the owner's ledger.
 import { resolveOrderChargeVerification } from './chargeVerification';
 import type {
   FinancialReconciliationOrder,
@@ -47,109 +44,35 @@ import type { PayoutsAccountState } from '@/features/payments/payoutBadge';
  * are no `stripe_orders` rows for the show at all — every entry was paid at the
  * desk, or none was paid yet. That is a real and ordinary state with real money
  * behind it, so it must not be rendered as an absence of any charge record.
- *
- * `ClubShowNet` already had a `pending` arm for exactly that case, so the same
- * input produces an honest "net pending" beside it.
  */
 export type ClubShowChargeVerification =
   'AllFeeBreakdowns' | 'SomeFeeBreakdownsMissing' | 'NoStripeCharges';
-
-/** Never a bare number: a pending processing fee must read as pending, not $0. */
-export type ClubShowNet = { status: 'available'; netCents: number } | { status: 'pending' };
 
 export interface ClubShowReconciliationRow {
   showId: string;
   /** Falls back to a generic label when no show name is known for this id. */
   showName: string;
-  net: ClubShowNet;
   chargeVerification: ClubShowChargeVerification;
   /** Null when the club has no payout row yet for this show. */
   settlement: PayoutSettlementRow | null;
   orderCount: number;
 }
 
-/**
- * One order's contribution to the club's net entry money for a show:
- *
- *     max(0, entrySubtotalCents - postHocRefundedCents)
- *
- * ONLY THE POST-HOC REFUND IS SUBTRACTED. `refundedCents` used to conflate
- * post-hoc refunds with cart-overflow MAKE-WHOLE refunds, which double-penalized
- * the club: a $50.00 accepted subtotal on a cart with a $40.00 overflow refund
- * reported $10.00 net when the club is owed the full $50.00 — the overflow money
- * was never part of the club's entry fees, never transferred, and returning it
- * costs the club nothing. With the explicit split (migration 20260717122000)
- * `refundedCents` IS the post-hoc total, so the make-whole portion is correctly
- * out of this formula.
- *
- * WHY THIS EXACT FORMULA — it is the same arithmetic the payout cron uses to
- * decide what to transfer, so the treasurer can read the net and the
- * "Transferred:" figure beside it as the same number. `calculateShowPayoutCents`
- * (supabase/functions/_shared/payoutCalc.ts) sums
- * `max(0, entryFeeCents - refundCents)` over the show's online entries, and
- * cron-process-payouts recomputes that at transfer time — so a refund issued
- * BEFORE the transfer shrinks the transfer by exactly the refunded amount.
- *
- * The floor at 0 is not defensive padding, it is required: a SHOW-level refund
- * (stripe-refund-show) refunds the full remaining charge — entry fees AND the
- * platform fee — so `refundedCents` can legitimately exceed `entrySubtotalCents`.
- * The club's share bottoms out at zero; the platform absorbs the fee portion.
- * (A per-ENTRY refund is capped at the entry fee by validateRefund, so it never
- * overshoots.)
- *
- * Refunds accepted AFTER the transfer are absorbed by the platform and do not
- * claw back the club's money — but refunds are rejected once the payout is
- * `processing` or `completed` (validateRefund: payout_in_progress /
- * payout_already_sent), so a settled show cannot drift below its transfer here.
- */
-export function clubNetContributionCents(
-  entrySubtotalCents: number,
-  postHocRefundedCents: number
-): number {
-  return Math.max(0, entrySubtotalCents - postHocRefundedCents);
-}
-
-/** Aggregate one show's orders into its net-to-club figure and charge state. */
-function aggregateShowOrders(orders: FinancialReconciliationOrder[]): {
-  net: ClubShowNet;
-  chargeVerification: ClubShowChargeVerification;
-} {
-  if (orders.length === 0) {
-    // No stripe_orders rows for this show. Net is unknown rather than a
-    // misleading $0. NOTE this is NOT "no charge record": the entries may all
-    // have been paid by check at the desk, which is real banked money with no
-    // Stripe row behind it.
-    return { net: { status: 'pending' }, chargeVerification: 'NoStripeCharges' };
-  }
-
-  let netCents = 0;
-  let anyPending = false;
-  let anyUnverified = false;
-
-  for (const order of orders) {
-    if (order.stripeProcessingFeeCents == null) anyPending = true;
-    // Degrade if ANY order lacks its fee snapshot — never claim show-wide
-    // coverage the record cannot back up. The LABEL must stay a coverage
-    // statement for the same reason: "some missing" survives this aggregation
-    // truthfully, a flat negative would not.
-    if (resolveOrderChargeVerification(order) === 'NoFeeBreakdown') anyUnverified = true;
-    // Net-to-club is the entry subtotal (the ACCEPTED, paid lines) MINUS only the
-    // POST-HOC refunded portion — see clubNetContributionCents for why that ties
-    // to the transfer and why a cart-overflow make-whole refund must NOT reduce
-    // it. When the snapshot is missing, treat that order as pending rather than
-    // assuming $0 for it.
-    if (order.entrySubtotalCents == null) {
-      anyPending = true;
-    } else {
-      netCents += clubNetContributionCents(order.entrySubtotalCents, order.refundedCents);
-    }
-  }
-
-  const net: ClubShowNet = anyPending ? { status: 'pending' } : { status: 'available', netCents };
-  const chargeVerification: ClubShowChargeVerification = anyUnverified
+/** One show's charge-coverage statement across its orders. */
+function showChargeVerification(
+  orders: FinancialReconciliationOrder[]
+): ClubShowChargeVerification {
+  // No stripe_orders rows for this show. NOTE this is NOT "no charge record":
+  // the entries may all have been paid by check at the desk, which is real
+  // banked money with no Stripe row behind it.
+  if (orders.length === 0) return 'NoStripeCharges';
+  // Degrade if ANY order lacks its fee snapshot — never claim show-wide
+  // coverage the record cannot back up. The LABEL must stay a coverage
+  // statement for the same reason: "some missing" survives this aggregation
+  // truthfully, a flat negative would not.
+  return orders.some(order => resolveOrderChargeVerification(order) === 'NoFeeBreakdown')
     ? 'SomeFeeBreakdownsMissing'
     : 'AllFeeBreakdowns';
-  return { net, chargeVerification };
 }
 
 /** Ordering facts for a reconciliation payout row. */
@@ -198,14 +121,13 @@ export function buildClubShowReconciliationRows(
   const rows: ClubShowReconciliationRow[] = [];
   for (const showId of showIds) {
     const showOrders = ordersByShow.get(showId) ?? [];
-    const { net, chargeVerification } = aggregateShowOrders(showOrders);
+    const chargeVerification = showChargeVerification(showOrders);
     const payout = payoutByShow.get(showId);
     const settlement = payout ? resolvePayoutSettlement(payout, accountState) : null;
 
     rows.push({
       showId,
       showName: showNamesById.get(showId) ?? 'Show',
-      net,
       chargeVerification,
       settlement,
       orderCount: showOrders.length,

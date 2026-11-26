@@ -268,7 +268,7 @@ redirect:
 
 ### 22. View show payouts
 
-**Outcome:** Treasurer sees payout schedule, net amounts, and transfer status per show.
+**Outcome:** Treasurer sees, per show, what was collected, refunded and paid, and when the payout is sent.
 **Canonical route:** `/club-admin/payments`
 **Note:** Same surface as § 21, cataloged in `pageDirectory.ts` (Payouts tab of **Payments**).
 **Docs target:** Club Admin Guide § Payouts

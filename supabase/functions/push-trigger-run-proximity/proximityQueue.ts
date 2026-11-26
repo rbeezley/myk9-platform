@@ -8,6 +8,28 @@ import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.49.1';
 
 export const DEFAULT_CLASS_NAME = 'your class';
 
+// MYK9-2412: a dog that is not yet approved is off the running line (MYK9-2391), so it is
+// not a dog ahead. Mirrors `isPendingEntryStatus` (apps/myk9show/src/features/entry-operations/
+// classEntryBreakdown.ts) and the SQL function `entry_queue_places_for_classes`; the Deno
+// function cannot import app code, so keep the three in step. A null status is also excluded
+// by the SQL `NOT IN` (NULL is never "not in" a list), and '' covers the blank no-status case.
+export const PENDING_ENTRY_STATUSES = [
+  'submitted',
+  'pending',
+  'draft',
+  '',
+  'pending-payment',
+  'paid',
+  'promotion-expired',
+] as const;
+
+export const EXCLUDED_QUEUE_STATUSES = [
+  'withdrawn',
+  'scratched',
+  'absent',
+  ...PENDING_ENTRY_STATUSES,
+] as const;
+
 interface ClassPaperRow {
   scores_on_paper?: boolean | null;
   trial?: { show?: { uses_device_scoring?: boolean | null } | null } | null;
@@ -31,7 +53,11 @@ export async function fetchQueueAndClassName(supabase: SupabaseClient, classId: 
       )
       .eq('class_id', classId)
       .is('deleted_at', null)
-      .not('entry_status', 'in', '("withdrawn","scratched","absent")'),
+      .not(
+        'entry_status',
+        'in',
+        `(${EXCLUDED_QUEUE_STATUSES.map(status => `"${status}"`).join(',')})`
+      ),
     // MYK9-1970: paper = classes.scores_on_paper, else NOT shows.uses_device_scoring (the rule
     // entry_queue_places_for_classes applies, MYK9-1969). The trial and show ride along.
     supabase

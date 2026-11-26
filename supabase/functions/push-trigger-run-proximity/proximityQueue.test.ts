@@ -2,7 +2,12 @@
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { describe, expect, it } from 'vitest';
 
-import { DEFAULT_CLASS_NAME, fetchQueueAndClassName, isPaperClass } from './proximityQueue.ts';
+import {
+  DEFAULT_CLASS_NAME,
+  EXCLUDED_QUEUE_STATUSES,
+  fetchQueueAndClassName,
+  isPaperClass,
+} from './proximityQueue.ts';
 
 type Result = { data: unknown; error: { message: string } | null };
 
@@ -82,5 +87,48 @@ describe('fetchQueueAndClassName', () => {
       isPaperClass({ scores_on_paper: null, trial: { show: { uses_device_scoring: true } } })
     ).toBe(false);
     expect(isPaperClass(null)).toBe(false);
+  });
+});
+
+describe('queue exclusions (MYK9-2412)', () => {
+  it('leaves a Pending dog between two running dogs out of the queue', async () => {
+    const calls: unknown[][] = [];
+    const rows = [
+      { id: 'a', entry_status: 'confirmed' },
+      { id: 'pending-dog', entry_status: 'submitted' },
+      { id: 'b', entry_status: 'checked-in' },
+    ];
+    const builder: Record<string, unknown> = {};
+    for (const method of ['select', 'eq', 'is', 'single']) builder[method] = () => builder;
+    builder.not = (...args: unknown[]) => {
+      calls.push(args);
+      return builder;
+    };
+    // Apply the recorded NOT IN to the rows, as PostgREST would.
+    builder.then = (onFulfilled: (value: Result) => unknown) => {
+      const list = String(calls[0]?.[2]);
+      const kept = rows.filter(row => !list.includes(`"${row.entry_status}"`));
+      return Promise.resolve({ data: kept, error: null }).then(onFulfilled);
+    };
+    const client = { from: () => builder } as unknown as SupabaseClient;
+
+    const result = await fetchQueueAndClassName(client, 'class-1');
+
+    expect(calls[0]?.slice(0, 2)).toEqual(['entry_status', 'in']);
+    for (const status of [
+      'withdrawn',
+      'scratched',
+      'absent',
+      'submitted',
+      'pending',
+      'draft',
+      'pending-payment',
+      'paid',
+      'promotion-expired',
+    ]) {
+      expect(EXCLUDED_QUEUE_STATUSES).toContain(status);
+      expect(calls[0]?.[2]).toContain(`"${status}"`);
+    }
+    expect((result.entryRows as { id: string }[]).map(row => row.id)).toEqual(['a', 'b']);
   });
 });

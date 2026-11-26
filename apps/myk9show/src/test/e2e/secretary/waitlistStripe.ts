@@ -5,6 +5,8 @@ import {
   WEBHOOK_ENDPOINT_PAGE_LIMIT,
   type StripeWebhookEndpointPage,
 } from './stripeWebhookEndpointGuard';
+import type { PaymentEvidence } from './stripeCheckoutState';
+import { submitPaymentAndAwaitReturn } from './stripeCheckoutSubmit';
 
 export { assertNoSharedWebhookEndpoints };
 
@@ -264,7 +266,11 @@ async function fillIfShown(
 }
 
 /** Pays the hosted Checkout page the browser is on, then waits for Stripe's success redirect. */
-export async function payOnStripeCheckout(page: Page): Promise<string> {
+export async function payOnStripeCheckout(
+  page: Page,
+  /** The payment link's status, read from the app's own table; null when unreadable. */
+  readLinkStatus: () => Promise<string | null> = async () => null
+): Promise<string> {
   await page.waitForURL(/^https:\/\/checkout\.stripe\.com\//, { timeout: 30_000 });
   const email = await checkoutLocator(page, 'the Email field', EMAIL);
   await expect(email).toBeVisible({ timeout: 30_000 });
@@ -304,10 +310,46 @@ export async function payOnStripeCheckout(page: Page): Promise<string> {
   const pay = await checkoutLocator(page, 'the Pay button', root =>
     root.getByRole('button', { name: /^Pay(\s+\$[\d,.]+)?$/ })
   );
-  await pay.click();
-  await page.waitForURL(url => url.origin === ALLOWED_RETURN_ORIGIN, { timeout: 90_000 });
+  await submitPaymentAndAwaitReturn(page, pay, {
+    returnOrigin: ALLOWED_RETURN_ORIGIN,
+    findPay: () =>
+      checkoutLocator(page, 'the Pay button', root =>
+        root.getByRole('button', { name: /^Pay(\s+\$[\d,.]+)?$/ })
+      ),
+    readPaymentEvidence: () => readPaymentEvidence(page, readLinkStatus),
+  });
   const returned = new URL(page.url());
   return `${returned.pathname}${returned.search}`;
+}
+
+/** The session id is in the hosted page's path (`/c/pay/cs_test_...`); no backend path needed. */
+async function readPaymentEvidence(
+  page: Page,
+  readLinkStatus: () => Promise<string | null>
+): Promise<PaymentEvidence> {
+  const key = stripeTestKey();
+  const sessionId = /cs_test_[A-Za-z0-9]+/.exec(page.url())?.[0];
+  let sessionPaymentStatus: string | null = null;
+  if (key && sessionId) {
+    try {
+      const response = await fetch(`${STRIPE_API}/checkout/sessions/${sessionId}`, {
+        headers: { Authorization: `Bearer ${key}` },
+      });
+      if (response.ok) {
+        const body = (await response.json()) as { payment_status?: string };
+        sessionPaymentStatus = body.payment_status ?? null;
+      }
+    } catch {
+      sessionPaymentStatus = null;
+    }
+  }
+  let linkStatus: string | null = null;
+  try {
+    linkStatus = await readLinkStatus();
+  } catch {
+    linkStatus = null;
+  }
+  return { linkStatus, sessionPaymentStatus };
 }
 
 interface StripeEvent {

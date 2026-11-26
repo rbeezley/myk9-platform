@@ -34,6 +34,8 @@ import {
   routeStripeReturnThroughAllowedOrigin,
   stripeTestKey,
 } from './waitlistStripe';
+import { keepTraceOnFailure, startJourneyTrace } from './waitlistTrace';
+import type { BrowserContext } from '@playwright/test';
 
 /**
  * Suite category: nightly (stateful, seeded Playwright Regression only).
@@ -193,6 +195,7 @@ test.describe('Wait list: join -> offer -> pay -> confirmed entry', () => {
   let admin: SupabaseClient;
   let snapshot: Awaited<ReturnType<typeof prepareFullClass>> | null = null;
   const since = new Date().toISOString();
+  let tracedContext: BrowserContext | null = null;
 
   test.beforeAll(async () => {
     admin = waitlistAdmin();
@@ -203,6 +206,10 @@ test.describe('Wait list: join -> offer -> pay -> confirmed entry', () => {
     if (snapshot) await restoreFullClass(admin, snapshot, since);
   });
 
+  test.afterEach(async () => {
+    await keepTraceOnFailure(tracedContext, test.info(), 'exhibitor-trace');
+  });
+
   test('the exhibitor claims an offered spot by paying, and the entry is confirmed (MYK9-971)', async ({
     browser,
   }) => {
@@ -211,6 +218,8 @@ test.describe('Wait list: join -> offer -> pay -> confirmed entry', () => {
     await test.step('the Stripe sandbox delivers to no shared Supabase project', () =>
       assertSandboxHasNoSharedWebhookEndpoints());
     const exhibitor = await signedInPage(browser, signInAsExhibitor, `/shows/${SHOW_ID}/register`);
+    tracedContext = exhibitor.context();
+    await startJourneyTrace(tracedContext);
     await routeStripeReturnThroughAllowedOrigin(exhibitor);
 
     await test.step('exhibitor joins the full class wait list', () =>
@@ -239,7 +248,10 @@ test.describe('Wait list: join -> offer -> pay -> confirmed entry', () => {
       await offerCard(exhibitor, 'Willow')
         .getByRole('button', { name: 'Complete payment' })
         .click();
-      const returnPath = await payOnStripeCheckout(exhibitor);
+      const returnPath = await payOnStripeCheckout(
+        exhibitor,
+        async () => (await paymentLinkFor(admin, entryId)).status
+      );
       expect(returnPath).toBe(`/exhibitor/entries?waitlistOffer=${willow.id}`);
       expect((await paymentLinkFor(admin, entryId)).status).toBe('open');
     });

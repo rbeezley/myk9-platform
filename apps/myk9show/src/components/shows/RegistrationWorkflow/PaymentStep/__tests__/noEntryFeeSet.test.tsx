@@ -53,7 +53,7 @@ vi.mock('@/hooks/useRegistrationPermissions', () => ({
     BULK_OPERATIONS: 'registration:bulk_operations',
   },
 }));
-vi.mock('@/components/auth/PermissionGuard', () => ({
+vi.mock('@/components/rbac/PermissionGuard', () => ({
   PermissionGuard: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 vi.mock('@/hooks/queries/useOrganizationAgreement', () => ({

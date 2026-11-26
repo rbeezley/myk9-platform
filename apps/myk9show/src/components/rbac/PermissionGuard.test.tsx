@@ -2,9 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { PermissionGuard, IfPermission, IfRole, IfAdmin } from './PermissionGuard';
 
-// Live component: components/rbac/PermissionGuard.tsx (imported by
-// utils/rbac-hocs.tsx and pages/admin/RBACTestPage.tsx — see grep
-// evidence in the task report). Distinct from components/auth/PermissionGuard.tsx.
+// The one PermissionGuard (the former components/auth copy was deleted).
 
 vi.mock('@/hooks/useRBAC', () => ({
   useRBAC: vi.fn(),
@@ -14,7 +12,7 @@ import { useRBAC } from '@/hooks/useRBAC';
 
 type MockRBACReturn = {
   hasPermission: (permission: string, scope?: { type: string; id: string }) => boolean;
-  userRoles: Array<{ is_active: boolean; role?: { name?: string } }>;
+  userRoles: Array<{ is_active: boolean; expires_at?: string | null; role?: { name?: string } }>;
   isLoading: boolean;
 };
 
@@ -102,7 +100,7 @@ describe('PermissionGuard (rbac) — requireAll / requireAny', () => {
   it('requireAll: grants only when every permission is held', async () => {
     mockRBAC({ hasPermission: perm => perm === 'a' || perm === 'b' });
     render(
-      <PermissionGuard permission="ignored" requireAll={['a', 'b']}>
+      <PermissionGuard requireAll={['a', 'b']}>
         <div data-testid="content">content</div>
       </PermissionGuard>
     );
@@ -112,7 +110,7 @@ describe('PermissionGuard (rbac) — requireAll / requireAny', () => {
   it('requireAll: denies when any one permission is missing', async () => {
     mockRBAC({ hasPermission: perm => perm === 'a' });
     render(
-      <PermissionGuard permission="ignored" requireAll={['a', 'b']}>
+      <PermissionGuard requireAll={['a', 'b']}>
         <div data-testid="content">content</div>
       </PermissionGuard>
     );
@@ -122,7 +120,7 @@ describe('PermissionGuard (rbac) — requireAll / requireAny', () => {
   it('requireAny: grants when at least one permission is held', async () => {
     mockRBAC({ hasPermission: perm => perm === 'b' });
     render(
-      <PermissionGuard permission="ignored" requireAny={['a', 'b']}>
+      <PermissionGuard requireAny={['a', 'b']}>
         <div data-testid="content">content</div>
       </PermissionGuard>
     );
@@ -132,7 +130,7 @@ describe('PermissionGuard (rbac) — requireAll / requireAny', () => {
   it('requireAny: denies when none of the permissions are held', async () => {
     mockRBAC({ hasPermission: () => false });
     render(
-      <PermissionGuard permission="ignored" requireAny={['a', 'b']}>
+      <PermissionGuard requireAny={['a', 'b']}>
         <div data-testid="content">content</div>
       </PermissionGuard>
     );
@@ -149,7 +147,7 @@ describe('PermissionGuard (rbac) — role-based checking', () => {
       ],
     });
     render(
-      <PermissionGuard permission="ignored" roles={['secretary', 'club_admin']}>
+      <PermissionGuard roles={['secretary', 'club_admin']}>
         <div data-testid="content">content</div>
       </PermissionGuard>
     );
@@ -161,7 +159,7 @@ describe('PermissionGuard (rbac) — role-based checking', () => {
       userRoles: [{ is_active: false, role: { name: 'secretary' } }],
     });
     render(
-      <PermissionGuard permission="ignored" roles={['secretary']}>
+      <PermissionGuard roles={['secretary']}>
         <div data-testid="content">content</div>
       </PermissionGuard>
     );
@@ -173,7 +171,7 @@ describe('PermissionGuard (rbac) — role-based checking', () => {
       userRoles: [{ is_active: true, role: { name: 'exhibitor' } }],
     });
     render(
-      <PermissionGuard permission="ignored" roles={['secretary', 'club_admin']}>
+      <PermissionGuard roles={['secretary', 'club_admin']}>
         <div data-testid="content">content</div>
       </PermissionGuard>
     );
@@ -239,6 +237,147 @@ describe('IfPermission / IfRole / IfAdmin', () => {
       <IfAdmin>
         <div data-testid="content">content</div>
       </IfAdmin>
+    );
+    expect(screen.queryByTestId('content')).not.toBeInTheDocument();
+  });
+});
+
+describe('PermissionGuard — checks combine with AND', () => {
+  const content = <div data-testid="content">content</div>;
+
+  it('denies when the permission passes but the role does not', () => {
+    mockRBAC({
+      hasPermission: () => true,
+      userRoles: [{ is_active: true, role: { name: 'exhibitor' } }],
+    });
+    render(
+      <PermissionGuard permission="x:y" roles={['secretary']} showFallback={false}>
+        {content}
+      </PermissionGuard>
+    );
+    expect(screen.queryByTestId('content')).not.toBeInTheDocument();
+  });
+
+  it('denies when the role passes but the permission does not', () => {
+    mockRBAC({
+      hasPermission: () => false,
+      userRoles: [{ is_active: true, role: { name: 'secretary' } }],
+    });
+    render(
+      <PermissionGuard permission="x:y" roles={['secretary']} showFallback={false}>
+        {content}
+      </PermissionGuard>
+    );
+    expect(screen.queryByTestId('content')).not.toBeInTheDocument();
+  });
+
+  it('denies when requireAny passes but a later requireAll fails', () => {
+    mockRBAC({ hasPermission: perm => perm === 'a' });
+    render(
+      <PermissionGuard requireAny={['a']} requireAll={['a', 'b']} showFallback={false}>
+        {content}
+      </PermissionGuard>
+    );
+    expect(screen.queryByTestId('content')).not.toBeInTheDocument();
+  });
+
+  it('grants when every supplied check passes', () => {
+    mockRBAC({
+      hasPermission: () => true,
+      userRoles: [{ is_active: true, role: { name: 'secretary' } }],
+    });
+    render(
+      <PermissionGuard permission="x:y" requireAny={['a']} roles={['secretary']}>
+        {content}
+      </PermissionGuard>
+    );
+    expect(screen.getByTestId('content')).toBeInTheDocument();
+  });
+
+  it('denies when no check is supplied', () => {
+    mockRBAC({ hasPermission: () => true });
+    render(<PermissionGuard showFallback={false}>{content}</PermissionGuard>);
+    expect(screen.queryByTestId('content')).not.toBeInTheDocument();
+  });
+
+  it('passes the scope to every permission check', () => {
+    const hasPermission = vi.fn(() => true);
+    mockRBAC({ hasPermission });
+    const scope = { type: 'show', id: 's1' };
+    render(
+      <PermissionGuard permission="a" requireAll={['b']} requireAny={['c']} scope={scope}>
+        {content}
+      </PermissionGuard>
+    );
+    expect(hasPermission).toHaveBeenCalledWith('a', scope);
+    expect(hasPermission).toHaveBeenCalledWith('b', scope);
+    expect(hasPermission).toHaveBeenCalledWith('c', scope);
+  });
+
+  it('renders nothing while loading when showFallback is false', () => {
+    mockRBAC({ isLoading: true });
+    const { container } = render(
+      <PermissionGuard permission="a" showFallback={false}>
+        {content}
+      </PermissionGuard>
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
+});
+
+describe('PermissionGuard — role expiry', () => {
+  const day = 24 * 60 * 60 * 1000;
+
+  it('denies a role whose expires_at is in the past', () => {
+    mockRBAC({
+      userRoles: [
+        {
+          is_active: true,
+          expires_at: new Date(Date.now() - day).toISOString(),
+          role: { name: 'secretary' },
+        },
+      ],
+    });
+    render(
+      <PermissionGuard roles={['secretary']} showFallback={false}>
+        <div data-testid="content">content</div>
+      </PermissionGuard>
+    );
+    expect(screen.queryByTestId('content')).not.toBeInTheDocument();
+  });
+
+  it('grants a role whose expires_at is in the future', () => {
+    mockRBAC({
+      userRoles: [
+        {
+          is_active: true,
+          expires_at: new Date(Date.now() + day).toISOString(),
+          role: { name: 'secretary' },
+        },
+      ],
+    });
+    render(
+      <PermissionGuard roles={['secretary']}>
+        <div data-testid="content">content</div>
+      </PermissionGuard>
+    );
+    expect(screen.getByTestId('content')).toBeInTheDocument();
+  });
+
+  it('IfRole ignores an expired role', () => {
+    mockRBAC({
+      userRoles: [
+        {
+          is_active: true,
+          expires_at: new Date(Date.now() - day).toISOString(),
+          role: { name: 'judge' },
+        },
+      ],
+    });
+    render(
+      <IfRole roles="judge">
+        <div data-testid="content">content</div>
+      </IfRole>
     );
     expect(screen.queryByTestId('content')).not.toBeInTheDocument();
   });

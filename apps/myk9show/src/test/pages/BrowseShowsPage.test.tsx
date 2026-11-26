@@ -88,7 +88,7 @@ vi.mock('@/components/shows/browse', () => ({
   ),
   ShowBulkActionsBar: () => <div data-testid="bulk-actions-bar">Bulk Actions</div>,
 }));
-vi.mock('@/components/auth/PermissionGuard', () => ({
+vi.mock('@/components/rbac/PermissionGuard', () => ({
   PermissionGuard: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 vi.mock('@/styles/myk9-show-details.css', () => ({}));

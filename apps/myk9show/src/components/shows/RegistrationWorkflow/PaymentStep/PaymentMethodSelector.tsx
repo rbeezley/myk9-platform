@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { PermissionGuard } from '@/components/auth/PermissionGuard';
+import { PermissionGuard } from '@/components/rbac/PermissionGuard';
 import { REGISTRATION_PERMISSIONS } from '@/hooks/useRegistrationPermissions';
 import { UserRole } from '@/types/auth-types';
 import type { PaymentMethod } from '@/types/show-registration-types';
@@ -150,7 +150,8 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
 
             <PermissionGuard
               permission={REGISTRATION_PERMISSIONS.MARK_PAYMENT}
-              role={[UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN]}
+              showFallback={false}
+              roles={[UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN]}
             >
               <PaymentOptionCard
                 value="secretary_paid"
@@ -237,7 +238,8 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
 
             <PermissionGuard
               permission={REGISTRATION_PERMISSIONS.MARK_PAYMENT}
-              role={[UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN]}
+              showFallback={false}
+              roles={[UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN]}
             >
               <PaymentOptionCard
                 value="group_payment"
@@ -269,7 +271,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
             )}
 
             {allowFreeEntry && (
-              <PermissionGuard permission="registration:override_fees">
+              <PermissionGuard permission="registration:override_fees" showFallback={false}>
                 <PaymentOptionCard
                   value="waived"
                   selected={paymentMethod === 'waived'}

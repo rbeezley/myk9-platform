@@ -2,7 +2,7 @@ import React from 'react';
 import { Check, Gift, Receipt } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PermissionGuard } from '@/components/auth/PermissionGuard';
+import { PermissionGuard } from '@/components/rbac/PermissionGuard';
 import type { SecretaryPaymentManagementProps } from './types';
 
 const TITLE_ID = 'secretary-desk-payment-title';
@@ -24,7 +24,7 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
   const isPaidAtDesk = paymentMethod === 'secretary_paid';
 
   return (
-    <PermissionGuard permission="registration:override_fees">
+    <PermissionGuard permission="registration:override_fees" showFallback={false}>
       <Card role="region" aria-labelledby={TITLE_ID}>
         <CardHeader>
           <CardTitle id={TITLE_ID} className="text-base flex items-center gap-2">

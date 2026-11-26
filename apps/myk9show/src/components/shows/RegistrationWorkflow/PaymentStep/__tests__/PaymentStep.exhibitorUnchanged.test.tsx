@@ -36,7 +36,7 @@ vi.mock('@/hooks/useRegistrationPermissions', () => ({
   },
 }));
 const permission = vi.hoisted(() => ({ granted: false }));
-vi.mock('@/components/auth/PermissionGuard', () => ({
+vi.mock('@/components/rbac/PermissionGuard', () => ({
   PermissionGuard: ({ children }: { children: React.ReactNode }) =>
     permission.granted ? <>{children}</> : null,
 }));

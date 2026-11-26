@@ -107,3 +107,13 @@ Keep it online and say "No connection. Write the payment down and record it here
   - offline: record a partial in cash, see the waiting line beside an unchanged balance and in close-out, then go online and see it clear with one ledger row;
   - unreachable: abort the RPC by route interception and see Not confirmed;
   - refused: answer with a `22023` body by route interception, never by writing to the shared database.
+
+## 6. Carried into the PRs (Codex round 4, PR #4460)
+
+The plan review stopped after four rounds. These are criteria for the implementation PRs, each of which gets its own independent review:
+
+- **Late-entry recovery (PR 3).** When a dead-lettered entry insert is retried and succeeds, the original queued payment replays under its own id. Never "record it again", which would mint a second id. An entry that lands without a form has had its payment RPC attempted, so no parent dead letter proves it was never sent: that payment stays Not confirmed, with no Remove.
+- **Owner scoping (PR 1, PR 2).** The local payment record is stamped with the queue owner. Form rows, close-out rows, counts and actions show only the signed-in owner's payments, including after an account switch on a shared desk device.
+- **Paid in Full amount (PR 1).** A zero displayed balance queues nothing. A positive payment freezes the displayed amount in whole cents, never the raw dollar subtraction. The queue-argument test covers both cases.
+- **Copy follows the queue state (PR 1, PR 2).** While the mutation is pending, the copy promises an automatic send and offers no Try again. Once it is dead-lettered, the copy says it will not send on its own and offers Try again (`retryFailedMutation`).
+- **Reachable when close-out cannot load (PR 2).** The device's payment list on the close step renders independently of `ShowCloseStep`'s schedule and entries read gates. A test follows the pill with those inputs unavailable.

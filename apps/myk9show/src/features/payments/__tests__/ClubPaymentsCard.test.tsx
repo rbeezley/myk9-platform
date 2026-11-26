@@ -6,8 +6,8 @@ import { ClubPaymentsCard } from '../ClubPaymentsCard';
 import * as accountModule from '../useClubStripeAccount';
 import type { ClubStripeAccount } from '../useClubStripeAccount';
 import { useClubFinancialReconciliation } from '@/features/financial/useClubFinancialReconciliation';
-import { resolvePayoutSettlement } from '@/features/financial/payoutSettlement';
-import type { ClubShowReconciliationRow } from '@/features/financial/clubShowReconciliation';
+import { useClubShowPayoutFigures } from '../useClubShowPayoutFigures';
+import { payoutFigures, payoutFiguresWith } from '../clubShowPayoutFiguresFixtures';
 
 vi.mock('../useClubStripeAccount', async importOriginal => {
   const original = await importOriginal<typeof accountModule>();
@@ -19,10 +19,10 @@ vi.mock('../useClubStripeAccount', async importOriginal => {
 });
 
 // The reconciliation card (MYK9-54 task 3.1) makes its own React Query calls
-// through the shared financial service. This suite is about the bank-account
-// connect/status flow, so the reconciliation hook is stubbed to an empty,
-// settled result — its own behavior (verified/attested/mismatch/pending/
-// unavailable states) is covered by ClubFinancialReconciliationCard.test.tsx.
+// through the shared financial service and the payout-figures RPC. This suite is
+// about the bank-account connect/status flow, so both hooks are stubbed to an
+// empty, settled result — the card's own behavior is covered by
+// ClubFinancialReconciliationCard.test.tsx.
 vi.mock('@/features/financial/useClubFinancialReconciliation', () => ({
   useClubFinancialReconciliation: vi.fn(() => ({
     rows: [],
@@ -32,41 +32,29 @@ vi.mock('@/features/financial/useClubFinancialReconciliation', () => ({
   })),
 }));
 
+vi.mock('../useClubShowPayoutFigures', () => ({
+  useClubShowPayoutFigures: vi.fn(),
+}));
+
 const mockedUseAccount = vi.mocked(accountModule.useClubStripeAccount);
 const mockedStartOnboarding = vi.mocked(accountModule.startConnectOnboarding);
 const mockedReconciliation = vi.mocked(useClubFinancialReconciliation);
+const mockedFigures = vi.mocked(useClubShowPayoutFigures);
 
-/** One show row whose payout is in `status`, as the reconciliation hook returns it. */
-function showRow(status: string | null, failureReason: string | null = null) {
-  const row: ClubShowReconciliationRow = {
-    showId: 'show-1',
-    showName: 'Cedar Valley Classic',
-    net: { status: 'available', netCents: 5000 },
-    chargeVerification: 'AllFeeBreakdowns',
-    settlement: status
-      ? resolvePayoutSettlement(
-          {
-            payoutId: 'payout-1',
-            status,
-            amountCents: 5000,
-            stripeTransferId: null,
-            failureReason,
-            completedAt: null,
-            createdAt: '2026-12-12T08:00:00Z',
-          },
-          'enabled'
-        )
-      : null,
-    orderCount: 1,
-    refundedCents: 0,
-    owed: 'some',
-  };
-  mockedReconciliation.mockReturnValue({
-    rows: [row],
+function mockFigureRows(rows: ReturnType<typeof payoutFigures>[]) {
+  mockedFigures.mockReturnValue({
+    data: rows,
     isLoading: false,
     isError: false,
     refetch: vi.fn(),
-  });
+  } as unknown as ReturnType<typeof useClubShowPayoutFigures>);
+}
+
+/** One show still owed $50.00 whose payout is in `status`, as the figures RPC returns it. */
+function showRow(status: string | null, failureReason: string | null = null) {
+  mockFigureRows([
+    status ? payoutFiguresWith(status, { payout_failure_reason: failureReason }) : payoutFigures(),
+  ]);
 }
 
 function mockAccountState(data: ClubStripeAccount | null, overrides: Record<string, unknown> = {}) {
@@ -99,6 +87,7 @@ beforeEach(() => {
     isError: false,
     refetch: vi.fn(),
   });
+  mockFigureRows([]);
   Object.defineProperty(window, 'location', {
     value: { ...window.location, assign: vi.fn(), search: '' },
     writable: true,

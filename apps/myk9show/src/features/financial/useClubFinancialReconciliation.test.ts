@@ -142,7 +142,7 @@ describe('useClubFinancialReconciliation', () => {
     expect(result.current.rows[0].showName).not.toBe('Show');
   });
 
-  it('paginates orders to completion: a club past one page keeps every show in the total', async () => {
+  it('paginates orders to completion: a club past one page keeps every order of every show', async () => {
     // The wrapper is keyset-paginated. A full page means "there may be more";
     // a short page means "exhausted". Two full pages + a short one must all
     // land in the rows — a single-page read would silently drop show-2/show-3.
@@ -171,11 +171,11 @@ describe('useClubFinancialReconciliation', () => {
     // First call has no cursor; the second is keyed off the last row of page 1.
     expect(mockedOrders.mock.calls[0][0]).toMatchObject({ cursor: null });
     expect(mockedOrders.mock.calls[1][0].cursor).toMatchObject({ id: `a-${PAGE - 1}` });
-    // Every page's money is present: 500 + 500 orders of $100 on shows 1 and 2.
+    // Every page's orders are present: 500 + 500 on shows 1 and 2, one on show 3.
     const byShow = new Map(result.current.rows.map(r => [r.showId, r]));
-    expect(byShow.get('show-1')?.net).toEqual({ status: 'available', netCents: 100_00 * PAGE });
-    expect(byShow.get('show-2')?.net).toEqual({ status: 'available', netCents: 100_00 * PAGE });
-    expect(byShow.get('show-3')?.net).toEqual({ status: 'available', netCents: 100_00 });
+    expect(byShow.get('show-1')?.orderCount).toBe(PAGE);
+    expect(byShow.get('show-2')?.orderCount).toBe(PAGE);
+    expect(byShow.get('show-3')?.orderCount).toBe(1);
   });
 
   it('an order/payout fetch failure surfaces isError, never a silent empty result', async () => {

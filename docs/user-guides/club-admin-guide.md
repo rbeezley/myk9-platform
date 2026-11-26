@@ -197,7 +197,7 @@ Within five business days (Monday to Friday) of your show's last day. During the
 **Viewing past payouts:**
 
 1. In the sidebar, open **My Club**, then **Payments**.
-2. The **Show reconciliation** card lists each show with its net amount, the transfer amount, and a sentence that says when the club is paid. A sent payout also shows its Stripe transfer id, which you can copy if you contact us about it.
+2. The **Show reconciliation** card lists each show with three figures and a sentence that says when the club is paid. **Collected** is the online entry fees, **Refunded** is what went back to exhibitors, and **Paid** is what was sent to your club's bank account. The figures match the deposit: in the example above the show reads Collected $1,280.00, Refunded $32.00, Paid $1,248.00. Until the payout is sent, the last figure reads **To transfer**, and while it is on its way it reads **Being sent**. A show with nothing to send shows no paid figure. A sent payout also shows its Stripe transfer id, which you can copy if you contact us about it.
 
 ![C-05: Payments tab — Payouts enabled, with the Show reconciliation card listing a show's transfer and Paid status](../screenshots/C-05.png)
 
@@ -216,8 +216,6 @@ What each show can say, for a show whose last day is December 9:
 | Your payout is taking longer than usual. We'll be in touch by email.                        | The five business days have passed and the payout has not been sent. We will email your club                                                                                             |
 | Nothing to send. Every entry fee for this show was refunded.                                | Every online entry fee for the show went back to the exhibitors, so there is no payout. This holds even if an earlier attempt failed                                                     |
 | Nothing to send. This show has no online entry fees to pay out.                             | No entry fees for the show were paid online, so there is no payout                                                                                                                       |
-
-A show whose net amount is still being worked out reads **Net pending**.
 
 **Need itemized records?** Open the show, go to the **Entry Forms** tab, and export from there — you do not need to ask the secretary. The **Reports** tab also carries the Financial Report, which sits under the **Anytime** heading because it is as useful while entries are open as it is at reconciliation.
 

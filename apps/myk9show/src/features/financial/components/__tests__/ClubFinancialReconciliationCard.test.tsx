@@ -4,7 +4,13 @@ import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { ClubFinancialReconciliationCard } from '../ClubFinancialReconciliationCard';
 import * as reconciliationModule from '../../useClubFinancialReconciliation';
+import * as figuresModule from '@/features/payments/useClubShowPayoutFigures';
 import * as schedulesModule from '@/features/payments/useShowPayoutSchedules';
+import type { ClubShowPayoutFigures } from '@/features/payments/clubShowPayoutFigures';
+import {
+  payoutFigures,
+  payoutFiguresWith,
+} from '@/features/payments/clubShowPayoutFiguresFixtures';
 import type { ClubShowReconciliationRow } from '../../clubShowReconciliation';
 import { resolvePayoutSettlement } from '../../payoutSettlement';
 
@@ -12,11 +18,16 @@ vi.mock('../../useClubFinancialReconciliation', () => ({
   useClubFinancialReconciliation: vi.fn(),
 }));
 
+vi.mock('@/features/payments/useClubShowPayoutFigures', () => ({
+  useClubShowPayoutFigures: vi.fn(),
+}));
+
 vi.mock('@/features/payments/useShowPayoutSchedules', () => ({
   useShowPayoutSchedules: vi.fn(),
 }));
 
-const mockedHook = vi.mocked(reconciliationModule.useClubFinancialReconciliation);
+const mockedReconciliation = vi.mocked(reconciliationModule.useClubFinancialReconciliation);
+const mockedFigures = vi.mocked(figuresModule.useClubShowPayoutFigures);
 const mockedSchedules = vi.mocked(schedulesModule.useShowPayoutSchedules);
 
 // Cedar Valley Classic ends Wed Dec 9 2026 (New York); paid by Wed Dec 16.
@@ -24,52 +35,72 @@ const CEDAR_SCHEDULE = new Map([
   ['show-1', { lastDay: '2026-12-09', timeZone: 'America/New_York' }],
 ]);
 
-function settlementFor(
-  status: string,
-  overrides: Partial<Parameters<typeof resolvePayoutSettlement>[0]> = {}
+/** Every online fee refunded: the server owes nothing. */
+const ALL_REFUNDED = { refunded_cents: 5000, owed_cents: 0 };
+const CLUB_FAILURE = 'club_account:account_closed: The bank account is closed';
+
+type FiguresResult = ReturnType<typeof figuresModule.useClubShowPayoutFigures>;
+
+function mockFigures(
+  rows: ClubShowPayoutFigures[],
+  state: { isLoading?: boolean; isError?: boolean; refetch?: () => void } = {}
 ) {
-  return resolvePayoutSettlement(
-    {
-      payoutId: 'payout-1',
-      status,
-      amountCents: 5000,
-      stripeTransferId: null,
-      failureReason: null,
-      completedAt: null,
-      createdAt: '2026-12-12T08:00:00Z',
-      ...overrides,
-    },
-    'enabled'
-  );
+  mockedFigures.mockReturnValue({
+    data: state.isLoading || state.isError ? undefined : rows,
+    isLoading: state.isLoading ?? false,
+    isError: state.isError ?? false,
+    refetch: state.refetch ?? vi.fn(),
+  } as unknown as FiguresResult);
 }
 
-function row(overrides: Partial<ClubShowReconciliationRow> = {}): ClubShowReconciliationRow {
+/** The non-money facts the reconciliation read adds: coverage and the transfer id. */
+function reconciliationRow(
+  overrides: Partial<ClubShowReconciliationRow> = {}
+): ClubShowReconciliationRow {
   return {
     showId: 'show-1',
     showName: 'Cedar Valley Classic',
-    net: { status: 'available', netCents: 10000 }, // $100.00 entry-fee take
     chargeVerification: 'AllFeeBreakdowns',
-    settlement: {
-      payoutId: 'payout-1',
-      badgeLabel: 'Paid',
-      state: 'settled',
-      status: 'completed',
-      failureReason: null,
-      amountCents: 9680, // $96.80 actually transferred — intentionally != net
-      stripeTransferId: 'tr_123',
-      completedAt: '2026-12-12T15:00:00Z',
-      createdAt: '2026-12-12T08:00:00Z',
-    },
+    settlement: resolvePayoutSettlement(
+      {
+        payoutId: 'payout-1',
+        status: 'completed',
+        amountCents: 5000,
+        stripeTransferId: 'tr_123',
+        failureReason: null,
+        completedAt: '2026-12-12T15:00:00Z',
+        createdAt: '2026-12-12T08:00:00Z',
+      },
+      'enabled'
+    ),
     orderCount: 1,
-    refundedCents: 0,
-    owed: 'some',
     ...overrides,
   };
+}
+
+function mockReconciliation(
+  rows: ClubShowReconciliationRow[] = [reconciliationRow()],
+  state: { isLoading?: boolean; isError?: boolean; refetch?: () => void } = {}
+) {
+  mockedReconciliation.mockReturnValue({
+    rows,
+    isLoading: state.isLoading ?? false,
+    isError: state.isError ?? false,
+    refetch: state.refetch ?? vi.fn(),
+  });
+}
+
+function renderCard(props: Partial<Parameters<typeof ClubFinancialReconciliationCard>[0]> = {}) {
+  return render(
+    <ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" {...props} />
+  );
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
   mockedSchedules.mockReturnValue(CEDAR_SCHEDULE);
+  mockReconciliation();
+  mockFigures([]);
   // Two days after the show, before the promised date.
   vi.useFakeTimers({ now: new Date('2026-12-11T15:00:00Z'), toFake: ['Date'] });
 });
@@ -78,58 +109,97 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe('ClubFinancialReconciliationCard', () => {
-  it('loading: shows a skeleton, not a false verified/unavailable state', () => {
-    mockedHook.mockReturnValue({ rows: [], isLoading: true, isError: false, refetch: vi.fn() });
-    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" />);
+describe('ClubFinancialReconciliationCard: loading and failure', () => {
+  it('figures loading: a skeleton, no figure and no payout sentence', () => {
+    mockFigures([], { isLoading: true });
+    renderCard();
 
-    expect(screen.queryByText(/verified/i)).not.toBeInTheDocument();
+    expect(screen.queryByTestId('payout-stage')).not.toBeInTheDocument();
+    expect(screen.queryByText(/\$0\.00/)).not.toBeInTheDocument();
     expect(screen.queryByTestId('reconciliation-unavailable')).not.toBeInTheDocument();
+    expect(screen.queryByText(/no shows to reconcile yet/i)).not.toBeInTheDocument();
   });
 
-  it('unavailable/error: shows an explicit unavailable state and never a verified badge (INTENT gate)', () => {
-    mockedHook.mockReturnValue({ rows: [], isLoading: false, isError: true, refetch: vi.fn() });
-    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" />);
+  it('reconciliation loading: a skeleton, not a false coverage state', () => {
+    mockFigures([payoutFigures()]);
+    mockReconciliation([], { isLoading: true });
+    renderCard();
+
+    expect(screen.queryByTestId('payout-stage')).not.toBeInTheDocument();
+    expect(screen.queryByText(/fee breakdown/i)).not.toBeInTheDocument();
+  });
+
+  it('figures failed: the unavailable line, never $0 or "nothing owed"', async () => {
+    const refetchFigures = vi.fn();
+    const refetchReconciliation = vi.fn();
+    mockFigures([], { isError: true, refetch: refetchFigures });
+    mockReconciliation([reconciliationRow()], { refetch: refetchReconciliation });
+    vi.useRealTimers();
+    const user = userEvent.setup();
+    renderCard();
+
+    expect(screen.getByTestId('reconciliation-unavailable')).toHaveTextContent(
+      "We can't load this reconciliation right now. That's a problem displaying the figures, not a sign that anything happened to your payouts."
+    );
+    expect(screen.queryByText(/\$0\.00/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/nothing to send/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/no shows to reconcile yet/i)).not.toBeInTheDocument();
+    expect(screen.queryByTestId('payout-stage')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('payout-figures')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(refetchFigures).toHaveBeenCalledTimes(1);
+    expect(refetchReconciliation).toHaveBeenCalledTimes(1);
+  });
+
+  it('reconciliation failed: the unavailable state and never a coverage badge (INTENT gate)', () => {
+    mockFigures([payoutFiguresWith('completed')]);
+    mockReconciliation([], { isError: true });
+    renderCard();
 
     expect(screen.getByTestId('reconciliation-unavailable')).toBeInTheDocument();
-    expect(screen.getByText(/can't load this reconciliation right now/i)).toBeInTheDocument();
-    // The reassurance is the half that must survive: a failed READ must never
-    // read as a failed payout.
     expect(
       screen.getByText(/not a sign that anything happened to your payouts/i)
     ).toBeInTheDocument();
-    // MYK9-231: and the half that must not. `isError` is React Query's verdict
-    // that the query function threw; it cannot know which hop failed, so the
-    // copy may not name one. #1727 threw synchronously in the browser with no
-    // request issued, while this card blamed Stripe.
+    // MYK9-231: `isError` cannot know which hop failed, so the copy names none.
     expect(screen.queryByText(/against Stripe/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/fee breakdown/i)).not.toBeInTheDocument();
     expect(screen.queryByText('Mismatch')).not.toBeInTheDocument();
-    expect(screen.queryByText('Paid')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Paid/)).not.toBeInTheDocument();
   });
 
   it('empty: calm explanatory copy, no error styling', () => {
-    mockedHook.mockReturnValue({ rows: [], isLoading: false, isError: false, refetch: vi.fn() });
-    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" />);
-
+    renderCard();
     expect(screen.getByText(/no shows to reconcile yet/i)).toBeInTheDocument();
   });
+});
 
-  it('FeeBreakdown + settled row: shows net, Stripe-record badge, the sent sentence and copyable id', () => {
-    mockedHook.mockReturnValue({
-      rows: [row()],
-      isLoading: false,
-      isError: false,
-      refetch: vi.fn(),
-    });
-    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" />);
+describe('ClubFinancialReconciliationCard: the server figures', () => {
+  it('Collected, Refunded and Paid, each separate, as the server computed them', () => {
+    mockFigures([
+      payoutFiguresWith('completed', {
+        collected_cents: 128000,
+        refunded_cents: 3200,
+        owed_cents: 124800,
+        payout_amount_cents: 124800,
+      }),
+    ]);
+    renderCard();
 
     expect(screen.getByText('Cedar Valley Classic')).toBeInTheDocument();
-    expect(screen.getByText('$100.00')).toBeInTheDocument();
-    expect(screen.getByText('Stripe fee breakdown for every charge')).toBeInTheDocument();
+    expect(screen.getByTestId('payout-figures')).toHaveTextContent(
+      'Collected $1,280.00 · Refunded $32.00 · Paid $1,248.00'
+    );
     expect(screen.getByTestId('payout-stage')).toHaveTextContent(
       'Sent December 12. Usually in your account the next business day.'
     );
+  });
+
+  it('a sent row keeps its coverage badge and copyable transfer id, and no Stripe link', () => {
+    mockFigures([payoutFiguresWith('completed')]);
+    renderCard();
+
+    expect(screen.getByText('Stripe fee breakdown for every charge')).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: /copy stripe transfer id tr_123/i })
     ).toBeInTheDocument();
@@ -138,45 +208,62 @@ describe('ClubFinancialReconciliationCard', () => {
     expect(document.querySelector('a[href*="dashboard.stripe.com"]')).toBeNull();
   });
 
-  it('shows the SETTLED TRANSFER amount, labeled and distinct from the entry-fee net', () => {
-    // net (entry-fee take, $100.00) and the actual Stripe transfer amount
-    // ($96.80) are intentionally different figures; the reconciliation view
-    // shows BOTH so a treasurer can tie the transfer to Stripe.
-    mockedHook.mockReturnValue({
-      rows: [row()],
-      isLoading: false,
-      isError: false,
-      refetch: vi.fn(),
-    });
-    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" />);
-
-    // Entry-fee net present as its own figure...
-    expect(screen.getByText('$100.00')).toBeInTheDocument();
-    // ...and the settled transfer amount is shown, labeled "Transferred:".
-    expect(screen.getByText('Transferred:')).toBeInTheDocument();
-    // Assert the rendered line, not an aria-label: Badge and bare <span> map to
-    // role="generic", which PROHIBITS naming, so the aria-label this used to
-    // check was dropped by every screen reader and the test proved nothing.
-    const transferLine = screen.getByText('Transferred:').closest('p');
-    expect(transferLine).toHaveTextContent('$96.80');
-    // The two figures are textually distinguishable ($100.00 vs $96.80).
-    expect(transferLine).not.toHaveTextContent('$100.00');
-  });
-
   it('the sent day is machine-readable, on the show calendar', () => {
-    mockedHook.mockReturnValue({
-      rows: [row()],
-      isLoading: false,
-      isError: false,
-      refetch: vi.fn(),
-    });
-    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" />);
+    mockFigures([payoutFiguresWith('completed')]);
+    renderCard();
 
     const when = screen.getByText('December 12');
     expect(when.tagName).toBe('TIME');
     expect(when.getAttribute('datetime')).toBe('2026-12-12T15:00:00Z');
   });
 
+  it("an unsent show's figure is the live owed amount, never the parked row's stored one", () => {
+    // $10.00 refunded after the row was parked at $50.00: the run will send $40.00.
+    mockFigures([
+      payoutFiguresWith('awaiting_approval', {
+        refunded_cents: 1000,
+        owed_cents: 4000,
+        payout_amount_cents: 5000,
+      }),
+    ]);
+    renderCard();
+
+    const figures = screen.getByTestId('payout-figures');
+    expect(figures).toHaveTextContent(
+      'Collected $50.00 · Refunded $10.00 · To transfer $40.00 awaiting transfer, not yet sent'
+    );
+    expect(figures).not.toHaveTextContent('Paid');
+  });
+
+  it('a transfer in flight reads "Being sent", never Paid', () => {
+    mockFigures([payoutFiguresWith('processing')]);
+    renderCard();
+
+    expect(screen.getByTestId('payout-figures')).toHaveTextContent(
+      'Collected $50.00 · Refunded $0.00 · Being sent $50.00'
+    );
+    expect(screen.getByTestId('payout-figures')).not.toHaveTextContent('Paid');
+  });
+
+  it('a transfer id is shown only beside the payout row it belongs to', () => {
+    mockFigures([payoutFiguresWith('completed', { payout_id: 'payout-2' })]);
+    renderCard();
+
+    expect(
+      screen.queryByRole('button', { name: /copy stripe transfer id/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it('a show the reconciliation read has no orders for says No Stripe charges', () => {
+    mockFigures([payoutFigures()]);
+    mockReconciliation([]);
+    renderCard();
+
+    expect(screen.getByText('No Stripe charges')).toBeInTheDocument();
+  });
+});
+
+describe('ClubFinancialReconciliationCard: the payout sentence', () => {
   it.each([
     ['awaiting_approval', 'Being checked by myK9Show. Paid by December 16.'],
     ['approved', 'Being checked by myK9Show. Paid by December 16.'],
@@ -184,26 +271,16 @@ describe('ClubFinancialReconciliationCard', () => {
     ['processing', 'Being sent now. Paid by December 16.'],
     ['pending', 'Paid by December 16.'],
   ])('a %s payout reads "%s"', (status, sentence) => {
-    mockedHook.mockReturnValue({
-      rows: [row({ settlement: settlementFor(status) })],
-      isLoading: false,
-      isError: false,
-      refetch: vi.fn(),
-    });
-    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" />);
+    mockFigures([payoutFiguresWith(status)]);
+    renderCard();
 
     expect(screen.getByTestId('payout-stage')).toHaveTextContent(sentence);
   });
 
   it('before the show ends: paid within five business days of the last day', () => {
     vi.setSystemTime(new Date('2026-12-08T15:00:00Z'));
-    mockedHook.mockReturnValue({
-      rows: [row({ settlement: null })],
-      isLoading: false,
-      isError: false,
-      refetch: vi.fn(),
-    });
-    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" />);
+    mockFigures([payoutFigures()]);
+    renderCard();
 
     expect(screen.getByTestId('payout-stage')).toHaveTextContent(
       'Paid within five business days of December 9.'
@@ -212,13 +289,8 @@ describe('ClubFinancialReconciliationCard', () => {
 
   it('past the promised date: delayed, never a past date', () => {
     vi.setSystemTime(new Date('2026-12-17T15:00:00Z'));
-    mockedHook.mockReturnValue({
-      rows: [row({ settlement: settlementFor('awaiting_approval') })],
-      isLoading: false,
-      isError: false,
-      refetch: vi.fn(),
-    });
-    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" />);
+    mockFigures([payoutFiguresWith('awaiting_approval')]);
+    renderCard();
 
     const line = screen.getByTestId('payout-stage');
     expect(line).toHaveTextContent(
@@ -229,133 +301,99 @@ describe('ClubFinancialReconciliationCard', () => {
 
   it('a show with no readable dates states the promise in words', () => {
     mockedSchedules.mockReturnValue(new Map());
-    mockedHook.mockReturnValue({
-      rows: [row({ settlement: null })],
-      isLoading: false,
-      isError: false,
-      refetch: vi.fn(),
-    });
-    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" />);
+    mockFigures([payoutFigures()]);
+    renderCard();
 
     expect(screen.getByTestId('payout-stage')).toHaveTextContent(
       "Paid within five business days of the show's last day."
     );
   });
 
+  it('no payout row yet: a deadline, no transfer id', () => {
+    mockFigures([payoutFigures()]);
+    renderCard();
+
+    expect(screen.getByTestId('payout-stage')).toHaveTextContent('Paid by December 16.');
+    expect(
+      screen.queryByRole('button', { name: /copy stripe transfer id/i })
+    ).not.toBeInTheDocument();
+  });
+
   it('a fully refunded show has nothing to send and never reads Paid', () => {
-    mockedHook.mockReturnValue({
-      rows: [
-        row({
-          net: { status: 'available', netCents: 0 },
-          refundedCents: 10000,
-          owed: 'none-refunded',
-          settlement: null,
-        }),
-      ],
-      isLoading: false,
-      isError: false,
-      refetch: vi.fn(),
-    });
-    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" />);
+    mockFigures([payoutFigures(ALL_REFUNDED)]);
+    renderCard();
 
     expect(screen.getByTestId('payout-stage')).toHaveTextContent(
       'Nothing to send. Every entry fee for this show was refunded.'
     );
-    expect(screen.queryByText(/^Paid/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Transferred:/)).not.toBeInTheDocument();
+    expect(screen.getByTestId('payout-figures')).toHaveTextContent(
+      /^Collected \$50\.00 · Refunded \$50\.00$/
+    );
+    expect(screen.queryByText(/Paid/)).not.toBeInTheDocument();
   });
 
-  it('a $0 show with no refund never claims every entry fee was refunded', () => {
-    mockedHook.mockReturnValue({
-      rows: [
-        row({
-          net: { status: 'available', netCents: 0 },
-          refundedCents: 0,
-          owed: 'none-no-fees',
-          settlement: null,
-        }),
-      ],
-      isLoading: false,
-      isError: false,
-      refetch: vi.fn(),
-    });
-    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" />);
-
-    expect(screen.getByTestId('payout-stage')).not.toHaveTextContent(/refunded/);
-  });
-
-  it('a $0 completed payout row is nothing to send, never "Sent"', () => {
-    mockedHook.mockReturnValue({
-      rows: [
-        row({
-          net: { status: 'available', netCents: 0 },
-          refundedCents: 10000,
-          owed: 'none-refunded',
-          settlement: settlementFor('completed', {
-            amountCents: 0,
-            completedAt: '2026-12-12T15:00:00Z',
-          }),
-        }),
-      ],
-      isLoading: false,
-      isError: false,
-      refetch: vi.fn(),
-    });
-    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" />);
+  it('a $0 completed close-out row is nothing to send, never "Sent" or "Paid $0.00"', () => {
+    mockFigures([payoutFiguresWith('completed', { ...ALL_REFUNDED, payout_amount_cents: 0 })]);
+    renderCard();
 
     const line = screen.getByTestId('payout-stage');
     expect(line).toHaveTextContent('Nothing to send. Every entry fee for this show was refunded.');
     expect(line).not.toHaveTextContent(/Sent/);
-    expect(screen.queryByText(/Transferred:|To transfer:/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\$0\.00/)).not.toBeInTheDocument();
+    expect(screen.getByTestId('payout-figures')).not.toHaveTextContent(/Paid|To transfer/);
   });
 
-  it('a club-account failure whose fees were then refunded: no Fix it, no stale "To transfer"', () => {
-    mockedHook.mockReturnValue({
-      rows: [
-        row({
-          net: { status: 'available', netCents: 0 },
-          refundedCents: 5000,
-          owed: 'none-refunded',
-          settlement: settlementFor('failed', {
-            failureReason: 'club_account:account_closed: The bank account is closed',
-          }),
-        }),
-      ],
-      isLoading: false,
-      isError: false,
-      refetch: vi.fn(),
-    });
-    render(
-      <ClubFinancialReconciliationCard
-        clubId="club-1"
-        accountState="enabled"
-        onFixBankAccount={vi.fn()}
-      />
+  it('Codex (a): a known $0 owed with no refunds and no payout row promises no payment', () => {
+    mockFigures([payoutFigures({ collected_cents: 0, owed_cents: 0 })]);
+    renderCard({ accountState: 'not-enabled', onConnectBankAccount: vi.fn() });
+
+    const line = screen.getByTestId('payout-stage');
+    expect(line).toHaveTextContent(
+      'Nothing to send. This show has no online entry fees to pay out.'
     );
+    expect(line).not.toHaveTextContent(/Paid by|refunded/);
+    expect(screen.queryByRole('button', { name: 'Connect bank account' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('payout-figures')).toHaveTextContent(
+      /^Collected \$0\.00 · Refunded \$0\.00$/
+    );
+  });
+
+  it('Codex (b): a club-account failure whose fees were then refunded: no Fix it, no "To transfer"', () => {
+    mockFigures([
+      payoutFiguresWith('failed', { ...ALL_REFUNDED, payout_failure_reason: CLUB_FAILURE }),
+    ]);
+    renderCard({ onFixBankAccount: vi.fn() });
 
     expect(screen.getByTestId('payout-stage')).toHaveTextContent(
       'Nothing to send. Every entry fee for this show was refunded.'
     );
+    expect(screen.queryByText(/bank account needs attention/i)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Fix it' })).not.toBeInTheDocument();
-    expect(screen.queryByText(/To transfer:/)).not.toBeInTheDocument();
-    expect(screen.queryByText('$50.00')).not.toBeInTheDocument();
+    expect(screen.getByTestId('payout-figures')).toHaveTextContent(
+      /^Collected \$50\.00 · Refunded \$50\.00$/
+    );
   });
 
+  it.each(['pending', 'awaiting_approval', 'approved', 'held'])(
+    'Codex (c): a %s row still holding $50.00 after a full refund: no deadline, no "To transfer"',
+    status => {
+      mockFigures([payoutFiguresWith(status, { ...ALL_REFUNDED, payout_amount_cents: 5000 })]);
+      renderCard();
+
+      const line = screen.getByTestId('payout-stage');
+      expect(line).toHaveTextContent(
+        'Nothing to send. Every entry fee for this show was refunded.'
+      );
+      expect(line).not.toHaveTextContent(/Paid by|Being checked/);
+      expect(screen.getByTestId('payout-figures')).toHaveTextContent(
+        /^Collected \$50\.00 · Refunded \$50\.00$/
+      );
+    }
+  );
+
   it('a platform failure says we are on it, with no control for the club', () => {
-    mockedHook.mockReturnValue({
-      rows: [row({ settlement: settlementFor('failed', { failureReason: 'Stripe rate limit' }) })],
-      isLoading: false,
-      isError: false,
-      refetch: vi.fn(),
-    });
-    render(
-      <ClubFinancialReconciliationCard
-        clubId="club-1"
-        accountState="enabled"
-        onFixBankAccount={vi.fn()}
-        onConnectBankAccount={vi.fn()}
-      />
-    );
+    mockFigures([payoutFiguresWith('failed', { payout_failure_reason: 'Stripe rate limit' })]);
+    renderCard({ onFixBankAccount: vi.fn(), onConnectBankAccount: vi.fn() });
 
     expect(screen.getByTestId('payout-stage')).toHaveTextContent(
       "We couldn't send this. We're on it, and you don't need to do anything. Paid by December 16."
@@ -365,27 +403,10 @@ describe('ClubFinancialReconciliationCard', () => {
 
   it('a club failure names the bank account, and Fix it opens the fix', async () => {
     const onFixBankAccount = vi.fn();
-    mockedHook.mockReturnValue({
-      rows: [
-        row({
-          settlement: settlementFor('failed', {
-            failureReason: 'club_account:account_closed: The bank account is closed',
-          }),
-        }),
-      ],
-      isLoading: false,
-      isError: false,
-      refetch: vi.fn(),
-    });
+    mockFigures([payoutFiguresWith('failed', { payout_failure_reason: CLUB_FAILURE })]);
     vi.useRealTimers();
     const user = userEvent.setup();
-    render(
-      <ClubFinancialReconciliationCard
-        clubId="club-1"
-        accountState="enabled"
-        onFixBankAccount={onFixBankAccount}
-      />
-    );
+    renderCard({ onFixBankAccount });
 
     expect(screen.getByTestId('payout-stage')).toHaveTextContent(
       "Your bank account needs attention. We can't send this payout until it's fixed."
@@ -396,21 +417,10 @@ describe('ClubFinancialReconciliationCard', () => {
 
   it('bank not connected: waiting for the bank account, with the link that connects it', async () => {
     const onConnectBankAccount = vi.fn();
-    mockedHook.mockReturnValue({
-      rows: [row({ settlement: null })],
-      isLoading: false,
-      isError: false,
-      refetch: vi.fn(),
-    });
+    mockFigures([payoutFigures()]);
     vi.useRealTimers();
     const user = userEvent.setup();
-    render(
-      <ClubFinancialReconciliationCard
-        clubId="club-1"
-        accountState="not-enabled"
-        onConnectBankAccount={onConnectBankAccount}
-      />
-    );
+    renderCard({ accountState: 'not-enabled', onConnectBankAccount });
 
     expect(screen.getByTestId('payout-stage')).toHaveTextContent(
       "Waiting for your club's bank account."
@@ -419,14 +429,27 @@ describe('ClubFinancialReconciliationCard', () => {
     expect(onConnectBankAccount).toHaveBeenCalledTimes(1);
   });
 
-  it('NoFeeBreakdown row: shows the no-Stripe-record badge, not the Stripe-record one', () => {
-    mockedHook.mockReturnValue({
-      rows: [row({ chargeVerification: 'SomeFeeBreakdownsMissing', settlement: null })],
-      isLoading: false,
-      isError: false,
-      refetch: vi.fn(),
-    });
-    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" />);
+  // MYK9-2172: a held payout never shows the operator's reason, a failure, or "Paid".
+  it.each(['awaiting_approval', 'approved', 'held'])(
+    'a %s payout never reads failed or late, and is not Paid',
+    status => {
+      mockFigures([payoutFiguresWith(status, { payout_failure_reason: 'operator note' })]);
+      renderCard();
+
+      expect(screen.getByTestId('payout-figures')).toHaveTextContent('To transfer $50.00');
+      expect(screen.getByTestId('payout-figures')).not.toHaveTextContent('Paid');
+      for (const alarm of [/needs attention/i, /failed/i, /late/i, /overdue/i, /operator note/i]) {
+        expect(screen.queryByText(alarm)).not.toBeInTheDocument();
+      }
+    }
+  );
+});
+
+describe('ClubFinancialReconciliationCard: charge coverage', () => {
+  it('SomeFeeBreakdownsMissing: the partial-coverage badge, not the full one', () => {
+    mockFigures([payoutFigures()]);
+    mockReconciliation([reconciliationRow({ chargeVerification: 'SomeFeeBreakdownsMissing' })]);
+    renderCard();
 
     expect(screen.getByText('Some charges have no Stripe fee breakdown')).toBeInTheDocument();
     expect(screen.queryByText('Stripe fee breakdown for every charge')).not.toBeInTheDocument();
@@ -441,67 +464,13 @@ describe('ClubFinancialReconciliationCard', () => {
       AllFeeBreakdowns: 'Stripe fee breakdown for every charge',
       SomeFeeBreakdownsMissing: 'Some charges have no Stripe fee breakdown',
     } as const;
+    mockFigures([payoutFigures()]);
     for (const state of ['AllFeeBreakdowns', 'SomeFeeBreakdownsMissing'] as const) {
-      mockedHook.mockReturnValue({
-        rows: [row({ chargeVerification: state })],
-        isLoading: false,
-        isError: false,
-        refetch: vi.fn(),
-      });
-      const view = render(
-        <ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" />
-      );
+      mockReconciliation([reconciliationRow({ chargeVerification: state })]);
+      const view = renderCard();
       expect(screen.getByText(LABELS[state])).toBeInTheDocument();
       expect(screen.queryByText('Mismatch')).not.toBeInTheDocument();
       view.unmount();
     }
   });
-
-  it('pending net: renders a "Net pending" pill, never $0 or a bare number', () => {
-    mockedHook.mockReturnValue({
-      rows: [row({ net: { status: 'pending' } })],
-      isLoading: false,
-      isError: false,
-      refetch: vi.fn(),
-    });
-    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" />);
-
-    expect(screen.getByText('Net pending')).toBeInTheDocument();
-    expect(screen.queryByText('$0.00')).not.toBeInTheDocument();
-  });
-
-  it('no payout row yet: a deadline, no transfer id', () => {
-    mockedHook.mockReturnValue({
-      rows: [row({ settlement: null })],
-      isLoading: false,
-      isError: false,
-      refetch: vi.fn(),
-    });
-    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" />);
-
-    expect(screen.getByTestId('payout-stage')).toHaveTextContent('Paid by December 16.');
-    expect(
-      screen.queryByRole('button', { name: /copy stripe transfer id/i })
-    ).not.toBeInTheDocument();
-  });
-
-  // MYK9-2172: a held payout never shows the operator's reason, a failure, or a "Transferred" figure.
-  it.each(['awaiting_approval', 'approved', 'held'])(
-    'a %s payout never reads failed or late, and is not "Transferred"',
-    status => {
-      mockedHook.mockReturnValue({
-        rows: [row({ settlement: settlementFor(status, { failureReason: 'operator note' }) })],
-        isLoading: false,
-        isError: false,
-        refetch: vi.fn(),
-      });
-      render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" />);
-
-      expect(screen.getByText(/To transfer:/)).toBeInTheDocument();
-      expect(screen.queryByText(/Transferred:/)).not.toBeInTheDocument();
-      for (const alarm of [/needs attention/i, /failed/i, /late/i, /overdue/i, /operator note/i]) {
-        expect(screen.queryByText(alarm)).not.toBeInTheDocument();
-      }
-    }
-  );
 });

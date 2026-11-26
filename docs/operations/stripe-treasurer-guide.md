@@ -233,8 +233,10 @@ money.
 
 **How you will know.** myK9Show emails your club's contact address when a deposit is sent. That is
 the email address on your club's page, which may not be yours, so check that it reaches someone
-who will tell you. In myK9Show, the Payments tab lists each of your shows with the amount and
-when it is paid.
+who will tell you. In myK9Show, the Payments tab lists each of your shows with what it collected,
+what was refunded and what was paid, and when it is paid. For the example above it reads
+Collected $1,280.00, Refunded $32.00, Paid $1,248.00. Until the payout is sent, the last figure
+reads "To transfer"; a show with nothing to send shows no paid figure.
 
 **For your treasurer's report.** Your show secretary can print the show's Financial Report from
 the show's Reports tab. It lists every entry and what was paid.

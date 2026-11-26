@@ -15,12 +15,19 @@
  * Past the promised date, an unsent payout reads as delayed (MYK9-1956 owner
  * decision): a past date is never shown as the expected date.
  *
- * Precedence: a completed payout with money reads Sent; then nothing owed
- * (`owed`, decided once in clubShowReconciliation.ts deriveShowOwed); then a
- * club-account failure; then everything else. No other branch looks at a zero.
+ * Every money input is the server's (club_show_payout_figures, MYK9-2454, owner
+ * decision A): `paid` says whether money moved, `owedCents` whether anything is
+ * still owed, recomputed the way the payout run computes it, and `payout` is the
+ * canonical row. Nothing here reads a stored amount or a client-side net, which
+ * lag a refund until the nightly run.
+ *
+ * Precedence: a sent payout reads Sent; then nothing owed with no money moving
+ * (fully refunded, or no online fees); then a club-account failure; then
+ * everything else. No other branch looks at a zero.
  */
 import { getTrialTimezone } from '@/features/registries';
 import { calendarDateInTimeZone } from '@/utils/calendarDate';
+import type { ClubShowPayoutFigures } from './clubShowPayoutFigures';
 import type { PayoutsAccountState } from './payoutBadge';
 import { payoutTimeline, type PayoutTimeline } from './payoutDeadline';
 
@@ -54,26 +61,17 @@ export interface PayoutStage {
   action: PayoutStageAction | null;
 }
 
-/**
- * Whether the show still owes the club anything, decided ONCE from the
- * reconciliation row and its payout row (clubShowReconciliation.ts
- * deriveShowOwed). 'unknown' (the net cannot be read yet) is read as 'some'.
- */
-export type ShowOwed = 'none-refunded' | 'none-no-fees' | 'some' | 'unknown';
+/** The server's figures for one show, as useClubShowPayoutFigures returns them. */
+export type PayoutStageFigures = Pick<
+  ClubShowPayoutFigures,
+  'owedCents' | 'payout' | 'paid' | 'fullyRefunded'
+>;
 
 export interface PayoutStageInput {
-  /** The show's authoritative payout row, or null when none exists yet. */
-  payout: {
-    status: string;
-    failureReason: string | null;
-    completedAt: string | null;
-    /** What the row sends. Only a completed row with money reads "Sent". */
-    amountCents: number;
-  } | null;
+  figures: PayoutStageFigures;
   accountState: PayoutsAccountState;
   /** The show's last day and timezone, or null when the show could not be read. */
   schedule: { lastDay: string; timeZone: string } | null;
-  owed: ShowOwed;
   now: Date;
 }
 
@@ -109,18 +107,19 @@ function stageOf(kind: PayoutStageKind, text: string, action: PayoutStageAction 
 }
 
 export function resolvePayoutStage({
-  payout,
+  figures,
   accountState,
   schedule,
-  owed,
   now,
 }: PayoutStageInput): PayoutStage {
   const timeZone = schedule?.timeZone ?? getTrialTimezone(undefined);
   const timeline = schedule ? payoutTimeline(schedule.lastDay, timeZone, now) : null;
+  const { payout, paid } = figures;
   const status = payout?.status ?? null;
 
   // 1. Money moved, whatever happened after (a later refund is the club's to settle).
-  if (status === 'completed' && (payout?.amountCents ?? 0) > 0) {
+  // `sent` exists only for a completed payout above $0 (clubShowPayoutFigures.ts).
+  if (paid.kind === 'sent') {
     const completedAt = payout?.completedAt ?? null;
     const sentDay = completedAt ? calendarDateInTimeZone(new Date(completedAt), timeZone) : null;
     const today = calendarDateInTimeZone(now, timeZone);
@@ -134,20 +133,18 @@ export function resolvePayoutStage({
     };
   }
 
-  // 2-3. Nothing owed. The payout run never sends $0: it skips such a show, or
-  // closes its parked row at $0, and makes no replacement for a failed one. So
-  // no deadline, bank request, delay or fix applies to it.
-  if (owed === 'none-refunded') {
-    return stageOf(
-      'nothing-to-send',
-      'Nothing to send. Every entry fee for this show was refunded.'
-    );
-  }
-  if (owed === 'none-no-fees') {
-    return stageOf(
-      'nothing-to-send',
-      'Nothing to send. This show has no online entry fees to pay out.'
-    );
+  // 2-3. Nothing owed and no money moving. The payout run never sends $0: it
+  // skips such a show, or closes its parked row at $0, and makes no replacement
+  // for a failed one. So no deadline, bank request, delay or fix applies to it,
+  // whatever the payout row's status or stored amount. A transfer already in
+  // flight is a fact and falls through to "Being sent".
+  if (paid.kind === 'none' && figures.owedCents <= 0) {
+    return figures.fullyRefunded
+      ? stageOf('nothing-to-send', 'Nothing to send. Every entry fee for this show was refunded.')
+      : stageOf(
+          'nothing-to-send',
+          'Nothing to send. This show has no online entry fees to pay out.'
+        );
   }
 
   // 4. The club's to fix.

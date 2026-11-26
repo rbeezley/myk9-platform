@@ -20,7 +20,7 @@ import { FaultStepper } from '../../FaultStepper';
 import { ScoreConfirmationDialog, timeRows } from '../../ScoreConfirmationDialog';
 import { resultLabel } from '../../../utils/resultLabel';
 import { UKCTimerControls } from './UKCTimerControls';
-import { StopwatchTime } from '../../StopwatchTime';
+import { StopwatchTime, type StopwatchClock } from '../../StopwatchTime';
 import { MaxTimeRing } from '../../MaxTimeRing';
 import { TimerResetButton } from '../../TimerResetButton';
 import { formatScoresheetSubtitle } from '../../../utils/scoresheetSubtitle';
@@ -106,6 +106,11 @@ function timerStatus(isDual: boolean, element: ElementMaxTimeStatus, stopwatch: 
         isWarning: stopwatch.shouldShow30SecondWarning(),
         isExpired: stopwatch.isTimeExpired(),
       };
+}
+
+/** Correcting a score shows the saved element time until the clock runs again (MYK9-2068). */
+function ElementTimeValue({ saved, clock }: { saved: string | undefined; clock: StopwatchClock }) {
+  return saved ? <>{saved}</> : <StopwatchTime stopwatch={clock} />;
 }
 
 export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
@@ -347,8 +352,9 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                     'font-mono text-xl font-bold',
                     elementTimer.isRunning ? 'text-violet-600' : 'text-muted-foreground'
                   )}
+                  data-testid="element-timer-display"
                 >
-                  <StopwatchTime stopwatch={elementTimer} />
+                  <ElementTimeValue saved={savedElement.keepSaved} clock={elementTimer} />
                 </span>
                 {(stopwatch.isRunning || elementTimer.isRunning) && (
                   <Button size="sm" variant="secondary" className="h-11" onClick={handleFinish}>
@@ -470,7 +476,7 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
               ? [
                   {
                     label: 'Element Time',
-                    value: savedElement.keepSaved ?? <StopwatchTime stopwatch={elementTimer} />,
+                    value: <ElementTimeValue saved={savedElement.keepSaved} clock={elementTimer} />,
                     mono: true,
                   },
                 ]

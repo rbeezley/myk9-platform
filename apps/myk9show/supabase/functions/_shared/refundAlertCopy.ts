@@ -178,17 +178,37 @@ export function cartClassesNotInShowChargeAlert(input: {
   };
 }
 
-/** The charge disagrees with authoritative pricing (reason paid_amount_mismatch). */
+/**
+ * The charge disagrees with authoritative pricing (reason paid_amount_mismatch).
+ * MYK9-2036: `snapshotMismatch` is set when a session was verified against the
+ * prices Stripe recorded when it was opened; a fee change cannot cause that one.
+ */
 export function paidAmountMismatchChargeAlert(input: {
   sessionId: string;
   chargedCents: number;
-  authoritativeCents: number;
+  authoritativeCents: number | null;
+  snapshotMismatch?: string | null;
 }): AlertCopy {
+  if (input.snapshotMismatch) {
+    const worth =
+      input.authoritativeCents == null
+        ? ''
+        : ` (the recorded prices add up to ${dollars(input.authoritativeCents)} USD)`;
+    return {
+      title: 'Paid checkout does not match the prices it was opened with: refund awaiting approval',
+      html: `Checkout session <code>${input.sessionId}</code> charged
+     ${dollars(input.chargedCents)} USD, but the cart does not match the prices Stripe
+     recorded when this checkout was opened${worth}: ${input.snapshotMismatch}. A fee change
+     after checkout opened cannot cause this; the likely cause is a cart changed or tampered
+     with after checkout started. The cart is untouched, so the exhibitor can check out
+     again. ${QUEUED_IN_FULL}`,
+    };
+  }
   return {
     title: 'Paid amount disagrees with authoritative pricing — refund awaiting approval',
     html: `Checkout session <code>${input.sessionId}</code> charged
      ${dollars(input.chargedCents)} USD, but the show/class pricing says this cart is worth
-     ${dollars(input.authoritativeCents)} USD. Benign cause: the show's fees changed (or the
+     ${input.authoritativeCents == null ? 'an unknown amount in' : dollars(input.authoritativeCents)} USD. Benign cause: the show's fees changed (or the
      day-of-show fee tier started) between checkout and payment. Malicious cause: cart
      values were tampered with after checkout started. The cart is untouched, so the
      exhibitor can check out again. ${QUEUED_IN_FULL}`,

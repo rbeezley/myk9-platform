@@ -78,6 +78,22 @@ describe('REFUND_ALERT_BUILDERS', () => {
   );
 });
 
+describe('paidAmountMismatchChargeAlert for a price snapshot (MYK9-2036)', () => {
+  it.each([3000, null])('names the mismatch and points into the queue (recorded %s)', cents => {
+    const { title, html } = paidAmountMismatchChargeAlert({
+      sessionId: 'cs_1',
+      chargedCents: 5250,
+      authoritativeCents: cents,
+      snapshotMismatch: 'cart line ci-1 is stored at 4000 cents but was sold at 2500',
+    });
+    expect(title).toContain('prices it was opened with');
+    expect(html).toContain('cart line ci-1 is stored at 4000 cents but was sold at 2500');
+    expect(html).not.toContain("the show's fees changed");
+    expect(instructsManualRefund(`${title}. ${html}`)).toBe(false);
+    expect(html).toMatch(/Refunds awaiting approval/);
+  });
+});
+
 /** Every alert path in refundRequests, refundApproval, refundCreateRejection and refundSettlement. */
 const definitive = (code: string) =>
   Object.assign(new Error(code), { type: 'StripeInvalidRequestError', statusCode: 400, code });

@@ -10,6 +10,7 @@ import { reportStoreError } from '@/utils/standardizedErrorHandler';
 import { logger } from '@/services/LoggingService';
 import { persistJudgeInfo } from './userStoreJudgeInfo';
 import { redactDirectoryContacts } from './userStoreRedactContacts';
+import { mergeShortDirectoryLoad } from './userStoreDirectoryMerge';
 import {
   currentSignOutGeneration,
   clearRedactionPending,
@@ -324,20 +325,14 @@ export const useUserStore = create<UserStore>()(
             // MYK9-2253: a short load keeps the copy already saved (it may hold people
             // this read missed) and marks the directory incomplete so Add Person asks the server.
             // Map database results to User objects
-            const users = data.map(mapDatabaseToUser);
+            let users = data.map(mapDatabaseToUser);
 
             // MYK9-2253: a short load may miss people the saved copy holds, so the rows that
             // arrived are merged into it by id (the fresh row wins) and the directory stays
             // marked incomplete, so Add Person asks the server. With no saved copy, some beat none.
             if (short) {
               logger.warn('People directory load came back short', 'store', { data: short });
-              const arrived = new Set(users.map(user => user.id));
-              users.push(...get().users.filter(user => !arrived.has(user.id)));
-              users.sort(
-                (a, b) =>
-                  (a.lastName ?? '').localeCompare(b.lastName ?? '') ||
-                  (a.firstName ?? '').localeCompare(b.firstName ?? '')
-              );
+              users = mergeShortDirectoryLoad(users, get().users);
             }
 
             // A management load is the one write allowed to bring contact details back,

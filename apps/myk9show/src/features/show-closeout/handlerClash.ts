@@ -1,6 +1,6 @@
 /**
  * MYK9-2031: dogs that share one handler in the same class, derived from the entries the Results
- * tab already reads. Nothing is stored: the wizard's "I'll decide at the show" saves the owner as
+ * tab already reads. Nothing is stored: the wizard's "Decide at the show" saves the owner as
  * every dog's handler, so one person handling two dogs in a class is the trace it leaves. The
  * marked catalog names the handler when it differs from the owner (AKC Scent Work Regulations
  * ch. 3 sec. 36), so the secretary settles these first with Change handler on the entry. The

@@ -6,13 +6,13 @@ import { assertFixtureSignInAllowed } from '../../productionFixtureGuard';
  * UI test for the secretary mail-in registration wizard.
  *
  * Walks /secretary/register/:showId as a secretary in mail-in mode end-to-end:
- *   - Secretary-mode UI shape (advanced dog search visible, "Step 1 of 5").
+ *   - Secretary-mode UI shape (advanced dog search visible, "Step 1 of 4").
  *   - Validation gating (Next disabled with no dog selected).
  *   - Server-side dog search returning dogs the secretary does NOT own
  *     (regression guard for 2026-04-23 commit 08294440).
  *   - Multi-owner cart guard: blocks Next + renders banner when selection
  *     spans two owners; clears when reduced back to one.
- *   - Full 5-step happy path through to confirmation, with the resulting
+ *   - Full 4-step happy path through to confirmation, with the resulting
  *     enrollment filed under the dog's owner (not the secretary).
  *   - DB verification that the entry carries a non-zero entry_fee (PR #75).
  *
@@ -94,9 +94,9 @@ test.describe('Registration Wizard — Browse + RBAC guard', () => {
     await gotoRegistrationWizard(page);
 
     // Step indicator: Select Dogs is the first step for secretaries (exhibitors skip it).
-    // The "Step 1 of 5" text appears in two places (vertical sidebar + main content
+    // The "Step 1 of 4" text appears in two places (vertical sidebar + main content
     // header); .first() matches either reliably.
-    await expect(page.getByText(/Step 1 of 5/).first()).toBeVisible();
+    await expect(page.getByText(/Step 1 of 4/).first()).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Select Dogs to Enter' })).toBeVisible();
 
     // advancedSearch flag → "Search all dogs..." placeholder is present.
@@ -194,16 +194,7 @@ test.describe('Registration Wizard — Mail-in entry happy path', () => {
 
     await page.getByRole('button', { name: /^Next/ }).click();
 
-    // ─── Step 3: Handler assignment (auto-assigned to dog owner) ───────────
-    // smartDefaults.autoAssignHandler = true for secretary roles, so the
-    // alert reads "All entries have handlers assigned."
-    await expect(page.getByText(/All entries have handlers assigned/i)).toBeVisible({
-      timeout: 5000,
-    });
-
-    await page.getByRole('button', { name: /^Next/ }).click();
-
-    // ─── Step 4: Payment ───────────────────────────────────────────────────
+    // ─── Step 3: Payment (the handler defaults to the dog owner) ───
     await expect(page.getByRole('heading', { name: 'Payment Information' })).toBeVisible();
 
     // Fee=0 fallback regression guard (PR #75): the show's pre_entry_fee is $10
@@ -238,7 +229,7 @@ test.describe('Registration Wizard — Mail-in entry happy path', () => {
     expect(rpcResponse.status()).toBeGreaterThanOrEqual(200);
     expect(rpcResponse.status()).toBeLessThan(300);
 
-    // ─── Step 5: Confirmation ──────────────────────────────────────────────
+    // ─── Step 4: Confirmation ───
     await expect(page.getByRole('heading', { name: /Entry Confirmed!/i })).toBeVisible({
       timeout: 30000,
     });

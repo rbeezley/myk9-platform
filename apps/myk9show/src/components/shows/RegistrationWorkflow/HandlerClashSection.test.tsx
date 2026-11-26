@@ -97,9 +97,7 @@ describe('HandlerClashSection (MYK9-2021)', () => {
       />
     );
     expect(
-      screen.getByText(
-        "You can't handle both Willow and Scout in Container Novice A. Who will handle Scout?"
-      )
+      screen.getByText('Willow and Scout are both in Container Novice A. Who handles Scout?')
     ).toBeInTheDocument();
     expect(onPending).toHaveBeenLastCalledWith(1);
   });
@@ -112,7 +110,7 @@ describe('HandlerClashSection (MYK9-2021)', () => {
         onAssign={vi.fn()}
       />
     );
-    expect(screen.getByText(/in Container Novice\. Who will handle Scout\?/)).toBeInTheDocument();
+    expect(screen.getByText(/in Container Novice\. Who handles Scout\?/)).toBeInTheDocument();
   });
 
   it('writes a typed name as the second dog handler and answers the question', async () => {
@@ -145,7 +143,7 @@ describe('HandlerClashSection (MYK9-2021)', () => {
         onAssign={onAssign}
       />
     );
-    const button = screen.getByRole('checkbox', { name: "I'll decide at the show" });
+    const button = screen.getByRole('checkbox', { name: 'Decide at the show' });
     await userEvent.click(button);
     expect(onAssign).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -166,6 +164,6 @@ describe('HandlerClashSection (MYK9-2021)', () => {
         onAssign={vi.fn()}
       />
     );
-    expect(screen.getByText(/You can't handle both Willow and Scout/)).toBeInTheDocument();
+    expect(screen.getByText(/Willow and Scout are both in/)).toBeInTheDocument();
   });
 });

@@ -53,7 +53,7 @@ vi.mock('@/features/lifecycle-emails', async importOriginal => ({
 import { WorkflowStepContent } from '../WorkflowStepContent';
 
 const workflowConfig: WorkflowConfig = {
-  steps: ['dog-selection', 'class-selection', 'handler-assignment', 'payment', 'confirmation'],
+  steps: ['dog-selection', 'class-selection', 'payment', 'confirmation'],
   features: {
     bulkSelection: true,
     createNew: true,

@@ -30,6 +30,7 @@ import { EntryManagementCockpit } from '@/components/entries/management/EntryMan
 import { EntryManagementViewToolbar } from '@/components/entries/management/EntryManagementViewToolbar';
 import { EntryListViewHeader } from '@/components/entries/management/EntryListViewHeader';
 import { EntryEditDialog } from '@/components/entries/EntryEditDialog';
+import { toEditDialogEntry } from '@/components/entries/toEditDialogEntry';
 import { findEntryRefundsToDecide, isPullsListEntry } from '@/features/waiting-for-you';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { showSendsDecisionEmailsUnasked } from '@/features/lifecycle-emails/decisionEmail';
@@ -280,30 +281,7 @@ const EntryManagementPage: React.FC = () => {
   >(null);
 
   const openEditEntry = (entry: EntryManagementEntry) => {
-    setEditEntry({
-      id: entry.id,
-      showId: entry.showId,
-      showName: selectedShow?.name ?? 'this show',
-      dogName: entry.dogName,
-      currentStatus: entry.rawEntryStatus ?? entry.entryStatus,
-      createdAt: entry.submittedAt.toISOString(),
-      handler: entry.handlerName,
-      classes: entry.classes.map(cls => ({
-        id: cls.id,
-        name: cls.name,
-        number: cls.number,
-        fee: cls.fee,
-        status: cls.status,
-        // MYK9-632: the card behind this sheet already renders this reason
-        // (`removalSummaryLine`); the sheet must not go back to the wire for a
-        // value the page has in hand, nor read differently from the card.
-        withdrawalReasonCode: cls.withdrawalReasonCode ?? entry.withdrawalReasonCode,
-        handler: entry.handlerName,
-        handlerId: cls.handlerId ?? entry.handlerId ?? null,
-        ...(cls.trialType !== undefined ? { trialType: cls.trialType } : {}),
-        ...(cls.jumpHeight !== undefined ? { jumpHeight: cls.jumpHeight } : {}),
-      })),
-    });
+    setEditEntry(toEditDialogEntry(entry, selectedShow?.name ?? 'this show'));
   };
 
   useEffect(() => {

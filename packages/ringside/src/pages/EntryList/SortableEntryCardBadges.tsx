@@ -35,7 +35,9 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
 }) => {
   const displayStatus = entry.inRing ? 'in-ring' : entry.status;
   const reasonLabel =
-    !entry.inRing && entry.notRunningReason ? notRunningLabel(entry.notRunningReason) : undefined;
+    !entry.inRing && entry.notRunningReason
+      ? notRunningLabel(entry.notRunningReason, entry.movedToClassName)
+      : undefined;
 
   // Pulse when the dog's status (or a realtime timestamp, when the host sets
   // one) changes while the badge stays mounted. The list used to key each card

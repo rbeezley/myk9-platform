@@ -56,18 +56,26 @@ If a duplicate still lands, nothing changes: the webhook queues the refund reque
 **MYK9-2449, subscriptions: expire the customer's open subscription sessions first.** After
 `hasBlockingSubscription`, list the customer's open Checkout Sessions (`checkout.sessions.list({ customer,
 status: 'open' })`), keep those with `mode === 'subscription'`, and expire each. Then create the new one. Newest wins.
-The old tab shows Stripe's expired page. If `expire` fails because that session was just paid, re-check, and return
-the same "You already have a subscription" 400. Copy the retrieve, expire and recheck order that
-`stripe-payment-link` already uses. Reusing an open session is simpler for the user but breaks when the price
+The old tab shows Stripe's expired page. If `expire` fails because that session was just paid, return the same "You already have a
+subscription" 400. Tab A can also finish paying after the first check but before the list, so its session is
+already complete and never reaches `expire`. So run `hasBlockingSubscription` again after the expiry pass and
+right before create. Copy the retrieve, expire and recheck order that `stripe-payment-link` already uses. Reusing an open session is simpler for the user but breaks when the price
 differs (monthly against annual). Expiring is one rule.
 
 This leaves a window of about a second for two truly simultaneous requests. A per-customer lock would close it.
 It is not worth a new table for a premium subscription.
 
 **Webhook backstop for subscriptions.** In `handleSubscriptionCheckoutCompleted`, after the sync, count the
-customer's blocking subscriptions. If there is more than one, alert the admin with both ids (dedupe key per
-session) and queue a `refund_requests` row for the newer subscription's first invoice. The code never cancels or
-refunds on its own. This needs a migration: a new kind (`duplicate_subscription`) in
+customer's blocking subscriptions. If there is more than one, alert the admin with both ids and queue a `refund_requests` row for the newer
+subscription's first invoice. Key both the alert and the row on the newer subscription's id, not the session:
+both completion events can arrive after both subscriptions exist, and each picks the same newer one. The code
+never cancels or refunds on its own. Recovery has a second human step: the alert tells the admin to cancel the
+duplicate in Stripe, or it bills again at renewal.
+
+Cancelling it must not drop the customer to free. Today `syncSubscriptionFromStripe` writes
+`subscription_tier: 'free'` for any event on a subscription that is not active or trialing, even when the
+customer holds another active one. Fix that in the same PR: before writing `free`, list the customer's
+subscriptions and keep the tier and expiry of any other active or trialing one. This needs a migration: a new kind (`duplicate_subscription`) in
 `refund_requests_kind_check` and a branch in the settle RPC. Per the rules, that ships alone, not in a batch.
 
 ## Do nothing, delete, or link
@@ -97,11 +105,23 @@ refunds on its own. This needs a migration: a new kind (`duplicate_subscription`
   lock is released when create throws and when the insert fails. A lock read error answers 503, never a link.
 - **Subscription expiry (vitest).** A helper beside `existingSubscriptionGuard.ts`, with a fake Stripe: open
   subscription sessions are expired before create; payment-mode sessions are left alone; an expire that fails on a
-  now-paid session returns 400 and does not create; pagination is followed (`has_more`).
+  now-paid session returns 400 and does not create; pagination is followed (`has_more`). A separate case: the
+  first check passes, a session completes before the list, and the second check returns 400 with no create.
 - **Webhook backstop (vitest plus a behavioral SQL test).** Two blocking subscriptions give one alert and one
-  `refund_requests` row. A redelivery adds neither. One subscription gives neither. The SQL test under
+  `refund_requests` row. Deliver both distinct completion events, in either order, after both subscriptions
+  exist: still one alert and one row. A redelivery adds neither. One subscription gives neither. Then cancel the
+  duplicate: the `customer.subscription.deleted` event leaves the profile on the paid tier with the kept
+  subscription's expiry. The case ends with one renewable subscription and the right tier, not just a queued row. The SQL test under
   `supabase/tests/` covers the new kind and the settle branch. It runs only in CI.
-- **Sandbox walk.** In Stripe test mode, open premium checkout in two tabs, pay the first, then try the second:
-  expect Stripe's expired page and one subscription. For links, fire two requests at once with `curl`: expect one
+- **Sandbox walk.** In Stripe test mode, open premium checkout in tab A, then tab B. Tab A must show
+  Stripe's expired page and refuse payment. Pay B: one subscription in Stripe. Separately, pay A before opening B:
+  B's checkout gets the "You already have a subscription" 400. For links, fire two requests at once with `curl`: expect one
   200 and one 409, and one open row in `entry_payment_links`.
-- Run the touched suites with `--sequence.shuffle` before pushing.
+- Run targeted suites while developing. Before pushing added or changed tests, run the whole app suite once from
+  `apps/myk9show`: `pnpm vitest run --sequence.shuffle`.
+
+## Review notes
+
+Codex round 1: all five findings checked against the code and accepted. The paid-between-checks race, the
+cancel step and the `free` overwrite in `syncSubscriptionFromStripe`, dedupe by subscription, the tab order in
+the sandbox walk, and the whole shuffled suite are now in the plan above.

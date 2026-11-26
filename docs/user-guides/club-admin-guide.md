@@ -170,9 +170,9 @@ Before your club can receive entry fee revenue, a treasurer needs to complete St
 
 Once onboarding is complete, the Payments tab shows a **Payouts enabled** badge. Your club's entry fees are sent to its bank account within five business days of each show's last day. You do not need to request it.
 
-**Onboarding incomplete?** If you close the browser mid-way, return to **Payments** and click **Finish setting up** to pick up where you left off. If the setup link expired, click **Continue to Stripe**.
+_Onboarding incomplete?_ If you close the browser mid-way, return to **Payments** and click **Finish setting up** to pick up where you left off. If the setup link expired, click **Continue to Stripe**.
 
-**Account under review?** Stripe sometimes reviews new accounts before enabling payouts. The Payments tab will show **Under review by Stripe**, with an **Add missing information** button in case Stripe asked for more. This typically resolves within 1–2 business days. If it takes longer, contact Stripe directly — they handle verification, not myK9Show.
+_Account under review?_ Stripe sometimes reviews new accounts before enabling payouts. The Payments tab will show **Under review by Stripe**, with an **Add missing information** button in case Stripe asked for more. This typically resolves within 1–2 business days. If it takes longer, contact Stripe directly — they handle verification, not myK9Show.
 
 For the full step-by-step treasurer walkthrough with screenshots, see [Club Treasurer Guide — Receiving Show Payouts](../operations/stripe-treasurer-guide.md).
 
@@ -309,7 +309,7 @@ All shots to be captured and added to `docs/training/screenshot-shot-list.md`. S
 | C-01    | § 1     | Club Settings form — all fields visible                     | captured 2026-10-28 (MYK9-1462)                                      |
 | C-02    | § 2     | Club Admin → Shows list                                     | ready                                                                |
 | C-03    | § 3     | Members page — member row with Show secretary badge         | captured 2026-10-28 (MYK9-1462)                                      |
-| C-04    | § 4     | Payments page — pre-onboarding "Connect bank account" state | stale: shows the old "Connect payment account" label                 |
+| C-04    | § 4     | Payments page — pre-onboarding "Connect bank account" state | stale: shows the old payment-account button label                    |
 | C-05    | § 5     | Payments page — payout history table                        | stale: shows the old Paid badge, not the payout sentence (MYK9-1985) |
 | C-06    | § 7     | Club Members page — members list                            | captured 2026-10-28 (MYK9-1462)                                      |
 | C-07    | § 7     | Add Member dialog                                           | ready                                                                |

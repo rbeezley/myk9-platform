@@ -42,7 +42,8 @@ this table.
 | Money (payments, refunds, fees, money guards), or a batch that failed two sonnet review rounds     | `opus`, **only after the owner says yes**. In an unattended run, hold the issue instead. |
 
 Never dispatch migrations blind. After an implementer writes one, run the `migration-auditor`
-agent on it before your own review. Migrations are never pushed in an orchestrated run.
+agent on it before your own review. A migration is pushed in an orchestrated run only under the
+standing approvals (**Shared-system authority**, below), and only after its PR has merged.
 
 **Concurrency cap: 3 heavy jobs at once** (owner, 2026-11-13). It was 2 from 2026-10-13, when
 four agents plus Codex reviews needed a reboot; implementers have since moved to the cloud lane. This counts sub-agents, resumed agents (SendMessage), verifiers that
@@ -268,7 +269,12 @@ the pipeline.
 
 - Merging: OpenSpec mode needs the usual confirmation. In Linear run mode, starting the run
   authorizes the squash-merge of each PR once its review gate and required checks are green.
-- Never in either mode: `supabase db push`, `supabase functions deploy`.
+- Never in either mode: `supabase functions deploy`.
+- `supabase db push`: only under
+  [`docs/agents/standing-approvals.md`](../../../docs/agents/standing-approvals.md) (`status: ACTIVE`, read fresh, `pnpm qa:prelaunch-tripwire --db-push` exit 0 right before,
+  and every step of its push row), through the `db-push` skill, for migrations already merged
+  to `main`. Otherwise, or when a step fails, park the issue `needs:operator` with the
+  command's output and say so. Never retry a failed push.
 - Deploy myK9Show: only under
   [`docs/agents/standing-approvals.md`](../../../docs/agents/standing-approvals.md) (`status: ACTIVE`, read fresh, and `pnpm qa:prelaunch-tripwire` exit 0 right before,
   through the `deploy` skill). Otherwise, or when the tripwire stops it, work that

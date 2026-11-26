@@ -49,7 +49,7 @@ Read these first when relevant:
 - Updates have narrow `WHERE` clauses and do not rewrite unrelated rows.
 - Rollout risk is clear for staging and production.
 - Required app-code changes and tests are identified.
-- Shared-system write confirmation is still required before `supabase db push`.
+- `supabase db push` needs the owner's confirmation unless `docs/agents/standing-approvals.md` pre-approves it: `status: ACTIVE`, its tripwire, and every step of its push row.
 
 ## Output Format
 

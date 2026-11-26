@@ -176,7 +176,10 @@ describe('runTripwire (the CLI core)', () => {
     }
   });
 
-  it.each([[['--db-push']], [['--functions-deploy']], [['--deploy']], [['--anything']]])(
+  // `--db-push` left this list on 2026-11-26 (MYK9-2462): the owner pre-approved the push again,
+  // and the flag now only skips the unapplied-migration check. The SQL scanner that the flag ran
+  // before PR #3393 removed it has not come back.
+  it.each([[['--functions-deploy']], [['--deploy']], [['--scan']], [['--anything']]])(
     'rejects an unknown argument: %j',
     argv => {
       const { approvalsPath, run } = setup();
@@ -262,6 +265,19 @@ describe('runTripwire migration check (MYK9-1527)', () => {
 
   it('under --merge, an unreadable schema_migrations is not consulted', () => {
     expect(run(new Error('psql: connection refused'), ['--merge']).code).toBe(0);
+  });
+
+  it('does not look at migrations under --db-push, since an unapplied one is what a push fixes', () => {
+    expect(run('20261029043900\n', ['--db-push']).code).toBe(0);
+    expect(run(new Error('psql: connection refused'), ['--db-push']).code).toBe(0);
+  });
+
+  it('cannot decide on a flag it does not know, or on two flags at once', () => {
+    expect(run('20261029043900\n', ['--push'])).toMatchObject({
+      code: 2,
+      reason: expect.stringContaining('--merge or --db-push'),
+    });
+    expect(run('20261029043900\n', ['--merge', '--db-push']).code).toBe(2);
   });
 });
 

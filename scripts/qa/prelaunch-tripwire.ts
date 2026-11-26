@@ -1,12 +1,12 @@
 /**
  * Pre-launch tripwire for standing approvals (MYK9-1485).
  *
- * While myK9 has no real club, agents may merge a green PR and run Deploy
- * myK9Show without asking (docs/agents/standing-approvals.md). Both build only
- * from `main`. `db push` and `functions deploy` are not pre-approved: each
- * review round found another way the unattended version could lose data or
- * overwrite live state (Codex review, PR #3393). This runs before each
- * pre-approved action and exits:
+ * While myK9 has no real club, agents may merge a green PR, run Deploy
+ * myK9Show and push merged migrations with `supabase db push` without asking
+ * (docs/agents/standing-approvals.md; the push was added by MYK9-2462). All
+ * three act only on what is in `main`. `functions deploy` is not pre-approved:
+ * it uploads local files over live code (Codex review, PR #3393). This runs
+ * before each pre-approved action and exits:
  *   0  standing approvals are ACTIVE, Stripe is in test mode, and every club is
  *      a known test club, read from the myK9 project itself
  *   1  one of those is false (the reason names which): do not run the action
@@ -15,10 +15,11 @@
  *
  * A fourth check, MYK9-1527, runs by default: every 14-digit migration version
  * in origin/main's supabase/migrations/ must be in
- * supabase_migrations.schema_migrations. `supabase db push` is never
- * pre-approved, so a frontend shipped past an unapplied migration reads columns
- * the database lacks. `--merge` skips it, because a merge may legitimately
- * precede its push; a deploy may not. The strict mode is the default so a
+ * supabase_migrations.schema_migrations. A merged migration may not have been
+ * pushed yet, and a frontend shipped past it reads columns the database lacks.
+ * `--merge` skips the check, because a merge may legitimately precede its push;
+ * `--db-push` skips it, because an unapplied migration on main is the state a
+ * push fixes; a deploy may skip nothing. The strict mode is the default so a
  * forgotten flag fails safe.
  *
  * The approvals file is read fresh on every run, so flipping the switch takes
@@ -157,13 +158,14 @@ function combine(local: Approvals | null, main: Approvals | null): Approvals | n
 
 /** Read everything fresh and evaluate. Never throws: a failure is a code-2 result. */
 export function runTripwire(options: RunOptions): TripwireResult {
-  const isMerge = options.argv.length === 1 && options.argv[0] === '--merge';
-  if (options.argv.length && !isMerge)
+  const mode = options.argv.length === 1 ? options.argv[0] : undefined;
+  const skipsMigrationCheck = mode === '--merge' || mode === '--db-push';
+  if (options.argv.length && !skipsMigrationCheck)
     return {
       code: 2,
-      reason: `unknown arguments: ${options.argv.join(' ')} (it takes only --merge)`,
+      reason: `unknown arguments: ${options.argv.join(' ')} (it takes only --merge or --db-push)`,
     };
-  const checkMigrations = !isMerge;
+  const checkMigrations = !skipsMigrationCheck;
   const read = (load: () => string): Approvals | null => {
     try {
       return parseApprovals(load());

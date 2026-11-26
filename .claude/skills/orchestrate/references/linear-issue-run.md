@@ -413,8 +413,14 @@ lanes. Additions specific to the run:
 - **Docs-only two-round budget:** `ship-pr` Step 4 states the rule and its run-start
   condition; this run posts that override only when the approval at Run start named the budget.
 - **Migration in the diff:** carry it through the PR and review gate (`migration-auditor`
-  is one adversarial lens), then **do not merge** in this run. Route the owner's merge/deploy
-  action through the shared table. Never push a migration from an unmerged branch.
+  is one adversarial lens). While the standing approvals pre-approve the push
+  (`../SKILL.md` § Shared-system authority; run `pnpm qa:prelaunch-tripwire --db-push` before
+  you merge, so you know the push will be allowed), merge it like any other PR, push it before
+  any Deploy myK9Show run, and record the pushed versions on the issue. When the approvals are
+  `OFF`, the tripwire stops, or the auditor's `Existing data` line is not `KEEPS`,
+  **do not merge** in this run: route the
+  owner's merge/deploy action through the shared table. A push that fails after the merge is
+  a `needs:operator` hold, never a retry. Never push a migration from an unmerged branch.
 - **agy unavailable on an `independent` floor:** leave the PR open and route the unavailable
   reviewer through the shared table. No same-harness substitute, no owner override from an agent
   (the docs-only budget above is the one exception, and only when the run-start approval named it).

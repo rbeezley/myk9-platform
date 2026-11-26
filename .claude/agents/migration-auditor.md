@@ -97,6 +97,12 @@ If `DROP TABLE` appears, check whether any foreign keys in other tables referenc
 
 If the migration creates a function with `SECURITY DEFINER`, verify it also sets `SET search_path = public, pg_catalog` or equivalent. Without this, a malicious schema could intercept calls. See migrations like `20260603090000_notify_announcement_push_search_path.sql` for the fix pattern.
 
+## Check 9 — Existing data
+
+Say whether the migration can remove or rewrite rows that already exist. `REMOVES` when it drops a table or a column, runs `DELETE` or `TRUNCATE`, runs an `UPDATE` that rewrites existing rows (a backfill of a new, empty column is not a rewrite), or changes a column's type in a way that can lose values. `UNSURE` when you cannot tell from reading it: dynamic SQL (`EXECUTE`), a function the migration calls whose body you have not read, or a statement whose `WHERE` you cannot bound. `KEEPS` otherwise.
+
+This is a reading of the SQL, not a pattern match, and it decides who may push: `docs/agents/standing-approvals.md` pre-approves a push only for `KEEPS`. When in doubt, say `UNSURE`.
+
 ## Output format
 
 ```
@@ -110,6 +116,7 @@ Check 5 — Enum values:    PASS | WARN | FAIL
 Check 6 — Numbering:      PASS | WARN | FAIL
 Check 7 — DROP safety:    PASS | WARN | FAIL
 Check 8 — search_path:    PASS | WARN | N/A
+Check 9 — Existing data:  KEEPS | REMOVES | UNSURE
 
 Verdict: SAFE TO PUSH | PUSH WITH CAUTION | DO NOT PUSH
 

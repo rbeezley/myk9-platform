@@ -13,7 +13,7 @@ Merging a PR never deploys anything. Migrations and edge functions ship only via
 
 - **Project ref is always `sojmvhhwsjxmfistvzbe`.** Pass `--remote=sojmvhhwsjxmfistvzbe` explicitly on every `supabase functions deploy`. `--workdir apps/myk9show` follows that dir's stale `.temp/project-ref` (myK9Show-Working, defunct). After deploying, confirm the output line "Deployed Functions on project ..." names the right ref — if it doesn't, the deploy went to the wrong project and must be redone.
 - **Edge functions deploy with `--no-verify-jwt`** (functions handle auth internally).
-- All of this is shared-system mutation. While [`docs/agents/standing-approvals.md`](../../../docs/agents/standing-approvals.md) says `status: ACTIVE` (read it fresh), the Deploy myK9Show run needs no confirmation, but only after the tripwire below exits 0 in this session. `supabase db push` and `supabase functions deploy` are not pre-approved: always confirm them. Otherwise, confirm with the user once before the first push/deploy of a session (Auto Mode rule in CLAUDE.md).
+- All of this is shared-system mutation. While [`docs/agents/standing-approvals.md`](../../../docs/agents/standing-approvals.md) says `status: ACTIVE` (read it fresh), the Deploy myK9Show run needs no confirmation, but only after the tripwire below exits 0 in this session. `supabase db push` of merged migrations is pre-approved on the same terms, with its own tripwire mode (`--db-push`) and the steps in that file's push row; run it through the `db-push` skill. `supabase functions deploy` is not pre-approved: always confirm it. Otherwise, confirm with the user once before the first push/deploy of a session (Auto Mode rule in CLAUDE.md).
 
 ## Tripwire (before a pre-approved Deploy myK9Show run)
 
@@ -22,7 +22,7 @@ source supabase/.env
 PGPASSWORD="$SUPABASE_DB_PASSWORD" pnpm qa:prelaunch-tripwire
 ```
 
-It also refuses (exit 1, naming the versions) while `origin/main` carries a migration `schema_migrations` lacks: `db push` is never pre-approved, so the frontend would otherwise ship ahead of its schema (MYK9-1527).
+It also refuses (exit 1, naming the versions) while `origin/main` carries a migration `schema_migrations` lacks: a merged migration may not have been pushed yet, and the frontend would otherwise ship ahead of its schema (MYK9-1527).
 
 The tripwire always queries the myK9 project (`sojmvhhwsjxmfistvzbe`) at an address fixed in the script; only the password comes from the environment, and other `PG*` variables are ignored.
 

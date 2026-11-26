@@ -56,9 +56,11 @@ function mockQuery(supabaseFrom: { mockReturnValue: (value: never) => unknown })
     rowReads: string[][];
     /** The abort signal each row read carried (undefined when it carried none). */
     rowSignals: (AbortSignal | undefined)[];
+    /** The abort signal each count request carried. */
+    countSignals: (AbortSignal | undefined)[];
     /** Runs after each row read is served, e.g. to abort between pages. */
     afterRowRead?: () => void;
-  } = { data: [], pages: [], count: undefined, rowReads: [], rowSignals: [] };
+  } = { data: [], pages: [], count: undefined, rowReads: [], rowSignals: [], countSignals: [] };
   let signal: AbortSignal | undefined;
   let countOnly = false;
   // A read carrying the `or` keyset cursor is a follow-up page: with no page queued
@@ -92,7 +94,9 @@ function mockQuery(supabaseFrom: { mockReturnValue: (value: never) => unknown })
     }),
     // A count reads no rows; a row read takes a queued page first, otherwise `data`.
     then: (resolve: (value: unknown) => unknown) => {
-      if (!countOnly) {
+      if (countOnly) {
+        state.countSignals.push(signal);
+      } else {
         state.rowReads.push(filters);
         state.rowSignals.push(signal);
       }
@@ -344,7 +348,7 @@ describe('ReplicatedArmbandsTable incremental sync (MYK9-1300)', () => {
 
   it('hands the sync signal to the count and every page request (MYK9-2420)', async () => {
     const { supabase } = await import('@/services/database/supabaseClient');
-    const { query, state } = mockQuery(vi.mocked(supabase.from));
+    const { state } = mockQuery(vi.mocked(supabase.from));
     state.data = [remoteRow('a', '101', T1)];
     state.count = 1;
     const controller = new AbortController();
@@ -352,9 +356,8 @@ describe('ReplicatedArmbandsTable incremental sync (MYK9-1300)', () => {
     expect((await table.sync(undefined, { signal: controller.signal })).success).toBe(true);
 
     // The count request carries it, and so does every row read, empty terminal page included.
-    expect(query.abortSignal.mock.calls.every(([signal]) => signal === controller.signal)).toBe(
-      true
-    );
+    expect(state.countSignals.length).toBeGreaterThanOrEqual(1);
+    expect(state.countSignals.every(signal => signal === controller.signal)).toBe(true);
     expect(state.rowReads.length).toBeGreaterThanOrEqual(2);
     expect(state.rowSignals).toHaveLength(state.rowReads.length);
     expect(state.rowSignals.every(signal => signal === controller.signal)).toBe(true);

@@ -50,8 +50,6 @@ export interface MyShowDogCardProps {
   /** The dog's entry is still awaiting the secretary. */
   isPendingReview: boolean;
   seenResultReleaseKeys: Set<string>;
-  /** The one class row (MYK9-1944) that may ask the results-public question. */
-  resultsPromptClassId?: string | null | undefined;
   onCheckInDay: (dog: MyShowDog, classes: MyShowClass[]) => void;
   onOpenCheckIn: (order: MyEntry, cls: MyShowClass) => void;
   /** MYK9-631 AC3: withdrawing or pulling one class, from the row that owns it. */
@@ -73,7 +71,6 @@ const MyShowDogCardComponent: React.FC<MyShowDogCardProps> = ({
   refundNote,
   isPendingReview,
   seenResultReleaseKeys,
-  resultsPromptClassId,
   onCheckInDay,
   onOpenCheckIn,
   onLeaveClass,
@@ -143,7 +140,6 @@ const MyShowDogCardComponent: React.FC<MyShowDogCardProps> = ({
             showTrialNumber={showTrialNumber}
             showId={showId}
             seenResultReleaseKeys={seenResultReleaseKeys}
-            showResultsPrompt={resultsPromptClassId === cls.id}
             onCheckInClass={one => onCheckInDay(dog, [one])}
             onOpenCheckIn={onOpenCheckIn}
             onLeaveClass={(one, classWhen) => onLeaveClass(dog, one, classWhen)}

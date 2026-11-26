@@ -19,10 +19,14 @@ function installServer(onIdRead: () => void) {
   const sentSignals: unknown[] = [];
   vi.mocked(supabase.from).mockImplementation((() => {
     let cols = '';
+    // The read after the first id page carries the `id > last` cursor and finds
+    // nothing more: the empty page that ends the pass (MYK9-2252).
+    let continuation = false;
     const builder: Record<string, unknown> = {};
     for (const method of ['select', 'gt', 'is', 'eq', 'order', 'limit', 'or', 'range']) {
       builder[method] = (arg?: string, opts?: { head?: boolean }) => {
         if (method === 'select') cols = opts?.head ? 'count' : String(arg);
+        if (method === 'gt' && arg === 'id') continuation = true;
         return builder;
       };
     }
@@ -31,9 +35,12 @@ function installServer(onIdRead: () => void) {
       return builder;
     };
     builder.then = (resolve: (v: unknown) => unknown) => {
-      if (cols === 'id') onIdRead();
+      if (cols === 'id' && !continuation) onIdRead();
       if (cols === 'count') return resolve({ count: null, error: { message: 'no count' } });
-      return resolve({ data: cols === 'id' ? [{ id: 'dog-2' }] : [], error: null });
+      return resolve({
+        data: cols === 'id' && !continuation ? [{ id: 'dog-2' }] : [],
+        error: null,
+      });
     };
     return builder;
   }) as unknown as typeof supabase.from);

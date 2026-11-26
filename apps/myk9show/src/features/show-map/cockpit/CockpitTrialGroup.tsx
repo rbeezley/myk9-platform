@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom';
 import { TrialGroupCard } from '@/components/schedule/TrialGroupCard';
 import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
 
+import { useShowClassOwnFees } from '@/components/classes/useShowClassOwnFees';
+
 import { CockpitScheduleRow } from './CockpitScheduleRow';
 import { getCockpitAnchorElementId } from './cockpitRoutes';
 import { ScheduleTrialCheckbox, type TrialGroupSelect } from './ScheduleSelectControls';
@@ -55,6 +57,8 @@ export function CockpitTrialGroup({
   select?: TrialGroupSelect | undefined;
 }) {
   const [open, setOpenState] = useState(group.defaultOpen);
+  // A class charging its own fee says so on its card; one charging the show's says nothing.
+  const ownFees = useShowClassOwnFees(showId);
   const trialId = group.trialId;
   useEffect(() => {
     onOpenChange?.(trialId, open);
@@ -144,6 +148,7 @@ export function CockpitTrialGroup({
               classItem={classItem}
               showId={showId}
               pendingCount={breakdownFor(classItem.id)?.pending ?? 0}
+              ownFee={ownFees?.get(classItem.id)}
               focused={focused}
               select={select}
               onFocusClass={onFocusClass}

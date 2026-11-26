@@ -35,7 +35,23 @@ describe('getAllClubs paging', () => {
     expect(new Set(data.map(club => club.id)).size).toBe(2300);
     expect(data[0]?.name).toBe('Club 00000');
     expect(data[2299]?.name).toBe('Club 02299');
-    expect(server.table.requests).toHaveLength(3);
+    // Two full pages, a partial one, then the empty page that ends the read.
+    expect(server.table.requests).toHaveLength(4);
+  });
+
+  it('returns every club when the server caps a response below the page size', async () => {
+    const rows = Array.from({ length: 1300 }, (_, i) => ({
+      id: `club-${String(i).padStart(5, '0')}`,
+      name: `Club ${String(i).padStart(5, '0')}`,
+      deleted_at: null,
+    }));
+    server.table = createFakePostgrestTable(rows, 500);
+
+    const { data, error } = await getAllClubs();
+
+    expect(error).toBeNull();
+    expect(new Set(data.map(club => club.id)).size).toBe(1300);
+    expect(server.table.requests).toHaveLength(4);
   });
 
   it('sorts case-insensitively, puts a null name last and breaks ties by id', async () => {

@@ -522,6 +522,16 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
           }
 
           const pageRows = (response.data ?? []) as unknown as EntryRow[];
+          const pageEnd = pageRows[pageRows.length - 1];
+          // A page ending on the row the cursor already sits on means the server
+          // ignored the cursor: stop rather than loop (and never keep the repeat).
+          if (
+            pageEnd &&
+            String(pageEnd.updated_at) === cursorUpdatedAt &&
+            String(pageEnd.id) === cursorId
+          ) {
+            return completed(rows);
+          }
           rows.push(...pageRows);
           if (
             pageRows.some(row =>
@@ -530,10 +540,8 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
           ) {
             receiptReferenceColumnObserved = true;
           }
-          if (pageRows.length < ENTRIES_REPLICATION_PAGE_SIZE) {
-            return completed(rows);
-          }
-
+          // Only an empty page ends the read (MYK9-2252): a lower hosted max_rows
+          // returns short pages with more rows behind them.
           const lastRow = pageRows[pageRows.length - 1];
           if (!lastRow?.updated_at || !lastRow.id) return completed(rows);
           cursorUpdatedAt = String(lastRow.updated_at);

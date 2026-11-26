@@ -70,7 +70,7 @@ Tapping a class opens its entry list — the dogs in run order, on the **Pending
    - To call the next dog: tap **Come to Gate**. The card reads **Come to gate**, and the handler sees it on their **My Shows** page.
    - **At Gate** marks a handler who is at the gate and ready. **Conflict** marks a handler with a schedule conflict.
    - **Pulled** asks you to confirm first, because the judge then skips the dog.
-   - Chose the wrong one? Tap the control again and choose the right tile.
+   - Chose the wrong one? Tap the control again and choose the right tile. A card that says **Not running** was scratched or withdrawn by the secretary; only the secretary can bring it back.
 3. **Judges and others allowed to score:** tap anywhere on an entry's card to open its scoresheet. The check-in control on the right of the card only changes the dog's check-in status. It opens **Change Status**, a grid with a tile for each status you can set (a steward uses it to check a dog in); tap **Close** to leave it unchanged.
 
 ![Entry list — dogs in run order with armband number, call name, breed, and handler; Pending and Completed tabs (tablet)](../screenshots/J-03.png)

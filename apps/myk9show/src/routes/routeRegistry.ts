@@ -42,8 +42,14 @@ const adminRouteComponents: Record<string, ImportFunction> = {
     import('@/components/admin/DataLifecycleManagement').then(m => ({
       default: m.DataLifecycleManagement,
     })),
+  // Dev-only page (see adminRoutes.tsx). Registered so the Admin Help route diff sees the
+  // path, but production never loads it: the DEV guard keeps the dashboard out of the bundle.
   '/admin/load-testing': () =>
-    import('@/components/admin/LoadTestDashboard').then(m => ({ default: m.LoadTestDashboard })),
+    import.meta.env.DEV
+      ? import('@/components/admin/LoadTestDashboard').then(m => ({
+          default: m.LoadTestDashboard,
+        }))
+      : Promise.reject(new Error('Load testing is only available in development builds')),
   '/admin/help': () => import('@/features/admin-help').then(m => ({ default: m.AdminHelpPage })),
 } as const;
 

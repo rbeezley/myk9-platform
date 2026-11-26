@@ -16,7 +16,6 @@ anonymous data route requires an explicit reason here and in that policy.
 | `/sms`                                                    | Public SMS opt-in disclosure              |
 | `/fees`                                                   | Shareable service-fee explanation         |
 | `/help/credentials`                                       | Public sign-in recovery help              |
-| `/prototype/show`                                         | Development-only prototype route          |
 
 Trial details, trial entries, and operational class details require
 authentication. Released results remain public and are served through the

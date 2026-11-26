@@ -44,8 +44,6 @@
     "src/**/*.test.ts",
     "src/**/*.test.tsx",
 
-    "src/sw-custom.ts",
-
     "src/services/sync/**/*",
     "src/hooks/useBackgroundSync.ts",
 

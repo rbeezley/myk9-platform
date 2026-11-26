@@ -60,9 +60,6 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
   const entryOpenError = form?.getError('entryOpenDate');
   const entryCloseError = form?.getError('entryCloseDate');
   const initialIsPublic = isPublicShowStatus(initialStatus);
-  // MYK9-2430: a closed show leaves Completed only through Reopen show, which reopens its
-  // trials and classes and records why. Changing the status here would strand them completed.
-  const closedShow = initialStatus === 'completed';
   // MYK9-1387: only a loaded, explicitly unauthorized club changes the hint.
   const clubAuthQuery = useClubAuthorization(data.clubId || undefined);
   const clubUnauthorized = clubAuthQuery.data != null && clubAuthQuery.data.authorized_at === null;
@@ -136,15 +133,8 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
             {/* Hint sits BELOW the select: FormField renders hints above the control,
                 which pushed this select out of line with Show Name and Organization. */}
             <FormField label="Status" fieldId="status">
-              <Select
-                value={data.status}
-                onValueChange={handleSelectChange('status')}
-                disabled={closedShow}
-              >
-                <SelectTrigger
-                  id="status"
-                  aria-describedby={closedShow ? 'status-closed-hint' : undefined}
-                >
+              <Select value={data.status} onValueChange={handleSelectChange('status')}>
+                <SelectTrigger id="status">
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -222,12 +212,6 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
                   </SelectItem>
                 </SelectContent>
               </Select>
-              {closedShow && (
-                <p id="status-closed-hint" className="text-xs text-muted-foreground">
-                  This show is closed, so its status cannot change here. To make changes, use Reopen
-                  show on the Results tab.
-                </p>
-              )}
               {!initialIsPublic && (
                 <p id="status-hint" className="text-xs text-muted-foreground">
                   {clubUnauthorized

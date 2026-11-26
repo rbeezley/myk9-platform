@@ -409,4 +409,13 @@ describe('UKC Nosework element time (MYK9-2068)', () => {
     const savedAgain = await save(again);
     expect(savedAgain.element_time_seconds).toBeCloseTo(9.1, 2);
   });
+
+  it('once the judge starts the clock again, the sheet shows the live clock, not the saved time', async () => {
+    const saved = await save(scored);
+    await runSheet('UKC_NOSEWORK', dual, saved, () => {
+      fireEvent.click(screen.getByTestId('timer-start'));
+      expect(screen.getByTestId('element-timer-display')).not.toHaveTextContent('0:09.10');
+      pick('Q');
+    });
+  });
 });

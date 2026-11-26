@@ -8,7 +8,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { IDBPDatabase } from 'idb';
 import { MutationManager } from './MutationManager';
-import { MutationBackupStore } from './MutationBackupStore';
 import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import { moveMutationToFailed } from './mutation-failed-move';
 import type { PendingMutation } from './types';
@@ -95,79 +94,6 @@ describe('MutationManager upload coordination (MYK9-2345)', () => {
       getCurrentUploadContext: async () => ({ authUserId: AUTH_USER_ID, supabaseClient: client }),
     });
   }
-
-  it('a restore waits for a backoff-retry upload instead of racing it', async () => {
-    await mockDb.put(
-      REPLICATION_STORES.PENDING_MUTATIONS,
-      makeMutation({ nextRetryAt: Date.now() + 60 })
-    );
-
-    let releaseRpc!: () => void;
-    const rpcGate = new Promise<void>(resolve => {
-      releaseRpc = resolve;
-    });
-    const rpc = vi.fn(async () => {
-      await rpcGate;
-      return { data: 8, error: null };
-    });
-    const restoreSpy = vi.spyOn(MutationBackupStore.prototype, 'restore');
-
-    const manager = createManager(rpc);
-    try {
-      // First pass skips the mutation (backoff) and self-schedules the retry.
-      await manager.uploadPendingMutations();
-      expect(rpc).not.toHaveBeenCalled();
-
-      // The backoff timer fires and the retry is now in flight.
-      await waitFor(() => rpc.mock.calls.length === 1);
-
-      const restore = manager.restoreMutationsFromLocalStorage();
-      await new Promise(resolve => setTimeout(resolve, 30));
-      // Restore must not read the backup while the retry is still uploading.
-      expect(restoreSpy).not.toHaveBeenCalled();
-
-      releaseRpc();
-      await restore;
-      expect(restoreSpy).toHaveBeenCalledTimes(1);
-      await expect(mockDb.getAll(REPLICATION_STORES.PENDING_MUTATIONS)).resolves.toHaveLength(0);
-    } finally {
-      manager.destroy();
-    }
-  });
-
-  it('a backoff retry waits for an in-flight restore before uploading', async () => {
-    await mockDb.put(
-      REPLICATION_STORES.PENDING_MUTATIONS,
-      makeMutation({ nextRetryAt: Date.now() + 60 })
-    );
-
-    let releaseRestore!: () => void;
-    const restoreGate = new Promise<void>(resolve => {
-      releaseRestore = resolve;
-    });
-    const restoreSpy = vi
-      .spyOn(MutationBackupStore.prototype, 'restore')
-      .mockImplementation(() => restoreGate);
-    const rpc = vi.fn(async () => ({ data: 8, error: null }));
-
-    const manager = createManager(rpc);
-    try {
-      await manager.uploadPendingMutations();
-      const restore = manager.restoreMutationsFromLocalStorage();
-      await waitFor(() => restoreSpy.mock.calls.length === 1);
-
-      // Well past the backoff time: the retry must still be parked behind restore.
-      await new Promise(resolve => setTimeout(resolve, 150));
-      expect(rpc).not.toHaveBeenCalled();
-
-      releaseRestore();
-      await restore;
-      // The parked retry resumes on its own once the restore settles.
-      await waitFor(() => rpc.mock.calls.length === 1);
-    } finally {
-      manager.destroy();
-    }
-  });
 
   // navigator.locks whose lock is held by "another tab" until release().
   function installHeldWebLock(): { release: () => void } {

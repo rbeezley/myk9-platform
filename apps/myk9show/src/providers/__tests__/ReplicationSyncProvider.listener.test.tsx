@@ -45,7 +45,6 @@ vi.mock(import('@myk9/replication'), async importOriginal => {
       discardReverters = { register: () => () => undefined };
       uploadPendingMutations = vi.fn().mockResolvedValue([]);
       getPendingCount = vi.fn().mockResolvedValue(0);
-      restoreMutationsFromLocalStorage = vi.fn().mockResolvedValue(undefined);
       getFailedMutations = getFailedMutationsMock;
       retryFailedMutation = retryFailedMutationMock;
       discardFailedMutation = discardFailedMutationMock;

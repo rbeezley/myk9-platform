@@ -761,8 +761,7 @@ Nothing was deleted, so no delete-recovery path applies and no `deleted_at` quer
 Sources, in order of preference:
 
 1. **The ringside device's own queue.** If the scores never reached the server, they are still on the
-   tablet: IndexedDB `pending_mutations` / `failed_mutations`, plus the `replication_mutation_backup`
-   localStorage key. Reconnecting that device and letting it drain is the recovery. **Do this before
+   tablet in IndexedDB `pending_mutations` / `failed_mutations`. Reconnecting that device and letting it drain is the recovery. **Do this before
    any server-side write** — a manual restore bumps `entries.version`, and the queued mutations carry
    the old version as an OCC precondition, so they will all reject as conflicts afterwards.
 2. **Restore a suitable nightly backup (or PITR) into a scratch project**, then a column-scoped diff back. Same mechanics as path C but an

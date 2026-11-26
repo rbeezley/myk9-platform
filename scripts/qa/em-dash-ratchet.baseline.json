@@ -71,7 +71,6 @@
     "apps/myk9show/src/components/shows/RegistrationWorkflow/DogTableRow.tsx": 3,
     "apps/myk9show/src/components/shows/RegistrationWorkflow/EntriesPanel/EntriesPanel.totals.tsx": 2,
     "apps/myk9show/src/components/shows/RegistrationWorkflow/EntrySubmissionOutcomeAlert.tsx": 1,
-    "apps/myk9show/src/components/shows/RegistrationWorkflow/HandlerSelectionDialog.tsx": 1,
     "apps/myk9show/src/components/shows/RegistrationWorkflow/InlineHandlerSection.tsx": 1,
     "apps/myk9show/src/components/shows/RegistrationWorkflow/entryBlankOptions.ts": 1,
     "apps/myk9show/src/components/shows/ShowDetails/StaleShowNotice.tsx": 1,

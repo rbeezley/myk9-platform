@@ -14,6 +14,11 @@ import {
   loadStoredEntryJunior,
   priceCartItems,
 } from '../_shared/cartItemPricing.ts';
+import {
+  cartLineSnapshotMetadata,
+  cartSessionSnapshotMetadata,
+  SERVICE_FEE_LINE_METADATA,
+} from '../_shared/cartPriceSnapshot.ts';
 import { parsePremiumPriceIds } from '../_shared/premiumPrices.ts';
 import { requireStripeLivemode } from '../_shared/stripeMode.ts';
 import {
@@ -826,9 +831,16 @@ async function checkoutUnderLease(
 
   // Build line items for Stripe. The amount is the AUTHORITATIVE price (the drift
   // gate above already proved every stored line equals it), never a client value.
+  // MYK9-2036: each line also carries its cart item id and the entry details that
+  // decided its price, so the webhook verifies the paid session against what was
+  // sold here (cartPriceSnapshot.ts), not against the fee rule when it runs.
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = cart.items.map(
     (item: {
       id: string;
+      dog_id: string;
+      class_id: string;
+      entry_id: string | null;
+      junior_fee_declared: boolean | null;
       dog?: { call_name?: string };
       class?: { name?: string; trial?: { show?: { name?: string } } };
     }) => ({
@@ -838,6 +850,7 @@ async function checkoutUnderLease(
         product_data: {
           name: `${item.dog?.call_name || 'Dog'} - ${item.class?.name || 'Class'}`,
           description: item.class?.trial?.show?.name || 'Show Entry',
+          metadata: cartLineSnapshotMetadata(item),
         },
       },
       quantity: 1,
@@ -869,6 +882,7 @@ async function checkoutUnderLease(
           // approximate; the receipt states only what was actually charged.
           name: 'Service fee',
           description: 'Card processing and myK9Show',
+          metadata: { ...SERVICE_FEE_LINE_METADATA },
         },
       },
       quantity: 1,
@@ -923,6 +937,8 @@ async function checkoutUnderLease(
                 cart_id: cart_id,
                 type: 'entry',
                 ...stampPlatformFeeRates(platformFeeRates),
+                // MYK9-2036: the webhook verifies a versioned session from its line items.
+                ...cartSessionSnapshotMetadata(),
               },
               payment_intent_data: {
                 statement_descriptor_suffix: formatStatementDescriptorSuffix(showFees.name),

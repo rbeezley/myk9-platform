@@ -81,6 +81,7 @@ Do PR 1 now. It is one file plus a test, it stops a silent failure the parent pl
 ## Review notes
 
 - Codex review, 2026-11-25: all four findings checked in the code and accepted (null-timestamp cursor, Add Person on a short refresh, person details without the address read, sign-out ends the session). Each was a duplicate pair.
+- Codex round 2 (the docs-plan budget): two P2s become acceptance criteria for the PR that builds them. (1) Directory completeness survives a reload: `directoryIncomplete` is persisted with the saved copy, so a short or failed refresh is still known after the page reloads offline. (2) In the duplicate check, a fresh server row wins over a names-only saved row for the same person, so a returning entrant's contact details come from the server.
 
 ## Not in scope
 

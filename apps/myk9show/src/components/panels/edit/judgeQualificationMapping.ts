@@ -15,7 +15,7 @@ export function mapDbToUiQualification(q: DbJudgeQualification): JudgeQualificat
     disciplines: q.disciplines || [],
     certificationDate: q.date_obtained || '',
     dateObtained: q.date_obtained ? toLocalDate(q.date_obtained) : null,
-    expirationDate: q.expiration_date ? new Date(q.expiration_date) : null,
+    expirationDate: q.expiration_date ? toLocalDate(q.expiration_date) : null,
     status: q.is_active ? 'Active' : q.suspension_date ? 'Suspended' : 'Expired',
   } as JudgeQualification;
 }

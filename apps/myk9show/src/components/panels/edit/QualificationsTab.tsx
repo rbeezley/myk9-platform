@@ -20,7 +20,7 @@ export const QualificationsTab: React.FC<QualificationsTabProps> = ({
 }) => {
   const query = useJudgeQualifications(personId, { is_active: true });
   const { data: qualifications, refetch } = query;
-  // MYK9-2394: "No Judge Qualifications" only after a confirmed read.
+  // MYK9-2394: "No active judge qualifications" only after a confirmed read.
   const readState = getQualificationsReadState(query);
   const canEdit = canEditQualifications && readState === 'ready';
 
@@ -104,9 +104,11 @@ export const QualificationsTab: React.FC<QualificationsTabProps> = ({
         ) : (
           <div className="text-center py-8">
             <Award className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-foreground mb-2">No Judge Qualifications</h3>
+            <h3 className="text-lg font-medium text-foreground mb-2">
+              No active judge qualifications
+            </h3>
             <p className="text-sm text-muted-foreground mb-4">
-              This user has no judge qualifications on record.
+              This user has no active judge qualifications.
             </p>
             {canEdit && (
               <Button variant="outline" onClick={onManageQualifications} className="gap-2">

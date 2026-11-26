@@ -54,13 +54,15 @@ No reader needs a street address offline. Person details and the edit panel show
 
 ## Proposed shape: three independent PRs
 
-**PR 1: page the directory (a bug fix, first).** Reuse `fetchKeysetPages` from `services/replication/keysetPager.ts` (the MYK9-2252 pattern: keyset on `updated_at` and `id`, stop only on an empty page). Then sort by last and first name on the client, as the store does today. Also read the server's count and, if the load is short, keep the copy already on the device and report it through the existing short-download alert (MYK9-2254). No migration, no new screen. Trap: `people.updated_at` is nullable. No live row is null today, but the pager filters `updated_at > since`, so a null row would vanish. Either make the first page skip that filter, or page on `id` alone. A test pins it.
+**PR 1: page the directory (a bug fix, first).** Reuse `fetchKeysetPages` from `services/replication/keysetPager.ts` (the MYK9-2252 pattern: keyset on `updated_at` and `id`, stop only on an empty page). Then sort by last and first name on the client, as the store does today. Also read the server's count and, if the load is short, keep the copy already on the device and report it through the existing short-download alert (MYK9-2254). No migration, no new screen. Trap: `people.updated_at` is nullable. No live row is null today, but the pager cannot reach a null row: a page that ends on one throws, and the cursor comparisons never match null, so it is left out of later pages. Skipping the filter on the first page does not fix this. Page this full read on `id` alone (add an `id`-only cursor option to `fetchKeysetPages`, or a small loop beside it). A test pins a null-timestamp person beyond the first page.
 
-**PR 2: no street address in the saved copy (optional).** Persist name, phone and email only. Strip address fields from an old saved copy on first run, with no network. Person details and the edit panel read the one person from the server when they open, so a save never blanks an address. Watch the partition lesson: grep every reader of the address fields first.
+A short load must also reach Add Person. The store keeps a flag, `directoryIncomplete`, set when a refresh is confirmed short or fails, and cleared by a full load. `CreatePersonForm.handleSave` treats it like an empty directory: it asks the server before saving, and shows the existing "checked saved people only" line if the server cannot answer. Without this, a nonempty older copy misses a walk-in's existing record with no warning, because the server lookup runs only when `people.length === 0`.
+
+**PR 2: no street address in the saved copy (optional).** Persist name, phone and email only. Strip address fields from an old saved copy on first run, with no network. Person details and the edit panel read the one person's address from the server when they open. That read only adds the address: name and phone still come from the saved directory and render when the read pauses or fails, as they do offline today (`useRoleBasedPeople`). An edit must not send address fields that never loaded, so a save never blanks an address. Watch the partition lesson: grep every reader of the address fields first.
 
 **PR 3: scope to the club (parked).** Unchanged from the parent plan. It waits for the MYK9-2274 alert (10 live clubs or 800 people). The settled points stay: the club is the unit, the desk gets name, phone and email, a judge gets names only.
 
-**Sign-out: no change.** The decision is built (MYK9-2255). It must not grow into a full clear. Clearing names, the session or the replicas re-creates the MYK9-202 lockout, and an unsent walk-in must never be removed.
+**Sign-out: no change.** The decision is built (MYK9-2255). Confirmed sign-out still ends the session and clears the saved roles (`AccountMenuContent`, MYK9-202); the previous user's access never survives. Only the permitted device data stays: names and the replicas. It must not grow into a full clear: clearing names or the replicas re-creates the MYK9-202 lockout for the next sign-in, and an unsent walk-in must never be removed.
 
 ## Recommendation
 
@@ -70,10 +72,15 @@ Do PR 1 now. It is one file plus a test, it stops a silent failure the parent pl
 
 - PR 1: a mocked server that returns at most 500 rows per request serves 1,200 people. The load gets all of them, and a person late in the alphabet is found by the duplicate check. Several rows share one `updated_at`. A row with null `updated_at` is still loaded.
 - PR 1: a short load keeps the earlier saved copy and sends one alert. A failed load keeps it too.
+- PR 1: with a nonempty saved copy and a short refresh, Add Person for a person missing from that copy asks the server and holds on the match; with the server down it shows the saved-only line.
 - PR 1: the sign-out tests still pass: `useAuth.signOutPeople.test.ts` and `userStore.coldBoot.test.ts`. A load running at sign-out writes nothing back.
-- PR 2, if built: the stored value holds no address field; an old saved copy loses addresses offline on first run; saving from the edit panel keeps the address.
+- PR 2, if built: the stored value holds no address field; an old saved copy loses addresses offline on first run; saving from the edit panel keeps the address. Offline, person details still show name and phone, and a save sends no address fields.
 - The app suite shuffled six times (`pnpm vitest run --sequence.shuffle`), since the store writes browser storage.
 - `verify:offline` on the local stack: load as a secretary, go offline, reload, find a person on Entry Forms and in Add Person.
+
+## Review notes
+
+- Codex review, 2026-11-25: all four findings checked in the code and accepted (null-timestamp cursor, Add Person on a short refresh, person details without the address read, sign-out ends the session). Each was a duplicate pair.
 
 ## Not in scope
 

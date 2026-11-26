@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@/test/utils/testUtils';
+import { fireEvent, render, screen } from '@/test/utils/testUtils';
 import { logger } from '@/services/LoggingService';
 import { SuspenseWrapper } from '../SuspenseWrapper';
 
@@ -41,5 +41,21 @@ describe('LoadingErrorBoundary (MYK9-1114)', () => {
       }),
       expect.any(TypeError)
     );
+  });
+
+  it('keeps the retry count across retries so the counter renders', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    render(
+      <SuspenseWrapper>
+        <Boom />
+      </SuspenseWrapper>
+    );
+    expect(screen.queryByText(/You have tried again/)).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /Try Again/ }));
+    expect(screen.getByText('You have tried again 1 time.')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /Try Again/ }));
+    expect(screen.getByText('You have tried again 2 times.')).toBeTruthy();
   });
 });

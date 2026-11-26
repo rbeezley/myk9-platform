@@ -118,7 +118,7 @@ test.describe('Secretary Entry Creation', () => {
     await page.getByRole('button', { name: /next/i }).click();
     await page.waitForLoadState('networkidle');
 
-    // ── Step 3: Payment (handler defaults to the owner; no Handlers step, MYK9-2020) + AKC agreement ──────────────────────────────────
+    // ── Step 3: Payment + AKC agreement ──
     await page.waitForSelector('text=Payment Information', { timeout: 8000 });
 
     // Scroll down to reveal the entry agreement section then wait for its label
@@ -140,7 +140,7 @@ test.describe('Secretary Entry Creation', () => {
     const rpcResp = await rpcPromise;
     expect(rpcResp.status()).toBe(200);
 
-    // ── Step 5: Confirmation ──────────────────────────────────────────────
+    // ── Step 4: Confirmation ──
     await page.waitForSelector('text=Entry Confirmed', { timeout: 10000 });
     await expect(page.getByText(/confirmation #:/i)).toBeVisible();
 

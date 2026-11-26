@@ -237,7 +237,7 @@ test.describe('Secretary Entry Walk', () => {
     const agreement = page.getByRole('checkbox', { name: /entry agreement/i });
     await expect(agreement).toHaveAttribute('aria-checked', 'true', { timeout: 5000 });
 
-    // ── Step 5: Confirmation ───────────────────────────────────────────────
+    // ── Step 4: Confirmation ──
     const submitEntry = page.getByRole('button', { name: /^Submit entry$/ });
     await expect(submitEntry).toBeEnabled();
     await submitEntry.click();

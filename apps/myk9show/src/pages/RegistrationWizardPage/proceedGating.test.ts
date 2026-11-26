@@ -54,9 +54,7 @@ describe('proceedBlockedReason', () => {
     it('blocks while a same-class handler question is unanswered (MYK9-2021)', () => {
       expect(
         proceedBlockedReason(ctx({ stepId: 'class-selection', unansweredHandlerClashCount: 1 }))
-      ).toBe(
-        "Tell us who will handle the second dog, or choose I'll decide at the show, to continue."
-      );
+      ).toBe('Choose who handles the second dog, or Decide at the show, to continue.');
     });
 
     it('proceeds once every same-class handler question is answered', () => {

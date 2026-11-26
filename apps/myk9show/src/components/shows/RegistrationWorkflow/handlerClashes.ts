@@ -165,20 +165,8 @@ export function joinNames(names: readonly string[]): string {
   return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 }
 
-/**
- * The question the Classes step asks. The exhibitor is asked in the second person.
- * A secretary keying a mail-in form is not the owner, so `staff` names the owner
- * instead (MYK9-2020).
- */
-export function clashQuestion(
-  clash: HandlerClash,
-  staff?: { ownerName?: string | null | undefined }
-): string {
-  if (staff) {
-    const owner = staff.ownerName?.trim() || 'The owner';
-    return `${owner} can't handle both ${clash.otherName} and ${clash.subjectName} in ${joinNames(clash.classLabels)}. Who handles ${clash.subjectName}?`;
-  }
-  return `You can't handle both ${clash.otherName} and ${clash.subjectName} in ${joinNames(clash.classLabels)}. Who will handle ${clash.subjectName}?`;
+export function clashQuestion(clash: HandlerClash): string {
+  return `${clash.otherName} and ${clash.subjectName} are both in ${joinNames(clash.classLabels)}. Who handles ${clash.subjectName}?`;
 }
 
 /** The typed handler for this clash, when every clashing class carries a non-owner name. */

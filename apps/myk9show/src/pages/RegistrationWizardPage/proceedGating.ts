@@ -76,7 +76,7 @@ export function proceedBlockedReason(ctx: ProceedGatingContext): string | null {
     case 'class-selection':
       if (!ctx.hasSelectedClasses) return 'Select at least one class to continue.';
       if (ctx.unansweredHandlerClashCount > 0) {
-        return "Tell us who will handle the second dog, or choose I'll decide at the show, to continue.";
+        return 'Choose who handles the second dog, or Decide at the show, to continue.';
       }
       if (ctx.unassignedHandlerCount > 0) {
         return handlerReason(ctx.unassignedHandlerCount);

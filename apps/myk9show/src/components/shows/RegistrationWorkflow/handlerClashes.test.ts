@@ -41,19 +41,9 @@ describe('findHandlerClashes (MYK9-2021)', () => {
     const clashes = find(['willow', 'scout'], [pick('willow', 'cNovA'), pick('scout', 'cNovA')]);
     expect(clashes).toHaveLength(1);
     expect(clashQuestion(clashes[0]!)).toBe(
-      "You can't handle both Willow and Scout in Container Novice A. Who will handle Scout?"
+      'Willow and Scout are both in Container Novice A. Who handles Scout?'
     );
     expect(clashes[0]!.subjectClassIds).toEqual(['cNovA']);
-  });
-
-  it('words the question for a secretary by naming the owner', () => {
-    const clashes = find(['willow', 'scout'], [pick('willow', 'cNovA'), pick('scout', 'cNovA')]);
-    expect(clashQuestion(clashes[0]!, { ownerName: 'Pat Owner' })).toBe(
-      "Pat Owner can't handle both Willow and Scout in Container Novice A. Who handles Scout?"
-    );
-    expect(clashQuestion(clashes[0]!, {})).toBe(
-      "The owner can't handle both Willow and Scout in Container Novice A. Who handles Scout?"
-    );
   });
 
   it('treats Novice A and Novice B of one element as one class', () => {

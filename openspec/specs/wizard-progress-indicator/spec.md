@@ -15,10 +15,10 @@ A wizard step indicator SHALL render exactly one text label per step, on a singl
 - **WHEN** the registration wizard renders for an exhibitor
 - **THEN** the indicator shows the titles `Select dogs`, `Select classes`, `Payment`, `Receipt` and nothing else as text per step
 
-#### Scenario: Staff variant title
+#### Scenario: Staff variant has the same four titles
 
 - **WHEN** the registration wizard renders on the secretary route
-- **THEN** the indicator shows `Handlers` as the third title between `Select classes` and `Payment`
+- **THEN** the indicator shows the same four titles as the exhibitor and no `Handlers` step
 
 #### Scenario: Show-creation wizard keeps its titles
 
@@ -27,11 +27,11 @@ A wizard step indicator SHALL render exactly one text label per step, on a singl
 
 ### Requirement: A step title never breaks inside a word
 
-At any viewport width from 320px up, in the four-step and five-step variants, a step title SHALL occupy one rendered line. When the available width is narrower than the title, the title SHALL be truncated with an ellipsis and its full text SHALL remain available through the step's accessible name. A title SHALL NOT wrap onto a second line and SHALL NOT be split between characters of a word.
+At any viewport width from 320px up, in the four-step registration rail (exhibitor and staff alike), a step title SHALL occupy one rendered line. When the available width is narrower than the title, the title SHALL be truncated with an ellipsis and its full text SHALL remain available through the step's accessible name. A title SHALL NOT wrap onto a second line and SHALL NOT be split between characters of a word.
 
-#### Scenario: Single-row widths with the five-step variant
+#### Scenario: Single-row widths with the four-step rail
 
-- **WHEN** the five-step variant renders at 1024px, 1100px, 1280px and 1440px
+- **WHEN** the four-step rail renders at 1024px, 1100px, 1280px and 1440px
 - **THEN** every title has exactly one rendered line box and every rendered line's text is a prefix of the title cut at a whole word or ends with an ellipsis
 
 #### Scenario: Phone width with the four-step variant

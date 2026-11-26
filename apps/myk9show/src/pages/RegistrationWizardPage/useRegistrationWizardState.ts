@@ -321,7 +321,7 @@ export function useRegistrationWizardState() {
 
   const [classSelections, setClassSelections] = useState<ClassSelectionData[]>([]);
   const [handlerAssignments, setHandlerAssignments] = useState<Record<string, HandlerInfo>>({});
-  // MYK9-2021: the dog pairs the exhibitor chose "I'll decide at the show" for, and
+  // MYK9-2021: the dog pairs the exhibitor chose "Decide at the show" for, and
   // how many same-class handler questions the Classes step still has open.
   const [handlerClashDeferred, setHandlerClashDeferred] = useState<string[]>([]);
   const [handlerClashPending, setHandlerClashPending] = useState(0);

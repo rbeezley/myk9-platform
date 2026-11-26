@@ -5,6 +5,9 @@ import { render } from '@/test/utils/testUtils';
 import { ClubPaymentsCard } from '../ClubPaymentsCard';
 import * as accountModule from '../useClubStripeAccount';
 import type { ClubStripeAccount } from '../useClubStripeAccount';
+import { useClubFinancialReconciliation } from '@/features/financial/useClubFinancialReconciliation';
+import { resolvePayoutSettlement } from '@/features/financial/payoutSettlement';
+import type { ClubShowReconciliationRow } from '@/features/financial/clubShowReconciliation';
 
 vi.mock('../useClubStripeAccount', async importOriginal => {
   const original = await importOriginal<typeof accountModule>();
@@ -31,6 +34,38 @@ vi.mock('@/features/financial/useClubFinancialReconciliation', () => ({
 
 const mockedUseAccount = vi.mocked(accountModule.useClubStripeAccount);
 const mockedStartOnboarding = vi.mocked(accountModule.startConnectOnboarding);
+const mockedReconciliation = vi.mocked(useClubFinancialReconciliation);
+
+/** One show row whose payout is in `status`, as the reconciliation hook returns it. */
+function showRow(status: string | null, failureReason: string | null = null) {
+  const row: ClubShowReconciliationRow = {
+    showId: 'show-1',
+    showName: 'Cedar Valley Classic',
+    net: { status: 'available', netCents: 5000 },
+    chargeVerification: 'AllFeeBreakdowns',
+    settlement: status
+      ? resolvePayoutSettlement(
+          {
+            payoutId: 'payout-1',
+            status,
+            amountCents: 5000,
+            stripeTransferId: null,
+            failureReason,
+            completedAt: null,
+            createdAt: '2026-12-12T08:00:00Z',
+          },
+          'enabled'
+        )
+      : null,
+    orderCount: 1,
+  };
+  mockedReconciliation.mockReturnValue({
+    rows: [row],
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  });
+}
 
 function mockAccountState(data: ClubStripeAccount | null, overrides: Record<string, unknown> = {}) {
   const base = { data, isLoading: false, isError: false, refetch: vi.fn(), ...overrides };
@@ -55,6 +90,13 @@ const connectedAccount = (flags: Partial<ClubStripeAccount>): ClubStripeAccount 
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // A row set by one test must not reach the next (CI shuffles).
+  mockedReconciliation.mockReturnValue({
+    rows: [],
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  });
   Object.defineProperty(window, 'location', {
     value: { ...window.location, assign: vi.fn(), search: '' },
     writable: true,
@@ -197,5 +239,57 @@ describe('ClubPaymentsCard', () => {
     render(<ClubPaymentsCard clubId="club-1" />);
 
     expect(screen.queryByRole('button', { name: /pay|checkout|charge/i })).not.toBeInTheDocument();
+  });
+
+  it('the box says when entry fees are sent, and never "automatically"', () => {
+    mockAccountState(connectedAccount({ onboarding_complete: true, payouts_enabled: true }));
+    render(<ClubPaymentsCard clubId="club-1" />);
+
+    expect(
+      screen.getByText(
+        'Entry fees are sent to your club’s bank account within five business days of each show.'
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/automatic/i)).not.toBeInTheDocument();
+  });
+
+  it('an account under review never says "automatically" either', () => {
+    mockAccountState(connectedAccount({ onboarding_complete: true, payouts_enabled: false }));
+    render(<ClubPaymentsCard clubId="club-1" />);
+
+    expect(screen.queryByText(/automatic/i)).not.toBeInTheDocument();
+  });
+
+  it("a show waiting on the bank account links to the Bank account card's checklist", async () => {
+    mockAccountState(null);
+    showRow(null);
+    const user = userEvent.setup();
+    render(<ClubPaymentsCard clubId="club-1" />);
+
+    expect(screen.getByText("Waiting for your club's bank account.")).toBeInTheDocument();
+    const [bankCardButton, rowButton] = screen.getAllByRole('button', {
+      name: 'Connect bank account',
+    });
+    expect(bankCardButton).toBeDefined();
+    await user.click(rowButton!);
+
+    // The checklist the INTENT keeps in front of Stripe, never a direct redirect.
+    expect(screen.getByText(/before you start/i)).toBeInTheDocument();
+    expect(mockedStartOnboarding).not.toHaveBeenCalled();
+  });
+
+  it("Fix it on a club failure opens Stripe for the club's account", async () => {
+    mockAccountState(connectedAccount({ onboarding_complete: true, payouts_enabled: true }));
+    showRow('failed', 'club_account:account_closed: The bank account is closed');
+    mockedStartOnboarding.mockResolvedValue('https://connect.stripe.com/setup/fix');
+    const user = userEvent.setup();
+    render(<ClubPaymentsCard clubId="club-1" />);
+
+    await user.click(screen.getByRole('button', { name: 'Fix it' }));
+
+    await waitFor(() => {
+      expect(mockedStartOnboarding).toHaveBeenCalledWith('club-1', '/club-admin/payments/club-1');
+    });
+    expect(window.location.assign).toHaveBeenCalledWith('https://connect.stripe.com/setup/fix');
   });
 });

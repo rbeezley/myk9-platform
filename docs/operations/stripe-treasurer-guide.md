@@ -13,7 +13,7 @@ Your secretary can also send you a link. When a show cannot publish because the 
 ---
 
 This guide is for the person who looks after your club's money. It walks you through connecting
-your club's bank account to myK9Show, one time, so your club is paid automatically after each show.
+your club's bank account to myK9Show, one time, so your club is paid after each show without asking.
 
 It takes about 10 minutes if you have the four things in the checklist below in front of you.
 
@@ -23,9 +23,9 @@ It takes about 10 minutes if you have the four things in the checklist below in 
 
 1. Exhibitors enter your show online and pay by card.
 2. myK9Show holds the entry fees safely until your show is over.
-3. About three days after your show's last day, your club's entry fees are sent to your club's
-   bank account. During the launch period myK9Show checks each payout before it is sent, so it
-   can go a little later. You do not have to do anything to make that happen.
+3. Within five business days of your show's last day, your club's entry fees are sent to your
+   club's bank account. During the launch period myK9Show checks each payout before it is sent.
+   You do not have to do anything to make that happen.
 
 **Your club keeps the full entry fee.** Exhibitors pay a separate service fee on top of the entry
 fee when they check out. That service fee covers card processing and myK9Show's costs. Nothing is
@@ -214,11 +214,12 @@ You are not yet an admin of your club in myK9Show. Email us at the address below
 
 ## Being paid
 
-**When.** About three days after your show's last day. During the launch period myK9Show checks
-each payout before it is sent, and while a payout is awaiting that release the Payments tab shows
-**Payout scheduled, waiting for release**. (If your bank setup is not finished, it shows
-**Waiting for account** instead.) Your bank usually shows the deposit the next business day after it is sent. Weekends
-and bank holidays can add a day.
+**When.** Within five business days (Monday to Friday) of your show's last day. The Payments tab
+says so for each show: for a show ending December 9 it reads "Paid by December 16." During the
+launch period myK9Show checks each payout before it is sent, and the show reads "Being checked by
+myK9Show." until then. Once it is sent, the show reads "Sent" with the day, and your bank usually
+shows the deposit the next business day. If the five business days pass without a payout, the show
+says it is taking longer than usual, and we email your club.
 
 **How much.**
 
@@ -233,7 +234,7 @@ money.
 **How you will know.** myK9Show emails your club's contact address when a deposit is sent. That is
 the email address on your club's page, which may not be yours, so check that it reaches someone
 who will tell you. In myK9Show, the Payments tab lists each of your shows with the amount and
-whether it has been sent.
+when it is paid.
 
 **For your treasurer's report.** Your show secretary can print the show's Financial Report from
 the show's Reports tab. It lists every entry and what was paid.
@@ -248,9 +249,9 @@ comes out of your club's entry fees.
 
 **What if we need to refund an entry?**
 Your show secretary refunds it from the entry in myK9Show, and the money goes back to the
-exhibitor's card. This works while the payout is waiting for release. It pauses while the Payments tab shows
-**Sending**, so wait. If the payout then fails to send, refund in myK9Show again. Once the
-payout shows **Paid**, settle the refund directly with the exhibitor. The service fee is not
+exhibitor's card. This works while myK9Show is checking the payout. It pauses while the Payments tab says the
+payout is being sent, so wait. If the payout then fails to send, refund in myK9Show again. Once the
+show says the payout was sent, settle the refund directly with the exhibitor. The service fee is not
 refunded.
 
 **What if we need to refund someone after we have been paid?**
@@ -258,9 +259,13 @@ By then the money is in your club's bank account, so your club pays the exhibito
 check or however you prefer. myK9Show cannot send a card refund once the club has been paid.
 
 **What if the deposit does not arrive?**
-We are alerted automatically if a payment to a club fails. The most common cause is that recent
-card payments have not finished clearing, and it is retried automatically the next night. If you
-have not been paid within a week of your show's last day, email us.
+If a payment to a club fails, myK9Show tries it again each night, and we are alerted. Most
+failures are on our side, such as recent card payments that have not finished clearing; the show
+then reads "We couldn't send this. We're on it, and you don't need to do anything." If Stripe
+cannot pay into your club's bank account, the show reads "Your bank account needs attention." and
+offers **Fix it**, which opens Stripe so you can correct it. That payout keeps failing until the
+account is fixed. If you have not been paid within five business days of your show's last day,
+the show says so, and we email your club.
 
 **Can we change our bank account later?**
 Yes. Sign in at **express.stripe.com**, open payout settings, add the new account and make it the

@@ -18,9 +18,12 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useClubFinancialReconciliation } from '../useClubFinancialReconciliation';
 import type { PayoutsAccountState } from '@/features/payments/payoutBadge';
+import { resolvePayoutStage } from '@/features/payments/payoutStage';
+import { useShowPayoutSchedules } from '@/features/payments/useShowPayoutSchedules';
+import type { ClubShowReconciliationRow } from '../clubShowReconciliation';
 import { ChargeVerificationBadge } from './ChargeVerificationBadge';
 import { CopyableTransferId } from './CopyableTransferId';
-import { StripeLinkOut } from './StripeLinkOut';
+import { PayoutStageLine, type PayoutStageActions } from './PayoutStageLine';
 
 const currencyFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 
@@ -28,7 +31,15 @@ function formatCents(cents: number): string {
   return currencyFormatter.format(cents / 100);
 }
 
-interface ClubFinancialReconciliationCardProps {
+/**
+ * Every entry fee was refunded: there are online orders and nothing is owed.
+ * The payout run skips a $0 payout, so such a show never gets a payout row.
+ */
+function isFullyRefunded(row: ClubShowReconciliationRow): boolean {
+  return row.orderCount > 0 && row.net.status === 'available' && row.net.netCents <= 0;
+}
+
+interface ClubFinancialReconciliationCardProps extends PayoutStageActions {
   clubId: string;
   /**
    * Tri-state, never a boolean: while the Stripe account row is loading or has
@@ -42,11 +53,14 @@ interface ClubFinancialReconciliationCardProps {
 export function ClubFinancialReconciliationCard({
   clubId,
   accountState,
+  ...stageActions
 }: ClubFinancialReconciliationCardProps) {
   const { rows, isLoading, isError, refetch } = useClubFinancialReconciliation(
     clubId,
     accountState
   );
+  const schedules = useShowPayoutSchedules(clubId);
+  const now = new Date();
 
   return (
     <Card>
@@ -58,8 +72,8 @@ export function ClubFinancialReconciliationCard({
           </CardTitle>
         </div>
         <CardDescription>
-          Per-show net, how much of it Stripe can account for, and transfer status for your
-          club&apos;s shows.
+          Per-show net, how much of it Stripe can account for, and when each show&apos;s entry fees
+          are paid to your club.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -141,17 +155,17 @@ export function ClubFinancialReconciliationCard({
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <ChargeVerificationBadge state={row.chargeVerification} />
-                  {row.settlement && (
-                    <Badge
-                      variant={row.settlement.state === 'attention' ? 'destructive' : 'secondary'}
-                      className={
-                        row.settlement.state === 'attention' ? undefined : NEUTRAL_STATUS_CHIP
-                      }
-                    >
-                      {row.settlement.badgeLabel}
-                    </Badge>
-                  )}
                 </div>
+                <PayoutStageLine
+                  stage={resolvePayoutStage({
+                    payout: row.settlement,
+                    accountState,
+                    schedule: schedules.get(row.showId) ?? null,
+                    fullyRefunded: isFullyRefunded(row),
+                    now,
+                  })}
+                  {...stageActions}
+                />
                 {row.settlement && (
                   // The transfer amount, distinct from the entry-fee `net` above.
                   // Showing both, with the copyable transfer id, is the
@@ -175,25 +189,12 @@ export function ClubFinancialReconciliationCard({
                     </span>
                   </p>
                 )}
-                {row.settlement && (
-                  /* Carried over from the "Show payouts" list this card
-                     replaced. A treasurer reconciles against a bank statement,
-                     and a row without a date cannot be tied to a line on it.
-                     <time> so the value is machine-readable, which the old list
-                     never was. */
-                  <p className="text-xs text-muted-foreground">
-                    {row.settlement.completedAt ? 'Paid on ' : 'Started on '}
-                    <time dateTime={row.settlement.completedAt ?? row.settlement.createdAt}>
-                      {new Date(
-                        row.settlement.completedAt ?? row.settlement.createdAt
-                      ).toLocaleDateString()}
-                    </time>
-                  </p>
-                )}
                 {row.settlement?.stripeTransferId && (
                   <div className="flex flex-wrap items-center gap-1">
+                    {/* No "View in Stripe" link (MYK9-1985): it opened the
+                        platform's dashboard, which a club cannot sign in to.
+                        The id stays copyable for a support conversation. */}
                     <CopyableTransferId transferId={row.settlement.stripeTransferId} />
-                    <StripeLinkOut transferId={row.settlement.stripeTransferId} />
                   </div>
                 )}
               </li>

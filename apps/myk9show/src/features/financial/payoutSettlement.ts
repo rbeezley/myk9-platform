@@ -27,6 +27,9 @@ export interface PayoutSettlementRow {
   /** Existing payout badge label (Paid / Sending / Scheduled / ...). */
   badgeLabel: string;
   state: SettlementState;
+  /** The raw show_payouts status and failure reason, for the club's stage sentence (payoutStage.ts). */
+  status: string;
+  failureReason: string | null;
   amountCents: number;
   /** Copyable Stripe transfer id for reconciling a completed transfer. */
   stripeTransferId: string | null;
@@ -74,6 +77,8 @@ export function resolvePayoutSettlement(
     payoutId: payout.payoutId,
     badgeLabel: badge.label,
     state: settlementStateForBadge(badge.label),
+    status: payout.status,
+    failureReason: payout.failureReason,
     amountCents: payout.amountCents,
     stripeTransferId: payout.stripeTransferId,
     completedAt: payout.completedAt,

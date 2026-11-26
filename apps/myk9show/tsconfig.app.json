@@ -71,7 +71,6 @@
     "src/hooks/queries/useJudgeDatabase.ts",
 
     "src/services/error/GlobalErrorHandler.ts",
-    "src/services/error/ErrorClassificationService.ts",
     "src/services/database/connection.ts",
     "src/services/database/migrations.ts",
     "src/services/data-scoping/role-profiles.ts",

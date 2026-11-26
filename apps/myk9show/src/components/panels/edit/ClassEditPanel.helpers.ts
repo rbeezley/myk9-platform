@@ -16,9 +16,6 @@ export const classToFormData = (classItem: Partial<ClassData>): ClassEditFormDat
       (classItem.status as 'Upcoming' | 'In Progress' | 'Completed' | 'Cancelled' | 'Scheduled') ||
       'Scheduled',
     estimatedJudgingTime: classItem.estimatedJudgingTime || '',
-    timeLimit1: classItem.timeLimit1 || '',
-    timeLimit2: classItem.timeLimit2 || '',
-    timeLimit3: classItem.timeLimit3 || '',
     judge:
       classItem.judge ||
       ((classItem as unknown as Record<string, unknown>).judgeName as string) ||
@@ -40,7 +37,8 @@ export const classToFormData = (classItem: Partial<ClassData>): ClassEditFormDat
   };
 };
 
-// Convert form data back to ClassData
+// Convert form data back to ClassData. Time limits are never part of this patch: MaxTimeDialog
+// is their one editor (MYK9-2405), so a save cannot write, clear or be blocked by one.
 // Use conditional spread to satisfy exactOptionalPropertyTypes
 export const formDataToClass = (formData: ClassEditFormData): Partial<ClassData> => ({
   element: formData.element,
@@ -50,9 +48,6 @@ export const formDataToClass = (formData: ClassEditFormData): Partial<ClassData>
   ...(formData.estimatedJudgingTime !== undefined && {
     estimatedJudgingTime: formData.estimatedJudgingTime,
   }),
-  ...(formData.timeLimit1 !== undefined && { timeLimit1: formData.timeLimit1 }),
-  ...(formData.timeLimit2 !== undefined && { timeLimit2: formData.timeLimit2 }),
-  ...(formData.timeLimit3 !== undefined && { timeLimit3: formData.timeLimit3 }),
   ...(formData.judge !== undefined && { judge: formData.judge }),
   ...(formData.judgeId !== undefined && { judgeId: formData.judgeId }),
   ...(formData.gateSteward !== undefined && { gateSteward: formData.gateSteward }),

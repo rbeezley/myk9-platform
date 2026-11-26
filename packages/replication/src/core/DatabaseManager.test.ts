@@ -252,27 +252,6 @@ describe('Circuit breaker', () => {
     window.removeEventListener('replication:recovery', handler);
   });
 
-  it('should recover even when deleteDB would time out', async () => {
-    let recoveryFired = false;
-    const handler = () => {
-      recoveryFired = true;
-    };
-    window.addEventListener('replication:recovery', handler);
-
-    // Trip the circuit breaker
-    dbManager.recordFailure();
-    dbManager.recordFailure();
-    dbManager.recordFailure();
-
-    // Wait for async recovery
-    await new Promise(r => setTimeout(r, 500));
-
-    expect(recoveryFired).toBe(true);
-    expect(dbManager.getStatus().consecutiveFailures).toBe(0);
-
-    window.removeEventListener('replication:recovery', handler);
-  });
-
   it('should reset failure count and circuit state on reset()', async () => {
     dbManager.recordFailure();
     dbManager.recordFailure();

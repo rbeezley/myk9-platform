@@ -53,6 +53,38 @@ describe('premium publication schemas', () => {
     expect(parseGeneratedPremium(sparse)).toEqual(sparse);
   });
 
+  it('parses a stored premium that still carries the removed address and trial-limit keys', () => {
+    const old = {
+      ...premium,
+      show: {
+        ...premium.show,
+        venueName: 'Hall',
+        address: '1 Main',
+        city: 'Ames',
+        state: 'IA',
+        zipCode: '50010',
+      },
+      trials: [
+        {
+          name: 'Saturday',
+          date: '2026-05-01',
+          startTime: null,
+          eventNumber: null,
+          type: 'Scent Work',
+          maxTotalEntries: 37,
+          judges: [],
+          classes: [],
+        },
+      ],
+    };
+
+    const parsed = parseGeneratedPremium(old);
+
+    expect(parsed.show.venue).toBe('Louisville');
+    expect(parsed.show).not.toHaveProperty('address');
+    expect(parsed.trials[0]).not.toHaveProperty('maxTotalEntries');
+  });
+
   it('normalizes free-form accommodation entries with missing fields to empty strings', () => {
     const withLooseAccommodation = {
       ...premium,

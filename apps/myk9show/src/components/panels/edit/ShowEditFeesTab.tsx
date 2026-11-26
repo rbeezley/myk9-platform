@@ -15,6 +15,8 @@ import { DollarSign } from 'lucide-react';
 import { FormField } from '@/components/common/FormField';
 import type { FormValidation } from '@/hooks/useFormValidation';
 import type { ShowEditFormData } from './ShowEditPanel.types';
+import { ownFeeClassesNote } from './classEntryFeeCopy';
+import { useShowClassOwnFees } from '@/components/classes/useShowClassOwnFees';
 
 interface ShowEditFeesTabProps {
   data: ShowEditFormData;
@@ -32,6 +34,7 @@ export const ShowEditFeesTab: React.FC<ShowEditFeesTabProps> = ({
   const juniorHandlerFeeError = form?.getError('juniorHandlerFee');
   const maxEntriesPerDogError = form?.getError('maxEntriesPerDog');
   const maxTotalEntriesError = form?.getError('maxTotalEntries');
+  const ownFeeCount = useShowClassOwnFees(data.id)?.size;
 
   const handleFeeChange = (field: keyof ShowEditFormData) => (value: number) => {
     form?.setValue(field, String(value));
@@ -96,6 +99,9 @@ export const ShowEditFeesTab: React.FC<ShowEditFeesTabProps> = ({
             These fees will be used as defaults for each class and can be adjusted per class as
             needed.
           </p>
+          {ownFeeCount !== undefined && ownFeeCount > 0 && (
+            <p className="text-sm text-muted-foreground">{ownFeeClassesNote(ownFeeCount)}</p>
+          )}
 
           <div className="space-y-4">
             <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">

@@ -266,9 +266,9 @@ function setupStepMocks(opts: {
             [TRIAL_ID]: [
               {
                 id: CLASS_ID,
-                name: 'Interior Advanced Preliminary',
-                element: 'Interior',
-                level: 'Advanced',
+                name: 'Buried Excellent',
+                element: 'Buried',
+                level: 'Excellent',
                 section: '',
                 status: replicatedStatus,
                 trial_id: TRIAL_ID,
@@ -312,9 +312,9 @@ function setupStepMocks(opts: {
     classes: [
       {
         classId: CLASS_ID,
-        className: 'Interior Advanced Preliminary',
-        element: 'Interior',
-        level: 'Advanced',
+        className: 'Buried Excellent',
+        element: 'Buried',
+        level: 'Excellent',
         section: null,
         status: availabilityStatus,
         hasStarted,
@@ -393,7 +393,7 @@ describe('ClassSelectionStep — started classes (MYK9-516, integration)', () =>
     setupStepMocks({ availabilityStatus: 'upcoming' });
     renderStep();
 
-    expect(await screen.findByText('Advanced')).toBeInTheDocument();
+    expect(await screen.findByText('Excellent')).toBeInTheDocument();
     expect(screen.queryByText('This class has started')).not.toBeInTheDocument();
     expect(screen.getByRole('checkbox')).not.toHaveAttribute('aria-disabled', 'true');
   });
@@ -402,7 +402,7 @@ describe('ClassSelectionStep — started classes (MYK9-516, integration)', () =>
     setupStepMocks({ availabilityStatus: 'in_progress', isStaff: true });
     renderStep();
 
-    expect(await screen.findByText('Advanced')).toBeInTheDocument();
+    expect(await screen.findByText('Excellent')).toBeInTheDocument();
     expect(screen.queryByText('This class has started')).not.toBeInTheDocument();
     expect(screen.getByRole('checkbox')).not.toHaveAttribute('aria-disabled', 'true');
   });
@@ -452,7 +452,7 @@ describe('ClassSelectionStep — started classes (MYK9-516, integration)', () =>
       asClubAdmin(CLUB_ID);
       renderStep();
 
-      expect(await screen.findByText('Advanced')).toBeInTheDocument();
+      expect(await screen.findByText('Excellent')).toBeInTheDocument();
       expect(screen.queryByText('This class has started')).not.toBeInTheDocument();
       expect(screen.getByRole('checkbox')).not.toHaveAttribute('aria-disabled', 'true');
     });

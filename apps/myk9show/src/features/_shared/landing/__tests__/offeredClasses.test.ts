@@ -153,10 +153,10 @@ describe('buildOfferedClasses', () => {
     expect(buildOfferedClasses(undefined)).toEqual([]);
   });
   /**
-   * MYK9-487. The seeded Heartland Saturday trial really does run two classes
-   * that share an element AND a level:
-   *   dec1a55e-...032  "Interior Advanced"
-   *   dec1a55e-...040  "Interior Advanced Preliminary"
+   * MYK9-487. A trial can run two classes that share an element AND a level
+   * (the Heartland seed did until MYK9-2390 gave ...040 its own class):
+   *   "Interior Advanced"
+   *   "Interior Advanced Preliminary"
    * Keying the level map on the level string alone merged them into one entry,
    * so the public premium under-reported what the show offers — silently, with
    * no error, just a shorter list. Every pre-existing section test used a

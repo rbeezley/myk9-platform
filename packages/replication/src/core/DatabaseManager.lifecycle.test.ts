@@ -6,11 +6,13 @@
  *   - Quota-exceeded error propagation (not silently swallowed)
  *   - versionchange event handler closes the connection cleanly
  *   - Recovery from a corrupt / failed open: re-opens within bounded time
+ *   - Recovery keeps the mutation queue: it never deletes the database
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import 'fake-indexeddb/auto';
-import { DatabaseManager, REPLICATION_STORES } from './DatabaseManager';
+import { openDB } from 'idb';
+import { DamagedDatabaseError, DatabaseManager, REPLICATION_STORES } from './DatabaseManager';
 import { DB_VERSION } from '../constants';
 
 // ---------------------------------------------------------------------------
@@ -124,14 +126,14 @@ describe('DatabaseManager lifecycle', () => {
   // -------------------------------------------------------------------------
   // 4. Recovery from a failed open → fresh DB within bounded time
   // -------------------------------------------------------------------------
-  it('recovers from a corrupt DB by deleting and reopening, not by hanging', async () => {
+  it('recovers from a failing DB by reopening, not by hanging', async () => {
     // Arrange: open once so sharedDB is populated.
     await dbManager.getDatabase('test');
     expect(dbManager.isInitialized()).toBe(true);
 
     // Simulate corruption by marking enough consecutive failures to trip the
     // circuit breaker, which internally calls recover().
-    // recover() closes + deletes the DB and re-opens it.
+    // recover() closes the DB and re-opens it.
     const { CIRCUIT_BREAKER_THRESHOLD } = await import('../constants');
 
     for (let i = 0; i < CIRCUIT_BREAKER_THRESHOLD; i++) {
@@ -159,5 +161,62 @@ describe('DatabaseManager lifecycle', () => {
     expect(dbAfterRecovery.objectStoreNames.contains(REPLICATION_STORES.REPLICATED_TABLES)).toBe(
       true
     );
+  });
+
+  // -------------------------------------------------------------------------
+  // 5. Recovery keeps queued scores (MYK9-2360): the database is the only copy
+  // -------------------------------------------------------------------------
+  it('keeps pending and failed mutations through recovery, and never deletes the database', async () => {
+    const db = await dbManager.getDatabase('test');
+    await db.put(REPLICATION_STORES.PENDING_MUTATIONS, { id: 'queued-score', status: 'pending' });
+    await db.put(REPLICATION_STORES.FAILED_MUTATIONS, { id: 'failed-score', status: 'failed' });
+    const deleteSpy = vi.spyOn(indexedDB, 'deleteDatabase');
+    const recovered = new Promise<void>(resolve =>
+      window.addEventListener('replication:recovery', () => resolve(), { once: true })
+    );
+
+    const { CIRCUIT_BREAKER_THRESHOLD } = await import('../constants');
+    for (let i = 0; i < CIRCUIT_BREAKER_THRESHOLD; i++) dbManager.recordFailure();
+    await recovered;
+
+    expect(deleteSpy).not.toHaveBeenCalled();
+    const reopened = await dbManager.getDatabase('test');
+    expect(reopened).not.toBe(db);
+    expect(await reopened.getAllKeys(REPLICATION_STORES.PENDING_MUTATIONS)).toEqual([
+      'queued-score',
+    ]);
+    expect(await reopened.getAllKeys(REPLICATION_STORES.FAILED_MUTATIONS)).toEqual([
+      'failed-score',
+    ]);
+    deleteSpy.mockRestore();
+  });
+
+  // -------------------------------------------------------------------------
+  // 6. A damaged database is never deleted (MYK9-2360): it may hold the queue
+  // -------------------------------------------------------------------------
+  it('refuses a database missing its cache store, and keeps it and its queued scores', async () => {
+    const name = `lifecycle-missing-store-${Date.now()}-${Math.random()}`;
+    // A database at the current version that has the queue stores but lost the cache store.
+    const broken = await openDB(name, DB_VERSION, {
+      upgrade(db) {
+        db.createObjectStore(REPLICATION_STORES.PENDING_MUTATIONS, { keyPath: 'id' });
+        db.createObjectStore(REPLICATION_STORES.FAILED_MUTATIONS, { keyPath: 'id' });
+      },
+    });
+    await broken.put(REPLICATION_STORES.PENDING_MUTATIONS, { id: 'queued-score' });
+    await broken.put(REPLICATION_STORES.FAILED_MUTATIONS, { id: 'failed-score' });
+    broken.close();
+    const deleteSpy = vi.spyOn(indexedDB, 'deleteDatabase');
+    const manager = new DatabaseManager({}, name, DB_VERSION);
+
+    await expect(manager.getDatabase('test')).rejects.toBeInstanceOf(DamagedDatabaseError);
+    expect(manager.isInitialized()).toBe(false);
+
+    expect(deleteSpy).not.toHaveBeenCalled();
+    const kept = await openDB(name, DB_VERSION);
+    expect(await kept.getAllKeys(REPLICATION_STORES.PENDING_MUTATIONS)).toEqual(['queued-score']);
+    expect(await kept.getAllKeys(REPLICATION_STORES.FAILED_MUTATIONS)).toEqual(['failed-score']);
+    kept.close();
+    deleteSpy.mockRestore();
   });
 });

@@ -9,7 +9,6 @@ import type { HandlerClashControl } from './ClassSelectionStep.types';
 import { PaymentStep } from './PaymentStep';
 import type { JuniorHandlerDeclaration } from './PaymentStep/JuniorHandlerDeclaration';
 import { ConfirmationStep } from './ConfirmationStep';
-import { HandlerAssignmentStep } from './HandlerAssignmentStep';
 import { SearchErrorBoundary, PaymentErrorBoundary } from '@/components/common/ErrorBoundary';
 import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
@@ -43,7 +42,6 @@ import {
   hasCreatedEntryOutcome,
 } from './entrySubmissionOutcomes';
 import { buildRegistrationEntryBlankDownloads } from './entryBlankOptions';
-import { everyEntryHandledByOwner } from './ownerHandledEntries';
 import { getDogRegisteredName } from '@/types/dog-types';
 
 interface OptimisticRegistrationState {
@@ -147,7 +145,6 @@ export function WorkflowStepContent({
   juniorDeclaration,
 }: WorkflowStepContentProps) {
   const hasDogSelectionStep = currentWorkflowConfig.steps.includes('dog-selection');
-  const hasHandlerStep = currentWorkflowConfig.steps.includes('handler-assignment');
   const hasCreatedCapacityOutcome = hasCreatedEntryOutcome(entryOutcomes);
   const receiptClassSelections = filterClassSelectionsToCreatedOutcomes(
     optimisticState.classSelections,
@@ -396,34 +393,12 @@ export function WorkflowStepContent({
               showId={showId}
               workflowMode={currentWorkflowMode}
               ownerAddressWarnOnly={offlineFirstCreate}
-              {...(!hasHandlerStep && {
-                handlerAssignments: optimisticState.handlerAssignments,
-                onHandlerAssignmentChange,
-                handlerClash,
-              })}
+              handlerAssignments={optimisticState.handlerAssignments}
+              onHandlerAssignmentChange={onHandlerAssignmentChange}
+              handlerClash={handlerClash}
             />
-            {/* MYK9-2020: said on the step before, because Next skips Handlers. */}
-            {hasHandlerStep &&
-              everyEntryHandledByOwner(
-                optimisticState.classSelections,
-                optimisticState.handlerAssignments
-              ) && (
-                <p className="mt-4 text-sm text-muted-foreground">
-                  Each dog is handled by its owner, so Next goes straight to Payment. You can still
-                  open Handlers from the steps at the top to change one.
-                </p>
-              )}
           </>
         ))}
-
-      {currentStepId === 'handler-assignment' && (
-        <HandlerAssignmentStep
-          selectedDogs={optimisticState.formData.selectedDogs}
-          classSelections={optimisticState.classSelections}
-          handlerAssignments={optimisticState.handlerAssignments}
-          onHandlerAssignmentChange={onHandlerAssignmentChange}
-        />
-      )}
 
       {currentStepId === 'payment' && (
         <PaymentErrorBoundary>

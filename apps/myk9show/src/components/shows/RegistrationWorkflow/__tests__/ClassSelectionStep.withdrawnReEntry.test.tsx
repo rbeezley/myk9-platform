@@ -133,9 +133,9 @@ function setupStepMocks(opts: {
             [TRIAL_ID]: [
               {
                 id: CLASS_ID,
-                name: 'Interior Advanced Preliminary',
-                element: 'Interior',
-                level: 'Advanced',
+                name: 'Buried Excellent',
+                element: 'Buried',
+                level: 'Excellent',
                 section: '',
                 status: replicatedStatus,
                 trial_id: TRIAL_ID,
@@ -191,9 +191,9 @@ function setupStepMocks(opts: {
     classes: [
       {
         classId: CLASS_ID,
-        className: 'Interior Advanced Preliminary',
-        element: 'Interior',
-        level: 'Advanced',
+        className: 'Buried Excellent',
+        element: 'Buried',
+        level: 'Excellent',
         section: null,
         status: availabilityStatus,
         hasStarted,
@@ -248,7 +248,7 @@ describe('ClassSelectionStep — withdrawn re-entry (MYK9-982)', () => {
     setupStepMocks({});
     renderStep();
 
-    expect(await screen.findByText('Advanced')).toBeInTheDocument();
+    expect(await screen.findByText('Excellent')).toBeInTheDocument();
     expect(screen.queryByText('Withdrawn from this class')).not.toBeInTheDocument();
     // The chip stays aria-disabled ("Loading your entry…") until ensureCart resolves, so wait
     // for the cart rather than asserting on the first paint.
@@ -261,7 +261,7 @@ describe('ClassSelectionStep — withdrawn re-entry (MYK9-982)', () => {
     setupStepMocks({ isStaff: true, reEntryReason: 'Withdrawn from this class' });
     renderStep();
 
-    expect(await screen.findByText('Advanced')).toBeInTheDocument();
+    expect(await screen.findByText('Excellent')).toBeInTheDocument();
     expect(screen.queryByText('Withdrawn from this class')).not.toBeInTheDocument();
     expect(screen.getByRole('checkbox')).not.toHaveAttribute('aria-disabled', 'true');
   });
@@ -282,7 +282,7 @@ describe('ClassSelectionStep — withdrawn re-entry (MYK9-982)', () => {
     });
     renderStep();
 
-    expect(await screen.findByText('Advanced')).toBeInTheDocument();
+    expect(await screen.findByText('Excellent')).toBeInTheDocument();
     expect(screen.queryByText('Withdrawn from this class')).not.toBeInTheDocument();
     expect(screen.getByRole('checkbox')).not.toHaveAttribute('aria-disabled', 'true');
   });

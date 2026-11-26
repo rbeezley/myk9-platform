@@ -355,8 +355,10 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
         liveIds.add(String((row as { id: string }).id));
       }
 
-      if (data.length < PAGE_SIZE) {
-        // Short page → we have the complete live id set; safe to reconcile.
+      if (data.length === 0) {
+        // Empty page → we have the complete live id set; safe to reconcile. Only an
+        // empty page counts (MYK9-2252): a lower hosted max_rows returns short pages
+        // with more ids behind them.
         // A dirty dog the server deleted stays until its write settles; the next
         // due scan (within the hour) prunes it, so the completed read is stamped.
         const removed = await cache.removeStale(liveIds);
@@ -367,7 +369,6 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
         return removed;
       }
 
-      // Advance the cursor to the last id of this full page.
       lastId = String((data[data.length - 1] as { id: string }).id);
     }
 

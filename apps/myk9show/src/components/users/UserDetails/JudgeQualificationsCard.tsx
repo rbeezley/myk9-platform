@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useJudgeQualifications } from '@/hooks/queries/useJudgeDatabase';
 import { formatDateOnly } from '@/lib/format/dates';
+import { getQualificationsReadState } from '@/features/judges/qualificationsReadState';
 
 interface JudgeQualificationsCardProps {
   personId: string;
@@ -17,15 +18,12 @@ const JudgeQualificationsCard: React.FC<JudgeQualificationsCardProps> = ({
   canManageQualifications,
   onManageQualifications,
 }) => {
-  const {
-    data: dbQualifications = [],
-    isLoading,
-    isError,
-    isSuccess,
-    refetch,
-  } = useJudgeQualifications(personId);
-  // MYK9-2382: a save replaces the whole list, so editing waits until the list has loaded.
-  const canManage = canManageQualifications && isSuccess;
+  const query = useJudgeQualifications(personId);
+  const { data: dbQualifications, refetch } = query;
+  // MYK9-2394: exactly one of loading / could not load / loaded; empty only after a confirmed read.
+  const readState = getQualificationsReadState(query);
+  // MYK9-2382: a save replaces the whole list, so editing waits for a fresh, successful read.
+  const canManage = canManageQualifications && readState === 'ready';
 
   return (
     <Card
@@ -64,7 +62,7 @@ const JudgeQualificationsCard: React.FC<JudgeQualificationsCardProps> = ({
           )}
         </div>
 
-        {isError ? (
+        {readState === 'unavailable' ? (
           <div role="alert" className="flex flex-col items-center gap-3 py-8 text-center">
             <p className="text-muted-foreground">
               Couldn't load this person's judge qualifications.
@@ -73,7 +71,7 @@ const JudgeQualificationsCard: React.FC<JudgeQualificationsCardProps> = ({
               Try again
             </Button>
           </div>
-        ) : isLoading ? (
+        ) : readState === 'loading' ? (
           <div className="space-y-4">
             {[1, 2].map(i => (
               <div
@@ -90,6 +88,17 @@ const JudgeQualificationsCard: React.FC<JudgeQualificationsCardProps> = ({
           </div>
         ) : dbQualifications.length > 0 ? (
           <div className="space-y-6">
+            {readState === 'stale' && (
+              <div
+                role="alert"
+                className="flex items-center justify-between gap-3 text-sm text-muted-foreground"
+              >
+                <span>Could not refresh. Showing the last list that loaded.</span>
+                <Button variant="outline" size="sm" onClick={() => void refetch()}>
+                  Try again
+                </Button>
+              </div>
+            )}
             {dbQualifications.map(qual => (
               <div
                 key={qual.id}
@@ -151,6 +160,15 @@ const JudgeQualificationsCard: React.FC<JudgeQualificationsCardProps> = ({
                 </div>
               </div>
             ))}
+          </div>
+        ) : readState === 'stale' ? (
+          <div role="alert" className="flex flex-col items-center gap-3 py-8 text-center">
+            <p className="text-muted-foreground">
+              Could not refresh. Showing the last list that loaded.
+            </p>
+            <Button variant="outline" size="sm" onClick={() => void refetch()}>
+              Try again
+            </Button>
           </div>
         ) : (
           <div className="text-center py-12">

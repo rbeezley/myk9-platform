@@ -1,7 +1,7 @@
 /**
  * Pure handler auto-assignment for the registration wizard.
  *
- * In workflows that don't have a dedicated handler-assignment step, every entry
+ * No workflow has a dedicated handler step (MYK9-2020), so every entry
  * (dog + class) defaults its handler to the dog's owner. This computes the next
  * assignment map from the current class selections, filling in only entries that
  * don't already have a handler so a user's manual override is never clobbered.

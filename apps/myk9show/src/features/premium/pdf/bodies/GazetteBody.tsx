@@ -147,7 +147,6 @@ export function GazetteBody({ data, tokens }: Props) {
                 {trial.classLabels.length > 0 && (
                   <Text style={denseStyle}>{trial.classLabels.join(' · ')}</Text>
                 )}
-                {trial.entryLimit && <Text style={denseStyle}>{trial.entryLimit}</Text>}
                 {trial.classFees && <Text style={denseStyle}>{trial.classFees}</Text>}
                 {trial.waitlist && <Text style={denseStyle}>{trial.waitlist}</Text>}
               </View>

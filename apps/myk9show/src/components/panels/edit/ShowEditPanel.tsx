@@ -126,13 +126,13 @@ const ShowEditPanelSession: React.FC<ShowEditPanelProps> = ({
     [onSave, openedFormData, askPremiumChoice]
   );
 
-  // MYK9-2236: above the panel, so premium edits outlive the body and tab unmounts.
   // MYK9-2433: a public show cannot clear an entry date; refuse before the local write.
   const schema = useMemo(
     () => withPublishedEntryWindow(showEditSchema, initialShowData?.status, openedFormData),
     [initialShowData?.status, openedFormData]
   );
 
+  // MYK9-2236: above the panel, so premium edits outlive the body and tab unmounts.
   return (
     <PremiumDraftCacheProvider>
       <EditPanelWrapper<ShowEditFormData>

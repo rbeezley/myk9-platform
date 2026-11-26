@@ -98,11 +98,11 @@ Your dog now appears in your list and is ready to enter shows. The confirmation 
 1. Open the show you want to enter → click **Enter This Show**.
 2. The registration wizard opens. Its steps run **Dogs**, **Classes**, **Payment**, **Receipt**.
 
-**Step 1 — Dogs:**
+_Step 1 — Dogs:_
 
 3. Under **Select Dogs to Enter**, pick the dog or dogs you are entering. Click **Next**.
 
-**Step 2 — Classes:**
+_Step 2 — Classes:_
 
 ![E-06: Registration wizard — Step 1 (class selection after the Dogs step)](../screenshots/E-06.png)
 
@@ -112,20 +112,20 @@ Your dog now appears in your list and is ready to enter shows. The confirmation 
 
 5. Click **Next**.
 
-**Step 3 — Payment:**
+_Step 3 — Payment:_
 
-6. Review the fees, then choose a payment method. **Credit/Debit Card (Online Payment)** is offered when the show takes online payment, and is already chosen for you. The total shows the service fee, so paying by card costs more than the same entries paid by check (for example $64.20 against $60.00). **Check (pay at show)** and **Cash (pay at show)** appear only if the show accepts them.
+6. Review the fees, then choose a payment method. **Credit/Debit Card** is offered when the show takes online payment, and is already chosen for you. The total shows the service fee, so paying by card costs more than the same entries paid by check (for example $64.20 against $60.00). **Check (pay at show)** and **Cash (pay at show)** appear only if the show accepts them.
 7. Read and accept the entry agreement, then click the button at the bottom. It names what happens next: **Pay** and the amount (for example **Pay $64.20**) for card, **Submit, pay cash at show** or **Submit, bring check to show**.
 8. For card, complete payment in the secure checkout screen. Your spots are held for 30 minutes while you pay, and if checkout times out first your cart is saved and checking out again re-checks the spots.
 
-**Step 4 — Receipt:**
+_Step 4 — Receipt:_
 
 ![E-08: Confirmation receipt — "Entry Submitted Successfully!" with confirmation number, order total, and entries](../screenshots/E-08.png)
 
 9. After payment, you're returned to myK9Show with **Entry Submitted Successfully!** and your confirmation number.
 10. Your entry starts as **Pending review** — it moves to **Accepted** once the secretary reviews it.
 
-**Entered the wrong class?** Leaving a class and entering another are separate steps. On **My Shows**, use **Pull or withdraw…** on the class row (Section 9), then **Actions → Add Entry** for the show to pick the right class. **Actions → Change handler or jump height** edits only those two things. If the entry deadline has passed, use **Message the show team** (also under **Actions**) to contact the secretary.
+**Entered the wrong class?** Leaving a class and entering another are separate steps. On **My Shows**, use **Pull or withdraw…** on the class row (Section 9), then **Actions → Add Entry** for the show to pick the right class. **Actions → Change handler or jump height** edits only those two things. If the entry deadline has passed, use **Message the show secretary** (also under **Actions**) to contact the secretary.
 
 ### Waitlists are free
 
@@ -144,7 +144,7 @@ Go to **My Shows** in the navigation to see all your entries. The page is one co
 ![E-09: My Shows — entry with Pending review status](../screenshots/E-09.png)
 ![E-10: My Shows — entry with Accepted status](../screenshots/E-10.png)
 
-Each show has an **Actions** menu: **Add Entry**, **Change handler or jump height**, **Receipts**, **Add to calendar**, **Message the show team** and **View show page**. Items that do not apply to that show are left out.
+Each show has an **Actions** menu: **Add Entry**, **Change handler or jump height**, **Receipts**, **Add to calendar**, **Message the show secretary** and **View show page**. Items that do not apply to that show are left out.
 
 **Status meanings:**
 
@@ -171,7 +171,7 @@ On show day, a **Go to show day** button appears. Tap it, then **See all classes
 1. Go to **My Shows**.
 2. Open the show's **Actions** menu → **View show page**.
 3. Choose **My Entries**. Tap a class to open it.
-4. The class page opens with a box, **Your dog in this class**, showing your place and your armband number.
+4. The class page opens with a box titled _Your dog in this class_ (or _Your 2 dogs in this class_ with two dogs entered), showing your place and your armband number.
 
 ![E-12: Class detail — the "Your dogs in this class" box with each dog's armband number](../screenshots/E-12.png)
 

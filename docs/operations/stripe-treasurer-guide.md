@@ -265,9 +265,10 @@ If a payment to a club fails, myK9Show tries it again each night, and we are ale
 failures are on our side, such as recent card payments that have not finished clearing; the show
 then reads "We couldn't send this. We're on it, and you don't need to do anything." If Stripe
 cannot pay into your club's bank account, the show reads "Your bank account needs attention. See
-Bank account above." Check the **Bank account** card at the top of the Payments tab, and correct the
-account with Stripe at **express.stripe.com**. That payout keeps failing until the account is fixed. If you have not been paid within five business days of your show's last day,
-the show says so, and we email your club.
+Bank account above." Check the **Bank account** card at the top of the Payments tab, and correct
+the account with Stripe at **express.stripe.com**. That payout keeps failing until the account is
+fixed. If you have not been paid within five business days of your show's last day, the show says
+so, and we email your club.
 
 **Can we change our bank account later?**
 Yes. Sign in at **express.stripe.com**, open payout settings, add the new account and make it the

@@ -239,7 +239,10 @@ test.describe('Wait list: join -> offer -> pay -> confirmed entry', () => {
       await offerCard(exhibitor, 'Willow')
         .getByRole('button', { name: 'Complete payment' })
         .click();
-      const returnPath = await payOnStripeCheckout(exhibitor);
+      const returnPath = await payOnStripeCheckout(
+        exhibitor,
+        (await paymentLinkFor(admin, entryId)).stripe_checkout_session_id
+      );
       expect(returnPath).toBe(`/exhibitor/entries?waitlistOffer=${willow.id}`);
       expect((await paymentLinkFor(admin, entryId)).status).toBe('open');
     });

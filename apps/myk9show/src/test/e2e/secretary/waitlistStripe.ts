@@ -5,6 +5,13 @@ import {
   WEBHOOK_ENDPOINT_PAGE_LIMIT,
   type StripeWebhookEndpointPage,
 } from './stripeWebhookEndpointGuard';
+import {
+  decideAfterSilence,
+  LINK_PROMPT_PATTERN,
+  PROCESSING_PATTERN,
+  type CheckoutPageState,
+  type StripeSessionStatus,
+} from './checkoutRecovery';
 
 export { assertNoSharedWebhookEndpoints };
 
@@ -263,8 +270,12 @@ async function fillIfShown(
   if (shown) await field.fill(value);
 }
 
-/** Pays the hosted Checkout page the browser is on, then waits for Stripe's success redirect. */
-export async function payOnStripeCheckout(page: Page): Promise<string> {
+/**
+ * Pays the hosted Checkout page the browser is on, then waits for Stripe's success redirect.
+ * `checkoutSessionId` is the session the app created; when no redirect comes, its status decides
+ * whether Pay may be clicked once more (checkoutRecovery.ts).
+ */
+export async function payOnStripeCheckout(page: Page, checkoutSessionId: string): Promise<string> {
   await page.waitForURL(/^https:\/\/checkout\.stripe\.com\//, { timeout: 30_000 });
   const email = await checkoutLocator(page, 'the Email field', EMAIL);
   await expect(email).toBeVisible({ timeout: 30_000 });
@@ -301,13 +312,95 @@ export async function payOnStripeCheckout(page: Page): Promise<string> {
 
   // The submit button reads "Pay" (or "Pay $NN.NN"); "Pay with ..." is a payment-method choice.
   // Deliberately strict: any other label should fail loudly rather than click a guess.
-  const pay = await checkoutLocator(page, 'the Pay button', root =>
-    root.getByRole('button', { name: /^Pay(\s+\$[\d,.]+)?$/ })
-  );
+  const pay = await checkoutLocator(page, 'the Pay button', PAY_BUTTON);
   await pay.click();
-  await page.waitForURL(url => url.origin === ALLOWED_RETURN_ORIGIN, { timeout: 90_000 });
+  if (await returnedToApp(page, SUBMIT_SETTLE_MS)) return returnPath(page);
+
+  // MYK9-2336: no redirect and, once, no visible error. Name what the page and Stripe say, and
+  // click Pay a second time only when both say the first click did nothing.
+  const state = await inspectCheckout(page);
+  const decision = decideAfterSilence(state, await sessionStatus(checkoutSessionId));
+  if (decision.action === 'fail') throw noReturnError(page, state, decision.reason);
+  if (decision.action === 'retry') {
+    await (await checkoutLocator(page, 'the Pay button (retry)', PAY_BUTTON, 5_000)).click();
+  }
+  if (await returnedToApp(page, RETURN_AFTER_RECOVERY_MS)) return returnPath(page);
+  throw noReturnError(
+    page,
+    await inspectCheckout(page),
+    `${decision.reason}; still no redirect after ${decision.action === 'retry' ? 'one Pay retry' : 'waiting'}`
+  );
+}
+
+const SUBMIT_SETTLE_MS = 30_000;
+const RETURN_AFTER_RECOVERY_MS = 60_000;
+
+const PAY_BUTTON: CheckoutTarget = root =>
+  root.getByRole('button', { name: /^Pay(\s+\$[\d,.]+)?$/ });
+
+async function returnedToApp(page: Page, timeout: number): Promise<boolean> {
+  return page
+    .waitForURL(url => url.origin === ALLOWED_RETURN_ORIGIN, { timeout })
+    .then(
+      () => true,
+      () => false
+    );
+}
+
+function returnPath(page: Page): string {
   const returned = new URL(page.url());
   return `${returned.pathname}${returned.search}`;
+}
+
+function noReturnError(page: Page, state: CheckoutPageState, reason: string): Error {
+  return new Error(
+    `Stripe Checkout did not return to the app after Pay: ${reason}. ` +
+      `Page state: ${state.kind}. At ${originAndPath(page.url())}. Frames: ${describeFrames(page)}`
+  );
+}
+
+/** Stripe's own view of the session; null when it cannot be read (the caller then never retries). */
+async function sessionStatus(sessionId: string): Promise<StripeSessionStatus | null> {
+  const key = stripeTestKey();
+  if (!key) return null;
+  try {
+    const response = await fetch(`${STRIPE_API}/checkout/sessions/${sessionId}`, {
+      headers: { Authorization: `Bearer ${key}` },
+    });
+    if (response.status !== 200) return null;
+    const body = (await response.json()) as Partial<StripeSessionStatus>;
+    if (typeof body.status !== 'string' || typeof body.payment_status !== 'string') return null;
+    return { status: body.status, payment_status: body.payment_status };
+  } catch {
+    return null;
+  }
+}
+
+/** Reads the Checkout page after a silent submit: an error, a processing state, Link, or idle. */
+async function inspectCheckout(page: Page): Promise<CheckoutPageState> {
+  const roots: CheckoutRoot[] = [page, ...page.frames().filter(f => f !== page.mainFrame())];
+  const texts: string[] = [];
+  let payDisabled = false;
+  for (const root of roots) {
+    try {
+      const alert = root.locator('[role="alert"]').first();
+      if ((await boundedCount(alert)) > 0) {
+        const message = ((await alert.innerText({ timeout: 1_000 })) ?? '').trim();
+        if (message) return { kind: 'validation-error', message: message.slice(0, 200) };
+      }
+      const pay = PAY_BUTTON(root);
+      if ((await boundedCount(pay)) > 0) {
+        payDisabled ||= !(await pay.isEnabled({ timeout: 1_000 }));
+      }
+      texts.push(await root.locator('body').innerText({ timeout: 1_000 }));
+    } catch {
+      // a frame that navigated or detached mid-read; the other roots still count
+    }
+  }
+  const text = texts.join('\n');
+  if (LINK_PROMPT_PATTERN.test(text)) return { kind: 'link-prompt' };
+  if (payDisabled || PROCESSING_PATTERN.test(text)) return { kind: 'processing' };
+  return { kind: 'idle' };
 }
 
 interface StripeEvent {

@@ -35,6 +35,7 @@ import type {
 import { resolvePayoutSettlement, type PayoutSettlementRow } from './payoutSettlement';
 import { selectAuthoritativePayout } from './payoutSupersession';
 import type { PayoutsAccountState } from '@/features/payments/payoutBadge';
+import type { ShowOwed } from '@/features/payments/payoutStage';
 
 /**
  * A show-level COVERAGE statement, deliberately distinct from the per-order
@@ -68,20 +69,34 @@ export interface ClubShowReconciliationRow {
   orderCount: number;
   /** Post-hoc refunds across the show's orders: proof a refund actually happened. */
   refundedCents: number;
+  /** Whether anything is still owed to the club. The ONE place that decides it (deriveShowOwed). */
+  owed: ShowOwed;
 }
 
 /**
- * Every entry fee was refunded: there are online orders, nothing is owed, and a
- * refund actually happened. Without the refund, a $0 net is a $0 subtotal, which
- * is not "refunded" (MYK9-1985).
+ * Whether a show still owes the club anything (MYK9-1985). Decided here, once,
+ * and read by the payout stage; nothing else infers it from a zero.
+ *
+ * - A live (not failed) payout row carries what the payout run will send or
+ *   sent, so its amount wins: above $0 is owed, $0 is the run closing a show
+ *   that went to $0.
+ * - A failed row's amount is stale (the run recomputes on retry, and makes no
+ *   replacement once the show is at $0), so it is ignored and the orders decide.
+ * - With no live row the orders' net decides. A net that cannot be read yet is
+ *   'unknown', which the stage reads as owed.
+ * - Nothing owed is 'none-refunded' only when a refund actually happened;
+ *   otherwise the show had no online entry fees ('none-no-fees').
  */
-export function isFullyRefundedShow(row: ClubShowReconciliationRow): boolean {
-  return (
-    row.orderCount > 0 &&
-    row.refundedCents > 0 &&
-    row.net.status === 'available' &&
-    row.net.netCents <= 0
-  );
+export function deriveShowOwed(
+  net: ClubShowNet,
+  refundedCents: number,
+  settlement: Pick<PayoutSettlementRow, 'status' | 'amountCents'> | null
+): ShowOwed {
+  const nothingOwed: ShowOwed = refundedCents > 0 ? 'none-refunded' : 'none-no-fees';
+  const live = settlement && settlement.status !== 'failed' ? settlement : null;
+  if (live) return live.amountCents > 0 ? 'some' : nothingOwed;
+  if (net.status === 'pending') return 'unknown';
+  return net.netCents > 0 ? 'some' : nothingOwed;
 }
 
 /**
@@ -229,6 +244,7 @@ export function buildClubShowReconciliationRows(
       settlement,
       orderCount: showOrders.length,
       refundedCents,
+      owed: deriveShowOwed(net, refundedCents, settlement),
     });
   }
 

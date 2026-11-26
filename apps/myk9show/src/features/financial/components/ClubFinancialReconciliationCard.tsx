@@ -20,7 +20,6 @@ import { useClubFinancialReconciliation } from '../useClubFinancialReconciliatio
 import type { PayoutsAccountState } from '@/features/payments/payoutBadge';
 import { resolvePayoutStage } from '@/features/payments/payoutStage';
 import { useShowPayoutSchedules } from '@/features/payments/useShowPayoutSchedules';
-import { isFullyRefundedShow } from '../clubShowReconciliation';
 import { ChargeVerificationBadge } from './ChargeVerificationBadge';
 import { CopyableTransferId } from './CopyableTransferId';
 import { PayoutStageLine, type PayoutStageActions } from './PayoutStageLine';
@@ -130,67 +129,70 @@ export function ClubFinancialReconciliationCard({
 
         {!isLoading && !isError && rows.length > 0 && (
           <ul className="divide-y rounded-lg border">
-            {rows.map(row => (
-              <li key={row.showId} className="space-y-2 px-3 py-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="truncate text-sm font-medium">{row.showName}</p>
-                  <span className="text-sm font-semibold tabular-nums">
-                    {row.net.status === 'available' ? (
-                      formatCents(row.net.netCents)
-                    ) : (
-                      <Badge variant="secondary" className={NEUTRAL_STATUS_CHIP}>
-                        Net pending
-                        <span className="sr-only"> — awaiting Stripe processing fee capture</span>
-                      </Badge>
-                    )}
-                  </span>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <ChargeVerificationBadge state={row.chargeVerification} />
-                </div>
-                <PayoutStageLine
-                  stage={resolvePayoutStage({
-                    payout: row.settlement,
-                    accountState,
-                    schedule: schedules.get(row.showId) ?? null,
-                    fullyRefunded: isFullyRefundedShow(row),
-                    now,
-                  })}
-                  {...stageActions}
-                />
-                {row.settlement && (
-                  // The transfer amount, distinct from the entry-fee `net` above.
-                  // Showing both, with the copyable transfer id, is the
-                  // reconciliation view: the treasurer ties this figure to what
-                  // Stripe reports for tr_….
-                  //
-                  // INTENT: the wording must never claim money moved that has not.
-                  // A pending/processing/failed payout still HAS an amount, but it
-                  // is scheduled or owed — not transferred. Only a settled payout
-                  // ('Paid') may be labelled "Transferred" (Codex round-6 finding).
-                  <p className="text-xs text-muted-foreground">
-                    {row.settlement.state === 'settled' ? 'Transferred: ' : 'To transfer: '}
-                    <span className="font-medium tabular-nums text-foreground">
-                      {formatCents(row.settlement.amountCents)}
-                      {/* This qualifier was an aria-label on a bare <span>, i.e.
-                          role="generic", so it was dropped -- and it is the only
-                          honest qualifier on a money figure here. */}
-                      {row.settlement.state !== 'settled' && (
-                        <span className="sr-only"> awaiting transfer, not yet sent</span>
+            {rows.map(row => {
+              const stage = resolvePayoutStage({
+                payout: row.settlement,
+                owed: row.owed,
+                accountState,
+                schedule: schedules.get(row.showId) ?? null,
+                now,
+              });
+              // A show with nothing owed has no figure "to transfer": a failed
+              // row's amount is stale once the fees were refunded.
+              const showTransferAmount = !!row.settlement && stage.kind !== 'nothing-to-send';
+              return (
+                <li key={row.showId} className="space-y-2 px-3 py-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="truncate text-sm font-medium">{row.showName}</p>
+                    <span className="text-sm font-semibold tabular-nums">
+                      {row.net.status === 'available' ? (
+                        formatCents(row.net.netCents)
+                      ) : (
+                        <Badge variant="secondary" className={NEUTRAL_STATUS_CHIP}>
+                          Net pending
+                          <span className="sr-only"> — awaiting Stripe processing fee capture</span>
+                        </Badge>
                       )}
                     </span>
-                  </p>
-                )}
-                {row.settlement?.stripeTransferId && (
-                  <div className="flex flex-wrap items-center gap-1">
-                    {/* No "View in Stripe" link (MYK9-1985): it opened the
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <ChargeVerificationBadge state={row.chargeVerification} />
+                  </div>
+                  <PayoutStageLine stage={stage} {...stageActions} />
+                  {showTransferAmount && row.settlement && (
+                    // The transfer amount, distinct from the entry-fee `net` above.
+                    // Showing both, with the copyable transfer id, is the
+                    // reconciliation view: the treasurer ties this figure to what
+                    // Stripe reports for tr_….
+                    //
+                    // INTENT: the wording must never claim money moved that has not.
+                    // A pending/processing/failed payout still HAS an amount, but it
+                    // is scheduled or owed — not transferred. Only a settled payout
+                    // ('Paid') may be labelled "Transferred" (Codex round-6 finding).
+                    <p className="text-xs text-muted-foreground">
+                      {row.settlement.state === 'settled' ? 'Transferred: ' : 'To transfer: '}
+                      <span className="font-medium tabular-nums text-foreground">
+                        {formatCents(row.settlement.amountCents)}
+                        {/* This qualifier was an aria-label on a bare <span>, i.e.
+                          role="generic", so it was dropped -- and it is the only
+                          honest qualifier on a money figure here. */}
+                        {row.settlement.state !== 'settled' && (
+                          <span className="sr-only"> awaiting transfer, not yet sent</span>
+                        )}
+                      </span>
+                    </p>
+                  )}
+                  {row.settlement?.stripeTransferId && (
+                    <div className="flex flex-wrap items-center gap-1">
+                      {/* No "View in Stripe" link (MYK9-1985): it opened the
                         platform's dashboard, which a club cannot sign in to.
                         The id stays copyable for a support conversation. */}
-                    <CopyableTransferId transferId={row.settlement.stripeTransferId} />
-                  </div>
-                )}
-              </li>
-            ))}
+                      <CopyableTransferId transferId={row.settlement.stripeTransferId} />
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </CardContent>

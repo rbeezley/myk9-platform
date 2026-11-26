@@ -59,6 +59,7 @@ function showRow(status: string | null, failureReason: string | null = null) {
       : null,
     orderCount: 1,
     refundedCents: 0,
+    owed: 'some',
   };
   mockedReconciliation.mockReturnValue({
     rows: [row],

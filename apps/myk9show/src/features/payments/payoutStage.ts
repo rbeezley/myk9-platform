@@ -14,6 +14,10 @@
  *
  * Past the promised date, an unsent payout reads as delayed (MYK9-1956 owner
  * decision): a past date is never shown as the expected date.
+ *
+ * Precedence: a completed payout with money reads Sent; then nothing owed
+ * (`owed`, decided once in clubShowReconciliation.ts deriveShowOwed); then a
+ * club-account failure; then everything else. No other branch looks at a zero.
  */
 import { getTrialTimezone } from '@/features/registries';
 import { calendarDateInTimeZone } from '@/utils/calendarDate';
@@ -50,20 +54,26 @@ export interface PayoutStage {
   action: PayoutStageAction | null;
 }
 
+/**
+ * Whether the show still owes the club anything, decided ONCE from the
+ * reconciliation row and its payout row (clubShowReconciliation.ts
+ * deriveShowOwed). 'unknown' (the net cannot be read yet) is read as 'some'.
+ */
+export type ShowOwed = 'none-refunded' | 'none-no-fees' | 'some' | 'unknown';
+
 export interface PayoutStageInput {
   /** The show's authoritative payout row, or null when none exists yet. */
   payout: {
     status: string;
     failureReason: string | null;
     completedAt: string | null;
-    /** What the row sends. The payout run closes a $0 row as 'completed', so 0 means nothing moved. */
+    /** What the row sends. Only a completed row with money reads "Sent". */
     amountCents: number;
   } | null;
   accountState: PayoutsAccountState;
   /** The show's last day and timezone, or null when the show could not be read. */
   schedule: { lastDay: string; timeZone: string } | null;
-  /** Every entry fee was refunded, so the payout run has nothing to send. */
-  fullyRefunded: boolean;
+  owed: ShowOwed;
   now: Date;
 }
 
@@ -102,41 +112,15 @@ export function resolvePayoutStage({
   payout,
   accountState,
   schedule,
-  fullyRefunded,
+  owed,
   now,
 }: PayoutStageInput): PayoutStage {
   const timeZone = schedule?.timeZone ?? getTrialTimezone(undefined);
   const timeline = schedule ? payoutTimeline(schedule.lastDay, timeZone, now) : null;
   const status = payout?.status ?? null;
 
-  if (status === 'failed' && isClubFailure(payout?.failureReason ?? null)) {
-    return stageOf(
-      'failed-club',
-      "Your bank account needs attention. We can't send this payout until it's fixed.",
-      'fix-bank-account'
-    );
-  }
-
-  // Nothing to send: every entry fee was refunded, or the row carries $0. The
-  // payout run never sends $0, and closes a parked row whose show went to $0 as
-  // 'completed' with amount 0 (cron-process-payouts/processShow.ts), so such a
-  // row must never read "Sent", "Paid by" or ask for a bank account. A row
-  // that did send money still reads "Sent": that money moved, whatever came after.
-  const sentMoney = status === 'completed' && (payout?.amountCents ?? 0) > 0;
-  if (fullyRefunded && !sentMoney) {
-    return stageOf(
-      'nothing-to-send',
-      'Nothing to send. Every entry fee for this show was refunded.'
-    );
-  }
-  if (payout && payout.amountCents <= 0) {
-    return stageOf(
-      'nothing-to-send',
-      'Nothing to send. This show has no online entry fees to pay out.'
-    );
-  }
-
-  if (status === 'completed') {
+  // 1. Money moved, whatever happened after (a later refund is the club's to settle).
+  if (status === 'completed' && (payout?.amountCents ?? 0) > 0) {
     const completedAt = payout?.completedAt ?? null;
     const sentDay = completedAt ? calendarDateInTimeZone(new Date(completedAt), timeZone) : null;
     const today = calendarDateInTimeZone(now, timeZone);
@@ -150,6 +134,32 @@ export function resolvePayoutStage({
     };
   }
 
+  // 2-3. Nothing owed. The payout run never sends $0: it skips such a show, or
+  // closes its parked row at $0, and makes no replacement for a failed one. So
+  // no deadline, bank request, delay or fix applies to it.
+  if (owed === 'none-refunded') {
+    return stageOf(
+      'nothing-to-send',
+      'Nothing to send. Every entry fee for this show was refunded.'
+    );
+  }
+  if (owed === 'none-no-fees') {
+    return stageOf(
+      'nothing-to-send',
+      'Nothing to send. This show has no online entry fees to pay out.'
+    );
+  }
+
+  // 4. The club's to fix.
+  if (status === 'failed' && isClubFailure(payout?.failureReason ?? null)) {
+    return stageOf(
+      'failed-club',
+      "Your bank account needs attention. We can't send this payout until it's fixed.",
+      'fix-bank-account'
+    );
+  }
+
+  // 5. Everything else.
   if ((status === null || status === 'pending') && accountState === 'not-enabled') {
     return stageOf(
       'bank-not-connected',

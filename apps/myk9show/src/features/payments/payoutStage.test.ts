@@ -18,7 +18,7 @@ function stage(overrides: Partial<PayoutStageInput>) {
     payout: null,
     accountState: 'enabled',
     schedule: SCHEDULE,
-    fullyRefunded: false,
+    owed: 'some',
     now: AFTER_SHOW_ENDS,
     ...overrides,
   });
@@ -138,65 +138,56 @@ describe('resolvePayoutStage: every show row answers "when do we get paid?"', ()
     }
   );
 
-  // The payout run closes a parked row whose show went to $0 as 'completed' with
-  // amount_cents 0 (cron-process-payouts/processShow.ts). That row moved no money.
-  it('a $0 completed row is nothing to send, never "Sent"', () => {
-    const result = stage({
-      payout: payout('completed', null, '2026-12-12T15:00:00Z', 0),
-      fullyRefunded: true,
-    });
-    expect(result).toEqual({
-      kind: 'nothing-to-send',
-      text: 'Nothing to send. Every entry fee for this show was refunded.',
-      action: null,
-    });
-  });
+  // Whether anything is owed is decided once (deriveShowOwed); end-to-end
+  // precedence over real rows lives in financial/payoutStagePrecedence.test.ts.
+  it.each([null, 'pending', 'awaiting_approval', 'processing', 'failed'])(
+    'nothing owed (refunded) wins over a %s row, any day, with or without a bank',
+    status => {
+      for (const now of [BEFORE_SHOW_ENDS, AFTER_SHOW_ENDS, AFTER_DUE_DATE]) {
+        for (const accountState of ['enabled', 'not-enabled'] as const) {
+          expect(
+            stage({
+              payout: status ? payout(status) : null,
+              owed: 'none-refunded',
+              now,
+              accountState,
+            })
+          ).toEqual({
+            kind: 'nothing-to-send',
+            text: 'Nothing to send. Every entry fee for this show was refunded.',
+            action: null,
+          });
+        }
+      }
+    }
+  );
 
-  it('a $0 pending row with no bank account is nothing to send, never "Connect bank account"', () => {
-    expect(
-      stage({ payout: payout('pending', null, null, 0), accountState: 'not-enabled' })
-    ).toEqual({
+  it('nothing owed (no fees) reads its own sentence, never "refunded"', () => {
+    expect(stage({ owed: 'none-no-fees' })).toEqual({
       kind: 'nothing-to-send',
       text: 'Nothing to send. This show has no online entry fees to pay out.',
       action: null,
     });
   });
 
-  it('a $0 row before the due date is nothing to send, never "Paid by"', () => {
-    for (const now of [BEFORE_SHOW_ENDS, AFTER_SHOW_ENDS, AFTER_DUE_DATE]) {
-      const result = stage({ payout: payout('awaiting_approval', null, null, 0), now });
-      expect(result.kind).toBe('nothing-to-send');
-      expect(result.text).not.toMatch(/Paid|December|longer/);
-    }
+  it('nothing owed wins over a club-account failure: no Fix it forever', () => {
+    expect(
+      stage({ payout: payout('failed', 'club_account:account_closed: x'), owed: 'none-refunded' })
+        .action
+    ).toBeNull();
   });
 
-  it('a fully refunded show with a payout row still has nothing to send', () => {
-    expect(stage({ payout: payout('pending'), fullyRefunded: true }).kind).toBe('nothing-to-send');
-  });
-
-  it('a payout that did send money still reads Sent, even if the show later reads fully refunded', () => {
+  it('a completed payout with money reads Sent even when nothing is owed now', () => {
     expect(
       stage({
-        payout: payout('completed', null, '2026-12-12T15:00:00Z', 5000),
-        fullyRefunded: true,
+        payout: payout('completed', null, '2026-12-12T15:00:00Z'),
+        owed: 'none-refunded',
       }).kind
     ).toBe('sent');
   });
 
-  it("a $0 row that failed for the club's bank account keeps its fix", () => {
-    expect(
-      stage({ payout: payout('failed', 'club_account:account_closed: x', null, 0) }).kind
-    ).toBe('failed-club');
-  });
-
-  it('a fully refunded show has nothing to send, and never reads Paid', () => {
-    const result = stage({ fullyRefunded: true });
-    expect(result).toEqual({
-      kind: 'nothing-to-send',
-      text: 'Nothing to send. Every entry fee for this show was refunded.',
-      action: null,
-    });
-    expect(result.text).not.toMatch(/paid|\$0/i);
+  it('an unknown owed reads as owed', () => {
+    expect(stage({ owed: 'unknown' }).text).toBe('Paid by December 16.');
   });
 
   it('without the show dates it still states the deadline, in words', () => {

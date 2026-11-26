@@ -214,7 +214,8 @@ What each show can say, for a show whose last day is December 9:
 | Your bank account needs attention. We can't send this payout until it's fixed.              | Stripe could not pay into your club's bank account. Choose **Fix it** to update it with Stripe. myK9Show tries again each night, and the payout keeps failing until the account is fixed |
 | Waiting for your club's bank account.                                                       | Your bank setup is not finished. **Connect bank account** takes you to the **Bank account** card                                                                                         |
 | Your payout is taking longer than usual. We'll be in touch by email.                        | The five business days have passed and the payout has not been sent. We will email your club                                                                                             |
-| Nothing to send. Every entry fee for this show was refunded.                                | Every online entry fee for the show went back to the exhibitors, so there is no payout                                                                                                   |
+| Nothing to send. Every entry fee for this show was refunded.                                | Every online entry fee for the show went back to the exhibitors, so there is no payout. This holds even if an earlier attempt failed                                                     |
+| Nothing to send. This show has no online entry fees to pay out.                             | No entry fees for the show were paid online, so there is no payout                                                                                                                       |
 
 A show whose net amount is still being worked out reads **Net pending**.
 

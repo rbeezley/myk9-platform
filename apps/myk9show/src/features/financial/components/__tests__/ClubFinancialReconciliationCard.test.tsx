@@ -62,6 +62,7 @@ function row(overrides: Partial<ClubShowReconciliationRow> = {}): ClubShowReconc
     },
     orderCount: 1,
     refundedCents: 0,
+    owed: 'some',
     ...overrides,
   };
 }
@@ -244,7 +245,12 @@ describe('ClubFinancialReconciliationCard', () => {
   it('a fully refunded show has nothing to send and never reads Paid', () => {
     mockedHook.mockReturnValue({
       rows: [
-        row({ net: { status: 'available', netCents: 0 }, refundedCents: 10000, settlement: null }),
+        row({
+          net: { status: 'available', netCents: 0 },
+          refundedCents: 10000,
+          owed: 'none-refunded',
+          settlement: null,
+        }),
       ],
       isLoading: false,
       isError: false,
@@ -262,7 +268,12 @@ describe('ClubFinancialReconciliationCard', () => {
   it('a $0 show with no refund never claims every entry fee was refunded', () => {
     mockedHook.mockReturnValue({
       rows: [
-        row({ net: { status: 'available', netCents: 0 }, refundedCents: 0, settlement: null }),
+        row({
+          net: { status: 'available', netCents: 0 },
+          refundedCents: 0,
+          owed: 'none-no-fees',
+          settlement: null,
+        }),
       ],
       isLoading: false,
       isError: false,
@@ -279,6 +290,7 @@ describe('ClubFinancialReconciliationCard', () => {
         row({
           net: { status: 'available', netCents: 0 },
           refundedCents: 10000,
+          owed: 'none-refunded',
           settlement: settlementFor('completed', {
             amountCents: 0,
             completedAt: '2026-12-12T15:00:00Z',
@@ -294,6 +306,39 @@ describe('ClubFinancialReconciliationCard', () => {
     const line = screen.getByTestId('payout-stage');
     expect(line).toHaveTextContent('Nothing to send. Every entry fee for this show was refunded.');
     expect(line).not.toHaveTextContent(/Sent/);
+    expect(screen.queryByText(/Transferred:|To transfer:/)).not.toBeInTheDocument();
+  });
+
+  it('a club-account failure whose fees were then refunded: no Fix it, no stale "To transfer"', () => {
+    mockedHook.mockReturnValue({
+      rows: [
+        row({
+          net: { status: 'available', netCents: 0 },
+          refundedCents: 5000,
+          owed: 'none-refunded',
+          settlement: settlementFor('failed', {
+            failureReason: 'club_account:account_closed: The bank account is closed',
+          }),
+        }),
+      ],
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    render(
+      <ClubFinancialReconciliationCard
+        clubId="club-1"
+        accountState="enabled"
+        onFixBankAccount={vi.fn()}
+      />
+    );
+
+    expect(screen.getByTestId('payout-stage')).toHaveTextContent(
+      'Nothing to send. Every entry fee for this show was refunded.'
+    );
+    expect(screen.queryByRole('button', { name: 'Fix it' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/To transfer:/)).not.toBeInTheDocument();
+    expect(screen.queryByText('$50.00')).not.toBeInTheDocument();
   });
 
   it('a platform failure says we are on it, with no control for the club', () => {

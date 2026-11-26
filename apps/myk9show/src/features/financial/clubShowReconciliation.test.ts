@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildClubShowReconciliationRows,
   clubNetContributionCents,
-  isFullyRefundedShow,
+  deriveShowOwed,
 } from './clubShowReconciliation';
 import type {
   FinancialReconciliationOrder,
@@ -269,23 +269,51 @@ describe('buildClubShowReconciliationRows', () => {
   });
 });
 
-describe('isFullyRefundedShow', () => {
-  const rowFor = (orders: FinancialReconciliationOrder[]) =>
-    buildClubShowReconciliationRows(orders, [], 'enabled')[0]!;
+describe('deriveShowOwed', () => {
+  const available = (netCents: number) => ({ status: 'available' as const, netCents });
+  const live = (status: string, amountCents: number) => ({ status, amountCents });
 
-  it('is true when every entry fee was refunded', () => {
-    const row = rowFor([order({ refundedCents: 10000 })]);
-    expect(row.refundedCents).toBe(10000);
-    expect(isFullyRefundedShow(row)).toBe(true);
+  it.each([
+    ['money owed, no payout row', available(5000), 0, null, 'some'],
+    ['every fee refunded, no payout row', available(0), 5000, null, 'none-refunded'],
+    ['a $0 subtotal and no refund is no fees, not refunded', available(0), 0, null, 'none-no-fees'],
+    ['an unreadable net is unknown', { status: 'pending' as const }, 0, null, 'unknown'],
+    [
+      'a live row with money is owed, whatever the orders say',
+      available(0),
+      0,
+      live('awaiting_approval', 5000),
+      'some',
+    ],
+    [
+      'a $0 completed close-out row of a refunded show',
+      available(0),
+      5000,
+      live('completed', 0),
+      'none-refunded',
+    ],
+    [
+      'a $0 live row with no refund',
+      { status: 'pending' as const },
+      0,
+      live('pending', 0),
+      'none-no-fees',
+    ],
+    [
+      "a failed row's stale amount is ignored",
+      available(0),
+      5000,
+      live('failed', 5000),
+      'none-refunded',
+    ],
+    ['a failed row with money still owed', available(5000), 0, live('failed', 5000), 'some'],
+  ] as const)('%s', (_name, net, refundedCents, settlement, expected) => {
+    expect(deriveShowOwed(net, refundedCents, settlement)).toBe(expected);
   });
 
-  it('is false for a $0 subtotal with no refund: nothing was refunded', () => {
-    const row = rowFor([order({ entrySubtotalCents: 0, refundedCents: 0, amountCents: 0 })]);
-    expect(row.refundedCents).toBe(0);
-    expect(isFullyRefundedShow(row)).toBe(false);
-  });
-
-  it('is false while money is still owed', () => {
-    expect(isFullyRefundedShow(rowFor([order({ refundedCents: 2500 })]))).toBe(false);
+  it('is carried on every reconciliation row', () => {
+    const [row] = buildClubShowReconciliationRows([order({ refundedCents: 10000 })], [], 'enabled');
+    expect(row?.refundedCents).toBe(10000);
+    expect(row?.owed).toBe('none-refunded');
   });
 });

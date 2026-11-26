@@ -52,6 +52,13 @@ BEGIN
   -- ones, so refuse and let the person look at the payment that is there. A NULL date is
   -- the "today" default and is not compared; the reference is compared as the core
   -- stores it. A row on another enrollment is left to the core's own refusal.
+  -- Take the enrollment lock the core takes, first, so a retry overlapping a first call
+  -- that is still committing waits for it and then sees its row (the core re-locks the
+  -- same row in this transaction, which is a no-op).
+  IF p_client_payment_id IS NOT NULL THEN
+    PERFORM 1 FROM public.enrollments e WHERE e.id = p_enrollment_id FOR UPDATE;
+  END IF;
+
   IF p_client_payment_id IS NOT NULL AND EXISTS (
     SELECT 1 FROM public.show_payments sp
      WHERE sp.client_payment_id = p_client_payment_id

@@ -83,13 +83,74 @@ const grantClubRole = () => {
 
 const created = { clubId: 'club-9', requestId: 'request-9', alreadyRequested: false };
 
+/** The id the form saved its draft under, read from storage. */
+const savedDraftId = (): string => JSON.parse(localStorage.getItem(DRAFT_KEY)!).id;
+const DRAFT_KEY = 'myk9:club-onboarding-draft';
+
+// The id the saved draft carries, as the sign-in address would.
+let draftId: string | null = null;
+
 describe('ClubOnboarding', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sessionStorage.clear();
+    localStorage.clear();
+    draftId = null;
     mockRefreshPermissions.mockImplementation(async () => grantClubRole());
     auth.userWithRoles = undefined;
     auth.user = signedInUser;
+  });
+
+  // MYK9-2469 and the shared-computer case: the draft belongs to the address that carries its id.
+  describe('restoring the saved draft', () => {
+    const restoredDraft = {
+      ...fullDraft,
+      contactName: 'Pat Morgan',
+      contactEmail: 'pat@example.com',
+      contactPhone: '555-0100',
+      message: 'Our first show is in spring.',
+    };
+
+    beforeEach(() => {
+      auth.user = null;
+    });
+
+    it('restores it in the same tab and in a new tab, where the address carries its id', () => {
+      const id = saveClubOnboardingDraft(restoredDraft);
+      render(<ClubOnboarding />, { initialRoute: `/?onboarding=true&clubDraft=${id}` });
+      expect(screen.getByLabelText(/club name/i)).toHaveValue('Tri-State Kennel Club');
+      expect(screen.getByLabelText(/contact email/i)).toHaveValue('pat@example.com');
+      expect(screen.getByLabelText(/phone/i)).toHaveValue('555-0100');
+    });
+
+    it.each([
+      ['no id', '/'],
+      ['the club form address with no id', '/?onboarding=true'],
+      ['a different id', '/?onboarding=true&clubDraft=someone-elses-id'],
+    ])('shows an empty form, with nothing from the draft, on %s', (_name, route) => {
+      saveClubOnboardingDraft(restoredDraft);
+      render(<ClubOnboarding />, { initialRoute: route });
+      expect(screen.getByLabelText(/club name/i)).toHaveValue('');
+      expect(screen.getByLabelText(/contact name/i)).toHaveValue('');
+      expect(screen.getByLabelText(/contact email/i)).toHaveValue('');
+      expect(screen.getByLabelText(/phone/i)).toHaveValue('');
+      expect(screen.queryByDisplayValue('Our first show is in spring.')).not.toBeInTheDocument();
+    });
+
+    it('sends her to sign in by an address that carries the saved draft id', () => {
+      render(<ClubOnboarding />, { initialRoute: '/' });
+      fillRequiredFields();
+      fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: '123' } });
+      fireEvent.submit(
+        screen.getByRole('button', { name: /sign in to add my club/i }).closest('form')!
+      );
+
+      const redirectTo = new URL(
+        String(mockNavigate.mock.calls[0][0]),
+        'http://x'
+      ).searchParams.get('redirectTo');
+      expect(redirectTo).toBe(`/?onboarding=true&clubDraft=${savedDraftId()}#get-started`);
+    });
   });
 
   it('creates the club and points her at it, waiting for approval', async () => {
@@ -128,7 +189,7 @@ describe('ClubOnboarding', () => {
       expect(mockNavigate).toHaveBeenCalledWith('/secretary/dashboard?clubId=club-9')
     );
     expect(screen.queryByTestId('club-roles-pending')).not.toBeInTheDocument();
-    expect(readClubOnboardingDraft()).toBeNull();
+    expect(readClubOnboardingDraft(draftId)).toBeNull();
   });
 
   it.each([
@@ -147,7 +208,7 @@ describe('ClubOnboarding', () => {
   ])('keeps her here, with her draft, when %s', async (_name, arrange) => {
     arrange();
     mockSubmit.mockResolvedValue(created);
-    saveClubOnboardingDraft(fullDraft);
+    draftId = saveClubOnboardingDraft(fullDraft);
     render(<ClubOnboarding />, { initialRoute: '/' });
     fillRequiredFields();
     fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: '123' } });
@@ -157,13 +218,13 @@ describe('ClubOnboarding', () => {
       "Your club was created. We couldn't load it yet; open your dashboard in a moment."
     );
     expect(mockNavigate).not.toHaveBeenCalled();
-    expect(readClubOnboardingDraft()).not.toBeNull();
+    expect(readClubOnboardingDraft(draftId)).not.toBeNull();
   });
 
   it('retries the roles refresh from the recovery button and navigates only once the auth context holds the club role', async () => {
     mockRefreshPermissions.mockResolvedValue(undefined);
     mockSubmit.mockResolvedValue(created);
-    saveClubOnboardingDraft(fullDraft);
+    draftId = saveClubOnboardingDraft(fullDraft);
     render(<ClubOnboarding />, { initialRoute: '/' });
     fillRequiredFields();
     fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: '123' } });
@@ -175,7 +236,7 @@ describe('ClubOnboarding', () => {
     await waitFor(() => expect(mockRefreshPermissions).toHaveBeenCalledTimes(2));
     await screen.findByTestId('club-roles-pending');
     expect(mockNavigate).not.toHaveBeenCalled();
-    expect(readClubOnboardingDraft()).not.toBeNull();
+    expect(readClubOnboardingDraft(draftId)).not.toBeNull();
 
     mockRefreshPermissions.mockImplementation(async () => grantClubRole());
     fireEvent.click(screen.getByRole('button', { name: /get your first show published/i }));
@@ -183,7 +244,7 @@ describe('ClubOnboarding', () => {
       expect(mockNavigate).toHaveBeenCalledWith('/secretary/dashboard?clubId=club-9')
     );
     expect(mockRefreshPermissions).toHaveBeenCalledTimes(3);
-    expect(readClubOnboardingDraft()).toBeNull();
+    expect(readClubOnboardingDraft(draftId)).toBeNull();
   });
 
   it('does not navigate away when she came from the wizard', async () => {
@@ -241,38 +302,40 @@ describe('ClubOnboarding', () => {
     const redirectTo = new URL(String(mockNavigate.mock.calls[0][0]), 'http://x').searchParams.get(
       'redirectTo'
     );
-    expect(redirectTo).toBe('/?onboarding=true&returnTo=%2Fwizard%3Fx%3D1#get-started');
+    expect(redirectTo).toBe(
+      `/?onboarding=true&returnTo=%2Fwizard%3Fx%3D1&clubDraft=${savedDraftId()}#get-started`
+    );
   });
 
   it('loads her new roles before the saved draft is cleared, then shows success', async () => {
     const order: string[] = [];
-    saveClubOnboardingDraft(fullDraft);
+    draftId = saveClubOnboardingDraft(fullDraft);
     mockSubmit.mockResolvedValue(created);
     mockRefreshPermissions.mockImplementation(async () => {
       order.push(
-        readClubOnboardingDraft() ? 'refresh (draft still saved)' : 'refresh (draft gone)'
+        readClubOnboardingDraft(draftId) ? 'refresh (draft still saved)' : 'refresh (draft gone)'
       );
       grantClubRole();
     });
-    render(<ClubOnboarding />, { initialRoute: '/' });
+    render(<ClubOnboarding />, { initialRoute: `/?onboarding=true&clubDraft=${draftId}` });
     fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: '123' } });
     submitForm();
 
     expect(await screen.findByText(/waiting for myK9Show approval/i)).toBeInTheDocument();
     expect(order).toEqual(['refresh (draft still saved)']);
-    await waitFor(() => expect(readClubOnboardingDraft()).toBeNull());
+    await waitFor(() => expect(readClubOnboardingDraft(draftId)).toBeNull());
   });
 
   it('still shows success and keeps the draft when the roles refresh fails', async () => {
-    saveClubOnboardingDraft(fullDraft);
+    draftId = saveClubOnboardingDraft(fullDraft);
     mockSubmit.mockResolvedValue(created);
     mockRefreshPermissions.mockRejectedValue(new Error('offline'));
-    render(<ClubOnboarding />, { initialRoute: '/' });
+    render(<ClubOnboarding />, { initialRoute: `/?onboarding=true&clubDraft=${draftId}` });
     fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: '123' } });
     submitForm();
 
     expect(await screen.findByText(/waiting for myK9Show approval/i)).toBeInTheDocument();
-    expect(readClubOnboardingDraft()).not.toBeNull();
+    expect(readClubOnboardingDraft(draftId)).not.toBeNull();
   });
 
   it('refuses a taken club name in plain words with a way to reach us', async () => {
@@ -334,7 +397,11 @@ describe('ClubOnboarding', () => {
     expect(String(mockNavigate.mock.calls[0][0])).toContain('/sign-in');
 
     first.unmount();
-    render(<ClubOnboarding />, { initialRoute: '/' });
+    // Back from sign-in by the address she was sent through, which carries the draft id.
+    const redirectTo = new URL(String(mockNavigate.mock.calls[0][0]), 'http://x').searchParams.get(
+      'redirectTo'
+    );
+    render(<ClubOnboarding />, { initialRoute: redirectTo! });
     expect(screen.getByLabelText(/club name/i)).toHaveValue('Tri-State Kennel Club');
     expect(screen.getByLabelText('UKC club number')).toHaveValue('U-9');
   });

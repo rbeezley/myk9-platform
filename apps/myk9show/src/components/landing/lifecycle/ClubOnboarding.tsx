@@ -8,6 +8,7 @@ import {
   requestNewClub,
 } from '@/services/database/club-access-requests.request';
 import {
+  CLUB_DRAFT_PARAM,
   clearClubOnboardingDraft,
   readClubOnboardingDraft,
   saveClubOnboardingDraft,
@@ -46,6 +47,8 @@ export function ClubOnboarding() {
   // The show wizard sends its own address here so a new host club leads back to the draft.
   const [searchParams] = useSearchParams();
   const returnTo = safeReturnPath(searchParams.get('returnTo'));
+  // Which saved draft is hers: only an address carrying its id brings it back.
+  const draftId = searchParams.get(CLUB_DRAFT_PARAM);
 
   // Form state
   const [clubName, setClubName] = useState('');
@@ -100,7 +103,7 @@ export function ClubOnboarding() {
   useEffect(() => {
     if (restored.current) return;
     restored.current = true;
-    const draft = readClubOnboardingDraft();
+    const draft = readClubOnboardingDraft(draftId);
     if (!draft) return;
     setClubName(draft.clubName);
     setOrganization(draft.organization);
@@ -110,7 +113,7 @@ export function ClubOnboarding() {
     setContactPhone(draft.contactPhone);
     setFirstShowDate(draft.firstShowDate);
     setMessage(draft.message);
-  }, []);
+  }, [draftId]);
 
   // Pre-fill from the auth session, only into fields still empty (never over
   // what the visitor typed or a restored draft).
@@ -132,7 +135,7 @@ export function ClubOnboarding() {
     if (fail()) return;
 
     if (!user) {
-      saveClubOnboardingDraft({
+      const savedId = saveClubOnboardingDraft({
         clubName,
         organization,
         clubNumbers,
@@ -142,7 +145,7 @@ export function ClubOnboarding() {
         firstShowDate,
         message,
       });
-      navigate(buildSignInPathForRedirect(addYourClubPath(returnTo)));
+      navigate(buildSignInPathForRedirect(addYourClubPath(returnTo, savedId)));
       return;
     }
 

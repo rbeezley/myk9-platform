@@ -886,7 +886,7 @@ describe('useAuth', () => {
     });
 
     it('clears a saved home page club-form draft on SIGNED_OUT', async () => {
-      saveClubOnboardingDraft({
+      const draftId = saveClubOnboardingDraft({
         clubName: 'Tri-State Kennel Club',
         organization: 'AKC',
         clubNumbers: { AKC: '1', UKC: '', ASCA: '' },
@@ -902,7 +902,7 @@ describe('useAuth', () => {
         authChangeCallback('SIGNED_OUT', null);
       });
 
-      expect(readClubOnboardingDraft()).toBeNull();
+      expect(readClubOnboardingDraft(draftId)).toBeNull();
     });
 
     it('the real Account-menu sign-out path (useAuth().signOut) reaches the same clear', async () => {

@@ -23,7 +23,6 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { holdsStaffRole } from '@/pages/onboarding/onboardingSteps';
-import { readClubOnboardingDraft } from '@/components/landing/lifecycle/clubOnboardingDraft';
 import { isAddYourClubLocation } from '@/components/landing/lifecycle/landingCtas';
 import { isExhibitorOwnPagePath, isOnboardingExemptPath } from './onboardingExemptPaths';
 
@@ -55,9 +54,9 @@ export function ExhibitorOnboardingChecker({ children }: ExhibitorOnboardingChec
     // MYK9-2046: a visitor who typed the home page club form and was sent to sign in
     // comes back to finish it. The first-run profile step waits until the club exists:
     // submitting makes her club admin and secretary, which exempts her anyway.
-    if (readClubOnboardingDraft()) return;
-    // MYK9-2469: the same holds on the club form's own address when no draft came with her
-    // (the confirmation link opened in another browser): she fills the form here, not a profile.
+    // MYK9-2469: she comes back by the club form's own address (sign-in, or the confirmation
+    // link in a new tab, through the auth callback, which is exempt), so that address is the
+    // whole test. A draft left in storage by someone else never exempts an unrelated sign-up.
     if (isAddYourClubLocation({ pathname: location.pathname, search: location.search })) return;
 
     // Anonymous (passcode ringside) sessions are NOT accounts. As of migration

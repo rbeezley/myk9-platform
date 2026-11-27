@@ -3,10 +3,7 @@ import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { ExhibitorOnboardingChecker } from '../ExhibitorOnboardingChecker';
 import { UserRole } from '@/types/auth-types';
-import {
-  clearClubOnboardingDraft,
-  saveClubOnboardingDraft,
-} from '@/components/landing/lifecycle/clubOnboardingDraft';
+import { saveClubOnboardingDraft } from '@/components/landing/lifecycle/clubOnboardingDraft';
 
 // Mock hooks
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -95,6 +92,7 @@ describe('ExhibitorOnboardingChecker', () => {
     mockPathname = '/exhibitor/dashboard';
     mockSearch = '';
     sessionStorage.clear();
+    localStorage.clear();
   });
 
   it('renders children when profile exists and onboarding is complete', () => {
@@ -116,8 +114,28 @@ describe('ExhibitorOnboardingChecker', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/onboarding', { replace: true });
   });
 
-  // MYK9-2046: she typed the home page club form, signed in and came back to finish it.
-  it('does not redirect while a club-form draft is waiting, and does once it is gone', () => {
+  // MYK9-2469: she comes back by the club form's own address (sign-in, or the confirmation link
+  // in a new tab, which passes the exempt auth callback first). The address is the whole test.
+  it('does not redirect from the club form address when it carries the saved draft id', () => {
+    mockPathname = '/';
+    const id = saveClubOnboardingDraft({
+      clubName: 'Tri-State Kennel Club',
+      organization: 'AKC',
+      clubNumbers: { AKC: '1', UKC: '', ASCA: '' },
+      contactName: 'Pat',
+      contactEmail: 'pat@example.com',
+      contactPhone: '',
+      firstShowDate: '',
+      message: '',
+    });
+    mockSearch = `?onboarding=true&clubDraft=${id}`;
+    setupMocks({ hasProfile: false, onboardingCompleted: false });
+    renderChecker();
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  // Someone else's leftover draft must not skip onboarding for an unrelated sign-up.
+  it('runs onboarding as normal for an unrelated sign-up while a draft sits in storage', () => {
     mockPathname = '/';
     saveClubOnboardingDraft({
       clubName: 'Tri-State Kennel Club',
@@ -130,10 +148,6 @@ describe('ExhibitorOnboardingChecker', () => {
       message: '',
     });
     setupMocks({ hasProfile: false, onboardingCompleted: false });
-    renderChecker().unmount();
-    expect(mockNavigate).not.toHaveBeenCalled();
-
-    clearClubOnboardingDraft();
     renderChecker();
     expect(mockNavigate).toHaveBeenCalledWith('/onboarding', { replace: true });
   });

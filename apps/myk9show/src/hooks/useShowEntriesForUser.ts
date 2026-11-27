@@ -213,6 +213,9 @@ export function mergeCanonicalEntry(
   return {
     ...stored,
     status: canonical.status,
+    // Travels with the status, including undefined: a cached flag must not outlive the row
+    // that set it (MYK9-2391).
+    lifecycleMissing: canonical.lifecycleMissing,
     // Replace the complete released result, including undefined when withheld.
     // Merging fields would retain stale local times or placements.
     competitionData: canonical.competitionData,

@@ -222,6 +222,31 @@ describe('useShowEntriesForUser', () => {
     expect(mergeCanonicalEntry(canonical, stored).checkInStatus).toBe('no-status');
   });
 
+  // Codex round 2 (MYK9-2391): the missing-status flag travels with the canonical status, so a
+  // stale cached row can neither keep a newly Pending dog in line nor drop a runnable one.
+  it('clears a cached missing-status flag when the canonical row states Pending', () => {
+    const stored = fromAny<SyncableShowEntry, ReturnType<typeof makeEntry>>(
+      makeEntry({ status: 'pending', lifecycleMissing: true })
+    );
+    const canonical = fromAny<SyncableShowEntry, ReturnType<typeof makeEntry>>(
+      makeEntry({ status: 'pending' })
+    );
+    delete canonical.lifecycleMissing;
+
+    expect(mergeCanonicalEntry(canonical, stored).lifecycleMissing).toBeUndefined();
+  });
+
+  it('takes the missing-status flag from a canonical row whose status is NULL', () => {
+    const stored = fromAny<SyncableShowEntry, ReturnType<typeof makeEntry>>(
+      makeEntry({ status: 'confirmed' })
+    );
+    const canonical = fromAny<SyncableShowEntry, ReturnType<typeof makeEntry>>(
+      makeEntry({ status: 'pending', lifecycleMissing: true })
+    );
+
+    expect(mergeCanonicalEntry(canonical, stored).lifecycleMissing).toBe(true);
+  });
+
   it('excludes entries from other shows', () => {
     setMocks({ entries: [makeEntry({ showId: 'other-show' })] });
     const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));

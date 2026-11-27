@@ -71,7 +71,6 @@ const SECRETARY_ENTRIES_BASE_SELECT = `
           paid_amount,
           card_covered_cents,
           handler_id,
-          payer:handler_id (email),
           refund_amount,
           refund_notes,
           refunded_at

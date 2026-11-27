@@ -34,7 +34,6 @@ import { EnrollmentFullPaymentDialog } from './EnrollmentFullPaymentDialog';
 import { EnrollmentPartialPaymentDialog } from './EnrollmentPartialPaymentDialog';
 import { EnrollmentRefundDialog } from './EnrollmentRefundDialog';
 import { EnrollmentEmailDialog } from './EnrollmentEmailDialog';
-import { exhibitorContactEmail } from './exhibitorContactEmail';
 import { EnrollmentLedgerConfirmDialog } from './EnrollmentLedgerConfirmDialog';
 import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
 import { EnrollmentCommunicationSection } from './EnrollmentCommunicationSection';
@@ -379,7 +378,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
         canSendDecisionEmail={Boolean(onSendDecisionEmail && enrollmentId)}
         onEmail={email.openDialog}
         showId={group.entries[0]?.showId}
-        exhibitorEmail={exhibitorContactEmail(group.entries[0])}
+        exhibitorEmail={group.entries[0]?.ownerEmail ?? ''}
         resend={
           onResendEmail && group.entries[0]?.registrationId
             ? {

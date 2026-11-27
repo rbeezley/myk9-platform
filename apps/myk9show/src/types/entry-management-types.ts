@@ -139,11 +139,6 @@ export interface EntryManagementEntry {
   enrollmentPaymentReference?: string | null;
   /** The person who placed the entry form (`enrollments.handler_id`), whose money the form is (MYK9-1937). */
   enrollmentPayerId?: string | null;
-  /**
-   * That person's email, which is where `send-email` sends a decision email (MYK9-2483).
-   * `''` once the enrollment is read and its handler has none; absent when it was not read.
-   */
-  enrollmentPayerEmail?: string;
   enrollmentTotalAmount?: number | null;
   enrollmentPaidAmount?: number | null;
   /** MYK9-1637: card money the form holds (cents), from succeeded Stripe orders. */

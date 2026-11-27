@@ -36,7 +36,6 @@ function entry(id: string, registrationId: string, overrides = {}): EntryManagem
     registrationId,
     showId: 'show-1',
     dogName: 'Rex',
-    enrollmentPayerEmail: 'handler@example.com',
     entryStatus: EntryStatus.PENDING,
     classes: [{ name: `Class ${id}` }],
     ...overrides,
@@ -182,36 +181,6 @@ describe('preview plan (draft or finished show)', () => {
     expect(toast.info).toHaveBeenCalledTimes(1);
     expect(toast.info).toHaveBeenCalledWith(
       '2 acceptance emails were not sent automatically. Use "Email Exhibitor" on each entry form.'
-    );
-  });
-
-  // MYK9-2483: Email Exhibitor is hidden on a form whose handler has no address, so the notice
-  // must not send her there; it counts those exhibitors apart.
-  it('counts only reachable forms for "Email Exhibitor" and says how many have no address', async () => {
-    const forms = [
-      entry('e1', 'reg-1'),
-      entry('e2', 'reg-2'),
-      entry('e3', 'reg-3', { enrollmentPayerEmail: '', ownerEmail: 'owner@example.com' }),
-    ];
-    const { handlers } = setup(forms);
-    await handlers.onBulkStatusChange(['e1', 'e2', 'e3'], EntryStatus.ACCEPTED);
-
-    expect(toast.info).toHaveBeenCalledTimes(1);
-    expect(toast.info).toHaveBeenCalledWith(
-      '2 acceptance emails were not sent automatically. Use "Email Exhibitor" on each of those entry forms. 1 exhibitor has no email address on file, so let them know another way.'
-    );
-  });
-
-  it('when no form has an address, sends her to no button and says to contact them another way', async () => {
-    const forms = [
-      entry('e1', 'reg-1', { enrollmentPayerEmail: '' }),
-      entry('e2', 'reg-2', { enrollmentPayerEmail: '' }),
-    ];
-    const { handlers } = setup(forms);
-    await handlers.onBulkStatusChange(['e1', 'e2'], EntryStatus.WAITLIST);
-
-    expect(toast.info).toHaveBeenCalledWith(
-      '2 exhibitors have no email address on file, so no waitlist emails could be sent. Let them know another way.'
     );
   });
 

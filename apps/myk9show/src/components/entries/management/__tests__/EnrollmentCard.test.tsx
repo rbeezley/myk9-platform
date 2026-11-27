@@ -503,38 +503,6 @@ describe('EnrollmentCard', () => {
     });
   });
 
-  // MYK9-2483: the decision email goes to the person who placed the form (the enrollment's
-  // handler), so that person's address decides whether Email Exhibitor is offered.
-  describe('Email Exhibitor follows the handler address', () => {
-    it('is offered when only the handler has an address', () => {
-      render(
-        <EnrollmentCard
-          {...defaultProps}
-          onSendDecisionEmail={vi.fn()}
-          group={makeGroup({
-            entries: [makeEntry({ ownerEmail: '', enrollmentPayerEmail: 'hank@example.com' })],
-          })}
-        />
-      );
-      expect(screen.getByRole('button', { name: 'Email Exhibitor' })).toBeInTheDocument();
-      expect(screen.queryByText(/no email address on file/)).not.toBeInTheDocument();
-    });
-
-    it('is not offered when only the owner has an address', () => {
-      render(
-        <EnrollmentCard
-          {...defaultProps}
-          onSendDecisionEmail={vi.fn()}
-          group={makeGroup({
-            entries: [makeEntry({ ownerEmail: 'olive@example.com', enrollmentPayerEmail: '' })],
-          })}
-        />
-      );
-      expect(screen.queryByRole('button', { name: 'Email Exhibitor' })).not.toBeInTheDocument();
-      expect(screen.getByText(/no email address on file/)).toBeInTheDocument();
-    });
-  });
-
   it('has no Actions button: Accept all / Reject all live in the form header menu (MYK9-1600)', () => {
     render(<EnrollmentCard {...defaultProps} />);
     expect(screen.queryByRole('button', { name: /^actions$/i })).toBeNull();

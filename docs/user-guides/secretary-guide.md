@@ -304,10 +304,7 @@ Payment status shows on every exhibitor's form in **Entry Forms**; **Filter → 
 
 > **Cash or check recorded on a form marked Paid in Full: Online.** **Paid in Full: Online** records no money. A cash or check payment recorded on that form afterwards is counted with only the money the form already holds (earlier cash, check or card payments), as if the online payment had not happened. If that does not cover what the form owes, the form reads **Payment Due**. If it does, the form reads paid by cash or check.
 >
-> To put it right, open the form's payment menu (**Change**, beside the payment status):
->
-> - **The cash or check was recorded by mistake and never received.** Choose **Payment Due…**, then **Paid in Full: Online…**. **Payment Due…** undoes every cash and check payment recorded on the form, not only the last one.
-> - **You did take the money, and the exhibitor had already paid online.** Choose **Paid in Full: Online…** again. The money you took stays recorded. To give it back, use **Refunded…** or **Partial Refund…**: a refund records money going back to the exhibitor, and it does not put the online status back.
+> If the exhibitor did pay online, open the form's payment menu (**Change**, beside the payment status) and choose **Paid in Full: Online…** again. The cash or check you recorded stays recorded on the form. If it was recorded by mistake, or you need to hand the money back, email [support@myk9show.com](mailto:support@myk9show.com) before you change anything else on the form.
 
 ---
 

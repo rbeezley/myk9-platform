@@ -10,7 +10,12 @@ import {
 } from '@/components/ui/dialog';
 import { LedgerNotSavedNote } from './LedgerNotSavedNote';
 import type { LedgerSaveStatus } from './useLedgerDialogSave';
-import { AMOUNT_NOT_AVAILABLE, balanceAfterPayment, type PartialDialog } from './enrollmentPayment';
+import {
+  AMOUNT_NOT_AVAILABLE,
+  balanceAfterPayment,
+  typedPaymentDollars,
+  type PartialDialog,
+} from './enrollmentPayment';
 import { ReceivedOnField } from './ReceivedOnField';
 
 interface EnrollmentPartialPaymentDialogProps {
@@ -119,6 +124,11 @@ export const EnrollmentPartialPaymentDialog: React.FC<EnrollmentPartialPaymentDi
               </p>
             );
           }
+          if (amt > 0 && typedPaymentDollars(state.amountPaid) === null) {
+            return (
+              <p className="text-xs text-muted-foreground">Enter dollars and cents, like 12.35.</p>
+            );
+          }
           if (amountUnknown) {
             return (
               <p className="text-xs text-muted-foreground">
@@ -143,8 +153,7 @@ export const EnrollmentPartialPaymentDialog: React.FC<EnrollmentPartialPaymentDi
         <Button
           onClick={onConfirm}
           disabled={
-            !state.amountPaid ||
-            !(parseFloat(state.amountPaid) > 0) ||
+            typedPaymentDollars(state.amountPaid) === null ||
             !state.receivedOn ||
             saveStatus === 'saving'
           }

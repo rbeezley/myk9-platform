@@ -98,9 +98,12 @@ const QUEUED_OFFLINE =
   'Payment saved on this device. It will be sent on its own when the connection returns.';
 const QUEUED_UNCONFIRMED =
   'Payment saved on this device, not confirmed yet. It will be sent again on its own.';
-/** Its send stopped (a dead letter): saved here, but it goes again only from Try again. */
+/**
+ * Its send stopped, or its state could not be read: saved here, and its line says what
+ * to do (Try again, or Remove for a proven refusal), so this names neither.
+ */
 const STOPPED_UNCONFIRMED =
-  "Payment saved on this device, not confirmed. It will not be sent on its own. Use Try again on its line under the form's balance.";
+  "Payment saved on this device, not confirmed. Check its line under the form's balance before recording it again.";
 /**
  * The payment could not be kept on this device, so it was NOT sent (Codex round 1 on
  * #4461): a send with no record here has nothing to replay when its answer is lost.

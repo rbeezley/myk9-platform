@@ -95,16 +95,26 @@ describe('resolvePartialPayment', () => {
       receivedOn: DAY,
       expected: { kind: 'payment', method: 'check', amount: 15, receivedOn: DAY, reference: null },
     },
+    // MYK9-2479 (Codex round 5 on #4461): the amount sent is the amount typed, in whole
+    // cents; a fraction of a cent is a typo to correct, never rounded into a payment.
     {
-      name: 'rounds to cents',
+      name: 'fraction of a cent -> null',
       amountPaid: '10.005',
+      method: 'cash',
+      checkNumber: '',
+      receivedOn: DAY,
+      expected: null,
+    },
+    {
+      name: 'dollars and cents kept exactly',
+      amountPaid: '12.35',
       method: 'cash',
       checkNumber: '',
       receivedOn: DAY,
       expected: {
         kind: 'payment',
         method: 'cash',
-        amount: 10.01,
+        amount: 12.35,
         receivedOn: DAY,
         reference: null,
       },

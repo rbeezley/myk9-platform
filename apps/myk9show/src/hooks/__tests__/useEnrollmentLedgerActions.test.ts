@@ -244,13 +244,15 @@ describe('useEnrollmentLedgerActions', () => {
   });
 
   // Codex round 4 on #4461: a dead letter will not go again on its own, so it never says so.
-  it('a payment whose send stopped closes the dialog and points to Try again on its line', async () => {
+  // Codex round 5: its line may offer Try again or (a proven refusal) Remove, so the copy
+  // names neither, and promises no automatic send.
+  it('a payment whose send stopped closes the dialog and points to its line', async () => {
     const { outcome, setEntries } = await recordPayment({ kind: 'stopped' });
 
     expect(outcome).toBe('queued');
     expect(setEntries).not.toHaveBeenCalled();
     expect(mocks.toastWarning).toHaveBeenCalledWith(
-      "Payment saved on this device, not confirmed. It will not be sent on its own. Use Try again on its line under the form's balance."
+      "Payment saved on this device, not confirmed. Check its line under the form's balance before recording it again."
     );
   });
 

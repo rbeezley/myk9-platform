@@ -124,6 +124,19 @@ describe('Record Payment is the one cash and check dialog (MYK9-2479)', () => {
     );
   });
 
+  // Codex round 5 on #4461: a fraction of a cent is a typo, never rounded into a payment.
+  it('a fraction of a cent records nothing and says to enter dollars and cents', () => {
+    const { record } = renderCard(makeGroup());
+
+    fireEvent.click(screen.getByText('Record Payment…'));
+    fireEvent.change(amountBox(), { target: { value: '12.345' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Record Payment' }));
+
+    expect(record).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Record Payment' })).toBeDisabled();
+    expect(screen.getByText('Enter dollars and cents, like 12.35.')).toBeInTheDocument();
+  });
+
   it('Paid in Full: Online still asks the server, never as a desk payment', () => {
     const { record, markPaidOnline } = renderCard(makeGroup());
 

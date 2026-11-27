@@ -205,6 +205,7 @@ describe('desk payments on the offline queue (MYK9-2479)', () => {
 
     const result = await saveDeskPayment(ENROLLMENT, PAYMENT, FORM, deps);
 
+    await vi.waitFor(() => expect(recorded).toHaveBeenCalled());
     window.removeEventListener(DESK_PAYMENTS_RECORDED_EVENT, recorded);
     expect(result).toEqual({ kind: 'saved' });
     expect(await table.listForShow(SHOW)).toEqual([]);
@@ -222,6 +223,7 @@ describe('desk payments on the offline queue (MYK9-2479)', () => {
 
     const result = await saveDeskPayment(ENROLLMENT, PAYMENT, FORM, deps);
 
+    await vi.waitFor(() => expect(recorded).toHaveBeenCalled());
     window.removeEventListener(DESK_PAYMENTS_RECORDED_EVENT, recorded);
     expect(result).toEqual({ kind: 'saved' });
     expect(recorded).toHaveBeenCalledTimes(1);
@@ -229,12 +231,32 @@ describe('desk payments on the offline queue (MYK9-2479)', () => {
 
   // Codex round 4 (P2): once it is saved on this device, nothing after it may throw past
   // the dialog. The queue owns the payment.
-  it('a failed read of the send outcome after the save is queued, never thrown', async () => {
+  // Codex round 5: its state is unknown (pending or dead-lettered), so no automatic send is
+  // promised: it is `stopped`, which points her to its line.
+  it('a failed read of the send outcome after the save is stopped, never thrown', async () => {
     vi.spyOn(table, 'sendOutcome').mockRejectedValue(new Error('IndexedDB read failed'));
 
     const result = await saveDeskPayment(ENROLLMENT, PAYMENT, FORM, deps);
 
-    expect(result).toEqual({ kind: 'queued', sendBegun: true });
+    expect(result).toEqual({ kind: 'stopped' });
+  });
+
+  // Codex round 5: the entries re-read is a second request; the dialog never waits on it.
+  it('an acknowledged save returns before its entries re-read finishes', async () => {
+    let finishRefresh: () => void = () => undefined;
+    vi.mocked(deps.refreshEntries).mockImplementationOnce(
+      () => new Promise<void>(resolve => (finishRefresh = resolve))
+    );
+    const recorded = vi.fn();
+    window.addEventListener(DESK_PAYMENTS_RECORDED_EVENT, recorded);
+
+    const result = await saveDeskPayment(ENROLLMENT, PAYMENT, FORM, deps);
+
+    expect(result).toEqual({ kind: 'saved' });
+    expect(recorded).not.toHaveBeenCalled();
+    finishRefresh();
+    await vi.waitFor(() => expect(recorded).toHaveBeenCalledTimes(1));
+    window.removeEventListener(DESK_PAYMENTS_RECORDED_EVENT, recorded);
   });
 
   it('a 22023 on the first send is refused only once its record and queue row are gone', async () => {

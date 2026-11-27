@@ -168,14 +168,10 @@ export async function saveDeskPayment(
   try {
     return await afterQueued(deps, payment, queued);
   } catch (error) {
-    // Saved on this device: whatever failed after it, the queue owns the payment now.
-    logger.warn(
-      'Desk payment outcome not read; left to the queue',
-      'secretary',
-      {},
-      error as Error
-    );
-    return { kind: 'queued', sendBegun: true };
+    // Saved on this device, but whether it is still queued or stopped is unknown: no
+    // automatic send is promised, and its line says where it stands (Codex round 5).
+    logger.warn('Desk payment outcome not read; see its line', 'secretary', {}, error as Error);
+    return { kind: 'stopped' };
   }
 }
 
@@ -190,8 +186,12 @@ async function afterQueued(
   if (outcome.kind === 'acknowledged') {
     // The queue keeps no RPC answer, so the form's figures come back from the server. The
     // app-wide upload handler may have settled and announced it already: one announcement.
+    // The entries re-read is a second request: it runs after the dialog closes, still
+    // before the announcement (Codex round 5).
     if ((await settleFor(deps, payment.id, queued.owner)) === 'settled') {
-      await refreshAndAnnounceRecorded([payment], deps.refreshEntries);
+      void refreshAndAnnounceRecorded([payment], deps.refreshEntries).catch(error =>
+        logger.warn('Desk payment announce failed', 'secretary', {}, error as Error)
+      );
     }
     return { kind: 'saved' };
   }

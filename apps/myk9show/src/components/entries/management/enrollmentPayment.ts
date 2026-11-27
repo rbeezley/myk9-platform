@@ -81,18 +81,29 @@ export const PAID_STATUSES = new Set([
  * covered; before the ledger it overwrote the paid total, so a second partial
  * erased the first.
  */
+/**
+ * The typed amount in dollars when it is a payment: above $0 and in whole cents
+ * (MYK9-2479). A fraction of a cent is a typo to correct, never rounded into the payment.
+ */
+export function typedPaymentDollars(amountPaid: string): number | null {
+  const amount = parseFloat(amountPaid);
+  if (isNaN(amount) || amount <= 0) return null;
+  const cents = Math.round(amount * 100);
+  return Math.abs(cents - amount * 100) > 1e-6 ? null : cents / 100;
+}
+
 export function resolvePartialPayment(
   amountPaid: string,
   method: LedgerMethod,
   checkNumber: string,
   receivedOn: string
 ): LedgerPaymentDetails | null {
-  const amount = parseFloat(amountPaid);
-  if (isNaN(amount) || amount <= 0 || !receivedOn) return null;
+  const amount = typedPaymentDollars(amountPaid);
+  if (amount === null || !receivedOn) return null;
   return {
     kind: 'payment',
     method,
-    amount: Math.round(amount * 100) / 100,
+    amount,
     receivedOn,
     reference: method === 'check' ? checkNumber.trim() || null : null,
   };

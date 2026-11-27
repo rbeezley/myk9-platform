@@ -20,12 +20,13 @@ vi.mock('@/hooks/useExhibitorProfile', () => ({
 // Capture navigate calls
 const mockNavigate = vi.fn();
 let mockPathname = '/exhibitor/dashboard';
+let mockSearch = '';
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
   return {
     ...actual,
     useNavigate: () => mockNavigate,
-    useLocation: () => ({ pathname: mockPathname }),
+    useLocation: () => ({ pathname: mockPathname, search: mockSearch }),
   };
 });
 
@@ -92,6 +93,7 @@ describe('ExhibitorOnboardingChecker', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockPathname = '/exhibitor/dashboard';
+    mockSearch = '';
     sessionStorage.clear();
   });
 
@@ -136,11 +138,37 @@ describe('ExhibitorOnboardingChecker', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/onboarding', { replace: true });
   });
 
+  // MYK9-2469: the confirmation link was opened in another browser, so no draft came with her.
+  // She still lands on the club form, not on the profile step.
+  it.each(['?onboarding=true', '?onboarding=true&returnTo=%2Fshows%2Fnew'])(
+    'does not redirect from the club form address (/%s) even with no draft',
+    search => {
+      mockPathname = '/';
+      mockSearch = search;
+      setupMocks({ hasProfile: false, onboardingCompleted: false });
+      renderChecker();
+      expect(mockNavigate).not.toHaveBeenCalled();
+    }
+  );
+
+  it('still redirects from the plain home page, and from another page carrying the same query', () => {
+    mockPathname = '/';
+    setupMocks({ hasProfile: false, onboardingCompleted: false });
+    renderChecker().unmount();
+    expect(mockNavigate).toHaveBeenCalledWith('/onboarding', { replace: true });
+
+    mockNavigate.mockClear();
+    mockPathname = '/exhibitor/dashboard';
+    mockSearch = '?onboarding=true';
+    renderChecker();
+    expect(mockNavigate).toHaveBeenCalledWith('/onboarding', { replace: true });
+  });
+
   it('ignores a malformed club-form draft: it neither exempts onboarding nor crashes', () => {
     mockPathname = '/';
-    sessionStorage.setItem(
+    localStorage.setItem(
       'myk9:club-onboarding-draft',
-      JSON.stringify({ clubName: 42, clubNumbers: [] })
+      JSON.stringify({ savedAt: Date.now(), draft: { clubName: 42, clubNumbers: [] } })
     );
     setupMocks({ hasProfile: false, onboardingCompleted: false });
     renderChecker();

@@ -24,6 +24,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { holdsStaffRole } from '@/pages/onboarding/onboardingSteps';
 import { readClubOnboardingDraft } from '@/components/landing/lifecycle/clubOnboardingDraft';
+import { isAddYourClubLocation } from '@/components/landing/lifecycle/landingCtas';
 import { isExhibitorOwnPagePath, isOnboardingExemptPath } from './onboardingExemptPaths';
 
 interface ExhibitorOnboardingCheckerProps {
@@ -55,6 +56,9 @@ export function ExhibitorOnboardingChecker({ children }: ExhibitorOnboardingChec
     // comes back to finish it. The first-run profile step waits until the club exists:
     // submitting makes her club admin and secretary, which exempts her anyway.
     if (readClubOnboardingDraft()) return;
+    // MYK9-2469: the same holds on the club form's own address when no draft came with her
+    // (the confirmation link opened in another browser): she fills the form here, not a profile.
+    if (isAddYourClubLocation({ pathname: location.pathname, search: location.search })) return;
 
     // Anonymous (passcode ringside) sessions are NOT accounts. As of migration
     // 20260625000000 they have no exhibitor_profiles row by design, and they
@@ -83,6 +87,7 @@ export function ExhibitorOnboardingChecker({ children }: ExhibitorOnboardingChec
     profileError,
     navigate,
     location.pathname,
+    location.search,
   ]);
 
   return <>{children}</>;

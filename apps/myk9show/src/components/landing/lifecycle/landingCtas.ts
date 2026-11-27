@@ -7,6 +7,13 @@ export const ADD_YOUR_CLUB = { label: 'Add your club', href: '#get-started' } as
 // the app. `onboarding=true` keeps a signed-in visitor on the landing instead of the dashboard.
 export const ADD_YOUR_CLUB_PATH = '/?onboarding=true#get-started';
 
+/** True on the home page opened for its club form (`/?onboarding=true`), with or without a `returnTo`. */
+export function isAddYourClubLocation(location: { pathname: string; search: string }): boolean {
+  return (
+    location.pathname === '/' && new URLSearchParams(location.search).get('onboarding') === 'true'
+  );
+}
+
 /** A same-origin app path (`/x?y`), or null for anything else (`//host`, a scheme, relative). */
 export function safeReturnPath(value: string | null | undefined): string | null {
   if (!value?.startsWith('/') || value.startsWith('//')) return null;

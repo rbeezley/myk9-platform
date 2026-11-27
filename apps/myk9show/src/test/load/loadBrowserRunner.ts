@@ -625,7 +625,8 @@ async function runCheckIn(
     .first();
   await dogCard.waitFor({ state: 'visible', timeout: 60_000 });
   await dogCard.locator('[title="Change check-in"]').click();
-  const checkedInButton = page.getByRole('button', { name: 'Checked-in', exact: true });
+  // The tile reads "Checked in" (MYK9-2460); an older deploy under test reads "Checked-in".
+  const checkedInButton = page.getByRole('button', { name: /^Checked[ -]in$/ });
   await checkedInButton.waitFor({ state: 'visible', timeout: 20_000 });
   await checkedInButton.click();
 }

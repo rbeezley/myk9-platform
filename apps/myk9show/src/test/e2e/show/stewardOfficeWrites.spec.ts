@@ -382,7 +382,13 @@ test('a steward-only account checks dogs in but cannot write office records', as
     const before = ringWrites.length;
     await context.setOffline(true);
     await page.evaluate(() => window.dispatchEvent(new Event('offline')));
-    await setCheckIn(page, ring.callName, 'Checked in', /^No Status$/, 'Not checked in');
+    await setCheckIn(
+      page,
+      ring.callName,
+      'Checked in',
+      /^(No Status|Not checked in)$/,
+      'Not checked in'
+    );
     await expect
       .poll(() => readReplicationStoreCount(page, 'pending_mutations'), { timeout: 15_000 })
       .toBeGreaterThan(0);

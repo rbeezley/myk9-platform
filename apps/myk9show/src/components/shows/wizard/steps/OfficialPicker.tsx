@@ -10,6 +10,7 @@ import { groupPeopleForOfficial, getPersonName } from './ShowDetailsStep.helpers
 import { UserRole } from '@/types/auth-types';
 import type { User } from '@/types/user-types';
 import { FieldError, useFieldError } from '@/components/forms';
+import { OfficialAlreadyHoldsRoleError } from './useCreateOfficialPerson';
 import { SHOW_ADMIN_COPY } from '@/components/shows/showAdminErrorCopy';
 
 export interface CreatePersonData {
@@ -31,12 +32,17 @@ export interface OfficialPickerProps {
    * other official. A Chairman and Secretary must be different people.
    */
   excludePersonIds?: string[];
+  /** Names the role the excluded people hold, for the message when an added email matches one. */
+  excludedRoleLabel?: string;
   /** True while the people list is still being fetched. */
   loading?: boolean;
   /** Refresh role-aware people when suggestions become visible. */
   onOpen?: () => void;
   onSelect: (personId: string) => void;
-  onCreatePerson: (data: CreatePersonData) => Promise<string>;
+  onCreatePerson: (
+    data: CreatePersonData,
+    options?: { excludePersonIds?: string[] }
+  ) => Promise<string>;
 }
 
 export const OfficialPicker: React.FC<OfficialPickerProps> = ({
@@ -47,6 +53,7 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
   suggestedRoles,
   autoFillBadge,
   excludePersonIds = [],
+  excludedRoleLabel = 'other official',
   loading = false,
   onOpen,
   onSelect,
@@ -94,16 +101,23 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
     setSaving(true);
     setSaveError(null);
     try {
-      const newId = await onCreatePerson({
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        email: email.trim(),
-        phone: phone.trim(),
-      });
+      const newId = await onCreatePerson(
+        {
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          email: email.trim(),
+          phone: phone.trim(),
+        },
+        { excludePersonIds }
+      );
       onSelect(newId);
       handleCancelCreate();
-    } catch {
-      setSaveError(SHOW_ADMIN_COPY.officialSaveFailed);
+    } catch (error) {
+      setSaveError(
+        error instanceof OfficialAlreadyHoldsRoleError
+          ? `${error.personName} is already the ${excludedRoleLabel}. Pick a different person for ${label}.`
+          : SHOW_ADMIN_COPY.officialSaveFailed
+      );
     } finally {
       setSaving(false);
     }

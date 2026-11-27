@@ -175,9 +175,9 @@ describe('ExhibitorEmailHistory (MYK9-2403)', () => {
   });
 
   it('does not read anything for an exhibitor with no address', () => {
-    render(<ExhibitorEmailHistory showId="show-1" recipientEmail="  " />);
+    const { container } = render(<ExhibitorEmailHistory showId="show-1" recipientEmail="  " />);
 
-    expect(screen.getByText(/no email address on file/)).toBeInTheDocument();
+    expect(container).toBeEmptyDOMElement();
     expect(mockFetch).not.toHaveBeenCalled();
   });
 });

@@ -37,6 +37,21 @@ describe('EnrollmentCommunicationSection', () => {
     expect(screen.queryByText(/History for/)).not.toBeInTheDocument();
   });
 
+  it('still says why when the decision email is not offered for other reasons', () => {
+    render(
+      <EnrollmentCommunicationSection
+        lastDecisionEmailedAt={undefined}
+        canSendDecisionEmail={false}
+        onEmail={vi.fn()}
+        showId={undefined}
+        exhibitorEmail=""
+      />
+    );
+
+    expect(screen.getByText(/no email address on file/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Email Exhibitor' })).not.toBeInTheDocument();
+  });
+
   it('keeps Email Exhibitor and the delivery history when an address is on file', () => {
     const { onEmail } = renderSection('sally@example.com');
 

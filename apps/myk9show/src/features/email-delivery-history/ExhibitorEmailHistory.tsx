@@ -49,13 +49,8 @@ export function ExhibitorEmailHistory({
     refetchInterval: 60_000,
   });
 
-  if (email.length === 0) {
-    return (
-      <p className="mt-3 text-sm text-muted-foreground">
-        This exhibitor has no email address on file, so there is no delivery status to show.
-      </p>
-    );
-  }
+  // MYK9-2483: the caller says why there is no address, in its one place; nothing to read here.
+  if (email.length === 0) return null;
 
   const rows = query.data?.pages.flatMap(page => page.rows.map(normalizeEmailDeliveryRow)) ?? [];
 

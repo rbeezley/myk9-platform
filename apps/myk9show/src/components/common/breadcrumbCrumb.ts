@@ -37,5 +37,7 @@ export function crumbFor(label: string, href: string, isCurrent: boolean, id?: s
 /**
  * A crumb link's hit area: at least 44x44px, the floor `docs/INTENT.md` sets for every link.
  * The text of a crumb is one `text-sm` line, so without this only that line box was tappable.
+ * `-my-3` hands back the 24px the 44px box adds over that 20px line, so every crumb row sits in
+ * a flex row and keeps its height: the hit area grows, the trail does not.
  */
-export const CRUMB_TOUCH_TARGET = 'inline-flex min-h-11 min-w-11 items-center';
+export const CRUMB_TOUCH_TARGET = 'inline-flex min-h-11 min-w-11 -my-3 items-center';

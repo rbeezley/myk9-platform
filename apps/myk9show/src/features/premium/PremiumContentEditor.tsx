@@ -161,7 +161,7 @@ export function PremiumContentEditor({
         setIsGenerating(false);
       }
     }
-  }, [generate, showId]);
+  }, [generate, setBuilt, showId]);
 
   useEffect(() => {
     // A request in flight owns the draft; this must not populate over it or clear its flag.

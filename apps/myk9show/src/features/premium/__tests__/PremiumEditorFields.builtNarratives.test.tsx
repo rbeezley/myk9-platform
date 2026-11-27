@@ -170,4 +170,56 @@ describe("Use the show's current details in the editor", () => {
     fireEvent.click(screen.getByRole('button', { name: LINK }));
     expect(screen.getByDisplayValue('Newer built hours')).toBeInTheDocument();
   });
+
+  it('names each link for its own section', () => {
+    render(<Harness refresh={{}} />);
+    expect(
+      screen.getByRole('button', { name: "Use the show's current details for Show Hours" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: "Use the show's current details for Trial Information" })
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("Use the show's current details")).toHaveLength(2);
+  });
+
+  it('offers fresh facts that arrive after a reconnect, without touching either field', async () => {
+    const offlineDraft = generatedPremium();
+    const online = (premium: GeneratedPremium, isOnline: boolean) => (
+      <NetworkStatusTestProvider value={{ isOnline, quality: null }}>
+        <PremiumContentEditor
+          showId="show-1"
+          clubId="club-1"
+          showOrg="AKC"
+          active
+          initialPremium={premium}
+        />
+      </NetworkStatusTestProvider>
+    );
+    const { rerender } = render(online(offlineDraft, false));
+    await screen.findByDisplayValue('Hours');
+    expect(screen.queryByRole('button', { name: LINK })).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByDisplayValue('Hours'), { target: { value: 'Typed hours' } });
+    rerender(online(offlineDraft, true));
+    expect(screen.queryByRole('button', { name: LINK })).not.toBeInTheDocument();
+
+    rerender(
+      online(
+        {
+          ...offlineDraft,
+          builtNarratives: { showHours: 'Fresh hours', trialInformation: 'Fresh trials' },
+        },
+        true
+      )
+    );
+
+    const hoursLink = await screen.findByRole('button', {
+      name: "Use the show's current details for Show Hours",
+    });
+    expect(screen.getByDisplayValue('Typed hours')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Info')).toBeInTheDocument();
+    fireEvent.click(hoursLink);
+    expect(screen.getByDisplayValue('Fresh hours')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Info')).toBeInTheDocument();
+  });
 });

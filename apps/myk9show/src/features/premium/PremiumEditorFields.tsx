@@ -212,6 +212,7 @@ export function PremiumEditorFields({
           />
           <BuiltNarrativeLink
             built={built?.showHours}
+            fieldLabel="Show Hours"
             text={narratives.showHours}
             heldReason={heldReason}
             onUse={text => setNarratives(n => ({ ...n!, showHours: text }))}
@@ -227,6 +228,7 @@ export function PremiumEditorFields({
           />
           <BuiltNarrativeLink
             built={built?.trialInformation}
+            fieldLabel="Trial Information"
             text={narratives.trialInformation}
             heldReason={heldReason}
             onUse={text => setNarratives(n => ({ ...n!, trialInformation: text }))}

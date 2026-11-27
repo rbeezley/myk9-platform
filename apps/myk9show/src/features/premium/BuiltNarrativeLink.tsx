@@ -7,6 +7,8 @@ export const UNSAVED_SHOW_REASON =
 interface BuiltNarrativeLinkProps {
   /** What the show's facts build today; absent offline or from an older response. */
   built: string | undefined;
+  /** The field's name, so each link says which section it rebuilds. */
+  fieldLabel: string;
   /** The field's text now. */
   text: string;
   /** Why the link is held, or undefined when it can be used. */
@@ -18,7 +20,13 @@ interface BuiltNarrativeLinkProps {
  * MYK9-2280: "Use the show's current details" under one narrative. Shown only when it would
  * change the field. It makes no request: the editor already holds the server's built text.
  */
-export function BuiltNarrativeLink({ built, text, heldReason, onUse }: BuiltNarrativeLinkProps) {
+export function BuiltNarrativeLink({
+  built,
+  fieldLabel,
+  text,
+  heldReason,
+  onUse,
+}: BuiltNarrativeLinkProps) {
   if (built === undefined || built.trim() === text.trim()) return null;
   return (
     <div className="space-y-0.5">
@@ -27,6 +35,7 @@ export function BuiltNarrativeLink({ built, text, heldReason, onUse }: BuiltNarr
         variant="link"
         size="sm"
         className="h-auto px-0 py-0 text-xs"
+        aria-label={`Use the show's current details for ${fieldLabel}`}
         disabled={Boolean(heldReason)}
         onClick={() => onUse(built)}
       >

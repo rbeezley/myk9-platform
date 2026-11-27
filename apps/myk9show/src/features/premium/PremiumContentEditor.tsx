@@ -18,6 +18,7 @@ import { withGenerationTimeout } from './withGenerationTimeout';
 import { stripPlaceholderNarratives } from './premiumNarratives';
 import { PremiumPdfPreviewOverlay } from './PremiumPdfPreviewOverlay';
 import { cachedDraftFor, withFreshFacts, type PremiumDraftCache } from './premiumDraftCache';
+import { useBuiltNarratives } from './useBuiltNarratives';
 import { buildFinalPremium } from './buildFinalPremium';
 import { usePremiumDraftSync } from './usePremiumDraftSync';
 import type { GeneratedPremium, PremiumStyle } from '../../types/premium-types';
@@ -72,6 +73,7 @@ export function PremiumContentEditor({
   const [original, setOriginal] = useState<GeneratedPremium | null>(
     () => restored?.original ?? initialPremium ?? null
   );
+  const [built, setBuilt] = useBuiltNarratives(initialPremium, restored?.original);
   const [supplemental, setSupplemental] = useState<GeneratedPremium['supplemental'] | null>(
     () => restored?.supplemental ?? initialPremium?.supplemental ?? null
   );
@@ -145,6 +147,7 @@ export function PremiumContentEditor({
       const cleaned = { ...result, narratives: stripPlaceholderNarratives(result.narratives) };
       factsPendingRef.current = false;
       setOriginal(cleaned);
+      setBuilt(cleaned.builtNarratives);
       setSupplemental(cleaned.supplemental);
       setNarratives(cleaned.narratives);
     } catch (err) {
@@ -418,11 +421,7 @@ export function PremiumContentEditor({
               isUploadingCover={isUploadingCover}
               coverImageResolveFailed={coverImageResolveFailed}
               readOnly={isGenerating}
-              narrativeRefresh={{
-                built: original.builtNarratives,
-                regenerateBlockedReason,
-                unsavedShowInputs,
-              }}
+              narrativeRefresh={{ built, regenerateBlockedReason, unsavedShowInputs }}
               onCoverUpload={file => void handleCoverUpload(file)}
               onCoverRemove={() => void handleCoverRemove()}
             />

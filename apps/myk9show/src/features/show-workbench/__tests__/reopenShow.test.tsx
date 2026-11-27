@@ -49,7 +49,7 @@ beforeEach(() => {
   saveReasonMock.mockResolvedValue(undefined);
   authMock.full_name = 'Jane Secretary';
   authMock.email = 'jane@example.com';
-  manageScopeMock.mockReturnValue({ status: 'resolved', canManage: true });
+  manageScopeMock.mockReturnValue({ status: 'resolved', canManage: true, canOperate: true });
   getTrialsMock.mockResolvedValue([
     { id: 'trial-a', status: 'completed', statusBeforeClose: 'in_progress' },
     { id: 'trial-b', status: 'completed', statusBeforeClose: null },
@@ -89,7 +89,7 @@ describe('reopenShow', () => {
       statusBeforeClose: null,
     });
     expect(updateShowMock).toHaveBeenCalledWith('show-1', {
-      status: 'in_progress',
+      status: 'published',
       closedAt: null,
       reopenedAt: '2026-11-25T18:30:00.000Z',
     });
@@ -133,7 +133,14 @@ describe('reopenShow', () => {
 
 describe('ReopenShowAction', () => {
   it('is hidden for someone who cannot manage the show', () => {
-    manageScopeMock.mockReturnValue({ status: 'resolved', canManage: false });
+    manageScopeMock.mockReturnValue({ status: 'resolved', canManage: false, canOperate: false });
+    render(<ReopenShowAction showId="show-1" />);
+
+    expect(screen.queryByRole('button', { name: 'Reopen show' })).not.toBeInTheDocument();
+  });
+
+  it('is hidden for a club admin who manages the show but is not its secretary', () => {
+    manageScopeMock.mockReturnValue({ status: 'resolved', canManage: true, canOperate: false });
     render(<ReopenShowAction showId="show-1" />);
 
     expect(screen.queryByRole('button', { name: 'Reopen show' })).not.toBeInTheDocument();

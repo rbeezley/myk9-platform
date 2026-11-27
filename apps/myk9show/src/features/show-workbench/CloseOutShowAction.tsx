@@ -33,6 +33,7 @@ import type { CloseConcern } from '@/features/show-closeout/closeConcerns';
 import type { CloseoutFlaggedPulls } from '@/features/show-closeout/useCloseoutFlaggedPulls';
 import { saveClosedOpenLines } from '@/services/database/showCloseNotes';
 import { ReopenShowAction } from './ReopenShowAction';
+import { canCloseShowStatus } from './reopenShow';
 import { getCheckInDeskHref } from '@/components/entries/management/checkInDesk/checkInDeskRoutes';
 import type { ShowDayReconciliationEntry } from './showDayReconciliationSummary';
 import type { ShowIncidentSummary } from './showIncidents';
@@ -164,6 +165,19 @@ export function CloseOutShowAction({
         'The list of what was still open could not be saved. It needs a connection; the show is closed.'
       );
     });
+  }
+
+  if (!showClosed && !canCloseShowStatus(show.status)) {
+    return (
+      <section className="rounded-md border bg-muted/30 p-4" aria-labelledby="close-out-show-title">
+        <h3 id="close-out-show-title" className="text-base font-semibold">
+          Close the show
+        </h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          A show can be closed once it is published.
+        </p>
+      </section>
+    );
   }
 
   if (showClosed) {

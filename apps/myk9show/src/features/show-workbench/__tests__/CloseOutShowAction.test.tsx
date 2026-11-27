@@ -31,7 +31,7 @@ vi.mock('sonner', () => ({
 }));
 
 const baseProps = {
-  show: { id: 'show-1', status: 'in_progress' },
+  show: { id: 'show-1', status: 'published' },
   trials: [
     { id: 'trial-open', status: 'in_progress' },
     { id: 'trial-completed', status: 'completed' },
@@ -63,6 +63,18 @@ describe('CloseOutShowAction', () => {
     expect(screen.getByRole('heading', { name: 'Show closed' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Close the show' })).not.toBeInTheDocument();
   });
+
+  // Owner decision 2026-11-27 (MYK9-2428): only a published show closes, so a reopen that
+  // restores `published` always puts it back where it was.
+  it.each(['draft', 'upcoming', 'in_progress', 'cancelled'])(
+    'offers no close for a %s show and says when it can be closed',
+    status => {
+      render(<CloseOutShowAction {...baseProps} show={{ id: 'show-1', status }} />);
+
+      expect(screen.queryByRole('button', { name: 'Close the show' })).not.toBeInTheDocument();
+      expect(screen.getByText('A show can be closed once it is published.')).toBeInTheDocument();
+    }
+  );
 
   it('shows closeout concerns before confirmation', async () => {
     const { user } = render(

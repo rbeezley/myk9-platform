@@ -7,8 +7,17 @@ import {
 import { saveReopenReason } from '@/services/database/showCloseNotes';
 import { formatReopenNote } from './showCloseNotes';
 
-/** The status a reopened show returns to: it was running when it was closed. */
-export const REOPENED_SHOW_STATUS = 'in_progress';
+/**
+ * The status a reopened show returns to. Only a published show can be closed
+ * (`canCloseShowStatus`), so this is always the status it had (owner decision 2026-11-27,
+ * MYK9-2428: no migration to store the show's own prior status).
+ */
+export const REOPENED_SHOW_STATUS = 'published';
+
+/** A show can be closed only while it is published: the status every live show holds. */
+export function canCloseShowStatus(status: string | null | undefined): boolean {
+  return status === REOPENED_SHOW_STATUS;
+}
 
 /** The reason could not be saved (online-only step), so nothing was changed. */
 export class ReopenNoteError extends Error {}

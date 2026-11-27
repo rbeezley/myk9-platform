@@ -42,7 +42,7 @@ const FAILED_TEXT = "Couldn't check for dogs flagged as pulled at the show.";
 
 /** Everything else about the show is done: scored, results sent, no incidents. */
 const CLEAN_SHOW = {
-  show: { id: 'show-1', status: 'in_progress' },
+  show: { id: 'show-1', status: 'published' },
   trials: [{ id: 'trial-1', status: 'in_progress' }],
   classes: [{ id: 'class-1', status: 'in_progress', entryCount: 1, scoredCount: 1 }],
   incidents: { reportableCount: 0, urgentCount: 0 },

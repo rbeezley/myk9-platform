@@ -23,19 +23,20 @@ const FAILED_MESSAGE =
   'Reopening the show did not finish. Check your connection and try again; nothing is lost.';
 
 /**
- * MYK9-2428: "Reopen show", offered on a closed show to the show's own staff only (the same
- * scope that can write `show_close_notes`). A reason is required and is kept with the person and
- * the time.
+ * MYK9-2428: "Reopen show", offered on a closed show to the show's secretary only
+ * (docs/plan-show-closeout.md; owner decision 2026-11-27). `canOperate` is the show-scoped
+ * secretary, plus a site admin for support; a club admin who only manages the show's classes
+ * does not see it. A reason is required and is kept with the person and the time.
  */
 export function ReopenShowAction({ showId }: { showId: string }) {
-  const canManage = useShowManageScope(showId).canManage;
+  const canReopen = useShowManageScope(showId).canOperate;
   const { user, userWithRoles } = useAuthContext();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState('');
   const [isReopening, setIsReopening] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (!canManage) return null;
+  if (!canReopen) return null;
 
   async function submit() {
     const fullName = userWithRoles?.user_metadata?.full_name;

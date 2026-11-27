@@ -1,65 +1,39 @@
 {
   "screens": {
-    "secretary-home": ["apps/myk9show/src/pages/secretary/SecretaryDashboardPage"],
-    "show-wizard": [
-      "apps/myk9show/src/pages/secretary/ShowCreationWizardPage.tsx",
-      "apps/myk9show/src/components/shows/wizard"
+    "secretary-home": ["apps/myk9show/src/pages/secretary/SecretaryDashboardPage/index.tsx"],
+    "show-wizard": ["apps/myk9show/src/pages/secretary/ShowCreationWizardPage.tsx"],
+    "entry-forms": ["apps/myk9show/src/pages/secretary/EntryManagementPage.tsx"],
+    "check-in-desk": [
+      "apps/myk9show/src/components/entries/management/checkInDesk/CheckInDesk.tsx"
     ],
-    "entry-forms": [
-      "apps/myk9show/src/pages/secretary/EntryManagementPage.tsx",
-      "apps/myk9show/src/components/entries/management"
-    ],
-    "check-in-desk": ["apps/myk9show/src/components/entries/management/checkInDesk"],
-    "reports": ["apps/myk9show/src/pages/secretary/ReportsPage"],
-    "show-desk": [
-      "apps/myk9show/src/pages/secretary/ShowWorkbenchShowDeskPage.tsx",
-      "apps/myk9show/src/features/show-map"
-    ],
-    "results": [
-      "apps/myk9show/src/pages/secretary/ShowResultsSection.tsx",
-      "apps/myk9show/src/features/results-tab"
-    ],
-    "edit-show": ["apps/myk9show/src/components/panels/edit"],
-    "browse-shows": [
-      "apps/myk9show/src/pages/BrowseShowsPage.tsx",
-      "apps/myk9show/src/components/shows/browse"
-    ],
-    "show-page": [
-      "apps/myk9show/src/pages/ShowDetailsPage.tsx",
-      "apps/myk9show/src/components/shows/ShowDetails"
-    ],
+    "reports": ["apps/myk9show/src/pages/secretary/ReportsPage/index.tsx"],
+    "show-desk": ["apps/myk9show/src/pages/secretary/ShowWorkbenchShowDeskPage.tsx"],
+    "results": ["apps/myk9show/src/pages/secretary/ShowResultsSection.tsx"],
+    "edit-show": ["apps/myk9show/src/components/panels/edit/ShowEditPanel.tsx"],
+    "browse-shows": ["apps/myk9show/src/pages/BrowseShowsPage.tsx"],
+    "show-page": ["apps/myk9show/src/pages/ShowDetailsPage.tsx"],
     "sign-up": ["apps/myk9show/src/pages/SignUpPage.tsx"],
-    "my-dogs": [
-      "apps/myk9show/src/pages/BrowseDogsPage.tsx",
-      "apps/myk9show/src/components/dogs/browse"
-    ],
-    "add-dog": [
-      "apps/myk9show/src/components/dogs/RegistrationFormBody.tsx",
-      "apps/myk9show/src/components/dogs/useRegistrationFormFields.ts"
-    ],
-    "entry-wizard": [
-      "apps/myk9show/src/pages/RegistrationWizardPage.tsx",
-      "apps/myk9show/src/pages/RegistrationWizardPage",
-      "apps/myk9show/src/components/shows/RegistrationWorkflow"
-    ],
+    "my-dogs": ["apps/myk9show/src/pages/BrowseDogsPage.tsx"],
+    "add-dog": ["apps/myk9show/src/components/panels/edit/AddDogPanel.tsx"],
+    "entry-wizard": ["apps/myk9show/src/pages/RegistrationWizardPage.tsx"],
     "checkout-success": ["apps/myk9show/src/pages/CheckoutSuccessPage.tsx"],
-    "my-entries": ["apps/myk9show/src/pages/MyEntriesPage"],
-    "class-page": ["apps/myk9show/src/pages/ClassDetailsPage"],
+    "my-entries": ["apps/myk9show/src/pages/MyEntriesPage/index.tsx"],
+    "class-page": ["apps/myk9show/src/pages/ClassDetailsPage/index.tsx"],
     "ringside-sign-in": ["apps/myk9show/src/pages/SmartSignInPage.tsx"],
     "ringside-class-list": ["apps/myk9show/src/features/at-show/AtShowClassListPage.tsx"],
     "ringside-entry-list": [
       "apps/myk9show/src/features/at-show/AtShowEntryListPage.tsx",
-      "packages/ringside/src/pages/EntryList"
+      "packages/ringside/src/pages/EntryList/EntryListPage.tsx"
     ],
     "ringside-scoresheet": [
       "apps/myk9show/src/features/at-show/AtShowScoresheetPage.tsx",
       "packages/scoring-ui/src/components/scoresheets"
     ],
-    "club-page": [
-      "apps/myk9show/src/pages/ClubDetailPage.tsx",
-      "apps/myk9show/src/components/clubs/ClubDetails"
-    ],
-    "club-payments": ["apps/myk9show/src/components/clubs/ClubDetails/ClubPaymentsTab.tsx"]
+    "club-page": ["apps/myk9show/src/pages/ClubDetailPage.tsx"],
+    "club-payments": [
+      "apps/myk9show/src/components/clubs/ClubDetails/ClubPaymentsTab.tsx",
+      "apps/myk9show/src/features/payments/ClubPaymentsCard.tsx"
+    ]
   },
   "shots": {
     "S-01": "secretary-home",

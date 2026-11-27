@@ -389,13 +389,6 @@ jobs:
       - name: Doc staleness check
         run: pnpm qa:doc-staleness:strict
 
-      # MYK9-2411: a report in the run summary, never a gate. The script exits 0 whatever it
-      # finds, and it needs the full history this job already checks out. On main only, so the
-      # newest run always carries the current recapture list.
-      - name: Guide screenshots older than their screen (report only)
-        if: github.event_name == 'push'
-        run: pnpm qa:guide-shots
-
       - name: Check plan metadata
         run: |
           pnpm qa:plans:test

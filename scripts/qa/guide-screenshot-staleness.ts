@@ -2,15 +2,17 @@
  * MYK9-2411: report guide screenshots older than the screen they show.
  *
  * Every guide screenshot has a row in docs/training/screenshot-shot-list.md with the day it was
- * captured (`captured 2026-11-04`). `guide-screenshot-screens.json` names the source of the screen
- * each shot shows. A shot is STALE when a commit after its capture day changed that source.
+ * captured (`captured 2026-11-04`). `guide-screenshot-screens.json` names the entry (the page or
+ * panel) of the screen each shot shows; `guide-screenshot-sources.ts` follows that entry's imports
+ * to the components it renders. A shot is STALE when a commit after its capture day changed any
+ * of those files.
  *
- * This is a report, never a gate: it always exits 0, so a stale picture cannot fail CI. It is
- * there so the next recapture batch is obvious (most-changed screens first).
+ * This is a report, never a gate. It always exits 0, no CI job runs it, and no test reads the
+ * live shot list or map: run it when planning a recapture batch (most-changed screens first).
  *
  * What it cannot know:
  *  - Whether a change is visible. A refactor counts the same as a new button.
- *  - Changes outside the mapped source (a shared button, a layout shell).
+ *  - Changes to shared building blocks and to logic (see `guide-screenshot-sources.ts`).
  *  - Anything on the capture day itself: only commits after that day count.
  *  - History it does not have. In a shallow clone a shot captured before the history starts is
  *    "could not tell" unless a later change is found (then it is stale, with a lower-bound count).
@@ -21,6 +23,7 @@ import { execFileSync } from 'node:child_process';
 import { appendFileSync, existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { screenSources } from './guide-screenshot-sources';
 
 export interface Shot {
   id: string;
@@ -31,8 +34,11 @@ export interface Shot {
   capturedOn: string | null;
 }
 
+/** Entries (a page, a panel) to every file that draws the screen. */
+export type ExpandSources = (entries: string[]) => string[];
+
 export interface ScreenMap {
-  /** Screen name to the repo-relative files or directories that draw it. */
+  /** Screen name to its repo-relative entries: the page or panel, as a file or a directory. */
   screens: Record<string, string[]>;
   /** Shot id to a screen name. */
   shots: Record<string, string>;
@@ -84,7 +90,12 @@ export function parseShotList(markdown: string): Shot[] {
   return shots;
 }
 
-function classifyShot(shot: Shot, map: ScreenMap, history: History): Verdict {
+function classifyShot(
+  shot: Shot,
+  map: ScreenMap,
+  history: History,
+  expand: ExpandSources
+): Verdict {
   if (!shot.capturedOn) {
     return { kind: 'unknown', shot, reason: `no capture day in its status ("${shot.status}")` };
   }
@@ -99,11 +110,11 @@ function classifyShot(shot: Shot, map: ScreenMap, history: History): Verdict {
     return {
       kind: 'unknown',
       shot,
-      reason: `mapped source no longer exists: ${missing.join(', ')}`,
+      reason: `mapped entry no longer exists: ${missing.join(', ')}`,
     };
   }
 
-  const changes = history.changesAfter(paths, shot.capturedOn);
+  const changes = history.changesAfter(expand(paths), shot.capturedOn);
   // History that starts after the capture day cannot prove nothing changed in between.
   const beforeHistory =
     history.historyStart !== null && endOfDay(shot.capturedOn) < history.historyStart;
@@ -119,8 +130,17 @@ function classifyShot(shot: Shot, map: ScreenMap, history: History): Verdict {
   return { kind: 'fresh', shot, screen };
 }
 
-export function classifyShots(shots: Shot[], map: ScreenMap, history: History): Verdict[] {
-  return shots.map(shot => classifyShot(shot, map, history));
+/**
+ * `expand` turns a screen's entries into the files that draw it. It defaults to the entries
+ * themselves; the real report follows imports (`screenSources`).
+ */
+export function classifyShots(
+  shots: Shot[],
+  map: ScreenMap,
+  history: History,
+  expand: ExpandSources = entries => entries
+): Verdict[] {
+  return shots.map(shot => classifyShot(shot, map, history, expand));
 }
 
 /** The last instant of a UTC day, as ISO. A commit counts only after this. */
@@ -262,7 +282,15 @@ export function buildReport(root: string, history: History = gitHistory(root)): 
     readFileSync(join(root, 'scripts/qa/guide-screenshot-screens.json'), 'utf8')
   ) as ScreenMap;
   const files = readdirSync(join(root, 'docs/screenshots')).filter(file => /\.png$/i.test(file));
-  return renderReport(classifyShots(shots, map, history), findFileMismatches(shots, files));
+  // One screen can serve several shots; follow its imports once.
+  const expanded = new Map<string, string[]>();
+  const expand: ExpandSources = entries => {
+    const key = entries.join('\n');
+    const known = expanded.get(key) ?? screenSources(root, entries);
+    expanded.set(key, known);
+    return known;
+  };
+  return renderReport(classifyShots(shots, map, history, expand), findFileMismatches(shots, files));
 }
 
 function main(): void {

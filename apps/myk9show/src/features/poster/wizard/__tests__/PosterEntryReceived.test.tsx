@@ -10,13 +10,18 @@ vi.mock('react-router-dom', async () => {
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
+const DOG = {
+  id: 'dog-1',
+  registeredName: "CH Cedarwood's Risen on Pointe RN",
+  callName: 'Pointe',
+  classSummary: '3 runs · Excellent Containers, Excellent Interiors, Excellent Buried',
+};
+
 const BASE_PROPS = {
   showName: 'Spring Scent Work',
   clubName: 'Bexar County Kennel Club',
   dateRange: 'Jun 12–14, 2026',
-  dogRegisteredName: "CH Cedarwood's Risen on Pointe RN",
-  dogCallName: 'Pointe',
-  classSummary: '3 runs · Excellent Containers, Excellent Interiors, Excellent Buried',
+  dogs: [DOG],
   totalFeesFormatted: '$69.00',
   totalLabel: 'Total · Paid by check',
   registrationNumber: 'MK9-000137',
@@ -64,7 +69,7 @@ describe('PosterEntryReceived', () => {
   });
 
   it('omits the call-name line when dogCallName is null', () => {
-    render(<PosterEntryReceived {...BASE_PROPS} dogCallName={null} />);
+    render(<PosterEntryReceived {...BASE_PROPS} dogs={[{ ...DOG, callName: null }]} />);
     expect(screen.queryByText(/“/)).toBeNull();
   });
 

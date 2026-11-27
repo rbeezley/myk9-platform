@@ -61,12 +61,16 @@ vi.mock('@/components/shows/wizard/steps/OfficialPicker', () => ({
       {/* The real picker's "Add new": create the person, then select the id it returns. */}
       <button
         onClick={() =>
-          void onCreatePerson({
-            firstName: 'Priya',
-            lastName: 'Raman',
-            email: 'p@example.com',
-            phone: '(555) 010-2020',
-          })
+          // Passes the exclusions it was given, as the real picker does.
+          void onCreatePerson(
+            {
+              firstName: 'Priya',
+              lastName: 'Raman',
+              email: 'p@example.com',
+              phone: '(555) 010-2020',
+            },
+            { excludePersonIds }
+          )
             .then(onSelect)
             // The real picker shows a refusal inline; the stand-in records it for the test.
             .catch((err: unknown) => {
@@ -143,6 +147,34 @@ describe('ShowOfficialsEditor replace', () => {
     expect(harness.rpc).not.toHaveBeenCalled();
     expect(harness.updateUser).not.toHaveBeenCalled();
     expect(harness.createUser).not.toHaveBeenCalled();
+  });
+
+  // Codex round 5: the server's list alone decides. A former Secretary the cache still shows is
+  // no longer excluded, so "Add new" reuses her and makes her Chair.
+  it('lets "Add new" make a former Secretary the Chair when only the stale cache still lists her', async () => {
+    harness.cached = {
+      secretaries: [holder('sec-1', 'Priya', 'Raman')],
+      chairmen: [],
+      stewards: [],
+    };
+    harness.people = [
+      { id: 'sec-1', firstName: 'Priya', lastName: 'Raman', email: 'p@example.com', phone: '' },
+    ];
+    renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
+    expect(screen.getByTestId('excluded Chair')).toHaveTextContent('sec-1');
+
+    await userEvent.click(screen.getByRole('button', { name: 'add new Chair' }));
+
+    await waitFor(() =>
+      expect(harness.rpc).toHaveBeenCalledWith('grant_show_official', {
+        p_person_id: 'sec-1',
+        p_role_name: 'chairman',
+        p_show_id: SHOW,
+      })
+    );
+    expect(harness.createError).toBeUndefined();
+    expect(harness.createUser).not.toHaveBeenCalled();
+    expect(await screen.findByText('Saved. Priya Raman is now Chair.')).toBeInTheDocument();
   });
 
   it('assigning a second Chair revokes the first', async () => {

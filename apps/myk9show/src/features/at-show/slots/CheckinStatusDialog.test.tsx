@@ -15,7 +15,11 @@ describe('CheckinStatusDialog', () => {
       />
     );
 
-    expect(screen.getByRole('button', { name: 'Checked-in' })).toBeInTheDocument();
+    // MYK9-2460: the two tiles the card's button names say the card's words.
+    expect(screen.getByRole('button', { name: 'Checked in' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Not checked in' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Checked-in' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'No Status' })).not.toBeInTheDocument();
     expect(document.querySelectorAll('[data-family="entry"]')).toHaveLength(8);
 
     await user.click(screen.getByRole('button', { name: 'Come to Gate' }));

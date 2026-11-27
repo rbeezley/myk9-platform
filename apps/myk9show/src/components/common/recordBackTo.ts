@@ -12,6 +12,8 @@
  * record's address. It must not travel when the URL is copied or shared.
  */
 
+import type { Crumb } from './breadcrumbCrumb';
+
 export interface RecordBackTo {
   /** In-app path to return to, query string included. */
   href: string;
@@ -21,11 +23,8 @@ export interface RecordBackTo {
   parent?: { label: string; href: string };
 }
 
-export interface BreadcrumbTrailItem {
-  label: string;
-  href?: string;
-  isCurrentPage?: boolean;
-}
+/** A trail crumb: the current page, or an ancestor that must carry a destination (MYK9-2489). */
+export type BreadcrumbTrailItem = Crumb;
 
 /** In-app absolute paths only — never protocol-relative, never off-site. */
 function isInternalHref(value: unknown): value is string {

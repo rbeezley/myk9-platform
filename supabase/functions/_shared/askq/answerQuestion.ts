@@ -5,11 +5,16 @@ import {
   answerFromGuides,
   answerFromRulebook,
   answerFromShowData,
+  type GuidesAnswer,
   type ToolRunner,
 } from './sourceAnswerers.ts';
 import { joinSourceSections, NEEDS_SHOW_SENTENCE, type SourceSection } from './sourceJoin.ts';
 import { getSupportEscalationForQuestion, type SupportEscalationPayload } from './supportMode.ts';
-import type { SupportQuoteRefusal, VerifiedGuideQuote } from './supportQuoteEvidence.ts';
+import type {
+  SupportQuoteRefusal,
+  SupportQuoteRejection,
+  VerifiedGuideQuote,
+} from './supportQuoteEvidence.ts';
 import type { AskQRulebookScope, ModelCall, UserContext } from './types.ts';
 
 export interface AnswerQuestionInput {
@@ -35,18 +40,65 @@ export interface AnsweredQuestion {
   /** Set only when guides was the sole source and refused or tripped the money pre-check on a supportMode request. */
   escalation: SupportEscalationPayload | null;
   escalationCause: SupportQuoteRefusal | 'precheck' | null;
+  /**
+   * Set whenever the guides were asked and refused, on any route, escalation or not (MYK9-2473):
+   * a mixed route's refused guide half used to leave no trace in the log.
+   */
+  guideRefusal: GuideRefusal | null;
+}
+
+/** Why the guides refused: the model handed off, or a named quote rule rejected its answer. */
+export interface GuideRefusal {
+  cause: SupportQuoteRefusal;
+  detail: SupportQuoteRejection | null;
+}
+
+/**
+ * The `tools_used` markers a refused guide answer logs (`chatbot_query_log.tools_used`), so an
+ * operator can read why: `support_handoff`, or `support_quote_rejected` with the rule that
+ * rejected it, such as `support_quote_too_short` (MYK9-2472).
+ */
+export function guideRefusalMarkers(refusal: GuideRefusal | null): string[] {
+  if (!refusal) return [];
+  if (refusal.cause !== 'quote_rejected') return ['support_handoff'];
+  return ['support_quote_rejected', ...(refusal.detail ? [`support_${refusal.detail}`] : [])];
 }
 
 /** The `tools_used` markers an escalation logs; the cause tells money pre-checks from guide refusals. */
-export function escalationMarkers(cause: AnsweredQuestion['escalationCause']): string[] {
+export function escalationMarkers(
+  cause: AnsweredQuestion['escalationCause'],
+  detail: SupportQuoteRejection | null = null
+): string[] {
   return [
     'support_escalation',
-    cause === 'quote_rejected'
-      ? 'support_quote_rejected'
-      : cause === 'precheck'
-        ? 'support_precheck'
-        : 'support_handoff',
+    ...(cause === 'precheck'
+      ? ['support_precheck']
+      : guideRefusalMarkers({ cause: cause ?? 'handoff', detail })),
   ];
+}
+
+/** What a question logs about a refused guide answer: the escalation, or the refusal alone. */
+export function refusalMarkers(
+  answered: Pick<AnsweredQuestion, 'escalation' | 'escalationCause' | 'guideRefusal'>
+): string[] {
+  return answered.escalation
+    ? escalationMarkers(answered.escalationCause, answered.guideRefusal?.detail ?? null)
+    : guideRefusalMarkers(answered.guideRefusal);
+}
+
+/** "Which rulebook should I use?" is a question back, not a rulebook answer: a `plain` section. */
+function rulebookSection(
+  resolution: { clarification: string | null },
+  text: string | null
+): SourceSection {
+  return resolution.clarification === null
+    ? { source: 'rulebook', text }
+    : { source: 'rulebook', text, plain: true };
+}
+
+function guideRefusalOf(guides: GuidesAnswer | null): GuideRefusal | null {
+  if (!guides?.escalation) return null;
+  return { cause: guides.escalationCause ?? 'handoff', detail: guides.escalationDetail };
 }
 
 export function routeMarkers(sources: AskQSource[]): string[] {
@@ -97,6 +149,7 @@ export async function answerQuestion(input: AnswerQuestionInput): Promise<Answer
       guideSources: [],
       escalation: precheck,
       escalationCause: 'precheck',
+      guideRefusal: null,
     };
   }
   const base = { call: input.call, message: input.message, userContext: input.userContext };
@@ -129,7 +182,7 @@ export async function answerQuestion(input: AnswerQuestionInput): Promise<Answer
   if (needsShow) sections.push({ source: 'show_data', text: NEEDS_SHOW_SENTENCE, plain: true });
   if (showData) sections.push({ source: 'show_data', text: showData.text });
   if (guides) sections.push({ source: 'guides', text: guides.text });
-  if (rulebookResolution) sections.push({ source: 'rulebook', text: rulebookText });
+  if (rulebookResolution) sections.push(rulebookSection(rulebookResolution, rulebookText));
 
   const guidesOnlyRefused =
     chosen.length === 1 && !needsShow && guides?.escalation && input.supportMode;
@@ -140,5 +193,6 @@ export async function answerQuestion(input: AnswerQuestionInput): Promise<Answer
     guideSources: guides?.guideSources ?? [],
     escalation: guidesOnlyRefused ? (guides?.escalation ?? null) : null,
     escalationCause: guidesOnlyRefused ? (guides?.escalationCause ?? null) : null,
+    guideRefusal: guideRefusalOf(guides),
   };
 }

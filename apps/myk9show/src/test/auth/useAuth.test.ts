@@ -885,8 +885,8 @@ describe('useAuth', () => {
       expect(readPersistedRingsideClaim('show-oct10')).toBeNull();
     });
 
-    it('clears a saved home page club-form draft on SIGNED_OUT', async () => {
-      saveClubOnboardingDraft({
+    it('clears every saved home page club-form draft on SIGNED_OUT', async () => {
+      const clubDraft = {
         clubName: 'Tri-State Kennel Club',
         organization: 'AKC',
         clubNumbers: { AKC: '1', UKC: '', ASCA: '' },
@@ -895,14 +895,17 @@ describe('useAuth', () => {
         contactPhone: '555',
         firstShowDate: '',
         message: '',
-      });
+      };
+      const draftId = saveClubOnboardingDraft(clubDraft);
+      const otherDraftId = saveClubOnboardingDraft({ ...clubDraft, clubName: 'Second Club' });
       renderHook(() => useAuth());
 
       await act(async () => {
         authChangeCallback('SIGNED_OUT', null);
       });
 
-      expect(readClubOnboardingDraft()).toBeNull();
+      expect(readClubOnboardingDraft(draftId)).toBeNull();
+      expect(readClubOnboardingDraft(otherDraftId)).toBeNull();
     });
 
     it('the real Account-menu sign-out path (useAuth().signOut) reaches the same clear', async () => {

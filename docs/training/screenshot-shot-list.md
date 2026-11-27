@@ -4,6 +4,8 @@
 
 Every screenshot and diagram in final documentation and training materials must have a row here. No screenshot without a shot-list entry should appear in published materials.
 
+**Which shots are out of date?** Run `pnpm qa:guide-shots`. It lists the shots whose screen changed after the day in their `captured <date>` status, most-changed first. It is a report: it never fails a build.
+
 **Status values:**
 
 - `ready` — UI is stable; this shot can be taken now

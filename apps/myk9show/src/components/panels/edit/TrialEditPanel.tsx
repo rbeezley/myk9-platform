@@ -29,6 +29,7 @@ import { clockOnDateToIso, hasTrialTime, isoToClock } from '@/components/trials/
 import { getTrialTimezone } from '@/features/registries';
 import { format } from 'date-fns';
 import { trialEditTypeOptions } from './trialEditTypeOptions';
+import { useTrialOpenBaseline, withoutUntouchedLiveFields } from './trialEditBaseline';
 import { usePanelValidationNavigation, type FieldLocation } from './usePanelValidationNavigation';
 
 interface TrialEditPanelProps {
@@ -602,19 +603,26 @@ export const TrialEditPanel: React.FC<TrialEditPanelProps> = ({
   // Convert trial data to form data
   const initialFormData = useMemo(() => trialToFormData(initialTrialData), [initialTrialData]);
 
+  const getOpenBaseline = useTrialOpenBaseline(open, initialTrialData);
+
   // Handle save
   const handleSave = useCallback(
     async (formData: TrialEditFormData) => {
-      const trialData = formDataToTrial(formData, getTrialTimezone(initialTrialData));
-      // Only write the switch when it changes: an untouched trial never sends the column.
-      if (formData.askAboutStaleClasses === (initialTrialData.autoCompleteStaleClasses !== false)) {
-        delete trialData.autoCompleteStaleClasses;
-      }
+      // Untouched status, actual times and stale-class switch are not sent (MYK9-2450).
+      const trialData = withoutUntouchedLiveFields(
+        formDataToTrial(formData, getTrialTimezone(initialTrialData)),
+        {
+          timeStarted: formData.timeStarted,
+          timeEnded: formData.timeEnded,
+          askAboutStaleClasses: formData.askAboutStaleClasses,
+        },
+        getOpenBaseline()
+      );
       if (onSave) {
         await onSave(trialData);
       }
     },
-    [onSave, initialTrialData]
+    [onSave, initialTrialData, getOpenBaseline]
   );
 
   return (

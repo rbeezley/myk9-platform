@@ -20,6 +20,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useGlobalSyncStatus } from '@/hooks/useGlobalSyncStatus';
 import { useOnlineStatus } from '@/lib/networkUtils';
 import { cn } from '@/lib/utils';
+import { showIsNationals } from '@/features/registries/akcNationals';
 import type { ClassMenuAction } from '@myk9/ringside';
 import { replicatedShowsTable, replicatedTrialsTable } from '@/services/replication';
 import { useAnnouncementStore } from '@/store/announcementStore';
@@ -103,7 +104,7 @@ export function RingsideMenu({
     canManageShow,
     isOnline,
     hasAccount: Boolean(user) && !user?.is_anonymous,
-    isNationals: showQuery.data ? showQuery.data.isNationals === true : null,
+    isNationals: showQuery.data ? showIsNationals(showQuery.data) : null,
     isStaff: dogViewerKind === 'staff',
     canFindDogs: dogViewerKind !== null,
     hasSetupSheet,

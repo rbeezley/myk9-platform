@@ -35,17 +35,40 @@ function renderFor(style: string, location: string | null): string {
   return renderConfirmationEmail(data, theShow, registryEmailLanguage('AKC'));
 }
 
-describe.each(EMAIL_STYLES)('venue in the %s confirmation', style => {
-  it('prints the street address the secretary typed', () => {
-    const html = renderFor(style, '100 Dog Show Lane, Tulsa, OK 74101');
+/**
+ * The text an exhibitor reads: tags and their attributes removed. The directions link repeats
+ * the address in its `aria-label`, so a search of the raw HTML passes even when no template
+ * prints the venue (Codex review of #4463).
+ */
+function visibleText(html: string): string {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
-    expect(html).toContain('100 Dog Show Lane, Tulsa, OK 74101');
+describe.each(EMAIL_STYLES)('venue in the %s confirmation', style => {
+  it('prints the street address the secretary typed, where she can read it', () => {
+    const text = visibleText(renderFor(style, '100 Dog Show Lane, Tulsa, OK 74101'));
+
+    expect(text).toContain('100 Dog Show Lane, Tulsa, OK 74101');
   });
 
   it('prints the city and state when the show has no street address', () => {
-    const html = renderFor(style, null);
+    const text = visibleText(renderFor(style, null));
 
-    expect(html).toContain('Tulsa, Oklahoma');
-    expect(html).not.toContain('Dog Show Lane');
+    expect(text).toContain('Tulsa, Oklahoma');
+    expect(text).not.toContain('Dog Show Lane');
+  });
+});
+
+describe('visibleText', () => {
+  it('does not count an address that is only in an attribute', () => {
+    const html =
+      '<a href="https://maps.example" aria-label="Directions to 100 Dog Show Lane">Map</a>';
+
+    expect(html).toContain('100 Dog Show Lane');
+    expect(visibleText(html)).toBe('Map');
   });
 });

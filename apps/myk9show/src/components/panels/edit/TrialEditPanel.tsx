@@ -611,8 +611,12 @@ export const TrialEditPanel: React.FC<TrialEditPanelProps> = ({
       // Untouched status, actual times and stale-class switch are not sent (MYK9-2450).
       const trialData = withoutUntouchedLiveFields(
         formDataToTrial(formData, getTrialTimezone(initialTrialData)),
-        getOpenBaseline(),
-        formData.askAboutStaleClasses
+        {
+          timeStarted: formData.timeStarted,
+          timeEnded: formData.timeEnded,
+          askAboutStaleClasses: formData.askAboutStaleClasses,
+        },
+        getOpenBaseline()
       );
       if (onSave) {
         await onSave(trialData);

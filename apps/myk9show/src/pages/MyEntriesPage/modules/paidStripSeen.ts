@@ -11,6 +11,8 @@
  */
 
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
+import { formatPaymentCents } from '@/features/payments/moneyPresentation';
+import { formatShortCalendarDate } from '@/lib/format/dates';
 import { isPastShowEntry } from './myEntriesStats.helpers';
 import type { EntryStatusKind } from '@/services/entryDisplay/entryDisplaySelectors';
 import type { MyPayment } from '@/features/payments/useMyPayments';
@@ -113,28 +115,60 @@ export interface PaidStrip {
   /** Every class row the strip confirms; Dismiss retires them all. */
   paymentIds: string[];
   /**
-   * What was paid, in cents: the sum of the covering online orders'
-   * `amount_cents`, each counted once, exactly as My Payments lists them.
+   * What was paid: each covering online order once, oldest first, with its own
+   * `amount_cents` and its own date, exactly as My Payments lists them.
    *
    * The strip ECHOES the orders and derives nothing from them (owner decision,
    * MYK9-1275). It used to say "for Willow's 7 classes", and pairing a gross
    * charge with a derived class count was false twice over: a partial refund
    * leaves the order `succeeded` with fewer paid rows, and a partly fulfilled
    * checkout stores the full charge but only the fulfilled `entry_ids`.
+   *
+   * Never summed (MYK9-2484): two $32.10 charges on different days read
+   * "Paid $64.20 on Nov 26", a charge nobody made, on a day it was not made.
    */
-  amountCents: number;
+  charges: PaidStripCharge[];
   /**
    * True while any covered row still waits on the secretary's decision. The
    * strip says "will review it next" only then; once every row is accepted
    * (or past acceptance: checked in, scored) that sentence would be stale.
    */
   awaitingReview: boolean;
+}
+
+/** One charge as My Payments lists it. */
+export interface PaidStripCharge {
+  amountCents: number;
   /**
-   * When it was paid: the LATEST date among the covering online orders, the
-   * same `paid_at ?? created_at` My Payments shows on each order's row. Never
-   * `lastUpdated`, which moves with every later write (a check-in, a score).
+   * When it was paid: the same `paid_at ?? created_at` My Payments shows on the
+   * order's row. Never `lastUpdated`, which moves with every later write (a
+   * check-in, a score).
    */
   date: Date;
+}
+
+/**
+ * Past this many charges the strip stays one line: it counts them, gives what they came to "in
+ * all", and names the newest. A total said to be several payments is not a charge on a date; a
+ * show entered through many orders still says what was paid there (MYK9-804).
+ */
+const MAX_LISTED_CHARGES = 3;
+
+/**
+ * The strip's one sentence (MYK9-2484). One charge reads as it always has. Two or three are
+ * counted and each named with its own amount and day, so every figure matches a My Payments row.
+ */
+export function paidStripHeadline(charges: readonly PaidStripCharge[]): string {
+  const say = (charge: PaidStripCharge) =>
+    `${formatPaymentCents(charge.amountCents, 'USD')} on ${formatShortCalendarDate(charge.date)}`;
+  if (charges.length === 0) return '';
+  if (charges.length === 1) return `Paid ${say(charges[0])}.`;
+  if (charges.length > MAX_LISTED_CHARGES) {
+    const total = charges.reduce((sum, charge) => sum + charge.amountCents, 0);
+    return `${charges.length} payments, ${formatPaymentCents(total, 'USD')} in all. The newest: ${say(charges[charges.length - 1])}.`;
+  }
+  const named = charges.map(say);
+  return `${charges.length} payments: ${named.slice(0, -1).join(', ')} and ${named[named.length - 1]}.`;
 }
 
 /**
@@ -186,7 +220,7 @@ function settledOrdersByEntryId(
  * @param orders The show's FULL, unfiltered order set — never the page's
  *   filtered `group.orders`, or the total shifts with the When/Status filters
  *   (MYK9-804 round 2). Rows are matched per CLASS ROW within each order
- *   (`order.dogs[].classes`); the amount is the covering orders' own charge.
+ *   (`order.dogs[].classes`); the amounts are the covering orders' own charges.
  * @param hasSeen Injected so the pure derivation stays testable and the
  *   caller can keep an in-memory dismissal set, keyed by class row id,
  *   alongside the stored one.
@@ -233,10 +267,8 @@ export function derivePaidStrip(
     awaitingReview: fresh.some(payment =>
       isAwaitingSecretaryDecision(payment.cls.entryStatus, payment.cls.entryStatusKind)
     ),
-    amountCents: coveringOrders.reduce((sum, settled) => sum + settled.payment.amountCents, 0),
-    date: coveringOrders.reduce(
-      (latest, settled) => (settled.paidAt > latest ? settled.paidAt : latest),
-      coveringOrders[0].paidAt
-    ),
+    charges: coveringOrders
+      .map(settled => ({ amountCents: settled.payment.amountCents, date: settled.paidAt }))
+      .sort((a, b) => a.date.getTime() - b.date.getTime()),
   };
 }

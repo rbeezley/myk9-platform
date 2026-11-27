@@ -417,3 +417,27 @@ describe('notRunningReasonOf precedence (MYK9-1940)', () => {
     expect(notRunningReasonOf(lifecycle, checkIn)).toBe(reason);
   });
 });
+
+describe('awaitingApproval (MYK9-2391)', () => {
+  const dog = (id: string, armband: number, extra: Partial<RunQueueEntry> = {}): RunQueueEntry => ({
+    id,
+    armband,
+    exhibitorOrder: armband,
+    status: 'no-status',
+    ...extra,
+  });
+
+  it('leaves a Pending dog out of the line, the ring and the place count, keeping the others in order', () => {
+    const rows = [dog('p', 1, { awaitingApproval: true }), dog('a', 2), dog('b', 3)];
+    expect(isInQueue(rows[0]!)).toBe(false);
+    expect(pendingByRunOrder(rows).map(r => r.id)).toEqual(['a', 'b']);
+    expect(placeInLine(rows, 'b')).toBe(2);
+    expect(runQueueStateOf(rows, 'p')).toBeNull();
+  });
+
+  it('never names a Pending dog as in the ring, whatever its flags say', () => {
+    const row = dog('p', 1, { awaitingApproval: true, inRing: true, status: 'in-ring' });
+    expect(isInRingEntry(row)).toBe(false);
+    expect(findInRingEntry([row])).toBeNull();
+  });
+});

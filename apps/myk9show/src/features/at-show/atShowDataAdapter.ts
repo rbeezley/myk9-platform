@@ -192,7 +192,8 @@ export function transformEntry(
   movedToClassName?: string
 ): Entry {
   const checkinStatus = re.checkInStatus ?? re.check_in_status;
-  const { status, inRing, notRunning, notRunningReason } = ringsideEntryRingState(re);
+  const { status, inRing, notRunning, notRunningReason, awaitingApproval } =
+    ringsideEntryRingState(re);
   const finalPlacement = re.finalPlacement ?? re.final_placement;
   const searchTimeSeconds = re.searchTimeSeconds ?? re.search_time_seconds;
   const elementTimeSeconds = re.element_time_seconds;
@@ -228,6 +229,8 @@ export function transformEntry(
     // The shared in-ring rule (MYK9-1892), never ring_entry_time: atShowEntryRingState.ts.
     inRing,
     checkedIn: checkinStatus === 'checked-in',
+    // Pending: no place in line, so the queue leaves the dog out of "Up next" and dogs-ahead (MYK9-2391).
+    ...(awaitingApproval ? { awaitingApproval: true } : {}),
 
     // Class-derived header fields.
     className: buildClassName(cls),

@@ -180,6 +180,8 @@ export function normalizeCanonicalEntry(row: SubmittedEntryDbRow): SyncableShowE
     classId,
     dogId,
     status: canonicalEntryStatus(row.entry_status),
+    // The stand-in above is not a stated Pending: the queue leaves a missing status runnable (MYK9-2391).
+    ...(stringValue(row.entry_status) === undefined ? { lifecycleMissing: true as const } : {}),
     ...(checkInStatus ? { checkInStatus } : {}),
     registrationData: {
       submittedAt,
@@ -211,6 +213,9 @@ export function mergeCanonicalEntry(
   return {
     ...stored,
     status: canonical.status,
+    // Travels with the status, including undefined: a cached flag must not outlive the row
+    // that set it (MYK9-2391).
+    lifecycleMissing: canonical.lifecycleMissing,
     // Replace the complete released result, including undefined when withheld.
     // Merging fields would retain stale local times or placements.
     competitionData: canonical.competitionData,

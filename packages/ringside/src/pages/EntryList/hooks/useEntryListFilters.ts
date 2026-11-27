@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import type { Entry } from '../../../stores/entryStore';
 import { gateRank } from '../gateRank';
-import { armbandSortKey, compareByRunOrder } from '../runQueue';
+import { armbandSortKey, compareByRunOrder, isInRingEntry } from '../runQueue';
 
 /**
  * Filter/sort/search hook for both entry-list modes (single class, combined A/B).
@@ -91,8 +91,8 @@ function getPriorityDiff(
 ): number {
   // In-ring dogs ALWAYS come first (if enabled)
   if (prioritizeInRing) {
-    const aIsInRing = a.inRing || a.status === 'in-ring';
-    const bIsInRing = b.inRing || b.status === 'in-ring';
+    const aIsInRing = isInRingEntry(a);
+    const bIsInRing = isInRingEntry(b);
     if (aIsInRing && !bIsInRing) return -1;
     if (!aIsInRing && bIsInRing) return 1;
   }

@@ -45,9 +45,17 @@ export interface RunQueueEntry {
   status?: string | undefined;
   /** @deprecated Use status === 'in-ring'; the data adapter still sets this. */
   inRing?: boolean | undefined;
+  /**
+   * The registration lifecycle says the entry is not yet approved (Pending, MYK9-2391). The host
+   * adapter sets it from its one Pending predicate (`isAwaitingApproval`, app-side); this module
+   * only honors it: a Pending dog is neither in the ring nor in the waiting line, whatever its
+   * check-in status says. It keeps its run number and its accounting row.
+   */
+  awaitingApproval?: boolean | undefined;
 }
 
 export function isInRingEntry(entry: RunQueueEntry): boolean {
+  if (entry.awaitingApproval) return false;
   return entry.inRing === true || entry.status === 'in-ring';
 }
 
@@ -89,7 +97,7 @@ const WAITING_STATUSES: ReadonlySet<string> = new Set([
 
 /** Entries still due to run: unscored with a status that means "still to run" (or none yet). */
 export function isInQueue(entry: RunQueueEntry): boolean {
-  if (entry.isScored) return false;
+  if (entry.isScored || entry.awaitingApproval) return false;
   return entry.status == null || WAITING_STATUSES.has(entry.status);
 }
 

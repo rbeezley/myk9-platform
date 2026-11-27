@@ -127,11 +127,22 @@ describe('club onboarding draft', () => {
     expect(readClubOnboardingDraft(first)?.contactName).toBe('Sam Lee');
   });
 
-  it('ignores an address id it did not make, and saves under a new one', () => {
-    const saved = saveClubOnboardingDraft(draft, '../not-an-id');
-    expect(saved).not.toBe('../not-an-id');
-    expect(localStorage.getItem(`${PREFIX}../not-an-id`)).toBeNull();
-    expect(readClubOnboardingDraft(saved)).toEqual(draft);
+  // An old link must never pick up what the next person types (a shared computer).
+  it('gives a new id when the address id has no stored draft: cleared, expired or never saved', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-27T12:00:00Z'));
+    const cleared = saveClubOnboardingDraft(draft)!;
+    clearClubOnboardingDraft(cleared);
+    const expired = saveClubOnboardingDraft(draft)!;
+    vi.setSystemTime(Date.now() + CLUB_ONBOARDING_DRAFT_MAX_AGE_MS + 1000);
+    const unknown = '0b9f1c7e-2d4a-4e8b-9c3f-5a6d7e8f9a0b';
+
+    for (const oldId of [cleared, expired, unknown, '../not-an-id']) {
+      const saved = saveClubOnboardingDraft({ ...draft, contactName: 'Next Person' }, oldId);
+      expect(saved).not.toBe(oldId);
+      expect(readClubOnboardingDraft(oldId)).toBeNull();
+      expect(readClubOnboardingDraft(saved)?.contactName).toBe('Next Person');
+    }
   });
 
   // The shared-computer case: the next visitor has no id, or another one.

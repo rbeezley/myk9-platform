@@ -24,6 +24,8 @@ export async function fetchShowEmailDeliveryHistory(args: {
   showId: string;
   limit?: number;
   cursor?: EmailDeliveryCursor | null;
+  /** MYK9-2403: narrow to one address (the entry form's exhibitor); omitted, the whole show. */
+  recipientEmail?: string | null;
 }): Promise<EmailDeliveryHistoryPage> {
   const limit = args.limit ?? 50;
   const result = await args.supabase.rpc<EmailDeliveryRpcRow[]>('get_show_email_delivery_history', {
@@ -31,6 +33,8 @@ export async function fetchShowEmailDeliveryHistory(args: {
     p_limit: limit,
     p_before_created_at: args.cursor?.createdAt ?? null,
     p_before_id: args.cursor?.id ?? null,
+    // Left out when unset so the Messages list sends exactly what it always has.
+    ...(args.recipientEmail ? { p_recipient_email: args.recipientEmail } : {}),
   });
 
   if (result.error) {

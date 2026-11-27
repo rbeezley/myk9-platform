@@ -485,6 +485,7 @@ describe('EntryFocusedRegistration', () => {
           amount: null,
           receivedOn: '2026-09-17',
           reference: null,
+          clientPaymentId: expect.any(String),
         },
       ];
       expect(viaChecklist.paymentLedger.record).toHaveBeenCalledTimes(1);
@@ -509,6 +510,7 @@ describe('EntryFocusedRegistration', () => {
         amount: null,
         receivedOn: '2026-09-17',
         reference: '9',
+        clientPaymentId: expect.any(String),
       });
 
       await user.click(screen.getByRole('button', { name: 'More payment options' }));

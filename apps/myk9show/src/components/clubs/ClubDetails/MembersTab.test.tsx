@@ -70,4 +70,36 @@ describe('MembersTab', () => {
     expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
     expect(screen.getByRole('status', { name: 'Updating members' })).toBeInTheDocument();
   });
+
+  // MYK9-2467: whoever reads this list is not the club's admin and can read at most their own
+  // row, so an empty list must not claim the club has no members.
+  it('never tells a viewer who cannot read the roster that the club has no members', () => {
+    renderMembersTab({ members: [] });
+
+    expect(
+      screen.getByText("Only this club's admins can see the member list.")
+    ).toBeInTheDocument();
+    expect(screen.queryByText('No Members Yet')).not.toBeInTheDocument();
+    expect(screen.queryByText(/doesn't have any members/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Add First Member/ })).not.toBeInTheDocument();
+  });
+
+  // Codex review of #4470: a member who is not an admin reads only her own row, and a list
+  // headed "Club Members" with one name read as the whole club.
+  it("heads a member's own row as her membership, not as the club's members", () => {
+    renderMembersTab();
+
+    expect(screen.getByRole('heading', { name: 'Your membership' })).toBeInTheDocument();
+    expect(
+      screen.getByText("Only this club's admins can see the full member list.")
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Club Members' })).not.toBeInTheDocument();
+  });
+
+  it('heads the whole roster as Club Members for someone who can read it', () => {
+    renderMembersTab({ canSeeFullRoster: true });
+
+    expect(screen.getByRole('heading', { name: 'Club Members' })).toBeInTheDocument();
+    expect(screen.queryByText(/full member list/)).not.toBeInTheDocument();
+  });
 });

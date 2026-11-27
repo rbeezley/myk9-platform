@@ -12,6 +12,7 @@ import {
 } from '../_shared/entryPaymentReconcile.ts';
 import { reconcileEntryPaymentUpdateOutcome } from '../_shared/entryPaymentUpdateReconcile.ts';
 import { alertAdmin } from '../_shared/alertAdmin.ts';
+import { logReceiptEmail, type ReceiptContent } from './receiptEmailLog.ts';
 import { loadStoredEntryJunior, priceCartItems } from '../_shared/cartItemPricing.ts';
 import { showTimeZoneFromTrials, type ShowTrialZoneRow } from '../_shared/showTimeZone.ts';
 import { recordChargedEntryFee, recordChargedFeesForStamped } from '../_shared/entryFeeRecord.ts';
@@ -52,6 +53,12 @@ import { createPayoutsDisabledDeps, notifyPayoutsTurnedOff } from './payoutsDisa
 import { createResendSender } from '../_shared/clubMoneyEmails.ts';
 import { routePaidSession } from './paidSessionEntry.ts';
 import { buildPaymentLinkOrder } from './paymentLinkOrder.ts';
+import {
+  paidAtIsoFromEvent,
+  paymentLinkRowOrMissing,
+  throwIfDbError,
+  throwIfSingleReadFailed,
+} from './transientDbError.ts';
 import { renderStripeEntryConfirmationEmail } from './entryConfirmationEmail.ts';
 import {
   formatVenueLines,
@@ -91,6 +98,11 @@ import {
   queueUnfulfilledChargeRefund,
   type UnfulfilledChargeInput,
 } from '../_shared/unfulfilledChargeRefund.ts';
+import {
+  loadCartPriceSnapshotLineItems,
+  verifyPaidCartCharge,
+  type CartSnapshotItem,
+} from '../_shared/cartPriceSnapshot.ts';
 import {
   beginCartFulfillment,
   CART_FULFILLMENT_LINE_COLUMNS,
@@ -264,7 +276,10 @@ async function handleEvent(event: Stripe.Event) {
   switch (event.type) {
     case 'checkout.session.completed':
     case 'checkout.session.async_payment_succeeded':
-      await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
+      await handleCheckoutCompleted(
+        event.data.object as Stripe.Checkout.Session,
+        paidAtIsoFromEvent(event.created)
+      );
       break;
 
     case 'checkout.session.async_payment_failed':
@@ -984,7 +999,7 @@ async function stampWithdrawalSnapshot(entryIds: string[], showId: string | null
   }
 }
 
-async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
+async function handleCheckoutCompleted(session: Stripe.Checkout.Session, paidAtIso: string) {
   const checkoutType = session.metadata?.type;
   console.log(`Checkout completed: ${session.id}, type: ${checkoutType}`);
 
@@ -1009,7 +1024,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         }
         if (type === 'entry') await sendCartConfirmationOnce(session);
       },
-      fulfillCart: () => handleEntryPaymentCompleted(session),
+      fulfillCart: () => handleEntryPaymentCompleted(session, paidAtIso),
       fulfillPaymentLink: () => handleEntryPaymentRequestCompleted(session),
       subscription: () => handleSubscriptionCheckoutCompleted(session),
       unexpectedPayment: () =>
@@ -1030,7 +1045,13 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
  * - Creates actual entries from cart items
  * - Creates stripe_orders record
  */
-async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
+/**
+ * `paidAtIso` is the event's own time (paidAtIsoFromEvent): the cart's expiry
+ * and the day-of fee tier are judged at the moment Stripe reported the payment,
+ * so a redelivery after a retryable failure (MYK9-2338) is not refused because
+ * the cart expired, or the tier changed, while Stripe waited to retry.
+ */
+async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session, paidAtIso: string) {
   const cartId = session.metadata?.cart_id;
   if (!cartId) {
     console.error('No cart_id in session metadata');
@@ -1128,7 +1149,7 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     cartTotalCents: cart.total_cents ?? null,
     cartItemCount: cart.items?.length ?? 0,
     cartExpiresAt: cart.expires_at ?? null,
-    nowIso: new Date().toISOString(),
+    nowIso: paidAtIso,
     cartSubtotalCents: cart.subtotal_cents ?? null,
     itemFeesSumCents: (cart.items ?? []).reduce(
       (sum: number, i: { entry_fee_cents: number }) => sum + (i.entry_fee_cents ?? 0),
@@ -1160,7 +1181,9 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
   // sources the payer cannot write: a FRESH session retrieve from Stripe's
   // API (modern SDK version — amount_total always present) and authoritative
   // per-item fees recomputed from show/class pricing. Runs BEFORE the claim
-  // so a rejected cart stays active.
+  // so a rejected cart stays active. MYK9-2036: for a session stamped with a
+  // price snapshot, the second source is Stripe's own line items (the prices
+  // sold at checkout) instead of a recomputation; see verifyPaidCartCharge.
   const freshSession = await stripe.checkout.sessions.retrieve(session.id);
   const freshGate = decideFreshSessionGate(freshSession);
   if (freshGate.action === 'skip') {
@@ -1194,6 +1217,10 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     .in('id', classIds)
     .eq('trial.show_id', cart.show_id);
 
+  // MYK9-2338: a failed read is not missing data. Nothing is written yet, so
+  // throw and let Stripe retry; only absent rows reach the alert below.
+  throwIfSingleReadFailed(showFeesError, `Could not read show fees for cart ${cartId}`);
+  throwIfDbError(classesError, `Could not read classes for cart ${cartId}`);
   if (freshTotalCents == null || showFeesError || !showFees || classesError || !classRows) {
     console.error(
       `CRITICAL: cannot verify paid amount for cart ${cartId} — ` +
@@ -1240,53 +1267,6 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
   const feeByClass = new Map<string, number | string | null>(
     classRows.map((c: { id: string; entry_fee: number | string | null }) => [c.id, c.entry_fee])
   );
-  const nowIso = new Date().toISOString();
-  // MYK9-879: priced per LINE, not per class, because the junior-handler
-  // declaration is per line. A Finish Payment line is priced from its entry's
-  // stored record, a new line from the exhibitor's declaration; no date of birth
-  // or dog ownership is read. The same function stripe-checkout charged from.
-  const pricingItems = (
-    cart.items as {
-      id: string;
-      dog_id: string;
-      class_id: string;
-      entry_id: string | null;
-      junior_fee_declared: boolean | null;
-    }[]
-  ).map(i => ({ ...i, class_entry_fee: feeByClass.get(i.class_id) ?? null }));
-  const { stored: storedJunior, error: storedJuniorError } = await loadStoredEntryJunior(
-    supabase,
-    pricingItems
-  );
-  if (storedJuniorError) {
-    console.error(
-      `CRITICAL: cannot read stored junior fees for cart ${cartId}: ${storedJuniorError.message}`
-    );
-    await alertAdmin(
-      'Paid checkout could not be verified — entries NOT created',
-      `<p>Checkout session <code>${session.id}</code> was PAID, but the stored entry fees
-       needed to verify the amount could not be read, so no entries were created and
-       Stripe will not retry. The cart is untouched.</p>
-       <pre>${storedJuniorError.message}</pre>
-       <p>Recovery: if this was a transient database error, re-send the event from the
-       Stripe dashboard (Developers → Events → Resend).</p>`,
-      { source: 'stripe-webhook', dedupeKey: `checkout-verify-failed-${session.id}` }
-    );
-    return;
-  }
-  const authoritativeByItem = priceCartItems(
-    {
-      ...showFees,
-      timezone: showTimeZoneFromTrials(showFees.trials as ShowTrialZoneRow[] | null),
-    },
-    pricingItems,
-    storedJunior,
-    nowIso
-  );
-  const authoritativeSubtotal = pricingItems.reduce(
-    (sum, i) => sum + (authoritativeByItem.get(i.id) ?? 0),
-    0
-  );
   // Validate the platform fee against the rate STAMPED on the session at
   // checkout, not a live read — stripe-checkout now charges from the
   // platform_settings row, and a site admin changing that rate between charge
@@ -1302,23 +1282,91 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     freshSession.metadata,
     Deno.env.get('PLATFORM_FEE_PERCENT')
   );
-  const authoritativeTotal =
-    authoritativeSubtotal + calculatePlatformFeeCents(authoritativeSubtotal, stampedFeeRates);
-  if (authoritativeTotal !== freshTotalCents) {
+  // MYK9-2036: a VERSIONED session is verified against the prices Stripe recorded
+  // when it was opened (its line items, _shared/cartPriceSnapshot.ts): each stored
+  // line fee against its own snapshot line, the entry details each price was sold
+  // for, the service-fee line and the captured total. It is never re-priced, so
+  // this webhook reads no clock for it and the day-of tier starting at midnight
+  // (after Pay, or before a retried delivery) cannot refuse it. A failed line-item
+  // read THROWS: 5xx, the cart unclaimed, no refund request, Stripe redelivers. An
+  // unversioned session (opened before this shipped) keeps the re-price below.
+  const verdict = await verifyPaidCartCharge(
+    {
+      loadLineItems: () => loadCartPriceSnapshotLineItems(stripe.checkout.sessions, session.id),
+      repriceTotal: async () => {
+        const nowIso = paidAtIso;
+        // MYK9-879: priced per LINE, not per class, because the junior-handler
+        // declaration is per line. A Finish Payment line is priced from its entry's
+        // stored record, a new line from the exhibitor's declaration; no date of birth
+        // or dog ownership is read. The same function stripe-checkout charged from.
+        const pricingItems = (
+          cart.items as {
+            id: string;
+            dog_id: string;
+            class_id: string;
+            entry_id: string | null;
+            junior_fee_declared: boolean | null;
+          }[]
+        ).map(i => ({ ...i, class_entry_fee: feeByClass.get(i.class_id) ?? null }));
+        const { stored: storedJunior, error: storedJuniorError } = await loadStoredEntryJunior(
+          supabase,
+          pricingItems
+        );
+        // MYK9-2338: the cart is untouched, so a failed read throws and Stripe retries.
+        throwIfDbError(storedJuniorError, `Could not read stored junior fees for cart ${cartId}`);
+        const authoritativeByItem = priceCartItems(
+          {
+            ...showFees,
+            timezone: showTimeZoneFromTrials(showFees.trials as ShowTrialZoneRow[] | null),
+          },
+          pricingItems,
+          storedJunior,
+          nowIso
+        );
+        const authoritativeSubtotal = pricingItems.reduce(
+          (sum, i) => sum + (authoritativeByItem.get(i.id) ?? 0),
+          0
+        );
+        return {
+          expectedCents:
+            authoritativeSubtotal +
+            calculatePlatformFeeCents(authoritativeSubtotal, stampedFeeRates),
+          lineAmounts: Object.fromEntries(
+            (cart.items as { id: string; entry_fee_cents: number }[]).map(item => [
+              item.id,
+              authoritativeByItem.get(item.id) ?? item.entry_fee_cents,
+            ])
+          ),
+        };
+      },
+    },
+    {
+      sessionMetadata: freshSession.metadata,
+      items: cart.items as CartSnapshotItem[],
+      freshTotalCents,
+      platformFeeRates: stampedFeeRates,
+    }
+  );
+  if (!verdict.ok) {
     console.error(
-      `CRITICAL: paid total ${freshTotalCents}¢ does not match authoritative pricing ` +
-        `${authoritativeTotal}¢ for cart ${cartId} — entries NOT created`
+      `CRITICAL: paid total ${freshTotalCents}¢ does not match ` +
+        (verdict.snapshotMismatch
+          ? `the prices recorded at checkout (${verdict.snapshotMismatch})`
+          : `authoritative pricing ${verdict.expectedCents}¢`) +
+        ` for cart ${cartId} — entries NOT created`
     );
     await queueUnfulfilledCharge(session, {
       reason: 'paid_amount_mismatch',
       cartId,
       showId: cart.show_id ?? null,
-      detail: { authoritative_cents: authoritativeTotal },
+      detail: verdict.detail,
       chargedCents: freshTotalCents,
       copy: paidAmountMismatchChargeAlert({
         sessionId: session.id,
         chargedCents: freshTotalCents,
-        authoritativeCents: authoritativeTotal,
+        authoritativeCents: verdict.expectedCents,
+        recordedCents: verdict.recordedCents,
+        snapshotMismatch: verdict.snapshotMismatch,
       }),
     });
     return;
@@ -1343,17 +1391,12 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     return;
   }
 
-  const lineAmounts: Record<string, number> = Object.fromEntries(
-    (cart.items as { id: string; entry_fee_cents: number }[]).map(item => [
-      item.id,
-      authoritativeByItem.get(item.id) ?? item.entry_fee_cents,
-    ])
-  );
+  // MYK9-2036: a versioned session's line amounts are Stripe's line items.
   const begun = await beginCartFulfillment(refundQueueDeps, {
     cartId,
     sessionId: session.id,
     paymentIntentId,
-    lineAmounts,
+    lineAmounts: verdict.lineAmounts,
   });
   if (begun.outcome === 'completed') {
     // Only a racing first delivery lands here: a redelivery after the latch is
@@ -2003,16 +2046,21 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
 
   const paymentIntentId = extractPaymentIntentId(session.payment_intent);
 
-  const { data: link, error: linkError } = await supabase
-    .from('entry_payment_links')
-    .select('id, show_id, entry_ids, status')
-    .eq('stripe_checkout_session_id', session.id)
-    .maybeSingle();
+  // MYK9-2338: a failed read throws (5xx, Stripe retries); only a confirmed
+  // missing row reaches the refund request below.
+  const link = paymentLinkRowOrMissing(
+    await supabase
+      .from('entry_payment_links')
+      .select('id, show_id, entry_ids, status')
+      .eq('stripe_checkout_session_id', session.id)
+      .maybeSingle(),
+    session.id
+  );
 
-  if (linkError || !link) {
+  if (!link) {
     // A PAID session with no link row: tampering, or the row was lost. Charge
     // taken, nothing marked paid, no Stripe retry — alert (Task 3.5 refund).
-    console.error('Paid payment-link session has no link row:', linkError);
+    console.error(`Paid payment-link session ${session.id} has no link row`);
     await alertAdmin(
       'Paid payment link has no record — entries NOT marked paid',
       `<p>Checkout session <code>${session.id}</code> (entry_payment_request) was PAID,
@@ -2039,18 +2087,11 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
 
   const entryIds = (link.entry_ids as string[] | null) ?? [];
   const loadedEntries = await loadPaymentReconciliationEntries(entryIds);
-  const entriesError = loadedEntries.error;
-  if (entriesError) {
-    console.error('Failed to load entries for payment link:', entriesError);
-    await alertAdmin(
-      'Payment link paid but entries could not be read',
-      `<p>Session <code>${session.id}</code> was PAID but loading its entries failed:</p>
-       <pre>${entriesError.message}</pre>
-       <p>Recovery: mark entries <code>${entryIds.join(', ')}</code> paid manually.</p>`,
-      { source: 'stripe-webhook', dedupeKey: `payment-link-entries-unreadable-${session.id}` }
-    );
-    return;
-  }
+  // MYK9-2338: nothing is written yet, so a failed read throws and Stripe retries.
+  throwIfDbError(
+    loadedEntries.error,
+    `Could not read the entries of payment link ${link.id} for ${session.id}`
+  );
 
   const {
     entries,
@@ -2718,14 +2759,16 @@ async function sendEntryConfirmationEmail(
   // True once the provider accepted the message (MYK9-964 receipt marker).
   let providerAccepted = false;
   let recipientEmail: string | null = null;
+  // The rendered receipt, kept beside the email_log row once built (MYK9-2408).
+  let renderedReceipt: ReceiptContent | null = null;
   const recordDeliveryAttempt = async (args: {
     status: 'sent' | 'failed';
     messageId?: string | null;
     errorMessage?: string | null;
   }) => {
-    await supabase
-      .from('email_log')
-      .insert({
+    await logReceiptEmail(
+      supabase as unknown as Parameters<typeof logReceiptEmail>[0],
+      {
         recipient_email: recipientEmail,
         email_type: 'registration_confirmation',
         resend_message_id: args.messageId ?? null,
@@ -2733,10 +2776,9 @@ async function sendEntryConfirmationEmail(
         status_updated_at: new Date().toISOString(),
         error_message: args.errorMessage ?? null,
         show_id: cart.show_id,
-      })
-      .then(({ error }) => {
-        if (error) console.error('Could not log Stripe confirmation email:', error);
-      });
+      },
+      renderedReceipt
+    );
     deliveryAttemptRecorded = true;
   };
 
@@ -2755,10 +2797,10 @@ async function sendEntryConfirmationEmail(
     }
     recipientEmail = person.email;
 
-    // Get show details
+    // Get show details. `location` is where the show wizard saves the street address (MYK9-2486).
     const { data: show } = await supabase
       .from('shows')
-      .select('name, start_date, end_date, venue_name, address, city, state, zip_code')
+      .select('name, start_date, end_date, location, venue_name, address, city, state, zip_code')
       .eq('id', cart.show_id)
       .single();
 
@@ -2853,6 +2895,11 @@ async function sendEntryConfirmationEmail(
     // This webhook has already resolved the cart, exhibitor, show, entries,
     // and paid totals server-side. Send directly with a stable idempotency key;
     // the generic send-email endpoint intentionally rejects service-role calls.
+    const receipt: ReceiptContent = {
+      subject: `Entry received - ${show.name}`,
+      html: renderStripeEntryConfirmationEmail(emailData),
+    };
+    renderedReceipt = receipt;
     const response = await sendResendEmailWithRetry({
       method: 'POST',
       headers: {
@@ -2863,8 +2910,8 @@ async function sendEntryConfirmationEmail(
       body: JSON.stringify({
         from: FROM_EMAIL,
         to: person.email,
-        subject: `Entry received - ${show.name}`,
-        html: renderStripeEntryConfirmationEmail(emailData),
+        subject: receipt.subject,
+        html: receipt.html,
       }),
     });
 

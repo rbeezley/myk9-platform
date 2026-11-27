@@ -24,6 +24,7 @@ import { exportRowsCsv } from '@/utils/downloadCsv';
 import { CLASS_EXPORT_HEADERS, classExportRows } from './classesExport';
 import { DeleteObjectDialog, classDeleteDetail, type DeleteTargetContext } from '@/features/delete';
 import { classActions, type ClassActionItem, type ClassActionHandlers } from './classActions';
+import { BulkEntryFeeButton } from './BulkEntryFeeButton';
 
 const CLASS_NOUN = ['class', 'classes'] as const;
 
@@ -123,6 +124,12 @@ export function ClassBulkActionsBar({
         busy={bulkBusy}
       >
         {extraActions}
+        <BulkEntryFeeButton
+          showId={context?.showId}
+          classes={selectedClasses}
+          disabled={bulkBusy}
+          onFullSuccess={onClear}
+        />
         <BulkBarActions actions={actions} menuLabel="Change status" disabled={bulkBusy} />
         <BulkBarButton
           onClick={handleExport}

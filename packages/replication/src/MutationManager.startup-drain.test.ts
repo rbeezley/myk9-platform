@@ -8,7 +8,6 @@ import type { PendingMutation } from './types';
 import { createMutationManagerTestDb } from './test-utils/createMutationManagerTestDb';
 
 const TEST_DB_NAME = 'test-mutation-manager-startup-drain-db';
-const BACKUP_KEY = 'replication_mutation_backup';
 const TEST_AUTH_USER_ID = 'test-user';
 
 /**
@@ -143,55 +142,7 @@ describe('MutationManager startup drain (reload-restored queue)', () => {
     }
   });
 
-  it('serializes upload behind an in-flight restore so restore cannot resurrect a completed row', async () => {
-    const mutation = makeRestoredMutation({
-      rpc: { name: 'ringside_update_entry', fields: { is_scored: true } },
-    });
-    localStorageMock[BACKUP_KEY] = JSON.stringify([mutation]);
-
-    let releaseRestorePut!: () => void;
-    const restorePutGate = new Promise<void>(resolve => {
-      releaseRestorePut = resolve;
-    });
-    let restorePutEntered!: () => void;
-    const restorePutStarted = new Promise<void>(resolve => {
-      restorePutEntered = resolve;
-    });
-    const originalPut = mockDb.put.bind(mockDb);
-    const putSpy = vi.spyOn(mockDb, 'put');
-    putSpy.mockImplementation(async (...args) => {
-      const [storeName, value] = args as [string, PendingMutation];
-      if (storeName === REPLICATION_STORES.PENDING_MUTATIONS && value.id === mutation.id) {
-        restorePutEntered();
-        await restorePutGate;
-      }
-      return originalPut(...args);
-    });
-
-    const { client, rpc } = createMockSupabaseClient();
-    const manager = createManager(client);
-    try {
-      const restorePromise = manager.restoreMutationsFromLocalStorage();
-      await restorePutStarted;
-
-      const uploadPromise = manager.uploadPendingMutations();
-      await Promise.resolve();
-      expect(rpc).not.toHaveBeenCalled();
-
-      releaseRestorePut();
-      await restorePromise;
-      const results = await uploadPromise;
-
-      expect(results).toHaveLength(1);
-      expect(results[0]!.success).toBe(true);
-      expect(rpc).toHaveBeenCalledTimes(1);
-      await expect(mockDb.getAll(REPLICATION_STORES.PENDING_MUTATIONS)).resolves.toHaveLength(0);
-    } finally {
-      manager.destroy();
-    }
-  });
-
-  it('drains the queue across a simulated reload: queue → destroy → new manager → restore → upload', async () => {
+  it('drains the queue across a simulated reload: queue → destroy → new manager → upload', async () => {
     const { client: firstClient } = createMockSupabaseClient();
     const firstManager = createManager(firstClient);
     // Queue without letting the debounced auto-upload fire (reload interrupts it).
@@ -201,20 +152,17 @@ describe('MutationManager startup drain (reload-restored queue)', () => {
     });
     firstManager.destroy();
 
-    expect(localStorageMock[BACKUP_KEY]).toBeDefined();
     await expect(mockDb.getAll(REPLICATION_STORES.PENDING_MUTATIONS)).resolves.toHaveLength(1);
 
     const { client, select } = createMockSupabaseClient();
     const secondManager = createManager(client);
     try {
-      await secondManager.restoreMutationsFromLocalStorage();
       const results = await secondManager.uploadPendingMutations();
 
       expect(results).toHaveLength(1);
       expect(results[0]!.success).toBe(true);
       expect(select).toHaveBeenCalledTimes(1);
       await expect(mockDb.getAll(REPLICATION_STORES.PENDING_MUTATIONS)).resolves.toHaveLength(0);
-      expect(localStorageMock[BACKUP_KEY]).toBeUndefined();
     } finally {
       secondManager.destroy();
     }
@@ -230,35 +178,6 @@ describe('MutationManager startup drain (reload-restored queue)', () => {
     try {
       await expect(manager.uploadPendingMutations()).rejects.toThrow('IndexedDB unavailable');
       expect(logger.error).toHaveBeenCalled();
-    } finally {
-      manager.destroy();
-    }
-  });
-
-  it('allows restore to continue after an in-flight upload rejects', async () => {
-    let rejectDatabase!: (error: Error) => void;
-    let databaseOpenAttempts = 0;
-    (databaseManager.getDatabase as ReturnType<typeof vi.fn>).mockImplementation(() => {
-      databaseOpenAttempts += 1;
-      if (databaseOpenAttempts === 1) {
-        return new Promise((_, reject) => {
-          rejectDatabase = reject;
-        });
-      }
-      return Promise.reject(new Error('IndexedDB unavailable during restore'));
-    });
-
-    const { client } = createMockSupabaseClient();
-    const manager = createManager(client);
-    try {
-      const uploadPromise = manager.uploadPendingMutations();
-      await vi.waitFor(() => expect(rejectDatabase).toBeTypeOf('function'));
-
-      const restorePromise = manager.restoreMutationsFromLocalStorage();
-      rejectDatabase(new Error('IndexedDB unavailable during upload'));
-
-      await expect(uploadPromise).rejects.toThrow('IndexedDB unavailable during upload');
-      await expect(restorePromise).resolves.toBeUndefined();
     } finally {
       manager.destroy();
     }

@@ -94,6 +94,30 @@ describe('buildMyAtShowEntryDetails', () => {
       ],
     ]);
 
+  it.each(['', 'Not/AZone'])(
+    'reads a %j trial timezone as America/New_York on the detail',
+    timezone => {
+      const trials: ReadonlyMap<string, AtShowTrialSummary> = new Map([
+        ['trial-1', { date: '2026-09-27', timezone }],
+      ]);
+      const entry: ReplicatedEntry = {
+        id: 'scored-1',
+        classId: 'class-1',
+        trialId: 'trial-1',
+        dogCallName: 'Ranger',
+      };
+      const [detail] = buildMyAtShowEntryDetails(
+        [entry],
+        new Set(['scored-1']),
+        classAt(null),
+        trials,
+        undefined,
+        new Date('2026-09-27T18:00:00Z')
+      );
+      expect(detail?.trialTimezone).toBe('America/New_York');
+    }
+  );
+
   it('shows a released own result as final', () => {
     expect(
       buildMyAtShowEntryDetails(

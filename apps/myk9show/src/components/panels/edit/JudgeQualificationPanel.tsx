@@ -14,21 +14,21 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Plus, X, Award, Save } from 'lucide-react';
 import { DiscardChangesDialog } from './DiscardChangesDialog';
+import { QualificationsReadNotice } from './QualificationsReadNotice';
+import { mapDbToUiQualification, mapUiToDbQualification } from './judgeQualificationMapping';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useRBAC } from '@/hooks/useRBAC';
 import { useJudgeQualifications, judgeQueryKeys } from '@/hooks/queries/useJudgeDatabase';
+import { getQualificationsReadState } from '@/features/judges/qualificationsReadState';
 import { useCanWriteJudgeQualifications } from '@/features/judges/canWriteJudgeQualifications';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryClient';
-import type { JudgeQualification as DbJudgeQualification } from '@/types/judge-management';
 import type { JudgeQualification } from '@/types/user-types';
 import { cn } from '@/lib/utils';
-import { toLocalDate } from '@/utils/date-format';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
-import { getErrorMessage, toYYYYMMDD } from '@myk9/core';
+import { getErrorMessage } from '@myk9/core';
 import { replaceJudgeQualifications } from '@/services/database/judges';
-import type { CreateJudgeQualificationData } from '@/types/judge-management';
 
 interface JudgeQualificationPanelProps {
   open: boolean;
@@ -36,38 +36,6 @@ interface JudgeQualificationPanelProps {
   userId: string;
   userName: string;
   onSaved?: () => void;
-}
-
-function mapDbToUiQualification(q: DbJudgeQualification): JudgeQualification {
-  return {
-    judgeNumber: q.judge_number || '',
-    organization: q.organization,
-    level: q.qualification_level || '',
-    showTypes: q.disciplines || [],
-    disciplines: q.disciplines || [],
-    certificationDate: q.date_obtained || '',
-    dateObtained: q.date_obtained ? toLocalDate(q.date_obtained) : null,
-    expirationDate: q.expiration_date ? new Date(q.expiration_date) : null,
-    status: q.is_active ? 'Active' : q.suspension_date ? 'Suspended' : 'Expired',
-  } as JudgeQualification;
-}
-
-function mapUiToDbQualification(
-  qual: JudgeQualification,
-  personId: string
-): CreateJudgeQualificationData {
-  return {
-    person_id: personId,
-    organization: qual.organization,
-    qualification_level: qual.level || '',
-    disciplines: qual.showTypes || qual.disciplines || [],
-    ...(qual.judgeNumber ? { judge_number: qual.judgeNumber } : {}),
-    date_obtained:
-      qual.certificationDate ||
-      (qual.dateObtained ? toYYYYMMDD(qual.dateObtained) : toYYYYMMDD(new Date())),
-    ...(qual.expirationDate ? { expiration_date: toYYYYMMDD(qual.expirationDate) } : {}),
-    is_active: qual.status === 'Active',
-  };
 }
 
 // Organization-specific disciplines sourced from official org websites:
@@ -141,7 +109,11 @@ export const JudgeQualificationPanel: React.FC<JudgeQualificationPanelProps> = (
   // Fetch qualifications from DB using shared hook (returns a stable [] when
   // the query is idle so the useMemo dep stays stable).
   // MYK9-2382: a save replaces the whole list, so it waits until the list has loaded.
-  const { data: dbQualifications, isSuccess: listLoaded } = useJudgeQualifications(userId);
+  const query = useJudgeQualifications(userId);
+  const { data: dbQualifications, refetch } = query;
+  // MYK9-2394: the form shows only on a fresh, confirmed read; otherwise loading or retry.
+  const readState = getQualificationsReadState(query);
+  const listLoaded = readState === 'ready';
 
   // Map DB-shaped data to UI-shaped data for form editing.
   const fetchedQualifications = useMemo(
@@ -338,48 +310,52 @@ export const JudgeQualificationPanel: React.FC<JudgeQualificationPanelProps> = (
 
         {/* Content Area */}
         <div className="flex-1 overflow-auto">
-          <div className="p-6 space-y-6">
-            {/* Qualifications List */}
-            <div className="space-y-4">
-              {qualifications.length > 0 ? (
-                qualifications.map((qual, index) => (
-                  <QualificationCard
-                    key={index}
-                    qualification={qual}
-                    index={index}
-                    onUpdate={updateQualification}
-                    onRemove={removeQualification}
-                    onToggleShowType={toggleShowType}
-                  />
-                ))
-              ) : (
-                <div className="text-center py-12">
-                  <Award className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-foreground mb-2">No Qualifications</h3>
-                  <p className="text-sm text-muted-foreground mb-6">
-                    This user has no judge qualifications yet. Add their first qualification to get
-                    started.
-                  </p>
-                  <Button onClick={addQualification} className="gap-2">
-                    <Plus className="h-4 w-4" />
-                    Add First Qualification
-                  </Button>
-                </div>
+          {!listLoaded ? (
+            <QualificationsReadNotice state={readState} onRetry={() => void refetch()} />
+          ) : (
+            <div className="p-6 space-y-6">
+              {/* Qualifications List */}
+              <div className="space-y-4">
+                {qualifications.length > 0 ? (
+                  qualifications.map((qual, index) => (
+                    <QualificationCard
+                      key={index}
+                      qualification={qual}
+                      index={index}
+                      onUpdate={updateQualification}
+                      onRemove={removeQualification}
+                      onToggleShowType={toggleShowType}
+                    />
+                  ))
+                ) : (
+                  <div className="text-center py-12">
+                    <Award className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-foreground mb-2">No Qualifications</h3>
+                    <p className="text-sm text-muted-foreground mb-6">
+                      This user has no judge qualifications yet. Add their first qualification to
+                      get started.
+                    </p>
+                    <Button onClick={addQualification} className="gap-2">
+                      <Plus className="h-4 w-4" />
+                      Add First Qualification
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {/* Add Button (if qualifications exist) */}
+              {qualifications.length > 0 && (
+                <Button
+                  variant="outline"
+                  onClick={addQualification}
+                  className="w-full bg-transparent bg-gradient-to-r from-primary/5 to-secondary/5 border-primary/20 hover:from-primary/10 hover:to-secondary/10 hover:border-primary/30 transition-all duration-300"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Another Qualification
+                </Button>
               )}
             </div>
-
-            {/* Add Button (if qualifications exist) */}
-            {qualifications.length > 0 && (
-              <Button
-                variant="outline"
-                onClick={addQualification}
-                className="w-full bg-transparent bg-gradient-to-r from-primary/5 to-secondary/5 border-primary/20 hover:from-primary/10 hover:to-secondary/10 hover:border-primary/30 transition-all duration-300"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Another Qualification
-              </Button>
-            )}
-          </div>
+          )}
         </div>
       </div>
 

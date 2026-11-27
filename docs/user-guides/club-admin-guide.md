@@ -168,11 +168,11 @@ Before your club can receive entry fee revenue, a treasurer needs to complete St
 
 **A secretary who is not a club admin cannot connect the bank.** On the show's **Before you can publish** list, the payouts line can name the club's admins and offer **Email them the link**. That opens an email draft addressed to the admins, which the secretary sends. The Payments link is in the email's body: follow it from the email. Watch for that email, and for the line to clear once payouts are enabled.
 
-Once onboarding is complete, the Payments tab shows a **Payouts enabled** badge. Your club will receive a deposit automatically after each show closes — you do not need to request it.
+Once onboarding is complete, the Payments tab shows a **Payouts enabled** badge. Your club's entry fees are sent to its bank account within five business days of each show's last day. You do not need to request it.
 
-**Onboarding incomplete?** If you close the browser mid-way, return to **Payments** and click **Finish setting up** to pick up where you left off. If the setup link expired, click **Continue to Stripe**.
+_Onboarding incomplete?_ If you close the browser mid-way, return to **Payments** and click **Finish setting up** to pick up where you left off. If the setup link expired, click **Continue to Stripe**.
 
-**Account under review?** Stripe sometimes reviews new accounts before enabling payouts. The Payments tab will show **Under review by Stripe**, with an **Add missing information** button in case Stripe asked for more. This typically resolves within 1–2 business days. If it takes longer, contact Stripe directly — they handle verification, not myK9Show.
+_Account under review?_ Stripe sometimes reviews new accounts before enabling payouts. The Payments tab will show **Under review by Stripe**, with an **Add missing information** button in case Stripe asked for more. This typically resolves within 1–2 business days. If it takes longer, contact Stripe directly — they handle verification, not myK9Show.
 
 For the full step-by-step treasurer walkthrough with screenshots, see [Club Treasurer Guide — Receiving Show Payouts](../operations/stripe-treasurer-guide.md).
 
@@ -180,11 +180,11 @@ For the full step-by-step treasurer walkthrough with screenshots, see [Club Trea
 
 ## Section 5 — Payout Timing and History
 
-After your show's end date, myK9Show automatically initiates a deposit to your club's linked bank account. The Payments tab shows each show's payout.
+Entry fees are sent to your club's bank account within five business days of each show's last day. You do not need to request it. The Payments tab shows each show's payout as a sentence that says when.
 
 **When does the deposit arrive?**
 
-About three days after the show's end date. During the launch period myK9Show checks each payout before it is sent, so the payout can go a little later than that. While a payout is awaiting that release, the Payments tab shows it as **Payout scheduled, waiting for release** (a club whose bank setup is not finished sees **Waiting for account** instead). Once it is sent, your bank typically posts it the following business day. Weekends and bank holidays may add one day.
+Within five business days (Monday to Friday) of your show's last day. During the launch period myK9Show checks each payout before it is sent. Once it is sent, your bank usually posts it the next business day.
 
 **What is the deposit amount?**
 
@@ -197,22 +197,26 @@ About three days after the show's end date. During the launch period myK9Show ch
 **Viewing past payouts:**
 
 1. In the sidebar, open **My Club**, then **Payments**.
-2. The **Show reconciliation** card lists each show with its net amount, the transfer amount, the date, and a status.
+2. The **Show reconciliation** card lists each show with three figures and a sentence that says when the club is paid. **Collected** is the online entry fees, **Refunded** is what went back to exhibitors, and **Paid** is what was sent to your club's bank account. The figures match the deposit: in the example above the show reads Collected $1,280.00, Refunded $32.00, Paid $1,248.00. Until the payout is sent, the last figure reads **To transfer**, and while it is on its way it reads **Being sent**. A show with nothing to send shows no paid figure. A sent payout also shows its Stripe transfer id, which you can copy if you contact us about it.
 
 ![C-05: Payments tab — Payouts enabled, with the Show reconciliation card listing a show's transfer and Paid status](../screenshots/C-05.png)
 
-| Status                                    | Meaning                                                                  |
-| ----------------------------------------- | ------------------------------------------------------------------------ |
-| **Paid**                                  | Deposit sent; should appear in your bank within one business day         |
-| **Sending**                               | Transfer is in progress                                                  |
-| **Scheduled**                             | Your account is ready and the transfer has not gone out yet              |
-| **Payout scheduled, waiting for release** | myK9Show is checking the payout before it is sent. Nothing for you to do |
-| **Waiting for account**                   | Stripe onboarding is not yet complete                                    |
-| **Retrying**                              | A transfer attempt failed; it will be retried automatically              |
-| **Needs attention**                       | A transfer failed and will not retry on its own                          |
-| **Earlier attempt**                       | An older transfer for the same show; a later attempt replaced it         |
+What each show can say, for a show whose last day is December 9:
 
-A show whose net amount is still being worked out reads **Net pending**.
+| The show reads                                                                              | What it means                                                                                                                                                                                                                                                                  |
+| ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Paid within five business days of December 9.                                               | The show has not ended yet                                                                                                                                                                                                                                                     |
+| Paid by December 16.                                                                        | The show is over and the payout has not been sent yet                                                                                                                                                                                                                          |
+| Being checked by myK9Show. Paid by December 16.                                             | myK9Show is checking the payout before it is sent. Nothing for you to do                                                                                                                                                                                                       |
+| Being sent now. Paid by December 16.                                                        | The transfer is in progress                                                                                                                                                                                                                                                    |
+| Sent December 12. Usually in your account the next business day.                            | The deposit has left; look for it on your bank statement                                                                                                                                                                                                                       |
+| We couldn't send this. We're on it, and you don't need to do anything. Paid by December 16. | A transfer attempt failed for a reason on our side. myK9Show tries again each night and is alerted                                                                                                                                                                             |
+| Your bank account needs attention. See Bank account above.                                  | Stripe could not pay into your club's bank account. Check the **Bank account** card at the top of the page, and update the account with Stripe at express.stripe.com (see Section 6). myK9Show tries again each night, and the payout keeps failing until the account is fixed |
+| Waiting for your club's bank account. See Bank account above.                               | Your bank setup is not finished. Connect it from the **Bank account** card at the top of the page                                                                                                                                                                              |
+| Your payout is taking longer than usual. We'll be in touch by email.                        | The five business days have passed and the payout has not been sent. We will email your club                                                                                                                                                                                   |
+| Nothing to send. Every entry fee for this show was refunded.                                | Every online entry fee for the show went back to the exhibitors, so there is no payout. This holds even if an earlier attempt failed                                                                                                                                           |
+| Nothing to send. This show has no online entry fees to pay out.                             | No entry fees for the show were paid online, so there is no payout                                                                                                                                                                                                             |
+| Payout figures not available yet.                                                           | Stripe has a charge on record for the show, but myK9Show has no payout figures for it. The row shows no amounts and no payout date rather than guess. Contact us if it does not fill in                                                                                        |
 
 **Need itemized records?** Open the show, go to the **Entry Forms** tab, and export from there — you do not need to ask the secretary. The **Reports** tab also carries the Financial Report, which sits under the **Anytime** heading because it is as useful while entries are open as it is at reconciliation.
 
@@ -224,7 +228,7 @@ A show whose net amount is still being worked out reads **Net pending**.
 Yes. Stripe requires identity verification for all account representatives before enabling payouts. They usually start with the last 4 digits, and may ask for more if they cannot verify the person that way. This is a legal requirement, not a myK9Show policy.
 
 **"When will we get paid?"**
-About three days after your show's end date, once myK9Show has checked the payout. Your bank typically posts it the following business day after it is sent. See [Section 5](#section-5--payout-timing-and-history).
+Within five business days of your show's last day. Your bank usually posts it the next business day after it is sent. See [Section 5](#section-5--payout-timing-and-history).
 
 **"Stripe says our account is under review. What do we do?"**
 Wait 1–2 business days. Stripe reviews new accounts before enabling payouts. If it takes longer, contact Stripe directly at the email address they provided during onboarding.
@@ -300,12 +304,12 @@ The **Officers** tab tracks the club's formal officers. Click **Assign Officer**
 
 All shots to be captured and added to `docs/training/screenshot-shot-list.md`. Status as of 2026-10-28 (stale = the app no longer looks like the caption; recapture before `verified`):
 
-| Shot ID | Section | Description                                                 | Status                                               |
-| ------- | ------- | ----------------------------------------------------------- | ---------------------------------------------------- |
-| C-01    | § 1     | Club Settings form — all fields visible                     | captured 2026-10-28 (MYK9-1462)                      |
-| C-02    | § 2     | Club Admin → Shows list                                     | ready                                                |
-| C-03    | § 3     | Members page — member row with Show secretary badge         | captured 2026-10-28 (MYK9-1462)                      |
-| C-04    | § 4     | Payments page — pre-onboarding "Connect bank account" state | stale: shows the old "Connect payment account" label |
-| C-05    | § 5     | Payments page — payout history table                        | captured 2026-10-28 (MYK9-1462)                      |
-| C-06    | § 7     | Club Members page — members list                            | captured 2026-10-28 (MYK9-1462)                      |
-| C-07    | § 7     | Add Member dialog                                           | ready                                                |
+| Shot ID | Section | Description                                                 | Status                                                               |
+| ------- | ------- | ----------------------------------------------------------- | -------------------------------------------------------------------- |
+| C-01    | § 1     | Club Settings form — all fields visible                     | captured 2026-10-28 (MYK9-1462)                                      |
+| C-02    | § 2     | Club Admin → Shows list                                     | ready                                                                |
+| C-03    | § 3     | Members page — member row with Show secretary badge         | captured 2026-10-28 (MYK9-1462)                                      |
+| C-04    | § 4     | Payments page — pre-onboarding "Connect bank account" state | stale: shows the old payment-account button label                    |
+| C-05    | § 5     | Payments page — payout history table                        | stale: shows the old Paid badge, not the payout sentence (MYK9-1985) |
+| C-06    | § 7     | Club Members page — members list                            | captured 2026-10-28 (MYK9-1462)                                      |
+| C-07    | § 7     | Add Member dialog                                           | ready                                                                |

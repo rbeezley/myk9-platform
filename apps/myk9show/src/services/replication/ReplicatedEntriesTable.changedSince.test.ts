@@ -36,6 +36,8 @@ const seed = {
 
 /** Every `select(...)` the view chain received; the delta read is the one that selects `*`. */
 const selects: unknown[][] = [];
+/** Empty-page follow-up reads (MYK9-2252): the accepted cost of stopping only on an empty page. */
+let followUpReads = 0;
 
 function mockServerRows(
   rows: Record<string, unknown>[],
@@ -43,14 +45,28 @@ function mockServerRows(
   count = rows.length
 ) {
   const chain: Record<string, unknown> = {};
+  // The pager asks for a second page after the first and stops on its empty answer
+  // (MYK9-2252); that follow-up read is not a second delta read, so it is not recorded.
+  let followUp = false;
   for (const step of ['select', 'gt', 'or', 'order', 'eq', 'range', 'in']) {
     chain[step] = vi.fn((...args: unknown[]) => {
       if (step === 'select') selects.push(args);
+      // The `or` cursor marks this select as the follow-up page: forget it.
+      if (step === 'or') {
+        followUp = true;
+        followUpReads += 1;
+        selects.pop();
+      }
       return chain;
     });
   }
-  chain.then = (resolve: (value: unknown) => unknown) =>
-    Promise.resolve({ data: error ? null : rows, error: error ?? null, count }).then(resolve);
+  chain.then = (resolve: (value: unknown) => unknown) => {
+    const page = followUp ? [] : rows;
+    followUp = false;
+    return Promise.resolve({ data: error ? null : page, error: error ?? null, count }).then(
+      resolve
+    );
+  };
   vi.mocked(supabase.from).mockReturnValue(chain as never);
   return chain;
 }
@@ -100,6 +116,7 @@ describe('entries incremental pull probes entry_results_changed_since (MYK9-1369
     vi.mocked(supabase.rpc).mockReset();
     vi.mocked(supabase.rpc).mockResolvedValue(answer as never);
     selects.length = 0;
+    followUpReads = 0;
     return table.sync(SHOW, { forceFullSync: options.forceFullSync });
   }
 
@@ -160,6 +177,22 @@ describe('entries incremental pull probes entry_results_changed_since (MYK9-1369
     ]);
     expect(viewReads()).toHaveLength(0);
     expect((await table.get(ID))?.resultStatus).toBe('pending');
+  });
+
+  it('a delta with rows costs exactly one empty follow-up read; an empty delta costs none (MYK9-2252)', async () => {
+    await pass(W, quiet(SETTLED));
+    const changed: Answer = {
+      data: { changed: true, server_now: iso(SETTLED + 60_000) },
+      error: null,
+    };
+    await pass(W, changed);
+    expect(viewReads()).toHaveLength(1);
+    expect(followUpReads).toBe(0);
+
+    mockServerRows([serverRow]);
+    await pass(W, changed);
+    expect(viewReads()).toHaveLength(1);
+    expect(followUpReads).toBe(1);
   });
 
   it('reads the view when the settled probe says changed', async () => {

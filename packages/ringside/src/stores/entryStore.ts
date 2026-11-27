@@ -79,6 +79,8 @@ export interface Entry {
    * Moved (MYK9-1940). Absent means the dog is running.
    */
   notRunningReason?: NotRunningReason;
+  /** For a moved dog, the class it went to, so the badge reads "Moved to {class}" (MYK9-1940). */
+  movedToClassName?: string;
   /** Scoring/ring timestamps used by the class-completion elapsed-time summary. */
   scoredAt?: string;
   ringEntryTime?: string;

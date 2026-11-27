@@ -95,7 +95,6 @@ export {
   DB_INIT_TIMEOUT_MS,
   INIT_RETRY_DELAY_MS,
   GET_ALL_TIMEOUT_MS,
-  DELETE_DB_TIMEOUT_MS,
   CIRCUIT_BREAKER_THRESHOLD,
   // Replication Manager
   SUBSCRIPTION_HEALTH_CHECK_INTERVAL_MS,
@@ -111,6 +110,7 @@ export {
 
 // Core classes
 export {
+  DamagedDatabaseError,
   DatabaseManager,
   databaseManager,
   REPLICATION_STORES,

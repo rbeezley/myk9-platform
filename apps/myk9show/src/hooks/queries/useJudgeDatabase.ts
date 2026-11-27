@@ -57,7 +57,8 @@ export const useJudgeQualifications = (judgeId: string, filters?: JudgeQualifica
     },
   });
   const data = useMemo(() => query.data ?? [], [query.data]);
-  return { ...query, data };
+  // hasList: a read has succeeded at some point (data survives a failed refresh).
+  return { ...query, data, hasList: query.data !== undefined };
 };
 
 export const useJudgeQualification = (id: string) => {

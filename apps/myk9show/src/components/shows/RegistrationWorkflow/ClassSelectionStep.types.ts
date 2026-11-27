@@ -14,7 +14,7 @@ export interface ClassSelectionStepProps {
   classSelections: ClassSelectionData[];
   onSelectionChange: (selections: ClassSelectionData[]) => void;
   showId: string;
-  /** With the next two: asks who handles the second dog when one owner has two dogs in a class (MYK9-2021). Used when the handler-assignment step is removed. */
+  /** With the next two: asks who handles the second dog when one owner has two dogs in a class (MYK9-2021). Used by every workflow, since there is no Handlers step. */
   handlerAssignments?: Record<string, HandlerInfo>;
   onHandlerAssignmentChange?: (assignments: Record<string, HandlerInfo>) => void;
   handlerClash?: HandlerClashControl | undefined;

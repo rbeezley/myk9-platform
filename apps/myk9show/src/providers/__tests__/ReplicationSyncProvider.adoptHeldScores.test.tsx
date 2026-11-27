@@ -176,7 +176,6 @@ vi.mock(import('@myk9/replication'), async importOriginal => {
       rowRefetchers = { register: () => () => undefined };
       uploadPendingMutations = vi.fn().mockResolvedValue([]);
       getPendingCount = vi.fn().mockResolvedValue(0);
-      restoreMutationsFromLocalStorage = vi.fn().mockResolvedValue(undefined);
       updateMutationServerVersions = vi.fn().mockResolvedValue(undefined);
       // Empty by default so the failed-mutation resurface effect (a separate
       // effect from the conflict resurface under test) returns early instead of

@@ -9,6 +9,7 @@ import {
 } from '../_shared/showRefundPlan.ts';
 import { findReusableShowRefund, showRefundAttemptCount } from '../_shared/showRefundReuse.ts';
 import { alertAdmin } from '../_shared/alertAdmin.ts';
+import { listAllIntentRefunds } from '../_shared/refundPaging.ts';
 import { acquireShowMoneyLock } from '../_shared/showMoneyLock.ts';
 import { stepUpRefusal } from '../_shared/stepUpReauth.ts';
 
@@ -202,8 +203,9 @@ async function refundIntent(
       return { failed: { paymentIntentId: intentId, entryIds: group.entryIds, error: reason } };
     }
 
-    const prior = await stripe.refunds.list({ payment_intent: intentId, limit: 100 });
-    const existing = findReusableShowRefund(prior.data, showId);
+    // Every page (MYK9-2442): a live refund past the first 100 must still be reused.
+    const prior = await listAllIntentRefunds(params => stripe.refunds.list(params), intentId);
+    const existing = findReusableShowRefund(prior, showId);
 
     let amountCents = existing?.amount ?? 0;
     if (!existing) {
@@ -212,7 +214,7 @@ async function refundIntent(
         // (MYK9-966). The key prefix changed with the amount, so no attempt can
         // replay a cached amount-less request. Tagged so a re-run reuses it.
         const refund = await stripe.refunds.create(showRefundCreateParams(group, showId), {
-          idempotencyKey: `refund-show-entry-fees-${showId}-${intentId}-${showRefundAttemptCount(prior.data, showId)}`,
+          idempotencyKey: `refund-show-entry-fees-${showId}-${intentId}-${showRefundAttemptCount(prior, showId)}`,
         });
         amountCents = refund.amount;
       } catch (err) {
@@ -227,7 +229,7 @@ async function refundIntent(
             failed: { paymentIntentId: intentId, entryIds: group.entryIds, error: message },
           };
         }
-        amountCents = prior.data
+        amountCents = prior
           .filter(r => r.status !== 'failed' && r.status !== 'canceled')
           .reduce((sum, r) => sum + r.amount, 0);
       }

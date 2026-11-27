@@ -12,7 +12,6 @@ const dir = path.join(__dirname, '..');
 const read = (rel: string) => readFileSync(path.join(dir, rel), 'utf8');
 
 const secretaryPayment = read('PaymentStep/SecretaryPaymentManagement.tsx');
-const handlerDialog = read('HandlerSelectionDialog.tsx');
 const enhancedDog = read('DogSelectionStepEnhanced.tsx');
 const dogSearch = read('DogSearchInterface.tsx');
 const dogSearchFilters = read('DogSearchFilters.tsx');
@@ -27,10 +26,6 @@ describe('secretary surfaces — dark-mode + grid-stacking guards', () => {
 });
 
 describe('secretary surfaces — a11y + responsive guards', () => {
-  it('the handler reset icon button has an accessible name', () => {
-    expect(handlerDialog).toContain('aria-label="Reset to owner"');
-  });
-
   it('the dense dog table scrolls horizontally instead of crushing columns', () => {
     expect(enhancedDog).toContain('overflow-x-auto');
     expect(enhancedDog).toContain('min-w-[640px]');

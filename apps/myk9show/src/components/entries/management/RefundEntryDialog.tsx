@@ -151,8 +151,10 @@ export function RefundEntryDialog({
   const feeCents = Math.round(fee * 100);
 
   // Suggested refund from the policy snapshotted at payment (Phase 3b) — advisory.
+  // The snapshot lives on the row that holds the payment, the same row the
+  // refund is issued against; a moved-up destination's snapshot is NULL (MYK9-2348).
   const { data: suggestion, isLoading: suggestionLoading } = useWithdrawalRefundSuggestion(
-    entry?.id,
+    entry?.moneyRootEntryId ?? entry?.id,
     feeCents,
     open
   );

@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { logger } from '@/services/LoggingService';
 import { useOfflineScoringStore, useCurrentScoringSession } from './offlineScoringStore';
 import { renderHook } from '@testing-library/react';
 import type { ScoringSession, JudgeScore } from '@/types/scoring-types';
@@ -61,6 +62,49 @@ describe('useOfflineScoringStore', () => {
   beforeEach(() => {
     useOfflineScoringStore.getState().clearAllData();
   });
+
+  it('write-locked actions return promises that resolve once the state is written', async () => {
+    const store = useOfflineScoringStore.getState();
+    const pending = store.addScore('class-1', makeScore());
+    expect(pending).toBeInstanceOf(Promise);
+    await pending;
+    expect(useOfflineScoringStore.getState().scores['class-1']).toHaveLength(1);
+
+    await useOfflineScoringStore.getState().submitScore('class-1', makeScore({ id: 'score-2' }));
+    expect(useOfflineScoringStore.getState().scores['class-1']).toHaveLength(2);
+  });
+
+  it.each([
+    [
+      'updateSession',
+      (s: ReturnType<typeof useOfflineScoringStore.getState>) =>
+        s.updateSession('ghost', { totalEntries: 9 }),
+    ],
+    [
+      'endJudgingSession',
+      (s: ReturnType<typeof useOfflineScoringStore.getState>) => s.endJudgingSession('ghost'),
+    ],
+    [
+      'setCurrentEntry',
+      (s: ReturnType<typeof useOfflineScoringStore.getState>) =>
+        s.setCurrentEntry('ghost', 'entry-1'),
+    ],
+    [
+      'advanceWorkflowStep',
+      (s: ReturnType<typeof useOfflineScoringStore.getState>) => s.advanceWorkflowStep('ghost'),
+    ],
+  ])(
+    '%s on a missing session is a no-op that warns and creates no partial session',
+    (action, run) => {
+      const warn = vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
+      run(useOfflineScoringStore.getState());
+      expect(useOfflineScoringStore.getState().sessions).toEqual({});
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining(action), 'offlineScoring', {
+        sessionId: 'ghost',
+      });
+      warn.mockRestore();
+    }
+  );
 
   it('createSession adds a session keyed by id', () => {
     const session = makeSession();

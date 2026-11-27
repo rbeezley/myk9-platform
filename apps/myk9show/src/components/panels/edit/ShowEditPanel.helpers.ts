@@ -7,7 +7,7 @@
 
 import type { Show } from '@/types/show-types';
 import type { ShowAscaFacts } from '@/services/replication/showAscaFactColumns';
-import type { ShowStyle } from '@/features/registries';
+import { getShowStyle } from '@/features/registries';
 import { readExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import type { ShowEditFormData, ShowEditSaveData } from './ShowEditPanel.types';
 
@@ -72,18 +72,15 @@ export const showToFormData = (show: Partial<Show>): ShowEditFormData => {
     // Read show.style (migration 195) with fallback to landing_style (migration 192).
     // Map 'default' → 'monogram' so legacy rows never produce a value rejected by
     // the new shows_style_check constraint.
-    style: ((): ShowStyle => {
-      const raw = show.style ?? show.landing_style ?? 'monogram';
-      return (raw === 'default' ? 'monogram' : raw) as ShowStyle;
-    })(),
+    style: getShowStyle(show),
     publishExperience: false,
     inkSaver: false,
   };
 };
 
 // Convert form data back to Show
-// Empty strings are omitted so the store skips them — prevents sending ''
-// to Postgres DATE/numeric columns which would fail the entire mutation.
+// Cleared optional fields stay '' (MYK9-2433); the store maps '' to null before it writes, so
+// no '' reaches a Postgres DATE/numeric column.
 // Online entries are deliberately absent: they are always on and the column is RPC-owned
 // (MYK9-979, MYK9-2164), so no form save can resend a stale copy of it.
 export const formDataToShow = (formData: ShowEditFormData): Partial<Show> => ({
@@ -106,13 +103,14 @@ export const formDataToShow = (formData: ShowEditFormData): Partial<Show> => ({
     confirmationMessage: formData.confirmationMessage.trim(),
   }),
   ...ascaFactsFromForm(formData),
-  // Conditionally include optional string fields only when non-empty
-  // (exactOptionalPropertyTypes forbids assigning undefined to string properties)
-  ...(formData.location && { location: formData.location }),
-  ...(formData.entryOpenDate && { entryOpenDate: formData.entryOpenDate }),
-  ...(formData.entryCloseDate && { entryCloseDate: formData.entryCloseDate }),
-  ...(formData.preEntryFee && { preEntryFee: formData.preEntryFee }),
-  ...(formData.dayOfShowFee && { dayOfShowFee: formData.dayOfShowFee }),
+  // MYK9-2433: a cleared box is sent as '' so it clears the column (the store turns '' into
+  // null). Dropping it here made Clear dates save nothing. A field that was empty and stays
+  // empty is equal on both sides of changedShowSaveData, so it is still never sent.
+  location: formData.location,
+  entryOpenDate: formData.entryOpenDate,
+  entryCloseDate: formData.entryCloseDate,
+  preEntryFee: formData.preEntryFee,
+  dayOfShowFee: formData.dayOfShowFee,
   // ASCA has no junior tier: clear a stale rate, but write nothing when there is none.
   ...(formData.organization === 'ASCA'
     ? formData.juniorHandlerFee

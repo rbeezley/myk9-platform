@@ -28,11 +28,69 @@ function setup() {
   return { client, alert, logger, now };
 }
 
+function pagedClient(pages: Array<{ data: unknown[] | null; error?: { message: string } }>) {
+  const range = vi.fn(async () => {
+    const page = pages[range.mock.calls.length - 1] ?? { data: [] };
+    return { data: page.data, error: page.error ?? null };
+  });
+  const chain = { eq: vi.fn(), lt: vi.fn(), order: vi.fn(), range, select: vi.fn() };
+  chain.select.mockReturnValue(chain);
+  chain.eq.mockReturnValue(chain);
+  chain.lt.mockReturnValue(chain);
+  chain.order.mockReturnValue(chain);
+  const from = vi.fn(() => chain);
+  return { client: { from } as unknown as Pick<SupabaseClient, 'from'>, range };
+}
+
+const offerRows = (count: number, start = 0) =>
+  Array.from({ length: count }, (_, i) => ({ id: `offer-${start + i}` }));
+
+describe('findExpiredOffers paging', () => {
+  it('reads every page until a short page and returns all rows in order', async () => {
+    const { client, range } = pagedClient([
+      { data: offerRows(1000) },
+      { data: offerRows(1000, 1000) },
+      { data: offerRows(5, 2000) },
+    ]);
+    const errors: string[] = [];
+    const offers = await findExpiredOffers(client, '2026-09-02T12:00:00.000Z', errors);
+    expect(offers).toHaveLength(2005);
+    expect(offers[1000]).toMatchObject({ id: 'offer-1000' });
+    expect(range.mock.calls).toEqual([
+      [0, 999],
+      [1000, 1999],
+      [2000, 2999],
+    ]);
+    expect(errors).toEqual([]);
+  });
+
+  it('asks for one more page after an exactly full page and stops on the empty one', async () => {
+    const { client, range } = pagedClient([{ data: offerRows(1000) }, { data: [] }]);
+    const offers = await findExpiredOffers(client, '2026-09-02T12:00:00.000Z', []);
+    expect(offers).toHaveLength(1000);
+    expect(range).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps earlier pages and records the error when a later page fails', async () => {
+    const { client } = pagedClient([
+      { data: offerRows(1000) },
+      { data: null, error: { message: 'boom' } },
+    ]);
+    const errors: string[] = [];
+    const offers = await findExpiredOffers(client, '2026-09-02T12:00:00.000Z', errors);
+    expect(offers).toHaveLength(1000);
+    expect(errors).toEqual(['Fetch expired: boom']);
+  });
+});
+
 describe('waitlist cron outcomes', () => {
   it('reports a failed expired-offer query as HTTP 500, error check-in, and operator alert', async () => {
     const deps = setup();
     const errors: string[] = [];
-    const lt = vi.fn(async () => ({ data: null, error: { message: 'database unavailable' } }));
+    const range = vi.fn(async () => ({ data: null, error: { message: 'database unavailable' } }));
+    const order2 = vi.fn(() => ({ range }));
+    const order1 = vi.fn(() => ({ order: order2 }));
+    const lt = vi.fn(() => ({ order: order1 }));
     const eq = vi.fn(() => ({ lt }));
     const select = vi.fn(() => ({ eq }));
     const from = vi.fn(() => ({ select }));
@@ -51,6 +109,9 @@ describe('waitlist cron outcomes', () => {
     expect(from).toHaveBeenCalledWith('waitlist_entries');
     expect(eq).toHaveBeenCalledWith('status', 'offered');
     expect(lt).toHaveBeenCalledWith('offer_expires_at', '2026-09-02T12:00:00.000Z');
+    expect(order1).toHaveBeenCalledWith('offer_expires_at', { ascending: true });
+    expect(order2).toHaveBeenCalledWith('id', { ascending: true });
+    expect(range).toHaveBeenCalledWith(0, 999);
     expect(response.status).toBe(500);
     expect(await response.json()).toMatchObject({
       success: false,

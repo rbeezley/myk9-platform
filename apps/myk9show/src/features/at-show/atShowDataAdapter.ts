@@ -41,6 +41,8 @@ import { settleRingRestores } from '@/utils/checkInTransitions';
 import type { AtShowSyncInFlight } from './atShowSyncOutcome';
 import { startAtShowSyncRun } from './atShowSyncRun';
 import { ringsideEntryRingState } from './atShowEntryRingState';
+import { resolveMovedDestinationNames } from './atShowMovedDestination';
+import { timeLimitString } from './atShowTimeLimit';
 import {
   classifyEntries,
   countEntryAccounting,
@@ -177,24 +179,6 @@ function buildClassName(cls: ReplicatedClass | null): string {
 }
 
 /**
- * Render a `time_limit_seconds` value as the ringside `ClassInfo.timeLimit`
- * string (`"180s"`). The downstream popover re-parses this back to a number,
- * so the ONLY values we may emit are clean numeric-seconds strings — never a
- * placeholder like `"TBD"`.
- *
- * `ReplicatedClass.timeLimitSeconds` is an `as number` cast over a loosely
- * typed DB row, so a non-numeric placeholder can slip past the compiler at
- * runtime. Guarding on `Number.isFinite` (and `> 0`) keeps junk from being
- * laundered into `"TBDs"` / `"NaNs"`; such inputs collapse to `undefined`
- * (no limit) instead.
- */
-function timeLimitString(seconds?: number): string | undefined {
-  return typeof seconds === 'number' && Number.isFinite(seconds) && seconds > 0
-    ? `${seconds}s`
-    : undefined;
-}
-
-/**
  * Transform a myK9Show `ReplicatedEntry` (+ its class for header fields) into a
  * ringside `Entry`. See data-transform spec Table 1.
  *
@@ -202,7 +186,11 @@ function timeLimitString(seconds?: number): string | undefined {
  * `CheckInStatus` = ringside `EntryStatus`), so we use it directly rather than
  * deriving from the lifecycle `entry_status` string the way myK9Q must.
  */
-export function transformEntry(re: ReplicatedEntry, cls: ReplicatedClass | null): Entry {
+export function transformEntry(
+  re: ReplicatedEntry,
+  cls: ReplicatedClass | null,
+  movedToClassName?: string
+): Entry {
   const checkinStatus = re.checkInStatus ?? re.check_in_status;
   const { status, inRing, notRunning, notRunningReason, awaitingApproval } =
     ringsideEntryRingState(re);
@@ -284,6 +272,7 @@ export function transformEntry(re: ReplicatedEntry, cls: ReplicatedClass | null)
     // MYK9-1162: server-computed; absent or unknown reads as not held.
     ...(notRunning && { notRunningByEntryStatus: true }),
     ...(notRunningReason && { notRunningReason }),
+    ...(movedToClassName && { movedToClassName }),
     ...((re.awaitingRegistrationNumber ?? re.awaiting_registration_number) === true && {
       awaitingRegistrationNumber: true,
     }),
@@ -390,10 +379,22 @@ async function fetchClassData(
   // MYK9-1779: a list mounted by leaving a scoresheet reads after the dog is put back.
   await settleRingRestores();
   const cls = await replicatedClassesTable.getClassById(classId);
-  const rawEntries = await replicatedEntriesTable.getEntriesByClass(classId);
+  // MYK9-2477: a soft-deleted row (an undone move) is not a dog at the ring; it is never listed.
+  const rawEntries = (await replicatedEntriesTable.getEntriesByClass(classId)).filter(
+    re => (re.deletedAt ?? re.deleted_at) == null
+  );
   const armbandMaps = buildShowArmbandMaps(await replicatedArmbandsTable.getByShow(showId));
+  // The destination name is a nicety: a failed show-wide read must not lose the entries, so the
+  // badge falls back to the plain "Moved" (MYK9-1940).
+  const movedTo = await resolveMovedDestinationNames(rawEntries, showId).catch(
+    () => new Map<string, string>()
+  );
   const entries = rawEntries.map(re =>
-    transformEntry({ ...re, armband: resolveEntryArmband(re, armbandMaps) ?? undefined }, cls)
+    transformEntry(
+      { ...re, armband: resolveEntryArmband(re, armbandMaps) ?? undefined },
+      cls,
+      movedTo.get(re.id)
+    )
   );
   const trial =
     (cls?.trialId ?? cls?.trial_id)

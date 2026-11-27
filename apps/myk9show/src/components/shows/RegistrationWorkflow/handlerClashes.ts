@@ -166,7 +166,7 @@ export function joinNames(names: readonly string[]): string {
 }
 
 export function clashQuestion(clash: HandlerClash): string {
-  return `You can't handle both ${clash.otherName} and ${clash.subjectName} in ${joinNames(clash.classLabels)}. Who will handle ${clash.subjectName}?`;
+  return `${clash.otherName} and ${clash.subjectName} are both in ${joinNames(clash.classLabels)}. Who handles ${clash.subjectName}?`;
 }
 
 /** The typed handler for this clash, when every clashing class carries a non-owner name. */

@@ -1,8 +1,8 @@
 /**
  * Secretary Entry Creation — E2E
  *
- * Walks the secretary path through the 5-step registration wizard
- * (Select Dogs → Classes → Handlers → Payment → Confirmation).
+ * Walks the secretary path through the 4-step registration wizard
+ * (Select Dogs → Classes → Payment → Confirmation).
  *
  * Prerequisites (seeded in staging DB):
  *  - Secretary fixture (E2E_SECRETARY_EMAIL, agreed_to_tos_at set)
@@ -72,7 +72,7 @@ test.describe('Secretary Entry Creation', () => {
     await expect(page.locator('[role="checkbox"]')).toHaveCount(2);
   });
 
-  test('wizard: full flow — dog → class → handler → agreement → confirmation', async ({ page }) => {
+  test('wizard: full flow — dog → class → agreement → confirmation', async ({ page }) => {
     const consoleErrors: string[] = [];
     page.on('console', msg => {
       if (msg.type() === 'error') consoleErrors.push(msg.text());
@@ -118,14 +118,7 @@ test.describe('Secretary Entry Creation', () => {
     await page.getByRole('button', { name: /next/i }).click();
     await page.waitForLoadState('networkidle');
 
-    // ── Step 3: Handlers (auto-assigned) ─────────────────────────────────
-    await page.waitForSelector('text=Handlers', { timeout: 8000 });
-    await expect(page.getByText(/all entries have handlers assigned/i)).toBeVisible();
-    await expect(page.getByRole('button', { name: /next/i })).toBeEnabled();
-    await page.getByRole('button', { name: /next/i }).click();
-    await page.waitForLoadState('networkidle');
-
-    // ── Step 4: Payment + AKC agreement ──────────────────────────────────
+    // ── Step 3: Payment + AKC agreement ──
     await page.waitForSelector('text=Payment Information', { timeout: 8000 });
 
     // Scroll down to reveal the entry agreement section then wait for its label
@@ -147,7 +140,7 @@ test.describe('Secretary Entry Creation', () => {
     const rpcResp = await rpcPromise;
     expect(rpcResp.status()).toBe(200);
 
-    // ── Step 5: Confirmation ──────────────────────────────────────────────
+    // ── Step 4: Confirmation ──
     await page.waitForSelector('text=Entry Confirmed', { timeout: 10000 });
     await expect(page.getByText(/confirmation #:/i)).toBeVisible();
 

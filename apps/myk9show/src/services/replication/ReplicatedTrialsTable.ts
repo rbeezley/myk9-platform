@@ -76,6 +76,37 @@ export interface ReplicatedTrial {
 }
 
 /** MYK9-1945: absent until the migration is applied, so an older row reads as unset, not null. */
+/**
+ * MYK9-2450: DB columns only a deliberate act writes (close-out, reopen, a secretary setting the
+ * status or the actual times), paired with the `ReplicatedTrial` key a caller sets to change
+ * them. An UPDATE sends one only when its caller set that key, so an unrelated edit from a
+ * device holding an old copy (a rename after another device closed the show) cannot put the old
+ * value back. Same shape as classes (`SERVER_OWNED_CLASS_COLUMNS`); replaces the single-column
+ * strip from MYK9-2431.
+ */
+const SERVER_OWNED_TRIAL_COLUMNS: ReadonlyArray<readonly [string, keyof ReplicatedTrial]> = [
+  ['status', 'status'],
+  ['actual_start_time', 'actualStartTime'],
+  ['actual_end_time', 'actualEndTime'],
+  ['status_before_close', 'statusBeforeClose'],
+];
+
+const LEGACY_OMITTED_TRIAL_KEYS_SERVER_WINS: readonly string[] = SERVER_OWNED_TRIAL_COLUMNS.map(
+  ([dbKey]) => dbKey
+);
+
+/** Drop each server-owned column from an UPDATE payload unless the caller set its source key. */
+export function stripUnsetServerOwnedTrialKeys(
+  payload: Record<string, unknown>,
+  updates: Partial<ReplicatedTrial>
+): Record<string, unknown> {
+  const next = { ...payload };
+  for (const [dbKey, sourceKey] of SERVER_OWNED_TRIAL_COLUMNS) {
+    if (!(sourceKey in updates)) delete next[dbKey];
+  }
+  return next;
+}
+
 function statusBeforeCloseFromRow(row: object): Pick<ReplicatedTrial, 'statusBeforeClose'> {
   if (!('status_before_close' in row)) return {};
   return { statusBeforeClose: (row.status_before_close as string | null | undefined) ?? null };
@@ -200,7 +231,16 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
   }
 
   protected override rebuildUpdatePayload(trial: ReplicatedTrial): Record<string, unknown> {
-    return this.toSupabaseRow(trial);
+    // Resend after an OCC token advance: rebuilt from local data, which cannot know the original
+    // mutation's `updates`. Strip every server-owned column; the mutation queue restores only the
+    // keys the original payload carried on purpose (MYK9-2450, as classes do).
+    const payload = this.toSupabaseRow(trial);
+    for (const [dbKey] of SERVER_OWNED_TRIAL_COLUMNS) delete payload[dbKey];
+    return payload;
+  }
+
+  protected override getLegacyOmittedKeysServerWins(): readonly string[] {
+    return LEGACY_OMITTED_TRIAL_KEYS_SERVER_WINS;
   }
 
   /**
@@ -216,7 +256,7 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
       },
       getRemoteId: remote => String(remote.id),
       toLocalRow: rowToTrial,
-      rebuildUpdatePayload: trial => this.toSupabaseRow(trial),
+      rebuildUpdatePayload: trial => this.rebuildUpdatePayload(trial),
     };
   }
 
@@ -412,9 +452,15 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
       _syncStatus: 'pending',
     };
 
+    // MYK9-2450: the merge above carries this device's cached status, actual times and close
+    // record. Unless the caller set one, leave the server's value alone: a stale copy would
+    // reopen a trial another device closed, or wipe what close recorded. Same rule as classes
+    // (stripUnsetServerOwnedKeys) and shows (stripUnsetCloseRecordColumns).
+    const payload = stripUnsetServerOwnedTrialKeys(this.toSupabaseRow(updatedTrial), updates);
+
     const { mutationId } = await this.writeAndQueue(trialId, updatedTrial, {
       operation: 'UPDATE',
-      payload: this.toSupabaseRow(updatedTrial),
+      payload,
       dependsOn: dependsOn && dependsOn.length > 0 ? dependsOn : undefined,
     });
     this._lastMutationId = mutationId;

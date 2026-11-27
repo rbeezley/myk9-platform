@@ -54,9 +54,6 @@ export interface ClassEditFormData extends Record<string, unknown> {
 
   // Timing details
   estimatedJudgingTime?: string;
-  timeLimit1?: string;
-  timeLimit2?: string;
-  timeLimit3?: string;
 
   // Officials
   judge?: string;

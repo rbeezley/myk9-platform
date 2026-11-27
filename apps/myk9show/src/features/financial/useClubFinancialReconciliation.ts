@@ -25,6 +25,13 @@ export interface UseClubFinancialReconciliationResult {
   /** True when either reconciliation source is unavailable — the surface must
    *  show an explicit "unavailable" state and never claim verification. */
   isError: boolean;
+  /**
+   * True only when both sources answered. A paused read (offline, React Query
+   * networkMode 'online') is neither loading nor in error and has no data, so
+   * `!isLoading && !isError` is not a success: only this may back a stated
+   * absence such as "No Stripe charges" (MYK9-1985).
+   */
+  isSuccess: boolean;
   refetch: () => void;
 }
 
@@ -159,6 +166,7 @@ export function useClubFinancialReconciliation(
     rows,
     isLoading: ordersQuery.isLoading || payoutsQuery.isLoading,
     isError: ordersQuery.isError || payoutsQuery.isError,
+    isSuccess: ordersQuery.isSuccess && payoutsQuery.isSuccess,
     refetch: () => {
       ordersQuery.refetch();
       payoutsQuery.refetch();

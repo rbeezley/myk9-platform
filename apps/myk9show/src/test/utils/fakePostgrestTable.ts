@@ -85,6 +85,13 @@ class FakeBuilder implements PromiseLike<FakeResult> {
     this.window = [from, to];
     return this;
   }
+  limit(count: number): this {
+    this.window = [0, count - 1];
+    return this;
+  }
+  abortSignal(): this {
+    return this;
+  }
 
   private run(): FakeResult {
     const matching = this.rows

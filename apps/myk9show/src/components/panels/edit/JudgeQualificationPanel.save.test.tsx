@@ -1,6 +1,7 @@
 /**
- * MYK9-2382: Save replaces the person's whole qualification list, so it must never run on a list
- * that did not load. A failed or pending read would otherwise erase what is on record.
+ * MYK9-2382 / MYK9-2394: Save replaces the person's whole qualification list, so the form and Save
+ * must never be available on a list that did not load. A failed, paused or pending read shows
+ * loading or a retry instead of the form.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
@@ -10,11 +11,12 @@ import { JudgeQualificationPanel } from './JudgeQualificationPanel';
 // `data` must be one stable array, as the real hook guarantees, or the panel's sync effect loops.
 const state = vi.hoisted(() => ({
   query: {} as Record<string, unknown>,
+  refetch: vi.fn(),
   replace: vi.fn(),
   empty: [] as never[],
 }));
 vi.mock('@/hooks/queries/useJudgeDatabase', () => ({
-  useJudgeQualifications: () => ({ data: state.empty, ...state.query }),
+  useJudgeQualifications: () => ({ data: state.empty, refetch: state.refetch, ...state.query }),
   judgeQueryKeys: { qualificationsByJudge: (id: string) => ['judges', 'qualifications', id] },
 }));
 vi.mock('@/services/database/judges', () => ({ replaceJudgeQualifications: state.replace }));
@@ -29,23 +31,50 @@ vi.mock('@/hooks/useAuthContext', () => ({
 const renderPanel = () =>
   render(<JudgeQualificationPanel open onClose={vi.fn()} userId="p1" userName="Ada Lovelace" />);
 
-describe('JudgeQualificationPanel: Save waits for the list', () => {
+const addButton = () => screen.queryByRole('button', { name: /Add First Qualification/ });
+
+describe('JudgeQualificationPanel: the form waits for the list', () => {
   beforeEach(() => {
     state.replace.mockReset();
+    state.refetch.mockReset();
   });
 
-  it('keeps Save off after adding a qualification while the list failed to load', async () => {
-    state.query = { isSuccess: false, isError: true };
+  it('shows a retry instead of the form when the list failed to load', async () => {
+    state.query = { hasList: false, isError: true, fetchStatus: 'idle' };
     const { user } = renderPanel();
-    await user.click(screen.getByRole('button', { name: /Add First Qualification/ }));
+    expect(addButton()).toBeNull();
     expect(screen.getByRole('button', { name: /Save Changes/ })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(state.refetch).toHaveBeenCalled();
     expect(state.replace).not.toHaveBeenCalled();
   });
 
+  it('shows a retry, not "No Qualifications", when the read is paused offline', () => {
+    state.query = { hasList: false, isError: false, fetchStatus: 'paused' };
+    renderPanel();
+    expect(addButton()).toBeNull();
+    expect(screen.queryByText('No Qualifications')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+  });
+
+  it('shows loading, not the form, while the first read is in flight', () => {
+    state.query = { hasList: false, isError: false, fetchStatus: 'fetching' };
+    renderPanel();
+    expect(addButton()).toBeNull();
+    expect(screen.getByRole('status')).toHaveTextContent(/Loading/);
+  });
+
+  it('turns editing off when a refresh failed after a good read', () => {
+    state.query = { hasList: true, isError: true, fetchStatus: 'idle' };
+    renderPanel();
+    expect(addButton()).toBeNull();
+    expect(screen.getByRole('button', { name: /Save Changes/ })).toBeDisabled();
+  });
+
   it('lets a secretary without show:manage save once the list has loaded', async () => {
-    state.query = { isSuccess: true, isError: false };
+    state.query = { hasList: true, isError: false, fetchStatus: 'idle' };
     const { user } = renderPanel();
-    await user.click(screen.getByRole('button', { name: /Add First Qualification/ }));
+    await user.click(addButton()!);
     expect(screen.getByRole('button', { name: /Save Changes/ })).toBeEnabled();
   });
 });

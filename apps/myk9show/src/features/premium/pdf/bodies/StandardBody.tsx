@@ -219,12 +219,6 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
               <Text style={s.value}>{trial.classLabels.join(', ')}</Text>
             </View>
           )}
-          {trial.entryLimit && (
-            <View style={s.row}>
-              <Text style={s.label}> </Text>
-              <Text style={s.value}>{trial.entryLimit}</Text>
-            </View>
-          )}
           {trial.classFees && (
             <View style={s.row}>
               <Text style={s.label}> </Text>

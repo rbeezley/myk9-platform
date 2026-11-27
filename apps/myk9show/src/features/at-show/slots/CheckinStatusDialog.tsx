@@ -5,6 +5,8 @@
  */
 import React, { useState } from 'react';
 import type { CheckinStatusDialogProps } from '@myk9/ringside';
+import type { CheckInStatus } from '@myk9/core';
+import { checkInStateLabel } from '@myk9/ui';
 import {
   Dialog,
   DialogContent,
@@ -17,6 +19,17 @@ import { ConfirmDialog } from '@/components/ui/alert-dialog/confirm-dialog';
 import { StatusTileGrid } from '@/components/status/StatusTileGrid';
 import { handleOpenChange } from './dialogHelpers';
 import { pickerStatuses } from '../entryStatusAccess';
+
+/**
+ * MYK9-2460: the card's check-in button reads "Not checked in" or "Checked in" and opens this
+ * dialog, so the tiles for those two states say the same words. A volunteer looking for the
+ * words she just tapped did not find them under "No Status" and "Checked-in". The words come
+ * from the one table the card reads (`CHECK_IN_STATE_WORDS`), never typed here.
+ */
+const CARD_WORDS_FOR_TILES: Partial<Record<CheckInStatus, string>> = {
+  'no-status': checkInStateLabel('no-status'),
+  'checked-in': checkInStateLabel('checked-in'),
+};
 
 export const CheckinStatusDialog: React.FC<CheckinStatusDialogProps> = ({
   isOpen,
@@ -51,6 +64,7 @@ export const CheckinStatusDialog: React.FC<CheckinStatusDialogProps> = ({
         <StatusTileGrid
           statuses={statuses}
           currentStatus={currentStatus}
+          tileLabels={CARD_WORDS_FOR_TILES}
           onSelect={status =>
             status === 'pulled' ? setConfirmingPull(true) : onStatusChange(status)
           }

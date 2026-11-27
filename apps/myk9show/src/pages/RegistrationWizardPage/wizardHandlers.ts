@@ -27,10 +27,6 @@ import { resolveRegistrationCompletionPath } from '../RegistrationWizardPage.rou
 import { invalidateAccountTodayEntries } from '@/features/show-today/accountTodayEntriesKey';
 import { submitPaymentStep } from './submitPaymentStep';
 import { noEntriesAddedMessage } from './noEntriesAddedMessage';
-import {
-  everyEntryHandledByOwner,
-  wizardStepStride,
-} from '@/components/shows/RegistrationWorkflow/ownerHandledEntries';
 import { defaultPaymentForMode, type RegistrationWizardState } from './useRegistrationWizardState';
 import type { SavedDraft } from '@/hooks/useDraftPersistence';
 
@@ -109,15 +105,6 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     }
     navigate(-1);
   };
-
-  // MYK9-2020: one step, or two over a Handlers step the owners already fill.
-  const stepStride = (direction: 1 | -1) =>
-    wizardStepStride(
-      currentWorkflowConfig.steps,
-      currentStep,
-      direction,
-      everyEntryHandledByOwner(state.classSelections, state.handlerAssignments)
-    );
 
   const handleNext = async () => {
     if (submittingRef.current || !canProceed()) return;
@@ -256,11 +243,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     }
 
     markStepComplete(currentStep);
-    // MYK9-2020: with every dog handled by its owner, Next from Classes steps
-    // over the secretary's Handlers step (marked done, so the rail still opens it).
-    const stride = stepStride(1);
-    if (stride === 2) markStepComplete(currentStep + 1);
-    setCurrentStep(prev => prev + stride);
+    setCurrentStep(prev => prev + 1);
   };
 
   // Stepping back from Payment keeps the entry agreement tick (owner decision, MYK9-1799):
@@ -269,8 +252,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
   // unticks it (`useEntryAgreementScope`): what she builds next is a new entry.
   const handleBack = () => {
     if (currentStep > 0) {
-      const stride = stepStride(-1);
-      setCurrentStep(prev => prev - stride);
+      setCurrentStep(prev => prev - 1);
     } else {
       handleExit();
     }

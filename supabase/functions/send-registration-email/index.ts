@@ -94,7 +94,7 @@ handle<SendRegistrationEmailPayload>(
     const { data: registration, error: regError } = await supabase
       .from('enrollments')
       .select(
-        '*, show:shows(name, start_date, end_date, venue_name, address, city, state, zip_code, club_id, secretary_email, cc_secretary_on_exhibitor_emails), person:people(first_name, last_name, email, auth_user_id)'
+        '*, show:shows(name, start_date, end_date, location, venue_name, address, city, state, zip_code, club_id, secretary_email, cc_secretary_on_exhibitor_emails), person:people(first_name, last_name, email, auth_user_id)'
       )
       .eq('id', registrationId)
       .single();

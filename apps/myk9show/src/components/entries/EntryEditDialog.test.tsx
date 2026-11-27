@@ -236,7 +236,7 @@ describe('EntryEditDialog — sheet title by audience', () => {
     expect(screen.queryByText('Edit Entry')).not.toBeInTheDocument();
   });
 
-  it('keeps Edit Entry for the show secretary', async () => {
+  it('names the secretary sheet for the handler change on a scent work entry', async () => {
     render(
       <EntryEditDialog
         open
@@ -246,6 +246,22 @@ describe('EntryEditDialog — sheet title by audience', () => {
         onUpdate={noop}
       />
     );
-    expect(await screen.findByRole('heading', { name: 'Edit Entry' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Change handler' })).toBeInTheDocument();
+    expect(screen.queryByText('Edit Entry')).not.toBeInTheDocument();
+  });
+
+  it('names jump height for the secretary only when a class has one', async () => {
+    render(
+      <EntryEditDialog
+        open
+        asShowManager
+        entry={makeEntry('Agility')}
+        onOpenChange={noop}
+        onUpdate={noop}
+      />
+    );
+    expect(
+      await screen.findByRole('heading', { name: 'Change handler or jump height' })
+    ).toBeInTheDocument();
   });
 });

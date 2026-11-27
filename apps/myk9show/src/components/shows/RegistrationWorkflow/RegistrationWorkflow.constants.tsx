@@ -1,4 +1,4 @@
-import { Dog, Trophy, CreditCard, CheckSquare, UserCheck } from 'lucide-react';
+import { Dog, Trophy, CreditCard, CheckSquare } from 'lucide-react';
 import type {
   WorkflowConfig,
   WorkflowMode,
@@ -27,7 +27,7 @@ export const WORKFLOW_CONFIGS: Record<WorkflowMode, WorkflowConfig> = {
     },
   },
   secretary_new: {
-    steps: ['dog-selection', 'class-selection', 'handler-assignment', 'payment', 'confirmation'],
+    steps: ['dog-selection', 'class-selection', 'payment', 'confirmation'],
     features: {
       bulkSelection: true,
       createNew: true,
@@ -43,7 +43,7 @@ export const WORKFLOW_CONFIGS: Record<WorkflowMode, WorkflowConfig> = {
     },
   },
   club_admin: {
-    steps: ['dog-selection', 'class-selection', 'handler-assignment', 'payment', 'confirmation'],
+    steps: ['dog-selection', 'class-selection', 'payment', 'confirmation'],
     features: {
       bulkSelection: true,
       createNew: true,
@@ -59,7 +59,7 @@ export const WORKFLOW_CONFIGS: Record<WorkflowMode, WorkflowConfig> = {
     },
   },
   site_admin: {
-    steps: ['dog-selection', 'class-selection', 'handler-assignment', 'payment', 'confirmation'],
+    steps: ['dog-selection', 'class-selection', 'payment', 'confirmation'],
     features: {
       bulkSelection: true,
       createNew: true,
@@ -83,7 +83,7 @@ export const ALL_STEP_DEFINITIONS: Record<StepId, Omit<RegistrationStep, 'comple
   // (MYK9-517) — the verb is the half that truncated, and it is the half the
   // step heading on screen ("Select Dogs to Register") already says. The Show
   // Creation wizard's rail has always been one-word ("Trials", "Classes",
-  // "Review"). Do not restore the verbs; they do not fit five steps at 390.
+  // "Review"). Do not restore the verbs; they do not fit the steps at 390.
   'dog-selection': {
     id: 0,
     label: 'Dogs',
@@ -94,21 +94,13 @@ export const ALL_STEP_DEFINITIONS: Record<StepId, Omit<RegistrationStep, 'comple
     label: 'Classes',
     icon: <Trophy className="h-5 w-5" />,
   },
-  'handler-assignment': {
-    id: 2,
-    label: 'Handlers',
-    icon: <UserCheck className="h-5 w-5" />,
-    // Secretary/admin roles get a dedicated step. Exhibitors use an inline
-    // question in ClassSelectionStep instead, only when one owner has two dogs
-    // in the same class (see HandlerClashSection).
-  },
   payment: {
-    id: 3,
+    id: 2,
     label: 'Payment',
     icon: <CreditCard className="h-5 w-5" />,
   },
   confirmation: {
-    id: 4,
+    id: 3,
     // INTENT: Named "Receipt" (not "Confirmation") because the entry is already
     // committed by the honest Submit button on the Payment step — this screen is
     // the after-the-fact receipt, not a place that still asks the user to confirm

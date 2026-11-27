@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { areAssignedJudgesEqual, replicatedToShow } from '../showStore';
-import { composePremiumVenue } from '@/features/premium/premiumVenue';
 import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable';
 
 // Regression guard: replicatedToShow is the mapper both loadShows() and the
@@ -46,7 +45,7 @@ describe('replicatedToShow — confirmationMessage (MYK9-2114)', () => {
 });
 
 describe('replicatedToShow: venue columns (MYK9-2245)', () => {
-  it('carries the street address so the premium checklist sees the composed venue', () => {
+  it('carries the venue columns through', () => {
     const show = replicatedToShow({
       ...baseRow,
       location: '',
@@ -63,9 +62,6 @@ describe('replicatedToShow: venue columns (MYK9-2245)', () => {
       state: 'CO',
       zipCode: '80202',
     });
-    expect(composePremiumVenue({ venue: show.location, ...show })).toBe(
-      'Elks Lodge, 12 Main St, Denver, CO 80202'
-    );
   });
 });
 

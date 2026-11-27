@@ -1,15 +1,15 @@
 import { Link } from 'react-router-dom';
-import type { AncestorCrumb } from '@/components/common/breadcrumbCrumb';
+import { CRUMB_TOUCH_TARGET, type AncestorCrumb } from '@/components/common/breadcrumbCrumb';
 
 interface WizardCrumbsProps {
+  /** The show in the route. Known before the show's name has loaded. */
   showId: string | undefined;
   showName: string | undefined;
   /** What this wizard is doing, e.g. "Add entry": the current page. */
   workflowLabel: string;
 }
 
-const LINK_CLASS =
-  'rounded-sm underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+const LINK_CLASS = `${CRUMB_TOUCH_TARGET} rounded-sm underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`;
 
 /**
  * "Shows / <show> / Add entry" in the wizard header, with the two ancestors as links
@@ -28,7 +28,7 @@ const LINK_CLASS =
 export function WizardCrumbs({ showId, showName, workflowLabel }: WizardCrumbsProps) {
   const ancestors: AncestorCrumb[] = [
     { label: 'Shows', href: '/shows' },
-    // Until the show has loaded there is nowhere more exact to send her than the list.
+    // The route names the show before its name has loaded, so the link is exact from the start.
     { label: showName || 'Show', href: showId ? `/shows/${showId}` : '/shows' },
   ];
   return (
@@ -45,9 +45,10 @@ export function WizardCrumbs({ showId, showName, workflowLabel }: WizardCrumbsPr
         target="_blank"
         rel="noopener noreferrer"
         title={ancestors[1].label}
-        className={`max-w-[200px] truncate ${LINK_CLASS}`}
+        className={`max-w-[200px] ${LINK_CLASS}`}
       >
-        {ancestors[1].label}
+        {/* The truncate sits on the text: the link itself is a flex box for its touch target. */}
+        <span className="truncate">{ancestors[1].label}</span>
       </Link>
       <span aria-hidden="true">/</span>
       <span aria-current="page" className="font-medium text-foreground">

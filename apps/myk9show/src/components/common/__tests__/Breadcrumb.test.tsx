@@ -39,6 +39,23 @@ describe('Breadcrumb', () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
+  it('gives every link, the home icon included, a 44px touch target', () => {
+    render(
+      <Breadcrumb
+        showHomeIcon
+        items={[
+          { label: 'Shows', href: '/shows' },
+          { label: 'Entries', isCurrentPage: true },
+        ]}
+      />
+    );
+
+    for (const link of screen.getAllByRole('link')) {
+      expect(link).toHaveClass('min-h-11', 'min-w-11');
+    }
+    expect(screen.getAllByRole('link')).toHaveLength(2);
+  });
+
   it('links the home icon when asked for one', () => {
     render(<Breadcrumb items={items} showHomeIcon />);
 

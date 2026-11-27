@@ -266,7 +266,7 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
                 {exitTarget.label}
               </Button>
               <WizardCrumbs
-                showId={currentShow?.id}
+                showId={showId ?? currentShow?.id}
                 showName={currentShow?.name}
                 workflowLabel={workflowLabel}
               />

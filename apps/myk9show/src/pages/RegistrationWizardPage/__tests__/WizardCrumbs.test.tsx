@@ -30,9 +30,27 @@ describe('WizardCrumbs', () => {
     expect(screen.getAllByRole('link')).toHaveLength(2);
   });
 
-  it('sends the show crumb to the list while the show has not loaded', () => {
+  // Codex review of #4473: the route already names the show, so the crumb must not fall back to
+  // the list just because the show's name has not loaded yet.
+  it('links the show by its id while the name is still loading', () => {
+    render(<WizardCrumbs showId="show-1" showName={undefined} workflowLabel="Add entry" />);
+
+    expect(screen.getByRole('link', { name: 'Show' })).toHaveAttribute('href', '/shows/show-1');
+  });
+
+  it('sends the show crumb to the list only when there is no show id at all', () => {
     render(<WizardCrumbs showId={undefined} showName={undefined} workflowLabel="Add entry" />);
 
     expect(screen.getByRole('link', { name: 'Show' })).toHaveAttribute('href', '/shows');
+  });
+
+  it('gives each link a 44px touch target and still truncates a long show name', () => {
+    render(<WizardCrumbs showId="show-1" showName="Heartland" workflowLabel="Add entry" />);
+
+    for (const link of screen.getAllByRole('link')) {
+      expect(link).toHaveClass('min-h-11', 'min-w-11');
+    }
+    expect(screen.getByText('Heartland')).toHaveClass('truncate');
+    expect(screen.getByRole('link', { name: 'Heartland' })).toHaveClass('max-w-[200px]');
   });
 });

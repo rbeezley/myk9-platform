@@ -33,3 +33,9 @@ export function crumbFor(label: string, href: string, isCurrent: boolean, id?: s
     ? { label, isCurrentPage: true, ...(id !== undefined && { id }) }
     : { label, href, ...(id !== undefined && { id }) };
 }
+
+/**
+ * A crumb link's hit area: at least 44x44px, the floor `docs/INTENT.md` sets for every link.
+ * The text of a crumb is one `text-sm` line, so without this only that line box was tappable.
+ */
+export const CRUMB_TOUCH_TARGET = 'inline-flex min-h-11 min-w-11 items-center';

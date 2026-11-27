@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, LucideIcon } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import type { Crumb } from '@/components/common/breadcrumbCrumb';
+import { CRUMB_TOUCH_TARGET, type Crumb } from '@/components/common/breadcrumbCrumb';
 import { AppShellPage } from '@/components/layout/AppShell';
 
 /** The current page, or an ancestor that must carry a destination (MYK9-2489). */
@@ -89,7 +89,10 @@ export function StandardPageLayout({
                   {item.label}
                 </span>
               ) : (
-                <Link to={item.href} className="hover:text-foreground transition-colors">
+                <Link
+                  to={item.href}
+                  className={`${CRUMB_TOUCH_TARGET} hover:text-foreground transition-colors`}
+                >
                   {item.label}
                 </Link>
               )}

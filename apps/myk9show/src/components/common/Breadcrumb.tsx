@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronRight, Home } from 'lucide-react';
-import type { Crumb } from './breadcrumbCrumb';
+import { CRUMB_TOUCH_TARGET, type Crumb } from './breadcrumbCrumb';
 
 interface BreadcrumbProps {
   /** Every crumb but the current page carries a destination; the type requires it (MYK9-2489). */
@@ -10,8 +10,7 @@ interface BreadcrumbProps {
   showHomeIcon?: boolean;
 }
 
-const LINK_CLASS =
-  'font-medium text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary';
+const LINK_CLASS = `${CRUMB_TOUCH_TARGET} font-medium text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary`;
 
 /**
  * A breadcrumb trail. Ancestors are real links (`<Link>`), so middle-click and "open in new tab"
@@ -32,7 +31,7 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({
             <li>
               <Link
                 to="/"
-                className="inline-flex rounded-md p-1 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                className={`${CRUMB_TOUCH_TARGET} justify-center rounded-md p-1 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary`}
                 aria-label="Home"
               >
                 <Home className="w-4 h-4" />

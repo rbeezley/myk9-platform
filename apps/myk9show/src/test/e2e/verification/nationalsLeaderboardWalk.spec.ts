@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { registerDisposableProofHooks } from './disposableClass';
+import { AKC_NATIONALS_ENABLED } from '../../../features/registries/akcNationals';
 import { NATIONALS_ARMBAND, nationalsEntry, nationalsTrial } from './nationalsFixture';
 import {
   evidence,
@@ -11,6 +12,9 @@ import {
 } from './showDayProof.helpers';
 
 registerDisposableProofHooks();
+
+// MYK9-2488: Nationals is hidden in the app. The walk is kept and runs again when the switch is on.
+test.skip(!AKC_NATIONALS_ENABLED, 'AKC Nationals is hidden (MYK9-2488)');
 
 // MYK9-1879: the MYK9-1806 review found the ordinary show-day walk never exercises AKC Nationals
 // scoring or the persisted leaderboard result. This walk does, on a Nationals trial of its own.

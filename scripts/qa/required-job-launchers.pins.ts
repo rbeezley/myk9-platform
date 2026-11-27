@@ -324,6 +324,11 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
     script: 'qa:doc-staleness:strict',
     command: 'node scripts/check-doc-staleness.js --strict',
   },
+  {
+    pkgDir: '.',
+    script: 'qa:guide-shots',
+    command: 'tsx scripts/qa/guide-screenshot-staleness.ts',
+  },
   { pkgDir: '.', script: 'qa:plans:test', command: 'vitest run scripts/qa/plan-metadata.test.ts' },
   { pkgDir: '.', script: 'qa:plans', command: 'node --import tsx scripts/qa/plan-metadata.ts' },
   {

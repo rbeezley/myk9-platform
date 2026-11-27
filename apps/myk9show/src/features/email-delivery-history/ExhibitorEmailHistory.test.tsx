@@ -107,7 +107,8 @@ describe('ExhibitorEmailHistory (MYK9-2403)', () => {
 
     await user.click(await screen.findByRole('button', { name: 'View email' }));
 
-    expect(await screen.findByTitle('Email preview')).toHaveAttribute('srcdoc', '<p>Hi</p>');
+    const frame = await screen.findByTitle('Email preview');
+    expect(frame.getAttribute('srcdoc')).toContain('<p>Hi</p>');
     expect(mockFetchContent).toHaveBeenCalledWith(expect.objectContaining({ emailLogId: 'log-2' }));
   });
 

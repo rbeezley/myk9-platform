@@ -85,7 +85,7 @@ describe('EmailDeliveryHistory', () => {
     expect(screen.getByText('Delivery history')).toBeInTheDocument();
   });
 
-  it('opens the stored email in an iframe with an empty sandbox', async () => {
+  it('opens the stored email in a sandboxed iframe: no scripts, forms or same-origin access', async () => {
     mockFetch.mockResolvedValue({ rows: [row], nextCursor: null });
     mockFetchContent.mockResolvedValue({ subject: 'Entry accepted', html: '<p>Welcome</p>' });
     const { user } = render(<EmailDeliveryHistory showId="show-1" />);
@@ -93,8 +93,11 @@ describe('EmailDeliveryHistory', () => {
     await user.click(await screen.findByRole('button', { name: 'View email' }));
 
     const frame = await screen.findByTitle('Email preview');
-    expect(frame).toHaveAttribute('sandbox', '');
-    expect(frame).toHaveAttribute('srcdoc', '<p>Welcome</p>');
+    // MYK9-2487: the only tokens are the two that let a link open an ordinary new tab.
+    const sandbox = (frame.getAttribute('sandbox') ?? '').split(' ');
+    expect(sandbox.sort()).toEqual(['allow-popups', 'allow-popups-to-escape-sandbox']);
+    expect(frame.getAttribute('srcdoc')).toContain('<p>Welcome</p>');
+    expect(frame.getAttribute('srcdoc')).toContain('<base target="_blank">');
     expect(mockFetchContent).toHaveBeenCalledWith(
       expect.objectContaining({ emailLogId: 'attempt-1' })
     );

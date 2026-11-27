@@ -231,3 +231,16 @@ export function resolvePremiumNarratives(
       : built.trialInformation,
   };
 }
+
+/**
+ * The response's two copies of the narratives (MYK9-2280): `narratives` keeps what a secretary
+ * published, `builtNarratives` is always what the show's facts build today, so the editor can
+ * offer "Use the show's current details" without another request.
+ */
+export function narrativesForResponse(
+  published: PremiumNarratives,
+  show: NarrativeShowRow
+): { narratives: PremiumNarratives; builtNarratives: PremiumNarratives } {
+  const builtNarratives = buildPremiumNarratives(show);
+  return { narratives: resolvePremiumNarratives(published, builtNarratives), builtNarratives };
+}

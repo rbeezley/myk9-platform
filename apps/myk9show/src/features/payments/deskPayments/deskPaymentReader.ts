@@ -8,6 +8,7 @@ import {
 } from './deskPaymentTypes';
 import { isFriendlyRefusal, RPC_REFUSAL_CODE } from './paymentRefusals';
 import { announceDeskPaymentsRecorded } from './deskPaymentEvents';
+import type { StoredDeskPayment } from './DeskPaymentsTable';
 
 /** What one ledger check found. `visible` false: an empty read proves nothing. */
 export interface LedgerCheck {
@@ -49,13 +50,13 @@ function sendBegun(payment: LocalDeskPayment, queued: readonly PendingMutation[]
  * and a read begun after the refusal with no row for its id.
  */
 export function stoppedLine(
-  payment: LocalDeskPayment,
+  { payment, owner }: Pick<StoredDeskPayment, 'payment' | 'owner'>,
   dead: PendingMutation | undefined,
   check: LedgerCheck | null
 ): DeskPaymentLine {
-  if (!dead) return { payment, state: 'not-checked' };
+  if (!dead) return { payment, owner, state: 'not-checked' };
   if (dead.failureKind === 'max-retries') {
-    return { payment, state: 'unconfirmed-stopped', failedMutationId: dead.id };
+    return { payment, owner, state: 'unconfirmed-stopped', failedMutationId: dead.id };
   }
   const provenRefusal =
     dead.errorCode === RPC_REFUSAL_CODE &&
@@ -65,8 +66,8 @@ export function stoppedLine(
     check.startedAt >= dead.failedAt &&
     !check.found.has(payment.id);
   return provenRefusal
-    ? { payment, state: 'refused', failedMutationId: dead.id, reason: refusalReason(dead) }
-    : { payment, state: 'not-checked', failedMutationId: dead.id };
+    ? { payment, owner, state: 'refused', failedMutationId: dead.id, reason: refusalReason(dead) }
+    : { payment, owner, state: 'not-checked', failedMutationId: dead.id };
 }
 
 async function checkLedger(
@@ -120,30 +121,38 @@ export async function readDeskPaymentLines(
       .sort((a, b) => (b.failedAt ?? 0) - (a.failedAt ?? 0))[0];
 
   const lines: DeskPaymentLine[] = [];
-  const proven: string[] = [];
-  const stopped: Array<{ payment: LocalDeskPayment; dead: PendingMutation | undefined }> = [];
-  for (const { payment, acknowledged } of stored) {
+  const proven: StoredDeskPayment[] = [];
+  const stopped: Array<{ entry: StoredDeskPayment; dead: PendingMutation | undefined }> = [];
+  for (const entry of stored) {
+    const { payment, owner } = entry;
     const queued = queuedFor(payment.id);
-    if (acknowledged) proven.push(payment.id);
+    if (entry.acknowledged) proven.push(entry);
     else if (queued.length > 0) {
-      lines.push({ payment, state: sendBegun(payment, queued) ? 'unconfirmed' : 'waiting' });
-    } else stopped.push({ payment, dead: deadFor(payment.id) });
+      const state = sendBegun(payment, queued) ? 'unconfirmed' : 'waiting';
+      lines.push({ payment, owner, state });
+    } else stopped.push({ entry, dead: deadFor(payment.id) });
   }
 
   if (stopped.length > 0) {
-    const failedAtKey = stopped.map(s => `${s.payment.id}:${s.dead?.failedAt ?? ''}`).join(',');
-    const ids = stopped.map(s => s.payment.id);
+    const failedAtKey = stopped
+      .map(s => `${s.entry.payment.id}:${s.dead?.failedAt ?? ''}`)
+      .join(',');
+    const ids = stopped.map(s => s.entry.payment.id);
     const check = await checkLedger(showId, ids, deps, cache, failedAtKey);
-    for (const { payment, dead } of stopped) {
-      if (check?.found.has(payment.id)) proven.push(payment.id);
-      else lines.push(stoppedLine(payment, dead, check));
+    for (const { entry, dead } of stopped) {
+      if (check?.found.has(entry.payment.id)) proven.push(entry);
+      else lines.push(stoppedLine(entry, dead, check));
     }
   }
 
   if (proven.length > 0) {
-    const settled = await Promise.allSettled(proven.map(id => deps.table.settle(id)));
-    if (settled.some(outcome => outcome.status === 'fulfilled')) {
-      announceDeskPaymentsRecorded([showId]);
+    // Settled for the account that saved each one; `not-owner` settled nothing and moved
+    // no money, so only a real settle is announced.
+    const settled = await Promise.allSettled(
+      proven.map(({ payment, owner }) => deps.table.settle(payment.id, owner))
+    );
+    if (settled.some(outcome => outcome.status === 'fulfilled' && outcome.value === 'settled')) {
+      void announceDeskPaymentsRecorded([showId]);
     }
   }
   return lines.sort((a, b) => a.payment.receivedAt.localeCompare(b.payment.receivedAt));
@@ -170,5 +179,6 @@ export async function removeRefusedDeskPayment(
   deps: DeskPaymentDeps = defaultDeskPaymentDeps
 ): Promise<void> {
   if (line.state !== 'refused') return;
-  await deps.table.settle(line.payment.id);
+  // Another account signed in since the read: nothing is removed, and the next read says so.
+  await deps.table.settle(line.payment.id, line.owner);
 }

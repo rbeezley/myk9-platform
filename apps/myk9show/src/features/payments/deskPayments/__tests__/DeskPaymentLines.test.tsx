@@ -5,23 +5,23 @@ import { DeskPaymentLines } from '../DeskPaymentLines';
 import type { DeskPaymentLine, DeskPaymentState, LocalDeskPayment } from '../deskPaymentTypes';
 import type { DeskPaymentLinesState } from '../useDeskPaymentLines';
 
-const hook = vi.hoisted(() => ({
-  state: {
+type LinesProps = Pick<
+  DeskPaymentLinesState,
+  'lines' | 'busyId' | 'unreadable' | 'tryAgain' | 'remove'
+>;
+
+function renderLines(props: Partial<LinesProps> = {}) {
+  const state: LinesProps = {
     lines: [],
     busyId: null,
     unreadable: false,
     tryAgain: vi.fn(),
     remove: vi.fn(),
-  } as DeskPaymentLinesState,
-  calls: [] as unknown[][],
-}));
-
-vi.mock('../useDeskPaymentLines', () => ({
-  useDeskPaymentLines: (...args: unknown[]) => {
-    hook.calls.push(args);
-    return hook.state;
-  },
-}));
+    ...props,
+  };
+  render(<DeskPaymentLines {...state} />);
+  return state;
+}
 
 const PAYMENT: LocalDeskPayment = {
   id: 'pay-1',
@@ -41,19 +41,15 @@ function renderLine(
   extra: Partial<DeskPaymentLine> = {},
   unreadable = false
 ) {
-  const line: DeskPaymentLine = { payment: PAYMENT, state, ...extra };
-  hook.state = { lines: [line], busyId: null, unreadable, tryAgain: vi.fn(), remove: vi.fn() };
-  render(<DeskPaymentLines showId="show-1" enrollmentId="enr-1" />);
-  return { line, ...hook.state };
+  const line: DeskPaymentLine = { payment: PAYMENT, owner: 'secretary-a', state, ...extra };
+  return { line, ...renderLines({ lines: [line], unreadable }) };
 }
 
 describe('DeskPaymentLines (MYK9-2479)', () => {
   it('renders nothing when this device holds no payment for the form', () => {
-    hook.state = { lines: [], busyId: null, unreadable: false, tryAgain: vi.fn(), remove: vi.fn() };
-    render(<DeskPaymentLines showId="show-1" enrollmentId="enr-1" />);
+    renderLines();
 
-    expect(screen.queryByTestId('desk-payment-line')).not.toBeInTheDocument();
-    expect(hook.calls.at(-1)).toEqual(['show-1', 'enr-1']);
+    expect(screen.queryByRole('list', { name: 'Payments on this device' })).not.toBeInTheDocument();
   });
 
   it('waiting to send promises an automatic send and offers nothing to press', () => {
@@ -108,8 +104,7 @@ describe('DeskPaymentLines (MYK9-2479)', () => {
   });
 
   it('says so even when it has never read a line', () => {
-    hook.state = { lines: [], busyId: null, unreadable: true, tryAgain: vi.fn(), remove: vi.fn() };
-    render(<DeskPaymentLines showId="show-1" enrollmentId="enr-1" />);
+    renderLines({ unreadable: true });
 
     expect(screen.getByRole('alert')).toHaveTextContent(
       'This device could not read its saved payments.'

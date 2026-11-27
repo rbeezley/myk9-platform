@@ -28,9 +28,9 @@ export function useDeskPaymentRefresh(): void {
       );
     };
     const onRecorded = (event: Event) => {
-      const { showIds } = (event as CustomEvent<DeskPaymentsRecordedDetail>).detail;
+      const { showIds, waitFor } = (event as CustomEvent<DeskPaymentsRecordedDetail>).detail;
       for (const showId of showIds) {
-        void queryClient.invalidateQueries({ queryKey: showPaymentsQueryKey(showId) });
+        waitFor(queryClient.invalidateQueries({ queryKey: showPaymentsQueryKey(showId) }));
       }
     };
     window.addEventListener('replication:upload-complete', onUploadComplete);
@@ -50,8 +50,8 @@ export function useReloadOnDeskPaymentsRecorded(
   useEffect(() => {
     if (!selectedShowId) return;
     const onRecorded = (event: Event) => {
-      const { showIds } = (event as CustomEvent<DeskPaymentsRecordedDetail>).detail;
-      if (showIds.includes(selectedShowId)) void loadEntries(selectedShowId);
+      const { showIds, waitFor } = (event as CustomEvent<DeskPaymentsRecordedDetail>).detail;
+      if (showIds.includes(selectedShowId)) waitFor(loadEntries(selectedShowId));
     };
     window.addEventListener(DESK_PAYMENTS_RECORDED_EVENT, onRecorded);
     return () => window.removeEventListener(DESK_PAYMENTS_RECORDED_EVENT, onRecorded);

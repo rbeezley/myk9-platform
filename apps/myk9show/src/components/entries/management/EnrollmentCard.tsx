@@ -71,7 +71,9 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   const refundSave = useLedgerDialogSave();
   // Standalone fallback: unused when the parent passes `dialogControls`. Called
   // unconditionally on purpose (hook rules); do not make it conditional.
-  const ownControls = useEnrollmentDialogControls(group, paymentLedger);
+  const ownControls = useEnrollmentDialogControls(group, paymentLedger, {
+    readDeskPayments: !dialogControls,
+  });
   const {
     enrollmentId,
     totalDollars,
@@ -81,6 +83,8 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
     fullPaymentDollars,
     amountUnknown,
     today,
+    deskPayments,
+    fullPaymentHold,
     fullDialog,
     setFullDialog,
     fullSaveStatus,
@@ -368,7 +372,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
             </div>
           </div>
           {/* MYK9-2479: payments on this device, beside the server's balance, never in it. */}
-          <DeskPaymentLines showId={group.entries[0]?.showId} enrollmentId={group.enrollmentId} />
+          <DeskPaymentLines {...deskPayments} />
         </div>
       </CardHeader>
 
@@ -398,6 +402,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
         onChange={setFullDialog}
         balanceDollars={fullPaymentDollars}
         amountUnknown={amountUnknown}
+        hold={fullPaymentHold}
         todayInShowZone={today}
         saveStatus={fullSaveStatus}
         onClose={() => setFullDialog(EMPTY_FULL_PAYMENT_DIALOG)}

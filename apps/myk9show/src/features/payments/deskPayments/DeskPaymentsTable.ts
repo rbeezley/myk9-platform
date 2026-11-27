@@ -6,7 +6,12 @@ import {
   type SyncResult,
 } from '@myk9/replication';
 import { logger } from '@myk9/core';
-import { DESK_PAYMENT_RPC, DESK_PAYMENTS_TABLE, type LocalDeskPayment } from './deskPaymentTypes';
+import {
+  DESK_PAYMENT_RPC,
+  DESK_PAYMENTS_TABLE,
+  type DeskPaymentSettleResult,
+  type LocalDeskPayment,
+} from './deskPaymentTypes';
 
 /** The RPC's named arguments for one desk payment: the amount is always explicit. */
 export function deskPaymentRpcArgs(payment: LocalDeskPayment): Record<string, unknown> {
@@ -21,9 +26,10 @@ export function deskPaymentRpcArgs(payment: LocalDeskPayment): Record<string, un
   };
 }
 
-/** A local payment and whether the queue has acknowledged it (its row went clean). */
+/** A local payment, the account it was saved for, and whether the queue acknowledged it. */
 export interface StoredDeskPayment {
   payment: LocalDeskPayment;
+  owner: string | null;
   acknowledged: boolean;
 }
 
@@ -62,9 +68,10 @@ export class DeskPaymentsTable extends ReplicatedTable<LocalDeskPayment> {
   /**
    * Save the record and its queue row in one transaction. `holdUploadUntil` keeps
    * every upload pass off it while the caller sends it itself; a reload in that
-   * window leaves it to the queue, which sends it once the hold passes.
+   * window leaves it to the queue, which sends it once the hold passes. Resolves to the
+   * account the record was stamped with: the one account that may settle it.
    */
-  async queuePayment(payment: LocalDeskPayment, holdUploadUntil?: number): Promise<void> {
+  async queuePayment(payment: LocalDeskPayment, holdUploadUntil?: number): Promise<string | null> {
     const args = deskPaymentRpcArgs(payment);
     const { mutationId } = await this.writeAndQueue(payment.id, payment, {
       operation: 'INSERT',
@@ -73,6 +80,8 @@ export class DeskPaymentsTable extends ReplicatedTable<LocalDeskPayment> {
       holdUploadUntil,
     });
     if (!mutationId) throw new Error('The payment could not be saved on this device.');
+    const row = await this.getReplicatedRowIncludingOtherAccounts(payment.id);
+    return row?.ownerAuthUserId ?? null;
   }
 
   /** This account's local payments for one show. Throws when the device could not read them. */
@@ -81,7 +90,9 @@ export class DeskPaymentsTable extends ReplicatedTable<LocalDeskPayment> {
     const stored = await Promise.all(
       payments.map(async payment => {
         const row = await this.getReplicatedRow(payment.id);
-        return row ? { payment: row.data, acknowledged: !row.isDirty } : null;
+        return row
+          ? { payment: row.data, owner: row.ownerAuthUserId ?? null, acknowledged: !row.isDirty }
+          : null;
       })
     );
     return stored.filter((entry): entry is StoredDeskPayment => entry !== null);
@@ -107,11 +118,16 @@ export class DeskPaymentsTable extends ReplicatedTable<LocalDeskPayment> {
   /**
    * The payment is proven recorded (or a proven refusal was removed): delete its
    * record, its queue row and its dead letter in ONE transaction, so no half of it
-   * is left to send or to show. Only the signed-in account's are touched.
+   * is left to send or to show. Owner-explicit (Codex round 2 on #4461): `expectedOwner`
+   * is the account it was saved for, and it must be the signed-in account and own every
+   * piece of it. Otherwise NOTHING is deleted and the answer is `not-owner`, so a shared
+   * device that changed accounts mid-request never reads "settled" while it still queues.
    */
-  async settle(id: string): Promise<void> {
-    const owner = await this.getCurrentAuthUserId();
-    if (!owner) throw new Error('The signed-in account could not be settled.');
+  async settle(id: string, expectedOwner: string | null): Promise<DeskPaymentSettleResult> {
+    if (!expectedOwner || (await this.getCurrentAuthUserId()) !== expectedOwner) {
+      return 'not-owner';
+    }
+    const owner = expectedOwner;
     const db = await this.init();
     const tx = db.transaction(
       [
@@ -124,24 +140,36 @@ export class DeskPaymentsTable extends ReplicatedTable<LocalDeskPayment> {
     const rows = tx.objectStore(REPLICATION_STORES.REPLICATED_TABLES);
     const key = [this.tableName, id];
     const row = (await rows.get(key)) as ReplicatedRow<LocalDeskPayment> | undefined;
-    if (row && row.ownerAuthUserId === owner) await rows.delete(key);
-    for (const storeName of [
+    const queueStores = [
       REPLICATION_STORES.PENDING_MUTATIONS,
       REPLICATION_STORES.FAILED_MUTATIONS,
-    ]) {
-      const store = tx.objectStore(storeName);
-      const mutations = (await store.getAll()) as PendingMutation[];
+    ] as const;
+    const queued: Array<{
+      storeName: (typeof queueStores)[number];
+      mutation: PendingMutation;
+    }> = [];
+    for (const storeName of queueStores) {
+      const mutations = (await tx.objectStore(storeName).getAll()) as PendingMutation[];
       for (const mutation of mutations) {
-        if (
-          mutation.tableName === this.tableName &&
-          String(mutation.rowId) === id &&
-          mutation.authUserId === owner
-        ) {
-          await store.delete(mutation.id);
+        if (mutation.tableName === this.tableName && String(mutation.rowId) === id) {
+          queued.push({ storeName, mutation });
         }
       }
     }
+    // Every piece is checked before any is deleted: all of it goes, or none of it.
+    const notOwned =
+      (row !== undefined && row.ownerAuthUserId !== owner) ||
+      queued.some(({ mutation }) => mutation.authUserId !== owner);
+    if (notOwned) {
+      await tx.done;
+      return 'not-owner';
+    }
+    if (row) await rows.delete(key);
+    for (const { storeName, mutation } of queued) {
+      await tx.objectStore(storeName).delete(mutation.id);
+    }
     await tx.done;
     await this.notifyListeners();
+    return 'settled';
   }
 }

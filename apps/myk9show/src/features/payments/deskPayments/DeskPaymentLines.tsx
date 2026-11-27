@@ -1,12 +1,12 @@
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { DESK_PAYMENTS_UNREADABLE, deskPaymentLineText } from './deskPaymentCopy';
-import { useDeskPaymentLines } from './useDeskPaymentLines';
+import type { DeskPaymentLinesState } from './useDeskPaymentLines';
 
-interface DeskPaymentLinesProps {
-  showId: string | undefined;
-  enrollmentId: string | null | undefined;
-}
+type DeskPaymentLinesProps = Pick<
+  DeskPaymentLinesState,
+  'lines' | 'busyId' | 'unreadable' | 'tryAgain' | 'remove'
+>;
 
 /**
  * MYK9-2479: this form's cash and check payments that live on this device, under the
@@ -15,9 +15,15 @@ interface DeskPaymentLinesProps {
  * Stopped, it says it will not send on its own and offers Try again (the same payment,
  * the same id). Only a proven refusal offers Remove. When the device cannot read its
  * saved payments it says so, keeps what it last knew, and offers nothing to press.
+ * The state is the form's own (`useEnrollmentDialogControls`), which Paid in Full reads too.
  */
-export function DeskPaymentLines({ showId, enrollmentId }: DeskPaymentLinesProps) {
-  const { lines, busyId, unreadable, tryAgain, remove } = useDeskPaymentLines(showId, enrollmentId);
+export function DeskPaymentLines({
+  lines,
+  busyId,
+  unreadable,
+  tryAgain,
+  remove,
+}: DeskPaymentLinesProps) {
   if (lines.length === 0 && !unreadable) return null;
   const actionsOff = busyId !== null || unreadable;
   return (

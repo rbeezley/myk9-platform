@@ -345,7 +345,7 @@ describe('desk payments on the offline queue (MYK9-2479)', () => {
 
     window.removeEventListener(DESK_PAYMENTS_RECORDED_EVENT, recorded);
     expect(shows).toEqual([SHOW]);
-    expect((recorded.mock.calls[0]![0] as CustomEvent).detail).toEqual({ showIds: [SHOW] });
+    expect((recorded.mock.calls[0]![0] as CustomEvent).detail.showIds).toEqual([SHOW]);
     expect(await table.listForShow(SHOW)).toEqual([]);
   });
 

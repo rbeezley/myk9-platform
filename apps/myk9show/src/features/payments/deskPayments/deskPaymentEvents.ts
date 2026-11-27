@@ -12,15 +12,24 @@ export const DESK_PAYMENTS_RECORDED_EVENT = 'desk-payments:recorded';
 
 export interface DeskPaymentsRecordedDetail {
   showIds: string[];
+  /** A listener hands over the refresh it started, so the announcer knows when it is done. */
+  waitFor: (work: Promise<unknown>) => void;
 }
 
-export function announceDeskPaymentsRecorded(showIds: string[]): void {
-  if (showIds.length === 0 || typeof window === 'undefined') return;
+/**
+ * Tell this tab the shows' money moved. Resolves once every refresh a listener started
+ * for it is done (each failure is the listener's to log), so a caller can say "the
+ * balance is being updated" until the form's figures are current again.
+ */
+export function announceDeskPaymentsRecorded(showIds: string[]): Promise<void> {
+  if (showIds.length === 0 || typeof window === 'undefined') return Promise.resolve();
+  const work: Array<Promise<unknown>> = [];
   window.dispatchEvent(
     new CustomEvent<DeskPaymentsRecordedDetail>(DESK_PAYMENTS_RECORDED_EVENT, {
-      detail: { showIds },
+      detail: { showIds, waitFor: next => work.push(next) },
     })
   );
+  return Promise.allSettled(work).then(() => undefined);
 }
 
 /** A desk cash or check payment's queue row. */
@@ -54,11 +63,13 @@ export async function settleUploadedDeskPayments(
     .map(m => String(m.rowId));
   const showIds = new Set<string>();
   for (const id of ids) {
-    const payment = await table.get(id);
-    if (!payment) continue;
-    showIds.add(payment.showId);
-    await table.settle(id);
+    // The signed-in account's record only; another account's is settled when it is back.
+    const row = await table.getReplicatedRow(id);
+    if (!row) continue;
+    if ((await table.settle(id, row.ownerAuthUserId ?? null)) === 'settled') {
+      showIds.add(row.data.showId);
+    }
   }
-  announceDeskPaymentsRecorded([...showIds]);
+  void announceDeskPaymentsRecorded([...showIds]);
   return [...showIds];
 }

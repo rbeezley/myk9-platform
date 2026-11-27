@@ -33,6 +33,23 @@ export const ReceivedOnField: React.FC<ReceivedOnFieldProps> = ({ id, value, max
   </div>
 );
 
+/**
+ * MYK9-2479, Codex round 2 on #4461: why the due shown may already be paid, so Paid in
+ * Full waits. `device-payment`: a payment for the form is still on this device.
+ * `unreadable`: the device cannot read its saved payments. `refreshing`: one just went
+ * and the form's money is reloading.
+ */
+export type FullPaymentHold = 'device-payment' | 'unreadable' | 'refreshing';
+
+const HOLD_NOTE: Record<FullPaymentHold, string> = {
+  'device-payment':
+    'A payment for this form is still on this device, so the balance may change. Use Partial Payment to record another amount.',
+  unreadable:
+    'This device could not read its saved payments, so the balance may be out of date. Use Partial Payment to record the amount you received.',
+  refreshing:
+    'The balance is being updated. Use Partial Payment to record the amount you received, or wait a moment.',
+};
+
 interface EnrollmentFullPaymentDialogProps {
   state: FullPaymentDialog;
   onChange: (next: FullPaymentDialog) => void;
@@ -40,6 +57,8 @@ interface EnrollmentFullPaymentDialogProps {
   balanceDollars: number;
   /** MYK9-1968: the payment record is not loaded, so the balance is not quoted. */
   amountUnknown?: boolean | undefined;
+  /** The balance may be stale: Paid in Full cannot be confirmed, and the note says why. */
+  hold?: FullPaymentHold | null | undefined;
   todayInShowZone: string;
   /** MYK9-2156: the ledger write's state; confirm is disabled while it is pending. */
   saveStatus?: LedgerSaveStatus | undefined;
@@ -56,6 +75,7 @@ export const EnrollmentFullPaymentDialog: React.FC<EnrollmentFullPaymentDialogPr
   onChange,
   balanceDollars,
   amountUnknown = false,
+  hold = null,
   todayInShowZone,
   saveStatus = 'idle',
   onClose,
@@ -86,7 +106,12 @@ export const EnrollmentFullPaymentDialog: React.FC<EnrollmentFullPaymentDialogPr
               the amount you received.
             </p>
           )}
-          {!amountUnknown && nothingDue && (
+          {!amountUnknown && hold && (
+            <p className="text-sm text-muted-foreground" data-testid="full-payment-held-note">
+              {HOLD_NOTE[hold]}
+            </p>
+          )}
+          {!amountUnknown && !hold && nothingDue && (
             // MYK9-2479: a payment carries the amount shown, and $0 is not a payment.
             <p className="text-sm text-muted-foreground" data-testid="full-payment-nothing-due">
               Nothing is due on this form, so there is no payment to record.
@@ -114,7 +139,13 @@ export const EnrollmentFullPaymentDialog: React.FC<EnrollmentFullPaymentDialogPr
           </Button>
           <Button
             onClick={onConfirm}
-            disabled={amountUnknown || nothingDue || !state.receivedOn || saveStatus === 'saving'}
+            disabled={
+              amountUnknown ||
+              hold !== null ||
+              nothingDue ||
+              !state.receivedOn ||
+              saveStatus === 'saving'
+            }
           >
             Confirm
           </Button>

@@ -49,12 +49,16 @@ function isAnsweredRefusal(error: unknown): boolean {
   return code === RPC_REFUSAL_CODE || code === NOT_AUTHORIZED_CODE;
 }
 
-async function settleQuietly(deps: DeskPaymentDeps, id: string): Promise<void> {
+/**
+ * True only when the record, its queue row and any dead letter are gone for the account
+ * that saved it. False when any of it may remain: another account is signed in now, it is
+ * another account's, or the device could not write. Its queue row then stays to be sent.
+ */
+async function settledFor(deps: DeskPaymentDeps, id: string, owner: string | null) {
   try {
-    await deps.table.settle(id);
+    if ((await deps.table.settle(id, owner)) === 'settled') return true;
+    logger.warn('Desk payment left queued: not the signed-in account’s to settle', 'secretary');
   } catch (error) {
-    // Left held, the queue sends it again under the same id once the hold passes,
-    // and the server answers that id without recording it twice.
     logger.warn(
       'Desk payment could not be settled on this device',
       'secretary',
@@ -62,22 +66,7 @@ async function settleQuietly(deps: DeskPaymentDeps, id: string): Promise<void> {
       error as Error
     );
   }
-}
-
-/** True once the record, its queue row and any dead letter are gone; false if they may remain. */
-async function settledOrKept(deps: DeskPaymentDeps, id: string): Promise<boolean> {
-  try {
-    await deps.table.settle(id);
-    return true;
-  } catch (error) {
-    logger.warn(
-      'A refused desk payment could not be settled; it stays queued',
-      'secretary',
-      {},
-      error as Error
-    );
-    return false;
-  }
+  return false;
 }
 
 function handToQueue(deps: DeskPaymentDeps, id: string): void {
@@ -120,8 +109,10 @@ export async function saveDeskPayment(
     receivedAt: new Date(deps.now()).toISOString(),
     sendBegun: online,
   };
+  // The account the record is stamped with, captured now: only it may settle the payment.
+  let owner: string | null;
   try {
-    await deps.table.queuePayment(
+    owner = await deps.table.queuePayment(
       payment,
       online ? deps.now() + DESK_PAYMENT_WAIT_MS + HOLD_MARGIN_MS : undefined
     );
@@ -138,17 +129,20 @@ export async function saveDeskPayment(
       { ...action, amount: payment.amount },
       controller.signal
     );
-    await settleQuietly(deps, payment.id);
+    // Answered. Not settled here, the queue replays it under the same id, and the server
+    // answers that id without recording it twice.
+    if (!(await settledFor(deps, payment.id, owner))) handToQueue(deps, payment.id);
     return { kind: 'saved', recorded };
   } catch (error) {
     // Stays in the dialog, as before, so she sees why and can fix what she typed: but
     // "not recorded" invites a re-entry under a NEW id, so it is said only once the queued
-    // write is gone. Not settled, the original could still replay beside her re-entry, so
-    // it stays on its line under its own id instead, and the queue's answer decides it.
+    // write is gone for the account that saved it. Not settled (a write failure, or another
+    // account signed in mid-request), the original could still replay beside her re-entry,
+    // so it stays on its line under its own id instead, and the queue's answer decides it.
     if (
       !controller.signal.aborted &&
       isAnsweredRefusal(error) &&
-      (await settledOrKept(deps, payment.id))
+      (await settledFor(deps, payment.id, owner))
     ) {
       return { kind: 'refused', error };
     }

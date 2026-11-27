@@ -29,6 +29,9 @@ export interface LocalDeskPayment {
   sendBegun: boolean;
 }
 
+/** What settling one payment found: `not-owner` removed nothing (another account's, or no account). */
+export type DeskPaymentSettleResult = 'settled' | 'not-owner';
+
 /** The form a payment belongs to, for its local record. */
 export interface DeskPaymentForm {
   showId: string;
@@ -54,6 +57,8 @@ export type DeskPaymentState =
 /** One local payment as its line shows it, with what she may do. */
 export interface DeskPaymentLine {
   payment: LocalDeskPayment;
+  /** The account whose record it is: settling it is that account's alone. */
+  owner: string | null;
   state: DeskPaymentState;
   /** The dead letter Try again re-queues; absent when there is none to retry. */
   failedMutationId?: string | undefined;

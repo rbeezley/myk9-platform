@@ -16,6 +16,8 @@ import {
   type LedgerConfirmState,
   type PartialDialog,
 } from './enrollmentPayment';
+import { useDeskPaymentLines } from '@/features/payments/deskPayments/useDeskPaymentLines';
+import type { FullPaymentHold } from './EnrollmentFullPaymentDialog';
 import { useLedgerDialogSave } from './useLedgerDialogSave';
 import { usePaymentAttemptId } from './usePaymentAttemptId';
 
@@ -25,11 +27,15 @@ import { usePaymentAttemptId } from './usePaymentAttemptId';
  * figures they read, held in ONE place so the entry form's checklist, its header
  * menu and the Payment section open the very same dialog instances and call the
  * same ledger handlers (MYK9-1600). The dialogs themselves render in
- * `EnrollmentCard`; this hook only owns their state and confirm handlers.
+ * `EnrollmentCard`; this hook only owns their state and confirm handlers. It also reads
+ * the form's payments held on this device (MYK9-2479), which the Payment section shows
+ * and which hold Paid in Full; `readDeskPayments: false` skips that read for a caller
+ * whose controls are not the ones on screen.
  */
 export function useEnrollmentDialogControls(
   group: EnrollmentGroup & { exhibitorName?: string | undefined },
-  paymentLedger: EnrollmentLedgerControls
+  paymentLedger: EnrollmentLedgerControls,
+  { readDeskPayments = true }: { readDeskPayments?: boolean } = {}
 ) {
   const [fullDialog, setFullDialog] = useState<FullPaymentDialog>(EMPTY_FULL_PAYMENT_DIALOG);
   const [partialDialog, setPartialDialog] = useState<PartialDialog>(EMPTY_PARTIAL_DIALOG);
@@ -64,6 +70,21 @@ export function useEnrollmentDialogControls(
   // reading these controls says the amount is not available instead of quoting them.
   const amountUnknown = formMoneyUnknown(group);
   const today = paymentLedger.todayInShowZone;
+  const deskPayments = useDeskPaymentLines(
+    readDeskPayments ? form.showId || undefined : undefined,
+    group.enrollmentId
+  );
+  // MYK9-2479, Codex round 2 on #4461: Paid in Full records the due shown here. With a
+  // payment for the form still on this device, its payments unreadable, or the money
+  // reloading after one went, that due may already be paid, so it waits.
+  const fullPaymentHold: FullPaymentHold | null =
+    deskPayments.lines.length > 0
+      ? 'device-payment'
+      : deskPayments.unreadable
+        ? 'unreadable'
+        : deskPayments.balanceRefreshing
+          ? 'refreshing'
+          : null;
 
   // MYK9-1841: "Paid in Full: Online" and "Payment Due" change what the whole
   // form owes, so both ask once first, like every other item in the menu. Both
@@ -108,9 +129,11 @@ export function useEnrollmentDialogControls(
   // MYK9-2156: each dialog closes only once its write succeeds; a failed write
   // keeps it open with what was typed (useLedgerDialogSave).
   // MYK9-2479: Paid in Full sends the due she is shown, never NULL. Nothing is queued for a
-  // zero balance, or while the balance is not known (the dialog disables Confirm for both).
+  // zero balance, while the balance is not known, or while it may be stale (the dialog
+  // disables Confirm for each).
   const confirmFullPayment = () => {
     if (!enrollmentId || !fullDialog.receivedOn || amountUnknown || fullPaymentCents <= 0) return;
+    if (fullPaymentHold) return;
     const action = fullAttempt.withId(enrollmentId, {
       kind: 'payment',
       method: fullDialog.method,
@@ -154,6 +177,8 @@ export function useEnrollmentDialogControls(
     fullPaymentDollars,
     amountUnknown,
     today,
+    deskPayments,
+    fullPaymentHold,
     fullDialog,
     setFullDialog,
     fullSaveStatus: fullSave.status,

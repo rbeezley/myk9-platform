@@ -5,7 +5,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { AuthContext } from '@/context/authContextObject';
 import type { AuthContextType } from '@/context/authContextTypes';
 import type { DeskPaymentDeps } from '../deskPaymentDeps';
-import { announceDeskPaymentsRecorded } from '../deskPaymentEvents';
+import {
+  announceDeskPaymentsRecorded,
+  DESK_PAYMENTS_RECORDED_EVENT,
+  type DeskPaymentsRecordedDetail,
+} from '../deskPaymentEvents';
 import type { DeskPaymentsTable, StoredDeskPayment } from '../DeskPaymentsTable';
 import type { LocalDeskPayment } from '../deskPaymentTypes';
 import { DESK_PAYMENT_LINES_POLL_MS, useDeskPaymentLines } from '../useDeskPaymentLines';
@@ -36,7 +40,9 @@ describe('refresh after a replayed desk payment (MYK9-2479)', () => {
       ),
     });
 
-    act(() => announceDeskPaymentsRecorded(['show-1']));
+    act(() => {
+      void announceDeskPaymentsRecorded(['show-1']);
+    });
 
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['show-payments', 'show-1'] });
   });
@@ -45,19 +51,40 @@ describe('refresh after a replayed desk payment (MYK9-2479)', () => {
     const loadEntries = vi.fn().mockResolvedValue(undefined);
     renderHook(() => useReloadOnDeskPaymentsRecorded('show-1', loadEntries));
 
-    act(() => announceDeskPaymentsRecorded(['show-2']));
+    act(() => {
+      void announceDeskPaymentsRecorded(['show-2']);
+    });
     expect(loadEntries).not.toHaveBeenCalled();
 
-    act(() => announceDeskPaymentsRecorded(['show-1']));
+    act(() => {
+      void announceDeskPaymentsRecorded(['show-1']);
+    });
     expect(loadEntries).toHaveBeenCalledWith('show-1');
+  });
+
+  // Codex round 2 on #4461: whoever announces knows when the form money is current again.
+  it('the announcement resolves only once the reload it started is done', async () => {
+    let done: () => void = () => undefined;
+    const loadEntries = vi.fn(() => new Promise<void>(resolve => (done = resolve)));
+    renderHook(() => useReloadOnDeskPaymentsRecorded('show-1', loadEntries));
+    let finished = false;
+
+    act(() => {
+      void announceDeskPaymentsRecorded(['show-1']).then(() => (finished = true));
+    });
+    await act(async () => undefined);
+    expect(finished).toBe(false);
+
+    await act(async () => done());
+    expect(finished).toBe(true);
   });
 });
 
 describe('useDeskPaymentLines (MYK9-2479)', () => {
   function setup(listForShow?: DeskPaymentsTable['listForShow']) {
     let stored: StoredDeskPayment[] = [
-      { payment: payment('pay-1', 'enr-1'), acknowledged: false },
-      { payment: payment('pay-2', 'enr-2'), acknowledged: false },
+      { payment: payment('pay-1', 'enr-1'), owner: 'secretary-a', acknowledged: false },
+      { payment: payment('pay-2', 'enr-2'), owner: 'secretary-a', acknowledged: false },
     ];
     let retries = 0;
     const queued = (rowId: string) => ({ id: `mut-${rowId}`, rowId, retries });
@@ -167,6 +194,63 @@ describe('useDeskPaymentLines (MYK9-2479)', () => {
 
     await waitFor(() => expect(result.current.unreadable).toBe(true));
     expect(result.current.lines).toEqual([]);
+  });
+
+  // Codex round 2 on #4461: another tab settled it, so no event reaches this one. The line
+  // going is the signal: this form's money is refreshed whichever tab settled it, and
+  // the form says its balance is refreshing until the reload is done.
+  it("a line that goes with no event here refreshes its show's money, flagged until done", async () => {
+    let finish: () => void = () => undefined;
+    const heard = vi.fn((event: Event) => {
+      const { waitFor: wait } = (event as CustomEvent<DeskPaymentsRecordedDetail>).detail;
+      wait(new Promise<void>(resolve => (finish = resolve)));
+    });
+    window.addEventListener(DESK_PAYMENTS_RECORDED_EVENT, heard);
+    try {
+      const { result, setStored } = setup();
+      await waitFor(() => expect(result.current.lines).toHaveLength(1));
+      expect(result.current.balanceRefreshing).toBe(false);
+
+      setStored([]);
+      act(() => {
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+
+      await waitFor(() => expect(result.current.balanceRefreshing).toBe(true));
+      expect(heard).toHaveBeenCalledTimes(1);
+      expect((heard.mock.calls[0]![0] as CustomEvent).detail.showIds).toEqual(['show-1']);
+      await act(async () => finish());
+      expect(result.current.balanceRefreshing).toBe(false);
+    } finally {
+      window.removeEventListener(DESK_PAYMENTS_RECORDED_EVENT, heard);
+    }
+  });
+
+  it("another form's line going, or an account switch, refreshes nothing here", async () => {
+    const heard = vi.fn();
+    window.addEventListener(DESK_PAYMENTS_RECORDED_EVENT, heard);
+    try {
+      const { result, setStored, switchAccount, deps } = setup();
+      await waitFor(() => expect(result.current.lines).toHaveLength(1));
+
+      // enr-2's payment goes: not a line this form showed.
+      setStored([
+        { payment: payment('pay-1', 'enr-1'), owner: 'secretary-a', acknowledged: false },
+      ]);
+      act(() => document.dispatchEvent(new Event('visibilitychange')));
+      await waitFor(() => expect(deps.queue.getFailedMutations).toHaveBeenCalledTimes(2));
+      await act(async () => undefined);
+      // The next account reads none of the first account's lines: not a payment that went.
+      setStored([]);
+      switchAccount('secretary-b');
+      await waitFor(() => expect(deps.table.listForShow).toHaveBeenCalledTimes(3));
+      await act(async () => undefined);
+
+      expect(heard).not.toHaveBeenCalled();
+      expect(result.current.balanceRefreshing).toBe(false);
+    } finally {
+      window.removeEventListener(DESK_PAYMENTS_RECORDED_EVENT, heard);
+    }
   });
 
   it("hides the earlier account's lines at once after an account switch", async () => {

@@ -119,6 +119,32 @@ describe('club onboarding draft', () => {
     expect(first).not.toBe(second);
   });
 
+  // MYK9-2501: a second submit from the same flow overwrites its own draft.
+  it('reuses the id already in the address, so one flow keeps one draft', () => {
+    const first = saveClubOnboardingDraft(draft)!;
+    const again = saveClubOnboardingDraft({ ...draft, contactName: 'Sam Lee' }, first);
+    expect(again).toBe(first);
+    expect(readClubOnboardingDraft(first)?.contactName).toBe('Sam Lee');
+  });
+
+  // An old link must never pick up what the next person types (a shared computer).
+  it('gives a new id when the address id has no stored draft: cleared, expired or never saved', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-27T12:00:00Z'));
+    const cleared = saveClubOnboardingDraft(draft)!;
+    clearClubOnboardingDraft(cleared);
+    const expired = saveClubOnboardingDraft(draft)!;
+    vi.setSystemTime(Date.now() + CLUB_ONBOARDING_DRAFT_MAX_AGE_MS + 1000);
+    const unknown = '0b9f1c7e-2d4a-4e8b-9c3f-5a6d7e8f9a0b';
+
+    for (const oldId of [cleared, expired, unknown, '../not-an-id']) {
+      const saved = saveClubOnboardingDraft({ ...draft, contactName: 'Next Person' }, oldId);
+      expect(saved).not.toBe(oldId);
+      expect(readClubOnboardingDraft(oldId)).toBeNull();
+      expect(readClubOnboardingDraft(saved)?.contactName).toBe('Next Person');
+    }
+  });
+
   // The shared-computer case: the next visitor has no id, or another one.
   it.each([
     { label: 'no id', id: null },

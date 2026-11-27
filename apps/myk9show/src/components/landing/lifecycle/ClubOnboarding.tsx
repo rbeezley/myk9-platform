@@ -137,16 +137,19 @@ export function ClubOnboarding() {
     if (fail()) return;
 
     if (!user) {
-      const savedId = saveClubOnboardingDraft({
-        clubName,
-        organization,
-        clubNumbers,
-        contactName,
-        contactEmail,
-        contactPhone,
-        firstShowDate,
-        message,
-      });
+      const savedId = saveClubOnboardingDraft(
+        {
+          clubName,
+          organization,
+          clubNumbers,
+          contactName,
+          contactEmail,
+          contactPhone,
+          firstShowDate,
+          message,
+        },
+        draftId
+      );
       // Back from sign-in must land on this form with what she typed: put the draft id on the
       // form's own history entry first (keeping onboarding, returnTo and the hash).
       if (savedId) {

@@ -35,31 +35,40 @@ function SignInStub() {
   );
 }
 
+/** The club form, filled in by a signed-out visitor, with a sign-in page to be sent to. */
+function renderFilledForm() {
+  render(
+    <Routes>
+      <Route path="/" element={<ClubOnboarding />} />
+      <Route path="/sign-in" element={<SignInStub />} />
+    </Routes>,
+    { initialRoute: '/?onboarding=true#get-started' }
+  );
+  fireEvent.change(screen.getByLabelText(/club name/i), {
+    target: { value: 'Tri-State Kennel Club' },
+  });
+  fireEvent.change(screen.getByLabelText(/organization/i), { target: { value: 'AKC' } });
+  fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: '123' } });
+  fireEvent.change(screen.getByLabelText(/contact name/i), { target: { value: 'Pat Morgan' } });
+  fireEvent.change(screen.getByLabelText(/contact email/i), {
+    target: { value: 'pat@example.com' },
+  });
+}
+
+function submitForm() {
+  fireEvent.submit(
+    screen.getByRole('button', { name: /sign in to add my club/i }).closest('form')!
+  );
+}
+
 describe('ClubOnboarding back from sign-in', () => {
   beforeEach(() => {
     localStorage.clear();
   });
 
   it('shows what she typed when she goes back from the sign-in page', async () => {
-    render(
-      <Routes>
-        <Route path="/" element={<ClubOnboarding />} />
-        <Route path="/sign-in" element={<SignInStub />} />
-      </Routes>,
-      { initialRoute: '/?onboarding=true#get-started' }
-    );
-    fireEvent.change(screen.getByLabelText(/club name/i), {
-      target: { value: 'Tri-State Kennel Club' },
-    });
-    fireEvent.change(screen.getByLabelText(/organization/i), { target: { value: 'AKC' } });
-    fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: '123' } });
-    fireEvent.change(screen.getByLabelText(/contact name/i), { target: { value: 'Pat Morgan' } });
-    fireEvent.change(screen.getByLabelText(/contact email/i), {
-      target: { value: 'pat@example.com' },
-    });
-    fireEvent.submit(
-      screen.getByRole('button', { name: /sign in to add my club/i }).closest('form')!
-    );
+    renderFilledForm();
+    submitForm();
 
     expect(await screen.findByText('Sign in page')).toBeInTheDocument();
     expect(screen.queryByLabelText(/club name/i)).not.toBeInTheDocument();
@@ -71,5 +80,28 @@ describe('ClubOnboarding back from sign-in', () => {
     expect(screen.getByLabelText('AKC club number')).toHaveValue('123');
     expect(screen.getByLabelText(/contact name/i)).toHaveValue('Pat Morgan');
     expect(screen.getByLabelText(/contact email/i)).toHaveValue('pat@example.com');
+  });
+
+  // MYK9-2501: the same flow keeps one draft. A second copy would let the first attempt's
+  // confirmation link restore the old details, and submitting would clear only the new one.
+  it('keeps one draft, the edited one, when she goes back, edits and submits again', async () => {
+    renderFilledForm();
+    submitForm();
+    expect(await screen.findByText('Sign in page')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(await screen.findByLabelText(/contact name/i)).toHaveValue('Pat Morgan');
+    fireEvent.change(screen.getByLabelText(/contact name/i), { target: { value: 'Sam Lee' } });
+    submitForm();
+    expect(await screen.findByText('Sign in page')).toBeInTheDocument();
+
+    const draftKeys = Array.from({ length: localStorage.length }, (_, index) =>
+      localStorage.key(index)
+    ).filter((key): key is string => key?.startsWith('myk9:club-onboarding-draft:') ?? false);
+    expect(draftKeys).toHaveLength(1);
+    const stored = JSON.parse(localStorage.getItem(draftKeys[0]!)!) as {
+      draft: { contactName: string };
+    };
+    expect(stored.draft.contactName).toBe('Sam Lee');
   });
 });

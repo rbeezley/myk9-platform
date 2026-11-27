@@ -154,7 +154,7 @@ export function HeadlineEntryReceived({
             margin: '0 0 6px',
           }}
         >
-          § 01 · The dog
+          § 01 · {dogs.length > 1 ? 'The dogs' : 'The dog'}
         </p>
 
         {dogs.map(dog => (

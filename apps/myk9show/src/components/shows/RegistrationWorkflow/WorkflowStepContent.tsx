@@ -220,12 +220,25 @@ export function WorkflowStepContent({
               : fmt(currentShow.startDate);
           })()
         : '',
-      dogs: buildReceiptDogs(receiptClassSelections, dogs, classes),
+      dogs: buildReceiptDogs(
+        receiptClassSelections,
+        dogs,
+        classes,
+        optimisticState.formData.selectedDogs
+      ),
       // MYK9-1999: the full confirmation goes by itself once the entry is accepted; the
       // secretary sets no date for it.
       fullConfirmationNote: fullConfirmationNote(currentWorkflowMode),
     } as const;
-  }, [currentStepId, dogs, classes, receiptClassSelections, currentShow, currentWorkflowMode]);
+  }, [
+    currentStepId,
+    dogs,
+    classes,
+    receiptClassSelections,
+    optimisticState.formData.selectedDogs,
+    currentShow,
+    currentWorkflowMode,
+  ]);
 
   const entryBlankResult = useMemo(() => {
     if (

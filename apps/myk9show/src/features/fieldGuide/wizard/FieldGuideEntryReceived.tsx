@@ -145,7 +145,7 @@ export function FieldGuideEntryReceived({
             color: fieldGuideColors.orangeDeep,
           }}
         >
-          §01 · THE DOG
+          §01 · {dogs.length > 1 ? 'THE DOGS' : 'THE DOG'}
         </p>
         {dogs.map(dog => (
           <Fragment key={dog.id}>

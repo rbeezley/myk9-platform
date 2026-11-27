@@ -146,7 +146,7 @@ export function PosterEntryReceived({
             color: posterColors.red,
           }}
         >
-          NO 02 / THE DOG
+          NO 02 / {dogs.length > 1 ? 'THE DOGS' : 'THE DOG'}
         </p>
         {dogs.map(dog => (
           <Fragment key={dog.id}>

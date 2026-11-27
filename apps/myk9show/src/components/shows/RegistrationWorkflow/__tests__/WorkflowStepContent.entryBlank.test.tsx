@@ -365,6 +365,20 @@ describe('WorkflowStepContent receipt payment label', () => {
     expect(screen.queryByText(/fees due/i)).not.toBeInTheDocument();
   });
 
+  // MYK9-2474: a two-dog entry named only the first dog, and staff saw two sets of exits.
+  it('names every dog with its own classes and leaves the exits to the wizard footer', () => {
+    renderConfirmation(undefined, [
+      createdOutcome('dog-1', 'class-1', 'entry-1'),
+      createdOutcome('dog-2', 'class-2', 'entry-2'),
+    ]);
+
+    expect(screen.getByText('First Registered Dog')).toBeInTheDocument();
+    expect(screen.getByText('Maia TeraByte Van Neerland')).toBeInTheDocument();
+    expect(screen.getByText('Novice Containers')).toBeInTheDocument();
+    expect(screen.getByText('Advanced Exterior')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Return to dashboard' })).not.toBeInTheDocument();
+  });
+
   it('claims nothing about payment when the exhibitor pays by check at the show', () => {
     renderConfirmation(outcomes(), undefined, 'check');
 

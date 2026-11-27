@@ -159,7 +159,7 @@ export function HeritageEntryReceived({
             margin: '0 0 4px',
           }}
         >
-          § The Dog
+          § {dogs.length > 1 ? 'The Dogs' : 'The Dog'}
         </p>
 
         {dogs.map(dog => (

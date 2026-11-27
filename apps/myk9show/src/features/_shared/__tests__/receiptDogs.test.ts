@@ -27,6 +27,21 @@ describe('buildReceiptDogs', () => {
     ]);
   });
 
+  it('lists dogs in the order they were picked, not the order their classes were last edited', () => {
+    const result = buildReceiptDogs(
+      [
+        { dogId: 'coco', selectedClasses: [{ classId: 'in' }] },
+        { dogId: 'stray', selectedClasses: [{ classId: 'cn' }] },
+        { dogId: 'lucy', selectedClasses: [{ classId: 'cn' }] },
+      ],
+      dogs,
+      classes,
+      ['lucy', 'coco']
+    );
+
+    expect(result.map(d => d.id)).toEqual(['lucy', 'coco', 'stray']);
+  });
+
   it('falls back to the class id and an empty name when a lookup misses', () => {
     const [only] = buildReceiptDogs(
       [{ dogId: 'gone', selectedClasses: [{ classId: 'x9' }] }],

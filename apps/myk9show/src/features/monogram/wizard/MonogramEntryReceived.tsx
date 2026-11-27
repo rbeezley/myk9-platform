@@ -141,7 +141,7 @@ export function MonogramEntryReceived({
             margin: '0 0 6px',
           }}
         >
-          § i · The dog
+          § i · {dogs.length > 1 ? 'The dogs' : 'The dog'}
         </p>
         {dogs.map(dog => (
           <Fragment key={dog.id}>

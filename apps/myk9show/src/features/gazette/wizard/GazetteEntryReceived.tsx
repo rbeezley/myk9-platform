@@ -118,7 +118,7 @@ export function GazetteEntryReceived({
           className="m-0 mb-1.5 text-[10px] font-semibold uppercase"
           style={{ color: BROWN, letterSpacing: '0.28em', fontFamily: META }}
         >
-          Section A · The Dog
+          Section A · {dogs.length > 1 ? 'The Dogs' : 'The Dog'}
         </p>
         {dogs.map(dog => (
           <Fragment key={dog.id}>

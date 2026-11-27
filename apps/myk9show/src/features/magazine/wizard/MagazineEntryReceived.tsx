@@ -176,7 +176,7 @@ export function MagazineEntryReceived({
             paddingTop: '18px',
           }}
         >
-          Article i · The dog
+          Article i · {dogs.length > 1 ? 'The dogs' : 'The dog'}
         </p>
 
         {dogs.map(dog => (

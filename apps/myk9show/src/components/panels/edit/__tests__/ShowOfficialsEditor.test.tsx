@@ -75,7 +75,9 @@ describe('ShowOfficialsEditor replace', () => {
     renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
     await userEvent.click(screen.getByText('pick Chair'));
 
-    await waitFor(() => expect(harness.success).toHaveBeenCalledWith('Official assigned'));
+    await waitFor(() =>
+      expect(harness.success).toHaveBeenCalledWith('Alex Whitfield is now Chair.')
+    );
     expect(harness.rpc).toHaveBeenCalledWith('grant_show_official', {
       p_person_id: 'new-person',
       p_role_name: 'chairman',
@@ -136,7 +138,9 @@ describe('ShowOfficialsEditor replace', () => {
     renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
     await userEvent.click(screen.getByText('pick Chair'));
 
-    await waitFor(() => expect(harness.success).toHaveBeenCalledWith('Official assigned'));
+    await waitFor(() =>
+      expect(harness.success).toHaveBeenCalledWith('Alex Whitfield is now Chair.')
+    );
     expect(harness.rpc).toHaveBeenCalledWith('revoke_show_official', {
       p_person_id: 'old-1',
       p_role_name: 'chairman',
@@ -328,5 +332,66 @@ describe('ShowOfficialsEditor mailing address for the premium (MYK9-2065)', () =
     };
     view.rerender(<ShowOfficialsEditor showId={SHOW} />);
     expect(screen.getByLabelText(label)).toHaveValue('PO Box 2x');
+  });
+
+  // MYK9-2470: a pick saves at once and the panel's Save Changes stays disabled, so the answer
+  // has to be under the picker she just used.
+  describe('saved and failed notes under the picker', () => {
+    it('says who is now Secretary, under the picker and on the toast', async () => {
+      harness.officials.secretaries = [holder('old-1', 'Jordan', 'Ellis')];
+      renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
+      await userEvent.click(screen.getByText('pick Secretary'));
+
+      expect(
+        await screen.findByText('Saved. Alex Whitfield is now Secretary.')
+      ).toBeInTheDocument();
+      expect(harness.success).toHaveBeenCalledWith('Alex Whitfield is now Secretary.');
+      expect(screen.getAllByRole('status')).toHaveLength(1);
+    });
+
+    it('confirms a Steward the same way', async () => {
+      renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
+      await userEvent.click(screen.getByText('pick Steward'));
+
+      expect(await screen.findByText('Saved. Alex Whitfield is now Steward.')).toBeInTheDocument();
+    });
+
+    it('says under the picker that the role was not changed when the save fails', async () => {
+      harness.officials.chairmen = [holder('old-1', 'Caleb', 'Morgan')];
+      harness.rpc.mockResolvedValue({ error: { message: 'nope' } });
+      renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
+      await userEvent.click(screen.getByText('pick Chair'));
+
+      expect(await screen.findByText('Chair was not changed. Try again.')).toBeInTheDocument();
+      expect(screen.queryByText(/^Saved\./)).not.toBeInTheDocument();
+    });
+
+    it('shows a half-finished replace under the picker, not as saved', async () => {
+      harness.officials.chairmen = [holder('old-1', 'Caleb', 'Morgan')];
+      harness.rpc.mockImplementation(async (name: string) =>
+        name === 'revoke_show_official' ? { error: { message: 'denied' } } : { error: null }
+      );
+      renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
+      await userEvent.click(screen.getByText('pick Chair'));
+
+      expect(
+        await screen.findByText(
+          'Alex Whitfield is now Chair, but Caleb Morgan is still listed. Try again.'
+        )
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/^Saved\./)).not.toBeInTheDocument();
+    });
+
+    it('clears the last note for a role when it is picked again', async () => {
+      harness.rpc.mockResolvedValueOnce({ error: { message: 'nope' } });
+      renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
+      await userEvent.click(screen.getByText('pick Steward'));
+      expect(await screen.findByText('Steward was not changed. Try again.')).toBeInTheDocument();
+
+      await userEvent.click(screen.getByText('pick Steward'));
+
+      expect(await screen.findByText('Saved. Alex Whitfield is now Steward.')).toBeInTheDocument();
+      expect(screen.queryByText('Steward was not changed. Try again.')).not.toBeInTheDocument();
+    });
   });
 });

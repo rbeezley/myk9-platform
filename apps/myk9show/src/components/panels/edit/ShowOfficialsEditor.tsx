@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Loader2 } from 'lucide-react';
+import { Check, Loader2 } from 'lucide-react';
 import { ShowCommitteeEditor } from '@/components/committee/ShowCommitteeEditor';
 import { OfficialPicker } from '@/components/shows/wizard/steps/OfficialPicker';
 import { useShowOfficials } from '@/hooks/queries/useShowOfficials';
@@ -17,11 +17,41 @@ interface ShowOfficialsEditorProps {
   showId: string;
 }
 
+/** What the last pick for one role did, shown under that role's picker (MYK9-2470). */
+interface PickOutcome {
+  saved: boolean;
+  text: string;
+}
+
+const ROLE_LABELS: Partial<Record<UserRole, string>> = {
+  [UserRole.CHAIRMAN]: 'Chair',
+  [UserRole.SECRETARY]: 'Secretary',
+  [UserRole.STEWARD]: 'Steward',
+};
+
+/**
+ * The line under a picker. A pick saves at once and the panel's Save Changes stays disabled, so
+ * without this the change looked unsaved: the answer has to be where she was looking.
+ */
+function PickOutcomeNote({ outcome }: { outcome: PickOutcome | undefined }) {
+  if (!outcome) return null;
+  return (
+    <p
+      role="status"
+      className={`mt-1 flex items-start gap-1 text-xs ${outcome.saved ? 'text-success' : 'text-destructive'}`}
+    >
+      {outcome.saved && <Check className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />}
+      <span>{outcome.text}</span>
+    </p>
+  );
+}
+
 export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
   const queryClient = useQueryClient();
   const { data: officials, isLoading } = useShowOfficials(showId);
   const { people, loadPeople, loadUsers } = useUserStore();
   const [pendingRole, setPendingRole] = useState<string | null>(null);
+  const [outcomes, setOutcomes] = useState<Partial<Record<UserRole, PickOutcome>>>({});
 
   useEffect(() => {
     if (people.length === 0) loadPeople();
@@ -30,11 +60,21 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
   const handleAssign = async (role: UserRole, personId: string) => {
     const singleHolderRole =
       role === UserRole.CHAIRMAN ? 'chairman' : role === UserRole.SECRETARY ? 'secretary' : null;
-    const roleLabel = role === UserRole.CHAIRMAN ? 'Chair' : 'Secretary';
+    const roleLabel = ROLE_LABELS[role] ?? 'official';
     const invalidate = () =>
       queryClient.invalidateQueries({ queryKey: ['shows', showId, 'officials'] });
+    const picked = people.find(person => person.id === personId);
+    const pickedName = picked ? `${picked.firstName} ${picked.lastName}`.trim() : 'The new person';
+    const report = (outcome: PickOutcome) => setOutcomes(prev => ({ ...prev, [role]: outcome }));
+    // Says who holds the role now, on the toast and under the picker she just used (MYK9-2470).
+    const reportSaved = () => {
+      const text = `${pickedName} is now ${roleLabel}.`;
+      notifications.success(text);
+      report({ saved: true, text: `Saved. ${text}` });
+    };
 
     setPendingRole(role);
+    setOutcomes(prev => ({ ...prev, [role]: undefined }));
     try {
       if (!singleHolderRole) {
         // Stewards keep grant-only behavior: a steward row also grants ring access.
@@ -45,7 +85,7 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
         });
         if (error) throw error;
         await invalidate();
-        notifications.success('Official assigned');
+        reportSaved();
         return;
       }
 
@@ -56,20 +96,16 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
           personId,
         });
         if (stillListed.length === 0) {
-          notifications.success('Official assigned');
+          reportSaved();
           return;
         }
-        const newPerson = people.find(person => person.id === personId);
-        const newName = newPerson
-          ? `${newPerson.firstName} ${newPerson.lastName}`.trim()
-          : 'The new person';
         const names = stillListed.map(h => `${h.firstName} ${h.lastName}`.trim()).join(', ');
         logger.warn('Failed to revoke previous official', 'officials-editor', {
           error: revokeError,
         });
-        notifications.error(
-          `${newName} is now ${roleLabel}, but ${names} ${stillListed.length === 1 ? 'is' : 'are'} still listed. Try again.`
-        );
+        const partial = `${pickedName} is now ${roleLabel}, but ${names} ${stillListed.length === 1 ? 'is' : 'are'} still listed. Try again.`;
+        notifications.error(partial);
+        report({ saved: false, text: partial });
       } finally {
         // Refetch on every outcome so a half-finished replace shows the true state.
         await invalidate();
@@ -82,6 +118,7 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
           : String(err);
       logger.warn('Failed to grant official role', 'officials-editor', { error: message });
       notifications.error(`Failed to assign role: ${message}`);
+      report({ saved: false, text: `${roleLabel} was not changed. Try again.` });
     } finally {
       setPendingRole(null);
     }
@@ -125,35 +162,44 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <OfficialPicker
-          label="Chair"
-          required
-          selectedPersonId={currentChairman}
-          people={people}
-          suggestedRoles={[UserRole.CHAIRMAN, UserRole.CLUB_ADMIN]}
-          onOpen={() => void loadUsers()}
-          onSelect={id => handleAssign(UserRole.CHAIRMAN, id)}
-          onCreatePerson={handleCreatePerson}
-        />
-        <OfficialPicker
-          label="Secretary"
-          required
-          selectedPersonId={currentSecretary}
-          people={people}
-          suggestedRoles={[UserRole.SECRETARY]}
-          onOpen={() => void loadUsers()}
-          onSelect={id => handleAssign(UserRole.SECRETARY, id)}
-          onCreatePerson={handleCreatePerson}
-        />
-        <OfficialPicker
-          label="Steward"
-          selectedPersonId={currentSteward}
-          people={people}
-          suggestedRoles={[UserRole.STEWARD]}
-          onOpen={() => void loadUsers()}
-          onSelect={id => handleAssign(UserRole.STEWARD, id)}
-          onCreatePerson={handleCreatePerson}
-        />
+        <div>
+          <OfficialPicker
+            label="Chair"
+            required
+            selectedPersonId={currentChairman}
+            people={people}
+            suggestedRoles={[UserRole.CHAIRMAN, UserRole.CLUB_ADMIN]}
+            onOpen={() => void loadUsers()}
+            onSelect={id => handleAssign(UserRole.CHAIRMAN, id)}
+            onCreatePerson={handleCreatePerson}
+          />
+          <PickOutcomeNote outcome={outcomes[UserRole.CHAIRMAN]} />
+        </div>
+        <div>
+          <OfficialPicker
+            label="Secretary"
+            required
+            selectedPersonId={currentSecretary}
+            people={people}
+            suggestedRoles={[UserRole.SECRETARY]}
+            onOpen={() => void loadUsers()}
+            onSelect={id => handleAssign(UserRole.SECRETARY, id)}
+            onCreatePerson={handleCreatePerson}
+          />
+          <PickOutcomeNote outcome={outcomes[UserRole.SECRETARY]} />
+        </div>
+        <div>
+          <OfficialPicker
+            label="Steward"
+            selectedPersonId={currentSteward}
+            people={people}
+            suggestedRoles={[UserRole.STEWARD]}
+            onOpen={() => void loadUsers()}
+            onSelect={id => handleAssign(UserRole.STEWARD, id)}
+            onCreatePerson={handleCreatePerson}
+          />
+          <PickOutcomeNote outcome={outcomes[UserRole.STEWARD]} />
+        </div>
       </div>
 
       {(chairman || secretary) && (

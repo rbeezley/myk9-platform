@@ -376,7 +376,10 @@ async function fetchClassData(
   // MYK9-1779: a list mounted by leaving a scoresheet reads after the dog is put back.
   await settleRingRestores();
   const cls = await replicatedClassesTable.getClassById(classId);
-  const rawEntries = await replicatedEntriesTable.getEntriesByClass(classId);
+  // MYK9-2477: a soft-deleted row (an undone move) is not a dog at the ring; it is never listed.
+  const rawEntries = (await replicatedEntriesTable.getEntriesByClass(classId)).filter(
+    re => (re.deletedAt ?? re.deleted_at) == null
+  );
   const armbandMaps = buildShowArmbandMaps(await replicatedArmbandsTable.getByShow(showId));
   // The destination name is a nicety: a failed show-wide read must not lose the entries, so the
   // badge falls back to the plain "Moved" (MYK9-1940).

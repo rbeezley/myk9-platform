@@ -61,6 +61,31 @@ describe('joinSourceSections', () => {
     ).toBe(`${NO_GUIDE_ANSWER_SENTENCE}\n\nI could not find that in the official rulebook.`);
   });
 
+  // Codex review of #4464: a notice or a question back is not an answer, so it must not hide
+  // the fact that the guides found nothing.
+  it('still says the guides found nothing when the other section is only a notice or a question', () => {
+    expect(
+      joinSourceSections([
+        { source: 'show_data', text: NEEDS_SHOW_SENTENCE, plain: true },
+        { source: 'guides', text: null },
+      ])
+    ).toBe(`${NEEDS_SHOW_SENTENCE}\n\n${NO_GUIDE_ANSWER_SENTENCE}`);
+    expect(
+      joinSourceSections([
+        { source: 'guides', text: null },
+        { source: 'rulebook', text: 'Which rulebook should I use: AKC or UKC?', plain: true },
+      ])
+    ).toBe(`${NO_GUIDE_ANSWER_SENTENCE}\n\nWhich rulebook should I use: AKC or UKC?`);
+    // A real answer beside the notice still hides it.
+    expect(
+      joinSourceSections([
+        { source: 'show_data', text: NEEDS_SHOW_SENTENCE, plain: true },
+        { source: 'guides', text: null },
+        { source: 'rulebook', text: 'Using AKC rules:\nYes.' },
+      ])
+    ).toBe(`${NEEDS_SHOW_SENTENCE}\n\nUsing AKC rules:\nYes.`);
+  });
+
   it('words the needs-a-show sentence plainly', () => {
     expect(NEEDS_SHOW_SENTENCE).not.toMatch(/[\u2014\u2013]|mode|tab/i);
     expect(joinSourceSections([{ source: 'show_data', text: NEEDS_SHOW_SENTENCE }])).toBe(

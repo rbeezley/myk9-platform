@@ -333,6 +333,41 @@ describe('whole short steps and screenshots (MYK9-2472)', () => {
     ).toEqual({ ok: false, reason: 'quote_rejected', detail: 'quote_not_in_guide' });
   });
 
+  // Codex review of #4464: the caption was dropped for checking but kept for display, so words
+  // nobody verified reached the answer and its citation.
+  it('keeps a copied screenshot out of the answer and its citation', () => {
+    const withTheScreenshot =
+      'Otherwise, fill in the Registered Name and Registered Breed (the other registration fields are optional), then click Save and continue. ![E-05: Add Dog panel — Registration tab with Find dog](../screenshots/E-05.png) On the Essential tab, fill in:';
+    const result = verify(ANSWER, quoteLine(EXHIBITOR, withTheScreenshot));
+
+    expect(result.ok).toBe(true);
+    const shown = result.ok ? [result.answerText, ...result.guideSources.map(s => s.quote)] : [];
+    for (const text of shown) {
+      expect(text).not.toMatch(/E-05|Find dog|screenshots|!/);
+      expect(text).toContain('then click Save and continue. On the Essential tab, fill in:');
+    }
+  });
+
+  // Codex review of #4464: in the Secretary Guide this sentence follows a bold question that
+  // ends `?**`, so a split on "punctuation then space" never saw the boundary.
+  it('accepts a whole short sentence that follows bold or quoted text', () => {
+    const afterBold = 'Do not ask for it again.';
+    expect(tokenizeQuoteText(afterBold)).toHaveLength(6);
+    expect(verify(ANSWER, quoteLine('secretary-guide', afterBold)).ok).toBe(true);
+
+    const guide = { id: 'g', title: 'G', audience: 'all', content: '' };
+    const inGuide = (content: string, quote: string) =>
+      verifySupportAnswerQuotes(`${ANSWER}\n${quoteLine('g', quote)}`, [{ ...guide, content }]).ok;
+    expect(
+      inGuide('She said "Is it ready?" Send the premium now. Then wait.', 'Send the premium now.')
+    ).toBe(true);
+    expect(
+      inGuide('(See the Fees tab.) Enter the fee here. Then save.', 'Enter the fee here.')
+    ).toBe(true);
+    // Still a fragment: not a whole sentence.
+    expect(inGuide('**Ready?** Do not ask for it again today.', 'Do not ask for it')).toBe(false);
+  });
+
   it('names the rule that rejected the quotes', () => {
     const detail = (...lines: string[]) => {
       const result = verify(ANSWER, ...lines);

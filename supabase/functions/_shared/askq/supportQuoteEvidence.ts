@@ -80,21 +80,33 @@ function containsSequence(haystack: string[], needle: string[]): boolean {
   return false;
 }
 
+/**
+ * Where one sentence ends and the next begins: after `.`, `!` or `?`, and after whatever closes
+ * around it. In the guides a bold question ends `?**`, a quoted one `?"`, an aside `.)`, so
+ * "punctuation then a space" alone misses those boundaries.
+ */
+const SENTENCE_BREAK_RE = /(?<=[.!?]["'“”‘’)\]*_`]*)\s+/;
+
 /** True when `quoteTokens` is exactly one whole line, or one whole sentence, of the guide. */
 function isWholeGuidePassage(guideContent: string, quoteTokens: string[]): boolean {
   const wanted = quoteTokens.join(' ');
   for (const line of guideContent.replace(IMAGE_RE, ' ').split('\n')) {
     if (tokenizeQuoteText(line).join(' ') === wanted) return true;
-    for (const sentence of line.split(/(?<=[.!?])\s+/)) {
+    for (const sentence of line.split(SENTENCE_BREAK_RE)) {
       if (tokenizeQuoteText(sentence).join(' ') === wanted) return true;
     }
   }
   return false;
 }
 
-/** Plain-text form of a verified passage: markdown syntax removed, whitespace collapsed. */
+/**
+ * Plain-text form of a verified passage: markdown syntax removed, whitespace collapsed.
+ * A screenshot goes first, caption and all: its words were never checked against the guide
+ * (`tokenizeQuoteText` drops it), so they must not be shown either.
+ */
 export function toDisplayPassage(quote: string): string {
   return quote
+    .replace(IMAGE_RE, ' ')
     .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/(\*\*|__|`)/g, '')
     .replace(/^\s*(?:[#>]+|[-*+]|\d{1,3}[.)])\s+/, '')

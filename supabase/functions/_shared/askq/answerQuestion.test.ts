@@ -361,6 +361,23 @@ describe('guide claims fail closed (criterion 4)', () => {
       'support_too_many_quotes',
     ]);
   });
+
+  // Codex review of #4464: neither of these is an answer, so the guide refusal stays in the reply.
+  it('keeps the guide refusal beside a needs-a-show notice or a rulebook question', async () => {
+    const noShow = await run(stubModel({ verdict: ['show_data', 'guides'], guides: fabricated }), {
+      userContext: noShowContext,
+      showRulebooks: [],
+    }).promise;
+    expect(noShow.text).toBe(`${NEEDS_SHOW_SENTENCE}\n\n${NO_GUIDE_ANSWER_SENTENCE}`);
+
+    const whichRulebook = await run(
+      stubModel({ verdict: ['guides', 'rulebook'], guides: fabricated }),
+      { userContext: noShowContext, showRulebooks: [] }
+    ).promise;
+    expect(whichRulebook.text.startsWith(`${NO_GUIDE_ANSWER_SENTENCE}\n\nWhich rulebook`)).toBe(
+      true
+    );
+  });
 });
 
 describe('money pre-check runs only on guides-only routes (supportMode)', () => {

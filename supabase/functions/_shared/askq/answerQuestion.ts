@@ -86,6 +86,16 @@ export function refusalMarkers(
     : guideRefusalMarkers(answered.guideRefusal);
 }
 
+/** "Which rulebook should I use?" is a question back, not a rulebook answer: a `plain` section. */
+function rulebookSection(
+  resolution: { clarification: string | null },
+  text: string | null
+): SourceSection {
+  return resolution.clarification === null
+    ? { source: 'rulebook', text }
+    : { source: 'rulebook', text, plain: true };
+}
+
 function guideRefusalOf(guides: GuidesAnswer | null): GuideRefusal | null {
   if (!guides?.escalation) return null;
   return { cause: guides.escalationCause ?? 'handoff', detail: guides.escalationDetail };
@@ -172,7 +182,7 @@ export async function answerQuestion(input: AnswerQuestionInput): Promise<Answer
   if (needsShow) sections.push({ source: 'show_data', text: NEEDS_SHOW_SENTENCE, plain: true });
   if (showData) sections.push({ source: 'show_data', text: showData.text });
   if (guides) sections.push({ source: 'guides', text: guides.text });
-  if (rulebookResolution) sections.push({ source: 'rulebook', text: rulebookText });
+  if (rulebookResolution) sections.push(rulebookSection(rulebookResolution, rulebookText));
 
   const guidesOnlyRefused =
     chosen.length === 1 && !needsShow && guides?.escalation && input.supportMode;

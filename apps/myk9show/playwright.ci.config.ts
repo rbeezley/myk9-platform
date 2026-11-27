@@ -189,6 +189,11 @@ const REGRESSION_SPECS = [
   // isolated target (MYK9_PLAYWRIGHT_REGRESSION_ENABLED=true), whose seed-demo.sql builds a
   // fresh fixture each run.
   '**/secretary/resultsTabJourney.spec.ts',
+  // MYK9-1942 Phase 5: one home per class. Read-only walks on the show-day fixture: the exhibitor
+  // on a phone (My Shows to Ringside) and the secretary on Show Desk never open the class page.
+  // Seeded isolated target only, like resultsTabJourney, which they can run beside.
+  '**/exhibitor/oneHomePerClassPhoneWalk.spec.ts',
+  '**/secretary/oneHomePerClassShowDeskWalk.spec.ts',
   // MYK9-971: the wait-list journey (join, offer, decline, cron expiry, mail-in head notice and its
   // dedupe). Stateful and local-only: it calls the real cron-waitlist-expiration function on the
   // isolated target's edge runtime and restores the seed's full-class fixture in afterAll.

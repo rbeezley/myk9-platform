@@ -108,6 +108,8 @@ If nothing is open when you run: **do not fake it and do not create a show** (an
 8. **Review results** — per class entered, once posted.
 9. **Review statistics** — per-dog past performance.
 
+**One home per class (MYK9-1942).** On a phone-width viewport, on a show running today, run the show-day path and count the screens: My Shows ("Where to be today") to Ringside ("Your dogs today"), check in, watch the place in line change as the secretary or judge records a score, and see the result arrive marked "preliminary" until it is released. At no step should a link open the class page (`/shows/:id/trials/:id/classes/:id`). The show page's "Where to be & when" rows open Ringside on the trial day and My Shows on any other day. The read-only half is automated in `exhibitor/oneHomePerClassPhoneWalk.spec.ts`; the check-in, the changing place and the arriving result need a second signed-in role and are walked here, not there.
+
 ### Entry and account regressions
 
 - **Wait-list offer confirmation (MYK9-1839).** In an isolated test environment with a disposable unexpired offer, first confirm the deployed build includes the fix. On My Entries, tap Decline and verify the warning says the spot goes to someone else and cannot be taken back; choose Keep my spot and verify the offer remains. Confirm decline on the disposable offer and verify it is declined. On a separate offer, verify Complete payment opens checkout in one tap; stop before payment. If the isolated environment or offers are unavailable, record the check as blocked. Do not change a shared or production offer.

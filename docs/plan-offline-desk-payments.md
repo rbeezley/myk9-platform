@@ -21,6 +21,8 @@ Linear: MYK9-1936, step 3. The owner chose this shape on 2026-11-26: the payment
 
 **A lost answer stays queued.** The queue is the only path that sends a desk payment (Codex round 3 on #4461; the direct send was removed). Online, the dialog asks the queue to send it at once and waits on that one mutation. An acknowledged send settles the record and queue row. A send that fails at the transport level, or gets no answer within 10 seconds (the precedent is 12 s, `completeStaleClassRpc.ts:17`), stays queued under the same id. This covers venue Wi-Fi with no internet, where `navigator.onLine` stays true. A refusal of the first send stays in the dialog; any other dead letter is shown on the payment's line.
 
+**A form-wide change waits for the form's unsent payments** (Codex round 6 on #4461). "Payment Due" and "Paid in Full: Online" set what the whole form owes, on the server, at once. While this device holds a cash or check payment for the form that the server has not acknowledged, neither is sent: the payment would be recorded after it and undo it. She is told which payment it is, to wait for its line to clear or remove a refused one. A refund is not held, since it only takes back money the server already has. The form shows its lines from this device first, then again once a stopped payment's ledger check answers, so a slow check never hides a saved payment.
+
 **Beside the balance.** The form keeps the server's total, paid and due exactly as today. Under them is one line per local payment, worded by what is known:
 
 - "Cash $25.00 received at 10:14, waiting to send." No send has begun while the browser was online, so it never left the device.

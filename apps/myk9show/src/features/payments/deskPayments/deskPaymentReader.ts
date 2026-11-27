@@ -106,12 +106,14 @@ async function checkLedger(
  * MYK9-2479: this account's payments for one show that the server has not been proven
  * to hold, each with its state. A payment proven recorded on the way (its upload was
  * acknowledged, or the ledger lists its id) is settled here, and the show's money is
- * refreshed. Reads this device only, except one ledger check when a payment has stopped.
+ * refreshed. Reads this device only, except one ledger check when a payment has stopped;
+ * `onLocal` receives the device's lines before that check, each stopped one unchecked.
  */
 export async function readDeskPaymentLines(
   showId: string,
   deps: DeskPaymentDeps = defaultDeskPaymentDeps,
-  cache?: { current: LedgerCheckCache | null }
+  cache?: { current: LedgerCheckCache | null },
+  onLocal?: (lines: DeskPaymentLine[]) => void
 ): Promise<DeskPaymentLine[]> {
   const stored = await deps.table.listForShow(showId);
   if (stored.length === 0) return [];
@@ -139,6 +141,13 @@ export async function readDeskPaymentLines(
   }
 
   if (stopped.length > 0) {
+    // What this device holds is shown before the ledger check (Codex round 6 on #4461): on
+    // Wi-Fi that cannot reach the server that check can take until it times out, and a form
+    // showing no payment meanwhile invites the same cash again. Unchecked, a stopped payment
+    // is never Refused, so nothing offers Remove until the check proves it.
+    onLocal?.(
+      sortLines([...lines, ...stopped.map(({ entry, dead }) => stoppedLine(entry, dead, null))])
+    );
     const failedAtKey = stopped
       .map(s => `${s.entry.payment.id}:${s.dead?.failedAt ?? ''}`)
       .join(',');
@@ -162,6 +171,10 @@ export async function readDeskPaymentLines(
     });
     if (recorded.length > 0) await refreshAndAnnounceRecorded(recorded, deps.refreshEntries);
   }
+  return sortLines(lines);
+}
+
+function sortLines(lines: DeskPaymentLine[]): DeskPaymentLine[] {
   return lines.sort((a, b) => a.payment.receivedAt.localeCompare(b.payment.receivedAt));
 }
 

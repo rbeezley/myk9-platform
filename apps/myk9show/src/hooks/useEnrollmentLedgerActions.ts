@@ -14,6 +14,7 @@ import {
   NOT_AUTHORIZED_CODE,
   RPC_REFUSAL_CODE,
 } from '@/features/payments/deskPayments/paymentRefusals';
+import { formChangeBlockedBy } from '@/features/payments/deskPayments/formChangeGuard';
 import { saveDeskPayment } from '@/features/payments/deskPayments/saveDeskPayment';
 import {
   markEnrollmentPaidOnline,
@@ -144,6 +145,17 @@ function ledgerFailure(err: unknown): {
 
 type PaymentAction = Extract<EnrollmentLedgerAction, { kind: 'payment' }>;
 
+/**
+ * Payment Due and Paid in Full: Online wait while this device holds an unsent cash or
+ * check payment for the form (Codex round 6 on #4461), which would land after them and
+ * undo them. True when the change was refused here, with the reason shown; nothing sent.
+ */
+async function refusedForUnsent(enrollmentId: string): Promise<boolean> {
+  const blocked = await formChangeBlockedBy(enrollmentId);
+  if (blocked) toast.error(blocked);
+  return blocked !== null;
+}
+
 /** One function that satisfies both `record` overloads: what the hook builds and tests mock. */
 export type EnrollmentLedgerRecordImpl = (
   enrollmentId: string,
@@ -268,6 +280,7 @@ export function useEnrollmentLedgerActions({
 
   const record = useCallback<EnrollmentLedgerRecordImpl>(
     async (enrollmentId, action, form) => {
+      if (action.kind === 'reversal' && (await refusedForUnsent(enrollmentId))) return 'failed';
       if (action.kind !== 'payment') {
         return apply(enrollmentId, () => recordEnrollmentPayment(enrollmentId, action));
       }
@@ -283,6 +296,7 @@ export function useEnrollmentLedgerActions({
 
   const markPaidOnline = useCallback(
     async (enrollmentId: string) =>
+      !(await refusedForUnsent(enrollmentId)) &&
       (await apply(enrollmentId, () => markEnrollmentPaidOnline(enrollmentId))) === 'saved',
     [apply]
   );

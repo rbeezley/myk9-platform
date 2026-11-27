@@ -129,6 +129,16 @@ export class DeskPaymentsTable extends ReplicatedTable<LocalDeskPayment> {
   }
 
   /**
+   * This account's payments for one form that the server has not acknowledged yet, from
+   * every show on the device. Throws when the device could not read them.
+   */
+  async unsentForEnrollment(enrollmentId: string): Promise<LocalDeskPayment[]> {
+    const payments = (await this.getAllOrThrow()).filter(p => p.enrollmentId === enrollmentId);
+    const rows = await Promise.all(payments.map(p => this.getReplicatedRow(p.id)));
+    return rows.flatMap(row => (row?.isDirty ? [row.data] : []));
+  }
+
+  /**
    * A send of it has begun (a dead letter is the proof), so its line can no longer say
    * "waiting to send" once it is queued again. Changes that flag alone, in place: the
    * record stays exactly as dirty as it was, and nothing is queued.
@@ -170,22 +180,25 @@ export class DeskPaymentsTable extends ReplicatedTable<LocalDeskPayment> {
     const rows = tx.objectStore(REPLICATION_STORES.REPLICATED_TABLES);
     const key = [this.tableName, id];
     const row = (await rows.get(key)) as ReplicatedRow<LocalDeskPayment> | undefined;
-    const queueStores = [
-      REPLICATION_STORES.PENDING_MUTATIONS,
-      REPLICATION_STORES.FAILED_MUTATIONS,
-    ] as const;
-    const queued: Array<{
-      storeName: (typeof queueStores)[number];
-      mutation: PendingMutation;
-    }> = [];
-    for (const storeName of queueStores) {
-      const mutations = (await tx.objectStore(storeName).getAll()) as PendingMutation[];
-      for (const mutation of mutations) {
-        if (mutation.tableName === this.tableName && String(mutation.rowId) === id) {
-          queued.push({ storeName, mutation });
-        }
-      }
-    }
+    // Through the stores' indexes (Codex round 6 on #4461): a reconnect settles a batch of
+    // payments, and a full scan per payment would hold every queued score and check-in.
+    const pendingForRow = (await tx
+      .objectStore(REPLICATION_STORES.PENDING_MUTATIONS)
+      .index('tableName_rowId')
+      .getAll([this.tableName, id])) as PendingMutation[];
+    const failedForTable = (await tx
+      .objectStore(REPLICATION_STORES.FAILED_MUTATIONS)
+      .index('tableName')
+      .getAll(this.tableName)) as PendingMutation[];
+    const queued = [
+      ...pendingForRow.map(mutation => ({
+        storeName: REPLICATION_STORES.PENDING_MUTATIONS,
+        mutation,
+      })),
+      ...failedForTable
+        .filter(mutation => String(mutation.rowId) === id)
+        .map(mutation => ({ storeName: REPLICATION_STORES.FAILED_MUTATIONS, mutation })),
+    ];
     // Every piece is checked before any is deleted: all of it goes, or none of it.
     const notOwned =
       (row !== undefined && row.ownerAuthUserId !== owner) ||

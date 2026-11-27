@@ -61,12 +61,14 @@ export function useDeskPaymentLines(
   const refresh = useCallback(() => {
     const request = ++latest.current;
     if (!showId) return;
-    readDeskPaymentLines(showId, deps, ledgerCache)
-      .then(next => {
-        if (request === latest.current) {
-          setRead({ showId, owner: authUserId, lines: next, unreadable: false });
-        }
-      })
+    const applyLines = (next: DeskPaymentLine[]) => {
+      if (request === latest.current) {
+        setRead({ showId, owner: authUserId, lines: next, unreadable: false });
+      }
+    };
+    // The device's lines first, then again once a stopped payment's ledger check answers.
+    readDeskPaymentLines(showId, deps, ledgerCache, applyLines)
+      .then(applyLines)
       .catch(error => {
         // Keep what was last known for this show and account, and say the read failed:
         // showing nothing would read as "nothing waiting" and invite a second payment.

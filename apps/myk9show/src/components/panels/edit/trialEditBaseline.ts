@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { actualTimeChanged, trialStatusChanged } from '@/store/trial-store-helpers';
 
@@ -27,7 +27,7 @@ export function trialOpenBaseline(trial: Partial<Trial>): TrialOpenBaseline {
 export function useTrialOpenBaseline(
   open: boolean,
   trial: Partial<Trial>
-): { current: TrialOpenBaseline } {
+): () => TrialOpenBaseline {
   const baseline = useRef(trialOpenBaseline(trial));
   const latest = useRef(trial);
   useEffect(() => {
@@ -36,7 +36,7 @@ export function useTrialOpenBaseline(
   useEffect(() => {
     if (open) baseline.current = trialOpenBaseline(latest.current);
   }, [open]);
-  return baseline;
+  return useCallback(() => baseline.current, []);
 }
 
 /**

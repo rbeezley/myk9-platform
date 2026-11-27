@@ -603,7 +603,7 @@ export const TrialEditPanel: React.FC<TrialEditPanelProps> = ({
   // Convert trial data to form data
   const initialFormData = useMemo(() => trialToFormData(initialTrialData), [initialTrialData]);
 
-  const openBaseline = useTrialOpenBaseline(open, initialTrialData);
+  const getOpenBaseline = useTrialOpenBaseline(open, initialTrialData);
 
   // Handle save
   const handleSave = useCallback(
@@ -611,14 +611,14 @@ export const TrialEditPanel: React.FC<TrialEditPanelProps> = ({
       // Untouched status, actual times and stale-class switch are not sent (MYK9-2450).
       const trialData = withoutUntouchedLiveFields(
         formDataToTrial(formData, getTrialTimezone(initialTrialData)),
-        openBaseline.current,
+        getOpenBaseline(),
         formData.askAboutStaleClasses
       );
       if (onSave) {
         await onSave(trialData);
       }
     },
-    [onSave, initialTrialData, openBaseline]
+    [onSave, initialTrialData, getOpenBaseline]
   );
 
   return (

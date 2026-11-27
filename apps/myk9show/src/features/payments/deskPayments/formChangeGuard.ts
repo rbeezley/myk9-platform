@@ -6,30 +6,38 @@ import type { DeskPaymentsTable } from './DeskPaymentsTable';
 export const FORM_CHANGE_UNREADABLE =
   'Not changed: this device could not read its saved payments for this form. Try again.';
 
+/** Another account's payment holds the change; nothing of it is named (shared-device plan § 2). */
+export const FORM_CHANGE_OTHER_ACCOUNT =
+  'Not changed: this device cannot confirm a payment for this form that was saved under another account. That account needs to sign in on this device and check it.';
+
 /**
- * MYK9-2479 (Codex round 6 on #4461): Payment Due and Paid in Full: Online set what the
- * whole form owes, on the server, at once. A cash or check payment still on this device
- * would be recorded after that change and undo it, so the change waits until every one
- * of this form's payments has reached the server (or a refused one is removed).
+ * MYK9-2479: Payment Due and Paid in Full: Online set what the whole form owes, on the
+ * server, at once. A cash or check payment this device holds would be recorded after that
+ * change and undo it, so the change waits until myK9Show has confirmed every one of this
+ * form's payments on this device, whichever account saved it
+ * (docs/plan-offline-desk-payments-shared-device.md § 2). "Not confirmed", never "not
+ * sent": a send whose answer was lost may already be recorded, and the message must not
+ * read as a reason to record the cash again.
  * Returns what to tell her, or null when nothing is held.
  */
 export async function formChangeBlockedBy(
   enrollmentId: string,
-  table: Pick<DeskPaymentsTable, 'unsentForEnrollment'> = deskPaymentsTable
+  table: Pick<DeskPaymentsTable, 'unconfirmedForEnrollment'> = deskPaymentsTable
 ): Promise<string | null> {
-  let unsent;
+  let held;
   try {
-    unsent = await table.unsentForEnrollment(enrollmentId);
+    held = await table.unconfirmedForEnrollment(enrollmentId);
   } catch (error) {
     logger.warn('Desk payments not read before a form change', 'secretary', {}, error as Error);
     return FORM_CHANGE_UNREADABLE;
   }
-  if (unsent.length === 0) return null;
-  const [only] = unsent;
-  const held =
-    unsent.length === 1 && only
-      ? `A ${only.method} payment of $${only.amount.toFixed(2)}`
-      : `${unsent.length} payments`;
-  const [is, has] = unsent.length === 1 ? ['is', 'has'] : ['are', 'have'];
-  return `Not changed: ${held} for this form ${is} saved on this device and ${has} not reached myK9Show yet. Wait until the line under the balance clears, or remove a refused payment, then try again.`;
+  const { mine, others } = held;
+  if (mine.length === 0) return others > 0 ? FORM_CHANGE_OTHER_ACCOUNT : null;
+  const [only] = mine;
+  const named =
+    mine.length === 1 && only
+      ? `A ${only.method} payment of $${only.amount.toFixed(2)} for this form is`
+      : `${mine.length} payments for this form are`;
+  const confirmed = mine.length === 1 ? 'it' : 'them';
+  return `Not changed: ${named} saved on this device, and myK9Show has not confirmed ${confirmed} yet. Wait until the line under the balance clears, or remove a refused payment, then try again.`;
 }

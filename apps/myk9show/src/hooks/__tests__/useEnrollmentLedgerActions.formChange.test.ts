@@ -14,6 +14,11 @@ const mocks = vi.hoisted(() => ({
   markOnline: vi.fn(),
   blocked: vi.fn(),
   toastError: vi.fn(),
+  saveDesk: vi.fn(),
+}));
+
+vi.mock('@/features/payments/deskPayments/saveDeskPayment', () => ({
+  saveDeskPayment: mocks.saveDesk,
 }));
 
 vi.mock('@/services/database/show-payments', () => ({
@@ -26,7 +31,7 @@ vi.mock('@/features/payments/deskPayments/formChangeGuard', () => ({
 vi.mock('sonner', () => ({ toast: { error: mocks.toastError, warning: vi.fn() } }));
 
 const HELD =
-  'Not changed: A cash payment of $25.00 for this form is saved on this device and has not reached myK9Show yet.';
+  'Not changed: A cash payment of $25.00 for this form is saved on this device, and myK9Show has not confirmed it yet.';
 
 function wrapper({ children }: { children: React.ReactNode }) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -76,6 +81,48 @@ describe('a form-wide change waits for the form’s unsent desk payments', () =>
     expect(ok).toBe(false);
     expect(mocks.markOnline).not.toHaveBeenCalled();
     expect(mocks.toastError).toHaveBeenCalledWith(HELD);
+  });
+
+  it("another account's payment on this device holds both form-wide changes", async () => {
+    const otherAccount =
+      'Not changed: this device cannot confirm a payment for this form that was saved under another account. That account needs to sign in on this device and check it.';
+    mocks.blocked.mockResolvedValue(otherAccount);
+    const { result } = renderLedger();
+
+    await act(async () => {
+      await result.current.record('enr-1', { kind: 'reversal' });
+      await result.current.markPaidOnline('enr-1');
+    });
+
+    expect(mocks.record).not.toHaveBeenCalled();
+    expect(mocks.markOnline).not.toHaveBeenCalled();
+    expect(mocks.toastError).toHaveBeenNthCalledWith(1, otherAccount);
+    expect(mocks.toastError).toHaveBeenNthCalledWith(2, otherAccount);
+  });
+
+  it('a received date after today is not saved, and says why', async () => {
+    const { result } = renderLedger();
+    let outcome: string | undefined;
+    await act(async () => {
+      outcome = await result.current.record(
+        'enr-1',
+        {
+          kind: 'payment',
+          method: 'cash',
+          amount: 25,
+          receivedOn: '2999-01-01',
+          reference: null,
+          clientPaymentId: '6f1d2c3b-4a59-4e8d-9b7a-0c1e2f3a4b5c',
+        },
+        { showId: 'show-1', exhibitorName: 'Jane Smith' }
+      );
+    });
+
+    expect(outcome).toBe('failed');
+    expect(mocks.saveDesk).not.toHaveBeenCalled();
+    expect(mocks.toastError).toHaveBeenCalledWith(
+      'Payment not saved: the date received is after today. Enter the day the money was handed over.'
+    );
   });
 
   it('with nothing held, Payment Due goes to the server as before', async () => {

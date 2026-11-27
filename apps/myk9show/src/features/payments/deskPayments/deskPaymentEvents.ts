@@ -64,6 +64,20 @@ export function isDeskPaymentMutation(
  * are: their state and actions live on their own lines beside the form's balance, and
  * a Discard there could drop money in the drawer that was in fact recorded.
  */
+type FailedMutation = SyncFailedEventDetail['mutations'][number];
+
+/**
+ * A failed mutation as the failure log may carry it (shared-device plan § 3.2): a desk
+ * payment keeps only its id, table, operation and failure kind. Its args, payload and the
+ * server's message (which can quote the amount, date, check number or form) stay on this
+ * device, on the payment's own line. Every other mutation is logged as before.
+ */
+export function forFailureLog(mutation: FailedMutation): Partial<FailedMutation> {
+  if (!isDeskPaymentMutation(mutation)) return mutation;
+  const { id, tableName, operation, failureKind } = mutation;
+  return { id, tableName, operation, ...(failureKind && { failureKind }) };
+}
+
 export function withoutDeskPayments(detail: SyncFailedEventDetail): SyncFailedEventDetail {
   const mutations = detail.mutations.filter(mutation => !isDeskPaymentMutation(mutation));
   if (mutations.length === detail.mutations.length) return detail;

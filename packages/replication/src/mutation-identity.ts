@@ -1,6 +1,20 @@
 import type { PendingMutation } from './types';
 
 /**
+ * The live lookup, or a rejection once `ms` passes with no answer (MYK9-2479). On captive
+ * Wi-Fi a token refresh can hang rather than throw; a caller that passes a deadline then
+ * takes the same persisted-account fallback a throw takes. No deadline: the lookup as is.
+ */
+function withDeadline<T>(lookup: Promise<T>, ms: number | undefined): Promise<T> {
+  if (ms === undefined) return lookup;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const expired = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`Live account lookup took over ${ms} ms`)), ms);
+  });
+  return Promise.race([lookup, expired]).finally(() => clearTimeout(timer));
+}
+
+/**
  * Who owns the local queue: the auth identity lookups MutationManager stamps
  * onto and checks against queue entries. Kept apart from the queue and upload
  * machinery in MutationManager.
@@ -52,7 +66,7 @@ export class MutationIdentity {
    * for that same id, so a different sign-in holds the entry. No persisted
    * account rethrows the live error.
    */
-  async requireQueueOwnerUserId(): Promise<string> {
+  async requireQueueOwnerUserId(liveDeadlineMs?: number): Promise<string> {
     // Offline, the live lookup can only fail, and only after its refresh retries
     // back off for tens of seconds: a judge must not wait on that to score.
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
@@ -60,7 +74,7 @@ export class MutationIdentity {
       if (persisted) return persisted;
     }
     try {
-      return await this.requireCurrentUserId();
+      return await withDeadline(this.requireCurrentUserId(), liveDeadlineMs);
     } catch (liveError) {
       const cached = this.readCachedUserId();
       if (cached) return cached;

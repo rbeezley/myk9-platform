@@ -26,6 +26,20 @@ export function deskPaymentRpcArgs(payment: LocalDeskPayment): Record<string, un
   };
 }
 
+/**
+ * How long a desk save waits on the live account lookup before it uses the persisted
+ * account (docs/plan-offline-desk-payments-shared-device.md § 3.4): on captive Wi-Fi an
+ * expired token's refresh can hang, and the payment must be saved on the device first.
+ * Upload still checks the live account, so a different sign-in holds the row.
+ */
+export const DESK_OWNER_LOOKUP_DEADLINE_MS = 2_000;
+
+/** This device's unconfirmed payments for one form: the signed-in account's, and a count of others'. */
+export interface UnconfirmedForForm {
+  mine: LocalDeskPayment[];
+  others: number;
+}
+
 /** One queued send: refused or out of retries (its dead letter), still queued, or acknowledged. */
 export type DeskSendOutcome =
   { kind: 'dead'; mutation: PendingMutation } | { kind: 'pending' } | { kind: 'acknowledged' };
@@ -83,6 +97,7 @@ export class DeskPaymentsTable extends ReplicatedTable<LocalDeskPayment> {
       operation: 'INSERT',
       payload: args,
       rpc: { name: DESK_PAYMENT_RPC, args },
+      ownerLookupDeadlineMs: DESK_OWNER_LOOKUP_DEADLINE_MS,
     });
     if (!mutationId) throw new Error('The payment could not be saved on this device.');
     return { mutationId, owner: ownerAuthUserId ?? null };
@@ -129,13 +144,30 @@ export class DeskPaymentsTable extends ReplicatedTable<LocalDeskPayment> {
   }
 
   /**
-   * This account's payments for one form that the server has not acknowledged yet, from
-   * every show on the device. Throws when the device could not read them.
+   * Every payment on this device for one form that the server has not acknowledged yet,
+   * whichever account saved it (docs/plan-offline-desk-payments-shared-device.md § 2):
+   * waiting, not confirmed, stopped or refused. The signed-in account's are returned in
+   * full; another account's only as a count, so nothing of theirs is shown. Throws when
+   * the device could not read them, or holds some but cannot say who is signed in.
    */
-  async unsentForEnrollment(enrollmentId: string): Promise<LocalDeskPayment[]> {
-    const payments = (await this.getAllOrThrow()).filter(p => p.enrollmentId === enrollmentId);
-    const rows = await Promise.all(payments.map(p => this.getReplicatedRow(p.id)));
-    return rows.flatMap(row => (row?.isDirty ? [row.data] : []));
+  async unconfirmedForEnrollment(enrollmentId: string): Promise<UnconfirmedForForm> {
+    const payments = (await this.getAllOrThrowIncludingOtherAccounts()).filter(
+      p => p.enrollmentId === enrollmentId
+    );
+    const rows = (
+      await Promise.all(payments.map(p => this.getReplicatedRowIncludingOtherAccounts(p.id)))
+    ).filter(row => row?.isDirty);
+    const held = { mine: [] as LocalDeskPayment[], others: 0 };
+    if (rows.length === 0) return held;
+    // Whose they are matters only once some are held: an unresolved account is not "mine".
+    const current = await this.getCurrentAuthUserId();
+    if (!current) throw new Error('The signed-in account could not be read on this device.');
+    for (const row of rows) {
+      if (!row) continue;
+      if (row.ownerAuthUserId === current) held.mine.push(row.data);
+      else held.others += 1;
+    }
+    return held;
   }
 
   /**

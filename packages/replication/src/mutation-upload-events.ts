@@ -98,8 +98,15 @@ export function notifyUserOfSyncFailure(logger: Logger, failedMutations: Pending
     window.dispatchEvent(event);
   }
 
+  // Which mutations, never what they carried (MYK9-2479): a payload or RPC args can hold a
+  // payment's amount, date and check number, and the app's logger ships this line remotely.
   logger.error(
     `[MutationManager] ${failedMutations.length} mutations failed permanently`,
-    failedMutations
+    failedMutations.map(({ id, tableName, operation, failureKind }) => ({
+      id,
+      tableName,
+      operation,
+      failureKind,
+    }))
   );
 }

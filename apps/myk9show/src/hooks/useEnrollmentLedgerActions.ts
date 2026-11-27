@@ -112,6 +112,9 @@ const STOPPED_UNCONFIRMED =
 const NOT_SAVED_ON_DEVICE =
   'This device could not save the payment, so nothing was sent. Try again, or write it down and record it later.';
 const NOT_SAVED_AMOUNT = 'Payment not saved: enter an amount above $0.00, in dollars and cents.';
+/** The server refuses a received date after today on the show's calendar; check it first. */
+const NOT_SAVED_FUTURE_DATE =
+  'Payment not saved: the date received is after today. Enter the day the money was handed over.';
 
 /**
  * MYK9-1824: what the secretary reads when a payment write fails. The RPCs'
@@ -247,6 +250,12 @@ export function useEnrollmentLedgerActions({
       action: PaymentAction,
       form: DeskPaymentForm
     ): Promise<LedgerWriteOutcome> => {
+      // Checked before saving (shared-device plan § 3.3): a queued payment must never be
+      // refused later for a date the device could have caught.
+      if (action.receivedOn && action.receivedOn > todayInShowZone) {
+        toast.error(NOT_SAVED_FUTURE_DATE);
+        return 'failed';
+      }
       const result = await saveDeskPayment(enrollmentId, action, form);
       // The queue keeps no RPC answer: the save announces the show's money moved, and the
       // form's figures come back from the server's reload, never a local figure.
@@ -275,7 +284,7 @@ export function useEnrollmentLedgerActions({
       toast.error(NOT_SAVED_ON_DEVICE);
       return 'failed';
     },
-    [apply]
+    [apply, todayInShowZone]
   );
 
   const record = useCallback<EnrollmentLedgerRecordImpl>(

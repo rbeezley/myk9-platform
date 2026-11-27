@@ -121,8 +121,8 @@ export class MutationManager {
   }
 
   /** Owner stamp for a NEW queue entry (MYK9-1204); see MutationIdentity. */
-  private requireQueueOwnerUserId(): Promise<string> {
-    return this.identity.requireQueueOwnerUserId();
+  private requireQueueOwnerUserId(liveDeadlineMs?: number): Promise<string> {
+    return this.identity.requireQueueOwnerUserId(liveDeadlineMs);
   }
 
   private requireSameCurrentUserId(expectedAuthUserId: string): Promise<void> {
@@ -242,9 +242,10 @@ export class MutationManager {
     data: Record<string, unknown>,
     dependsOn?: string[],
     rpc?: PendingMutation['rpc'],
-    showId?: string
+    showId?: string,
+    ownerLookupDeadlineMs?: number
   ): Promise<PendingMutation> {
-    const authUserId = await this.requireQueueOwnerUserId();
+    const authUserId = await this.requireQueueOwnerUserId(ownerLookupDeadlineMs);
     await this.assertQueueCapacity();
     return this.queueStore.buildMutation(
       tableName,

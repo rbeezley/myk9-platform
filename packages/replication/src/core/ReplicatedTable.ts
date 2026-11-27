@@ -691,6 +691,8 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       payload: Record<string, unknown>;
       dependsOn?: string[] | undefined;
       rpc?: PendingMutation['rpc'] | undefined;
+      /** Use the persisted account once the live lookup takes this long (MYK9-2479). */
+      ownerLookupDeadlineMs?: number | undefined;
     },
     setOptions?: {
       expectedVersion?: number | undefined;
@@ -712,7 +714,8 @@ export abstract class ReplicatedTable<T extends { id: string }> {
                 queue.payload,
                 queue.dependsOn,
                 queue.rpc,
-                queue.rpc ? await this.resolveMutationShowId(id) : undefined
+                queue.rpc ? await this.resolveMutationShowId(id) : undefined,
+                queue.ownerLookupDeadlineMs
               ),
               sequencer: manager.sequencer,
             }

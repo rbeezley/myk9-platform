@@ -36,4 +36,24 @@ describe('notifyUserOfSyncFailure', () => {
   it('sends nothing when no change failed', () => {
     expect(capture(0)).toBeUndefined();
   });
+
+  // MYK9-2479: the app ships this log line remotely; a desk payment's args must not ride along.
+  it('logs which mutations failed, never their payload or RPC args', () => {
+    vi.stubGlobal('window', { dispatchEvent: vi.fn() });
+    const logger = { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn(), log: vi.fn() };
+    const payment = {
+      id: 'mut-1',
+      tableName: 'show_payments',
+      operation: 'INSERT',
+      failureKind: 'max-retries',
+      data: { p_amount: 37.5 },
+      rpc: { name: 'record_enrollment_payment', args: { p_amount: 37.5, p_reference: '1042' } },
+    } as unknown as PendingMutation;
+
+    notifyUserOfSyncFailure(logger as never, [payment]);
+
+    expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('failed permanently'), [
+      { id: 'mut-1', tableName: 'show_payments', operation: 'INSERT', failureKind: 'max-retries' },
+    ]);
+  });
 });

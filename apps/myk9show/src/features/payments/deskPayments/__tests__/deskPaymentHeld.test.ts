@@ -107,7 +107,7 @@ describe('desk payments held on this device (MYK9-2479, Codex round 6)', () => {
     await saveDeskPayment(ENROLLMENT, payment(ID, 37.5), FORM, deps);
 
     expect(await formChangeBlockedBy(ENROLLMENT, table)).toBe(
-      'Not changed: A cash payment of $37.50 for this form is saved on this device and has not reached myK9Show yet. Wait until the line under the balance clears, or remove a refused payment, then try again.'
+      'Not changed: A cash payment of $37.50 for this form is saved on this device, and myK9Show has not confirmed it yet. Wait until the line under the balance clears, or remove a refused payment, then try again.'
     );
     // Another form is not held by it.
     expect(await formChangeBlockedBy('enr-2', table)).toBeNull();
@@ -122,10 +122,10 @@ describe('desk payments held on this device (MYK9-2479, Codex round 6)', () => {
     await saveDeskPayment(ENROLLMENT, payment(OTHER_ID), FORM, deps);
 
     expect(await formChangeBlockedBy(ENROLLMENT, table)).toMatch(
-      /^Not changed: 2 payments for this form are saved on this device and have not reached myK9Show yet\./
+      /^Not changed: 2 payments for this form are saved on this device, and myK9Show has not confirmed them yet\./
     );
 
-    vi.spyOn(table, 'unsentForEnrollment').mockRejectedValue(new Error('IndexedDB closed'));
+    vi.spyOn(table, 'unconfirmedForEnrollment').mockRejectedValue(new Error('IndexedDB closed'));
     expect(await formChangeBlockedBy(ENROLLMENT, table)).toBe(FORM_CHANGE_UNREADABLE);
   });
 

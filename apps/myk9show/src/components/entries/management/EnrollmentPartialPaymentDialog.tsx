@@ -114,6 +114,11 @@ export const EnrollmentPartialPaymentDialog: React.FC<EnrollmentPartialPaymentDi
           max={todayInShowZone}
           onChange={receivedOn => onChange({ ...state, receivedOn })}
         />
+        {state.receivedOn > todayInShowZone && (
+          <p className="text-xs text-destructive">
+            The date received is after today. Enter the day the money was handed over.
+          </p>
+        )}
 
         {(() => {
           const amt = parseFloat(state.amountPaid);
@@ -155,6 +160,7 @@ export const EnrollmentPartialPaymentDialog: React.FC<EnrollmentPartialPaymentDi
           disabled={
             typedPaymentDollars(state.amountPaid) === null ||
             !state.receivedOn ||
+            state.receivedOn > todayInShowZone ||
             saveStatus === 'saving'
           }
         >

@@ -62,7 +62,10 @@ import { requestPersistentStorage } from '@/lib/persistentStorage';
 import { mutationManager } from '@/services/replication/sharedMutationManager';
 import type { SyncFailedEventDetail } from './replicationSyncFormatters';
 import { withoutListedScores } from '@/features/at-show/scoresNotSent/scoresNotSentFilter';
-import { withoutDeskPayments } from '@/features/payments/deskPayments/deskPaymentEvents';
+import {
+  forFailureLog,
+  withoutDeskPayments,
+} from '@/features/payments/deskPayments/deskPaymentEvents';
 import { useDeskPaymentRefresh } from '@/features/payments/deskPayments/useDeskPaymentRefresh';
 import {
   isPasscodeRegeneratedMessage,
@@ -765,7 +768,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       const detail = (event as CustomEvent<SyncFailedEventDetail>).detail;
       logger.error('Replication sync failed', 'replication', {
         count: detail.count,
-        mutations: detail.mutations,
+        mutations: detail.mutations.map(forFailureLog),
       });
 
       // J1.3 — a ringside SCORE/check-in write rejected because the secretary

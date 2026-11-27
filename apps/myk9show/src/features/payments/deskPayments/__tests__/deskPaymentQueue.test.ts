@@ -16,7 +16,7 @@ import type {
   RecordedEnrollmentPayment,
 } from '@/features/payments/showPaymentLedger';
 import { recordEnrollmentPayment } from '@/services/database/show-payments';
-import { DeskPaymentsTable } from '../DeskPaymentsTable';
+import { DESK_OWNER_LOOKUP_DEADLINE_MS, DeskPaymentsTable } from '../DeskPaymentsTable';
 import type { DeskPaymentDeps } from '../deskPaymentDeps';
 import { settleUploadedDeskPayments, DESK_PAYMENTS_RECORDED_EVENT } from '../deskPaymentEvents';
 import {
@@ -174,7 +174,9 @@ describe('desk payments on the offline queue (MYK9-2479)', () => {
         name: 'record_enrollment_payment',
         args: expect.objectContaining({ p_client_payment_id: ID, p_amount: 25 }),
       },
-      undefined
+      undefined,
+      // Shared-device plan § 3.4: the save waits at most 2 s on the live account lookup.
+      DESK_OWNER_LOOKUP_DEADLINE_MS
     );
   });
 

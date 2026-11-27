@@ -291,7 +291,8 @@ describe('useClubDetailsState canAddShow (MYK9-890)', () => {
 // (`club_members_select`). Anyone else gets at most their own row, so the club page showed an
 // outsider "Active Members 0 · No members yet · Invite members to join" for a club with members.
 describe('useClubDetailsState member count (MYK9-2467)', () => {
-  const memberStat = (stats: { type: string }[]) => stats.find(stat => stat.type === 'members');
+  const memberStat = <T extends { type: string }>(stats: T[]) =>
+    stats.find(stat => stat.type === 'members');
 
   beforeEach(() => {
     mockAuth.userWithRoles = null;

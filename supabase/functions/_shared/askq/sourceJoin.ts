@@ -12,7 +12,11 @@ export interface SourceSection {
   source: AskQSource;
   /** What the source produced; null when it produced nothing. */
   text: string | null;
-  /** A plain sentence in the source's place, not the source's own output: never labelled. */
+  /**
+   * A plain sentence in the source's place, not the source's own output: the needs-a-show
+   * notice, or the rulebook's "which rulebook?" question. Never labelled, and never counted
+   * as an answer.
+   */
   plain?: boolean;
 }
 
@@ -29,9 +33,20 @@ function fallbackSentence(source: AskQSource): string {
  * its own answer. With several, show data gets a plain label; the guides text already
  * starts "From the <guide>:" and the rulebook text "Using … rules:". A source that
  * produced nothing contributes one plain sentence.
+ *
+ * The guides are the exception (MYK9-2473): their sentence says no verified guide answer was
+ * found "for that question", so above another source's answer it read as a refusal followed by
+ * an answer. When any other source answered, a guide section with nothing to say is left out.
+ * A `plain` section is a notice or a question back, not an answer, so it does not hide it.
  */
 export function joinSourceSections(sections: SourceSection[]): string {
-  const ordered = ORDER.flatMap(source => sections.filter(section => section.source === source));
+  const inOrder = ORDER.flatMap(source => sections.filter(section => section.source === source));
+  const otherSourceAnswered = inOrder.some(
+    section => section.source !== 'guides' && !section.plain && section.text?.trim()
+  );
+  const ordered = inOrder.filter(
+    section => section.source !== 'guides' || section.text?.trim() || !otherSourceAnswered
+  );
   const multiple = ordered.length > 1;
   return ordered
     .map(section => {

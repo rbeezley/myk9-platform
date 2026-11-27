@@ -14,8 +14,10 @@ import { buildClassDetailsRelatedLinks } from '@/pages/ClassDetailsPage/classDet
  * Two halves:
  * 1. The builders every staff and show-day exhibitor link goes through never return the class
  *    page, whatever the day or role.
- * 2. Every source file that builds a class-page URL is listed below with why and how many. A new
- *    file, or one more in a listed file, fails until it is listed, which is the moment to ask "should this open Show Desk or Ringside?".
+ * 2. Every source file that builds a class-page URL is listed below with why and how many. The count
+ *    must match exactly: a new file or one more link fails until it is listed (the moment to ask
+ *    "should this open Show Desk or Ringside?"), and a link removed fails until its allowance is
+ *    lowered, so the lists never go stale.
  */
 
 const SRC = join(__dirname, '..', '..');
@@ -81,15 +83,15 @@ function sourceFiles(dir: string): string[] {
 }
 
 describe('link audit: who may open the class page (MYK9-1942)', () => {
-  it('no source file builds more class-page URLs than it is accounted for', () => {
+  it('every source file builds exactly the class-page URLs it is accounted for', () => {
     const found = new Map<string, number>();
     for (const file of sourceFiles(SRC)) {
       const matches = readFileSync(file, 'utf8').match(CLASS_PAGE_URL_EVERY);
       if (matches) found.set(relative(SRC, file).split(sep).join('/'), matches.length);
     }
 
-    // A subset check, not equality: moving a link off the class page lowers a count and passes;
-    // adding one (a new file, or one more in a listed file) fails until it is listed here.
+    // Equality, not a ceiling: a count that fell must be lowered here too, so the lists always
+    // say exactly what the code does and a removed link cannot be quietly re-added later.
     const accounted = new Map<string, number>(
       Object.entries({
         ...DESTINATION,
@@ -98,11 +100,28 @@ describe('link audit: who may open the class page (MYK9-1942)', () => {
         ...STAFF_DOORS_STILL_OPEN,
       })
     );
-    const overBudget = [...found].filter(([file, count]) => count > (accounted.get(file) ?? 0));
+    const problems: string[] = [];
+    for (const [file, count] of found) {
+      const allowed = accounted.get(file);
+      if (allowed === undefined) {
+        problems.push(`${file}: ${count} class-page link(s), this link is not allowed`);
+      } else if (count !== allowed) {
+        problems.push(
+          count > allowed
+            ? `${file}: ${count} class-page links vs ${allowed} allowed, this link is not allowed`
+            : `${file}: ${count} class-page links vs ${allowed} allowed, lower its allowance in this change (remove the entry at zero)`
+        );
+      }
+    }
+    for (const [file, allowed] of accounted) {
+      if (!found.has(file)) {
+        problems.push(
+          `${file}: 0 class-page links vs ${allowed} allowed, lower its allowance in this change (remove the entry)`
+        );
+      }
+    }
 
-    expect(
-      overBudget.map(([file, count]) => `${file}: ${count} vs ${accounted.get(file) ?? 0}`)
-    ).toEqual([]);
+    expect(problems).toEqual([]);
   });
 
   describe('the exhibitor show-day link', () => {

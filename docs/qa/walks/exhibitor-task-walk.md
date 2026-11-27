@@ -108,8 +108,6 @@ If nothing is open when you run: **do not fake it and do not create a show** (an
 8. **Review results** — per class entered, once posted.
 9. **Review statistics** — per-dog past performance.
 
-**One home per class (MYK9-1942).** On a phone-width viewport, on a show running today, run the show-day path and count the screens: My Shows ("Where to be today") to Ringside ("Your dogs today"), check in (Willow's self-check-in, the one write this walk may make), and read the place in line that follows. At no step should a link open the class page (`/shows/:id/trials/:id/classes/:id`). The show page's "Where to be & when" rows open Ringside on the trial day and My Shows on any other day. The read-only half is automated in `exhibitor/oneHomePerClassPhoneWalk.spec.ts`; the check-in and the place in line after it are walked here, not there. The place changing as a score is recorded and the result arriving "preliminary" need a second role writing scores, which this walk never does on shared staging: they are covered by the isolated scoring journey (`resultsTabJourney`) and the `MyEntryRow` and run-queue vitest suites.
-
 ### Entry and account regressions
 
 - **Wait-list offer confirmation (MYK9-1839).** In an isolated test environment with a disposable unexpired offer, first confirm the deployed build includes the fix. On My Entries, tap Decline and verify the warning says the spot goes to someone else and cannot be taken back; choose Keep my spot and verify the offer remains. Confirm decline on the disposable offer and verify it is declined. On a separate offer, verify Complete payment opens checkout in one tap; stop before payment. If the isolated environment or offers are unavailable, record the check as blocked. Do not change a shared or production offer.

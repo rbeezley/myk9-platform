@@ -1,6 +1,8 @@
 # Offline desk payments on a shared device (MYK9-2479 design pass)
 
-> **Status:** Active
+> **Status:** Abandoned
+>
+> Built on #4461 and closed there by the owner on 2026-11-27. Codex round 8 found a P1 that this pass's 2 s owner-lookup fallback caused: the payment saves, but the line reader still waits on live lookups. That met the stop in § 4. A restart after launch begins with a narrower scope; the round 8 findings are on MYK9-2479.
 
 Linear: MYK9-2479, parked on 2026-11-27 after Codex round 7 on #4461 (draft). This extends [`plan-offline-desk-payments.md`](plan-offline-desk-payments.md) § 2 "A form-wide change waits for the form's unsent payments" and settles the round 7 findings before any more code. App paths are under `apps/myk9show/src/`, queue files under `packages/replication/src/`.
 

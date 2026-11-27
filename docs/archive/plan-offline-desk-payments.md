@@ -1,6 +1,8 @@
 # Offline desk payments: cash and check recorded with no connection (MYK9-1936 step 3)
 
-> **Status:** Active
+> **Status:** Abandoned
+>
+> Put off until after launch (owner, 2026-11-27). Step 1 shipped in #4446. Step 3 (MYK9-2479, #4461) was closed after Codex round 8 under the stop in [`plan-offline-desk-payments-shared-device.md`](plan-offline-desk-payments-shared-device.md) § 4. Its branch `claude/myk9-2479-offline-desk-payments` is kept. Desk payments stay online-only. MYK9-1936, 2479, 2480 and 2481 are parked.
 
 Linear: MYK9-1936, step 3. The owner chose this shape on 2026-11-26: the payment is shown beside the balance, never inside it. It builds on step 1 (#4446, a client payment id on every desk payment) and step 2 (MYK9-1930, #4158, a late entry gets its form when it syncs). App paths are under `apps/myk9show/src/`, queue files under `packages/replication/src/`, migrations under `supabase/migrations/`.
 

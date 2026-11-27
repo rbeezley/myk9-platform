@@ -4,6 +4,7 @@ import {
   SCORE_DETAIL_CLEAR_FIELDS,
   scoreResetCheckInFields,
 } from '@/services/replication/scoreResetFields';
+import { useSavedScoreStore } from './savedScore';
 
 /**
  * Clear an entry's score back to unscored and pending, and a `completed` check-in with it, in one
@@ -51,6 +52,8 @@ export async function clearEntryScore(
       ...scoreResetCheckInFields(current),
     };
   });
+  // The "Saved:" line must not go on saying this dog is scored (MYK9-2518).
+  if (!declined) useSavedScoreStore.getState().forget(entryId);
   return !declined;
 }
 

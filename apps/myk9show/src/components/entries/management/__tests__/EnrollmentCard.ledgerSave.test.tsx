@@ -6,11 +6,11 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EnrollmentGroup } from '@/utils/enrollmentGrouping';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import type {
-  EnrollmentLedgerControls,
+  EnrollmentLedgerRecordImpl,
   LedgerWriteOutcome,
 } from '@/hooks/useEnrollmentLedgerActions';
 
-type LedgerRecord = EnrollmentLedgerControls['record'];
+type LedgerRecord = EnrollmentLedgerRecordImpl;
 
 vi.mock('@/components/common/CheckInStatusIndicator', () => ({
   CheckInStatusIndicator: () => null,
@@ -266,15 +266,31 @@ describe('payment and refund dialogs keep what was typed when the save fails (MY
     fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(record).toHaveBeenCalledTimes(2);
-    expect(record).toHaveBeenLastCalledWith('enroll-1', {
-      kind: 'payment',
-      method: 'check',
-      amount: null,
-      receivedOn: '2026-08-27',
-      reference: '1042',
-      clientPaymentId: expect.any(String),
-    });
+    expect(record).toHaveBeenLastCalledWith(
+      'enroll-1',
+      {
+        kind: 'payment',
+        method: 'check',
+        // MYK9-2479: the due shown, never NULL.
+        amount: 50,
+        receivedOn: '2026-08-27',
+        reference: '1042',
+        clientPaymentId: expect.any(String),
+      },
+      { showId: 'show-1', exhibitorName: 'Jane Smith' }
+    );
   });
+});
+
+// MYK9-2479: saved on this device and left to the queue, the payment is not lost to the
+// dialog: it closes, and the payment's line beside the balance says where it stands.
+it('a payment saved on this device and queued closes its dialog', async () => {
+  const record = vi.fn<LedgerRecord>().mockResolvedValue('queued');
+  openPartialPayment(record);
+  fireEvent.click(screen.getByRole('button', { name: 'Record Payment' }));
+
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  expect(record).toHaveBeenCalledTimes(1);
 });
 
 /** The payment id the `call`th ledger write carried (MYK9-1936). */

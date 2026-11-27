@@ -6,6 +6,15 @@ import type {
   EnrollmentLedgerAction,
   RecordedEnrollmentPayment,
 } from '@/features/payments/showPaymentLedger';
+import type { DeskPaymentForm } from '@/features/payments/deskPayments/deskPaymentTypes';
+import {
+  CHANGED_RETRY_REFUSAL,
+  errorCodeOf,
+  isFriendlyRefusal,
+  NOT_AUTHORIZED_CODE,
+  RPC_REFUSAL_CODE,
+} from '@/features/payments/deskPayments/paymentRefusals';
+import { saveDeskPayment } from '@/features/payments/deskPayments/saveDeskPayment';
 import {
   markEnrollmentPaidOnline,
   recordEnrollmentPayment,
@@ -59,11 +68,6 @@ export function applyRecordedEnrollmentPayment(
   };
 }
 
-/** Postgres code of the RPCs' own validation refusals (every RAISE they can reach). */
-const RPC_REFUSAL_CODE = '22023';
-/** Postgres insufficient_privilege: raised before either RPC writes anything. */
-const NOT_AUTHORIZED_CODE = '42501';
-
 const LEDGER_NOT_AUTHORIZED = 'You do not have permission to record payments for this entry.';
 // Anything else, including a lost connection after the server saved it. A retry
 // of the same payment from its dialog carries the same id and is recorded once
@@ -71,28 +75,6 @@ const LEDGER_NOT_AUTHORIZED = 'You do not have permission to record payments for
 const LEDGER_UNCONFIRMED =
   "We could not confirm this was saved. Check the entry's payments: if it is not there, try again.";
 
-/**
- * The 22023 refusals the SQL writes for the person at the desk (a date or an
- * amount they typed), matched on the exact RAISE text in
- * `record_enrollment_payment`. The same code also carries technical refusals
- * (unsupported kind, enrollment not found, client_payment_id misuse, a method
- * the form never offers); those are not listed, so they never reach the screen.
- */
-const FRIENDLY_REFUSALS: readonly RegExp[] = [
-  /^received date .+ is after today \(.+\) on the show's calendar$/,
-  /^a payment amount must be greater than zero$/,
-  /^invalid payment amount \S+$/,
-  /^invalid refund amount \S*$/,
-  /^refund \S+ exceeds the \S+ still held \(\S+ paid, \S+ already refunded\)$/,
-];
-
-/**
- * MYK9-1936: a retry carried the payment's id with a changed received date or check
- * number, and the first save had landed. Nothing new is written, but the payment IS on
- * the form (as first typed), so this is not "not recorded".
- */
-const CHANGED_RETRY_REFUSAL =
-  /^client_payment_id \S+ was already saved with a different received date or reference$/;
 const LEDGER_CHANGED_RETRY =
   "This payment may already be saved with the earlier date or check number. Check the entry's payments before saving again.";
 
@@ -105,9 +87,19 @@ const LEDGER_REFUSED_TECHNICAL =
  * MYK9-2156: how a ledger write ended. `failed` is a refusal raised before the
  * RPC writes anything, so nothing was recorded; `unconfirmed` is anything else
  * (a lost connection, a timeout), where the server may have saved it and a
- * retry could record the payment twice.
+ * retry could record the payment twice. MYK9-2479: `queued` is a cash or check
+ * payment saved on this device that the queue sends (again) under the same id.
  */
-export type LedgerWriteOutcome = 'saved' | 'failed' | 'unconfirmed';
+export type LedgerWriteOutcome = 'saved' | 'queued' | 'failed' | 'unconfirmed';
+
+/** MYK9-2479: the payment is on this device and goes out on its own. */
+const QUEUED_OFFLINE =
+  'Payment saved on this device. It will be sent on its own when the connection returns.';
+const QUEUED_UNCONFIRMED =
+  'Payment saved on this device, not confirmed yet. It will be sent again on its own.';
+/** The plan's § 3 note: the payment could not be kept on this device. */
+const NOT_SAVED_OFFLINE =
+  "No connection. Write the payment down and record it here when you're back online.";
 
 /**
  * MYK9-1824: what the secretary reads when a payment write fails. The RPCs'
@@ -118,8 +110,7 @@ function ledgerFailure(err: unknown): {
   outcome: Exclude<LedgerWriteOutcome, 'saved'>;
   message: string;
 } {
-  const code =
-    typeof err === 'object' && err !== null ? (err as { code?: unknown }).code : undefined;
+  const code = errorCodeOf(err);
   if (
     code === RPC_REFUSAL_CODE &&
     err instanceof Error &&
@@ -131,7 +122,7 @@ function ledgerFailure(err: unknown): {
   if (code === RPC_REFUSAL_CODE && err instanceof Error) {
     return {
       outcome: 'failed',
-      message: FRIENDLY_REFUSALS.some(pattern => pattern.test(err.message))
+      message: isFriendlyRefusal(err.message)
         ? `Payment not recorded: ${err.message}`
         : LEDGER_REFUSED_TECHNICAL,
     };
@@ -140,9 +131,32 @@ function ledgerFailure(err: unknown): {
   return { outcome: 'unconfirmed', message: LEDGER_UNCONFIRMED };
 }
 
+type PaymentAction = Extract<EnrollmentLedgerAction, { kind: 'payment' }>;
+
+/** One function that satisfies both `record` overloads: what the hook builds and tests mock. */
+export type EnrollmentLedgerRecordImpl = (
+  enrollmentId: string,
+  action: EnrollmentLedgerAction,
+  form?: DeskPaymentForm
+) => Promise<LedgerWriteOutcome>;
+
 export interface EnrollmentLedgerControls {
-  /** Records one cash/check payment, refund or "Payment Due" reset (MYK9-2156: says how it ended). */
-  record: (enrollmentId: string, action: EnrollmentLedgerAction) => Promise<LedgerWriteOutcome>;
+  /**
+   * Records one cash/check payment, refund or "Payment Due" reset (MYK9-2156: says how
+   * it ended). A cash or check payment names its form (MYK9-2479): it is saved on this
+   * device first, with the show and exhibitor its line shows.
+   */
+  record: {
+    (
+      enrollmentId: string,
+      action: Exclude<EnrollmentLedgerAction, { kind: 'payment' }>
+    ): Promise<LedgerWriteOutcome>;
+    (
+      enrollmentId: string,
+      action: PaymentAction,
+      form: DeskPaymentForm
+    ): Promise<LedgerWriteOutcome>;
+  };
   /** "Paid in Full: Online" (MYK9-773): no ledger row, the same server cascade. */
   markPaidOnline: (enrollmentId: string) => Promise<boolean>;
   /** Today on the show's calendar: what a received-date input starts at. */
@@ -159,6 +173,8 @@ export interface EnrollmentLedgerControls {
  *
  * Not optimistic: the server computes the new status and paid total, and a
  * refused payment (wrong show, future date) must not flash as recorded.
+ * MYK9-2479: a cash or check payment the server has not answered is shown BESIDE
+ * the balance (`DeskPaymentLines`), never added into it.
  */
 export function useEnrollmentLedgerActions({
   setEntries,
@@ -196,10 +212,46 @@ export function useEnrollmentLedgerActions({
     [queryClient, setEntries]
   );
 
-  const record = useCallback(
-    (enrollmentId: string, action: EnrollmentLedgerAction) =>
-      apply(enrollmentId, () => recordEnrollmentPayment(enrollmentId, action)),
+  /**
+   * MYK9-2479: a cash or check payment is saved on this device first and sent with a
+   * bounded wait; with no answer it stays queued under the same id and is sent again on
+   * its own. A refusal inside the wait stays in the dialog, as before.
+   */
+  const recordPayment = useCallback(
+    async (
+      enrollmentId: string,
+      action: PaymentAction,
+      form: DeskPaymentForm
+    ): Promise<LedgerWriteOutcome> => {
+      const result = await saveDeskPayment(enrollmentId, action, form);
+      if (result.kind === 'saved') return apply(enrollmentId, async () => result.recorded);
+      if (result.kind === 'refused') return apply(enrollmentId, () => Promise.reject(result.error));
+      if (result.kind === 'queued') {
+        toast.warning(result.sendBegun ? QUEUED_UNCONFIRMED : QUEUED_OFFLINE);
+        return 'queued';
+      }
+      logger.error(
+        'Desk payment not saved on this device:',
+        'secretary',
+        {},
+        result.error as Error
+      );
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        toast.error(NOT_SAVED_OFFLINE);
+        return 'failed';
+      }
+      // Online with no way to keep it here: send it as before, answer or nothing.
+      return apply(enrollmentId, () => recordEnrollmentPayment(enrollmentId, action));
+    },
     [apply]
+  );
+
+  const record = useCallback<EnrollmentLedgerRecordImpl>(
+    (enrollmentId, action, form) =>
+      action.kind === 'payment' && form
+        ? recordPayment(enrollmentId, action, form)
+        : apply(enrollmentId, () => recordEnrollmentPayment(enrollmentId, action)),
+    [apply, recordPayment]
   );
 
   const markPaidOnline = useCallback(

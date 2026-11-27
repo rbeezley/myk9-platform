@@ -62,6 +62,8 @@ import { requestPersistentStorage } from '@/lib/persistentStorage';
 import { mutationManager } from '@/services/replication/sharedMutationManager';
 import type { SyncFailedEventDetail } from './replicationSyncFormatters';
 import { withoutListedScores } from '@/features/at-show/scoresNotSent/scoresNotSentFilter';
+import { withoutDeskPayments } from '@/features/payments/deskPayments/deskPaymentEvents';
+import { useDeskPaymentRefresh } from '@/features/payments/deskPayments/useDeskPaymentRefresh';
 import {
   isPasscodeRegeneratedMessage,
   revokeRingsidePasscodeAccess,
@@ -678,6 +680,8 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
 
   // Poll, tab-visible and sync-requested wiring; see useSyncPassScheduler.
   useSyncPassScheduler(autoSync, triggerSyncRef);
+  // MYK9-2479: a replayed desk payment settles, and its show's money is refreshed.
+  useDeskPaymentRefresh();
 
   // Listen for mutation-queue overflow — the queue hit its hard cap and is now
   // rejecting new writes. This is a data-loss risk (a new score can't be
@@ -776,7 +780,8 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       }
 
       // MYK9-2011: refused scores live on the Scores not sent list (ScoresNotSentNotice).
-      const listed = withoutListedScores(detail);
+      // MYK9-2479: desk payments live on their own lines beside the form's balance, with no Discard.
+      const listed = withoutDeskPayments(withoutListedScores(detail));
       if (listed.mutations.length === 0) return;
       for (const failureDetail of splitPermanentScoreAuthorizationFailures(listed)) {
         const ids = failureDetail.mutations.map(m => m.id).filter(Boolean);

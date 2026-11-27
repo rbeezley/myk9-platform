@@ -53,11 +53,12 @@ describe('record_enrollment_payment arguments (MYK9-677)', () => {
     });
   });
 
-  it('sends Paid in Full as a NULL amount, so the server pays the balance', async () => {
+  // MYK9-2479: Paid in Full sends the balance due it showed, never NULL, so a replay records that figure.
+  it('sends Paid in Full as the explicit balance due, never a NULL amount', async () => {
     await recordEnrollmentPayment('enr-1', {
       kind: 'payment',
       method: 'cash',
-      amount: null,
+      amount: 37.5,
       receivedOn: '2026-09-17',
       clientPaymentId: '5d2a9e4c-81f3-4b07-a6d5-0e9c3f7b2a64',
     });
@@ -65,7 +66,7 @@ describe('record_enrollment_payment arguments (MYK9-677)', () => {
     expect(mocks.rpc).toHaveBeenCalledWith(
       'record_enrollment_payment',
       expect.objectContaining({
-        p_amount: null,
+        p_amount: 37.5,
         p_method: 'cash',
         p_reference: null,
         p_client_payment_id: '5d2a9e4c-81f3-4b07-a6d5-0e9c3f7b2a64',

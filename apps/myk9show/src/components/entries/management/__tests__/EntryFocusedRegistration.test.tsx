@@ -482,11 +482,13 @@ describe('EntryFocusedRegistration', () => {
         {
           kind: 'payment',
           method: 'cash',
-          amount: null,
+          // MYK9-2479: the due shown on the form, never NULL, and the form it belongs to.
+          amount: 25,
           receivedOn: '2026-09-17',
           reference: null,
           clientPaymentId: expect.any(String),
         },
+        { showId: 'show-1', exhibitorName: 'Alice Martin' },
       ];
       expect(viaChecklist.paymentLedger.record).toHaveBeenCalledTimes(1);
       expect(viaChecklist.paymentLedger.record).toHaveBeenCalledWith(...expected);
@@ -504,14 +506,18 @@ describe('EntryFocusedRegistration', () => {
       await user.click(screen.getByRole('button', { name: 'Check…' }));
       await user.type(screen.getByPlaceholderText('Check number (optional)'), '9');
       await user.click(screen.getByRole('button', { name: 'Confirm' }));
-      expect(props.paymentLedger.record).toHaveBeenCalledWith('enrollment-1', {
-        kind: 'payment',
-        method: 'check',
-        amount: null,
-        receivedOn: '2026-09-17',
-        reference: '9',
-        clientPaymentId: expect.any(String),
-      });
+      expect(props.paymentLedger.record).toHaveBeenCalledWith(
+        'enrollment-1',
+        {
+          kind: 'payment',
+          method: 'check',
+          amount: 25,
+          receivedOn: '2026-09-17',
+          reference: '9',
+          clientPaymentId: expect.any(String),
+        },
+        { showId: 'show-1', exhibitorName: 'Alice Martin' }
+      );
 
       await user.click(screen.getByRole('button', { name: 'More payment options' }));
       await user.click(await screen.findByRole('menuitem', { name: 'Partial Payment…' }));

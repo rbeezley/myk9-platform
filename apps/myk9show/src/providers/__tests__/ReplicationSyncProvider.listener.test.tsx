@@ -163,6 +163,49 @@ describe('ReplicationSyncProvider — replication:sync-failed listener', () => {
     expect(retryFailedMutationMock).not.toHaveBeenCalled();
   });
 
+  // MYK9-2479: a desk payment's state and actions live on its line beside the form's balance.
+  // The generic toast's Discard could drop cash that was in fact recorded.
+  it('leaves a desk payment out of the generic toast and its Discard', () => {
+    renderProvider();
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('replication:sync-failed', {
+          detail: {
+            count: 2,
+            mutations: [
+              {
+                id: 'pay-mut-1',
+                tableName: 'show_payments',
+                operation: 'INSERT',
+                error: 'Max retries exceeded: TypeError: Failed to fetch',
+                failureKind: 'max-retries',
+                rpc: { name: 'record_enrollment_payment', args: { p_amount: 25 } },
+              },
+              {
+                id: 'mut-1',
+                tableName: 'shows',
+                operation: 'INSERT',
+                error: "new row violates row-level security policy for table 'shows'",
+              },
+            ],
+            message: '',
+          },
+        })
+      );
+    });
+
+    expect(toast.error).toHaveBeenCalledTimes(1);
+    expect(toast.error).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ id: 'sync-failed:mut-1' })
+    );
+    expect(toast.error).not.toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ id: 'sync-failed:pay-mut-1' })
+    );
+  });
+
   it('keeps unrelated failures retryable when a batch also contains a score authorization failure', () => {
     renderProvider();
 

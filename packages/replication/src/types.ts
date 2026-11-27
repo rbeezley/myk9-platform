@@ -188,6 +188,8 @@ export interface PendingMutation {
    * letter so user-facing recovery does not have to parse display text.
    */
   failureKind?: 'authorization' | 'permanent' | 'max-retries';
+  /** The Postgres code of the failure that moved it there, when the server sent one (MYK9-2479). */
+  errorCode?: string;
 
   /** Causal dependency tracking */
   dependsOn?: string[]; // IDs of mutations that must complete before this one

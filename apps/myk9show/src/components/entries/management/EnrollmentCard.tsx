@@ -38,6 +38,7 @@ import { EnrollmentLedgerConfirmDialog } from './EnrollmentLedgerConfirmDialog';
 import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
 import { EnrollmentCommunicationSection } from './EnrollmentCommunicationSection';
 import { latestDecisionEmailedAt } from '@/features/lifecycle-emails';
+import { DeskPaymentLines } from '@/features/payments/deskPayments/DeskPaymentLines';
 
 export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   group,
@@ -366,6 +367,8 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
               )}
             </div>
           </div>
+          {/* MYK9-2479: payments on this device, beside the server's balance, never in it. */}
+          <DeskPaymentLines showId={group.entries[0]?.showId} enrollmentId={group.enrollmentId} />
         </div>
       </CardHeader>
 

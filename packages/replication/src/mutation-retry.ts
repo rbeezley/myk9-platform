@@ -66,6 +66,8 @@ export function classifyMutationFailure({
   delete withoutTransport.transportRetries;
 
   if (permanentlyFailed) {
+    const code =
+      typeof error === 'object' && error !== null ? (error as { code?: unknown }).code : undefined;
     const failed: PendingMutation = {
       ...withoutTransport,
       retries,
@@ -77,6 +79,8 @@ export function classifyMutationFailure({
           ? 'authorization'
           : 'permanent',
       failedAt: now,
+      // MYK9-2479: the dead letter keeps the server's code, so recovery need not parse its text.
+      ...(typeof code === 'string' && code.length > 0 && { errorCode: code }),
     };
     delete failed.nextRetryAt;
 

@@ -10,13 +10,22 @@ import {
   useEnrollmentLedgerActions,
 } from '../useEnrollmentLedgerActions';
 
-const mocks = vi.hoisted(() => ({ record: vi.fn(), markOnline: vi.fn(), toastError: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  record: vi.fn(),
+  markOnline: vi.fn(),
+  save: vi.fn(),
+  toastError: vi.fn(),
+  toastWarning: vi.fn(),
+}));
 
 vi.mock('@/services/database/show-payments', () => ({
   recordEnrollmentPayment: mocks.record,
   markEnrollmentPaidOnline: mocks.markOnline,
 }));
-vi.mock('sonner', () => ({ toast: { error: mocks.toastError } }));
+vi.mock('@/features/payments/deskPayments/saveDeskPayment', () => ({
+  saveDeskPayment: mocks.save,
+}));
+vi.mock('sonner', () => ({ toast: { error: mocks.toastError, warning: mocks.toastWarning } }));
 
 function entry(overrides: Partial<EntryManagementEntry> = {}): EntryManagementEntry {
   return {
@@ -130,7 +139,7 @@ describe('useEnrollmentLedgerActions', () => {
   });
 
   it("records once and patches only that enrollment's entries from the server's answer", async () => {
-    mocks.record.mockResolvedValue(PAID_IN_FULL);
+    mocks.save.mockResolvedValue({ kind: 'saved', recorded: PAID_IN_FULL });
     let entries = [entry(), entry({ id: 'other', registrationId: 'enr-2' })];
     const setEntries = vi.fn(update => {
       entries = typeof update === 'function' ? update(entries) : update;
@@ -147,16 +156,78 @@ describe('useEnrollmentLedgerActions', () => {
       clientPaymentId: '9a4e2c61-0b7d-4f38-8e15-3d6c2a9f7b40',
     };
 
+    const form = { showId: 'show-1', exhibitorName: 'Jane' };
+
     let outcome = '';
     await act(async () => {
-      outcome = await result.current.record('enr-1', action);
+      outcome = await result.current.record('enr-1', action, form);
     });
 
     expect(outcome).toBe('saved');
-    expect(mocks.record).toHaveBeenCalledTimes(1);
-    expect(mocks.record).toHaveBeenCalledWith('enr-1', action);
+    // MYK9-2479: saved on this device first, with its form, then sent.
+    expect(mocks.save).toHaveBeenCalledTimes(1);
+    expect(mocks.save).toHaveBeenCalledWith('enr-1', action, form);
+    expect(mocks.record).not.toHaveBeenCalled();
     expect(entries[0]!.enrollmentPaymentStatus).toBe(PaymentStatus.PAID_BY_CASH);
     expect(entries[1]!.enrollmentPaymentStatus).toBe(PaymentStatus.PENDING);
+  });
+
+  const PAYMENT = {
+    kind: 'payment' as const,
+    method: 'cash' as const,
+    amount: 25,
+    receivedOn: '2026-09-17',
+    clientPaymentId: '0c3f9a1e-6b2d-4e8f-a7c5-1d9e4b2f8a63',
+  };
+  const FORM = { showId: 'show-1', exhibitorName: 'Jane' };
+
+  async function recordPayment(result: { kind: string; [key: string]: unknown }) {
+    mocks.save.mockResolvedValue(result);
+    const setEntries = vi.fn();
+    const hook = renderHook(
+      () => useEnrollmentLedgerActions({ setEntries, showTimeZone: 'America/New_York' }),
+      { wrapper }
+    );
+    let outcome = '';
+    await act(async () => {
+      outcome = await hook.result.current.record('enr-1', PAYMENT, FORM);
+    });
+    return { outcome, setEntries };
+  }
+
+  // MYK9-2479: saved on this device and left to the queue: the dialog closes, the form's
+  // money is not touched, and the copy promises an automatic send.
+  it('a payment offline is queued, says it will be sent on its own, and changes no figure', async () => {
+    const { outcome, setEntries } = await recordPayment({ kind: 'queued', sendBegun: false });
+
+    expect(outcome).toBe('queued');
+    expect(setEntries).not.toHaveBeenCalled();
+    expect(mocks.toastWarning).toHaveBeenCalledWith(
+      'Payment saved on this device. It will be sent on its own when the connection returns.'
+    );
+  });
+
+  it('a payment whose answer was lost is queued again, not confirmed', async () => {
+    const { outcome } = await recordPayment({ kind: 'queued', sendBegun: true });
+
+    expect(outcome).toBe('queued');
+    expect(mocks.toastWarning).toHaveBeenCalledWith(
+      'Payment saved on this device, not confirmed yet. It will be sent again on its own.'
+    );
+  });
+
+  it('a refusal inside the wait stays in the dialog with its reason', async () => {
+    vi.spyOn(logger, 'error').mockImplementation(() => {});
+    const { outcome, setEntries } = await recordPayment({
+      kind: 'refused',
+      error: refusal('a payment amount must be greater than zero'),
+    });
+
+    expect(outcome).toBe('failed');
+    expect(setEntries).not.toHaveBeenCalled();
+    expect(mocks.toastError).toHaveBeenCalledWith(
+      'Payment not recorded: a payment amount must be greater than zero'
+    );
   });
 
   it('Payment Due after an enrollment refund shows the inherited refund as pending (MYK9-773)', async () => {

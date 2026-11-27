@@ -22,7 +22,7 @@ export function usePaymentAttemptId() {
       payment: LedgerPaymentDetails
     ): Extract<EnrollmentLedgerAction, { kind: 'payment' }> => {
       // The server refuses one id reused for another enrollment, method or amount.
-      const key = `${enrollmentId}|${payment.method}|${payment.amount ?? 'balance'}`;
+      const key = `${enrollmentId}|${payment.method}|${payment.amount}`;
       if (attempt.current?.key !== key) {
         attempt.current = { key, id: crypto.randomUUID() };
       }

@@ -32,7 +32,9 @@ export function useLedgerDialogSave() {
       } finally {
         inFlight.current = false;
       }
-      if (outcome === 'saved') {
+      // MYK9-2479: `queued` is saved on this device and sent on its own, so the dialog closes;
+      // its line beside the balance says where it stands.
+      if (outcome === 'saved' || outcome === 'queued') {
         setStatus('idle');
         onSaved();
       } else {

@@ -35,6 +35,7 @@ import {
   withSavedOwnerNames,
 } from '@/hooks/entryDisplayNames';
 import { useUserStore } from '@/store/userStore';
+import { useReloadOnDeskPaymentsRecorded } from '@/features/payments/deskPayments/useDeskPaymentRefresh';
 
 interface UseEntryManagementDataReturn {
   // Auth
@@ -480,6 +481,9 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
       setLoadedEntriesShowId(null);
     }
   }, [selectedShowId, loadEntries]);
+
+  // MYK9-2479: a desk payment replayed from the queue moved this show's money.
+  useReloadOnDeskPaymentsRecorded(selectedShowId, loadEntries);
 
   const entriesSyncStatus = syncStatus.tablesStatus.entries;
   const entriesSyncAt = syncStatus.lastSyncAt?.getTime() ?? null;

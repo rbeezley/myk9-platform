@@ -71,6 +71,9 @@ function makeGroup(overrides: Partial<EnrollmentGroup> = {}): EnrollmentGroup {
   };
 }
 
+/** The form a desk payment's local record names (MYK9-2479). */
+const FORM = { showId: 'show-1', exhibitorName: 'Jane Smith' };
+
 const defaultProps = {
   group: makeGroup(),
   onStatusChange: vi.fn(),
@@ -332,15 +335,59 @@ describe('EnrollmentCard', () => {
       expect((screen.getByLabelText('Received on') as HTMLInputElement).value).toBe('2026-09-17');
       fireEvent.click(screen.getByText('Confirm'));
 
-      expect(record).toHaveBeenCalledWith('enroll-1', {
-        kind: 'payment',
-        method: 'cash',
-        amount: null,
-        receivedOn: '2026-09-17',
-        reference: null,
-        clientPaymentId: expect.any(String),
-      });
+      // MYK9-2479: the due she is shown, never NULL, and the form its local record names.
+      expect(record).toHaveBeenCalledWith(
+        'enroll-1',
+        {
+          kind: 'payment',
+          method: 'cash',
+          amount: 50,
+          receivedOn: '2026-09-17',
+          reference: null,
+          clientPaymentId: expect.any(String),
+        },
+        FORM
+      );
       expect(markPaidOnline).not.toHaveBeenCalled();
+    });
+
+    // MYK9-2479: frozen in whole cents, never the raw dollar subtraction (0.3 - 0.1).
+    it('Paid in Full sends the due in whole cents', () => {
+      const record = vi.fn().mockResolvedValue('saved');
+      render(
+        <EnrollmentCard
+          {...defaultProps}
+          paymentLedger={{ record, markPaidOnline: vi.fn(), todayInShowZone: '2026-09-17' }}
+          group={makeGroup({
+            paymentStatus: PaymentStatus.PENDING,
+            totalAmount: 30,
+            paidAmount: 0.1,
+          })}
+        />
+      );
+      fireEvent.click(screen.getByText('Payment Due'));
+      fireEvent.click(screen.getByText('Paid in Full: Cash…'));
+      expect(screen.getByText('$0.20')).toBeInTheDocument();
+      fireEvent.click(screen.getByText('Confirm'));
+
+      expect(record).toHaveBeenCalledWith(
+        'enroll-1',
+        expect.objectContaining({ kind: 'payment', amount: 0.2 }),
+        FORM
+      );
+    });
+
+    it('a zero balance queues nothing: Paid in Full cannot be confirmed', () => {
+      const { record } = renderPending(vi.fn().mockResolvedValue('saved'), 50);
+      fireEvent.click(screen.getByText('Paid in Full: Cash…'));
+
+      expect(screen.getByTestId('full-payment-nothing-due')).toHaveTextContent(
+        'Nothing is due on this form, so there is no payment to record.'
+      );
+      const confirm = screen.getByText('Confirm');
+      expect(confirm.closest('button')).toBeDisabled();
+      fireEvent.click(confirm);
+      expect(record).not.toHaveBeenCalled();
     });
 
     it('Paid in Full: Check keeps the day a check was actually received', () => {
@@ -352,14 +399,18 @@ describe('EnrollmentCard', () => {
       fireEvent.change(screen.getByLabelText('Received on'), { target: { value: '2026-08-27' } });
       fireEvent.click(screen.getByText('Confirm'));
 
-      expect(record).toHaveBeenCalledWith('enroll-1', {
-        kind: 'payment',
-        method: 'check',
-        amount: null,
-        receivedOn: '2026-08-27',
-        reference: '1042',
-        clientPaymentId: expect.any(String),
-      });
+      expect(record).toHaveBeenCalledWith(
+        'enroll-1',
+        {
+          kind: 'payment',
+          method: 'check',
+          amount: 50,
+          receivedOn: '2026-08-27',
+          reference: '1042',
+          clientPaymentId: expect.any(String),
+        },
+        FORM
+      );
     });
 
     it('a partial payment records its own method and amount', () => {
@@ -371,14 +422,18 @@ describe('EnrollmentCard', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Check' }));
       fireEvent.click(screen.getByText('Record Payment'));
 
-      expect(record).toHaveBeenCalledWith('enroll-1', {
-        kind: 'payment',
-        method: 'check',
-        amount: 35,
-        receivedOn: '2026-09-17',
-        reference: null,
-        clientPaymentId: expect.any(String),
-      });
+      expect(record).toHaveBeenCalledWith(
+        'enroll-1',
+        {
+          kind: 'payment',
+          method: 'check',
+          amount: 35,
+          receivedOn: '2026-09-17',
+          reference: null,
+          clientPaymentId: expect.any(String),
+        },
+        FORM
+      );
     });
 
     it('offers a refund of what is still held after an earlier refund, not the gross paid', () => {

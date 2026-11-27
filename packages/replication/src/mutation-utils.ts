@@ -267,10 +267,12 @@ export function isAuthorizationError(error: unknown): boolean {
  * CONTAINABLE_RPC_NAMES is in MutationUploadRunner: a code is never permanent for every RPC.
  *
  * MYK9-1327: `set_class_judge` raises P0002 (class or person not found) and 22023
- * (invalid_parameter_value, a deleted person).
+ * (invalid_parameter_value, a deleted person). MYK9-2479: `record_enrollment_payment`
+ * raises 22023 only for its own validation refusals, before it writes anything.
  */
 export const RPC_PERMANENT_CODES: ReadonlyMap<string, ReadonlySet<string>> = new Map([
   ['set_class_judge', new Set(['P0002', '22023'])],
+  ['record_enrollment_payment', new Set(['22023'])],
 ]);
 
 /** HTTP statuses of a gateway that answered but could not reach a healthy backend (MYK9-1488). */

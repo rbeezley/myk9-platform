@@ -5,7 +5,7 @@ import { EnrollmentCard } from '../EnrollmentCard';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EnrollmentGroup } from '@/utils/enrollmentGrouping';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
-import type { EnrollmentLedgerControls } from '@/hooks/useEnrollmentLedgerActions';
+import type { EnrollmentLedgerRecordImpl } from '@/hooks/useEnrollmentLedgerActions';
 
 vi.mock('@/components/common/CheckInStatusIndicator', () => ({
   CheckInStatusIndicator: () => null,
@@ -63,7 +63,7 @@ function makeGroup(loaded: boolean): EnrollmentGroup {
   };
 }
 
-function cardFor(loaded: boolean, record: EnrollmentLedgerControls['record']) {
+function cardFor(loaded: boolean, record: EnrollmentLedgerRecordImpl) {
   return (
     <EnrollmentCard
       group={makeGroup(loaded)}
@@ -87,7 +87,7 @@ function openRefund(menuItem: 'Refunded…' | 'Partial Refund…') {
 
 describe('desk refund when the payment record has not loaded (MYK9-2152)', () => {
   it('pre-fills nothing, quotes no figure, and records nothing', () => {
-    const record = vi.fn<EnrollmentLedgerControls['record']>();
+    const record = vi.fn<EnrollmentLedgerRecordImpl>();
     render(cardFor(false, record));
     openRefund('Refunded…');
 
@@ -101,7 +101,7 @@ describe('desk refund when the payment record has not loaded (MYK9-2152)', () =>
   });
 
   it('a partial refund waits for the record too', () => {
-    const record = vi.fn<EnrollmentLedgerControls['record']>();
+    const record = vi.fn<EnrollmentLedgerRecordImpl>();
     render(cardFor(false, record));
     openRefund('Partial Refund…');
 
@@ -110,7 +110,7 @@ describe('desk refund when the payment record has not loaded (MYK9-2152)', () =>
   });
 
   it('pre-fills the real desk money once the record loads, and records it', () => {
-    const record = vi.fn<EnrollmentLedgerControls['record']>().mockResolvedValue('saved');
+    const record = vi.fn<EnrollmentLedgerRecordImpl>().mockResolvedValue('saved');
     const { rerender } = render(cardFor(false, record));
     openRefund('Refunded…');
     expect(screen.getByLabelText(/Refund Amount/i)).toHaveValue(null);
@@ -128,7 +128,7 @@ describe('desk refund when the payment record has not loaded (MYK9-2152)', () =>
   });
 
   it('pre-fills the desk money when the record is loaded (unchanged)', () => {
-    const record = vi.fn<EnrollmentLedgerControls['record']>();
+    const record = vi.fn<EnrollmentLedgerRecordImpl>();
     render(cardFor(true, record));
     openRefund('Refunded…');
 

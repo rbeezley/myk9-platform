@@ -9,7 +9,7 @@ import {
   formMoneyUnknown,
   formTotalDollars,
   netReceivedDollars,
-  paidInFullDollars,
+  paidInFullCents,
   receivedDollars,
   resolvePartialPayment,
   type FullPaymentDialog,
@@ -28,7 +28,7 @@ import { usePaymentAttemptId } from './usePaymentAttemptId';
  * `EnrollmentCard`; this hook only owns their state and confirm handlers.
  */
 export function useEnrollmentDialogControls(
-  group: EnrollmentGroup,
+  group: EnrollmentGroup & { exhibitorName?: string | undefined },
   paymentLedger: EnrollmentLedgerControls
 ) {
   const [fullDialog, setFullDialog] = useState<FullPaymentDialog>(EMPTY_FULL_PAYMENT_DIALOG);
@@ -50,8 +50,15 @@ export function useEnrollmentDialogControls(
   // What the desk may hand back: desk money only (card money is refunded through Stripe).
   const refundableDollars = netReceivedDollars(group);
   const remainingDollars = enrollmentRemainingDollars(group);
-  // What "Paid in Full" records: the due, never below zero (a payment reopens nothing).
-  const fullPaymentDollars = paidInFullDollars(group);
+  // What "Paid in Full" records: the due, never below zero (a payment reopens nothing),
+  // in whole cents (MYK9-2479): the amount shown is the amount sent, on every replay.
+  const fullPaymentCents = paidInFullCents(group);
+  const fullPaymentDollars = fullPaymentCents / 100;
+  // MYK9-2479: a cash or check payment is saved on this device first, named by its form.
+  const form = {
+    showId: group.entries[0]?.showId ?? '',
+    exhibitorName: group.exhibitorName ?? group.entries[0]?.ownerName ?? '',
+  };
   // MYK9-1968: the form's money cannot be traced (its enrollment row did not load, or a
   // move-up's money root is missing), so the figures above are not the form's: every surface
   // reading these controls says the amount is not available instead of quoting them.
@@ -100,17 +107,19 @@ export function useEnrollmentDialogControls(
 
   // MYK9-2156: each dialog closes only once its write succeeds; a failed write
   // keeps it open with what was typed (useLedgerDialogSave).
+  // MYK9-2479: Paid in Full sends the due she is shown, never NULL. Nothing is queued for a
+  // zero balance, or while the balance is not known (the dialog disables Confirm for both).
   const confirmFullPayment = () => {
-    if (!enrollmentId || !fullDialog.receivedOn) return;
+    if (!enrollmentId || !fullDialog.receivedOn || amountUnknown || fullPaymentCents <= 0) return;
     const action = fullAttempt.withId(enrollmentId, {
       kind: 'payment',
       method: fullDialog.method,
-      amount: null,
+      amount: fullPaymentDollars,
       receivedOn: fullDialog.receivedOn,
       reference: fullDialog.method === 'check' ? fullDialog.checkNumber : null,
     });
     void fullSave.save(
-      () => paymentLedger.record(enrollmentId, action),
+      () => paymentLedger.record(enrollmentId, action, form),
       () => {
         fullAttempt.clear();
         setFullDialog(EMPTY_FULL_PAYMENT_DIALOG);
@@ -128,7 +137,7 @@ export function useEnrollmentDialogControls(
     if (!result || !enrollmentId) return;
     const action = partialAttempt.withId(enrollmentId, result);
     void partialSave.save(
-      () => paymentLedger.record(enrollmentId, action),
+      () => paymentLedger.record(enrollmentId, action, form),
       () => {
         partialAttempt.clear();
         setPartialDialog(EMPTY_PARTIAL_DIALOG);

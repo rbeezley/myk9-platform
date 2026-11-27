@@ -691,6 +691,8 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       payload: Record<string, unknown>;
       dependsOn?: string[] | undefined;
       rpc?: PendingMutation['rpc'] | undefined;
+      /** No upload pass sends it before this time (MYK9-2479: the caller is sending it itself). */
+      holdUploadUntil?: number | undefined;
     },
     setOptions?: {
       expectedVersion?: number | undefined;
@@ -705,15 +707,18 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       prepare: async () =>
         manager
           ? {
-              mutation: await manager.prepareMutation(
-                this.tableName,
-                queue.operation,
-                id,
-                queue.payload,
-                queue.dependsOn,
-                queue.rpc,
-                queue.rpc ? await this.resolveMutationShowId(id) : undefined
-              ),
+              mutation: {
+                ...(await manager.prepareMutation(
+                  this.tableName,
+                  queue.operation,
+                  id,
+                  queue.payload,
+                  queue.dependsOn,
+                  queue.rpc,
+                  queue.rpc ? await this.resolveMutationShowId(id) : undefined
+                )),
+                ...(queue.holdUploadUntil !== undefined && { nextRetryAt: queue.holdUploadUntil }),
+              },
               sequencer: manager.sequencer,
             }
           : null,

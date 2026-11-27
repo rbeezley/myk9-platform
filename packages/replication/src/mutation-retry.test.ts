@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PendingMutation } from './types';
 import { classifyMutationFailure } from './mutation-retry';
+import { requeueFailedMutation } from './mutation-requeue';
 import { MAX_BACKOFF_MS, TimeoutError, withHttpStatus } from './mutation-utils';
 
 function mutation(overrides: Partial<PendingMutation> = {}): PendingMutation {
@@ -46,6 +47,24 @@ describe('classifyMutationFailure', () => {
       nextRetryAt: 1_010,
     });
     expect(result.mutation.failedAt).toBeUndefined();
+  });
+
+  // MYK9-2479: the dead letter keeps the server's code, and a retry starts without it.
+  it("keeps the server's code on a dead letter, and requeue clears it", () => {
+    const result = classifyMutationFailure({
+      mutation: mutation({ rpc: { name: 'record_enrollment_payment' } }),
+      error: { message: 'a payment amount must be greater than zero', code: '22023' },
+      maxRetries: 3,
+      retryBackoffBase: 10,
+      now: 3_000,
+    });
+
+    expect(result.mutation).toMatchObject({
+      status: 'failed',
+      failureKind: 'permanent',
+      errorCode: '22023',
+    });
+    expect(requeueFailedMutation(result.mutation).errorCode).toBeUndefined();
   });
 
   it('marks retryable errors as failed when max retries are reached', () => {

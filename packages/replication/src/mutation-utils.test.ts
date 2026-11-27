@@ -41,6 +41,15 @@ describe('isRetryableError', () => {
         expect(isRetryableError({ message: 'bad parameter', code: '22023' }, pick)).toBe(false);
       });
 
+      // MYK9-2479: the desk payment RPC raises 22023 only for its own validation refusals.
+      it('parks a record_enrollment_payment mutation on 22023, and retries it on a 500', () => {
+        const payment = { rpc: { name: 'record_enrollment_payment' } };
+        expect(
+          isRetryableError({ message: 'enrollment e not found', code: '22023' }, payment)
+        ).toBe(false);
+        expect(isRetryableError({ message: 'boom', code: '500' }, payment)).toBe(true);
+      });
+
       it('keeps retrying a ringside_update_entry on P0002 (entry not visible yet)', () => {
         expect(isRetryableError({ message: 'Entry not found', code: 'P0002' }, ringside)).toBe(
           true

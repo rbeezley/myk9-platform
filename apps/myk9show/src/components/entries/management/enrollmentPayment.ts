@@ -248,5 +248,16 @@ export function enrollmentRemainingDollars(group: FormMoneyGroup): number {
  * covers a later add-on, so a covered form quotes $0.
  */
 export function paidInFullDollars(group: FormMoneyGroup): number {
-  return Math.max(0, enrollmentRemainingDollars(group));
+  return paidInFullCents(group) / 100;
+}
+
+/**
+ * MYK9-2479: "Paid in Full" in whole cents, the amount the payment carries on its
+ * first send and on every replay. Taken in cents from each figure, never from the
+ * dollar subtraction (`25.1 - 0.1` is not `25`); zero means nothing is due.
+ */
+export function paidInFullCents(group: FormMoneyGroup): number {
+  const owed = Math.round(formTotalDollars(group) * 100);
+  const received = Math.round(receivedDollars(group) * 100);
+  return Math.max(0, owed - received);
 }

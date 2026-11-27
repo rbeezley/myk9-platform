@@ -34,6 +34,7 @@ import {
 } from '@/components/shows/RegistrationWorkflow/EntriesPanel/useEntriesPanelData';
 import { CreatedInSessionProvider } from '@/components/shows/RegistrationWorkflow/CreatedInSessionContext';
 import { WizardLeaveGuard } from './RegistrationWizardPage/WizardLeaveGuard';
+import { WizardCrumbs } from './RegistrationWizardPage/WizardCrumbs';
 import { EntriesClosedNotice } from './RegistrationWizardPage/EntriesClosedNotice';
 import { ShowMissingNotice } from './RegistrationWizardPage/ShowMissingNotice';
 import { useRegistrationWizard } from './RegistrationWizardPage/useRegistrationWizard';
@@ -264,18 +265,11 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
                 <ArrowLeft className="h-4 w-4" />
                 {exitTarget.label}
               </Button>
-              {/* min-w-0 is load-bearing: without it this flex child cannot
-                  shrink below its content, so the truncate on the show name
-                  never engages and the row overflows at 375px. */}
-              {/* Hidden below `sm`: the show name is repeated under the title, and
-                  on a phone this row wrapped to three lines (MYK9-622). */}
-              <div className="hidden min-w-0 items-center gap-2 text-sm text-muted-foreground sm:flex">
-                <span>Shows</span>
-                <span>/</span>
-                <span className="truncate max-w-[200px]">{currentShow?.name || 'Show'}</span>
-                <span>/</span>
-                <span className="text-foreground font-medium">{workflowLabel}</span>
-              </div>
+              <WizardCrumbs
+                showId={showId ?? currentShow?.id}
+                showName={currentShow?.name}
+                workflowLabel={workflowLabel}
+              />
               {/* Contextual deep-link to the guide for whoever is actually driving
                   the wizard. F17: this always pointed at the exhibitor guide, so a
                   secretary taking a mail-in or late entry was sent to instructions

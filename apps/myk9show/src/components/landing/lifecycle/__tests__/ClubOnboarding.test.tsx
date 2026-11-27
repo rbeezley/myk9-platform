@@ -84,8 +84,15 @@ const grantClubRole = () => {
 const created = { clubId: 'club-9', requestId: 'request-9', alreadyRequested: false };
 
 /** The id the form saved its draft under, read from storage. */
-const savedDraftId = (): string => JSON.parse(localStorage.getItem(DRAFT_KEY)!).id;
-const DRAFT_KEY = 'myk9:club-onboarding-draft';
+const savedDraftId = (): string => {
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const key = localStorage.key(index)!;
+    if (key.startsWith(DRAFT_KEY_PREFIX)) return JSON.parse(localStorage.getItem(key)!).id;
+  }
+  throw new Error('no club draft saved');
+};
+const DRAFT_KEY_PREFIX = 'myk9:club-onboarding-draft:';
+const lastNavigation = () => mockNavigate.mock.calls.at(-1)![0];
 
 // The id the saved draft carries, as the sign-in address would.
 let draftId: string | null = null;
@@ -145,10 +152,9 @@ describe('ClubOnboarding', () => {
         screen.getByRole('button', { name: /sign in to add my club/i }).closest('form')!
       );
 
-      const redirectTo = new URL(
-        String(mockNavigate.mock.calls[0][0]),
-        'http://x'
-      ).searchParams.get('redirectTo');
+      const redirectTo = new URL(String(lastNavigation()), 'http://x').searchParams.get(
+        'redirectTo'
+      );
       expect(redirectTo).toBe(`/?onboarding=true&clubDraft=${savedDraftId()}#get-started`);
     });
   });
@@ -225,7 +231,7 @@ describe('ClubOnboarding', () => {
     mockRefreshPermissions.mockResolvedValue(undefined);
     mockSubmit.mockResolvedValue(created);
     draftId = saveClubOnboardingDraft(fullDraft);
-    render(<ClubOnboarding />, { initialRoute: '/' });
+    render(<ClubOnboarding />, { initialRoute: `/?onboarding=true&clubDraft=${draftId}` });
     fillRequiredFields();
     fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: '123' } });
     submitForm();
@@ -299,12 +305,48 @@ describe('ClubOnboarding', () => {
       screen.getByRole('button', { name: /sign in to add my club/i }).closest('form')!
     );
 
-    const redirectTo = new URL(String(mockNavigate.mock.calls[0][0]), 'http://x').searchParams.get(
-      'redirectTo'
-    );
+    const redirectTo = new URL(String(lastNavigation()), 'http://x').searchParams.get('redirectTo');
     expect(redirectTo).toBe(
       `/?onboarding=true&returnTo=%2Fwizard%3Fx%3D1&clubDraft=${savedDraftId()}#get-started`
     );
+  });
+
+  // Back from sign-in lands on the form's own history entry, so that entry must carry the id.
+  it("puts the draft id on the form's own address, keeping its params and hash, before sign-in", () => {
+    auth.user = null;
+    render(<ClubOnboarding />, { initialRoute: '/?onboarding=true&returnTo=%2Fwizard%3Fx%3D1' });
+    fillRequiredFields();
+    fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: '123' } });
+    fireEvent.submit(
+      screen.getByRole('button', { name: /sign in to add my club/i }).closest('form')!
+    );
+
+    expect(mockNavigate).toHaveBeenNthCalledWith(
+      1,
+      {
+        pathname: '/',
+        search: `?onboarding=true&returnTo=%2Fwizard%3Fx%3D1&clubDraft=${savedDraftId()}`,
+        hash: '',
+      },
+      { replace: true }
+    );
+    expect(String(mockNavigate.mock.calls[1][0])).toContain('/sign-in');
+  });
+
+  it('clears only its own draft when the request is sent; another flow keeps its draft', async () => {
+    const own = saveClubOnboardingDraft(fullDraft);
+    const other = saveClubOnboardingDraft({ ...fullDraft, clubName: 'Second Kennel Club' });
+    mockSubmit.mockResolvedValue(created);
+    mockRefreshPermissions.mockImplementation(async () => grantClubRole());
+    render(<ClubOnboarding />, { initialRoute: `/?onboarding=true&clubDraft=${own}` });
+    fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: '123' } });
+    submitForm();
+
+    await waitFor(() => expect(readClubOnboardingDraft(own)).toBeNull());
+    expect(readClubOnboardingDraft(other)).toEqual({
+      ...fullDraft,
+      clubName: 'Second Kennel Club',
+    });
   });
 
   it('loads her new roles before the saved draft is cleared, then shows success', async () => {
@@ -393,14 +435,12 @@ describe('ClubOnboarding', () => {
     );
 
     expect(mockSubmit).not.toHaveBeenCalled();
-    expect(mockNavigate).toHaveBeenCalledTimes(1);
-    expect(String(mockNavigate.mock.calls[0][0])).toContain('/sign-in');
+    expect(mockNavigate).toHaveBeenCalledTimes(2);
+    expect(String(lastNavigation())).toContain('/sign-in');
 
     first.unmount();
     // Back from sign-in by the address she was sent through, which carries the draft id.
-    const redirectTo = new URL(String(mockNavigate.mock.calls[0][0]), 'http://x').searchParams.get(
-      'redirectTo'
-    );
+    const redirectTo = new URL(String(lastNavigation()), 'http://x').searchParams.get('redirectTo');
     render(<ClubOnboarding />, { initialRoute: redirectTo! });
     expect(screen.getByLabelText(/club name/i)).toHaveValue('Tri-State Kennel Club');
     expect(screen.getByLabelText('UKC club number')).toHaveValue('U-9');

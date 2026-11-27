@@ -1,13 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   CLUB_ONBOARDING_DRAFT_MAX_AGE_MS,
+  clearAllClubOnboardingDrafts,
   clearClubOnboardingDraft,
   readClubOnboardingDraft,
   saveClubOnboardingDraft,
   type ClubOnboardingDraft,
 } from '../clubOnboardingDraft';
 
-const KEY = 'myk9:club-onboarding-draft';
+const PREFIX = 'myk9:club-onboarding-draft:';
+const LEGACY_KEY = 'myk9:club-onboarding-draft';
 const draft: ClubOnboardingDraft = {
   clubName: 'Tri-State Kennel Club',
   organization: 'AKC',
@@ -31,9 +33,9 @@ describe('club onboarding draft', () => {
   // MYK9-2469: the confirmation email opens a new tab. Session storage is per tab, so a draft
   // kept there was missing exactly where she needed it.
   it('keeps the draft where a new tab of the same browser can read it', () => {
-    saveClubOnboardingDraft(draft);
-    expect(localStorage.getItem(KEY)).not.toBeNull();
-    expect(sessionStorage.getItem(KEY)).toBeNull();
+    const id = saveClubOnboardingDraft(draft);
+    expect(localStorage.getItem(PREFIX + id)).not.toBeNull();
+    expect(sessionStorage.getItem(PREFIX + id)).toBeNull();
   });
 
   it('drops a draft older than a day, and removes it from storage', () => {
@@ -46,14 +48,68 @@ describe('club onboarding draft', () => {
 
     vi.setSystemTime(Date.now() + 2000);
     expect(readClubOnboardingDraft(id)).toBeNull();
-    expect(localStorage.getItem(KEY)).toBeNull();
+    expect(localStorage.getItem(PREFIX + id)).toBeNull();
   });
 
   it('round-trips a saved draft and clears it', () => {
     const id = saveClubOnboardingDraft(draft);
     expect(readClubOnboardingDraft(id)).toEqual(draft);
-    clearClubOnboardingDraft();
+    clearClubOnboardingDraft(id);
     expect(readClubOnboardingDraft(id)).toBeNull();
+  });
+
+  // Two club forms in one browser (two tabs, or a second visitor): each keeps its own draft.
+  it('keeps two flows apart: reading, and clearing, one leaves the other restorable', () => {
+    const other = { ...draft, clubName: 'Second Kennel Club' };
+    const a = saveClubOnboardingDraft(draft);
+    const b = saveClubOnboardingDraft(other);
+    expect(readClubOnboardingDraft(a)).toEqual(draft);
+    expect(readClubOnboardingDraft(b)).toEqual(other);
+
+    clearClubOnboardingDraft(a);
+    expect(readClubOnboardingDraft(a)).toBeNull();
+    expect(readClubOnboardingDraft(b)).toEqual(other);
+
+    const c = saveClubOnboardingDraft(draft);
+    clearClubOnboardingDraft(b);
+    expect(readClubOnboardingDraft(b)).toBeNull();
+    expect(readClubOnboardingDraft(c)).toEqual(draft);
+  });
+
+  it('removes a stale draft on the next save, and on the next read', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-27T12:00:00Z'));
+    const old = saveClubOnboardingDraft(draft);
+    vi.setSystemTime(Date.now() + CLUB_ONBOARDING_DRAFT_MAX_AGE_MS + 1000);
+    saveClubOnboardingDraft(draft);
+    expect(localStorage.getItem(PREFIX + old)).toBeNull();
+
+    const older = saveClubOnboardingDraft(draft);
+    vi.setSystemTime(Date.now() + CLUB_ONBOARDING_DRAFT_MAX_AGE_MS + 1000);
+    expect(readClubOnboardingDraft('anything')).toBeNull();
+    expect(localStorage.getItem(PREFIX + older)).toBeNull();
+  });
+
+  it('removes the legacy single-key draft on a save and on a read', () => {
+    localStorage.setItem(LEGACY_KEY, stored(draft));
+    saveClubOnboardingDraft(draft);
+    expect(localStorage.getItem(LEGACY_KEY)).toBeNull();
+
+    localStorage.setItem(LEGACY_KEY, stored(draft));
+    readClubOnboardingDraft(null);
+    expect(localStorage.getItem(LEGACY_KEY)).toBeNull();
+  });
+
+  it('clears every club draft, and the legacy key, on this device', () => {
+    const a = saveClubOnboardingDraft(draft);
+    const b = saveClubOnboardingDraft(draft);
+    localStorage.setItem(LEGACY_KEY, stored(draft));
+    localStorage.setItem('unrelated', 'keep');
+    clearAllClubOnboardingDrafts();
+    expect(readClubOnboardingDraft(a)).toBeNull();
+    expect(readClubOnboardingDraft(b)).toBeNull();
+    expect(localStorage.getItem(LEGACY_KEY)).toBeNull();
+    expect(localStorage.getItem('unrelated')).toBe('keep');
   });
 
   it('gives each saved draft its own opaque id', () => {
@@ -93,7 +149,7 @@ describe('club onboarding draft', () => {
       raw: stored({ ...draft, clubNumbers: { AKC: 1, UKC: '', ASCA: '' } }),
     },
   ])('returns null for $label', ({ raw }) => {
-    localStorage.setItem(KEY, raw);
+    localStorage.setItem(`${PREFIX}draft-1`, raw);
     expect(readClubOnboardingDraft('draft-1')).toBeNull();
   });
 });

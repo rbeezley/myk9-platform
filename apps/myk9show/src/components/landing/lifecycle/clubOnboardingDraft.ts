@@ -14,8 +14,14 @@ import { CLUB_REGISTRY_ORGS, type ClubRegistryNumberInputs } from '@/utils/clubR
 // the callback, and it is restored only where the address carries the same id.
 // On a shared computer the next visitor opens the form with no id and sees an
 // empty form.
+//
+// Each draft lives under its own key (prefix + id), so two flows in one browser
+// never overwrite or clear each other. Every save and read sweeps the entries
+// older than the max age, so contact details do not linger.
 
-const KEY = 'myk9:club-onboarding-draft';
+const KEY_PREFIX = 'myk9:club-onboarding-draft:';
+/** The single key drafts were kept under before each had its own; removed on sight. */
+const LEGACY_KEY = 'myk9:club-onboarding-draft';
 
 /** The query parameter that carries a saved draft's id in the club form's address. */
 export const CLUB_DRAFT_PARAM = 'clubDraft';
@@ -71,11 +77,37 @@ function parseStored(
   return parsed ? { id, draft: parsed } : null;
 }
 
-/** Saves the draft and returns its id (carry it in the sign-in address), or null when storage is blocked. */
+/** The keys of every club draft in storage, collected first so removing one cannot skip another. */
+function draftKeys(): string[] {
+  const keys: string[] = [];
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const key = localStorage.key(index);
+    if (key?.startsWith(KEY_PREFIX)) keys.push(key);
+  }
+  return keys;
+}
+
+/** Removes the legacy key and every draft that is stale, unreadable or malformed. */
+function sweepStaleDrafts(): void {
+  localStorage.removeItem(LEGACY_KEY);
+  const now = Date.now();
+  for (const key of draftKeys()) {
+    let keep = false;
+    try {
+      keep = parseStored(JSON.parse(localStorage.getItem(key) ?? 'null'), now) !== null;
+    } catch {
+      keep = false;
+    }
+    if (!keep) localStorage.removeItem(key);
+  }
+}
+
+/** Saves the draft and returns its id (carry it in the form's address), or null when storage is blocked. */
 export function saveClubOnboardingDraft(draft: ClubOnboardingDraft): string | null {
   try {
+    sweepStaleDrafts();
     const id = crypto.randomUUID();
-    localStorage.setItem(KEY, JSON.stringify({ id, savedAt: Date.now(), draft }));
+    localStorage.setItem(KEY_PREFIX + id, JSON.stringify({ id, savedAt: Date.now(), draft }));
     return id;
   } catch {
     // Storage can be blocked; the visitor simply retypes the form.
@@ -83,26 +115,35 @@ export function saveClubOnboardingDraft(draft: ClubOnboardingDraft): string | nu
   }
 }
 
-/** The saved draft, only when `id` is the id it was saved under; any other visitor gets null. */
+/** The draft saved under `id`; no id, or an id nothing was saved under, gets null. */
 export function readClubOnboardingDraft(id: string | null | undefined): ClubOnboardingDraft | null {
   try {
-    const raw = localStorage.getItem(KEY);
+    sweepStaleDrafts();
+    if (!id) return null;
+    const raw = localStorage.getItem(KEY_PREFIX + id);
     if (!raw) return null;
     const stored = parseStored(JSON.parse(raw), Date.now());
-    // A stale or malformed draft is removed, so its contact details do not linger.
-    if (!stored) {
-      localStorage.removeItem(KEY);
-      return null;
-    }
-    return id && stored.id === id ? stored.draft : null;
+    return stored && stored.id === id ? stored.draft : null;
   } catch {
     return null;
   }
 }
 
-export function clearClubOnboardingDraft(): void {
+/** Removes only the draft saved under `id`; another flow's draft stays. */
+export function clearClubOnboardingDraft(id: string | null | undefined): void {
+  if (!id) return;
   try {
-    localStorage.removeItem(KEY);
+    localStorage.removeItem(KEY_PREFIX + id);
+  } catch {
+    // Nothing to clear.
+  }
+}
+
+/** Removes every club draft on this device (sign-out: the next person on a shared computer). */
+export function clearAllClubOnboardingDrafts(): void {
+  try {
+    localStorage.removeItem(LEGACY_KEY);
+    for (const key of draftKeys()) localStorage.removeItem(key);
   } catch {
     // Nothing to clear.
   }

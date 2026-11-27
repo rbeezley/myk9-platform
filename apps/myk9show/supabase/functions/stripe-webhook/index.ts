@@ -2797,10 +2797,10 @@ async function sendEntryConfirmationEmail(
     }
     recipientEmail = person.email;
 
-    // Get show details
+    // Get show details. `location` is where the show wizard saves the street address (MYK9-2486).
     const { data: show } = await supabase
       .from('shows')
-      .select('name, start_date, end_date, venue_name, address, city, state, zip_code')
+      .select('name, start_date, end_date, location, venue_name, address, city, state, zip_code')
       .eq('id', cart.show_id)
       .single();
 

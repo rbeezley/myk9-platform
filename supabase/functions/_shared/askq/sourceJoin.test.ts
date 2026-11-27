@@ -27,11 +27,63 @@ describe('joinSourceSections', () => {
 
   it('gives a source that produced nothing one plain sentence', () => {
     const text = joinSourceSections([
-      { source: 'guides', text: null },
-      { source: 'rulebook', text: 'Using AKC rules:\nYes.' },
+      { source: 'guides', text: 'From the Exhibitor Guide:\n“Tap Enter.”' },
+      { source: 'rulebook', text: null },
     ]);
-    expect(text).toBe(`${NO_GUIDE_ANSWER_SENTENCE}\n\nUsing AKC rules:\nYes.`);
+    expect(text).toBe(
+      'From the Exhibitor Guide:\n“Tap Enter.”\n\nI could not find that in the official rulebook.'
+    );
     expect(joinSourceSections([{ source: 'guides', text: '  ' }])).toBe(NO_GUIDE_ANSWER_SENTENCE);
+  });
+
+  it("never prints the no-guide-answer sentence beside another source's answer (MYK9-2473)", () => {
+    // Production, 2026-11-26: "I could not find a verified guide answer for that question."
+    // followed by a rulebook answer, in one reply.
+    expect(
+      joinSourceSections([
+        { source: 'guides', text: null },
+        { source: 'rulebook', text: 'Using AKC rules:\nYes.' },
+      ])
+    ).toBe('Using AKC rules:\nYes.');
+    // Show data alone is then one source, so it reads as its own answer with no label.
+    expect(
+      joinSourceSections([
+        { source: 'show_data', text: 'Withdrawn: 2.' },
+        { source: 'guides', text: null },
+      ])
+    ).toBe('Withdrawn: 2.');
+    // With no other answer, the sentence is still the reply.
+    expect(
+      joinSourceSections([
+        { source: 'guides', text: null },
+        { source: 'rulebook', text: null },
+      ])
+    ).toBe(`${NO_GUIDE_ANSWER_SENTENCE}\n\nI could not find that in the official rulebook.`);
+  });
+
+  // Codex review of #4464: a notice or a question back is not an answer, so it must not hide
+  // the fact that the guides found nothing.
+  it('still says the guides found nothing when the other section is only a notice or a question', () => {
+    expect(
+      joinSourceSections([
+        { source: 'show_data', text: NEEDS_SHOW_SENTENCE, plain: true },
+        { source: 'guides', text: null },
+      ])
+    ).toBe(`${NEEDS_SHOW_SENTENCE}\n\n${NO_GUIDE_ANSWER_SENTENCE}`);
+    expect(
+      joinSourceSections([
+        { source: 'guides', text: null },
+        { source: 'rulebook', text: 'Which rulebook should I use: AKC or UKC?', plain: true },
+      ])
+    ).toBe(`${NO_GUIDE_ANSWER_SENTENCE}\n\nWhich rulebook should I use: AKC or UKC?`);
+    // A real answer beside the notice still hides it.
+    expect(
+      joinSourceSections([
+        { source: 'show_data', text: NEEDS_SHOW_SENTENCE, plain: true },
+        { source: 'guides', text: null },
+        { source: 'rulebook', text: 'Using AKC rules:\nYes.' },
+      ])
+    ).toBe(`${NEEDS_SHOW_SENTENCE}\n\nUsing AKC rules:\nYes.`);
   });
 
   it('words the needs-a-show sentence plainly', () => {

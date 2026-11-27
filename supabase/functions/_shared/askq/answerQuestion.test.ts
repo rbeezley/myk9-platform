@@ -5,6 +5,8 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   answerQuestion,
   escalationMarkers,
+  guideRefusalMarkers,
+  refusalMarkers,
   guideSourcesForEvent,
   routeMarkers,
   type AnswerQuestionInput,
@@ -304,8 +306,10 @@ describe('guide claims fail closed (criterion 4)', () => {
       showData: 'Withdrawn: 2.',
     });
     const answered = await run(model).promise;
-    expect(answered.text).toBe(`${SHOW_DATA_LABEL}\nWithdrawn: 2.\n\n${NO_GUIDE_ANSWER_SENTENCE}`);
+    // MYK9-2473: the refused guide half is left out, never printed as a refusal beside an answer.
+    expect(answered.text).toBe('Withdrawn: 2.');
     expect(answered.text).not.toContain('Great question');
+    expect(answered.guideRefusal).toEqual({ cause: 'handoff', detail: null });
   });
 
   it('escalates only when guides was the sole source on a supportMode request', async () => {
@@ -324,7 +328,55 @@ describe('guide claims fail closed (criterion 4)', () => {
       { supportMode: true }
     ).promise;
     expect(shared.escalation).toBeNull();
-    expect(shared.text).toBe(`${NO_GUIDE_ANSWER_SENTENCE}\n\n${RULE_REPLY}`);
+    // MYK9-2473: "could not find a verified guide answer" is never shown with an answer under it.
+    expect(shared.text).toBe(RULE_REPLY);
+    expect(shared.text).not.toContain(NO_GUIDE_ANSWER_SENTENCE);
+  });
+
+  it('records why the guides refused on a mixed route, where nothing escalates (MYK9-2473)', async () => {
+    const shared = await run(
+      stubModel({ verdict: ['guides', 'rulebook'], guides: fabricated, rulebook: RULE_REPLY }),
+      { supportMode: true }
+    ).promise;
+    expect(shared.escalation).toBeNull();
+    expect(shared.guideRefusal?.cause).toBe('quote_rejected');
+    expect(guideRefusalMarkers(shared.guideRefusal)).toContain('support_quote_rejected');
+    // What index.ts logs: the refusal alone here, and the escalation when it is the whole reply.
+    expect(refusalMarkers(shared)).toEqual(guideRefusalMarkers(shared.guideRefusal));
+    const sole = await run(stubModel({ verdict: ['guides'], guides: fabricated }), {
+      supportMode: true,
+    }).promise;
+    expect(refusalMarkers(sole)).toEqual(
+      escalationMarkers(sole.escalationCause, sole.guideRefusal?.detail ?? null)
+    );
+    expect(refusalMarkers(sole)[0]).toBe('support_escalation');
+    expect(guideRefusalMarkers(null)).toEqual([]);
+    expect(guideRefusalMarkers({ cause: 'quote_rejected', detail: 'quote_too_short' })).toEqual([
+      'support_quote_rejected',
+      'support_quote_too_short',
+    ]);
+    expect(escalationMarkers('quote_rejected', 'too_many_quotes')).toEqual([
+      'support_escalation',
+      'support_quote_rejected',
+      'support_too_many_quotes',
+    ]);
+  });
+
+  // Codex review of #4464: neither of these is an answer, so the guide refusal stays in the reply.
+  it('keeps the guide refusal beside a needs-a-show notice or a rulebook question', async () => {
+    const noShow = await run(stubModel({ verdict: ['show_data', 'guides'], guides: fabricated }), {
+      userContext: noShowContext,
+      showRulebooks: [],
+    }).promise;
+    expect(noShow.text).toBe(`${NEEDS_SHOW_SENTENCE}\n\n${NO_GUIDE_ANSWER_SENTENCE}`);
+
+    const whichRulebook = await run(
+      stubModel({ verdict: ['guides', 'rulebook'], guides: fabricated }),
+      { userContext: noShowContext, showRulebooks: [] }
+    ).promise;
+    expect(whichRulebook.text.startsWith(`${NO_GUIDE_ANSWER_SENTENCE}\n\nWhich rulebook`)).toBe(
+      true
+    );
   });
 });
 

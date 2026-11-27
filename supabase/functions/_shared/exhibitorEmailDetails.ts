@@ -52,6 +52,8 @@ export function judgeLine(name: string | null | undefined): string {
 
 /** The show columns a street address is built from. */
 export interface ShowAddressFields {
+  /** The address the secretary typed in the show wizard, as one text field (MYK9-2486). */
+  location?: string | null;
   venue_name?: string | null;
   address?: string | null;
   city?: string | null;
@@ -70,9 +72,25 @@ export function formatStreetAddress(show: ShowAddressFields | null | undefined):
   return parts.length ? parts.join(', ') : null;
 }
 
-/** The venue name and street address on two lines, or null when neither is known. */
+/**
+ * The venue name and street address, one per line, or null when neither is known.
+ *
+ * MYK9-2486: the show wizard saves the address in `location` and fills none of the separate
+ * address columns, so `location` is the address whenever it is set (My Shows and the show page
+ * read it too). The separate columns are the fallback: a show with only a city and state prints
+ * those.
+ */
 export function formatVenueLines(show: ShowAddressFields | null | undefined): string | null {
-  const lines = [show?.venue_name?.trim(), formatStreetAddress(show)].filter(Boolean);
+  const venueName = show?.venue_name?.trim();
+  const typed = (show?.location ?? '')
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(Boolean);
+  if (typed.length > 0) {
+    const named = venueName && typed.join(' ').toLowerCase().includes(venueName.toLowerCase());
+    return [named ? null : venueName, ...typed].filter(Boolean).join('\n');
+  }
+  const lines = [venueName, formatStreetAddress(show)].filter(Boolean);
   return lines.length ? lines.join('\n') : null;
 }
 

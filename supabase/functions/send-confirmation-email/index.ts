@@ -60,7 +60,7 @@ import { readAllPages, type PageResult } from './pagedRead.ts';
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
 
 const SHOW_SELECT =
-  'id, name, status, start_date, end_date, venue_name, address, city, state, zip_code, latitude, longitude, organization, confirmation_message, style, brand_color, experience_is_published, experience_published_style, experience_published_content, trials(id, name, trial_number, display_order, date, timezone, registry_id, planned_start_time, deleted_at)';
+  'id, name, status, start_date, end_date, location, venue_name, address, city, state, zip_code, latitude, longitude, organization, confirmation_message, style, brand_color, experience_is_published, experience_published_style, experience_published_content, trials(id, name, trial_number, display_order, date, timezone, registry_id, planned_start_time, deleted_at)';
 const ENTRY_SELECT =
   'id, show_id, trial_id, class_id, registration_id, handler_id, dog_id, armband, entry_fee, confirmation_email_status, dog:dogs(name, call_name, breed, sex), class:classes(name, level, element)';
 

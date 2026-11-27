@@ -19,6 +19,8 @@ export interface StatusTileGridProps {
   className?: string;
   /** Names the group for screen readers. */
   label?: string;
+  /** The screen's own words for some tiles; any status left out reads its shared label. */
+  tileLabels?: Partial<Record<CheckInStatus, string>> | undefined;
 }
 
 export const StatusTileGrid: React.FC<StatusTileGridProps> = ({
@@ -27,6 +29,7 @@ export const StatusTileGrid: React.FC<StatusTileGridProps> = ({
   onSelect,
   className,
   label = 'Status options',
+  tileLabels,
 }) => (
   <div role="group" aria-label={label} className={cn('grid grid-cols-2 gap-3', className)}>
     {statuses.map(status => {
@@ -54,7 +57,7 @@ export const StatusTileGrid: React.FC<StatusTileGridProps> = ({
             <StatusIcon family="entry" status={status} size="lg" decorative />
           </span>
           <span className="max-w-full break-words text-sm font-semibold leading-tight text-foreground">
-            {descriptor.label}
+            {tileLabels?.[status] ?? descriptor.label}
           </span>
           {selected && (
             // Foreground text, accent only on the icon and ring: accent text on a tinted tile

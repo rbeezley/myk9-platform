@@ -21,7 +21,14 @@ vi.mock('@/services/replication', async importOriginal => {
 describe('trialStore.updateTrial actual times', () => {
   it('clears a blank actual start and finish instead of writing empty text', async () => {
     useTrialStore.setState({
-      trials: [{ id: 't1', name: 'Saturday' } as unknown as SyncableTrial],
+      trials: [
+        {
+          id: 't1',
+          name: 'Saturday',
+          timeStarted: '2026-06-12T13:00:00.000Z',
+          timeEnded: '2026-06-12T21:00:00.000Z',
+        } as unknown as SyncableTrial,
+      ],
     });
 
     await useTrialStore.getState().updateTrial('t1', { timeStarted: '', timeEnded: '' }, 'u1');

@@ -17,6 +17,7 @@ Preserve complete, NUL-safe worktree inventory parsing while preventing simultan
 
 - `pnpm vitest run scripts/bootstrap-worktree.test.ts`
 - Regression coverage for large NUL-delimited inventories, inventory errors, malformed/relative paths, lock contention/recovery, simultaneous bootstraps, and global-versus-repository config selection.
+- MYK9-2457 (owner, 2026-11-26) deleted the real-process "simultaneous bootstraps" test after it kept flaking in CI. The "waits for an existing bootstrap lock" test covers lock contention. Concurrent invocations are no longer tested.
 - `bash -n scripts/bootstrap-worktree.sh`
 - Real `bash scripts/bootstrap-worktree.sh` from a disposable linked worktree; verify hooks, dependency readiness, and fresh package outputs.
 - `pnpm qa:code-quality-ratchet`

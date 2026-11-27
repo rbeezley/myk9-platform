@@ -33,6 +33,8 @@ import {
   mergeTrialData,
   shouldUseMockTrials,
   mockTrials,
+  trialStatusChanged,
+  actualTimeChanged,
 } from './trial-store-helpers';
 
 export const useTrialStore = create<TrialStore>()((set, get) => ({
@@ -131,15 +133,18 @@ export const useTrialStore = create<TrialStore>()((set, get) => ({
       if (updates.name !== undefined) replicatedUpdates.name = updates.name;
       if (updates.trialDate !== undefined) replicatedUpdates.date = updates.trialDate;
       if (updates.trialNumber !== undefined) replicatedUpdates.trialNumber = updates.trialNumber;
-      if (updates.status !== undefined) replicatedUpdates.status = updates.status;
+      // MYK9-2450: status and the actual times are sent only when this save changed them. The
+      // edit panel submits the whole trial, and an old copy must not reopen a closed trial.
+      if (trialStatusChanged(updates.status, currentTrial.status))
+        replicatedUpdates.status = updates.status;
       if (updates.trialType !== undefined) replicatedUpdates.trialType = updates.trialType;
       if (updates.plannedStartTime !== undefined)
         replicatedUpdates.plannedStartTime = updates.plannedStartTime;
       // Blank means "cleared": an explicit undefined reaches the row as NULL, where '' would
       // be rejected by the timestamptz column at sync (MYK9-1086).
-      if (updates.timeStarted !== undefined)
+      if (actualTimeChanged(updates.timeStarted, currentTrial.timeStarted))
         replicatedUpdates.actualStartTime = updates.timeStarted || undefined;
-      if (updates.timeEnded !== undefined)
+      if (actualTimeChanged(updates.timeEnded, currentTrial.timeEnded))
         replicatedUpdates.actualEndTime = updates.timeEnded || undefined;
       if (updates.eventNumber !== undefined) replicatedUpdates.eventNumber = updates.eventNumber;
       if (updates.order !== undefined)

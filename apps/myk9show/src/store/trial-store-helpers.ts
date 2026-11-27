@@ -259,3 +259,34 @@ export const mockTrials: SyncableTrial[] = [
     _localOnly: false,
   },
 ];
+
+const TRIAL_STATUS_SPELLINGS: Record<string, string> = { scheduled: 'upcoming' };
+
+function normalizeTrialStatus(status: string | undefined): string {
+  const key = (status || 'Upcoming').trim().toLowerCase().replace(/\s+/g, '_');
+  return TRIAL_STATUS_SPELLINGS[key] ?? key;
+}
+
+/**
+ * MYK9-2450: whether a save changed the trial's status. 'Completed' and 'completed' are the
+ * same status (the form and the database spell it differently), and a blank stored status
+ * reads as Upcoming. `undefined` means the save did not mention it.
+ */
+export function trialStatusChanged(next: string | undefined, current: string | undefined): boolean {
+  return next !== undefined && normalizeTrialStatus(next) !== normalizeTrialStatus(current);
+}
+
+function actualTimeMinute(value: string | undefined): number | string | null {
+  if (!value) return null;
+  const ms = Date.parse(value);
+  return Number.isNaN(ms) ? value : Math.floor(ms / 60_000);
+}
+
+/**
+ * MYK9-2450: whether a save changed an actual start or finish. `undefined` means the save did
+ * not mention it. The edit form shows a time to the minute, so an untouched field comes back
+ * without its seconds: the same minute is the same time.
+ */
+export function actualTimeChanged(next: string | undefined, current: string | undefined): boolean {
+  return next !== undefined && actualTimeMinute(next) !== actualTimeMinute(current);
+}

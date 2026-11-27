@@ -212,7 +212,7 @@ async function walk(browser: Browser, info: TestInfo, blockRealtime: boolean) {
           .locator('[data-testid="check-in-button"][aria-label$=" for Cooper"]')
           .click();
         const statusDialog = judge.page.getByRole('dialog', { name: 'Change Status' });
-        await statusDialog.getByRole('button', { name: /Checked-in/ }).click();
+        await statusDialog.getByRole('button', { name: /Checked[ -]in/ }).click();
       },
       () =>
         expect

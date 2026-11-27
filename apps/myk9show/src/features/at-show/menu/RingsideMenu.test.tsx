@@ -21,6 +21,11 @@ const mocks = vi.hoisted(() => ({
   show: { clubId: 'club-1', location: '123 Main St, Springfield' } as Record<string, unknown>,
 }));
 
+// Nationals is hidden in the app (MYK9-2488); these tests cover it as built.
+vi.mock(
+  '@/features/registries/akcNationals',
+  async () => (await import('@/test/utils/akcNationalsOn')).akcNationalsOn
+);
 vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: () => mocks.auth }));
 // MYK9-2013: the guard reads this device's unsent work at the click.
 const unsent = vi.hoisted(() => ({ scores: 0 }));

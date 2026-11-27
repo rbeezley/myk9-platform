@@ -6,7 +6,10 @@ import { OfficialPicker } from '@/components/shows/wizard/steps/OfficialPicker';
 import { useShowOfficials } from '@/hooks/queries/useShowOfficials';
 import { useUserStore } from '@/store/userStore';
 import { supabase } from '@/services/database/supabaseClient';
-import { createUser } from '@/services/database/users';
+import {
+  useCreateOfficialPerson,
+  type NewOfficialPerson,
+} from '@/components/shows/wizard/steps/useCreateOfficialPerson';
 import { UserRole } from '@/types/auth-types';
 import { notifications } from '@/lib/notifications';
 import { OfficialMailingAddressField } from './OfficialMailingAddressField';
@@ -55,6 +58,9 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
   // "Add new" selects a person the moment she is created, before `people` has her: keep the
   // name she typed so the saved note can still say who it is.
   const createdNames = useRef(new Map<string, string>());
+  // MYK9-2493: the wizard's "Add new", so the required phone is saved and an email already on
+  // file reuses that person.
+  const createOfficialPerson = useCreateOfficialPerson();
 
   useEffect(() => {
     if (people.length === 0) loadPeople();
@@ -129,20 +135,10 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
     }
   };
 
-  const handleCreatePerson = async (data: {
-    firstName: string;
-    lastName: string;
-    email: string;
-  }): Promise<string> => {
-    const result = await createUser({
-      first_name: data.firstName,
-      last_name: data.lastName,
-      email: data.email,
-    });
-    if (result.error) throw result.error;
-    createdNames.current.set(result.data!.id, `${data.firstName} ${data.lastName}`.trim());
-    await loadPeople();
-    return result.data!.id;
+  const handleCreatePerson = async (data: NewOfficialPerson): Promise<string> => {
+    const id = await createOfficialPerson(data);
+    createdNames.current.set(id, `${data.firstName} ${data.lastName}`.trim());
+    return id;
   };
 
   if (isLoading) {

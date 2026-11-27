@@ -5,6 +5,8 @@ import { renderWithProviders } from '@/test/utils/testUtils';
 
 const harness = vi.hoisted(() => ({
   rpc: vi.fn(),
+  createUser: vi.fn(async () => ({ data: { id: 'created-1' }, error: null })),
+  updateUser: vi.fn(),
   success: vi.fn(),
   error: vi.fn(),
   officials: {
@@ -40,7 +42,8 @@ vi.mock('@/store/userStore', () => ({
 }));
 vi.mock('@/components/committee/ShowCommitteeEditor', () => ({ ShowCommitteeEditor: () => null }));
 vi.mock('@/services/database/users', () => ({
-  createUser: async () => ({ data: { id: 'created-1' }, error: null }),
+  createUser: harness.createUser,
+  updateUser: harness.updateUser,
 }));
 vi.mock('@/components/shows/wizard/steps/OfficialPicker', () => ({
   OfficialPicker: ({
@@ -54,6 +57,7 @@ vi.mock('@/components/shows/wizard/steps/OfficialPicker', () => ({
       firstName: string;
       lastName: string;
       email: string;
+      phone: string;
     }) => Promise<string>;
   }) => (
     <>
@@ -65,6 +69,7 @@ vi.mock('@/components/shows/wizard/steps/OfficialPicker', () => ({
             firstName: 'Priya',
             lastName: 'Raman',
             email: 'p@example.com',
+            phone: '(555) 010-2020',
           }).then(onSelect)
         }
       >{`add new ${label}`}</button>
@@ -380,6 +385,21 @@ describe('ShowOfficialsEditor mailing address for the premium (MYK9-2065)', () =
       expect(await screen.findByText('Saved. Priya Raman is now Chair.')).toBeInTheDocument();
       expect(harness.success).toHaveBeenCalledWith('Priya Raman is now Chair.');
       expect(screen.queryByText(/The new person/)).not.toBeInTheDocument();
+    });
+
+    // MYK9-2493: the form requires a phone; Edit Show dropped it on the way to the database.
+    it('saves the phone typed in "Add new" on the created person', async () => {
+      renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
+      await userEvent.click(screen.getByText('add new Chair'));
+
+      await waitFor(() =>
+        expect(harness.createUser).toHaveBeenCalledWith({
+          first_name: 'Priya',
+          last_name: 'Raman',
+          email: 'p@example.com',
+          phone: '(555) 010-2020',
+        })
+      );
     });
 
     it('confirms a Steward the same way', async () => {

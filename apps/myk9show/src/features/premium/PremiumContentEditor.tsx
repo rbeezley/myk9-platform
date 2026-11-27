@@ -18,6 +18,7 @@ import { withGenerationTimeout } from './withGenerationTimeout';
 import { stripPlaceholderNarratives } from './premiumNarratives';
 import { PremiumPdfPreviewOverlay } from './PremiumPdfPreviewOverlay';
 import { cachedDraftFor, withFreshFacts, type PremiumDraftCache } from './premiumDraftCache';
+import { buildFinalPremium } from './buildFinalPremium';
 import { usePremiumDraftSync } from './usePremiumDraftSync';
 import type { GeneratedPremium, PremiumStyle } from '../../types/premium-types';
 
@@ -31,6 +32,8 @@ interface PremiumContentEditorProps {
   deferGeneration?: boolean;
   /** Why generating is held (MYK9-2213); disables Regenerate and shows this line. */
   regenerateBlockedReason?: string;
+  /** A narrative input Edit show can change is unsaved (MYK9-2280); holds "Use the show's current details". */
+  unsavedShowInputs?: boolean;
   onPremiumChange?: (premium: GeneratedPremium | undefined) => void;
   /** True once the narratives or supplemental details differ from what first loaded (MYK9-2201). */
   onEditedChange?: (edited: boolean) => void;
@@ -53,6 +56,7 @@ export function PremiumContentEditor({
   initialPremium,
   deferGeneration = false,
   regenerateBlockedReason,
+  unsavedShowInputs = false,
   onPremiumChange,
   onEditedChange,
   onInkSaverChange,
@@ -228,23 +232,6 @@ export function PremiumContentEditor({
     onInkSaverChangeRef.current?.(false);
   }, [active, draftCache, reset]);
 
-  function buildFinalPremium(): GeneratedPremium | null {
-    if (!original || !supplemental || !narratives) return null;
-    // MYK9-2173: the resolved image counts only for the URL it was resolved from.
-    const resolvedCover =
-      pdfCoverImageRemoteUrl === supplemental.coverImageUrl ? pdfCoverImageSrc : null;
-    const finalSupplemental = {
-      ...supplemental,
-      coverImageUrl: resolvedCover ?? supplemental.coverImageUrl,
-    };
-    return {
-      ...original,
-      style: style ?? original.style,
-      supplemental: finalSupplemental,
-      narratives,
-    };
-  }
-
   const handleCoverUpload = useCallback(
     async (file: File | null) => {
       if (!file || !supplemental) return;
@@ -350,7 +337,17 @@ export function PremiumContentEditor({
   }
 
   const finalPremium = useMemo(
-    () => (original ? buildFinalPremium() : null),
+    () =>
+      original
+        ? buildFinalPremium({
+            original,
+            supplemental,
+            narratives,
+            style,
+            resolvedCover:
+              pdfCoverImageRemoteUrl === supplemental?.coverImageUrl ? pdfCoverImageSrc : null,
+          })
+        : null,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [original, supplemental, narratives, style, pdfCoverImageSrc, pdfCoverImageRemoteUrl]
   );
@@ -422,6 +419,11 @@ export function PremiumContentEditor({
               isUploadingCover={isUploadingCover}
               coverImageResolveFailed={coverImageResolveFailed}
               readOnly={isGenerating}
+              narrativeRefresh={{
+                built: original.builtNarratives,
+                regenerateBlockedReason,
+                unsavedShowInputs,
+              }}
               onCoverUpload={file => void handleCoverUpload(file)}
               onCoverRemove={() => void handleCoverRemove()}
             />

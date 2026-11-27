@@ -4,7 +4,17 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { useIsOnline } from '@/hooks/useNetworkStatus';
+import { BuiltNarrativeLink, builtNarrativeHeldReason } from './BuiltNarrativeLink';
 import type { GeneratedPremium } from '../../types/premium-types';
+
+/** MYK9-2280: what "Use the show's current details" needs from the editor. */
+export interface NarrativeRefresh {
+  built: GeneratedPremium['builtNarratives'];
+  regenerateBlockedReason: string | undefined;
+  /** A narrative input Edit show can change differs from the saved show. */
+  unsavedShowInputs: boolean;
+}
 
 interface PremiumEditorFieldsProps {
   supplemental: GeneratedPremium['supplemental'];
@@ -15,6 +25,7 @@ interface PremiumEditorFieldsProps {
   coverImageResolveFailed: boolean;
   /** True while a Regenerate is pending: the draft stays visible but cannot change. */
   readOnly: boolean;
+  narrativeRefresh?: NarrativeRefresh;
   onCoverUpload: (file: File | null) => void;
   onCoverRemove: () => void;
 }
@@ -28,6 +39,7 @@ export function PremiumEditorFields({
   isUploadingCover,
   coverImageResolveFailed,
   readOnly,
+  narrativeRefresh,
   onCoverUpload,
   onCoverRemove,
 }: PremiumEditorFieldsProps) {
@@ -38,6 +50,14 @@ export function PremiumEditorFields({
   const setNarratives: PremiumEditorFieldsProps['setNarratives'] = update => {
     if (!readOnly) setNarrativesState(update);
   };
+  const online = useIsOnline();
+  // Offline the editor may still hold a response from before the connection dropped: no link.
+  const built = online ? narrativeRefresh?.built : undefined;
+  const heldReason = builtNarrativeHeldReason({
+    isGenerating: readOnly,
+    regenerateBlockedReason: narrativeRefresh?.regenerateBlockedReason,
+    unsavedShowInputs: narrativeRefresh?.unsavedShowInputs ?? false,
+  });
   return (
     <>
       <div className="space-y-3">
@@ -190,6 +210,12 @@ export function PremiumEditorFields({
             value={narratives.showHours}
             onChange={e => setNarratives(n => ({ ...n!, showHours: e.target.value }))}
           />
+          <BuiltNarrativeLink
+            built={built?.showHours}
+            text={narratives.showHours}
+            heldReason={heldReason}
+            onUse={text => setNarratives(n => ({ ...n!, showHours: text }))}
+          />
         </div>
         <div className="space-y-1">
           <Label className="text-xs text-muted-foreground">Trial Information</Label>
@@ -198,6 +224,12 @@ export function PremiumEditorFields({
             rows={4}
             value={narratives.trialInformation}
             onChange={e => setNarratives(n => ({ ...n!, trialInformation: e.target.value }))}
+          />
+          <BuiltNarrativeLink
+            built={built?.trialInformation}
+            text={narratives.trialInformation}
+            heldReason={heldReason}
+            onUse={text => setNarratives(n => ({ ...n!, trialInformation: text }))}
           />
         </div>
       </div>

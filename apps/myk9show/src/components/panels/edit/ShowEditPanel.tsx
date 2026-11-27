@@ -159,6 +159,7 @@ const ShowEditPanelSession: React.FC<ShowEditPanelProps> = ({
           onTabChange={setActiveTab}
           initialStatus={initialShowData?.status}
           savedOrganization={initialShowData?.organization}
+          savedFormData={initialFormData}
           // Close this sheet first, then open the trial's Edit Trial on the same page.
           onEditTrial={
             onEditTrial

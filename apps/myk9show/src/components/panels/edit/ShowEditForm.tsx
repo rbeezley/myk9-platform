@@ -47,6 +47,8 @@ interface ShowEditFormProps {
   initialStatus?: string | undefined;
   /** The organization saved on the show; the Premium tab's Regenerate builds from it. */
   savedOrganization?: string | undefined;
+  /** The show as saved; the Premium tab compares the narrative inputs against it (MYK9-2280). */
+  savedFormData?: ShowEditFormData | undefined;
   /** Opens a trial's Edit Trial from the Basic Info tab's show dates (MYK9-2375). */
   onEditTrial?: ((trialId: string) => void) | undefined;
   /** Passed to the Premium tab: true while a Regenerate is pending (MYK9-2144). */
@@ -59,6 +61,7 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
   onTabChange,
   initialStatus,
   savedOrganization,
+  savedFormData,
   onEditTrial,
   onPremiumPendingChange,
   onPremiumEditedChange,
@@ -479,6 +482,7 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
           clubId={data.clubId}
           showOrg={premiumOrgOf(data.organization)}
           savedOrganization={savedOrganization}
+          savedFormData={savedFormData}
           isActive={activeTab === 'premium'}
           handleCheckboxChange={handleCheckboxChange}
           handleValueChange={handleValueChange}

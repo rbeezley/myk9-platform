@@ -119,6 +119,21 @@ describe('club onboarding draft', () => {
     expect(first).not.toBe(second);
   });
 
+  // MYK9-2501: a second submit from the same flow overwrites its own draft.
+  it('reuses the id already in the address, so one flow keeps one draft', () => {
+    const first = saveClubOnboardingDraft(draft)!;
+    const again = saveClubOnboardingDraft({ ...draft, contactName: 'Sam Lee' }, first);
+    expect(again).toBe(first);
+    expect(readClubOnboardingDraft(first)?.contactName).toBe('Sam Lee');
+  });
+
+  it('ignores an address id it did not make, and saves under a new one', () => {
+    const saved = saveClubOnboardingDraft(draft, '../not-an-id');
+    expect(saved).not.toBe('../not-an-id');
+    expect(localStorage.getItem(`${PREFIX}../not-an-id`)).toBeNull();
+    expect(readClubOnboardingDraft(saved)).toEqual(draft);
+  });
+
   // The shared-computer case: the next visitor has no id, or another one.
   it.each([
     { label: 'no id', id: null },

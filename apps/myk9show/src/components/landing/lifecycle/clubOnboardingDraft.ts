@@ -1,4 +1,5 @@
 import { CLUB_REGISTRY_ORGS, type ClubRegistryNumberInputs } from '@/utils/clubRegistryNumbers';
+import { isValidUUID } from '@/utils/validation';
 
 // A visitor who is not signed in fills the club form, is sent to sign in, and
 // comes back to the same form with what she typed. It is cleared the moment the
@@ -102,11 +103,20 @@ function sweepStaleDrafts(): void {
   }
 }
 
-/** Saves the draft and returns its id (carry it in the form's address), or null when storage is blocked. */
-export function saveClubOnboardingDraft(draft: ClubOnboardingDraft): string | null {
+/**
+ * Saves the draft and returns its id (carry it in the form's address), or null when storage is
+ * blocked. `currentId` is the id already in the form's address: a second submit from the same
+ * flow (Back from sign-in, edit, submit) overwrites that draft instead of leaving an older copy
+ * an earlier link could restore (MYK9-2501). A new flow, or an address id that is not one we
+ * make (a UUID), gets a new id.
+ */
+export function saveClubOnboardingDraft(
+  draft: ClubOnboardingDraft,
+  currentId?: string | null
+): string | null {
   try {
     sweepStaleDrafts();
-    const id = crypto.randomUUID();
+    const id = currentId && isValidUUID(currentId) ? currentId : crypto.randomUUID();
     localStorage.setItem(KEY_PREFIX + id, JSON.stringify({ id, savedAt: Date.now(), draft }));
     return id;
   } catch {

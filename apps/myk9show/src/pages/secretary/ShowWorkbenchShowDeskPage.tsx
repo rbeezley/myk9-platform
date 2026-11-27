@@ -313,6 +313,15 @@ function ShowWorkbenchShowDeskBody() {
         content: null,
       },
       {
+        id: 'email-delivery',
+        group: 'show-day',
+        title: 'Email delivery',
+        summary: "See which of this show's emails arrived and which need attention",
+        // A door only (MYK9-2482): Messages owns the list, and opens it for `view=email`.
+        href: `/secretary/messages?showId=${encodeURIComponent(currentShow.id)}&view=email`,
+        content: null,
+      },
+      {
         id: 'volunteers',
         group: 'show-logistics',
         title: 'Volunteers',

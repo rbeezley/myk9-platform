@@ -161,6 +161,7 @@ describe('STYLED_RECEIPT_BY_STYLE', () => {
         'coco bean dream',
         'container novice a, interior novice a',
         'exterior advanced, buried advanced',
+        'the dogs',
       ]) {
         expect(text, `${style}: ${expected}`).toContain(expected);
       }

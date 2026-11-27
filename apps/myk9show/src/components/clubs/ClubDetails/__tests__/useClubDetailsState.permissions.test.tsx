@@ -8,7 +8,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ScopeType, UserRole } from '@/types/auth-types';
@@ -23,6 +23,7 @@ const CLUB_B = '22222222-2222-4222-8222-222222222222';
 type PermissionChecker = (code: string, scope?: unknown) => boolean;
 
 const mockAuth = vi.hoisted(() => ({
+  user: null as { id: string; is_anonymous?: boolean } | null,
   userWithRoles: null as UserWithRoles | null,
   hasPermission: vi.fn<(code: string, scope?: unknown) => boolean>(() => false),
 }));
@@ -42,8 +43,11 @@ vi.mock('@/store/showStore', () => ({
 vi.mock('@/hooks/queries/useClubsDatabase', () => ({
   useDeleteClubMutation: () => ({ mutateAsync: vi.fn() }),
 }));
+const roster = vi.hoisted(() => ({
+  read: vi.fn<(clubId: string) => Promise<unknown[]>>(async () => []),
+}));
 vi.mock('@/services/database/club-memberships/members', () => ({
-  getClubMembers: vi.fn(async () => []),
+  getClubMembers: roster.read,
   getActiveClubMembers: (members: unknown[]) => members,
 }));
 
@@ -284,5 +288,182 @@ describe('useClubDetailsState canAddShow (MYK9-890)', () => {
       mockAuth.userWithRoles = userWith([role], [clubScope(role, CLUB_A)]);
       expect(renderState(CLUB_A).result.current.canAddShow).toBe(false);
     }
+  });
+});
+
+// MYK9-2467: the roster read returns every row only to this club's admin or a site admin
+// (`club_members_select`). Anyone else gets at most their own row, so the club page showed an
+// outsider "Active Members 0 · No members yet · Invite members to join" for a club with members.
+describe('useClubDetailsState member count (MYK9-2467)', () => {
+  const memberStat = <T extends { type: string }>(stats: T[]) =>
+    stats.find(stat => stat.type === 'members');
+
+  beforeEach(() => {
+    mockAuth.user = { id: 'auth-user-1' };
+    mockAuth.userWithRoles = null;
+    mockAuth.hasPermission = vi.fn<PermissionChecker>(() => false);
+    roster.read.mockReset();
+    roster.read.mockResolvedValue([]);
+  });
+
+  const asClubAdmin = () => {
+    mockAuth.userWithRoles = userWith(
+      [UserRole.CLUB_ADMIN, UserRole.EXHIBITOR],
+      [clubScope(UserRole.CLUB_ADMIN, CLUB_A)]
+    );
+  };
+
+  it("shows the Active Members stat to this club's admin once the roster has been read", async () => {
+    asClubAdmin();
+    roster.read.mockResolvedValue([{ id: 'm1' }, { id: 'm2' }]);
+
+    const { result } = renderState();
+
+    await waitFor(() => expect(memberStat(result.current.stats)?.value).toBe('2'));
+    expect(memberStat(result.current.stats)?.title).toBe('Active Members');
+    expect(result.current.memberCountReady).toBe(true);
+  });
+
+  it('shows it to a site admin', async () => {
+    mockAuth.userWithRoles = userWith([UserRole.SITE_ADMIN], []);
+
+    const { result } = renderState();
+
+    await waitFor(() => expect(memberStat(result.current.stats)).toBeDefined());
+  });
+
+  // Codex review of #4470: `data ?? []` turned "not read yet" and "could not be read" into a
+  // count of zero, with "Invite members to join" under it.
+  it('shows the admin no count while the roster is still loading', () => {
+    asClubAdmin();
+    roster.read.mockReturnValue(new Promise(() => undefined));
+
+    const { result } = renderState();
+
+    expect(memberStat(result.current.stats)).toBeUndefined();
+    expect(result.current.memberCountReady).toBe(false);
+  });
+
+  it('shows the admin no count when the roster could not be read', async () => {
+    asClubAdmin();
+    roster.read.mockRejectedValue(new Error('offline'));
+
+    const { result } = renderState();
+
+    await waitFor(() => expect(result.current.isMembersError).toBe(true));
+    expect(memberStat(result.current.stats)).toBeUndefined();
+    expect(result.current.memberCountReady).toBe(false);
+  });
+
+  it('counts zero for the admin when the roster was read and is empty', async () => {
+    asClubAdmin();
+
+    const { result } = renderState();
+
+    await waitFor(() => expect(memberStat(result.current.stats)?.value).toBe('0'));
+  });
+
+  it('hides it from a signed-in viewer who is not an admin of this club', () => {
+    // A club-wide show secretary, as in the report: staff, but the roster is not hers to read.
+    mockAuth.userWithRoles = userWith(
+      [UserRole.SECRETARY, UserRole.EXHIBITOR],
+      [clubScope(UserRole.SECRETARY, CLUB_A)]
+    );
+
+    const { result } = renderState();
+
+    expect(memberStat(result.current.stats)).toBeUndefined();
+    expect(result.current.stats).toHaveLength(1);
+  });
+
+  it("hides it from another club's admin", () => {
+    mockAuth.userWithRoles = userWith(
+      [UserRole.CLUB_ADMIN],
+      [clubScope(UserRole.CLUB_ADMIN, CLUB_B)]
+    );
+
+    const { result } = renderState();
+
+    expect(memberStat(result.current.stats)).toBeUndefined();
+  });
+
+  // Codex review of #4470: `anon` has no SELECT on `club_members`, so the read failed and a
+  // guest got "We couldn't load club members" instead of the plain explanation.
+  it('hides it from a signed-out visitor and never asks for the roster', async () => {
+    mockAuth.user = null;
+
+    const { result } = renderState();
+
+    expect(memberStat(result.current.stats)).toBeUndefined();
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(roster.read).not.toHaveBeenCalled();
+    expect(result.current.isMembersError).toBe(false);
+    expect(result.current.isMembersLoading).toBe(false);
+  });
+
+  // Codex review of #4470, round 2: a club admin whose only grant is pinned to one show of this
+  // club reads the whole roster (is_club_admin ignores show_id), but was labelled "Your
+  // membership" and shown no count because only the club-scoped grant was read.
+  it('lets a show-pinned club admin of this club read the roster and see the count', async () => {
+    mockAuth.userWithRoles = userWith(
+      [UserRole.CLUB_ADMIN],
+      [
+        {
+          userId: 'auth-uid',
+          roleId: UserRole.CLUB_ADMIN,
+          scopeType: ScopeType.SHOW,
+          scopeId: 'show-1',
+          clubId: CLUB_A,
+          createdAt: new Date(),
+        },
+      ]
+    );
+    roster.read.mockResolvedValue([{ id: 'm1' }, { id: 'm2' }, { id: 'm3' }]);
+
+    const { result } = renderState();
+
+    expect(result.current.canReadRoster).toBe(true);
+    await waitFor(() => expect(memberStat(result.current.stats)?.value).toBe('3'));
+  });
+
+  it('does not let a show-pinned admin of another club read this roster', () => {
+    mockAuth.userWithRoles = userWith(
+      [UserRole.CLUB_ADMIN],
+      [
+        {
+          userId: 'auth-uid',
+          roleId: UserRole.CLUB_ADMIN,
+          scopeType: ScopeType.SHOW,
+          scopeId: 'show-1',
+          clubId: CLUB_B,
+          createdAt: new Date(),
+        },
+      ]
+    );
+
+    const { result } = renderState();
+
+    expect(result.current.canReadRoster).toBe(false);
+    expect(memberStat(result.current.stats)).toBeUndefined();
+  });
+
+  // A ringside passcode session is an anonymous auth user WITH an id, so `Boolean(user.id)`
+  // asked `anon`-role reads for the roster, which fail and offered a retry that never works.
+  it('never asks a passcode session for the roster, even one that holds a club grant', async () => {
+    mockAuth.user = { id: 'anon-user-1', is_anonymous: true };
+    asClubAdmin();
+
+    const { result } = renderState();
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(roster.read).not.toHaveBeenCalled();
+    expect(result.current.canReadRoster).toBe(false);
+    expect(result.current.isMembersError).toBe(false);
+    expect(result.current.isMembersLoading).toBe(false);
+    expect(memberStat(result.current.stats)).toBeUndefined();
   });
 });

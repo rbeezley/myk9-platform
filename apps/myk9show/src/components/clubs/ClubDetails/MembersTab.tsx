@@ -14,6 +14,8 @@ interface MembersTabProps {
   isError: boolean;
   onRetry: () => void;
   canManageMembers: boolean;
+  /** Whether this viewer reads the whole roster, not just her own row. Defaults to `canManageMembers`. */
+  canSeeFullRoster?: boolean;
   onAddMember: () => void;
 }
 
@@ -25,6 +27,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
   isError,
   onRetry,
   canManageMembers,
+  canSeeFullRoster = canManageMembers,
   onAddMember,
 }) => {
   if (isLoading) {
@@ -89,7 +92,17 @@ export const MembersTab: React.FC<MembersTabProps> = ({
     <div className="space-y-6">
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">Club Members</h3>
+          <div>
+            <h3 className="text-lg font-semibold">
+              {canSeeFullRoster ? 'Club Members' : 'Your membership'}
+            </h3>
+            {/* Anyone but an admin reads only her own row: say so, or one name reads as the club. */}
+            {!canSeeFullRoster && (
+              <p className="text-sm text-muted-foreground">
+                Only this club&apos;s admins can see the full member list.
+              </p>
+            )}
+          </div>
           {isRefreshing && (
             <span
               role="status"

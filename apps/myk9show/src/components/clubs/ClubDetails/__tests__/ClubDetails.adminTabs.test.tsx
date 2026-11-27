@@ -9,6 +9,7 @@ import { ClubDetails } from '../index';
  */
 const state = vi.hoisted(() => ({
   canManageClubAdmin: false,
+  memberCountReady: false,
   activeTab: 'members',
   activeMembers: [] as { id: string }[],
 }));
@@ -29,6 +30,7 @@ vi.mock('../useClubDetailsState', () => ({
     canAddShow: false,
     canManageMembers: state.canManageClubAdmin,
     canManageClubAdmin: state.canManageClubAdmin,
+    memberCountReady: state.memberCountReady,
     isMembersLoading: false,
     isMembersRefreshing: false,
     isMembersError: false,
@@ -60,6 +62,7 @@ const club = { id: 'club-1', name: 'Heartland Club' } as Club;
 describe('ClubDetails admin tabs (MYK9-1293)', () => {
   beforeEach(() => {
     state.canManageClubAdmin = false;
+    state.memberCountReady = false;
     state.activeTab = 'members';
     state.activeMembers = [];
   });
@@ -94,10 +97,18 @@ describe('ClubDetails admin tabs (MYK9-1293)', () => {
   // row, so the tab shows them no count: "Members 0" was false for a club with members.
   it("counts the members on the tab for this club's admin", () => {
     state.canManageClubAdmin = true;
+    state.memberCountReady = true;
     state.activeMembers = [{ id: 'm1' }, { id: 'm2' }];
     render(<ClubDetails selectedClub={club} />);
 
     expect(screen.getByRole('tab', { name: /Members/ })).toHaveTextContent('2');
+  });
+
+  it('shows the admin no count on the tab until the roster has been read', () => {
+    state.canManageClubAdmin = true;
+    render(<ClubDetails selectedClub={club} />);
+
+    expect(screen.getByRole('tab', { name: /Members/ }).textContent?.trim()).toBe('Members');
   });
 
   it('shows no member count on the tab to a viewer who cannot read the roster', () => {

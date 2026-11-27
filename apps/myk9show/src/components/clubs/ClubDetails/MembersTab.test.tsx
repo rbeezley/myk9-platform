@@ -83,4 +83,23 @@ describe('MembersTab', () => {
     expect(screen.queryByText(/doesn't have any members/)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Add First Member/ })).not.toBeInTheDocument();
   });
+
+  // Codex review of #4470: a member who is not an admin reads only her own row, and a list
+  // headed "Club Members" with one name read as the whole club.
+  it("heads a member's own row as her membership, not as the club's members", () => {
+    renderMembersTab();
+
+    expect(screen.getByRole('heading', { name: 'Your membership' })).toBeInTheDocument();
+    expect(
+      screen.getByText("Only this club's admins can see the full member list.")
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Club Members' })).not.toBeInTheDocument();
+  });
+
+  it('heads the whole roster as Club Members for someone who can read it', () => {
+    renderMembersTab({ canSeeFullRoster: true });
+
+    expect(screen.getByRole('heading', { name: 'Club Members' })).toBeInTheDocument();
+    expect(screen.queryByText(/full member list/)).not.toBeInTheDocument();
+  });
 });

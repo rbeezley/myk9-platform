@@ -150,10 +150,16 @@ export function useClubDetailsState(selectedClub: Club | null) {
   const membersQuery = useQuery({
     queryKey: ['club-members', selectedClub?.id],
     queryFn: () => getClubMembers(selectedClub!.id),
-    enabled: Boolean(selectedClub?.id),
+    // A signed-out visitor is never asked for the roster: `anon` cannot read `club_members`,
+    // so the read would fail and the tab would offer a retry that can never work.
+    enabled: Boolean(selectedClub?.id) && Boolean(authUserId),
   });
   const clubMembers = useMemo(() => membersQuery.data ?? [], [membersQuery.data]);
   const activeMembers = useMemo(() => getActiveClubMembers(clubMembers), [clubMembers]);
+  // A count is shown only to someone who can read the whole roster (MYK9-2467), and only once
+  // it HAS been read: `data ?? []` is also what "still loading" and "failed" look like, and
+  // neither of those is zero members.
+  const memberCountReady = canManageClubAdmin && membersQuery.isSuccess;
 
   // Stats computation
   const stats: StatCard[] = useMemo(() => {
@@ -162,7 +168,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
     const memberCount = activeMembers.length;
     // MYK9-2467: only this club's admin (or a site admin) can read the whole roster; anyone
     // else reads at most their own row, so a count from it would say 0 or 1 for any club.
-    if (!canManageClubAdmin) return [clubShowsStat(clubShows)];
+    if (!memberCountReady) return [clubShowsStat(clubShows)];
 
     return [
       clubShowsStat(clubShows),
@@ -178,7 +184,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
         tab: 'members' as const,
       },
     ];
-  }, [selectedClub, clubShows, activeMembers.length, canManageClubAdmin]);
+  }, [selectedClub, clubShows, activeMembers.length, memberCountReady]);
 
   // --- Handlers ---
 
@@ -432,6 +438,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
     // cache consistency but only active records exposed to the profile roster.
     clubMembers,
     activeMembers,
+    memberCountReady,
     isMembersLoading: membersQuery.isLoading,
     isMembersRefreshing: membersQuery.isFetching && !membersQuery.isLoading,
     isMembersError: membersQuery.isError,

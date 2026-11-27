@@ -78,8 +78,8 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
         id: 'members',
         label: 'Members',
         icon: Users,
-        // MYK9-2467: a count only for someone who can read the whole roster.
-        ...(state.canManageClubAdmin ? { count: state.activeMembers.length } : {}),
+        // MYK9-2467: a count only for someone who can read the whole roster, once it is read.
+        ...(state.memberCountReady ? { count: state.activeMembers.length } : {}),
       },
     ];
     if (state.canManageClubAdmin) {
@@ -94,6 +94,7 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
     upcomingShows.length,
     pastShows.length,
     state.activeMembers.length,
+    state.memberCountReady,
     state.canEditBranding,
     state.canManageClubAdmin,
   ]);
@@ -197,6 +198,7 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
                   isError={state.isMembersError}
                   onRetry={() => void state.retryMembers()}
                   canManageMembers={state.canManageMembers}
+                  canSeeFullRoster={state.canManageClubAdmin}
                   onAddMember={state.handleAddMember}
                 />
               )}

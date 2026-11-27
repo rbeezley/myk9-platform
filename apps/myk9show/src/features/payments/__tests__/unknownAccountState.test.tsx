@@ -37,6 +37,18 @@ vi.mock('@/features/financial/useClubFinancialReconciliation', () => ({
     rows: [],
     isLoading: false,
     isError: false,
+    isSuccess: true,
+    refetch: vi.fn(),
+  })),
+}));
+
+// The card's payout figures are an RPC read; this suite is about the account state.
+vi.mock('../useClubShowPayoutFigures', () => ({
+  useClubShowPayoutFigures: vi.fn(() => ({
+    data: [],
+    isLoading: false,
+    isError: false,
+    isSuccess: true,
     refetch: vi.fn(),
   })),
 }));

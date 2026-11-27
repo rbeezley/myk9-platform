@@ -3,10 +3,7 @@ import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { ExhibitorOnboardingChecker } from '../ExhibitorOnboardingChecker';
 import { UserRole } from '@/types/auth-types';
-import {
-  clearClubOnboardingDraft,
-  saveClubOnboardingDraft,
-} from '@/components/landing/lifecycle/clubOnboardingDraft';
+import { saveClubOnboardingDraft } from '@/components/landing/lifecycle/clubOnboardingDraft';
 
 // Mock hooks
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -20,12 +17,13 @@ vi.mock('@/hooks/useExhibitorProfile', () => ({
 // Capture navigate calls
 const mockNavigate = vi.fn();
 let mockPathname = '/exhibitor/dashboard';
+let mockSearch = '';
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
   return {
     ...actual,
     useNavigate: () => mockNavigate,
-    useLocation: () => ({ pathname: mockPathname }),
+    useLocation: () => ({ pathname: mockPathname, search: mockSearch }),
   };
 });
 
@@ -92,7 +90,9 @@ describe('ExhibitorOnboardingChecker', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockPathname = '/exhibitor/dashboard';
+    mockSearch = '';
     sessionStorage.clear();
+    localStorage.clear();
   });
 
   it('renders children when profile exists and onboarding is complete', () => {
@@ -114,8 +114,28 @@ describe('ExhibitorOnboardingChecker', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/onboarding', { replace: true });
   });
 
-  // MYK9-2046: she typed the home page club form, signed in and came back to finish it.
-  it('does not redirect while a club-form draft is waiting, and does once it is gone', () => {
+  // MYK9-2469: she comes back by the club form's own address (sign-in, or the confirmation link
+  // in a new tab, which passes the exempt auth callback first). The address is the whole test.
+  it('does not redirect from the club form address when it carries the saved draft id', () => {
+    mockPathname = '/';
+    const id = saveClubOnboardingDraft({
+      clubName: 'Tri-State Kennel Club',
+      organization: 'AKC',
+      clubNumbers: { AKC: '1', UKC: '', ASCA: '' },
+      contactName: 'Pat',
+      contactEmail: 'pat@example.com',
+      contactPhone: '',
+      firstShowDate: '',
+      message: '',
+    });
+    mockSearch = `?onboarding=true&clubDraft=${id}`;
+    setupMocks({ hasProfile: false, onboardingCompleted: false });
+    renderChecker();
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  // Someone else's leftover draft must not skip onboarding for an unrelated sign-up.
+  it('runs onboarding as normal for an unrelated sign-up while a draft sits in storage', () => {
     mockPathname = '/';
     saveClubOnboardingDraft({
       clubName: 'Tri-State Kennel Club',
@@ -128,19 +148,41 @@ describe('ExhibitorOnboardingChecker', () => {
       message: '',
     });
     setupMocks({ hasProfile: false, onboardingCompleted: false });
-    renderChecker().unmount();
-    expect(mockNavigate).not.toHaveBeenCalled();
+    renderChecker();
+    expect(mockNavigate).toHaveBeenCalledWith('/onboarding', { replace: true });
+  });
 
-    clearClubOnboardingDraft();
+  // MYK9-2469: the confirmation link was opened in another browser, so no draft came with her.
+  // She still lands on the club form, not on the profile step.
+  it.each(['?onboarding=true', '?onboarding=true&returnTo=%2Fshows%2Fnew'])(
+    'does not redirect from the club form address (/%s) even with no draft',
+    search => {
+      mockPathname = '/';
+      mockSearch = search;
+      setupMocks({ hasProfile: false, onboardingCompleted: false });
+      renderChecker();
+      expect(mockNavigate).not.toHaveBeenCalled();
+    }
+  );
+
+  it('still redirects from the plain home page, and from another page carrying the same query', () => {
+    mockPathname = '/';
+    setupMocks({ hasProfile: false, onboardingCompleted: false });
+    renderChecker().unmount();
+    expect(mockNavigate).toHaveBeenCalledWith('/onboarding', { replace: true });
+
+    mockNavigate.mockClear();
+    mockPathname = '/exhibitor/dashboard';
+    mockSearch = '?onboarding=true';
     renderChecker();
     expect(mockNavigate).toHaveBeenCalledWith('/onboarding', { replace: true });
   });
 
   it('ignores a malformed club-form draft: it neither exempts onboarding nor crashes', () => {
     mockPathname = '/';
-    sessionStorage.setItem(
+    localStorage.setItem(
       'myk9:club-onboarding-draft',
-      JSON.stringify({ clubName: 42, clubNumbers: [] })
+      JSON.stringify({ savedAt: Date.now(), draft: { clubName: 42, clubNumbers: [] } })
     );
     setupMocks({ hasProfile: false, onboardingCompleted: false });
     renderChecker();

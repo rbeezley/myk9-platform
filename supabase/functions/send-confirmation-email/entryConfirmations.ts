@@ -68,6 +68,8 @@ export interface ConfirmationShow {
   status: string | null;
   start_date: string;
   end_date: string;
+  /** The address as the secretary typed it; the only address field the show wizard fills. */
+  location?: string | null;
   venue_name: string | null;
   address: string | null;
   city: string | null;

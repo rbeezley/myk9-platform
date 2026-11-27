@@ -89,7 +89,7 @@ const HEARTLAND_SATURDAY: SeedClass[] = [
     section: null,
   },
   {
-    id: 'dec1a55e-0000-0000-0000-000000000040',
+    id: 'class-interior-advanced-second',
     name: 'Interior Advanced Preliminary',
     element: 'Interior',
     level: 'Advanced',
@@ -282,7 +282,7 @@ describe('ClassSelectionStep — chip labels (MYK9-489)', () => {
     expect(screen.queryByText(/Novice A A|Interior Novice/)).not.toBeInTheDocument();
   });
 
-  it('renders the same chips in the staff five-step variant', async () => {
+  it('renders the same chips in the staff variant', async () => {
     setupMocks(HEARTLAND_SATURDAY, { isStaff: true });
     renderStep({ workflowMode: 'secretary_new' });
 

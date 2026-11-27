@@ -5,7 +5,6 @@ import 'fake-indexeddb/auto';
 import { useRegistrationsStore } from '@/store/registrationsStore';
 import { useCompetitionStore } from '@/store/competitionStore';
 import { useShowRegistrationStore } from '@/store/showRegistrationStore';
-import { useArmbandStore } from '@/store/armbandStore';
 
 // Type imports
 import type { Registration } from '@/types/dog-types';
@@ -132,68 +131,10 @@ describe('Phase 3 Integration Tests - Registration & Competition Stores', () => 
     });
   });
 
-  describe('ArmbandStore Integration', () => {
-    it('should persist armband assignments to IndexedDB', async () => {
-      const store = useArmbandStore.getState();
-
-      store.assignArmband({
-        showId: 'show-1',
-        dogId: 'dog-1',
-        armbandNumber: '101',
-        assignedBy: 'user-1',
-      });
-
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      const newStore = useArmbandStore.getState();
-      expect(newStore.assignments).toHaveLength(1);
-      expect(newStore.assignments[0].armbandNumber).toBe('101');
-      expect(newStore.assignments[0].dogId).toBe('dog-1');
-    });
-
-    it('should handle armband ranges', async () => {
-      const store = useArmbandStore.getState();
-
-      store.createRange({
-        showId: 'show-1',
-        startNumber: 100,
-        endNumber: 200,
-        description: 'Main Ring',
-      });
-
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      const newStore = useArmbandStore.getState();
-      expect(newStore.ranges).toHaveLength(1);
-      expect(newStore.ranges[0].startNumber).toBe(100);
-      expect(newStore.ranges[0].endNumber).toBe(200);
-    });
-
-    it('should detect armband conflicts', async () => {
-      const store = useArmbandStore.getState();
-
-      // Assign first armband
-      store.assignArmband({
-        showId: 'show-1',
-        dogId: 'dog-1',
-        armbandNumber: '150',
-        assignedBy: 'user-1',
-      });
-
-      // Check for conflict with same number
-      const conflict = store.checkConflicts('show-1', '150', 'dog-2');
-      expect(conflict).not.toBeNull();
-      expect(conflict?.armbandNumber).toBe('150');
-      expect(conflict?.dogIds).toContain('dog-1');
-      expect(conflict?.dogIds).toContain('dog-2');
-    });
-  });
-
   describe('Cross-Store Integration', () => {
     it('should handle related data across multiple stores', async () => {
       const registrationStore = useRegistrationsStore.getState();
       const showRegStore = useShowRegistrationStore.getState();
-      const armbandStore = useArmbandStore.getState();
 
       // Create a dog registration
       const dogRegistration: Registration = {
@@ -224,17 +165,9 @@ describe('Phase 3 Integration Tests - Registration & Competition Stores', () => 
         handlerName: 'Cross Test Handler',
       });
 
-      // Assign armband for the same dog
-      armbandStore.assignArmband({
-        showId: 'show-cross-test-1',
-        dogId: 'dog-cross-test-1',
-        armbandNumber: '999',
-        assignedBy: 'user-cross-test-1',
-      });
-
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      // Verify all stores have the related data
+      // Verify both stores have the related data
       expect(
         useRegistrationsStore
           .getState()
@@ -243,8 +176,6 @@ describe('Phase 3 Integration Tests - Registration & Competition Stores', () => 
       expect(showRegStore.getRegistration(showRegistration.id)?.entries[0].dogId).toBe(
         'dog-cross-test-1'
       );
-      expect(armbandStore.getAssignmentsByDog('dog-cross-test-1')).toHaveLength(1);
-      expect(armbandStore.getAssignmentsByShow('show-cross-test-1')).toHaveLength(1);
     });
   });
 
@@ -252,12 +183,7 @@ describe('Phase 3 Integration Tests - Registration & Competition Stores', () => 
     it('should handle version migrations correctly', async () => {
       // This test verifies that the migration functions work
       // In a real scenario, we would test actual data transformation
-      const stores = [
-        useRegistrationsStore,
-        useCompetitionStore,
-        useShowRegistrationStore,
-        useArmbandStore,
-      ];
+      const stores = [useRegistrationsStore, useCompetitionStore, useShowRegistrationStore];
 
       // Each store should have version 1 and migration functions
       stores.forEach(store => {

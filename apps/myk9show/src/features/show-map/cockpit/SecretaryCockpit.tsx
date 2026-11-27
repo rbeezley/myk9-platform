@@ -51,6 +51,7 @@ export function SecretaryCockpit({
   entryBreakdownByClassId,
   onRefreshEntries,
   putBackEntries,
+  showName,
 }: {
   snapshot: SecretaryCockpitSnapshot;
   canManageShow: boolean;
@@ -66,6 +67,8 @@ export function SecretaryCockpit({
   onRefreshEntries?: EntriesRefresh | undefined;
   /** The stored entries by id, so a real Pull can be put back from its row (MYK9-2038). */
   putBackEntries?: ReadonlyMap<string, EntryManagementEntry> | undefined;
+  /** The show's name, for the in-place Change handler sheet (MYK9-1940). */
+  showName?: string | undefined;
 }) {
   const { state: urlState, updateState } = useSecretaryCockpitUrlState();
   // A Select classes link's trial or class (MYK9-1324) opens and scrolls like the cockpit's own.
@@ -192,6 +195,7 @@ export function SecretaryCockpit({
       entryBreakdownByClassId={entryBreakdownByClassId}
       onRefreshEntries={onRefreshEntries}
       putBackEntries={putBackEntries}
+      showName={showName}
       {...(runOrder !== undefined && { runOrder })}
       {...(canManageShow &&
         trial && {

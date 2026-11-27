@@ -14,6 +14,11 @@ import {
   loadStoredEntryJunior,
   priceCartItems,
 } from '../_shared/cartItemPricing.ts';
+import {
+  cartLineSnapshotMetadata,
+  cartSessionSnapshotMetadata,
+  SERVICE_FEE_LINE_METADATA,
+} from '../_shared/cartPriceSnapshot.ts';
 import { parsePremiumPriceIds } from '../_shared/premiumPrices.ts';
 import { requireStripeLivemode } from '../_shared/stripeMode.ts';
 import {
@@ -32,6 +37,7 @@ import {
   type OwnerAddressGateLine,
 } from '../_shared/cartOwnerAddressGate.ts';
 import { checkoutLeasedCart } from '../_shared/leasedCheckoutCart.ts';
+import { hasBlockingSubscription } from '../_shared/existingSubscriptionGuard.ts';
 import { formatStatementDescriptorSuffix } from '../_shared/statementDescriptor.ts';
 import {
   cartHasBlockedClass,
@@ -58,6 +64,9 @@ import {
   linkCartCheckout,
   type CartLease,
 } from '../_shared/cartSpotHold.ts';
+import { CHECKOUT_FAILED_MESSAGE, parseCheckoutBody } from './checkoutRequest.ts';
+import { FEES_HEAL_FAILED_MESSAGE, FEES_HEALED_MESSAGE, healDriftedCart } from './cartFeeHeal.ts';
+import { forgetStaleStripeCustomer } from './staleStripeCustomer.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -182,7 +191,11 @@ Deno.serve(async req => {
     }
 
     // Parse request
-    const body: CheckoutRequest = await req.json();
+    const parsedBody = parseCheckoutBody(await req.text());
+    if (!parsedBody.ok) {
+      return corsResponse(corsHeaders, { error: parsedBody.error }, 400);
+    }
+    const body = parsedBody.value as unknown as CheckoutRequest;
     const { mode, success_url, cancel_url } = body;
 
     if (!mode || !success_url || !cancel_url) {
@@ -249,12 +262,10 @@ Deno.serve(async req => {
 
     return corsResponse(corsHeaders, { error: 'Invalid checkout mode' }, 400);
   } catch (error: unknown) {
-    console.error('Checkout error:', error);
-    return corsResponse(
-      corsHeaders,
-      { error: error instanceof Error ? error.message : 'Unknown error' },
-      500
-    );
+    // MP-20: log the detail (Stripe SDK messages embed customer and session
+    // ids and internal phrasing) but return a generic body to the caller.
+    console.error('Checkout error:', error instanceof Error ? error.message : error);
+    return corsResponse(corsHeaders, { error: CHECKOUT_FAILED_MESSAGE }, 500);
   }
 });
 
@@ -282,14 +293,25 @@ async function getOrCreateStripeCustomer(
   }
 
   if (existing?.stripe_customer_id) {
+    const staleCustomerId = existing.stripe_customer_id;
+    const forgetStale = () =>
+      forgetStaleStripeCustomer(
+        staleCustomerId,
+        () =>
+          supabase
+            .from('stripe_customers')
+            .delete()
+            .eq('person_id', personId)
+            .eq('livemode', stripeLivemode)
+            // Only the mapping observed stale: a concurrent request may already
+            // have saved its replacement, which must survive.
+            .eq('stripe_customer_id', staleCustomerId),
+        console.error
+      );
     try {
       const customer = await stripe.customers.retrieve(existing.stripe_customer_id);
       if ('deleted' in customer && customer.deleted === true) {
-        await supabase
-          .from('stripe_customers')
-          .delete()
-          .eq('person_id', personId)
-          .eq('livemode', stripeLivemode);
+        if (!(await forgetStale())) return null;
       } else {
         if (currentEmail && customer.email !== currentEmail) {
           await stripe.customers.update(existing.stripe_customer_id, {
@@ -314,11 +336,7 @@ async function getOrCreateStripeCustomer(
       }
     } catch (error) {
       if (isStripeResourceMissing(error)) {
-        await supabase
-          .from('stripe_customers')
-          .delete()
-          .eq('person_id', personId)
-          .eq('livemode', stripeLivemode);
+        if (!(await forgetStale())) return null;
       } else {
         throw error;
       }
@@ -787,47 +805,61 @@ async function checkoutUnderLease(
       `Cart ${cart_id}: ${driftedItems.length}/${cart.items.length} item fees differ from ` +
         `authoritative pricing — healing and refusing checkout`
     );
-    for (const { item, authoritativeCents } of driftedItems) {
-      await supabase
-        .from('entry_cart_items')
-        .update({ entry_fee_cents: authoritativeCents })
-        .eq('id', item.id);
-    }
     const healedSubtotal = itemsWithAuthoritativeFee.reduce((s, x) => s + x.authoritativeCents, 0);
     const healedFeeCents = calculatePlatformFeeCents(healedSubtotal, platformFeeRates);
-    await supabase
-      .from('entry_carts')
-      .update({
-        subtotal_cents: healedSubtotal,
-        platform_fee_cents: healedFeeCents,
-        total_cents: healedSubtotal + healedFeeCents,
-        // Sever any prior session — it priced the unhealed items.
-        stripe_checkout_session_id: null,
-      })
-      .eq('id', cart_id)
-      // Never heal a cart the webhook just claimed (paid mid-checkout).
-      .eq('status', 'active');
-    if (cart.stripe_checkout_session_id) {
-      try {
-        await stripe.checkout.sessions.expire(cart.stripe_checkout_session_id);
-      } catch {
-        // Already expired/paid/foreign — the severed link above is decisive.
-      }
-    }
-    return corsResponse(
-      corsHeaders,
+    const heal = await healDriftedCart(
+      cart_id,
+      driftedItems.map(({ item, authoritativeCents }) => ({ itemId: item.id, authoritativeCents })),
       {
-        error: 'Entry fees were updated to current show pricing — review your entry and try again.',
-      },
-      409
+        releasePriorSession: () =>
+          releasePriorSessionForClassGate(
+            cart.stripe_checkout_session_id ?? null,
+            stripe.checkout.sessions
+          ),
+        writeLineFee: (itemId, cents) =>
+          supabase
+            .from('entry_cart_items')
+            .update({ entry_fee_cents: cents })
+            .eq('id', itemId)
+            .select('id'),
+        writeCartTotals: () =>
+          supabase
+            .from('entry_carts')
+            .update({
+              subtotal_cents: healedSubtotal,
+              platform_fee_cents: healedFeeCents,
+              total_cents: healedSubtotal + healedFeeCents,
+              // Sever any prior session — it priced the unhealed items.
+              stripe_checkout_session_id: null,
+            })
+            .eq('id', cart_id)
+            // Never heal a cart the webhook just claimed (paid mid-checkout).
+            .eq('status', 'active')
+            .select('id'),
+        logError: console.error,
+      }
     );
+    if (heal.kind === 'blocked') {
+      return corsResponse(corsHeaders, { error: heal.error }, heal.status);
+    }
+    if (heal.kind === 'heal_failed') {
+      return corsResponse(corsHeaders, { error: FEES_HEAL_FAILED_MESSAGE }, 500);
+    }
+    return corsResponse(corsHeaders, { error: FEES_HEALED_MESSAGE }, 409);
   }
 
   // Build line items for Stripe. The amount is the AUTHORITATIVE price (the drift
   // gate above already proved every stored line equals it), never a client value.
+  // MYK9-2036: each line also carries its cart item id and the entry details that
+  // decided its price, so the webhook verifies the paid session against what was
+  // sold here (cartPriceSnapshot.ts), not against the fee rule when it runs.
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = cart.items.map(
     (item: {
       id: string;
+      dog_id: string;
+      class_id: string;
+      entry_id: string | null;
+      junior_fee_declared: boolean | null;
       dog?: { call_name?: string };
       class?: { name?: string; trial?: { show?: { name?: string } } };
     }) => ({
@@ -837,6 +869,7 @@ async function checkoutUnderLease(
         product_data: {
           name: `${item.dog?.call_name || 'Dog'} - ${item.class?.name || 'Class'}`,
           description: item.class?.trial?.show?.name || 'Show Entry',
+          metadata: cartLineSnapshotMetadata(item),
         },
       },
       quantity: 1,
@@ -868,6 +901,7 @@ async function checkoutUnderLease(
           // approximate; the receipt states only what was actually charged.
           name: 'Service fee',
           description: 'Card processing and myK9Show',
+          metadata: { ...SERVICE_FEE_LINE_METADATA },
         },
       },
       quantity: 1,
@@ -922,6 +956,8 @@ async function checkoutUnderLease(
                 cart_id: cart_id,
                 type: 'entry',
                 ...stampPlatformFeeRates(platformFeeRates),
+                // MYK9-2036: the webhook verifies a versioned session from its line items.
+                ...cartSessionSnapshotMetadata(),
               },
               payment_intent_data: {
                 statement_descriptor_suffix: formatStatementDescriptorSuffix(showFees.name),
@@ -1087,20 +1123,15 @@ async function handleSubscriptionCheckout(
     return corsResponse(corsHeaders, { error: 'Invalid price_id' }, 400);
   }
 
-  // Pre-flight: reject if the customer already has an active subscription.
-  // Without this guard, multi-tab or direct-call scenarios create duplicate
-  // Stripe subscriptions; syncSubscriptionFromStripe's limit:1 query may then
-  // sync the wrong one and silently downgrade the user.
-  const existingActive = await stripe.subscriptions.list({
-    customer: customerId,
-    status: 'active',
-    limit: 1,
-  });
-  if (existingActive.data.length > 0) {
+  // Pre-flight: reject if the customer already has an active, trialing or
+  // past_due subscription (MYK9-2444). Without this guard, multi-tab or
+  // direct-call scenarios create duplicate Stripe subscriptions;
+  // syncSubscriptionFromStripe's limit:1 query may then sync the wrong one.
+  if (await hasBlockingSubscription(stripe, customerId)) {
     return corsResponse(
       corsHeaders,
       {
-        error: 'You already have an active subscription. Visit your account settings to manage it.',
+        error: 'You already have a subscription. Visit your account settings to manage it.',
       },
       400
     );

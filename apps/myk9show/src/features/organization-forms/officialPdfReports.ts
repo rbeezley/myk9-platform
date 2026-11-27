@@ -1,4 +1,5 @@
 import type { ReportProps } from '@/lib/reports/types';
+import { getTrialRegistry } from '@/features/registries';
 import { buildASCAScentDetectionGrossReceiptsValues } from './ascaScentDetectionGrossReceipts';
 import { buildASCAScentDetectionPostEventEvaluationValues } from './ascaScentDetectionPostEventEvaluation';
 import { buildAKCJudgeReportValues } from './akcJudgeReport';
@@ -216,7 +217,7 @@ function isReportIdWithOfficialPdf(reportId: string): reportId is ReportIdWithOf
 }
 
 function isUKCTrial(props: ReportProps | null | undefined): boolean {
-  return props?.trial?.registryId?.trim().toUpperCase() === 'UKC';
+  return props?.trial ? getTrialRegistry(props.trial).id === 'UKC' : false;
 }
 
 function emptyPdfValues(): PdfFormFillValues {

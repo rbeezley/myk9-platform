@@ -1374,10 +1374,7 @@ VALUES
   -- (Container/Interior/Exterior/Buried/Handler Discrimination x
   -- Novice/Advanced/Excellent/Master/Detective) and none of them repeats an
   -- element+level pair already present, which is the shape MYK9-487 turned on.
-  -- The show as a whole is NOT free of repeated pairs, and deliberately so:
-  -- ...032 'Interior Advanced' and the ...040 unreleased-results fixture both
-  -- sit at Interior/Advanced/NULL, which is the collision MYK9-489 exists to
-  -- keep distinguishable. These four must not add a third.
+  -- No two classes in a trial share an element, level and section (MYK9-2390).
   ('dec1a55e-0000-0000-0000-000000000036', 'dededede-0000-0000-0000-000000000023',
    'Container Advanced', 'Advanced', 'Container', NULL,
    30.00, 'upcoming', 180, 2, 1, false, 'single', true, 1, 1),
@@ -1399,9 +1396,12 @@ VALUES
   -- be scored and its persisted placements can be read back deterministically.
   -- Named for its class, not for the report it tests: "Interior Advanced
   -- Preliminary" read as an invented level on every screen (owner, 2026-10-03).
+  -- Buried Excellent because no other class in Trial 1 uses it (MYK9-2390):
+  -- the rename left two identical Interior Advanced classes in the trial.
+  -- Excellent Buried is 3 known hides in 4 minutes (registry setup rules).
   ('dec1a55e-0000-0000-0000-000000000040', 'dededede-0000-0000-0000-000000000021',
-   'Interior Advanced', 'Advanced', 'Interior', NULL,
-   30.00, 'upcoming', 180, 2, 2, false, 'single', true, 4, 1);
+   'Buried Excellent', 'Excellent', 'Buried', NULL,
+   30.00, 'upcoming', 240, 3, 1, false, 'single', true, 4, 1);
 
 -- MYK9-515 FULL-CLASS FIXTURE (lean set). One class is full on the lean seed
 -- alone, so the registration wizard's full-chip reason

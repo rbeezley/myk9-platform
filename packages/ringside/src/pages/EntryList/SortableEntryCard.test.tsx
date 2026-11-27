@@ -262,6 +262,26 @@ describe('SortableEntryCard', () => {
     expect(screen.queryByTestId('drag-handle-slot')).toBeNull();
   });
 
+  it('treats a Pending dog marked in-ring as outside the ring: it keeps its drag handle (MYK9-2391)', () => {
+    const pending: Entry = { ...baseEntry, status: 'in-ring', awaitingApproval: true };
+    renderInDndContext(
+      <SortableEntryCard
+        entry={pending}
+        isDragMode={true}
+        hasPermission={allowAll}
+        handleEntryClick={vi.fn()}
+        handleStatusClick={vi.fn()}
+        handleResetMenuClick={vi.fn()}
+        setSelfCheckinDisabledDialog={vi.fn()}
+        DogCard={StubDogCard}
+      />
+    );
+    expect(screen.getByTestId('drag-handle-slot')).not.toBeNull();
+    expect(screen.getByTestId('dog-card').getAttribute('data-class-name') ?? '').not.toContain(
+      'in-ring'
+    );
+  });
+
   it('routes a status badge click to handleStatusClick when self-checkin is enabled', () => {
     const onStatusClick = vi.fn();
     renderInDndContext(

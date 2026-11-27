@@ -5,6 +5,7 @@ import {
   type WhatIsLeftInput,
 } from '@/features/show-closeout/whatIsLeft';
 import type { CloseConcern } from '@/features/show-closeout/closeConcerns';
+import { closedOpenLinesFrom, type ClosedOpenLine } from './showCloseNotes';
 import type { ShowDayReconciliationEntry } from './showDayReconciliationSummary';
 import type { ShowIncidentSummary } from './showIncidents';
 
@@ -58,6 +59,8 @@ export interface CloseoutReadiness {
   /** `concerns`, each with the kind it came from, so the close step can link one (MYK9-2145). */
   concernItems: readonly CloseConcern[];
   hasConcerns: boolean;
+  /** What the Finish list still shows open or unknown; recorded when the show is closed. */
+  openLines: readonly ClosedOpenLine[];
 }
 
 export interface CloseoutCascadeTargets {
@@ -93,6 +96,7 @@ export function buildCloseoutReadiness(input: CloseoutReadinessInput): CloseoutR
     concerns: [...left.concerns],
     concernItems: left.concernItems,
     hasConcerns: left.concerns.length > 0,
+    openLines: closedOpenLinesFrom(left.lines),
   };
 }
 

@@ -9,7 +9,6 @@ import type { HandlerClashControl } from './ClassSelectionStep.types';
 import { PaymentStep } from './PaymentStep';
 import type { JuniorHandlerDeclaration } from './PaymentStep/JuniorHandlerDeclaration';
 import { ConfirmationStep } from './ConfirmationStep';
-import { HandlerAssignmentStep } from './HandlerAssignmentStep';
 import { SearchErrorBoundary, PaymentErrorBoundary } from '@/components/common/ErrorBoundary';
 import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
@@ -43,8 +42,7 @@ import {
   hasCreatedEntryOutcome,
 } from './entrySubmissionOutcomes';
 import { buildRegistrationEntryBlankDownloads } from './entryBlankOptions';
-import { everyEntryHandledByOwner } from './ownerHandledEntries';
-import { getDogRegisteredName } from '@/types/dog-types';
+import { buildReceiptDogs } from '@/features/_shared/receiptDogs';
 
 interface OptimisticRegistrationState {
   formData: RegistrationFormData;
@@ -147,13 +145,11 @@ export function WorkflowStepContent({
   juniorDeclaration,
 }: WorkflowStepContentProps) {
   const hasDogSelectionStep = currentWorkflowConfig.steps.includes('dog-selection');
-  const hasHandlerStep = currentWorkflowConfig.steps.includes('handler-assignment');
   const hasCreatedCapacityOutcome = hasCreatedEntryOutcome(entryOutcomes);
   const receiptClassSelections = filterClassSelectionsToCreatedOutcomes(
     optimisticState.classSelections,
     entryOutcomes
   );
-  const receiptSelectedDogs = receiptClassSelections.map(selection => selection.dogId);
   const receiptTotalFees = getCreatedOutcomeTotalFees(entryOutcomes, currentRegistrationTotalFees);
   const receiptMoney = receiptTotal({
     paymentMethod: optimisticState.formData.paymentMethod,
@@ -201,17 +197,6 @@ export function WorkflowStepContent({
     // to wire the gate" bugs.
     const style = getShowStyle(currentShow);
 
-    const firstDogId = receiptSelectedDogs[0];
-    const firstDog = dogs.find(d => d.id === firstDogId);
-    const firstClassSelection = receiptClassSelections.find(s => s.dogId === firstDogId);
-    const classSummary =
-      firstClassSelection?.selectedClasses
-        .map(sc => {
-          const cls = classes.find(c => c.id === sc.classId);
-          return cls?.className ?? sc.classId;
-        })
-        .join(', ') ?? '';
-
     return {
       style,
       // brand_color flows through for Banner shows. May be null on shows
@@ -235,9 +220,12 @@ export function WorkflowStepContent({
               : fmt(currentShow.startDate);
           })()
         : '',
-      dogRegisteredName: firstDog ? (getDogRegisteredName(firstDog) ?? '') : '',
-      dogCallName: firstDog?.callName ?? null,
-      classSummary,
+      dogs: buildReceiptDogs(
+        receiptClassSelections,
+        dogs,
+        classes,
+        optimisticState.formData.selectedDogs
+      ),
       // MYK9-1999: the full confirmation goes by itself once the entry is accepted; the
       // secretary sets no date for it.
       fullConfirmationNote: fullConfirmationNote(currentWorkflowMode),
@@ -246,8 +234,8 @@ export function WorkflowStepContent({
     currentStepId,
     dogs,
     classes,
-    receiptSelectedDogs,
     receiptClassSelections,
+    optimisticState.formData.selectedDogs,
     currentShow,
     currentWorkflowMode,
   ]);
@@ -326,12 +314,12 @@ export function WorkflowStepContent({
           showName: styledReceipt.showName,
           clubName: styledReceipt.clubName,
           dateRange: styledReceipt.dateRange,
-          dogRegisteredName: styledReceipt.dogRegisteredName,
-          dogCallName: styledReceipt.dogCallName,
-          classSummary: styledReceipt.classSummary,
+          dogs: styledReceipt.dogs,
           ...receiptMoney,
           registrationNumber: registrationNumber ?? null,
           fullConfirmationNote: styledReceipt.fullConfirmationNote,
+          // MYK9-2474: the wizard footer's ReceiptExits already gives staff their exits.
+          hideReturnToDashboard: currentWorkflowMode !== 'exhibitor',
           // INTENT: Exhibitor self-service still waits for the post-draw blank.
           // Staff workflows can print a specific created entry here because the
           // replication-backed class data already carries its judge assignment.
@@ -396,34 +384,12 @@ export function WorkflowStepContent({
               showId={showId}
               workflowMode={currentWorkflowMode}
               ownerAddressWarnOnly={offlineFirstCreate}
-              {...(!hasHandlerStep && {
-                handlerAssignments: optimisticState.handlerAssignments,
-                onHandlerAssignmentChange,
-                handlerClash,
-              })}
+              handlerAssignments={optimisticState.handlerAssignments}
+              onHandlerAssignmentChange={onHandlerAssignmentChange}
+              handlerClash={handlerClash}
             />
-            {/* MYK9-2020: said on the step before, because Next skips Handlers. */}
-            {hasHandlerStep &&
-              everyEntryHandledByOwner(
-                optimisticState.classSelections,
-                optimisticState.handlerAssignments
-              ) && (
-                <p className="mt-4 text-sm text-muted-foreground">
-                  Each dog is handled by its owner, so Next goes straight to Payment. You can still
-                  open Handlers from the steps at the top to change one.
-                </p>
-              )}
           </>
         ))}
-
-      {currentStepId === 'handler-assignment' && (
-        <HandlerAssignmentStep
-          selectedDogs={optimisticState.formData.selectedDogs}
-          classSelections={optimisticState.classSelections}
-          handlerAssignments={optimisticState.handlerAssignments}
-          onHandlerAssignmentChange={onHandlerAssignmentChange}
-        />
-      )}
 
       {currentStepId === 'payment' && (
         <PaymentErrorBoundary>

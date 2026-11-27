@@ -161,7 +161,7 @@ describe('ReportsPage Result Catalog judge day', () => {
     expect(classIds()).toEqual(['class-2']);
 
     await user.click(screen.getByRole('combobox', { name: /^trial$/i }));
-    await user.click(await screen.findByRole('option', { name: /2026-04-12/ }));
+    await user.click(await screen.findByRole('option', { name: /4\/12\/2026/ }));
 
     expect(picker().textContent).toContain('All judges');
     expect(classIds()).toEqual(['class-1', 'class-2']);

@@ -125,9 +125,9 @@ function setupStepMocks(opts: {
             [TRIAL_ID]: [
               {
                 id: CLASS_ID,
-                name: 'Interior Advanced Preliminary',
-                element: 'Interior',
-                level: 'Advanced',
+                name: 'Buried Excellent',
+                element: 'Buried',
+                level: 'Excellent',
                 section: '',
                 status: replicatedStatus,
                 trial_id: TRIAL_ID,
@@ -183,9 +183,9 @@ function setupStepMocks(opts: {
     classes: [
       {
         classId: CLASS_ID,
-        className: 'Interior Advanced Preliminary',
-        element: 'Interior',
-        level: 'Advanced',
+        className: 'Buried Excellent',
+        element: 'Buried',
+        level: 'Excellent',
         section: null,
         status: availabilityStatus,
         hasStarted,

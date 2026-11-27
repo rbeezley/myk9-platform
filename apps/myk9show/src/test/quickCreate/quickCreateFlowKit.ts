@@ -13,7 +13,7 @@ type User = ReturnType<typeof userEvent.setup>;
  * drives the real Person, Dog and registration forms (Selects, tabs, saves);
  * under CI coverage with sibling shards they measured 8-14s, past vitest's
  * 10s default (main run 38201815540). Same remedy as the 20s journeys in
- * HandlerSelectionDialog.nameEntry and popover.spaceKey, with CI headroom.
+ * popover.spaceKey, with CI headroom.
  */
 export const JOURNEY_TIMEOUT_MS = 30_000;
 

@@ -17,6 +17,7 @@ import {
 } from '@/services/database/judges/assignmentStatus';
 import { zonedWallTimeToInstant, type JudgeClass } from '@/pages/judgeStatsUtils';
 import { decorateWithShowTrialLabels } from './judgeShowTrialLabels';
+import { getTrialTimezone } from '@/features/registries';
 import { buildJudgeEntryCountsByClass, type JudgeEntryCounts } from './judgeEntryCounts';
 
 const DEFAULT_TIMEZONE = 'America/New_York';
@@ -102,6 +103,8 @@ export function mapAssignmentRowToJudgeClass(row: JudgeAssignmentRow): JudgeClas
   if (!cls || !trial) return null;
   if (cls.status === 'cancelled') return null;
 
+  const trialTimezone = getTrialTimezone(trial);
+
   return {
     id: row.id,
     showId: row.show_id ?? trial.show_id,
@@ -111,12 +114,8 @@ export function mapAssignmentRowToJudgeClass(row: JudgeAssignmentRow): JudgeClas
     element: cls.element ?? '',
     level: cls.level ?? '',
     trialDate: trial.date,
-    trialTimezone: trial.timezone ?? DEFAULT_TIMEZONE,
-    scheduledTime: parseScheduledTime(
-      trial.date,
-      cls.start_time,
-      trial.timezone ?? DEFAULT_TIMEZONE
-    ),
+    trialTimezone,
+    scheduledTime: parseScheduledTime(trial.date, cls.start_time, trialTimezone),
     hasStartTime: hasStartTime(cls.start_time),
     ringNumber: null,
     totalEntries: cls.total_entries_count ?? 0,

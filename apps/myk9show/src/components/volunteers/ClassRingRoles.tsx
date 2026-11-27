@@ -12,6 +12,8 @@ interface ClassRingRolesProps {
   conflictIds: Set<string>;
   onAssign: (volunteerId: string, classId: string, roleName: string) => void;
   onUnassign: (assignmentId: string) => void;
+  /** Passed through to the picker; see AssignVolunteerPopover. */
+  conflictsStatus?: 'loading' | 'unavailable' | 'ready' | undefined;
 }
 
 /**
@@ -26,6 +28,7 @@ export function ClassRingRoles({
   conflictIds,
   onAssign,
   onUnassign,
+  conflictsStatus,
 }: ClassRingRolesProps) {
   return (
     <div className="space-y-1.5">
@@ -50,6 +53,7 @@ export function ClassRingRoles({
                 excludeIds={excludeIds}
                 conflictIds={conflictIds}
                 roleLabel={role}
+                conflictsStatus={conflictsStatus}
                 onAssign={volId => onAssign(volId, classId, role)}
               />
             </div>

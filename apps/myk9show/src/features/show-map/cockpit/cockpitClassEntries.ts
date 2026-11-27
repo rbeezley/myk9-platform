@@ -11,6 +11,7 @@ import { NEXT_UP_PREVIEW_LIMIT } from '@/features/at-show/atShowNextUpPreview';
 import { resultStatusLabel } from '@/components/common/resultStatusLabel';
 import {
   isAccountedFor,
+  isAwaitingApproval,
   isExpectedEntry,
   isNonRunningEntry,
   isPulledEntry,
@@ -177,12 +178,10 @@ function scoredAfterRemovalOf(state: ClassEntryState, display: ShowMapEntryDispl
 function queueRowOf(
   nodeId: string,
   display: ShowMapEntryDisplay,
-  fields: EntryAccountingFields,
-  pending: boolean
+  fields: EntryAccountingFields
 ): RunQueueEntry {
   const parsed = Number.parseInt(display.armband ?? '', 10);
-  // Awaiting approval is runnable by the accounting rules but is not in the run queue (MYK9-2376).
-  const runnable = isRunnableEntry(fields) && !pending;
+  const runnable = isRunnableEntry(fields);
   const checkIn = checkInOf(fields);
   return {
     id: nodeId,
@@ -190,9 +189,15 @@ function queueRowOf(
     exhibitorOrder: display.runOrder ?? null,
     isScored: display.isScored ?? false,
     status: runnable ? checkIn : 'pulled',
+    // Awaiting approval is runnable by the accounting rules but is not in the line: the shared
+    // Pending predicate, the same flag Ringside's queue carries (MYK9-2376, MYK9-2391).
+    awaitingApproval: isAwaitingApproval(fields),
     // Mirrors `toRunQueueEntry`: the flag or the status, and only for a runnable row (a stale
     // flag on a row nobody expects to run is not a ring state).
-    inRing: runnable && (checkIn === 'in-ring' || display.isInRing === true),
+    inRing:
+      runnable &&
+      !isAwaitingApproval(fields) &&
+      (checkIn === 'in-ring' || display.isInRing === true),
   };
 }
 
@@ -213,7 +218,7 @@ export function classEntriesForClass(
     const fields = accountingFields(display);
     const entryStatus = display.entryStatus?.trim().toLowerCase();
     if (!isListed(fields, entryStatus, display.awaitingRegistrationNumber)) continue;
-    const queue = queueRowOf(node.id, display, fields, isPendingEntryStatus(entryStatus ?? ''));
+    const queue = queueRowOf(node.id, display, fields);
     const state = stateOf(fields, entryStatus ?? '', queue);
     // An entry awaiting approval is listed but never counted as entered (MYK9-2376).
     const counted = state !== 'pending' && isExpectedEntry(fields);

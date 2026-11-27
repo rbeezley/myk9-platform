@@ -14,6 +14,8 @@ interface MembersTabProps {
   isError: boolean;
   onRetry: () => void;
   canManageMembers: boolean;
+  /** Whether this viewer reads the whole roster, not just her own row. Defaults to `canManageMembers`. */
+  canSeeFullRoster?: boolean;
   onAddMember: () => void;
 }
 
@@ -25,6 +27,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
   isError,
   onRetry,
   canManageMembers,
+  canSeeFullRoster = canManageMembers,
   onAddMember,
 }) => {
   if (isLoading) {
@@ -63,12 +66,16 @@ export const MembersTab: React.FC<MembersTabProps> = ({
         </div>
         <div className="text-center py-16 px-8 bg-muted/50 rounded-2xl border border-dashed border-border">
           <Users className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-60" />
-          <div className="text-lg font-medium mb-2 text-foreground">No Members Yet</div>
+          {/* MYK9-2467: this list is read by people who are not the club's admin, and they can
+              read at most their own row. An empty list here says nothing about the club, so it
+              never claims the club has no members. */}
+          <div className="text-lg font-medium mb-2 text-foreground">
+            {canManageMembers ? 'No Members Yet' : 'Member list'}
+          </div>
           <div className="text-sm text-muted-foreground leading-relaxed mb-5">
-            This club doesn't have any members yet.{' '}
             {canManageMembers
-              ? 'Add your first member to get started.'
-              : 'Only club admins can add members.'}
+              ? "This club doesn't have any members yet. Add your first member to get started."
+              : "Only this club's admins can see the member list."}
           </div>
           {canManageMembers && (
             <Button onClick={onAddMember} className="inline-flex items-center gap-2">
@@ -85,7 +92,17 @@ export const MembersTab: React.FC<MembersTabProps> = ({
     <div className="space-y-6">
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">Club Members</h3>
+          <div>
+            <h3 className="text-lg font-semibold">
+              {canSeeFullRoster ? 'Club Members' : 'Your membership'}
+            </h3>
+            {/* Anyone but an admin reads only her own row: say so, or one name reads as the club. */}
+            {!canSeeFullRoster && (
+              <p className="text-sm text-muted-foreground">
+                Only this club&apos;s admins can see the full member list.
+              </p>
+            )}
+          </div>
           {isRefreshing && (
             <span
               role="status"

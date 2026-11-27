@@ -22,13 +22,18 @@ vi.mock('@react-pdf/renderer', () => ({
   Image: () => null,
 }));
 
+const DOG = {
+  id: 'dog-1',
+  registeredName: "GCh. Ridgeway's Wandering Cooper, CGC",
+  callName: 'Cooper',
+  classSummary: '3 runs · Excellent · Containers, Interiors, Buried',
+};
+
 const BASE_PROPS = {
   showName: 'Spring Scent Work Trial',
   clubName: 'Bexar County Kennel Club',
   dateRange: 'Jun 12–14, 2026',
-  dogRegisteredName: "GCh. Ridgeway's Wandering Cooper, CGC",
-  dogCallName: 'Cooper',
-  classSummary: '3 runs · Excellent · Containers, Interiors, Buried',
+  dogs: [DOG],
   totalFeesFormatted: '$69.00',
   totalLabel: 'Total · Paid by check',
   registrationNumber: 'MK9-000137',
@@ -64,7 +69,7 @@ describe('GazetteEntryReceived', () => {
 
   it('renders the class summary', () => {
     render(<GazetteEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByText(BASE_PROPS.classSummary)).toBeTruthy();
+    expect(screen.getByText(DOG.classSummary)).toBeTruthy();
   });
 
   it('renders the total fees prominently', () => {

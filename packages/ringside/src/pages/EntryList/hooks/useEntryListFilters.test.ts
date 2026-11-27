@@ -65,6 +65,29 @@ describe('useEntryListFilters — gate bubble (MYK9-83)', () => {
     expect(result.current.pendingEntries.map(e => e.id)).toEqual(['c', 'b', 'a']);
   });
 
+  it('does not float a Pending dog marked in-ring to the top (MYK9-2391)', () => {
+    const entries: Entry[] = [
+      entry({ id: 'plain', armband: 2, exhibitorOrder: 2 }),
+      entry({
+        id: 'pending',
+        armband: 1,
+        exhibitorOrder: 1,
+        status: 'in-ring',
+        awaitingApproval: true,
+      }),
+      entry({ id: 'ring', armband: 8, exhibitorOrder: 8, status: 'in-ring' }),
+    ];
+    const { result } = renderHook(() =>
+      useEntryListFilters({
+        entries,
+        prioritizeInRing: true,
+        deprioritizePulled: true,
+        defaultSort: 'run',
+      })
+    );
+    expect(result.current.pendingEntries.map(e => e.id)).toEqual(['ring', 'pending', 'plain']);
+  });
+
   it('keeps in-ring first and pulled last regardless of gate statuses', () => {
     const entries: Entry[] = [
       entry({ id: 'gate', armband: 5, exhibitorOrder: 5, status: 'at-gate' }),

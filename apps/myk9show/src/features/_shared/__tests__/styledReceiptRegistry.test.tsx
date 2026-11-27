@@ -19,13 +19,18 @@ const ALL_STYLES = [
   'poster',
 ] as const;
 
+const DOG = {
+  id: 'dog-1',
+  registeredName: "GCh. Ridgeway's Wandering Cooper, CGC",
+  callName: 'Cooper',
+  classSummary: '3 runs · Excellent Containers · Judge C. Beagles',
+};
+
 const BASE_PROPS: HeritageEntryReceivedProps = {
   showName: 'Spring Scent Work Trial',
   clubName: 'Bexar County Kennel Club',
   dateRange: '12–14 June 2026',
-  dogRegisteredName: "GCh. Ridgeway's Wandering Cooper, CGC",
-  dogCallName: 'Cooper',
-  classSummary: '3 runs · Excellent Containers · Judge C. Beagles',
+  dogs: [DOG],
   totalFeesFormatted: '$69.00',
   totalLabel: 'Total · Paid by check',
   registrationNumber: 'MK9-000137',
@@ -125,6 +130,60 @@ describe('STYLED_RECEIPT_BY_STYLE', () => {
     const { container } = render(element);
     const masthead = container.querySelector('header') as HTMLElement | null;
     expect(masthead?.style.background).toBe('rgb(122, 31, 31)');
+  });
+
+  // MYK9-2474: a two-dog entry named only the first dog while its total covered both.
+  it('lists every dog in the entry with its classes in every style', () => {
+    const twoDogs: HeritageEntryReceivedProps = {
+      ...BASE_PROPS,
+      dogs: [
+        {
+          id: 'dog-lucy',
+          registeredName: 'Lucy of Hollow Creek',
+          callName: 'Lucy',
+          classSummary: 'Container Novice A, Interior Novice A',
+        },
+        {
+          id: 'dog-coco',
+          registeredName: 'Coco Bean Dream',
+          callName: 'Coco',
+          classSummary: 'Exterior Advanced, Buried Advanced',
+        },
+      ],
+    };
+    for (const style of ALL_STYLES) {
+      const { container, unmount } = render(
+        STYLED_RECEIPT_BY_STYLE[style](twoDogs, { brandColor: '#7a1f1f' })
+      );
+      const text = container.textContent?.toLowerCase() ?? '';
+      for (const expected of [
+        'lucy of hollow creek',
+        'coco bean dream',
+        'container novice a, interior novice a',
+        'exterior advanced, buried advanced',
+        'the dogs',
+      ]) {
+        expect(text, `${style}: ${expected}`).toContain(expected);
+      }
+      unmount();
+    }
+  });
+
+  it('hides the card’s own Return to dashboard exit only when asked (staff flows)', () => {
+    for (const style of ALL_STYLES) {
+      const shown = render(STYLED_RECEIPT_BY_STYLE[style](BASE_PROPS, { brandColor: null }));
+      expect(shown.queryByRole('button', { name: 'Return to dashboard' }), style).not.toBeNull();
+      shown.unmount();
+
+      const hidden = render(
+        STYLED_RECEIPT_BY_STYLE[style](
+          { ...BASE_PROPS, hideReturnToDashboard: true },
+          { brandColor: null }
+        )
+      );
+      expect(hidden.queryByRole('button', { name: 'Return to dashboard' }), style).toBeNull();
+      hidden.unmount();
+    }
   });
 
   it('derives monogramLetters from clubName for the monogram receipt', () => {

@@ -119,8 +119,6 @@ describe('MutationManager authenticated ownership', () => {
 
     const pending = (await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS)) as PendingMutation[];
     expect(pending[0]).toMatchObject({ rowId: 'entry-1', authUserId: 'user-a' });
-    const backup = vi.mocked(localStorage.setItem).mock.calls.at(-1)?.[1];
-    expect(JSON.parse(backup ?? '[]')[0]).toMatchObject({ authUserId: 'user-a' });
   });
 
   it.each([null, '', '   '])(

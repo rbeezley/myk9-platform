@@ -63,6 +63,11 @@ export interface ShowEntry {
 
   // Current state
   status: EntryStatus;
+  /**
+   * The source row had NO lifecycle status (SQL NULL), so `status` above is a stand-in, not a
+   * stated Pending. The running line leaves such a dog runnable, as the server does (MYK9-2391).
+   */
+  lifecycleMissing?: true | undefined;
 
   // Show-day check-in status (separate from lifecycle status)
   checkInStatus?: CheckInStatus | undefined;

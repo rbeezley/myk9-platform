@@ -145,6 +145,35 @@ describe('UKCNoseworkLiveScoresheet', () => {
     expect(screen.getByTestId('element-timer-row')).toBeInTheDocument();
   });
 
+  // MYK9-2068 (live check 2026-11-25): Correct reopened the sheet reading
+  // "Element Time: 0:00.00" though the saved element time was 0:09.26.
+  it('Correct this score shows the saved element time, not a zeroed clock', () => {
+    const corrected: ScoresheetEntry = {
+      ...defaultEntry,
+      existingScore: {
+        resultText: 'Q',
+        searchTime: '0:30.00',
+        areas: { 'area 1': '0:30.00 NOT FOUND INCORRECT' },
+        areaTimes: ['0:30.00'],
+        correctCount: 0,
+        incorrectCount: 0,
+        faultCount: 0,
+        finishCallErrors: 0,
+        points: 0,
+        element: '0:09.26',
+      },
+    };
+    render(<UKCNoseworkLiveScoresheet {...defaultProps} entry={corrected} rules={dualRules} />);
+
+    expect(screen.getByTestId('element-timer-display')).toHaveTextContent('0:09.26');
+  });
+
+  it('a fresh dual-timer run shows the element clock', () => {
+    render(<UKCNoseworkLiveScoresheet {...defaultProps} rules={dualRules} />);
+
+    expect(screen.getByTestId('element-timer-display')).toHaveTextContent('0:00.00');
+  });
+
   // MYK9-1086 (owner): UKC Nosework is always one search area, and UKC judges
   // never record found/correct. A class record claiming 3 areas still gets one.
   it('shows one recorded time and no found/correct, even for a multi-area class record', () => {

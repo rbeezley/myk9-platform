@@ -1,7 +1,7 @@
 /**
  * MYK9-1944: "asked once" means one prompt on the page, not one per placed row.
- * The list picks the first row that would show it and hands only that row the
- * flag. A row whose result is still behind the "New result" reveal is skipped,
+ * The list picks the first row that would show it; the show block that owns that
+ * class renders the prompt above its dog cards, never inside a class row (MYK9-2386). A row whose result is still behind the "New result" reveal is skipped,
  * because that row shows the reveal button and must not spoil the placement.
  * A show whose results the club keeps private (or whose setting is unknown) is
  * skipped too: its row renders no prompt, so it must not take the page's only
@@ -39,6 +39,19 @@ export function firstResultsPromptClassId(
         return cls.id;
       }
     }
+  }
+  return null;
+}
+
+/** The dog and class behind the page's prompt, when this show's block owns it (MYK9-2386). */
+export function findResultsPromptTarget(
+  group: MyShowGroup,
+  classId: string | null | undefined
+): { dogName: string; cls: MyShowClass } | null {
+  if (!classId) return null;
+  for (const dog of group.dogs) {
+    const cls = dog.classes.find(candidate => candidate.id === classId);
+    if (cls) return { dogName: dog.dogName, cls };
   }
   return null;
 }

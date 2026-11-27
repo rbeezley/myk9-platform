@@ -144,6 +144,7 @@ describe('useEnrollmentLedgerActions', () => {
       method: 'cash' as const,
       amount: 15,
       receivedOn: '2026-09-17',
+      clientPaymentId: '9a4e2c61-0b7d-4f38-8e15-3d6c2a9f7b40',
     };
 
     let outcome = '';
@@ -312,6 +313,26 @@ describe('useEnrollmentLedgerActions', () => {
       'Payment not recorded. Something went wrong with this request. Restart the app and try again.'
     );
     expect(mocks.toastError).not.toHaveBeenCalledWith(expect.stringContaining(text));
+    expect(logSpy).toHaveBeenCalledWith(
+      'Error recording enrollment payment:',
+      'secretary',
+      {},
+      raw
+    );
+  });
+
+  // MYK9-1936: the retry carried the same payment id with a changed date or check number,
+  // and the first save had landed. Not "not recorded": the payment is there, as first typed.
+  it('a retry whose date or check number changed says the payment may already be saved', async () => {
+    const logSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+    const raw = refusal(
+      'client_payment_id 0f1e was already saved with a different received date or reference'
+    );
+    await failRecord(raw, 'unconfirmed');
+
+    expect(mocks.toastError).toHaveBeenCalledWith(
+      "This payment may already be saved with the earlier date or check number. Check the entry's payments before saving again."
+    );
     expect(logSpy).toHaveBeenCalledWith(
       'Error recording enrollment payment:',
       'secretary',

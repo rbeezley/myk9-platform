@@ -159,6 +159,14 @@ describe('mapAssignmentRowToJudgeClass (PostgREST shape)', () => {
     expect(mapAssignmentRowToJudgeClass(row)?.trialTimezone).toBe('America/New_York');
   });
 
+  it.each(['', 'Not/AZone'])('defaults a %j trial timezone to America/New_York', timezone => {
+    const row = makeRow();
+    row.classes!.trials!.timezone = timezone;
+    const mapped = mapAssignmentRowToJudgeClass(row);
+    expect(mapped?.trialTimezone).toBe('America/New_York');
+    expect(Number.isNaN(mapped?.scheduledTime.getTime())).toBe(false);
+  });
+
   it("maps class status 'in_progress' to 'in-progress' and 'completed' through", () => {
     const inProgress = makeRow();
     inProgress.classes!.status = 'in_progress';

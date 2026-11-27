@@ -1,10 +1,11 @@
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { gazetteColors, GAZETTE_DEFAULT_VOLUME_ROMAN } from '../tokens';
 import { GazetteMasthead } from '../components/GazetteMasthead';
 import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
+import type { ReceiptDog } from '@/features/_shared/receiptDogs';
 
 /**
  * Gazette wizard completion props mirror Heritage's verbatim — the
@@ -16,9 +17,8 @@ export interface GazetteEntryReceivedProps {
   showName: string;
   clubName: string;
   dateRange: string;
-  dogRegisteredName: string;
-  dogCallName: string | null;
-  classSummary: string;
+  /** Every dog in the entry with its classes (MYK9-2474). */
+  dogs: readonly ReceiptDog[];
   totalFeesFormatted: string;
   /** MYK9-2235: says whether the total is paid or still due (`receiptTotalLabel`). */
   totalLabel: string;
@@ -30,6 +30,8 @@ export interface GazetteEntryReceivedProps {
   entryBlankActions?: ReactNode;
   /** Called when "Print my entry blank" is clicked. Disabled when omitted. */
   onPrintEntryBlank?: (() => void) | undefined;
+  /** Staff flows: the wizard footer already carries the exits, so the card hides its own. */
+  hideReturnToDashboard?: boolean | undefined;
 }
 
 const INK = gazetteColors.ink;
@@ -46,15 +48,14 @@ export function GazetteEntryReceived({
   showName,
   clubName,
   dateRange,
-  dogRegisteredName,
-  dogCallName,
-  classSummary,
+  dogs,
   totalFeesFormatted,
   totalLabel,
   registrationNumber,
   fullConfirmationNote,
   entryBlankActions,
   onPrintEntryBlank,
+  hideReturnToDashboard = false,
 }: GazetteEntryReceivedProps) {
   const navigate = useNavigate();
 
@@ -117,41 +118,45 @@ export function GazetteEntryReceived({
           className="m-0 mb-1.5 text-[10px] font-semibold uppercase"
           style={{ color: BROWN, letterSpacing: '0.28em', fontFamily: META }}
         >
-          Section A · The Dog
+          Section A · {dogs.length > 1 ? 'The Dogs' : 'The Dog'}
         </p>
-        <p
-          className="m-0 mb-1"
-          style={{
-            fontFamily: DISPLAY,
-            fontWeight: 900,
-            fontSize: 22,
-            letterSpacing: '-0.012em',
-            lineHeight: 1.1,
-            color: INK,
-          }}
-        >
-          {dogRegisteredName}
-        </p>
-        {dogCallName && (
-          <p
-            className="m-0 mb-3.5"
-            style={{
-              fontFamily: DISPLAY,
-              fontStyle: 'italic',
-              fontWeight: 400,
-              fontSize: 14,
-              color: BROWN,
-            }}
-          >
-            &ldquo;{dogCallName}&rdquo;
-          </p>
-        )}
-        <p
-          className="m-0 mb-3.5"
-          style={{ fontFamily: BODY, fontSize: 14, lineHeight: 1.55, color: SOFT }}
-        >
-          {classSummary}
-        </p>
+        {dogs.map(dog => (
+          <Fragment key={dog.id}>
+            <p
+              className="m-0 mb-1"
+              style={{
+                fontFamily: DISPLAY,
+                fontWeight: 900,
+                fontSize: 22,
+                letterSpacing: '-0.012em',
+                lineHeight: 1.1,
+                color: INK,
+              }}
+            >
+              {dog.registeredName}
+            </p>
+            {dog.callName && (
+              <p
+                className="m-0 mb-3.5"
+                style={{
+                  fontFamily: DISPLAY,
+                  fontStyle: 'italic',
+                  fontWeight: 400,
+                  fontSize: 14,
+                  color: BROWN,
+                }}
+              >
+                &ldquo;{dog.callName}&rdquo;
+              </p>
+            )}
+            <p
+              className="m-0 mb-3.5"
+              style={{ fontFamily: BODY, fontSize: 14, lineHeight: 1.55, color: SOFT }}
+            >
+              {dog.classSummary}
+            </p>
+          </Fragment>
+        ))}
         <div
           className="flex flex-wrap items-baseline justify-between gap-x-4 pt-3"
           style={{ borderTop: `1px dotted ${HAIR}` }}
@@ -191,24 +196,26 @@ export function GazetteEntryReceived({
             Print my entry blank
           </Button>
         )}
-        <Button
-          variant="outline"
-          onClick={() => navigate('/')}
-          className="w-full"
-          style={{
-            background: 'transparent',
-            color: INK,
-            borderColor: INK,
-            fontFamily: DISPLAY,
-            fontWeight: 700,
-            fontSize: 14,
-            letterSpacing: '0.04em',
-            textTransform: 'uppercase',
-          }}
-          aria-label="Return to dashboard"
-        >
-          Return to dashboard
-        </Button>
+        {!hideReturnToDashboard && (
+          <Button
+            variant="outline"
+            onClick={() => navigate('/')}
+            className="w-full"
+            style={{
+              background: 'transparent',
+              color: INK,
+              borderColor: INK,
+              fontFamily: DISPLAY,
+              fontWeight: 700,
+              fontSize: 14,
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
+            }}
+            aria-label="Return to dashboard"
+          >
+            Return to dashboard
+          </Button>
+        )}
       </div>
 
       {/* ── Caption ── */}

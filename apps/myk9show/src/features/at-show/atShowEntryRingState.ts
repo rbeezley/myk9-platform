@@ -3,7 +3,11 @@ import type { NotRunningReason } from '@myk9/ringside/run-queue';
 // The run-queue subpath, not replicatedRunQueue, which would pull the ringside UI barrel into
 // the entry chunk (entryChunkSplit.test.ts).
 import { isInRingEntry, notRunningReasonOf } from '@myk9/ringside/run-queue';
-import { isNonRunningEntry, isRunnableEntry } from '@/features/_shared/entryAccounting';
+import {
+  isAwaitingApproval,
+  isNonRunningEntry,
+  isRunnableEntry,
+} from '@/features/_shared/entryAccounting';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 
 /**
@@ -26,6 +30,8 @@ export function ringsideEntryRingState(re: ReplicatedEntry): {
   notRunning: boolean;
   /** Pulled, withdrawn, absent or moved, so the row reads its own word (MYK9-1940). */
   notRunningReason: NotRunningReason | undefined;
+  /** Not yet approved (Pending): the row keeps its status word but holds no place in line (MYK9-2391). */
+  awaitingApproval: boolean;
 } {
   const checkinStatus = re.checkInStatus ?? re.check_in_status;
   const lifecycleStatus = re.entryStatus ?? re.entry_status ?? re.status;
@@ -33,8 +39,10 @@ export function ringsideEntryRingState(re: ReplicatedEntry): {
   const status: EntryStatus = (
     checkinStatus === 'pulled' || notRunning ? 'pulled' : (checkinStatus ?? 'no-status')
   ) as EntryStatus;
+  const awaitingApproval = isAwaitingApproval({ entryStatus: lifecycleStatus });
   const inRing =
     isRunnableEntry(re) &&
+    !awaitingApproval &&
     isInRingEntry({
       id: re.id,
       armband: null,
@@ -42,5 +50,5 @@ export function ringsideEntryRingState(re: ReplicatedEntry): {
       inRing: (re.isInRing ?? re.is_in_ring ?? false) === true,
     });
   const notRunningReason = notRunningReasonOf(lifecycleStatus, checkinStatus);
-  return { status, inRing, notRunning, notRunningReason };
+  return { status, inRing, notRunning, notRunningReason, awaitingApproval };
 }

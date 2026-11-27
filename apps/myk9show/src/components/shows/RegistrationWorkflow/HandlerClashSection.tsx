@@ -23,7 +23,7 @@ export interface HandlerClashSectionProps {
   existingEntries: readonly { dogId: string; classId: string }[];
   handlerAssignments: Record<string, HandlerInfo>;
   onHandlerAssignmentChange: (assignments: Record<string, HandlerInfo>) => void;
-  /** Dog pairs the exhibitor chose "I'll decide at the show" for. */
+  /** Dog pairs the exhibitor chose "Decide at the show" for. */
   deferredPairKeys: string[];
   onDeferredChange: (pairKeys: string[]) => void;
   /** How many questions still have no answer; the wizard blocks Continue on it. */
@@ -33,7 +33,7 @@ export interface HandlerClashSectionProps {
 /**
  * MYK9-2021: asks who will handle a dog only when one owner has two dogs in the
  * same class (she cannot run both). Renders nothing otherwise. A typed handler
- * stays a name: no account, no email. "I'll decide at the show" leaves the
+ * stays a name: no account, no email. "Decide at the show" leaves the
  * handler as the owner and stores nothing new but the choice itself.
  */
 export const HandlerClashSection: React.FC<HandlerClashSectionProps> = ({
@@ -165,7 +165,7 @@ export const HandlerClashSection: React.FC<HandlerClashSectionProps> = ({
                   onDeferredChange([...deferredPairKeys, clash.pairKey]);
                 }}
               />
-              <span className="text-sm">I'll decide at the show</span>
+              <span className="text-sm">Decide at the show</span>
             </label>
           </div>
         );

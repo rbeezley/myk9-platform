@@ -12,6 +12,7 @@ import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { NationalsLeaderboardView } from '@/features/results-tab/NationalsLeaderboardView';
+import { showIsNationals } from '@/features/registries/akcNationals';
 import { useOnlineStatus } from '@/lib/networkUtils';
 import { replicatedShowsTable } from '@/services/replication';
 import { getAtShowLeaderboardHref } from './atShowLeaderboardRoutes';
@@ -34,7 +35,7 @@ export function AtShowLeaderboardPage() {
     enabled: isStaff && Boolean(showId),
     networkMode: 'always',
   });
-  const isNationals = showQuery.data ? showQuery.data.isNationals === true : null;
+  const isNationals = showQuery.data ? showIsNationals(showQuery.data) : null;
   // A failed or empty show lookup is its own state, not an endless skeleton.
   const showLookupFailed = showQuery.isError || (showQuery.isSuccess && !showQuery.data);
   const { inputs, isLoading, isError, liveDown, retry } = useNationalsLeaderboardInputs(

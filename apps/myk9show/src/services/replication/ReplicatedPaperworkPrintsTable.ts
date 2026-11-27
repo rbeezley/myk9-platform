@@ -13,6 +13,7 @@ import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
 import type { ReportScope } from '@/lib/reports/types';
 
+import { fetchKeysetPages, type KeysetQuery } from './keysetPager';
 import { verifyPaperworkPrintsEmpty } from './paperworkPrintsScopeProof';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 
@@ -92,6 +93,15 @@ interface PaperworkPrintQuery {
   }>;
 }
 
+/** The builder surface the shared keyset pager walks (MYK9-2420). */
+interface PaperworkPagedQuery extends KeysetQuery<PaperworkPagedQuery> {
+  eq(column: string, value: string): PaperworkPagedQuery;
+}
+
+const paperworkPagedClient = supabase as unknown as {
+  from(table: 'paperwork_prints'): { select(columns: string): PaperworkPagedQuery };
+};
+
 const paperworkClient = supabase as unknown as {
   from(table: 'paperwork_prints'): PaperworkPrintQuery;
 };
@@ -165,16 +175,16 @@ export class ReplicatedPaperworkPrintsTable extends ReplicatedTable<ReplicatedPa
 
     const adapter: SyncReplicatedTableAdapter<PaperworkPrintRow, ReplicatedPaperworkPrint> = {
       ...this.getRowRefetchAdapter(),
-      fetchRemoteRows: async ({ since }) => {
-        const { data, error } = await paperworkClient
-          .from('paperwork_prints')
-          .select('*')
-          .eq('show_id', showId)
-          .gt('updated_at', new Date(since).toISOString())
-          .order('updated_at', { ascending: true });
-        if (error) throw new Error(`Paperwork print refresh failed: ${error.message}`);
-        return data ?? [];
-      },
+      // MYK9-2420: paged by keyset until an empty page, with the sync's abort signal.
+      // A full sync arrives with `since` already at zero, so it reads every row.
+      fetchRemoteRows: async ({ since, signal }) =>
+        (await fetchKeysetPages({
+          base: () => paperworkPagedClient.from('paperwork_prints').select('*'),
+          since,
+          signal,
+          scope: query => query.eq('show_id', showId),
+          errorPrefix: 'Paperwork print refresh failed',
+        })) as unknown as PaperworkPrintRow[],
       getRemoteUpdatedAt: row => parseUpdatedAtMs(row.updated_at),
       filterLocalRows: rows => rows.filter(row => row.showId === showId),
       // A zero-row full sync over another account's rows is stamped only when

@@ -124,8 +124,8 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
           </div>
           <CardDescription>
             {enabled
-              ? 'Entry fees from your shows are deposited to your club’s bank account automatically after each show.'
-              : 'Connect your club’s bank account so entry fees can be deposited automatically after each show.'}
+              ? 'Entry fees are sent to your club’s bank account within five business days of each show.'
+              : 'Connect your club’s bank account so entry fees can be sent to it within five business days of each show.'}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -171,8 +171,8 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
                 <div className="space-y-3">
                   <p className="text-sm text-muted-foreground">
                     Stripe is verifying your club&apos;s details. This usually finishes within a day
-                    or two, and we&apos;ll enable payouts automatically the moment it clears. If
-                    Stripe asked you for more information, you can add it here.
+                    or two, and payouts switch on as soon as it clears. If Stripe asked you for more
+                    information, you can add it here.
                   </p>
                   {/* Stripe can pause a submitted account with "actions required"
                     (missing address/DOB/etc.) — the resume link is the only way
@@ -281,11 +281,13 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
           pending settlement BEFORE Stripe onboarding finishes — gating the whole
           card on payouts_enabled hid charge verification and net-to-club exactly
           when settlement was pending and the treasurer most wanted to see it.
-          `accountState` governs the payout BADGE WORDING inside the card
-          (Scheduled vs Waiting for account vs Not sent yet), not whether it
+          `accountState` governs the payout SENTENCE inside the card
+          (a deadline vs waiting for the bank account), not whether it
           renders at all. It is deliberately a tri-state: this card sits outside
           the guard above, so it renders while the account query is still in
           flight, and a boolean would assert "not onboarded" the whole time. */}
+      {/* The card's show rows carry no bank control: a row that needs the club
+          says "See Bank account above", and this card owns every bank action. */}
       <ClubFinancialReconciliationCard clubId={clubId} accountState={accountState} />
     </div>
   );

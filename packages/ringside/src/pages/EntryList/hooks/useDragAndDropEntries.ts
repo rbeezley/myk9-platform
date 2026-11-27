@@ -33,6 +33,7 @@ import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { logger } from '@myk9/core';
 import type { Entry } from '../../../stores/entryStore';
 import { computeDragRunOrder } from './dragRunOrder';
+import { isInRingEntry } from '../runQueue';
 
 interface UseDragAndDropEntriesOptions {
   /** All local entries (for merging after drag) */
@@ -208,10 +209,10 @@ export function useDragAndDropEntries({
       }
 
       // Prevent moving dogs before in-ring dogs
-      const inRingDogs = snapshot.filter(e => e.inRing || e.status === 'in-ring');
+      const inRingDogs = snapshot.filter(isInRingEntry);
       if (inRingDogs.length > 0 && targetIndex === 0) {
         const draggedEntry = snapshot[oldIndex];
-        if (!draggedEntry.inRing && draggedEntry.status !== 'in-ring') {
+        if (!isInRingEntry(draggedEntry)) {
           isDraggingRef.current = false;
           setIsDragging(false);
           return;

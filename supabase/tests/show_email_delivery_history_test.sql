@@ -116,10 +116,10 @@ DECLARE
   second_id uuid;
   row_count integer;
 BEGIN
-  IF has_function_privilege('anon', 'public.get_show_email_delivery_history(uuid,integer,timestamptz,uuid)', 'execute') THEN
+  IF has_function_privilege('anon', 'public.get_show_email_delivery_history(uuid,integer,timestamptz,uuid,text)', 'execute') THEN
     RAISE EXCEPTION 'FAIL anon can execute show email history RPC';
   END IF;
-  IF NOT has_function_privilege('authenticated', 'public.get_show_email_delivery_history(uuid,integer,timestamptz,uuid)', 'execute') THEN
+  IF NOT has_function_privilege('authenticated', 'public.get_show_email_delivery_history(uuid,integer,timestamptz,uuid,text)', 'execute') THEN
     RAISE EXCEPTION 'FAIL authenticated lost show email history RPC execute';
   END IF;
 
@@ -187,6 +187,41 @@ BEGIN
     RAISE EXCEPTION 'FAIL same-timestamp cursor page returned %', second_id;
   END IF;
 
+  -- MYK9-2403: the recipient filter narrows to one address (case and edge spaces ignored)
+  -- and a NULL filter is the same list as before.
+  SELECT count(*) INTO row_count
+  FROM public.get_show_email_delivery_history(show_a, 100, NULL, NULL, '  Registration@Example.TEST ');
+  IF row_count <> 1 THEN
+    RAISE EXCEPTION 'FAIL recipient filter returned % rows (expected 1)', row_count;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.get_show_email_delivery_history(show_a, 100, NULL, NULL, 'registration@example.test')
+    WHERE id = '00000000-0000-0000-0000-000000180203'
+  ) THEN
+    RAISE EXCEPTION 'FAIL recipient filter dropped the matching row';
+  END IF;
+  SELECT count(*) INTO row_count
+  FROM public.get_show_email_delivery_history(show_a, 100, NULL, NULL, 'nobody@example.test');
+  IF row_count <> 0 THEN
+    RAISE EXCEPTION 'FAIL recipient filter for an unknown address returned % rows', row_count;
+  END IF;
+  SELECT count(*) INTO row_count
+  FROM public.get_show_email_delivery_history(show_a, 100, NULL, NULL, NULL);
+  IF row_count <> 4 THEN
+    RAISE EXCEPTION 'FAIL NULL recipient filter returned % rows (expected 4)', row_count;
+  END IF;
+  -- The filter never widens: another show's address stays out of this show's list.
+  SELECT count(*) INTO row_count
+  FROM public.get_show_email_delivery_history(show_a, 100, NULL, NULL, 'show-b@example.test');
+  IF row_count <> 0 THEN
+    RAISE EXCEPTION 'FAIL recipient filter reached another show (% rows)', row_count;
+  END IF;
+  BEGIN
+    PERFORM * FROM public.get_show_email_delivery_history(show_b, 50, NULL, NULL, 'show-b@example.test');
+    RAISE EXCEPTION 'FAIL recipient-filtered read of a show the secretary does not manage';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+
   BEGIN
     PERFORM * FROM public.get_show_email_delivery_history(show_b, 50, NULL, NULL);
     RAISE EXCEPTION 'FAIL secretary read the history of a show they do not manage';
@@ -216,6 +251,11 @@ BEGIN
   BEGIN
     PERFORM * FROM public.get_show_email_delivery_history(show_a, 50, NULL, NULL);
     RAISE EXCEPTION 'FAIL non-manager read succeeded';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    PERFORM * FROM public.get_show_email_delivery_history(show_a, 50, NULL, NULL, 'registration@example.test');
+    RAISE EXCEPTION 'FAIL non-manager read succeeded with a recipient filter';
   EXCEPTION WHEN insufficient_privilege THEN NULL;
   END;
 

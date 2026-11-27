@@ -27,7 +27,6 @@ const fullClass = (extra: Partial<ClassData> = {}) =>
     status: 'Scheduled',
     classOrder: '1',
     estimatedJudgingTime: '5:00',
-    timeLimit1: '3:00',
     ...extra,
   }) as Partial<ClassData>;
 
@@ -85,32 +84,23 @@ describe('ClassEditPanel with Show Desk class settings', () => {
   it('saves only what this form changed: not the status or judge it opened with', async () => {
     const { user, onSave } = renderPanel(<span>Settings</span>);
     await user.click(await screen.findByRole('tab', { name: /Timing/ }));
-    const limit = screen.getByLabelText('Time Limit 1');
+    const limit = screen.getByLabelText('Estimated Judging Time');
     await user.clear(limit);
     await user.type(limit, '430');
     await user.click(screen.getByRole('button', { name: 'Save Changes' }));
 
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     const patch = onSave.mock.calls[0]![0] as Record<string, unknown>;
-    expect(patch).toEqual(expect.objectContaining({ timeLimit1: '4:30' }));
+    expect(patch).toEqual(expect.objectContaining({ estimatedJudgingTime: '4:30' }));
     for (const key of ['status', 'judge', 'judgeId', 'judgeName']) {
       expect(patch).not.toHaveProperty(key);
     }
   });
 
-  it('lets an Exterior Excellent time limit be edited (the judge sets it)', async () => {
-    const { user } = renderPanel(<span>Settings</span>);
-    await user.click(await screen.findByRole('tab', { name: /Timing/ }));
-
-    const limit = screen.getByLabelText('Time Limit 1');
-    expect(limit).toBeEnabled();
-    expect(limit).not.toHaveAttribute('readonly');
-  });
-
   it('still writes status and judge when opened without the settings', async () => {
     const { user, onSave } = renderPanel();
     await user.click(await screen.findByRole('tab', { name: /Timing/ }));
-    const limit = screen.getByLabelText('Time Limit 1');
+    const limit = screen.getByLabelText('Estimated Judging Time');
     await user.clear(limit);
     await user.type(limit, '430');
     await user.click(screen.getByRole('button', { name: 'Save Changes' }));

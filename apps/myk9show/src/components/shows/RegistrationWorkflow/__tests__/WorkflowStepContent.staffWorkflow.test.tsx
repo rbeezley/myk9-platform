@@ -1,13 +1,15 @@
 /**
- * MYK9-2020: the secretary's wizard says on the Classes step that Next skips
- * Handlers when every dog is handled by its owner, and tells the Payment step it
- * is the staff workflow. The exhibitor's wizard gets neither.
+ * MYK9-2020: the secretary's wizard has four steps (Dogs, Classes, Payment, Receipt) with no
+ * Handlers step, in every staff mode; the Payment step is told it is the staff workflow.
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
 import { makePaymentResolution } from '@/test/utils/paymentResolution';
 import type { ClassSelectionData, HandlerInfo } from '@/types/show-registration-types';
-import { WORKFLOW_CONFIGS } from '@/components/shows/RegistrationWorkflow/RegistrationWorkflow.constants';
+import {
+  WORKFLOW_CONFIGS,
+  ALL_STEP_DEFINITIONS,
+} from '@/components/shows/RegistrationWorkflow/RegistrationWorkflow.constants';
 import type { WorkflowMode } from '@/components/shows/RegistrationWorkflow/RegistrationWorkflow.types';
 
 const { mockUseShowStore, mockUseTrialStore, mockUseDogStoreCompat, mockUseClassStoreCompat } =
@@ -42,8 +44,6 @@ const classSelections: ClassSelectionData[] = [
   { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
 ];
 const OWNER: HandlerInfo = { handlerId: 'p-1', handlerName: 'Pat Owner', isOwner: true };
-const OTHER: HandlerInfo = { handlerId: 'p-2', handlerName: 'Sam Handler', isOwner: false };
-const NOTE = /Each dog is handled by its owner, so Next goes straight to Payment/;
 
 function renderStep(stepId: string, mode: WorkflowMode, handler: HandlerInfo) {
   const handlerAssignments = { 'dog-1|class-1': handler };
@@ -76,20 +76,18 @@ function renderStep(stepId: string, mode: WorkflowMode, handler: HandlerInfo) {
 }
 
 describe('WorkflowStepContent in the secretary workflow (MYK9-2020)', () => {
-  it('says on the Classes step that Next skips Handlers when the owner handles every dog', () => {
-    renderStep('class-selection', 'secretary_new', OWNER);
-    expect(screen.getByText(NOTE)).toBeInTheDocument();
-  });
-
-  it('says nothing when a dog has another handler, because Next stops on Handlers', () => {
-    renderStep('class-selection', 'secretary_new', OTHER);
-    expect(screen.queryByText(NOTE)).not.toBeInTheDocument();
-  });
-
-  it("never shows the note in the exhibitor's wizard, which has no Handlers step", () => {
-    renderStep('class-selection', 'exhibitor', OWNER);
-    expect(screen.queryByText(NOTE)).not.toBeInTheDocument();
-  });
+  it.each(['secretary_new', 'club_admin', 'site_admin', 'exhibitor'] as WorkflowMode[])(
+    '%s has the four steps Dogs, Classes, Payment, Receipt and no Handlers step',
+    mode => {
+      expect(WORKFLOW_CONFIGS[mode].steps).toEqual([
+        'dog-selection',
+        'class-selection',
+        'payment',
+        'confirmation',
+      ]);
+      expect(Object.keys(ALL_STEP_DEFINITIONS)).not.toContain('handler-assignment');
+    }
+  );
 
   it('tells the Payment step it is the staff workflow, and the exhibitor step that it is not', () => {
     const { unmount } = renderStep('payment', 'secretary_new', OWNER);

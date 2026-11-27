@@ -25,6 +25,9 @@ export interface Entry {
   /** @deprecated Use status instead */
   checkinStatus?: EntryStatus;
 
+  /** Not yet approved (Pending): holds no place in the running line (MYK9-2391). */
+  awaitingApproval?: boolean;
+
   resultText?: string;
   searchTime?: string;
   /** UKC element time in seconds (string, like searchTime); absent for AKC and ASCA. */
@@ -76,6 +79,8 @@ export interface Entry {
    * Moved (MYK9-1940). Absent means the dog is running.
    */
   notRunningReason?: NotRunningReason;
+  /** For a moved dog, the class it went to, so the badge reads "Moved to {class}" (MYK9-1940). */
+  movedToClassName?: string;
   /** Scoring/ring timestamps used by the class-completion elapsed-time summary. */
   scoredAt?: string;
   ringEntryTime?: string;

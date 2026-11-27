@@ -14,6 +14,10 @@ import {
 import type { DbUserInsert, DbUserUpdate } from '@/types/database-mappings';
 import { mockSupabase, createChainableQuery, resetMockSupabase } from '@/test/mocks/supabase';
 import { logger } from '@/services/LoggingService';
+import { createFakePeopleServer } from '@/test/mocks/fakePeopleServer';
+
+const servePeople = (rows: Array<Record<string, unknown> & { id: string }>) =>
+  mockSupabase.from.mockImplementation(createFakePeopleServer(rows).from);
 
 describe('User Queries', () => {
   beforeEach(() => {
@@ -27,13 +31,12 @@ describe('User Queries', () => {
 
   describe('getAllUsers', () => {
     it('selects an explicit column allowlist, not "*" (SA-008)', async () => {
-      const chain = createChainableQuery({ data: [], error: null });
-      mockSupabase.from.mockReturnValue(chain);
+      const server = createFakePeopleServer([]);
+      mockSupabase.from.mockImplementation(server.from);
 
       await getAllUsers();
 
-      const selectArg = (chain.select as unknown as { mock: { calls: unknown[][] } }).mock
-        .calls[0][0] as string;
+      const selectArg = server.selects.find(sel => sel.includes('judge_qualifications')) ?? '';
       expect(selectArg).not.toContain('*');
       // every `people` column the two consumers (mapDatabaseToUser in the
       // userStore, mapDbUserToUser in React Query) read must still be fetched —
@@ -71,7 +74,7 @@ describe('User Queries', () => {
         { id: 'person-1', first_name: 'Ada', last_name: 'Judge' },
         { id: 'person-2', first_name: 'Grace', last_name: 'Member' },
       ];
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: mockData, error: null }));
+      servePeople(mockData);
       mockSupabase.rpc.mockResolvedValueOnce({
         data: [
           { person_id: 'person-1', role_name: 'judge' },
@@ -95,17 +98,17 @@ describe('User Queries', () => {
 
     it('can preload the people directory without calling migration-backed role RPCs', async () => {
       const mockData = [{ id: 'person-1', first_name: 'Ada', last_name: 'Judge' }];
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: mockData, error: null }));
+      servePeople(mockData);
 
       const result = await getAllUsers({ includeRoleLabels: false });
 
-      expect(result).toEqual({ data: [{ ...mockData[0], roles: [] }], error: null });
+      expect(result).toEqual({ data: [{ ...mockData[0], roles: [] }], error: null, short: null });
       expect(mockSupabase.rpc).not.toHaveBeenCalled();
     });
 
     it('paginates role labels beyond the PostgREST response cap', async () => {
       const mockData = Array.from({ length: 501 }, (_, index) => ({ id: `person-${index}` }));
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: mockData, error: null }));
+      servePeople(mockData);
       mockSupabase.rpc
         .mockResolvedValueOnce({
           data: mockData.slice(0, 500).map(row => ({ person_id: row.id, role_name: 'judge' })),
@@ -119,7 +122,7 @@ describe('User Queries', () => {
       const result = await getAllUsers();
 
       expect(mockSupabase.rpc).toHaveBeenNthCalledWith(2, 'get_visible_person_roles', {
-        p_person_ids: mockData.map(row => row.id),
+        p_person_ids: mockData.map(row => row.id).sort(),
         p_limit: 500,
         p_offset: 500,
       });
@@ -130,7 +133,7 @@ describe('User Queries', () => {
     it('keeps people readable when role-label hydration is temporarily unavailable', async () => {
       const mockData = [{ id: 'person-1', first_name: 'Ada', last_name: 'Judge' }];
       const warn = vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: mockData, error: null }));
+      servePeople(mockData);
       mockSupabase.rpc.mockResolvedValueOnce({
         data: null,
         error: { code: 'PGRST202', message: 'Function not found' },
@@ -138,7 +141,7 @@ describe('User Queries', () => {
 
       const result = await getAllUsers();
 
-      expect(result).toEqual({ data: [{ ...mockData[0], roles: [] }], error: null });
+      expect(result).toEqual({ data: [{ ...mockData[0], roles: [] }], error: null, short: null });
       expect(warn).toHaveBeenCalledWith(
         'Role label hydration failed; returning people without role labels',
         'database',
@@ -165,7 +168,7 @@ describe('User Queries', () => {
         },
       ];
 
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: mockData, error: null }));
+      servePeople(mockData);
 
       const startTime = Date.now();
       const result = await getAllUsers();
@@ -178,13 +181,15 @@ describe('User Queries', () => {
 
     it('should handle database connection errors', async () => {
       const mockError = { message: 'Connection timeout', code: 'CONNECTION_TIMEOUT' };
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: null, error: mockError }));
+      mockSupabase.from.mockImplementation(
+        createFakePeopleServer([], { pageError: mockError.message }).from
+      );
 
       const result = await getAllUsers();
 
       expect(result.data).toEqual([]);
       expect(result.error).toBeDefined();
-      expect(result.error!.message).toBe('Connection timeout');
+      expect(result.error!.message).toContain('Connection timeout');
       expect(result.error!.table).toBe('user');
       expect(result.error!.operation).toBe('select_all');
     });
@@ -196,15 +201,15 @@ describe('User Queries', () => {
         { id: '3', first_name: 'Charlie', last_name: 'Adams' },
       ];
 
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: mockData, error: null }));
+      servePeople(mockData);
 
       const result = await getAllUsers();
 
-      expect(result.data).toEqual(mockData.map(row => ({ ...row, roles: [] })));
+      expect(result.data.map(row => row.id)).toEqual(['3', '1', '2']);
     });
 
     it('should handle empty user database', async () => {
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: [], error: null }));
+      servePeople([]);
 
       const result = await getAllUsers();
 

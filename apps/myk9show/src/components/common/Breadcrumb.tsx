@@ -1,40 +1,26 @@
-import React, { startTransition } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React from 'react';
+import { Link } from 'react-router-dom';
 import { ChevronRight, Home } from 'lucide-react';
-
-interface BreadcrumbItem {
-  label: string;
-  href?: string;
-  onClick?: () => void;
-  id?: string;
-  isCurrentPage?: boolean;
-}
+import { CRUMB_TOUCH_TARGET, type Crumb } from './breadcrumbCrumb';
 
 interface BreadcrumbProps {
-  items: BreadcrumbItem[];
+  /** Every crumb but the current page carries a destination; the type requires it (MYK9-2489). */
+  items: Crumb[];
   className?: string;
   showHomeIcon?: boolean;
 }
 
+const LINK_CLASS = `${CRUMB_TOUCH_TARGET} font-medium text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary`;
+
+/**
+ * A breadcrumb trail. Ancestors are real links (`<Link>`), so middle-click and "open in new tab"
+ * work; they were buttons, which do neither (MYK9-2489).
+ */
 export const Breadcrumb: React.FC<BreadcrumbProps> = ({
   items,
   className = '',
   showHomeIcon = false,
 }) => {
-  const navigate = useNavigate();
-
-  const handleClick = (item: BreadcrumbItem) => {
-    if (item.isCurrentPage) return;
-
-    if (item.onClick) {
-      item.onClick();
-    } else if (item.href) {
-      startTransition(() => {
-        navigate(item.href!);
-      });
-    }
-  };
-
   if (items.length === 0) return null;
 
   return (
@@ -43,19 +29,17 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({
         {showHomeIcon && (
           <>
             <li>
-              <button
-                onClick={() => startTransition(() => navigate('/'))}
-                className="text-primary hover:bg-primary/10 p-1 rounded-md text-muted-foreground hover:text-primary transition-colors"
+              <Link
+                to="/"
+                className={`${CRUMB_TOUCH_TARGET} justify-center rounded-md p-1 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary`}
                 aria-label="Home"
               >
                 <Home className="w-4 h-4" />
-              </button>
+              </Link>
             </li>
-            {items.length > 0 && (
-              <li aria-hidden="true">
-                <ChevronRight className="w-3 h-3 text-muted-foreground" />
-              </li>
-            )}
+            <li aria-hidden="true">
+              <ChevronRight className="w-3 h-3 text-muted-foreground" />
+            </li>
           </>
         )}
 
@@ -66,15 +50,10 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({
                 <span className="font-medium text-foreground" aria-current="page">
                   {item.label}
                 </span>
-              ) : item.href || item.onClick ? (
-                <button
-                  onClick={() => handleClick(item)}
-                  className="text-primary hover:bg-primary/10 font-medium text-muted-foreground hover:text-primary transition-colors"
-                >
-                  {item.label}
-                </button>
               ) : (
-                <span className="font-medium text-muted-foreground">{item.label}</span>
+                <Link to={item.href} onClick={item.onClick} className={LINK_CLASS}>
+                  {item.label}
+                </Link>
               )}
             </li>
 

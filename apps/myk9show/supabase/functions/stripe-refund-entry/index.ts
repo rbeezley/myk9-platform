@@ -10,6 +10,7 @@ import {
   refundAttemptCount,
 } from '../_shared/refundReuse.ts';
 import { alertAdmin } from '../_shared/alertAdmin.ts';
+import { listAllIntentRefunds } from '../_shared/refundPaging.ts';
 import {
   resolveWithdrawalRefundCents,
   type WithdrawalPolicy,
@@ -295,11 +296,12 @@ Deno.serve(async req => {
         );
       }
 
-      const prior = await stripe.refunds.list({
-        payment_intent: entry.stripe_payment_intent_id!,
-        limit: 100,
-      });
-      const existingRefund = findReusableRefund(prior.data, entry_id);
+      // Every page (MYK9-2442): a live refund past the first 100 must still be reused.
+      const prior = await listAllIntentRefunds(
+        params => stripe.refunds.list(params),
+        entry.stripe_payment_intent_id!
+      );
+      const existingRefund = findReusableRefund(prior, entry_id);
       const refund =
         existingRefund ??
         (await stripe.refunds.create(
@@ -311,7 +313,7 @@ Deno.serve(async req => {
           // Attempt count for THIS entry only: an intent-wide count would let a
           // sibling entry's refund shift the key between two concurrent
           // same-entry requests, defeating the dedupe (round-11 review).
-          { idempotencyKey: `refund-entry-${entry_id}-${refundAttemptCount(prior.data, entry_id)}` }
+          { idempotencyKey: `refund-entry-${entry_id}-${refundAttemptCount(prior, entry_id)}` }
         ));
       if (existingRefund) {
         console.log(

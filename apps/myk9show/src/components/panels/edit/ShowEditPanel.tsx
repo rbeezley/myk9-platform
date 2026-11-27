@@ -6,6 +6,7 @@ import { usePremiumPublishPrompt } from './usePremiumPublishPrompt';
 import type { ShowEditPanelProps, ShowEditFormData, ShowEditSaveData } from './ShowEditPanel.types';
 import { showToFormData, changedShowSaveData, hasShowChanges } from './ShowEditPanel.helpers';
 import { showSchemas } from '@/lib/validation';
+import { withPublishedEntryWindow } from './showEditPublishedWindow';
 import { ShowEditForm } from './ShowEditForm';
 import { usePanelValidationNavigation } from './usePanelValidationNavigation';
 import { locateShowField } from './ShowEditPanel.validationTab';
@@ -125,6 +126,12 @@ const ShowEditPanelSession: React.FC<ShowEditPanelProps> = ({
     [onSave, openedFormData, askPremiumChoice]
   );
 
+  // MYK9-2433: a public show cannot clear an entry date; refuse before the local write.
+  const schema = useMemo(
+    () => withPublishedEntryWindow(showEditSchema, initialShowData?.status, openedFormData),
+    [initialShowData?.status, openedFormData]
+  );
+
   // MYK9-2236: above the panel, so premium edits outlive the body and tab unmounts.
   return (
     <PremiumDraftCacheProvider>
@@ -136,7 +143,7 @@ const ShowEditPanelSession: React.FC<ShowEditPanelProps> = ({
         size="xl"
         initialData={initialFormData}
         onSave={handleSave}
-        schema={showEditSchema}
+        schema={schema}
         enableAutoSave={enableAutoSave}
         saveLabel="Save Changes"
         cancelLabel="Cancel"
@@ -152,6 +159,7 @@ const ShowEditPanelSession: React.FC<ShowEditPanelProps> = ({
           onTabChange={setActiveTab}
           initialStatus={initialShowData?.status}
           savedOrganization={initialShowData?.organization}
+          savedFormData={initialFormData}
           // Close this sheet first, then open the trial's Edit Trial on the same page.
           onEditTrial={
             onEditTrial

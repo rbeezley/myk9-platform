@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -51,18 +52,17 @@ export function FieldGuideEntryReceived({
   showName,
   clubName,
   dateRange,
-  dogRegisteredName,
-  dogCallName,
-  classSummary,
+  dogs,
   totalFeesFormatted,
   totalLabel,
   registrationNumber,
   fullConfirmationNote,
   entryBlankActions,
   onPrintEntryBlank,
+  hideReturnToDashboard = false,
 }: FieldGuideEntryReceivedProps) {
   const navigate = useNavigate();
-  const runsLabel = extractRunsLabel(classSummary);
+  const runsLabel = dogs.length === 1 && dogs[0] ? extractRunsLabel(dogs[0].classSummary) : null;
 
   return (
     <div
@@ -147,45 +147,49 @@ export function FieldGuideEntryReceived({
         >
           §01 · THE DOG
         </p>
-        <p
-          style={{
-            margin: '0 0 4px',
-            fontFamily: FIELD_GUIDE_DISPLAY_FAMILY,
-            fontWeight: 700,
-            fontSize: 22,
-            letterSpacing: '-0.02em',
-            lineHeight: 1.15,
-            color: fieldGuideColors.ink,
-          }}
-        >
-          {dogRegisteredName}
-        </p>
-        {dogCallName && (
-          <p
-            style={{
-              margin: '0 0 14px',
-              fontFamily: FIELD_GUIDE_MONO_FAMILY,
-              fontWeight: 500,
-              fontSize: 11,
-              letterSpacing: '0.04em',
-              color: fieldGuideColors.mute,
-              textTransform: 'uppercase',
-            }}
-          >
-            &ldquo;{dogCallName}&rdquo;
-          </p>
-        )}
-        <p
-          style={{
-            margin: '0 0 14px',
-            fontFamily: FIELD_GUIDE_BODY_FAMILY,
-            fontSize: 14,
-            lineHeight: 1.55,
-            color: fieldGuideColors.soft,
-          }}
-        >
-          {classSummary}
-        </p>
+        {dogs.map(dog => (
+          <Fragment key={dog.id}>
+            <p
+              style={{
+                margin: '0 0 4px',
+                fontFamily: FIELD_GUIDE_DISPLAY_FAMILY,
+                fontWeight: 700,
+                fontSize: 22,
+                letterSpacing: '-0.02em',
+                lineHeight: 1.15,
+                color: fieldGuideColors.ink,
+              }}
+            >
+              {dog.registeredName}
+            </p>
+            {dog.callName && (
+              <p
+                style={{
+                  margin: '0 0 14px',
+                  fontFamily: FIELD_GUIDE_MONO_FAMILY,
+                  fontWeight: 500,
+                  fontSize: 11,
+                  letterSpacing: '0.04em',
+                  color: fieldGuideColors.mute,
+                  textTransform: 'uppercase',
+                }}
+              >
+                &ldquo;{dog.callName}&rdquo;
+              </p>
+            )}
+            <p
+              style={{
+                margin: '0 0 14px',
+                fontFamily: FIELD_GUIDE_BODY_FAMILY,
+                fontSize: 14,
+                lineHeight: 1.55,
+                color: fieldGuideColors.soft,
+              }}
+            >
+              {dog.classSummary}
+            </p>
+          </Fragment>
+        ))}
         <div
           style={{
             display: 'flex',
@@ -255,26 +259,28 @@ export function FieldGuideEntryReceived({
             Print my entry blank
           </Button>
         )}
-        <Button
-          variant="outline"
-          onClick={() => navigate('/')}
-          style={{
-            background: 'transparent',
-            color: fieldGuideColors.ink,
-            borderColor: fieldGuideColors.ink,
-            borderWidth: 1,
-            fontFamily: FIELD_GUIDE_DISPLAY_FAMILY,
-            fontWeight: 700,
-            fontSize: 13,
-            letterSpacing: '0.04em',
-            textTransform: 'uppercase',
-            borderRadius: 0,
-          }}
-          className="w-full"
-          aria-label="Return to dashboard"
-        >
-          Return to dashboard
-        </Button>
+        {!hideReturnToDashboard && (
+          <Button
+            variant="outline"
+            onClick={() => navigate('/')}
+            style={{
+              background: 'transparent',
+              color: fieldGuideColors.ink,
+              borderColor: fieldGuideColors.ink,
+              borderWidth: 1,
+              fontFamily: FIELD_GUIDE_DISPLAY_FAMILY,
+              fontWeight: 700,
+              fontSize: 13,
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
+              borderRadius: 0,
+            }}
+            className="w-full"
+            aria-label="Return to dashboard"
+          >
+            Return to dashboard
+          </Button>
+        )}
       </div>
 
       {/* ── Caption ── */}

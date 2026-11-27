@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -39,9 +40,7 @@ export function MonogramEntryReceived({
   showName,
   clubName,
   dateRange,
-  dogRegisteredName,
-  dogCallName,
-  classSummary,
+  dogs,
   totalFeesFormatted,
   totalLabel,
   registrationNumber,
@@ -49,6 +48,7 @@ export function MonogramEntryReceived({
   entryBlankActions,
   onPrintEntryBlank,
   monogramLetters,
+  hideReturnToDashboard = false,
 }: MonogramEntryReceivedProps) {
   const navigate = useNavigate();
   const letters = monogramLetters ?? buildMonogram(clubName);
@@ -143,43 +143,47 @@ export function MonogramEntryReceived({
         >
           § i · The dog
         </p>
-        <p
-          style={{
-            fontFamily: MONOGRAM_DISPLAY_FAMILY,
-            fontWeight: 400,
-            fontSize: 22,
-            letterSpacing: '-0.015em',
-            lineHeight: 1.15,
-            color: INK,
-            margin: '0 0 4px',
-          }}
-        >
-          {dogRegisteredName}
-        </p>
-        {dogCallName && (
-          <p
-            style={{
-              fontFamily: MONOGRAM_DISPLAY_FAMILY,
-              fontStyle: 'italic',
-              fontSize: 14,
-              color: QUILL,
-              margin: '0 0 12px',
-            }}
-          >
-            called &ldquo;{dogCallName}&rdquo;
-          </p>
-        )}
-        <p
-          style={{
-            fontFamily: MONOGRAM_BODY_FAMILY,
-            fontSize: 14,
-            lineHeight: 1.55,
-            color: SOFT,
-            margin: '0 0 14px',
-          }}
-        >
-          {classSummary}
-        </p>
+        {dogs.map(dog => (
+          <Fragment key={dog.id}>
+            <p
+              style={{
+                fontFamily: MONOGRAM_DISPLAY_FAMILY,
+                fontWeight: 400,
+                fontSize: 22,
+                letterSpacing: '-0.015em',
+                lineHeight: 1.15,
+                color: INK,
+                margin: '0 0 4px',
+              }}
+            >
+              {dog.registeredName}
+            </p>
+            {dog.callName && (
+              <p
+                style={{
+                  fontFamily: MONOGRAM_DISPLAY_FAMILY,
+                  fontStyle: 'italic',
+                  fontSize: 14,
+                  color: QUILL,
+                  margin: '0 0 12px',
+                }}
+              >
+                called &ldquo;{dog.callName}&rdquo;
+              </p>
+            )}
+            <p
+              style={{
+                fontFamily: MONOGRAM_BODY_FAMILY,
+                fontSize: 14,
+                lineHeight: 1.55,
+                color: SOFT,
+                margin: '0 0 14px',
+              }}
+            >
+              {dog.classSummary}
+            </p>
+          </Fragment>
+        ))}
         {registrationNumber && (
           <p
             style={{
@@ -257,23 +261,25 @@ export function MonogramEntryReceived({
             Print my entry blank
           </Button>
         )}
-        <Button
-          variant="outline"
-          onClick={() => navigate('/')}
-          style={{
-            background: 'transparent',
-            color: INK,
-            borderColor: INK,
-            fontFamily: MONOGRAM_DISPLAY_FAMILY,
-            fontStyle: 'italic',
-            letterSpacing: '0.02em',
-            borderRadius: 0,
-          }}
-          className="w-full"
-          aria-label="Return to dashboard"
-        >
-          Return to dashboard
-        </Button>
+        {!hideReturnToDashboard && (
+          <Button
+            variant="outline"
+            onClick={() => navigate('/')}
+            style={{
+              background: 'transparent',
+              color: INK,
+              borderColor: INK,
+              fontFamily: MONOGRAM_DISPLAY_FAMILY,
+              fontStyle: 'italic',
+              letterSpacing: '0.02em',
+              borderRadius: 0,
+            }}
+            className="w-full"
+            aria-label="Return to dashboard"
+          >
+            Return to dashboard
+          </Button>
+        )}
       </div>
 
       {/* ── Caption ── */}

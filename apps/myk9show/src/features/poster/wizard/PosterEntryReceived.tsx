@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -43,15 +44,14 @@ export function PosterEntryReceived({
   showName,
   clubName,
   dateRange,
-  dogRegisteredName,
-  dogCallName,
-  classSummary,
+  dogs,
   totalFeesFormatted,
   totalLabel,
   registrationNumber,
   fullConfirmationNote,
   entryBlankActions,
   onPrintEntryBlank,
+  hideReturnToDashboard = false,
 }: PosterEntryReceivedProps) {
   const navigate = useNavigate();
   useEffect(() => {
@@ -148,44 +148,48 @@ export function PosterEntryReceived({
         >
           NO 02 / THE DOG
         </p>
-        <p
-          style={{
-            margin: '0 0 6px',
-            fontFamily: POSTER_DISPLAY_FAMILY,
-            fontWeight: 400,
-            fontSize: 22,
-            letterSpacing: '-0.035em',
-            lineHeight: 1.0,
-            color: posterColors.ink,
-          }}
-        >
-          {(dogRegisteredName ?? '').toUpperCase()}
-        </p>
-        {dogCallName && (
-          <p
-            style={{
-              margin: '0 0 14px',
-              fontFamily: POSTER_MONO_FAMILY,
-              fontWeight: 500,
-              fontSize: 11,
-              letterSpacing: '0.04em',
-              color: posterColors.mute,
-            }}
-          >
-            &ldquo;{dogCallName.toUpperCase()}&rdquo;
-          </p>
-        )}
-        <p
-          style={{
-            margin: '0 0 16px',
-            fontFamily: POSTER_BODY_FAMILY,
-            fontSize: 14,
-            lineHeight: 1.55,
-            color: posterColors.inkSoft,
-          }}
-        >
-          {classSummary}
-        </p>
+        {dogs.map(dog => (
+          <Fragment key={dog.id}>
+            <p
+              style={{
+                margin: '0 0 6px',
+                fontFamily: POSTER_DISPLAY_FAMILY,
+                fontWeight: 400,
+                fontSize: 22,
+                letterSpacing: '-0.035em',
+                lineHeight: 1.0,
+                color: posterColors.ink,
+              }}
+            >
+              {(dog.registeredName ?? '').toUpperCase()}
+            </p>
+            {dog.callName && (
+              <p
+                style={{
+                  margin: '0 0 14px',
+                  fontFamily: POSTER_MONO_FAMILY,
+                  fontWeight: 500,
+                  fontSize: 11,
+                  letterSpacing: '0.04em',
+                  color: posterColors.mute,
+                }}
+              >
+                &ldquo;{dog.callName.toUpperCase()}&rdquo;
+              </p>
+            )}
+            <p
+              style={{
+                margin: '0 0 16px',
+                fontFamily: POSTER_BODY_FAMILY,
+                fontSize: 14,
+                lineHeight: 1.55,
+                color: posterColors.inkSoft,
+              }}
+            >
+              {dog.classSummary}
+            </p>
+          </Fragment>
+        ))}
         <div
           style={{
             display: 'flex',
@@ -256,27 +260,29 @@ export function PosterEntryReceived({
             PRINT MY ENTRY BLANK
           </Button>
         )}
-        <Button
-          variant="outline"
-          onClick={() => navigate('/')}
-          style={{
-            background: 'transparent',
-            color: posterColors.ink,
-            borderColor: posterColors.ink,
-            borderWidth: 2,
-            fontFamily: POSTER_DISPLAY_FAMILY,
-            fontWeight: 400,
-            fontSize: 15,
-            letterSpacing: '-0.015em',
-            borderRadius: 0,
-            padding: '16px 18px',
-            height: 'auto',
-          }}
-          className="w-full"
-          aria-label="Return to dashboard"
-        >
-          RETURN TO DASHBOARD
-        </Button>
+        {!hideReturnToDashboard && (
+          <Button
+            variant="outline"
+            onClick={() => navigate('/')}
+            style={{
+              background: 'transparent',
+              color: posterColors.ink,
+              borderColor: posterColors.ink,
+              borderWidth: 2,
+              fontFamily: POSTER_DISPLAY_FAMILY,
+              fontWeight: 400,
+              fontSize: 15,
+              letterSpacing: '-0.015em',
+              borderRadius: 0,
+              padding: '16px 18px',
+              height: 'auto',
+            }}
+            className="w-full"
+            aria-label="Return to dashboard"
+          >
+            RETURN TO DASHBOARD
+          </Button>
+        )}
       </div>
 
       {/* Caption */}

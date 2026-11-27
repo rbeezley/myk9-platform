@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -22,15 +23,14 @@ export function HeadlineEntryReceived({
   showName,
   clubName,
   dateRange,
-  dogRegisteredName,
-  dogCallName,
-  classSummary,
+  dogs,
   totalFeesFormatted,
   totalLabel,
   registrationNumber,
   fullConfirmationNote,
   entryBlankActions,
   onPrintEntryBlank,
+  hideReturnToDashboard = false,
 }: HeadlineEntryReceivedProps) {
   const navigate = useNavigate();
 
@@ -157,46 +157,50 @@ export function HeadlineEntryReceived({
           § 01 · The dog
         </p>
 
-        <p
-          style={{
-            fontFamily: DISPLAY,
-            fontWeight: 800,
-            fontSize: '1.375rem',
-            letterSpacing: '0',
-            lineHeight: 1.1,
-            color: INK,
-            margin: '0 0 4px',
-          }}
-        >
-          {dogRegisteredName}
-        </p>
+        {dogs.map(dog => (
+          <Fragment key={dog.id}>
+            <p
+              style={{
+                fontFamily: DISPLAY,
+                fontWeight: 800,
+                fontSize: '1.375rem',
+                letterSpacing: '0',
+                lineHeight: 1.1,
+                color: INK,
+                margin: '0 0 4px',
+              }}
+            >
+              {dog.registeredName}
+            </p>
 
-        {dogCallName && (
-          <p
-            style={{
-              fontFamily: MONO,
-              fontSize: '0.6875rem',
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              color: MUTE,
-              margin: '0 0 12px',
-            }}
-          >
-            &ldquo;{dogCallName}&rdquo;
-          </p>
-        )}
+            {dog.callName && (
+              <p
+                style={{
+                  fontFamily: MONO,
+                  fontSize: '0.6875rem',
+                  letterSpacing: '0.12em',
+                  textTransform: 'uppercase',
+                  color: MUTE,
+                  margin: '0 0 12px',
+                }}
+              >
+                &ldquo;{dog.callName}&rdquo;
+              </p>
+            )}
 
-        <p
-          style={{
-            fontFamily: BODY,
-            fontSize: '0.875rem',
-            lineHeight: 1.5,
-            color: SOFT,
-            margin: '0 0 14px',
-          }}
-        >
-          {classSummary}
-        </p>
+            <p
+              style={{
+                fontFamily: BODY,
+                fontSize: '0.875rem',
+                lineHeight: 1.5,
+                color: SOFT,
+                margin: '0 0 14px',
+              }}
+            >
+              {dog.classSummary}
+            </p>
+          </Fragment>
+        ))}
 
         <div
           style={{
@@ -256,24 +260,26 @@ export function HeadlineEntryReceived({
           </Button>
         )}
 
-        <Button
-          variant="outline"
-          onClick={() => navigate('/')}
-          style={{
-            background: 'transparent',
-            color: INK,
-            borderColor: INK,
-            borderWidth: '1.5px',
-            borderRadius: 0,
-            fontFamily: DISPLAY,
-            fontWeight: 700,
-            letterSpacing: '0',
-          }}
-          className="w-full transition-colors duration-150 hover:bg-[#0a0a0a] hover:text-[#fafafa]"
-          aria-label="Return to dashboard"
-        >
-          Return to dashboard
-        </Button>
+        {!hideReturnToDashboard && (
+          <Button
+            variant="outline"
+            onClick={() => navigate('/')}
+            style={{
+              background: 'transparent',
+              color: INK,
+              borderColor: INK,
+              borderWidth: '1.5px',
+              borderRadius: 0,
+              fontFamily: DISPLAY,
+              fontWeight: 700,
+              letterSpacing: '0',
+            }}
+            className="w-full transition-colors duration-150 hover:bg-[#0a0a0a] hover:text-[#fafafa]"
+            aria-label="Return to dashboard"
+          >
+            Return to dashboard
+          </Button>
+        )}
       </div>
 
       {fullConfirmationNote && (

@@ -1,9 +1,10 @@
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { magazineColors } from '../tokens';
 import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
+import type { ReceiptDog } from '@/features/_shared/receiptDogs';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 //
@@ -16,9 +17,8 @@ export interface MagazineEntryReceivedProps {
   showName: string;
   clubName: string;
   dateRange: string;
-  dogRegisteredName: string;
-  dogCallName: string | null;
-  classSummary: string;
+  /** Every dog in the entry with its classes (MYK9-2474). */
+  dogs: readonly ReceiptDog[];
   totalFeesFormatted: string;
   /** MYK9-2235: says whether the total is paid or still due (`receiptTotalLabel`). */
   totalLabel: string;
@@ -31,6 +31,8 @@ export interface MagazineEntryReceivedProps {
   /** Called when "Print my entry blank" is clicked. If omitted, button is
    *  disabled. */
   onPrintEntryBlank?: (() => void) | undefined;
+  /** Staff flows: the wizard footer already carries the exits, so the card hides its own. */
+  hideReturnToDashboard?: boolean | undefined;
 }
 
 // ─── Style constants ──────────────────────────────────────────────────────────
@@ -74,15 +76,14 @@ export function MagazineEntryReceived({
   showName,
   clubName,
   dateRange,
-  dogRegisteredName,
-  dogCallName,
-  classSummary,
+  dogs,
   totalFeesFormatted,
   totalLabel,
   registrationNumber,
   fullConfirmationNote,
   entryBlankActions,
   onPrintEntryBlank,
+  hideReturnToDashboard = false,
 }: MagazineEntryReceivedProps) {
   const navigate = useNavigate();
 
@@ -178,45 +179,49 @@ export function MagazineEntryReceived({
           Article i · The dog
         </p>
 
-        <p
-          style={{
-            fontFamily: DISPLAY,
-            fontWeight: 500,
-            fontSize: '26px',
-            letterSpacing: '-0.005em',
-            lineHeight: 1.15,
-            color: INK,
-            margin: '0 0 4px',
-          }}
-        >
-          {dogRegisteredName}
-        </p>
+        {dogs.map(dog => (
+          <Fragment key={dog.id}>
+            <p
+              style={{
+                fontFamily: DISPLAY,
+                fontWeight: 500,
+                fontSize: '26px',
+                letterSpacing: '-0.005em',
+                lineHeight: 1.15,
+                color: INK,
+                margin: '0 0 4px',
+              }}
+            >
+              {dog.registeredName}
+            </p>
 
-        {dogCallName && (
-          <p
-            style={{
-              fontFamily: DISPLAY,
-              fontStyle: 'italic',
-              fontSize: '15px',
-              color: QUILL,
-              margin: '0 0 14px',
-            }}
-          >
-            called &ldquo;{dogCallName}&rdquo;
-          </p>
-        )}
+            {dog.callName && (
+              <p
+                style={{
+                  fontFamily: DISPLAY,
+                  fontStyle: 'italic',
+                  fontSize: '15px',
+                  color: QUILL,
+                  margin: '0 0 14px',
+                }}
+              >
+                called &ldquo;{dog.callName}&rdquo;
+              </p>
+            )}
 
-        <p
-          style={{
-            fontFamily: BODY,
-            fontSize: '14px',
-            lineHeight: 1.6,
-            color: magazineColors.soft,
-            margin: '0 0 16px',
-          }}
-        >
-          {classSummary}
-        </p>
+            <p
+              style={{
+                fontFamily: BODY,
+                fontSize: '14px',
+                lineHeight: 1.6,
+                color: magazineColors.soft,
+                margin: '0 0 16px',
+              }}
+            >
+              {dog.classSummary}
+            </p>
+          </Fragment>
+        ))}
 
         <div
           style={{
@@ -286,25 +291,27 @@ export function MagazineEntryReceived({
           </Button>
         )}
 
-        <Button
-          variant="outline"
-          onClick={() => navigate('/')}
-          style={{
-            background: 'transparent',
-            color: INK,
-            fontFamily: DISPLAY,
-            fontStyle: 'italic',
-            fontWeight: 500,
-            fontSize: '16px',
-            borderColor: INK,
-            padding: '14px 18px',
-            height: 'auto',
-          }}
-          className="w-full"
-          aria-label="Return to dashboard"
-        >
-          Return to dashboard
-        </Button>
+        {!hideReturnToDashboard && (
+          <Button
+            variant="outline"
+            onClick={() => navigate('/')}
+            style={{
+              background: 'transparent',
+              color: INK,
+              fontFamily: DISPLAY,
+              fontStyle: 'italic',
+              fontWeight: 500,
+              fontSize: '16px',
+              borderColor: INK,
+              padding: '14px 18px',
+              height: 'auto',
+            }}
+            className="w-full"
+            aria-label="Return to dashboard"
+          >
+            Return to dashboard
+          </Button>
+        )}
       </div>
 
       {/* ── Caption ── */}

@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -32,9 +33,7 @@ export function BannerEntryReceived({
   showName,
   clubName,
   dateRange,
-  dogRegisteredName,
-  dogCallName,
-  classSummary,
+  dogs,
   totalFeesFormatted,
   totalLabel,
   registrationNumber,
@@ -42,6 +41,7 @@ export function BannerEntryReceived({
   entryBlankActions,
   onPrintEntryBlank,
   brandColor,
+  hideReturnToDashboard = false,
 }: BannerEntryReceivedProps) {
   const navigate = useNavigate();
   const colors = deriveBannerBrandColors(brandColor);
@@ -125,44 +125,48 @@ export function BannerEntryReceived({
         >
           01 / THE DOG
         </p>
-        <p
-          style={{
-            margin: '0 0 4px',
-            fontFamily: BANNER_DISPLAY_FAMILY,
-            fontWeight: 800,
-            fontSize: 24,
-            letterSpacing: '-0.025em',
-            lineHeight: 1.1,
-            color: bannerColors.ink,
-          }}
-        >
-          {dogRegisteredName}
-        </p>
-        {dogCallName && (
-          <p
-            style={{
-              margin: '0 0 14px',
-              fontFamily: BANNER_BODY_FAMILY,
-              fontWeight: 500,
-              fontSize: 12,
-              letterSpacing: '0.08em',
-              color: bannerColors.mute,
-            }}
-          >
-            &ldquo;{dogCallName}&rdquo;
-          </p>
-        )}
-        <p
-          style={{
-            margin: '0 0 14px',
-            fontFamily: BANNER_BODY_FAMILY,
-            fontSize: 14,
-            lineHeight: 1.5,
-            color: bannerColors.soft,
-          }}
-        >
-          {classSummary}
-        </p>
+        {dogs.map(dog => (
+          <Fragment key={dog.id}>
+            <p
+              style={{
+                margin: '0 0 4px',
+                fontFamily: BANNER_DISPLAY_FAMILY,
+                fontWeight: 800,
+                fontSize: 24,
+                letterSpacing: '-0.025em',
+                lineHeight: 1.1,
+                color: bannerColors.ink,
+              }}
+            >
+              {dog.registeredName}
+            </p>
+            {dog.callName && (
+              <p
+                style={{
+                  margin: '0 0 14px',
+                  fontFamily: BANNER_BODY_FAMILY,
+                  fontWeight: 500,
+                  fontSize: 12,
+                  letterSpacing: '0.08em',
+                  color: bannerColors.mute,
+                }}
+              >
+                &ldquo;{dog.callName}&rdquo;
+              </p>
+            )}
+            <p
+              style={{
+                margin: '0 0 14px',
+                fontFamily: BANNER_BODY_FAMILY,
+                fontSize: 14,
+                lineHeight: 1.5,
+                color: bannerColors.soft,
+              }}
+            >
+              {dog.classSummary}
+            </p>
+          </Fragment>
+        ))}
         <div
           style={{
             display: 'flex',
@@ -230,25 +234,27 @@ export function BannerEntryReceived({
             Print my entry blank
           </Button>
         )}
-        <Button
-          variant="outline"
-          onClick={() => navigate('/')}
-          style={{
-            background: 'transparent',
-            color: bannerColors.ink,
-            borderColor: bannerColors.ink,
-            borderWidth: 1.5,
-            fontFamily: BANNER_DISPLAY_FAMILY,
-            fontWeight: 700,
-            fontSize: 14,
-            letterSpacing: '-0.005em',
-            borderRadius: 0,
-          }}
-          className="w-full"
-          aria-label="Return to dashboard"
-        >
-          Return to dashboard
-        </Button>
+        {!hideReturnToDashboard && (
+          <Button
+            variant="outline"
+            onClick={() => navigate('/')}
+            style={{
+              background: 'transparent',
+              color: bannerColors.ink,
+              borderColor: bannerColors.ink,
+              borderWidth: 1.5,
+              fontFamily: BANNER_DISPLAY_FAMILY,
+              fontWeight: 700,
+              fontSize: 14,
+              letterSpacing: '-0.005em',
+              borderRadius: 0,
+            }}
+            className="w-full"
+            aria-label="Return to dashboard"
+          >
+            Return to dashboard
+          </Button>
+        )}
       </div>
 
       {/* ── Caption ── */}

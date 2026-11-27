@@ -1,9 +1,10 @@
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { heritageColors, heritageOrnaments } from '@/features/heritage/tokens';
 import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
+import type { ReceiptDog } from '@/features/_shared/receiptDogs';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -11,9 +12,8 @@ export interface HeritageEntryReceivedProps {
   showName: string;
   clubName: string;
   dateRange: string;
-  dogRegisteredName: string;
-  dogCallName: string | null;
-  classSummary: string;
+  /** Every dog in the entry with its classes (MYK9-2474). */
+  dogs: readonly ReceiptDog[];
   totalFeesFormatted: string;
   /** MYK9-2235: says whether the total is paid or still due (`receiptTotalLabel`). */
   totalLabel: string;
@@ -25,6 +25,8 @@ export interface HeritageEntryReceivedProps {
   entryBlankActions?: ReactNode;
   /** Called when "Print my entry blank" is clicked. If omitted, button is disabled. */
   onPrintEntryBlank?: (() => void) | undefined;
+  /** Staff flows: the wizard footer already carries the exits, so the card hides its own. */
+  hideReturnToDashboard?: boolean | undefined;
 }
 
 // ─── Shared style constants ───────────────────────────────────────────────────
@@ -40,15 +42,14 @@ export function HeritageEntryReceived({
   showName,
   clubName,
   dateRange,
-  dogRegisteredName,
-  dogCallName,
-  classSummary,
+  dogs,
   totalFeesFormatted,
   totalLabel,
   registrationNumber,
   fullConfirmationNote,
   entryBlankActions,
   onPrintEntryBlank,
+  hideReturnToDashboard = false,
 }: HeritageEntryReceivedProps) {
   const navigate = useNavigate();
 
@@ -161,43 +162,47 @@ export function HeritageEntryReceived({
           § The Dog
         </p>
 
-        <p
-          style={{
-            fontFamily: "'Cormorant Garamond', Georgia, serif",
-            fontSize: '1.4rem',
-            fontWeight: 500,
-            lineHeight: 1.15,
-            color: INK,
-            margin: '0 0 2px',
-          }}
-        >
-          {dogRegisteredName}
-        </p>
+        {dogs.map(dog => (
+          <Fragment key={dog.id}>
+            <p
+              style={{
+                fontFamily: "'Cormorant Garamond', Georgia, serif",
+                fontSize: '1.4rem',
+                fontWeight: 500,
+                lineHeight: 1.15,
+                color: INK,
+                margin: '0 0 2px',
+              }}
+            >
+              {dog.registeredName}
+            </p>
 
-        {dogCallName && (
-          <p
-            style={{
-              fontFamily: "'EB Garamond', Georgia, serif",
-              fontStyle: 'italic',
-              fontSize: '0.85rem',
-              color: QUILL,
-              margin: '0 0 10px',
-            }}
-          >
-            called &ldquo;{dogCallName}&rdquo;
-          </p>
-        )}
+            {dog.callName && (
+              <p
+                style={{
+                  fontFamily: "'EB Garamond', Georgia, serif",
+                  fontStyle: 'italic',
+                  fontSize: '0.85rem',
+                  color: QUILL,
+                  margin: '0 0 10px',
+                }}
+              >
+                called &ldquo;{dog.callName}&rdquo;
+              </p>
+            )}
 
-        <p
-          style={{
-            fontFamily: "'EB Garamond', Georgia, serif",
-            fontSize: '0.9rem',
-            color: INK,
-            margin: '0 0 12px',
-          }}
-        >
-          {classSummary}
-        </p>
+            <p
+              style={{
+                fontFamily: "'EB Garamond', Georgia, serif",
+                fontSize: '0.9rem',
+                color: INK,
+                margin: '0 0 12px',
+              }}
+            >
+              {dog.classSummary}
+            </p>
+          </Fragment>
+        ))}
 
         {registrationNumber && (
           <p
@@ -268,21 +273,23 @@ export function HeritageEntryReceived({
           </Button>
         )}
 
-        <Button
-          variant="outline"
-          onClick={() => navigate('/')}
-          style={{
-            fontFamily: "'Cormorant Garamond', Georgia, serif",
-            fontStyle: 'italic',
-            color: INK,
-            borderColor: INK,
-            letterSpacing: '0.04em',
-          }}
-          className="w-full"
-          aria-label="Return to dashboard"
-        >
-          Return to dashboard
-        </Button>
+        {!hideReturnToDashboard && (
+          <Button
+            variant="outline"
+            onClick={() => navigate('/')}
+            style={{
+              fontFamily: "'Cormorant Garamond', Georgia, serif",
+              fontStyle: 'italic',
+              color: INK,
+              borderColor: INK,
+              letterSpacing: '0.04em',
+            }}
+            className="w-full"
+            aria-label="Return to dashboard"
+          >
+            Return to dashboard
+          </Button>
+        )}
       </div>
 
       {/* ── Caption ── */}

@@ -31,6 +31,9 @@ import {
 import type { ScoreChangeRead } from '@/features/show-closeout/whatIsLeft';
 import type { CloseConcern } from '@/features/show-closeout/closeConcerns';
 import type { CloseoutFlaggedPulls } from '@/features/show-closeout/useCloseoutFlaggedPulls';
+import { saveClosedOpenLines } from '@/services/database/showCloseNotes';
+import { ReopenShowAction } from './ReopenShowAction';
+import { canCloseShowStatus } from './reopenShow';
 import { getCheckInDeskHref } from '@/components/entries/management/checkInDesk/checkInDeskRoutes';
 import type { ShowDayReconciliationEntry } from './showDayReconciliationSummary';
 import type { ShowIncidentSummary } from './showIncidents';
@@ -116,10 +119,16 @@ export function CloseOutShowAction({
 
     const childUpdates = [
       ...targets.trialIds.map(trialId =>
-        replicatedTrialsTable.updateTrial(trialId, { status: 'completed' })
+        replicatedTrialsTable.updateTrial(trialId, {
+          status: 'completed',
+          statusBeforeClose: trials.find(trial => trial.id === trialId)?.status ?? 'upcoming',
+        })
       ),
       ...targets.classIds.map(classId =>
-        replicatedClassesTable.updateClass(classId, { classStatus: 'completed' })
+        replicatedClassesTable.updateClass(classId, {
+          classStatus: 'completed',
+          statusBeforeClose: classes.find(cls => cls.id === classId)?.status ?? 'upcoming',
+        })
       ),
     ];
 
@@ -134,7 +143,10 @@ export function CloseOutShowAction({
     }
 
     try {
-      await replicatedShowsTable.updateShow(targets.showId, { status: 'completed' });
+      await replicatedShowsTable.updateShow(targets.showId, {
+        status: 'completed',
+        closedAt: new Date().toISOString(),
+      });
     } catch {
       setIsClosing(false);
       setError('Closing the show did not finish. Try again after checking your connection.');
@@ -142,9 +154,30 @@ export function CloseOutShowAction({
       return;
     }
 
+    // The note of what was still open is online-only (staff-only table, not replicated). The
+    // close itself is already queued and works offline, so a failed note is said plainly.
+    // It runs after the close UI has finished, so a stalled request never holds the dialog.
     setIsClosing(false);
     setIsConfirmOpen(false);
     toast.success('Show closed.');
+    saveClosedOpenLines(targets.showId, [...readiness.openLines]).catch(() => {
+      toast.warning(
+        'The list of what was still open could not be saved. It needs a connection; the show is closed.'
+      );
+    });
+  }
+
+  if (!showClosed && !canCloseShowStatus(show.status)) {
+    return (
+      <section className="rounded-md border bg-muted/30 p-4" aria-labelledby="close-out-show-title">
+        <h3 id="close-out-show-title" className="text-base font-semibold">
+          Close the show
+        </h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          A show can be closed once it is published.
+        </p>
+      </section>
+    );
   }
 
   if (showClosed) {
@@ -159,6 +192,7 @@ export function CloseOutShowAction({
             <p className="mt-1 text-sm text-muted-foreground">
               This show is marked completed. Reports and submission history remain available here.
             </p>
+            <ReopenShowAction showId={show.id} />
           </div>
         </div>
       </section>

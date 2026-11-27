@@ -44,7 +44,7 @@ vi.mock('@/services/database/show-payments', () => ({
 }));
 vi.mock('@/hooks/useFastShowDetails', () => ({
   useFastShowDetails: () => ({
-    show: { id: 'show-1', status: 'active', startDate: '2026-10-10', endDate: '2026-10-10' },
+    show: { id: 'show-1', status: 'published', startDate: '2026-10-10', endDate: '2026-10-10' },
     isLoading: false,
   }),
 }));

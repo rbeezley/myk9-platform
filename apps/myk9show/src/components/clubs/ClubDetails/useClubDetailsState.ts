@@ -13,7 +13,8 @@ import { friendlySaveError } from '@/utils/friendlySaveError';
 import { uploadClubCover, deleteImage } from '@/services/imageUploadService';
 import { getActiveClubMembers, getClubMembers } from '@/services/database/club-memberships/members';
 import { canCreateShowForClub, computeClubPermissions, hasClubAdminScope } from './clubPermissions';
-import { hasClubStaffGrant } from '@/utils/roleScopes';
+import { hasClubAdminGrant, hasClubStaffGrant } from '@/utils/roleScopes';
+import { isAccountSession } from '@/hooks/guestServerRead';
 import { usePageEditAction } from '@/features/actions/pageEditTarget';
 import { canOpenCreateShowWizard } from '@/routes/createShowWizardAccess';
 import { useClubAuthorizationControl } from './useClubAuthorizationControl';
@@ -152,14 +153,23 @@ export function useClubDetailsState(selectedClub: Club | null) {
     queryFn: () => getClubMembers(selectedClub!.id),
     // A signed-out visitor is never asked for the roster: `anon` cannot read `club_members`,
     // so the read would fail and the tab would offer a retry that can never work.
-    enabled: Boolean(selectedClub?.id) && Boolean(authUserId),
+    // A passcode session is an anonymous auth user with an id: `anon`-role reads of this table
+    // fail for it too, so only a real account asks.
+    enabled: Boolean(selectedClub?.id) && isAccountSession(user),
   });
   const clubMembers = useMemo(() => membersQuery.data ?? [], [membersQuery.data]);
   const activeMembers = useMemo(() => getActiveClubMembers(clubMembers), [clubMembers]);
-  // A count is shown only to someone who can read the whole roster (MYK9-2467), and only once
-  // it HAS been read: `data ?? []` is also what "still loading" and "failed" look like, and
-  // neither of those is zero members.
-  const memberCountReady = canManageClubAdmin && membersQuery.isSuccess;
+  // THE one answer to "may this viewer read the whole roster?" (MYK9-2467). It mirrors
+  // `club_members_select`: is_club_admin(club_id) counts a club_admin grant for this club
+  // whether or not it is pinned to a show, plus a site admin. Everyone else reads at most
+  // their own row. Reading only: `canManageClubAdmin` still gates every management action.
+  const canReadRoster =
+    isAccountSession(user) &&
+    (isSiteAdmin ||
+      (selectedClub ? hasClubAdminGrant(userWithRoles, { clubId: selectedClub.id }) : false));
+  // A count is shown only once the roster HAS been read: `data ?? []` is also what "still
+  // loading" and "failed" look like, and neither of those is zero members.
+  const memberCountReady = canReadRoster && membersQuery.isSuccess;
 
   // Stats computation
   const stats: StatCard[] = useMemo(() => {
@@ -438,6 +448,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
     // cache consistency but only active records exposed to the profile roster.
     clubMembers,
     activeMembers,
+    canReadRoster,
     memberCountReady,
     isMembersLoading: membersQuery.isLoading,
     isMembersRefreshing: membersQuery.isFetching && !membersQuery.isLoading,

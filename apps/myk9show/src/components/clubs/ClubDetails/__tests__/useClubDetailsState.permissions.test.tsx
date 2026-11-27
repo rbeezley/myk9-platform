@@ -23,7 +23,7 @@ const CLUB_B = '22222222-2222-4222-8222-222222222222';
 type PermissionChecker = (code: string, scope?: unknown) => boolean;
 
 const mockAuth = vi.hoisted(() => ({
-  user: null as { id: string } | null,
+  user: null as { id: string; is_anonymous?: boolean } | null,
   userWithRoles: null as UserWithRoles | null,
   hasPermission: vi.fn<(code: string, scope?: unknown) => boolean>(() => false),
 }));
@@ -401,5 +401,69 @@ describe('useClubDetailsState member count (MYK9-2467)', () => {
     expect(roster.read).not.toHaveBeenCalled();
     expect(result.current.isMembersError).toBe(false);
     expect(result.current.isMembersLoading).toBe(false);
+  });
+
+  // Codex review of #4470, round 2: a club admin whose only grant is pinned to one show of this
+  // club reads the whole roster (is_club_admin ignores show_id), but was labelled "Your
+  // membership" and shown no count because only the club-scoped grant was read.
+  it('lets a show-pinned club admin of this club read the roster and see the count', async () => {
+    mockAuth.userWithRoles = userWith(
+      [UserRole.CLUB_ADMIN],
+      [
+        {
+          userId: 'auth-uid',
+          roleId: UserRole.CLUB_ADMIN,
+          scopeType: ScopeType.SHOW,
+          scopeId: 'show-1',
+          clubId: CLUB_A,
+          createdAt: new Date(),
+        },
+      ]
+    );
+    roster.read.mockResolvedValue([{ id: 'm1' }, { id: 'm2' }, { id: 'm3' }]);
+
+    const { result } = renderState();
+
+    expect(result.current.canReadRoster).toBe(true);
+    await waitFor(() => expect(memberStat(result.current.stats)?.value).toBe('3'));
+  });
+
+  it('does not let a show-pinned admin of another club read this roster', () => {
+    mockAuth.userWithRoles = userWith(
+      [UserRole.CLUB_ADMIN],
+      [
+        {
+          userId: 'auth-uid',
+          roleId: UserRole.CLUB_ADMIN,
+          scopeType: ScopeType.SHOW,
+          scopeId: 'show-1',
+          clubId: CLUB_B,
+          createdAt: new Date(),
+        },
+      ]
+    );
+
+    const { result } = renderState();
+
+    expect(result.current.canReadRoster).toBe(false);
+    expect(memberStat(result.current.stats)).toBeUndefined();
+  });
+
+  // A ringside passcode session is an anonymous auth user WITH an id, so `Boolean(user.id)`
+  // asked `anon`-role reads for the roster, which fail and offered a retry that never works.
+  it('never asks a passcode session for the roster, even one that holds a club grant', async () => {
+    mockAuth.user = { id: 'anon-user-1', is_anonymous: true };
+    asClubAdmin();
+
+    const { result } = renderState();
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(roster.read).not.toHaveBeenCalled();
+    expect(result.current.canReadRoster).toBe(false);
+    expect(result.current.isMembersError).toBe(false);
+    expect(result.current.isMembersLoading).toBe(false);
+    expect(memberStat(result.current.stats)).toBeUndefined();
   });
 });

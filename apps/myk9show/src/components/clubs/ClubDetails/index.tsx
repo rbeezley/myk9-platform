@@ -198,7 +198,7 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
                   isError={state.isMembersError}
                   onRetry={() => void state.retryMembers()}
                   canManageMembers={state.canManageMembers}
-                  canSeeFullRoster={state.canManageClubAdmin}
+                  canSeeFullRoster={state.canReadRoster}
                   onAddMember={state.handleAddMember}
                 />
               )}

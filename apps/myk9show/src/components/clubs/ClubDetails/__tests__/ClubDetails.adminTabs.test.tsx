@@ -9,6 +9,7 @@ import { ClubDetails } from '../index';
  */
 const state = vi.hoisted(() => ({
   canManageClubAdmin: false,
+  canReadRoster: false,
   memberCountReady: false,
   activeTab: 'members',
   activeMembers: [] as { id: string }[],
@@ -30,6 +31,7 @@ vi.mock('../useClubDetailsState', () => ({
     canAddShow: false,
     canManageMembers: state.canManageClubAdmin,
     canManageClubAdmin: state.canManageClubAdmin,
+    canReadRoster: state.canReadRoster,
     memberCountReady: state.memberCountReady,
     isMembersLoading: false,
     isMembersRefreshing: false,
@@ -42,7 +44,11 @@ vi.mock('../ClubStatistics', () => ({ ClubStatistics: () => null }));
 vi.mock('../UpcomingShowsTab', () => ({ UpcomingShowsTab: () => null }));
 vi.mock('../PastShowsTab', () => ({ PastShowsTab: () => null }));
 vi.mock('../AboutTab', () => ({ AboutTab: () => null }));
-vi.mock('../MembersTab', () => ({ MembersTab: () => <div data-testid="readonly-members" /> }));
+vi.mock('../MembersTab', () => ({
+  MembersTab: ({ canSeeFullRoster }: { canSeeFullRoster?: boolean }) => (
+    <div data-testid="readonly-members" data-full-roster={String(canSeeFullRoster)} />
+  ),
+}));
 vi.mock('../BrandingTab', () => ({ BrandingTab: () => null }));
 vi.mock('../ClubDialogs', () => ({ ClubDialogs: () => null }));
 vi.mock('../ClubShowsUnsettled', () => ({ ClubShowsUnsettled: () => null }));
@@ -62,6 +68,7 @@ const club = { id: 'club-1', name: 'Heartland Club' } as Club;
 describe('ClubDetails admin tabs (MYK9-1293)', () => {
   beforeEach(() => {
     state.canManageClubAdmin = false;
+    state.canReadRoster = false;
     state.memberCountReady = false;
     state.activeTab = 'members';
     state.activeMembers = [];
@@ -116,5 +123,20 @@ describe('ClubDetails admin tabs (MYK9-1293)', () => {
 
     const tab = screen.getByRole('tab', { name: /Members/ });
     expect(tab.textContent?.trim()).toBe('Members');
+  });
+
+  // Codex review of #4470, round 2: reading the whole roster is its own rule, not the
+  // management rule. A show-pinned club admin reads it but does not manage from this page.
+  it('labels the read-only list as the whole roster for a viewer who can read it', () => {
+    state.canReadRoster = true;
+    render(<ClubDetails selectedClub={club} />);
+
+    expect(screen.getByTestId('readonly-members')).toHaveAttribute('data-full-roster', 'true');
+  });
+
+  it('labels the read-only list as her own row for a viewer who cannot', () => {
+    render(<ClubDetails selectedClub={club} />);
+
+    expect(screen.getByTestId('readonly-members')).toHaveAttribute('data-full-roster', 'false');
   });
 });

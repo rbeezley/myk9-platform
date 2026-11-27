@@ -302,6 +302,10 @@ Payment status shows on every exhibitor's form in **Entry Forms**; **Filter → 
 >
 > **An entry that just says "Paid" means the channel was never recorded** — not that it came through Stripe. Older entries taken before the app captured a method read this way, so don't count a plain "Paid" as an online payment when you reconcile against your payout.
 
+> **Cash or check recorded on a form marked Paid in Full: Online.** **Paid in Full: Online** records no money, so a cash or check payment recorded on that form afterwards is the only money the form holds. Less than the full amount turns the form back to **Payment Due**. The full amount makes it paid by cash or check.
+>
+> If the exhibitor did pay online, open the form's payment menu (**Change**, beside the payment status) and choose **Paid in Full: Online…** again. Handing the cash back is a refund (**Refunded…** or **Partial Refund…**). It records money going back to the exhibitor; it does not put the online status back.
+
 ---
 
 # Getting ready for show day

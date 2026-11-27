@@ -6,7 +6,8 @@ import { renderWithProviders } from '@/test/utils/testUtils';
 const harness = vi.hoisted(() => ({
   rpc: vi.fn(),
   createUser: vi.fn(async () => ({ data: { id: 'created-1' }, error: null })),
-  updateUser: vi.fn(),
+  updateUser: vi.fn(async () => ({ data: null, error: null })),
+  people: [] as Array<Record<string, string>>,
   success: vi.fn(),
   error: vi.fn(),
   officials: {
@@ -35,7 +36,7 @@ vi.mock('@/hooks/queries/useShowOfficials', () => ({
 }));
 vi.mock('@/store/userStore', () => ({
   useUserStore: () => ({
-    people: [{ id: 'new-person', firstName: 'Alex', lastName: 'Whitfield' }],
+    people: harness.people,
     loadPeople: vi.fn(),
     loadUsers: vi.fn(),
   }),
@@ -96,6 +97,7 @@ describe('ShowOfficialsEditor replace', () => {
     harness.officials = { secretaries: [], chairmen: [], stewards: [] };
     harness.cached = null;
     harness.fetchError = null;
+    harness.people = [{ id: 'new-person', firstName: 'Alex', lastName: 'Whitfield' }];
   });
 
   it('assigning a second Chair revokes the first', async () => {
@@ -238,6 +240,7 @@ describe('ShowOfficialsEditor mailing address for the premium (MYK9-2065)', () =
     harness.officials = { secretaries: [], chairmen: [], stewards: [] };
     harness.cached = null;
     harness.fetchError = null;
+    harness.people = [{ id: 'new-person', firstName: 'Alex', lastName: 'Whitfield' }];
   });
 
   it('offers no field until a Chair or Secretary is named', () => {
@@ -400,6 +403,25 @@ describe('ShowOfficialsEditor mailing address for the premium (MYK9-2065)', () =
           phone: '(555) 010-2020',
         })
       );
+    });
+
+    it('reuses the person already on file with that email and keeps her phone current', async () => {
+      harness.people = [
+        { id: 'new-person', firstName: 'Alex', lastName: 'Whitfield' },
+        {
+          id: 'on-file',
+          firstName: 'Priya',
+          lastName: 'Raman-Holt',
+          email: 'P@example.com',
+          phone: '(555) 000-0000',
+        },
+      ];
+      renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
+      await userEvent.click(screen.getByText('add new Chair'));
+
+      expect(await screen.findByText('Saved. Priya Raman-Holt is now Chair.')).toBeInTheDocument();
+      expect(harness.updateUser).toHaveBeenCalledWith('on-file', { phone: '(555) 010-2020' });
+      expect(harness.createUser).not.toHaveBeenCalled();
     });
 
     it('confirms a Steward the same way', async () => {

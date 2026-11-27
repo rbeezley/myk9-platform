@@ -1,7 +1,11 @@
 import type { AskQGuideAsset, AskQRulebookAsset } from './documentContext.ts';
 import { buildGuidesPrompt, buildRulebookPrompt, buildShowDataPrompt } from './sourcePrompts.ts';
 import { parseSupportAnswer, type SupportEscalationPayload } from './supportMode.ts';
-import type { SupportQuoteRefusal, VerifiedGuideQuote } from './supportQuoteEvidence.ts';
+import type {
+  SupportQuoteRefusal,
+  SupportQuoteRejection,
+  VerifiedGuideQuote,
+} from './supportQuoteEvidence.ts';
 import { TOOLS } from './toolDefinitions.ts';
 import type { ClaudeContentBlock, ClaudeMessage, ModelCall, UserContext } from './types.ts';
 
@@ -26,6 +30,7 @@ export interface GuidesAnswer {
   guideSources: VerifiedGuideQuote[];
   escalation: SupportEscalationPayload | null;
   escalationCause: SupportQuoteRefusal | null;
+  escalationDetail: SupportQuoteRejection | null;
 }
 
 /** Guides only, no tools. Whatever the model wrote is shown only if its quotes verify. */
@@ -41,6 +46,7 @@ export async function answerFromGuides(
       guideSources: [],
       escalation: parsed.escalation,
       escalationCause: parsed.escalationCause,
+      escalationDetail: parsed.escalationDetail,
     };
   }
   return {
@@ -48,6 +54,7 @@ export async function answerFromGuides(
     guideSources: parsed.guideSources,
     escalation: null,
     escalationCause: null,
+    escalationDetail: null,
   };
 }
 

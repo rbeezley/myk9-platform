@@ -324,6 +324,69 @@ describe('ReplicatedTrialsTable', () => {
         expect(spy.mock.calls[0]?.[2]).not.toHaveProperty('status_before_close');
       });
 
+      it('a stale edit after close sends no status and no actual times (MYK9-2450)', async () => {
+        // Cached before another device closed the show: still in progress here. A rename must
+        // leave the server's completed status and its stamps alone.
+        await table.set('trial-dep', {
+          ...seeded,
+          status: 'in_progress',
+          actualStartTime: '2026-06-12T13:00:00.000Z',
+        });
+        const spy = spyOnWriteAndQueue(table).queue.mockResolvedValue('mutation-8');
+
+        await table.updateTrial('trial-dep', { name: 'Renamed' });
+
+        const payload = spy.mock.calls[0]?.[2] as Record<string, unknown>;
+        expect(payload).toHaveProperty('name', 'Renamed');
+        expect(payload).not.toHaveProperty('status');
+        expect(payload).not.toHaveProperty('actual_start_time');
+        expect(payload).not.toHaveProperty('actual_end_time');
+      });
+
+      it('sends status and the actual times when the update sets them (close-out, a secretary edit)', async () => {
+        await table.set('trial-dep', seeded);
+        const spy = spyOnWriteAndQueue(table).queue.mockResolvedValue('mutation-9');
+
+        await table.updateTrial('trial-dep', { status: 'completed' });
+        await table.updateTrial('trial-dep', {
+          actualStartTime: '2026-06-12T13:00:00.000Z',
+          actualEndTime: undefined,
+        });
+
+        expect(spy.mock.calls[0]?.[2]).toHaveProperty('status', 'completed');
+        expect(spy.mock.calls[0]?.[2]).not.toHaveProperty('actual_start_time');
+        expect(spy.mock.calls[1]?.[2]).toHaveProperty(
+          'actual_start_time',
+          '2026-06-12T13:00:00.000Z'
+        );
+        expect(spy.mock.calls[1]?.[2]).toHaveProperty('actual_end_time', null);
+        expect(spy.mock.calls[1]?.[2]).not.toHaveProperty('status');
+      });
+
+      it('a resend rebuilt after a token advance carries no server-owned column', () => {
+        const internals = table as unknown as {
+          rebuildUpdatePayload: (trial: ReplicatedTrial) => Record<string, unknown>;
+          getLegacyOmittedKeysServerWins: () => readonly string[];
+        };
+
+        const payload = internals.rebuildUpdatePayload({
+          ...seeded,
+          status: 'in_progress',
+          statusBeforeClose: 'in_progress',
+        });
+
+        expect(payload).toHaveProperty('name', 'Saturday Trial');
+        expect(internals.getLegacyOmittedKeysServerWins()).toEqual([
+          'status',
+          'actual_start_time',
+          'actual_end_time',
+          'status_before_close',
+        ]);
+        for (const key of internals.getLegacyOmittedKeysServerWins()) {
+          expect(payload).not.toHaveProperty(key);
+        }
+      });
+
       it('sends status_before_close when the update sets it, including null on reopen', async () => {
         await table.set('trial-dep', seeded);
         const spy = spyOnWriteAndQueue(table).queue.mockResolvedValue('mutation-7');

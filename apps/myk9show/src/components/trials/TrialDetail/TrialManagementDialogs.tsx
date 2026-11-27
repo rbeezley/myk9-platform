@@ -169,9 +169,13 @@ export const TrialManagementDialogs = forwardRef<
           if (currentTrial?.id) {
             // Awaited: a failure rejects into EditPanelWrapper, which keeps the panel open with
             // the user's edits and shows the error. The panel closes itself (onClose) on success.
+            // Only the panel's own fields go down: `currentTrial` can be a snapshot from when the
+            // action opened, and spreading it would send an old status or finish time back over
+            // a closure another device made (MYK9-2450). The store compares what it is sent
+            // against its live row.
             await updateTrial(
               currentTrial.id,
-              { ...currentTrial, ...trialData } as Partial<TrialInput>,
+              trialData as Partial<TrialInput>,
               user?.id || 'unknown'
             );
             // MYK9-2381: a day moved earlier can leave entries closing after the show starts.

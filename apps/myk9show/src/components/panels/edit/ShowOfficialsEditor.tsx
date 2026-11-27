@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Check, Loader2 } from 'lucide-react';
 import { ShowCommitteeEditor } from '@/components/committee/ShowCommitteeEditor';
@@ -52,6 +52,9 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
   const { people, loadPeople, loadUsers } = useUserStore();
   const [pendingRole, setPendingRole] = useState<string | null>(null);
   const [outcomes, setOutcomes] = useState<Partial<Record<UserRole, PickOutcome>>>({});
+  // "Add new" selects a person the moment she is created, before `people` has her: keep the
+  // name she typed so the saved note can still say who it is.
+  const createdNames = useRef(new Map<string, string>());
 
   useEffect(() => {
     if (people.length === 0) loadPeople();
@@ -64,7 +67,9 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
     const invalidate = () =>
       queryClient.invalidateQueries({ queryKey: ['shows', showId, 'officials'] });
     const picked = people.find(person => person.id === personId);
-    const pickedName = picked ? `${picked.firstName} ${picked.lastName}`.trim() : 'The new person';
+    const pickedName = picked
+      ? `${picked.firstName} ${picked.lastName}`.trim()
+      : (createdNames.current.get(personId) ?? 'The new person');
     const report = (outcome: PickOutcome) => setOutcomes(prev => ({ ...prev, [role]: outcome }));
     // Says who holds the role now, on the toast and under the picker she just used (MYK9-2470).
     const reportSaved = () => {
@@ -135,6 +140,7 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
       email: data.email,
     });
     if (result.error) throw result.error;
+    createdNames.current.set(result.data!.id, `${data.firstName} ${data.lastName}`.trim());
     await loadPeople();
     return result.data!.id;
   };

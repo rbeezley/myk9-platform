@@ -39,14 +39,37 @@ vi.mock('@/store/userStore', () => ({
   }),
 }));
 vi.mock('@/components/committee/ShowCommitteeEditor', () => ({ ShowCommitteeEditor: () => null }));
+vi.mock('@/services/database/users', () => ({
+  createUser: async () => ({ data: { id: 'created-1' }, error: null }),
+}));
 vi.mock('@/components/shows/wizard/steps/OfficialPicker', () => ({
   OfficialPicker: ({
     label,
     onSelect,
+    onCreatePerson,
   }: {
     label: string;
     onSelect: (id: string) => Promise<void>;
-  }) => <button onClick={() => void onSelect('new-person')}>{`pick ${label}`}</button>,
+    onCreatePerson: (data: {
+      firstName: string;
+      lastName: string;
+      email: string;
+    }) => Promise<string>;
+  }) => (
+    <>
+      <button onClick={() => void onSelect('new-person')}>{`pick ${label}`}</button>
+      {/* The real picker's "Add new": create the person, then select the id it returns. */}
+      <button
+        onClick={() =>
+          void onCreatePerson({
+            firstName: 'Priya',
+            lastName: 'Raman',
+            email: 'p@example.com',
+          }).then(onSelect)
+        }
+      >{`add new ${label}`}</button>
+    </>
+  ),
 }));
 
 import { ShowOfficialsEditor } from '../ShowOfficialsEditor';
@@ -347,6 +370,16 @@ describe('ShowOfficialsEditor mailing address for the premium (MYK9-2065)', () =
       ).toBeInTheDocument();
       expect(harness.success).toHaveBeenCalledWith('Alex Whitfield is now Secretary.');
       expect(screen.getAllByRole('status')).toHaveLength(1);
+    });
+
+    // Codex review of #4472: the people list she picked from cannot hold a person made a moment ago.
+    it('names a person added with "Add new", not "The new person"', async () => {
+      renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
+      await userEvent.click(screen.getByText('add new Chair'));
+
+      expect(await screen.findByText('Saved. Priya Raman is now Chair.')).toBeInTheDocument();
+      expect(harness.success).toHaveBeenCalledWith('Priya Raman is now Chair.');
+      expect(screen.queryByText(/The new person/)).not.toBeInTheDocument();
     });
 
     it('confirms a Steward the same way', async () => {

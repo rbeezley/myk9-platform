@@ -198,12 +198,14 @@ function renderConfirmation(
   outcomes: EntrySubmissionOutcome[] | undefined,
   createdEntryOutcomes?: EntrySubmissionOutcome[],
   paymentMethod: PaymentMethod = 'credit_card',
-  options: { receivedMethod?: 'check' | 'cash' } = {}
+  options: { receivedMethod?: 'check' | 'cash'; lastEditedFirstDog?: boolean } = {}
 ) {
-  const selections = [
+  const pickOrder = [
     { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
     { dogId: 'dog-2', trialId: 'trial-1', selectedClasses: [{ classId: 'class-2' }] },
   ];
+  // A class edit moves that dog's selection row to the end (ClassSelectionStep.helpers).
+  const selections = options.lastEditedFirstDog ? [...pickOrder].reverse() : pickOrder;
 
   return render(
     <WorkflowStepContent
@@ -363,6 +365,27 @@ describe('WorkflowStepContent receipt payment label', () => {
 
     expect(screen.getByText('Total · Paid by check')).toBeInTheDocument();
     expect(screen.queryByText(/fees due/i)).not.toBeInTheDocument();
+  });
+
+  // MYK9-2474: a two-dog entry named only the first dog, and staff saw two sets of exits.
+  it('names every dog with its own classes and leaves the exits to the wizard footer', () => {
+    renderConfirmation(
+      undefined,
+      [
+        createdOutcome('dog-1', 'class-1', 'entry-1'),
+        createdOutcome('dog-2', 'class-2', 'entry-2'),
+      ],
+      'credit_card',
+      { lastEditedFirstDog: true }
+    );
+
+    const first = screen.getByText('First Registered Dog');
+    const second = screen.getByText('Maia TeraByte Van Neerland');
+    // Picked first, listed first, even though its classes were edited last.
+    expect(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByText('Novice Containers')).toBeInTheDocument();
+    expect(screen.getByText('Advanced Exterior')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Return to dashboard' })).not.toBeInTheDocument();
   });
 
   it('claims nothing about payment when the exhibitor pays by check at the show', () => {

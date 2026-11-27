@@ -42,7 +42,7 @@ import {
   hasCreatedEntryOutcome,
 } from './entrySubmissionOutcomes';
 import { buildRegistrationEntryBlankDownloads } from './entryBlankOptions';
-import { getDogRegisteredName } from '@/types/dog-types';
+import { buildReceiptDogs } from '@/features/_shared/receiptDogs';
 
 interface OptimisticRegistrationState {
   formData: RegistrationFormData;
@@ -150,7 +150,6 @@ export function WorkflowStepContent({
     optimisticState.classSelections,
     entryOutcomes
   );
-  const receiptSelectedDogs = receiptClassSelections.map(selection => selection.dogId);
   const receiptTotalFees = getCreatedOutcomeTotalFees(entryOutcomes, currentRegistrationTotalFees);
   const receiptMoney = receiptTotal({
     paymentMethod: optimisticState.formData.paymentMethod,
@@ -198,17 +197,6 @@ export function WorkflowStepContent({
     // to wire the gate" bugs.
     const style = getShowStyle(currentShow);
 
-    const firstDogId = receiptSelectedDogs[0];
-    const firstDog = dogs.find(d => d.id === firstDogId);
-    const firstClassSelection = receiptClassSelections.find(s => s.dogId === firstDogId);
-    const classSummary =
-      firstClassSelection?.selectedClasses
-        .map(sc => {
-          const cls = classes.find(c => c.id === sc.classId);
-          return cls?.className ?? sc.classId;
-        })
-        .join(', ') ?? '';
-
     return {
       style,
       // brand_color flows through for Banner shows. May be null on shows
@@ -232,9 +220,12 @@ export function WorkflowStepContent({
               : fmt(currentShow.startDate);
           })()
         : '',
-      dogRegisteredName: firstDog ? (getDogRegisteredName(firstDog) ?? '') : '',
-      dogCallName: firstDog?.callName ?? null,
-      classSummary,
+      dogs: buildReceiptDogs(
+        receiptClassSelections,
+        dogs,
+        classes,
+        optimisticState.formData.selectedDogs
+      ),
       // MYK9-1999: the full confirmation goes by itself once the entry is accepted; the
       // secretary sets no date for it.
       fullConfirmationNote: fullConfirmationNote(currentWorkflowMode),
@@ -243,8 +234,8 @@ export function WorkflowStepContent({
     currentStepId,
     dogs,
     classes,
-    receiptSelectedDogs,
     receiptClassSelections,
+    optimisticState.formData.selectedDogs,
     currentShow,
     currentWorkflowMode,
   ]);
@@ -323,12 +314,12 @@ export function WorkflowStepContent({
           showName: styledReceipt.showName,
           clubName: styledReceipt.clubName,
           dateRange: styledReceipt.dateRange,
-          dogRegisteredName: styledReceipt.dogRegisteredName,
-          dogCallName: styledReceipt.dogCallName,
-          classSummary: styledReceipt.classSummary,
+          dogs: styledReceipt.dogs,
           ...receiptMoney,
           registrationNumber: registrationNumber ?? null,
           fullConfirmationNote: styledReceipt.fullConfirmationNote,
+          // MYK9-2474: the wizard footer's ReceiptExits already gives staff their exits.
+          hideReturnToDashboard: currentWorkflowMode !== 'exhibitor',
           // INTENT: Exhibitor self-service still waits for the post-draw blank.
           // Staff workflows can print a specific created entry here because the
           // replication-backed class data already carries its judge assignment.

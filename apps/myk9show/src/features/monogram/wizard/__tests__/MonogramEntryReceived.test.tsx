@@ -10,13 +10,18 @@ vi.mock('react-router-dom', async () => {
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
+const DOG = {
+  id: 'dog-1',
+  registeredName: "CH Cedarwood's Risen On Pointe RN",
+  callName: 'Pointe',
+  classSummary: '3 runs · Excellent Containers, Excellent Interiors · Judge Mrs. Beagles',
+};
+
 const BASE_PROPS = {
   showName: 'Spring Scent Work Trial',
   clubName: 'Bexar County Kennel Club',
   dateRange: '12–14 June 2026',
-  dogRegisteredName: "CH Cedarwood's Risen On Pointe RN",
-  dogCallName: 'Pointe',
-  classSummary: '3 runs · Excellent Containers, Excellent Interiors · Judge Mrs. Beagles',
+  dogs: [DOG],
   totalFeesFormatted: '$69.00',
   totalLabel: 'Total · Paid by check',
   registrationNumber: 'MK9-000137',
@@ -51,7 +56,7 @@ describe('MonogramEntryReceived', () => {
   });
 
   it('omits the call-name line when null', () => {
-    render(<MonogramEntryReceived {...BASE_PROPS} dogCallName={null} />);
+    render(<MonogramEntryReceived {...BASE_PROPS} dogs={[{ ...DOG, callName: null }]} />);
     expect(screen.queryByText(/called/)).toBeNull();
   });
 

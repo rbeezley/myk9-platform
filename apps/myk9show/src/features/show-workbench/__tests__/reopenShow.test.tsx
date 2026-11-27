@@ -10,7 +10,6 @@ const updateClassMock = vi.hoisted(() => vi.fn());
 const getTrialsMock = vi.hoisted(() => vi.fn());
 const getClassesMock = vi.hoisted(() => vi.fn());
 const saveReasonMock = vi.hoisted(() => vi.fn());
-const readReasonMock = vi.hoisted(() => vi.fn());
 const authMock = vi.hoisted(() => ({
   full_name: 'Jane Secretary' as string | undefined,
   email: 'jane@example.com',
@@ -24,7 +23,6 @@ vi.mock('@/services/replication', () => ({
 }));
 vi.mock('@/services/database/showCloseNotes', () => ({
   saveReopenReason: saveReasonMock,
-  readReopenReason: readReasonMock,
   saveClosedOpenLines: vi.fn(),
 }));
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -49,7 +47,6 @@ beforeEach(() => {
   updateTrialMock.mockResolvedValue('m');
   updateClassMock.mockResolvedValue('m');
   saveReasonMock.mockResolvedValue(undefined);
-  readReasonMock.mockResolvedValue(null);
   authMock.full_name = 'Jane Secretary';
   authMock.email = 'jane@example.com';
   manageScopeMock.mockReturnValue({ status: 'resolved', canManage: true });
@@ -98,16 +95,19 @@ describe('reopenShow', () => {
     });
   });
 
-  it('keeps the first reason when the show is reopened a second time', async () => {
-    const first = 'First reason\n\nReopened by Pat at 2026-11-20T10:00:00.000Z';
-    readReasonMock.mockResolvedValue(first);
+  // Owner decision 2026-11-27: only the latest reopen reason is kept. A second reopen replaces
+  // the first, and a retry after a failed restore writes the same note, never a second line.
+  it('keeps only the latest reason, so a retry after a failed restore leaves one note', async () => {
+    updateClassMock.mockRejectedValueOnce(new Error('queue unavailable'));
+    const input = { showId: 'show-1', reason: 'Second reason', person: 'Jane', now: NOW };
+    const note = 'Second reason\n\nReopened by Jane at 2026-11-25T18:30:00.000Z';
 
-    await reopenShow({ showId: 'show-1', reason: 'Second reason', person: 'Jane', now: NOW });
+    await expect(reopenShow(input)).rejects.toThrow();
+    await reopenShow(input);
 
-    expect(saveReasonMock).toHaveBeenCalledWith(
-      'show-1',
-      `Second reason\n\nReopened by Jane at 2026-11-25T18:30:00.000Z\n\n${first}`
-    );
+    expect(saveReasonMock).toHaveBeenCalledTimes(2);
+    expect(saveReasonMock).toHaveBeenNthCalledWith(1, 'show-1', note);
+    expect(saveReasonMock).toHaveBeenNthCalledWith(2, 'show-1', note);
   });
 
   it('changes nothing when the reason cannot be saved', async () => {

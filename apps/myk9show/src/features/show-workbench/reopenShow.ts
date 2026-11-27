@@ -4,7 +4,7 @@ import {
   replicatedShowsTable,
   replicatedTrialsTable,
 } from '@/services/replication';
-import { readReopenReason, saveReopenReason } from '@/services/database/showCloseNotes';
+import { saveReopenReason } from '@/services/database/showCloseNotes';
 import { formatReopenNote } from './showCloseNotes';
 
 /** The status a reopened show returns to: it was running when it was closed. */
@@ -32,10 +32,12 @@ export interface ReopenShowInput {
 export async function reopenShow(input: ReopenShowInput): Promise<void> {
   const at = (input.now ?? new Date()).toISOString();
   try {
-    // A second reopen keeps the first: the new note goes above what is already there.
-    const earlier = (await readReopenReason(input.showId))?.trim();
-    const note = formatReopenNote({ reason: input.reason, person: input.person, at });
-    await saveReopenReason(input.showId, earlier ? `${note}\n\n${earlier}` : note);
+    // Owner decision 2026-11-27 (MYK9-2428): only the latest reason is kept. Each reopen
+    // overwrites the note, so a retry after a failed restore writes the same text again.
+    await saveReopenReason(
+      input.showId,
+      formatReopenNote({ reason: input.reason, person: input.person, at })
+    );
   } catch {
     throw new ReopenNoteError('The reopen reason could not be saved.');
   }

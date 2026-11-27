@@ -2,6 +2,10 @@ import type { DeskPaymentLine, DeskPaymentState } from './deskPaymentTypes';
 
 const METHOD_LABEL = { cash: 'Cash', check: 'Check' } as const;
 
+/** The device could not read its saved payments: not the same as having none. */
+export const DESK_PAYMENTS_UNREADABLE =
+  'This device could not read its saved payments. Do not record a payment for this form again until it can.';
+
 function receivedAtLabel(iso: string): string {
   const at = new Date(iso);
   return Number.isNaN(at.getTime())

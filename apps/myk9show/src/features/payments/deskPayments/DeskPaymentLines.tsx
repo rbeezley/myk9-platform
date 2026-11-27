@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { deskPaymentLineText } from './deskPaymentCopy';
+import { DESK_PAYMENTS_UNREADABLE, deskPaymentLineText } from './deskPaymentCopy';
 import { useDeskPaymentLines } from './useDeskPaymentLines';
 
 interface DeskPaymentLinesProps {
@@ -13,13 +13,24 @@ interface DeskPaymentLinesProps {
  * form's balance. The balance stays the server's figure; nothing here is added to it.
  * While a payment is queued it promises an automatic send and offers nothing to press.
  * Stopped, it says it will not send on its own and offers Try again (the same payment,
- * the same id). Only a proven refusal offers Remove.
+ * the same id). Only a proven refusal offers Remove. When the device cannot read its
+ * saved payments it says so, keeps what it last knew, and offers nothing to press.
  */
 export function DeskPaymentLines({ showId, enrollmentId }: DeskPaymentLinesProps) {
-  const { lines, busyId, tryAgain, remove } = useDeskPaymentLines(showId, enrollmentId);
-  if (lines.length === 0) return null;
+  const { lines, busyId, unreadable, tryAgain, remove } = useDeskPaymentLines(showId, enrollmentId);
+  if (lines.length === 0 && !unreadable) return null;
+  const actionsOff = busyId !== null || unreadable;
   return (
     <ul className="mt-2 w-full space-y-1" aria-label="Payments on this device">
+      {unreadable && (
+        <li
+          role="alert"
+          className="text-xs text-destructive"
+          data-testid="desk-payments-unreadable"
+        >
+          {DESK_PAYMENTS_UNREADABLE}
+        </li>
+      )}
       {lines.map(line => (
         <li
           key={line.payment.id}
@@ -36,7 +47,7 @@ export function DeskPaymentLines({ showId, enrollmentId }: DeskPaymentLinesProps
               size="sm"
               variant="outline"
               className="min-h-11"
-              disabled={busyId !== null}
+              disabled={actionsOff}
               onClick={() => tryAgain(line)}
             >
               Try again
@@ -47,7 +58,7 @@ export function DeskPaymentLines({ showId, enrollmentId }: DeskPaymentLinesProps
               size="sm"
               variant="outline"
               className="min-h-11"
-              disabled={busyId !== null}
+              disabled={actionsOff}
               onClick={() => remove(line)}
             >
               Remove

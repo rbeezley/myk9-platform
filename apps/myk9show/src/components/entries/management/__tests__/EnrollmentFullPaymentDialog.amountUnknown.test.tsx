@@ -31,13 +31,14 @@ function renderDialog(amountUnknown: boolean) {
 }
 
 describe('EnrollmentFullPaymentDialog when the balance is not known', () => {
-  it('cannot be confirmed, and says the payment waits for the record', () => {
+  // MYK9-2479: Partial Payment now saves the amount she received on this device, so the
+  // note names it (Codex round 1 on #4461). Before, every other path was online-only too.
+  it('cannot be confirmed, and points at Partial Payment for the amount received', () => {
     renderDialog(true);
     expect(screen.getByRole('button', { name: 'Confirm' })).toBeDisabled();
-    const note = screen.getByTestId('full-payment-unknown-note');
-    expect(note).toHaveTextContent('Record this payment once the form’s payment record loads.');
-    // Every other recording path is online-only too, so none is offered (round 2).
-    expect(note).not.toHaveTextContent(/Partial Payment/i);
+    expect(screen.getByTestId('full-payment-unknown-note')).toHaveTextContent(
+      'Paid in Full needs the balance, which has not loaded. Use Partial Payment to record the amount you received.'
+    );
     expect(screen.queryByText('$50.00')).not.toBeInTheDocument();
   });
 

@@ -29,8 +29,11 @@ export type DeskPaymentSaveResult =
   | { kind: 'refused'; error: unknown }
   /** Saved on this device and queued under the same id. `sendBegun`: a send went out unanswered. */
   | { kind: 'queued'; sendBegun: boolean }
-  /** Not saved on this device (no queue owner, storage refused, an amount that is not money). */
-  | { kind: 'not-saved'; error: unknown };
+  /**
+   * Not saved on this device, so NOTHING was sent: `invalid-amount` is not whole cents above
+   * $0; `not-stored` is storage refusing it or no queue owner. Never sent without a record.
+   */
+  | { kind: 'not-saved'; reason: 'invalid-amount' | 'not-stored'; error: unknown };
 
 /** Whole cents, positive: the only amounts a desk payment carries. */
 function wholeCents(amount: number): number | null {
@@ -61,6 +64,28 @@ async function settleQuietly(deps: DeskPaymentDeps, id: string): Promise<void> {
   }
 }
 
+/** True once the record, its queue row and any dead letter are gone; false if they may remain. */
+async function settledOrKept(deps: DeskPaymentDeps, id: string): Promise<boolean> {
+  try {
+    await deps.table.settle(id);
+    return true;
+  } catch (error) {
+    logger.warn(
+      'A refused desk payment could not be settled; it stays queued',
+      'secretary',
+      {},
+      error as Error
+    );
+    return false;
+  }
+}
+
+function handToQueue(deps: DeskPaymentDeps, id: string): void {
+  void deps.queue.sendRowNow(DESK_PAYMENTS_TABLE, id).catch(err => {
+    logger.warn('Desk payment hand-off to the queue failed', 'secretary', {}, err as Error);
+  });
+}
+
 /**
  * MYK9-2479: record one cash or check payment. It is saved on this device FIRST,
  * the record and its queue row in one transaction, then (online) sent at once with
@@ -78,6 +103,7 @@ export async function saveDeskPayment(
   if (cents === null) {
     return {
       kind: 'not-saved',
+      reason: 'invalid-amount',
       error: new Error('A payment amount must be whole cents above $0.'),
     };
   }
@@ -100,7 +126,7 @@ export async function saveDeskPayment(
       online ? deps.now() + DESK_PAYMENT_WAIT_MS + HOLD_MARGIN_MS : undefined
     );
   } catch (error) {
-    return { kind: 'not-saved', error };
+    return { kind: 'not-saved', reason: 'not-stored', error };
   }
   if (!online) return { kind: 'queued', sendBegun: false };
 
@@ -115,16 +141,20 @@ export async function saveDeskPayment(
     await settleQuietly(deps, payment.id);
     return { kind: 'saved', recorded };
   } catch (error) {
-    if (!controller.signal.aborted && isAnsweredRefusal(error)) {
-      // Stays in the dialog, as before: she sees why and can fix what she typed.
-      await settleQuietly(deps, payment.id);
+    // Stays in the dialog, as before, so she sees why and can fix what she typed: but
+    // "not recorded" invites a re-entry under a NEW id, so it is said only once the queued
+    // write is gone. Not settled, the original could still replay beside her re-entry, so
+    // it stays on its line under its own id instead, and the queue's answer decides it.
+    if (
+      !controller.signal.aborted &&
+      isAnsweredRefusal(error) &&
+      (await settledOrKept(deps, payment.id))
+    ) {
       return { kind: 'refused', error };
     }
     // No answer (a transport failure, or the wait ran out): the queue sends it again,
     // under the same id, without her doing anything.
-    void deps.queue.sendRowNow(DESK_PAYMENTS_TABLE, payment.id).catch(err => {
-      logger.warn('Desk payment hand-off to the queue failed', 'secretary', {}, err as Error);
-    });
+    handToQueue(deps, payment.id);
     return { kind: 'queued', sendBegun: true };
   } finally {
     clearTimeout(timer);

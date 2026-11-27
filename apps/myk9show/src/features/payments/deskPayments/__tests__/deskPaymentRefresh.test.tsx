@@ -8,7 +8,7 @@ import type { DeskPaymentDeps } from '../deskPaymentDeps';
 import { announceDeskPaymentsRecorded } from '../deskPaymentEvents';
 import type { DeskPaymentsTable, StoredDeskPayment } from '../DeskPaymentsTable';
 import type { LocalDeskPayment } from '../deskPaymentTypes';
-import { useDeskPaymentLines } from '../useDeskPaymentLines';
+import { DESK_PAYMENT_LINES_POLL_MS, useDeskPaymentLines } from '../useDeskPaymentLines';
 import { useDeskPaymentRefresh, useReloadOnDeskPaymentsRecorded } from '../useDeskPaymentRefresh';
 
 function payment(id: string, enrollmentId: string): LocalDeskPayment {
@@ -54,15 +54,16 @@ describe('refresh after a replayed desk payment (MYK9-2479)', () => {
 });
 
 describe('useDeskPaymentLines (MYK9-2479)', () => {
-  function setup() {
+  function setup(listForShow?: DeskPaymentsTable['listForShow']) {
     let stored: StoredDeskPayment[] = [
       { payment: payment('pay-1', 'enr-1'), acknowledged: false },
       { payment: payment('pay-2', 'enr-2'), acknowledged: false },
     ];
-    const queued = (rowId: string) => ({ id: `mut-${rowId}`, rowId, retries: 0 });
+    let retries = 0;
+    const queued = (rowId: string) => ({ id: `mut-${rowId}`, rowId, retries });
     const deps = {
       table: {
-        listForShow: vi.fn(async () => stored),
+        listForShow: listForShow ?? vi.fn(async () => stored),
         subscribe: vi.fn(() => () => undefined),
         settle: vi.fn(),
       } as unknown as DeskPaymentsTable,
@@ -91,6 +92,10 @@ describe('useDeskPaymentLines (MYK9-2479)', () => {
       setStored: (next: StoredDeskPayment[]) => {
         stored = next;
       },
+      /** The queue retried it: a pass with only retryable failures announces nothing. */
+      retryQuietly: () => {
+        retries += 1;
+      },
       switchAccount: (next: string) => {
         userId = next;
         view.rerender();
@@ -109,6 +114,59 @@ describe('useDeskPaymentLines (MYK9-2479)', () => {
     });
 
     await waitFor(() => expect(result.current.lines).toEqual([]));
+  });
+
+  // Codex round 1 on #4461: a retry-only upload pass fires no event, and another tab's
+  // events never reach this one, so a shown line re-reads on its own.
+  it('a quiet retry still updates a shown line within 15 seconds', async () => {
+    // Only the hook's interval is faked; vi.waitFor polls on the real clock.
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    try {
+      const { result, retryQuietly } = setup();
+      await vi.waitFor(() => expect(result.current.lines[0]?.state).toBe('waiting'));
+
+      retryQuietly();
+      act(() => {
+        vi.advanceTimersByTime(DESK_PAYMENT_LINES_POLL_MS);
+      });
+
+      await vi.waitFor(() => expect(result.current.lines[0]?.state).toBe('unconfirmed'));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('coming back to the tab re-reads its lines', async () => {
+    const { result, retryQuietly } = setup();
+    await waitFor(() => expect(result.current.lines[0]?.state).toBe('waiting'));
+
+    retryQuietly();
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+
+    await waitFor(() => expect(result.current.lines[0]?.state).toBe('unconfirmed'));
+  });
+
+  it('a failed re-read keeps the known lines, stops their actions and says so', async () => {
+    const { result, deps } = setup();
+    await waitFor(() => expect(result.current.lines).toHaveLength(1));
+
+    vi.mocked(deps.table.listForShow).mockRejectedValueOnce(new Error('IndexedDB read failed'));
+    act(() => {
+      window.dispatchEvent(new CustomEvent('replication:upload-complete', { detail: {} }));
+    });
+
+    await waitFor(() => expect(result.current.unreadable).toBe(true));
+    expect(result.current.lines.map(l => l.payment.id)).toEqual(['pay-1']);
+  });
+
+  it('a first read that fails says the device could not read, not that nothing is saved', async () => {
+    const listForShow = vi.fn().mockRejectedValue(new Error('IndexedDB read failed'));
+    const { result } = setup(listForShow);
+
+    await waitFor(() => expect(result.current.unreadable).toBe(true));
+    expect(result.current.lines).toEqual([]);
   });
 
   it("hides the earlier account's lines at once after an account switch", async () => {

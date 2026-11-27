@@ -6,7 +6,13 @@ import type { DeskPaymentLine, DeskPaymentState, LocalDeskPayment } from '../des
 import type { DeskPaymentLinesState } from '../useDeskPaymentLines';
 
 const hook = vi.hoisted(() => ({
-  state: { lines: [], busyId: null, tryAgain: vi.fn(), remove: vi.fn() } as DeskPaymentLinesState,
+  state: {
+    lines: [],
+    busyId: null,
+    unreadable: false,
+    tryAgain: vi.fn(),
+    remove: vi.fn(),
+  } as DeskPaymentLinesState,
   calls: [] as unknown[][],
 }));
 
@@ -30,16 +36,20 @@ const PAYMENT: LocalDeskPayment = {
   sendBegun: false,
 };
 
-function renderLine(state: DeskPaymentState, extra: Partial<DeskPaymentLine> = {}) {
+function renderLine(
+  state: DeskPaymentState,
+  extra: Partial<DeskPaymentLine> = {},
+  unreadable = false
+) {
   const line: DeskPaymentLine = { payment: PAYMENT, state, ...extra };
-  hook.state = { lines: [line], busyId: null, tryAgain: vi.fn(), remove: vi.fn() };
+  hook.state = { lines: [line], busyId: null, unreadable, tryAgain: vi.fn(), remove: vi.fn() };
   render(<DeskPaymentLines showId="show-1" enrollmentId="enr-1" />);
   return { line, ...hook.state };
 }
 
 describe('DeskPaymentLines (MYK9-2479)', () => {
   it('renders nothing when this device holds no payment for the form', () => {
-    hook.state = { lines: [], busyId: null, tryAgain: vi.fn(), remove: vi.fn() };
+    hook.state = { lines: [], busyId: null, unreadable: false, tryAgain: vi.fn(), remove: vi.fn() };
     render(<DeskPaymentLines showId="show-1" enrollmentId="enr-1" />);
 
     expect(screen.queryByTestId('desk-payment-line')).not.toBeInTheDocument();
@@ -84,6 +94,27 @@ describe('DeskPaymentLines (MYK9-2479)', () => {
     );
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Remove' })).not.toBeInTheDocument();
+  });
+
+  // Codex round 1 on #4461: an unreadable queue is not an empty one.
+  it('an unreadable device says so, keeps its known lines and stops their actions', () => {
+    renderLine('unconfirmed-stopped', { failedMutationId: 'mut-1' }, true);
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'This device could not read its saved payments. Do not record a payment for this form again until it can.'
+    );
+    expect(screen.getByTestId('desk-payment-line')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeDisabled();
+  });
+
+  it('says so even when it has never read a line', () => {
+    hook.state = { lines: [], busyId: null, unreadable: true, tryAgain: vi.fn(), remove: vi.fn() };
+    render(<DeskPaymentLines showId="show-1" enrollmentId="enr-1" />);
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'This device could not read its saved payments.'
+    );
+    expect(screen.queryByTestId('desk-payment-line')).not.toBeInTheDocument();
   });
 
   it('a proven refusal says why it could not be sent and offers Remove only', () => {

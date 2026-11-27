@@ -12,20 +12,34 @@ import {
 } from './deskPaymentReader';
 import type { DeskPaymentLine } from './deskPaymentTypes';
 
+/**
+ * How often a form with something shown re-reads with no event (Codex round 1 on #4461):
+ * an upload pass with only retryable failures announces nothing, and another tab's
+ * queue events stay in that tab. No cross-tab channel exists in the app to reuse.
+ */
+export const DESK_PAYMENT_LINES_POLL_MS = 15_000;
+
 const REFRESH_EVENTS = [...UNSENT_WORK_REFRESH_EVENTS, DESK_PAYMENTS_RECORDED_EVENT, 'online'];
 
 export interface DeskPaymentLinesState {
   lines: DeskPaymentLine[];
   /** The action in progress, by payment id, so its button cannot be pressed twice. */
   busyId: string | null;
+  /**
+   * The last read of this device's payments failed. `lines` are the last ones known for
+   * this show and account (none, if no read has worked yet) and their actions are off:
+   * an unreadable queue is not an empty one.
+   */
+  unreadable: boolean;
   tryAgain: (line: DeskPaymentLine) => void;
   remove: (line: DeskPaymentLine) => void;
 }
 
 /**
  * MYK9-2479: one form's payments held on this device, for the signed-in account only.
- * Re-read on every queue event, every local write, and an account switch, so a line
- * follows its payment from "waiting to send" until it is proven recorded and goes.
+ * Re-read on every queue event, every local write, an account switch, a return to the
+ * tab, and every 15 seconds while something is shown, so a line follows its payment from
+ * "waiting to send" until it is proven recorded and goes.
  */
 export function useDeskPaymentLines(
   showId: string | undefined,
@@ -38,6 +52,7 @@ export function useDeskPaymentLines(
     showId: string;
     owner: string | null;
     lines: DeskPaymentLine[];
+    unreadable: boolean;
   } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const ledgerCache = useRef<LedgerCheckCache | null>(null);
@@ -48,11 +63,20 @@ export function useDeskPaymentLines(
     if (!showId) return;
     readDeskPaymentLines(showId, deps, ledgerCache)
       .then(next => {
-        if (request === latest.current) setRead({ showId, owner: authUserId, lines: next });
+        if (request === latest.current) {
+          setRead({ showId, owner: authUserId, lines: next, unreadable: false });
+        }
       })
       .catch(error => {
-        // An unreadable device shows no line rather than an earlier read; the next event reads again.
-        if (request === latest.current) setRead({ showId, owner: authUserId, lines: [] });
+        // Keep what was last known for this show and account, and say the read failed:
+        // showing nothing would read as "nothing waiting" and invite a second payment.
+        if (request === latest.current) {
+          setRead(prev =>
+            prev && prev.showId === showId && prev.owner === authUserId
+              ? { ...prev, unreadable: true }
+              : { showId, owner: authUserId, lines: [], unreadable: true }
+          );
+        }
         logger.warn('Desk payments could not be read', 'secretary', {}, error as Error);
       });
   }, [authUserId, deps, showId]);
@@ -60,22 +84,36 @@ export function useDeskPaymentLines(
   useEffect(() => {
     refresh();
     const unsubscribe = deps.table.subscribe(() => refresh());
+    const onVisible = () => {
+      if (document.visibilityState !== 'hidden') refresh();
+    };
     for (const name of REFRESH_EVENTS) window.addEventListener(name, refresh);
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
       latest.current += 1;
       unsubscribe();
       for (const name of REFRESH_EVENTS) window.removeEventListener(name, refresh);
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, [deps, refresh]);
 
+  const current = read && read.showId === showId && read.owner === authUserId ? read : null;
   const lines =
-    read && read.showId === showId && read.owner === authUserId && enrollmentId
-      ? read.lines.filter(line => line.payment.enrollmentId === enrollmentId)
+    current && enrollmentId
+      ? current.lines.filter(line => line.payment.enrollmentId === enrollmentId)
       : [];
+  const unreadable = current?.unreadable ?? false;
+  const polling = lines.length > 0 || unreadable;
+
+  useEffect(() => {
+    if (!polling) return undefined;
+    const timer = setInterval(refresh, DESK_PAYMENT_LINES_POLL_MS);
+    return () => clearInterval(timer);
+  }, [polling, refresh]);
 
   const run = useCallback(
     (line: DeskPaymentLine, action: () => Promise<void>) => {
-      if (busyId) return;
+      if (busyId || unreadable) return;
       setBusyId(line.payment.id);
       ledgerCache.current = null;
       void action()
@@ -86,12 +124,13 @@ export function useDeskPaymentLines(
           refresh();
         });
     },
-    [busyId, refresh]
+    [busyId, refresh, unreadable]
   );
 
   return {
     lines,
     busyId,
+    unreadable,
     tryAgain: line => run(line, () => retryDeskPayment(line, deps)),
     remove: line => run(line, () => removeRefusedDeskPayment(line, deps)),
   };

@@ -216,6 +216,29 @@ describe('useEnrollmentLedgerActions', () => {
     );
   });
 
+  // Codex round 1 on #4461: a payment this device could not keep is never sent, online or not.
+  it('a payment this device could not save sends nothing, even online, and keeps the dialog', async () => {
+    vi.spyOn(logger, 'error').mockImplementation(() => {});
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+    const { outcome } = await recordPayment({ kind: 'not-saved', reason: 'not-stored' });
+
+    expect(outcome).toBe('failed');
+    expect(mocks.record).not.toHaveBeenCalled();
+    expect(mocks.toastError).toHaveBeenCalledWith(
+      'This device could not save the payment, so nothing was sent. Try again, or write it down and record it later.'
+    );
+  });
+
+  it('an amount that is not money says so, not that the connection is down', async () => {
+    const { outcome } = await recordPayment({ kind: 'not-saved', reason: 'invalid-amount' });
+
+    expect(outcome).toBe('failed');
+    expect(mocks.record).not.toHaveBeenCalled();
+    expect(mocks.toastError).toHaveBeenCalledWith(
+      'Payment not saved: enter an amount above $0.00, in dollars and cents.'
+    );
+  });
+
   it('a refusal inside the wait stays in the dialog with its reason', async () => {
     vi.spyOn(logger, 'error').mockImplementation(() => {});
     const { outcome, setEntries } = await recordPayment({

@@ -177,6 +177,31 @@ describe('desk payments on the offline queue (MYK9-2479)', () => {
     );
   });
 
+  it('an amount that is not whole cents is not saved, and says why', async () => {
+    const result = await saveDeskPayment(ENROLLMENT, { ...PAYMENT, amount: 0.005 }, FORM, deps);
+
+    expect(result).toMatchObject({ kind: 'not-saved', reason: 'invalid-amount' });
+    expect(await table.listForShow(SHOW)).toEqual([]);
+  });
+
+  // Codex round 1 on #4461: "not recorded" invites a re-entry under a new id, so it is said
+  // only once nothing is left that could still send the original.
+  it('a refusal whose record could not be settled stays on its line under the same id', async () => {
+    const refused = { code: '22023', message: 'a payment amount must be greater than zero' };
+    behaviors = [refused, refused];
+    vi.spyOn(table, 'settle').mockRejectedValueOnce(new Error('IndexedDB write failed'));
+
+    const result = await saveDeskPayment(ENROLLMENT, PAYMENT, FORM, deps);
+
+    expect(result).toEqual({ kind: 'queued', sendBegun: true });
+    await vi.waitFor(async () =>
+      expect(await store(REPLICATION_STORES.FAILED_MUTATIONS)).toHaveLength(1)
+    );
+    const lines = await readDeskPaymentLines(SHOW, deps);
+    expect(lines.map(line => [line.payment.id, line.state])).toEqual([[ID, 'refused']]);
+    expectOneIdAndAmount();
+  });
+
   it('online: the answer settles the record and its queue row', async () => {
     const result = await saveDeskPayment(ENROLLMENT, PAYMENT, FORM, deps);
 

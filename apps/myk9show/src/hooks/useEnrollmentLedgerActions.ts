@@ -97,9 +97,13 @@ const QUEUED_OFFLINE =
   'Payment saved on this device. It will be sent on its own when the connection returns.';
 const QUEUED_UNCONFIRMED =
   'Payment saved on this device, not confirmed yet. It will be sent again on its own.';
-/** The plan's § 3 note: the payment could not be kept on this device. */
-const NOT_SAVED_OFFLINE =
-  "No connection. Write the payment down and record it here when you're back online.";
+/**
+ * The payment could not be kept on this device, so it was NOT sent (Codex round 1 on
+ * #4461): a send with no record here has nothing to replay when its answer is lost.
+ */
+const NOT_SAVED_ON_DEVICE =
+  'This device could not save the payment, so nothing was sent. Try again, or write it down and record it later.';
+const NOT_SAVED_AMOUNT = 'Payment not saved: enter an amount above $0.00, in dollars and cents.';
 
 /**
  * MYK9-1824: what the secretary reads when a payment write fails. The RPCs'
@@ -230,18 +234,19 @@ export function useEnrollmentLedgerActions({
         toast.warning(result.sendBegun ? QUEUED_UNCONFIRMED : QUEUED_OFFLINE);
         return 'queued';
       }
+      // Not saved here, so nothing was sent: the dialog keeps what she typed.
+      if (result.reason === 'invalid-amount') {
+        toast.error(NOT_SAVED_AMOUNT);
+        return 'failed';
+      }
       logger.error(
         'Desk payment not saved on this device:',
         'secretary',
         {},
         result.error as Error
       );
-      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-        toast.error(NOT_SAVED_OFFLINE);
-        return 'failed';
-      }
-      // Online with no way to keep it here: send it as before, answer or nothing.
-      return apply(enrollmentId, () => recordEnrollmentPayment(enrollmentId, action));
+      toast.error(NOT_SAVED_ON_DEVICE);
+      return 'failed';
     },
     [apply]
   );

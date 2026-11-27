@@ -65,7 +65,10 @@ vi.mock('@/components/shows/wizard/steps/OfficialPicker', () => ({
             lastName: 'Raman',
             email: 'p@example.com',
             phone: '(555) 010-2020',
-          }).then(onSelect)
+          })
+            .then(onSelect)
+            // The real picker shows a refusal inline; the stand-in only swallows it.
+            .catch(() => undefined)
         }
       >{`add new ${label}`}</button>
     </>
@@ -101,6 +104,38 @@ describe('ShowOfficialsEditor replace', () => {
 
     expect(screen.getByTestId('excluded Chair')).toHaveTextContent('s1,s2');
     expect(screen.getByTestId('excluded Secretary')).toHaveTextContent('c1,c2');
+  });
+
+  // Codex round 3 (MYK9-2493): the cached list can be minutes old, so the other-role check is
+  // made on the fresh server read before anything is granted or updated.
+  it('refuses a Chair the server already has as Secretary, though the cache does not show it', async () => {
+    harness.cached = { secretaries: [], chairmen: [], stewards: [] };
+    harness.officials.secretaries = [holder('new-person', 'Alex', 'Whitfield')];
+    renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'pick Chair' }));
+
+    expect(
+      await screen.findByText(
+        'Alex Whitfield is already the Secretary. Pick a different person for Chair.'
+      )
+    ).toBeInTheDocument();
+    expect(harness.rpc).not.toHaveBeenCalledWith('grant_show_official', expect.anything());
+  });
+
+  it('refuses "Add new" for an email whose person the server has in the other role, before updating the phone', async () => {
+    harness.cached = { secretaries: [], chairmen: [], stewards: [] };
+    harness.people = [
+      { id: 'sec-1', firstName: 'Priya', lastName: 'Raman', email: 'p@example.com', phone: '' },
+    ];
+    harness.officials.secretaries = [holder('sec-1', 'Priya', 'Raman')];
+    renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'add new Chair' }));
+
+    await waitFor(() => expect(harness.rpc).not.toHaveBeenCalled());
+    expect(harness.updateUser).not.toHaveBeenCalled();
+    expect(harness.createUser).not.toHaveBeenCalled();
   });
 
   it('assigning a second Chair revokes the first', async () => {

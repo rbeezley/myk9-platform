@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '@/test/utils/testUtils';
+import type { OfficialPickerProps } from '@/components/shows/wizard/steps/OfficialPicker';
 
 const harness = vi.hoisted(() => ({
   rpc: vi.fn(),
@@ -51,16 +52,7 @@ vi.mock('@/components/shows/wizard/steps/OfficialPicker', () => ({
     label,
     onSelect,
     onCreatePerson,
-  }: {
-    label: string;
-    onSelect: (id: string) => Promise<void>;
-    onCreatePerson: (data: {
-      firstName: string;
-      lastName: string;
-      email: string;
-      phone: string;
-    }) => Promise<string>;
-  }) => (
+  }: Pick<OfficialPickerProps, 'label' | 'onSelect' | 'onCreatePerson'>) => (
     <>
       <button onClick={() => void onSelect('new-person')}>{`pick ${label}`}</button>
       {/* The real picker's "Add new": create the person, then select the id it returns. */}

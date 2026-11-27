@@ -9,13 +9,10 @@ import { useShallow } from 'zustand/react/shallow';
 import { useUserStore } from '@/store/userStore';
 import { createUser, updateUser } from '@/services/database/users';
 import { personEmailsMatch } from '@/utils/personIdentity';
+import type { CreatePersonData } from './OfficialPicker';
 
-export interface NewOfficialPerson {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-}
+/** What the picker's "Add new" form collects: one type, so a new field cannot be dropped. */
+export type NewOfficialPerson = CreatePersonData;
 
 /** Returns the person's id: the existing person with this email, or the one just created. */
 export function useCreateOfficialPerson(): (data: NewOfficialPerson) => Promise<string> {
@@ -24,12 +21,7 @@ export function useCreateOfficialPerson(): (data: NewOfficialPerson) => Promise<
   );
 
   return useCallback(
-    async (data: {
-      firstName: string;
-      lastName: string;
-      email: string;
-      phone: string;
-    }): Promise<string> => {
+    async (data: NewOfficialPerson): Promise<string> => {
       // Dedup guard: if a person with this email already exists, reuse them
       // instead of creating a duplicate record. Email is the reliable identity
       // key (name alone is too weak — two different "John Smith"s are common).

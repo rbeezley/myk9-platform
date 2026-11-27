@@ -222,4 +222,61 @@ describe("Use the show's current details in the editor", () => {
     expect(screen.getByDisplayValue('Fresh hours')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Info')).toBeInTheDocument();
   });
+  describe('after a remount that restores a draft', () => {
+    const restoredCache = () => {
+      const stale: GeneratedPremium = {
+        ...generatedPremium(),
+        builtNarratives: { showHours: 'Last visit hours', trialInformation: 'Last visit trials' },
+      };
+      return {
+        draft: {
+          showId: 'show-1',
+          original: stale,
+          supplemental: stale.supplemental,
+          narratives: { showHours: 'Typed hours', trialInformation: 'Typed trials' },
+          generationError: null,
+          inkSaver: false,
+        },
+        loadedKey: null,
+      };
+    };
+    const mount = (initialPremium: GeneratedPremium | undefined) =>
+      render(
+        <PremiumContentEditor
+          showId="show-1"
+          clubId="club-1"
+          showOrg="AKC"
+          active
+          draftCache={restoredCache()}
+          {...(initialPremium ? { initialPremium } : {})}
+        />
+      );
+
+    it("offers the fresh facts' text, never the restored draft's, and keeps the typed text", async () => {
+      mount({
+        ...generatedPremium(),
+        builtNarratives: { showHours: 'Fresh hours', trialInformation: 'Fresh trials' },
+      });
+      fireEvent.click(
+        await screen.findByRole('button', {
+          name: "Use the show's current details for Show Hours",
+        })
+      );
+      expect(screen.getByDisplayValue('Fresh hours')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('Typed trials')).toBeInTheDocument();
+      expect(screen.queryByDisplayValue('Last visit hours')).not.toBeInTheDocument();
+    });
+
+    it('offers no link when the current facts carry no built text', async () => {
+      mount(generatedPremium());
+      await screen.findByDisplayValue('Typed hours');
+      expect(screen.queryByRole('button', { name: LINK })).not.toBeInTheDocument();
+    });
+
+    it('offers no link when the facts request has not produced a premium', async () => {
+      mount(undefined);
+      await screen.findByDisplayValue('Typed hours');
+      expect(screen.queryByRole('button', { name: LINK })).not.toBeInTheDocument();
+    });
+  });
 });

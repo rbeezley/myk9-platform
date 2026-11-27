@@ -6,6 +6,7 @@ import { notifications } from '@/lib/notifications';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useCurrentBuiltNarratives } from './useCurrentBuiltNarratives';
 import { useGeneratePremium } from './useGeneratePremium';
 import { PremiumEditorFields } from './PremiumEditorFields';
 import { PREMIUM_PENDING_REASON } from './premiumPendingCopy';
@@ -18,7 +19,6 @@ import { withGenerationTimeout } from './withGenerationTimeout';
 import { stripPlaceholderNarratives } from './premiumNarratives';
 import { PremiumPdfPreviewOverlay } from './PremiumPdfPreviewOverlay';
 import { cachedDraftFor, withFreshFacts, type PremiumDraftCache } from './premiumDraftCache';
-import { useBuiltNarratives } from './useBuiltNarratives';
 import { buildFinalPremium } from './buildFinalPremium';
 import { usePremiumDraftSync } from './usePremiumDraftSync';
 import type { GeneratedPremium, PremiumStyle } from '../../types/premium-types';
@@ -73,7 +73,7 @@ export function PremiumContentEditor({
   const [original, setOriginal] = useState<GeneratedPremium | null>(
     () => restored?.original ?? initialPremium ?? null
   );
-  const [built, setBuilt] = useBuiltNarratives(initialPremium, restored?.original);
+  const [built, setBuilt] = useCurrentBuiltNarratives(initialPremium?.builtNarratives);
   const [supplemental, setSupplemental] = useState<GeneratedPremium['supplemental'] | null>(
     () => restored?.supplemental ?? initialPremium?.supplemental ?? null
   );

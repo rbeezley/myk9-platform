@@ -159,10 +159,7 @@ async function readRowsByIdChunks<T>(
   return batches.flat();
 }
 
-async function loadSecretaryPeopleMap(
-  entries: readonly ReplicatedEntry[]
-): Promise<SecretaryPeopleSnapshot> {
-  const uniqueIds = collectHandlerIdentityIds(entries);
+async function loadSecretaryPeopleMap(uniqueIds: string[]): Promise<SecretaryPeopleSnapshot> {
   if (uniqueIds.length === 0) return { peopleMap: new Map(), authoritative: true };
 
   try {
@@ -370,6 +367,12 @@ export function toSecretaryEntry(
           paid_amount: enrollment.paid_amount,
           card_covered_cents: enrollment.card_covered_cents,
           handler_id: enrollment.handler_id,
+          // Left off when the person could not be read, so the recipient is unknown, not blank.
+          ...(!enrollment.handler_id
+            ? { payer: null }
+            : peopleMap.has(enrollment.handler_id)
+              ? { payer: { email: peopleMap.get(enrollment.handler_id)?.email ?? null } }
+              : {}),
           refund_amount: enrollment.refund_amount,
           refund_notes: enrollment.refund_notes,
           refunded_at: enrollment.refunded_at,
@@ -456,12 +459,21 @@ export async function getReplicatedSecretaryEntriesForShow(showId: string) {
   );
   const [secretaryPeople, hydratedHandlerPeople, enrollmentsMap, pullMetadataMap] =
     await Promise.all([
-      loadSecretaryPeopleMap(entriesWithOwners),
+      loadSecretaryPeopleMap(collectHandlerIdentityIds(entriesWithOwners)),
       loadHandlerPeople(collectHandlerIdentityIds(entriesWithOwners)),
       loadSecretaryEnrollmentsMap(entries),
       entries.length > 0 ? loadSecretaryPullMetadataMap(showId) : Promise.resolve(new Map()),
     ]);
-  const peopleMap = secretaryPeople.peopleMap;
+  const peopleMap = new Map(secretaryPeople.peopleMap);
+  // The enrollment's handler is who a decision email reaches (MYK9-2483) and is usually already
+  // loaded; read the rest. A failed read leaves them out: an unknown address, never a blank one.
+  const missingPayers = [...enrollmentsMap.values()].flatMap(e =>
+    e.handler_id && !peopleMap.has(e.handler_id) ? [e.handler_id] : []
+  );
+  if (secretaryPeople.authoritative && missingPayers.length > 0) {
+    const payers = await loadSecretaryPeopleMap([...new Set(missingPayers)]);
+    payers.peopleMap.forEach((person, id) => peopleMap.set(id, person));
+  }
   const handlerIdentityPeopleMap = secretaryPeople.authoritative
     ? handlerPeopleMapFromRows(peopleMap.values())
     : hydratedHandlerPeople;

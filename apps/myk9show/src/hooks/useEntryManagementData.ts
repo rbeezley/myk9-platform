@@ -215,6 +215,10 @@ export function mapSecretaryEntryToEntryManagementEntry(
       ? { enrollmentPaymentReference: entry.registration.payment_reference }
       : {}),
     enrollmentPayerId: entry.registration?.handler_id ?? null,
+    // Absent (not blank) when the handler's address was not read: the recipient is unknown.
+    ...(entry.registration && entry.registration.payer !== undefined
+      ? { enrollmentPayerEmail: entry.registration.payer?.email ?? '' }
+      : {}),
     enrollmentTotalAmount: entry.registration?.total_amount ?? null,
     enrollmentPaidAmount: entry.registration?.paid_amount ?? null,
     enrollmentCardCoveredCents: entry.registration?.card_covered_cents ?? null,

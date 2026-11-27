@@ -9,6 +9,7 @@ import type {
   StatusChangeOptions,
 } from '@/types/entry-management-types';
 import { getEligibleForBulkStatusChange } from './bulkActionEligibility';
+import { exhibitorContactEmail } from './exhibitorContactEmail';
 
 type SingleStatusChange = (
   entryId: string,
@@ -103,9 +104,30 @@ export function useDecisionEmailedStatusChange({
     if (groups.length === 1 && groups[0]) {
       openDecisionPrompt(groups[0], stepType);
     } else if (groups.length > 1) {
-      toast.info(
-        `${groups.length} ${EMAIL_NAME[stepType]} emails were not sent automatically. Use "Email Exhibitor" on each entry form.`
-      );
+      // Email Exhibitor is not offered on a form with no address (MYK9-2483), so only the
+      // forms it is offered on are sent there; the rest are named as needing another way.
+      const reachable = groups.filter(group => exhibitorContactEmail(group[0]).length > 0).length;
+      const unreachable = groups.length - reachable;
+      const email = EMAIL_NAME[stepType];
+      const noAddress =
+        unreachable === 1
+          ? '1 exhibitor has no email address on file'
+          : `${unreachable} exhibitors have no email address on file`;
+      if (reachable === 0) {
+        toast.info(
+          `${noAddress}, so no ${email} ${unreachable === 1 ? 'email' : 'emails'} could be sent. Let them know another way.`
+        );
+      } else if (unreachable === 0) {
+        toast.info(
+          `${reachable} ${email} emails were not sent automatically. Use "Email Exhibitor" on each entry form.`
+        );
+      } else {
+        const sent =
+          reachable === 1
+            ? `1 ${email} email was not sent automatically. Use "Email Exhibitor" on that entry form.`
+            : `${reachable} ${email} emails were not sent automatically. Use "Email Exhibitor" on each of those entry forms.`;
+        toast.info(`${sent} ${noAddress}, so let them know another way.`);
+      }
     }
   };
 

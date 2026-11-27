@@ -139,6 +139,24 @@ describe('getReplicatedSecretaryEntriesForShow enrichment reads', () => {
     expect(data.every(entry => entry.refund_decision_unknown === true)).toBe(true);
   });
 
+  // MYK9-2483: the decision email goes to the enrollment's handler, who need not be the entry's
+  // own handler, so that person is read and their address rides on the registration.
+  it('reads the enrollment handler apart from the entry handler and carries their email', async () => {
+    entriesWith(1);
+    fakeEnrichmentTables(async (relation, ids) => ({
+      data: ids.map(id =>
+        relation === 'people'
+          ? { id, email: `${id}@example.com` }
+          : { ...ENROLLMENT(id), handler_id: 'payer-1' }
+      ),
+      error: null,
+    }));
+
+    const { data } = await getReplicatedSecretaryEntriesForShow('show-1');
+
+    expect(data[0]?.registration?.payer).toEqual({ email: 'payer-1@example.com' });
+  });
+
   it('treats a failed chunk as enrichment unavailable rather than a partial map', async () => {
     entriesWith(ID_CHUNK_SIZE + 5);
     let calls = 0;

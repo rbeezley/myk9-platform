@@ -107,6 +107,8 @@ export interface SecretaryEntry {
     card_covered_cents: number | null;
     /** `enrollments.handler_id`: the person who placed the order, the one the form's money belongs to. */
     handler_id?: string | null;
+    /** The placing person's email, joined for the decision email's recipient (MYK9-2483). Absent when it could not be read. */
+    payer?: { email: string | null } | null;
     refund_amount: number | null;
     refund_notes: string | null;
     refunded_at: string | null;

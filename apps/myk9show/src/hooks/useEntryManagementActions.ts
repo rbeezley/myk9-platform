@@ -22,6 +22,7 @@ import { createBulkDecisionSnapshot } from './bulkDecisionSnapshot';
 import { dayOfDogLabel, entryStatusChangedMessage } from '@/features/show-map/dayOfMessages';
 import { showUndoToast, STATUS_UNDO_WINDOW_MS } from '@/lib/undoToast';
 import { CLOSED_STATUSES } from '@/components/entries/management/bulkActionEligibility';
+import { exhibitorContactEmail } from '@/components/entries/management/exhibitorContactEmail';
 import { getNextArmbandForShow, setEntryArmband } from '@/services/database/armbands';
 import {
   ENTRY_ACTION_COPY as COPY,
@@ -622,7 +623,9 @@ export function useEntryManagementActions({
       if (registrationEntries.length === 0) return;
 
       const first = registrationEntries[0];
-      if (!first.ownerEmail) {
+      // The server mails the enrollment's handler, so that is the address that must exist.
+      const recipientEmail = exhibitorContactEmail(first);
+      if (!recipientEmail) {
         toast.error('No email address on file for this exhibitor.');
         return;
       }
@@ -647,7 +650,7 @@ export function useEntryManagementActions({
         const { error } = await supabase.functions.invoke('send-email', {
           body: {
             type: 'entry_decision',
-            to: first.ownerEmail,
+            to: recipientEmail,
             exhibitorName: first.ownerName,
             showName: selectedShow?.name ?? 'the show',
             showDate: selectedShow?.start_date ?? '',
@@ -664,7 +667,7 @@ export function useEntryManagementActions({
           },
         });
         if (error) throw error;
-        toast.success(`Decision email sent to ${first.ownerEmail}`);
+        toast.success(`Decision email sent to ${recipientEmail}`);
       } catch (err) {
         logger.warn('Failed to send decision email', 'pages', {}, err as Error);
         toast.error('Entry decision is saved. The email did not send yet.');

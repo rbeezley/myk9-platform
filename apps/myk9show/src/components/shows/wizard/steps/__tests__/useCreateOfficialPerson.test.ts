@@ -4,12 +4,13 @@ import { renderHook } from '@testing-library/react';
 const harness = vi.hoisted(() => ({
   state: {
     people: [] as Array<Record<string, string>>,
-    directoryIncomplete: false,
     loadPeople: vi.fn(),
   },
-  createUser: vi.fn(async () => ({ data: { id: 'created-1' }, error: null })),
+  createUser: vi.fn(async (_input: Record<string, string>) => ({
+    data: { id: 'created-1' },
+    error: null,
+  })),
   updateUser: vi.fn(async () => ({ data: null, error: null })),
-  fetchServerPersonMatches: vi.fn(),
 }));
 
 vi.mock('@/store/userStore', () => ({
@@ -18,9 +19,6 @@ vi.mock('@/store/userStore', () => ({
 vi.mock('@/services/database/users', () => ({
   createUser: harness.createUser,
   updateUser: harness.updateUser,
-}));
-vi.mock('@/components/shows/RegistrationWorkflow/useServerPersonMatches', () => ({
-  fetchServerPersonMatches: harness.fetchServerPersonMatches,
 }));
 
 import { useCreateOfficialPerson, OfficialAlreadyHoldsRoleError } from '../useCreateOfficialPerson';
@@ -43,12 +41,10 @@ describe('useCreateOfficialPerson', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     harness.state.people = [];
-    harness.state.directoryIncomplete = false;
-    harness.fetchServerPersonMatches.mockResolvedValue({ people: [], failed: false });
   });
 
-  it('asks the server for the email when the saved directory is empty, and reuses the match', async () => {
-    harness.fetchServerPersonMatches.mockResolvedValue({ people: [onFile], failed: false });
+  it('reuses the person on file with that email and saves the typed phone', async () => {
+    harness.state.people = [onFile];
     const { result } = renderHook(() => useCreateOfficialPerson());
 
     await expect(result.current(FORM)).resolves.toBe('person-9');
@@ -57,22 +53,17 @@ describe('useCreateOfficialPerson', () => {
     expect(harness.updateUser).toHaveBeenCalledWith('person-9', { phone: '(555) 010-2020' });
   });
 
-  it('asks the server when the directory is flagged incomplete even with people loaded', async () => {
-    harness.state.people = [{ id: 'x', email: 'other@example.com', phone: '' }];
-    harness.state.directoryIncomplete = true;
-    harness.fetchServerPersonMatches.mockResolvedValue({ people: [onFile], failed: false });
-    const { result } = renderHook(() => useCreateOfficialPerson());
-
-    await expect(result.current(FORM)).resolves.toBe('person-9');
-    expect(harness.createUser).not.toHaveBeenCalled();
-  });
-
-  it('does not ask the server when the saved directory is complete and has no match', async () => {
+  it('creates the person with the phone when nobody on file has that email', async () => {
     harness.state.people = [{ id: 'x', email: 'other@example.com', phone: '' }];
     const { result } = renderHook(() => useCreateOfficialPerson());
 
     await expect(result.current(FORM)).resolves.toBe('created-1');
-    expect(harness.fetchServerPersonMatches).not.toHaveBeenCalled();
+    expect(harness.createUser).toHaveBeenCalledWith({
+      first_name: 'Priya',
+      last_name: 'Raman',
+      email: 'p@example.com',
+      phone: '(555) 010-2020',
+    });
   });
 
   it('refuses a matched person who holds the other role, before saving anything', async () => {

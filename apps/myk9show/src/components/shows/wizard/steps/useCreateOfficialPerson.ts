@@ -9,7 +9,6 @@ import { useShallow } from 'zustand/react/shallow';
 import { useUserStore } from '@/store/userStore';
 import { createUser, updateUser } from '@/services/database/users';
 import { personEmailsMatch } from '@/utils/personIdentity';
-import { fetchServerPersonMatches } from '@/components/shows/RegistrationWorkflow/useServerPersonMatches';
 import type { User } from '@/types/user-types';
 import type { CreatePersonData } from './OfficialPicker';
 
@@ -34,12 +33,8 @@ export function useCreateOfficialPerson(): (
   data: NewOfficialPerson,
   options?: CreateOfficialOptions
 ) => Promise<string> {
-  const { people, directoryIncomplete, loadPeople } = useUserStore(
-    useShallow(state => ({
-      people: state.people,
-      directoryIncomplete: state.directoryIncomplete,
-      loadPeople: state.loadPeople,
-    }))
+  const { people, loadPeople } = useUserStore(
+    useShallow(state => ({ people: state.people, loadPeople: state.loadPeople }))
   );
 
   return useCallback(
@@ -48,19 +43,9 @@ export function useCreateOfficialPerson(): (
       // instead of creating a duplicate record. Email is the reliable identity
       // key (name alone is too weak — two different "John Smith"s are common).
       // This is the wizard's #1 source of duplicate person rows.
-      const normalizedEmail = data.email.trim().toLowerCase();
-      let existing: User | undefined = normalizedEmail
+      const existing: User | undefined = data.email.trim()
         ? people.find(p => personEmailsMatch(p.email, data.email))
         : undefined;
-      // A short or empty saved directory cannot prove nobody has this email: ask the server,
-      // or the insert hits people_email_unique and neither phone nor assignment saves.
-      if (!existing && normalizedEmail && (people.length === 0 || directoryIncomplete)) {
-        const answer = await fetchServerPersonMatches({
-          email: data.email,
-          lastName: data.lastName,
-        });
-        existing = answer.people.find(p => personEmailsMatch(p.email, data.email));
-      }
       if (existing && options?.excludePersonIds?.includes(existing.id)) {
         throw new OfficialAlreadyHoldsRoleError(
           `${existing.firstName} ${existing.lastName}`.trim() || data.email
@@ -90,6 +75,6 @@ export function useCreateOfficialPerson(): (
       await loadPeople();
       return result.data!.id;
     },
-    [people, directoryIncomplete, loadPeople]
+    [people, loadPeople]
   );
 }

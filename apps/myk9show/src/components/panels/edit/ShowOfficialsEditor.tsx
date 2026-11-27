@@ -158,6 +158,9 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
   const currentSteward = officials?.stewards[0]?.personId;
   const chairman = officials?.chairmen[0];
   const secretary = officials?.secretaries[0];
+  // Every holder of the other role is excluded, not only the first (Chair and Secretary differ).
+  const allChairmen = (officials?.chairmen ?? []).map(o => o.personId);
+  const allSecretaries = (officials?.secretaries ?? []).map(o => o.personId);
 
   return (
     <div className="space-y-4">
@@ -174,7 +177,7 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
             selectedPersonId={currentChairman}
             people={people}
             suggestedRoles={[UserRole.CHAIRMAN, UserRole.CLUB_ADMIN]}
-            excludePersonIds={currentSecretary ? [currentSecretary] : []}
+            excludePersonIds={allSecretaries}
             excludedRoleLabel="Secretary"
             onOpen={() => void loadUsers()}
             onSelect={id => handleAssign(UserRole.CHAIRMAN, id)}
@@ -189,7 +192,7 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
             selectedPersonId={currentSecretary}
             people={people}
             suggestedRoles={[UserRole.SECRETARY]}
-            excludePersonIds={currentChairman ? [currentChairman] : []}
+            excludePersonIds={allChairmen}
             excludedRoleLabel="Chair"
             onOpen={() => void loadUsers()}
             onSelect={id => handleAssign(UserRole.SECRETARY, id)}

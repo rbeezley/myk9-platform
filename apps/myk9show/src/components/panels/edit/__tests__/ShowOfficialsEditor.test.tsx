@@ -50,10 +50,12 @@ vi.mock('@/services/database/users', () => ({
 vi.mock('@/components/shows/wizard/steps/OfficialPicker', () => ({
   OfficialPicker: ({
     label,
+    excludePersonIds,
     onSelect,
     onCreatePerson,
-  }: Pick<OfficialPickerProps, 'label' | 'onSelect' | 'onCreatePerson'>) => (
+  }: Pick<OfficialPickerProps, 'label' | 'excludePersonIds' | 'onSelect' | 'onCreatePerson'>) => (
     <>
+      <span data-testid={`excluded ${label}`}>{(excludePersonIds ?? []).join(',')}</span>
       <button onClick={() => void onSelect('new-person')}>{`pick ${label}`}</button>
       {/* The real picker's "Add new": create the person, then select the id it returns. */}
       <button
@@ -90,6 +92,15 @@ describe('ShowOfficialsEditor replace', () => {
     harness.cached = null;
     harness.fetchError = null;
     harness.people = [{ id: 'new-person', firstName: 'Alex', lastName: 'Whitfield' }];
+  });
+
+  it('keeps every holder of the other role out of each picker, not only the first', () => {
+    harness.officials.secretaries = [holder('s1', 'A', 'One'), holder('s2', 'B', 'Two')];
+    harness.officials.chairmen = [holder('c1', 'C', 'Three'), holder('c2', 'D', 'Four')];
+    renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
+
+    expect(screen.getByTestId('excluded Chair')).toHaveTextContent('s1,s2');
+    expect(screen.getByTestId('excluded Secretary')).toHaveTextContent('c1,c2');
   });
 
   it('assigning a second Chair revokes the first', async () => {

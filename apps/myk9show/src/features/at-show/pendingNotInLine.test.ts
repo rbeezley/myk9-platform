@@ -3,6 +3,7 @@ import { findInRingEntry, pendingByRunOrder } from '@myk9/ringside';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import { normalizeCanonicalEntry } from '@/hooks/useShowEntriesForUser';
 import { dogsAheadInClass, ownEntryQueueState } from '@/utils/showEntryRunQueue';
+import { replicatedToEntry } from '@/store/entry-store-helpers';
 import { classifyEntries } from '@/features/_shared/entryAccounting';
 import { transformEntry } from './atShowDataAdapter';
 import { buildNextUpPreview } from './atShowNextUpPreview';
@@ -73,5 +74,21 @@ describe('the exhibitor place for a missing entry status', () => {
     expect(ownEntryQueueState(pending)).toBeNull();
     expect(dogsAheadInClass(entries, 'n')).toBe(0);
     expect(dogsAheadInClass(entries, 'p')).toBeNull();
+  });
+
+  it('the replicated read agrees: a NULL entry_status is runnable, a stated draft is Pending', () => {
+    const replicated = (entryStatus: string | undefined, id: string, runOrder: number) =>
+      replicatedToEntry(
+        row(id, String(runOrder), runOrder, { entryStatus } as Partial<ReplicatedEntry>)
+      );
+    const nullStatus = replicated(undefined, 'n', 2);
+    const draft = replicated('draft', 'd', 1);
+
+    expect(nullStatus.lifecycleMissing).toBe(true);
+    expect(draft.lifecycleMissing).toBeUndefined();
+    expect(ownEntryQueueState(nullStatus)).toEqual({ kind: 'waiting-unknown' });
+    expect(ownEntryQueueState(draft)).toBeNull();
+    expect(dogsAheadInClass([draft, nullStatus], 'n')).toBe(0);
+    expect(dogsAheadInClass([draft, nullStatus], 'd')).toBeNull();
   });
 });

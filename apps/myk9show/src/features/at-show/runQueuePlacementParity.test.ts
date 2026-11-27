@@ -49,16 +49,38 @@ describe('run queue and placement model agree on who is waiting', () => {
     'a %s entry between two running dogs is not in the queue, and the dogs around it still agree',
     entryStatus => {
       const rows = [
-        { id: 'p', classId: 'c', armband: '3', runOrder: 1, entryStatus },
-        { id: 'a', classId: 'c', armband: '1', runOrder: 2, entryStatus: 'confirmed' },
-        { id: 'b', classId: 'c', armband: '2', runOrder: 3, entryStatus: 'confirmed' },
+        {
+          id: 'p',
+          classId: 'c',
+          armband: '3',
+          runOrder: 1,
+          entryStatus,
+          checkInStatus: 'no-status',
+        },
+        {
+          id: 'a',
+          classId: 'c',
+          armband: '1',
+          runOrder: 2,
+          entryStatus: 'confirmed',
+          checkInStatus: 'no-status',
+        },
+        {
+          id: 'b',
+          classId: 'c',
+          armband: '2',
+          runOrder: 3,
+          entryStatus: 'confirmed',
+          checkInStatus: 'no-status',
+        },
       ] as ReplicatedEntry[];
       expect(pendingReplicatedByRunOrder(rows).map(r => r.id)).toEqual(['a', 'b']);
       expect(nextPendingReplicated(rows, 1).map(r => r.id)).toEqual(['a']);
       expect(remainingReplicated(rows)).toBe(2);
-      expect(buildClassPlacement(rows, []).model.waiting.map(r => r.id)).toEqual(
-        expect.arrayContaining(['a', 'b'])
-      );
+      // Placement keeps the Pending dog, in run order, with its own run number.
+      const waiting = buildClassPlacement(rows, []).model.waiting;
+      expect(waiting.map(r => r.id)).toEqual(['p', 'a', 'b']);
+      expect(waiting.find(r => r.id === 'p')?.runOrder).toBe(1);
     }
   );
 

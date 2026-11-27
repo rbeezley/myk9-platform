@@ -128,9 +128,7 @@ function canonicalEntryStatus(value: unknown): EntryStatus {
     case 'cancelled':
       return 'withdrawn';
     default:
-      // A missing (NULL) status is not the literal 'no-status', which is Pending: the server
-      // leaves it runnable and so must the exhibitor's place (MYK9-2391).
-      return (stringValue(value) ?? 'confirmed') as EntryStatus;
+      return (stringValue(value) ?? 'no-status') as EntryStatus;
   }
 }
 
@@ -182,6 +180,8 @@ export function normalizeCanonicalEntry(row: SubmittedEntryDbRow): SyncableShowE
     classId,
     dogId,
     status: canonicalEntryStatus(row.entry_status),
+    // The stand-in above is not a stated Pending: the queue leaves a missing status runnable (MYK9-2391).
+    ...(stringValue(row.entry_status) === undefined ? { lifecycleMissing: true as const } : {}),
     ...(checkInStatus ? { checkInStatus } : {}),
     registrationData: {
       submittedAt,

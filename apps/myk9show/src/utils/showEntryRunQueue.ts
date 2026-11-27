@@ -80,7 +80,8 @@ export function toShowEntryQueueRow(entry: ShowEntry): ShowEntryQueueRow {
     inRing: entry.checkInStatus === 'in-ring',
     // A Pending (not yet approved) entry has no place in line (MYK9-2376, MYK9-2391): the queue
     // honors the flag, so `dogsAheadInClass` and `ownEntryQueueState` need no rule of their own.
-    awaitingApproval: isAwaitingApproval({ entryStatus: entry.status }),
+    awaitingApproval:
+      entry.lifecycleMissing !== true && isAwaitingApproval({ entryStatus: entry.status }),
     entry,
   };
 }

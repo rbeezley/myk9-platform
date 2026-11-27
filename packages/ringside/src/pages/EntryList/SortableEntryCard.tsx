@@ -30,6 +30,7 @@ import type { EntryListPermission } from './permissions';
 import type { DogsAheadResult } from './dogsAheadInList';
 import { SortableEntryCardBody } from './SortableEntryCardBody';
 import { areSortableEntryCardPropsEqual } from './sortableEntryCardMemo';
+import { isInRingEntry } from './runQueue';
 
 // ========================================
 // TYPES
@@ -118,7 +119,7 @@ const SortableEntryCardImpl: React.FC<SortableEntryCardProps> = ({
   variant,
   DogCard,
 }) => {
-  const isInRing = entry.inRing || entry.status === 'in-ring';
+  const isInRing = isInRingEntry(entry);
   const longPressTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const isLongPressRef = React.useRef(false);
   const [isLongPressing, setIsLongPressing] = React.useState(false);

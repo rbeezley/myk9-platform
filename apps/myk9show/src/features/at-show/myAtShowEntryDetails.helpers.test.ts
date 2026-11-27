@@ -4,6 +4,7 @@ import {
   buildMyAtShowEntryDetails,
   deriveAtShowNextAction,
   deriveAtShowQueueLine,
+  isAwaitingPlaceInLine,
   isExhibitorOnlyForAtShow,
   type AtShowClassSummary,
   type AtShowEntryDetail,
@@ -659,5 +660,28 @@ describe('place in line on a paper class (MYK9-1970)', () => {
     expect(deriveAtShowQueueLine({ ...detail, scoresOnPaper: true }, undefined)).toEqual({
       kind: 'paper',
     });
+  });
+
+  it('says nothing about a place for a Pending dog, checked in or on paper (MYK9-2391)', () => {
+    const pending = { ...detail, awaitingApproval: true };
+    expect(deriveAtShowQueueLine(pending, undefined)).toBeNull();
+    expect(deriveAtShowQueueLine({ ...pending, scoresOnPaper: true }, undefined)).toBeNull();
+    expect(
+      deriveAtShowQueueLine(
+        { ...pending, checkInStatus: 'no-status' as const, scoresOnPaper: true },
+        undefined
+      )
+    ).toBeNull();
+    expect(isAwaitingPlaceInLine(pending)).toBe(false);
+    expect(isAwaitingPlaceInLine(detail)).toBe(true);
+  });
+
+  it('flags a Pending entry as awaiting approval when the details are built', () => {
+    const row = {
+      ...entries[0],
+      entryStatus: 'pending',
+    } as ReplicatedEntry;
+    const [built] = buildMyAtShowEntryDetails([row], new Set([row.id]), classesById, noTrials);
+    expect(built?.awaitingApproval).toBe(true);
   });
 });

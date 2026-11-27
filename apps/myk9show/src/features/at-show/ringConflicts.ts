@@ -17,7 +17,7 @@
 
 import { computeDogsAheadInList, type Entry, type DogsAheadResult } from '@myk9/ringside';
 import { resolveClaim, type ClaimState } from '@myk9/ringside/run-queue';
-import { isNonRunningEntry } from '@/features/_shared/entryAccounting';
+import { isAwaitingApproval, isNonRunningEntry } from '@/features/_shared/entryAccounting';
 
 /** Minimal structural slice of a ReplicatedEntry the detector reads. */
 export interface RingConflictEntry {
@@ -75,6 +75,8 @@ function toQueueEntry(entry: RingConflictEntry): Entry {
     isScored: entry.isScored ?? false,
     status: (entry.checkInStatus ?? 'no-status') as Entry['status'],
     inRing: entry.checkInStatus === 'in-ring',
+    // A Pending dog holds no place in line: the one shared predicate (MYK9-2391).
+    ...(isAwaitingApproval(entry) && { awaitingApproval: true }),
     // Omit when absent rather than write `undefined` (exactOptionalPropertyTypes).
     ...(entry.runOrder !== undefined && { exhibitorOrder: entry.runOrder }),
   } satisfies Partial<Entry> as unknown as Entry;

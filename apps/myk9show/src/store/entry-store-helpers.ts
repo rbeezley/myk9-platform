@@ -53,6 +53,8 @@ export function replicatedToEntry(replicated: ReplicatedEntry): SyncableShowEntr
     deletedAt: replicated.deletedAt ?? replicated.deleted_at,
     deleted_at: replicated.deletedAt ?? replicated.deleted_at,
     status,
+    // 'draft' above is a stand-in for a NULL status, not a stated Pending (MYK9-2391).
+    ...(replicated.entryStatus ? {} : { lifecycleMissing: true as const }),
     // The show-day axis (in-ring / pulled / completed) lives on its own column;
     // dropping it here made every exhibitor row read "waiting" (MYK9-992).
     ...(checkIn && isCheckInStatus(checkIn) ? { checkInStatus: checkIn } : {}),

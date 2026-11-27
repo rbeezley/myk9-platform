@@ -27,6 +27,7 @@ import {
   ResetButton,
   StatusBadge,
 } from './SortableEntryCardBadges';
+import { isInRingEntry } from './runQueue';
 
 type SortableHandle = ReturnType<typeof useSortable>;
 
@@ -82,7 +83,7 @@ const SortableEntryCardBodyImpl: React.FC<SortableEntryCardBodyProps> = ({
   attributes,
   listeners,
 }) => {
-  const isInRing = entry.inRing || entry.status === 'in-ring';
+  const isInRing = isInRingEntry(entry);
   // MYK9-1162: a held entry (no registration number for the trial's registry)
   // keeps its run-order place but cannot be timed or scored until the secretary
   // adds the number. The card stays tappable: the scoresheet route explains the
@@ -265,7 +266,7 @@ const SortableEntryCardBodyImpl: React.FC<SortableEntryCardBodyProps> = ({
       onPrefetch={() => onPrefetch?.(entry)}
       className={cn(
         scoringAllowed && !entry.isScored && 'clickable',
-        entry.status === 'in-ring' && 'in-ring',
+        isInRing && entry.status === 'in-ring' && 'in-ring',
         // Own-dog highlight: calm primary ring + faint tint. Layered via
         // className so the DogCard primitive's API stays untouched.
         // Not on the hero: its solid fill must win, or the white text vanishes.

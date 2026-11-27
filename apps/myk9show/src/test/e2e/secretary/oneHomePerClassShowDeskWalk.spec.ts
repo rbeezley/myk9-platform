@@ -47,10 +47,12 @@ test.describe('Secretary: a class runs from Show Desk without the class page (MY
     const visitedUrls = watchNavigations(page);
     const capture = captureRestAuth(page);
     let deskUrl = '';
+    let fixtureClassId = '';
 
     await test.step('1. sign in and open the fixture class on Show Desk', async () => {
       await signInAsSecretary(page);
       const { showId, classId, day } = await findFixtureClass(page, await capture.get());
+      fixtureClassId = classId;
       // The day and the focus travel together: Show Desk only searches the selected day's classes.
       deskUrl = `/shows/${encodeURIComponent(showId)}?day=${day}&focus=${encodeURIComponent(classId)}`;
       await page.goto(deskUrl, { waitUntil: 'domcontentloaded' });
@@ -75,8 +77,20 @@ test.describe('Secretary: a class runs from Show Desk without the class page (MY
       await expect(page.getByRole('menuitem', { name: /view entries and results/i })).toHaveCount(
         0
       );
-      await page.keyboard.press('Escape');
-      await expect(page.getByRole('menuitem', { name: 'Edit class' })).toHaveCount(0);
+      // Open the scoring door itself: the menu's one way to run the class lands on the paper
+      // scoring page for this class, not on the class page.
+      await page.getByRole('menuitem', { name: 'Score this class' }).click();
+      await expect(page).toHaveURL(
+        new RegExp(`/scoring/classes/${encodeURIComponent(fixtureClassId)}/entries`)
+      );
+      await expect(page.getByRole('heading', { level: 1, name: FIXTURE_CLASS_NAME })).toBeVisible({
+        timeout: 60_000,
+      });
+      // The scoring page is read here, never written: go back to the desk for the link scan.
+      await page.goto(deskUrl, { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('heading', { level: 2, name: FIXTURE_CLASS_NAME })).toBeVisible({
+        timeout: 60_000,
+      });
     });
 
     await test.step('4. Show Desk has no link to the class page and the URL never left the desk', async () => {

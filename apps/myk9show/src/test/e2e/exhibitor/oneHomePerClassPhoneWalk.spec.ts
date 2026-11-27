@@ -19,8 +19,8 @@ import { installBrowserDiagnostics } from '../shared/browserDiagnostics';
  * show-day home, and the show page's "Where to be & when" opens Ringside on the trial day.
  *
  * Walk, as the demo exhibitor on the show-day fixture (Willow runs first in Container Novice A):
- *   My Shows -> "Where to be today" -> Ringside lists Willow's class with a place in line or a
- *   result -> the show page's "Where to be & when" row opens Ringside, not the class page.
+ *   My Shows -> "Where to be today" -> Ringside lists Willow's class with its Check in button, a place
+ *   in line or a result -> the show page's "Where to be & when" row opens Ringside, not the class page.
  * Throughout, no visited URL is the class page, and neither My Shows nor Ringside links to it.
  *
  * READ-ONLY by design, so it can run beside the stateful resultsTabJourney on the same fixture:
@@ -77,14 +77,17 @@ test.describe('Exhibitor phone: My Shows to Ringside without the class page (MYK
       const row = page.locator('[data-testid^="at-show-my-entry-"]').filter({ hasText: DOG });
       await expect(row.first()).toBeVisible({ timeout: 45_000 });
       await expect(row.first()).toContainText(FIXTURE_CLASS_NAME);
-      // A phone-scored class with dogs still to run carries a place line; a class a previous
-      // walk scored carries the dog's own result instead. Either is the answer Ringside owns.
+      // What Ringside owns for Willow depends on where she is. A fresh seed has her unchecked-in
+      // with self check-in on, so the row offers the Check in button (never pressed here); once
+      // checked in it carries a place line; once scored, her own result or the withheld notice.
       await expect(
         row
           .first()
-          .getByTestId('at-show-my-entry-place')
+          .getByRole('button', { name: /^Check in Willow/ })
+          .or(row.first().getByTestId('at-show-my-entry-place'))
           .or(row.first().getByRole('group', { name: 'Result' }))
           .or(row.first().getByTestId('at-show-my-entry-withheld'))
+          .first()
       ).toBeVisible();
       expect(await classPageLinks(page), 'Ringside links to the class page').toEqual([]);
     });

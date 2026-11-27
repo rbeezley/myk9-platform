@@ -302,6 +302,10 @@ Payment status shows on every exhibitor's form in **Entry Forms**; **Filter → 
 >
 > **An entry that just says "Paid" means the channel was never recorded** — not that it came through Stripe. Older entries taken before the app captured a method read this way, so don't count a plain "Paid" as an online payment when you reconcile against your payout.
 
+> **Paid in Full: Online** records no money. A cash or check payment recorded on that form afterwards is counted with only the money the form already holds (earlier cash, check or card payments), as if the online payment had not happened. If that does not cover what the form owes, the form reads **Payment Due**. If it does, the form reads paid by cash or check.
+>
+> If the exhibitor did pay online, open the form's payment menu (**Change**, beside the payment status) and choose **Paid in Full: Online…** again. The cash or check you recorded stays recorded on the form. If it was recorded by mistake, or you need to hand the money back, email [support@myk9show.com](mailto:support@myk9show.com) before you change anything else on the form.
+
 ---
 
 # Getting ready for show day

@@ -8,6 +8,11 @@ const { getTrialById, getShow } = vi.hoisted(() => ({
   getTrialById: vi.fn(),
   getShow: vi.fn(),
 }));
+// Nationals is hidden in the app (MYK9-2488); these tests cover it as built.
+vi.mock(
+  '@/features/registries/akcNationals',
+  async () => (await import('@/test/utils/akcNationalsOn')).akcNationalsOn
+);
 vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
   replicatedTrialsTable: { getTrialById },
 }));

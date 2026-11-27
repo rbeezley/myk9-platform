@@ -18,7 +18,7 @@ import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTabl
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import type { SecretaryEntry } from '@/services/database/entries';
-import { applyShowNationals } from './scoresheetNationals';
+import { applyShowNationals, nationalsScoresheetKey } from './scoresheetNationals';
 import { canonicalizeTrialType } from '@/types/template.types';
 import { canPrefillSheet, toExistingScore } from './toExistingScore';
 
@@ -533,7 +533,7 @@ export function toRegistryKey(org: string, sport: string): ScoresheetSportType |
     case 'AKC:scent-work':
       return 'AKC_SCENT_WORK';
     case 'AKC:scent-work-nationals':
-      return 'AKC_SCENT_WORK_NATIONAL';
+      return nationalsScoresheetKey();
     case 'AKC:fast-cat':
       return 'AKC_FASTCAT';
     case 'UKC:nosework':

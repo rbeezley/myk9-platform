@@ -186,6 +186,8 @@ describe('ReplicatedEntriesTable cold-insert guard (MYK9-575)', () => {
         discardReverters: { register: () => () => undefined },
         acquireMutationWriteLock: vi.fn(async () => vi.fn()),
         getPendingCount: vi.fn(async () => 0),
+        // The signed-in account the row is stamped with: the same one prepareMutation stamps.
+        resolveCurrentUserId: vi.fn(async () => 'auth-1'),
       } as unknown as MutationManager);
       return queueMutation;
     }

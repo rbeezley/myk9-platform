@@ -135,8 +135,11 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
     }
   };
 
-  const handleCreatePerson = async (data: NewOfficialPerson): Promise<string> => {
-    const id = await createOfficialPerson(data);
+  const handleCreatePerson = async (
+    data: NewOfficialPerson,
+    options?: { excludePersonIds?: string[] }
+  ): Promise<string> => {
+    const id = await createOfficialPerson(data, options);
     createdNames.current.set(id, `${data.firstName} ${data.lastName}`.trim());
     return id;
   };
@@ -171,6 +174,8 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
             selectedPersonId={currentChairman}
             people={people}
             suggestedRoles={[UserRole.CHAIRMAN, UserRole.CLUB_ADMIN]}
+            excludePersonIds={currentSecretary ? [currentSecretary] : []}
+            excludedRoleLabel="Secretary"
             onOpen={() => void loadUsers()}
             onSelect={id => handleAssign(UserRole.CHAIRMAN, id)}
             onCreatePerson={handleCreatePerson}
@@ -184,6 +189,8 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
             selectedPersonId={currentSecretary}
             people={people}
             suggestedRoles={[UserRole.SECRETARY]}
+            excludePersonIds={currentChairman ? [currentChairman] : []}
+            excludedRoleLabel="Chair"
             onOpen={() => void loadUsers()}
             onSelect={id => handleAssign(UserRole.SECRETARY, id)}
             onCreatePerson={handleCreatePerson}

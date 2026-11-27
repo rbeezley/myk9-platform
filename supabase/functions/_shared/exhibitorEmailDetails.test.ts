@@ -80,6 +80,35 @@ describe('formatStreetAddress', () => {
     ).toBe('Expo Hall\n1 Main St, Austin, TX');
     expect(formatVenueLines(null)).toBeNull();
   });
+
+  it('prints the address the secretary typed in the show wizard (MYK9-2486)', () => {
+    // What production holds: the wizard fills `location` and none of the separate columns.
+    expect(
+      formatVenueLines({
+        location: '100 Dog Show Lane, Tulsa, OK 74101',
+        city: 'Tulsa',
+        state: 'Oklahoma',
+      })
+    ).toBe('100 Dog Show Lane, Tulsa, OK 74101');
+    expect(formatVenueLines({ location: ' Expo Hall \r\n 1 Main St, Austin, TX \n' })).toBe(
+      'Expo Hall\n1 Main St, Austin, TX'
+    );
+  });
+
+  it('puts the venue name above the typed address, once', () => {
+    expect(formatVenueLines({ venue_name: 'Expo Hall', location: '1 Main St, Austin, TX' })).toBe(
+      'Expo Hall\n1 Main St, Austin, TX'
+    );
+    expect(
+      formatVenueLines({ venue_name: 'Expo Hall', location: 'Expo Hall, 1 Main St, Austin, TX' })
+    ).toBe('Expo Hall, 1 Main St, Austin, TX');
+  });
+
+  it('falls back to the city and state when no address was typed', () => {
+    expect(formatVenueLines({ location: '  ', city: 'Tulsa', state: 'Oklahoma' })).toBe(
+      'Tulsa, Oklahoma'
+    );
+  });
 });
 
 describe('myShowsUrl', () => {

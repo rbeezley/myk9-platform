@@ -16,6 +16,7 @@ import { notifications } from '@/lib/notifications';
 import { OfficialMailingAddressField } from './OfficialMailingAddressField';
 import { replaceShowOfficial } from './replaceShowOfficial';
 import { logger } from '@/services/LoggingService';
+import { queryKeys } from '@/lib/queryClient';
 
 interface ShowOfficialsEditorProps {
   showId: string;
@@ -128,7 +129,6 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
         const text = `${err.personName} is already the ${otherLabel}. Pick a different person for ${roleLabel}.`;
         notifications.error(text);
         report({ saved: false, text });
-        await invalidate();
         return;
       }
       // A PostgrestError is a plain object, not an Error: read its message too.
@@ -149,12 +149,13 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
     options?: { excludePersonIds?: string[] },
     otherRole?: 'chairmen' | 'secretaries'
   ): Promise<string> => {
-    // The other role's holders are re-read before a matched person's phone is updated, so a
-    // Chair another manager named minutes ago is refused here too, not only in the picker.
-    const excludePersonIds = [...(options?.excludePersonIds ?? [])];
+    // The other role's holders are re-read before a matched person's phone is updated: the
+    // server's list alone decides, and the picker's cache is brought up to it.
+    let excludePersonIds = options?.excludePersonIds ?? [];
     if (otherRole) {
       const fresh = await fetchShowOfficials(showId);
-      excludePersonIds.push(...fresh[otherRole].map(holder => holder.personId));
+      queryClient.setQueryData(queryKeys.showOfficials(showId), fresh);
+      excludePersonIds = fresh[otherRole].map(holder => holder.personId);
     }
     const id = await createOfficialPerson(data, { excludePersonIds });
     createdNames.current.set(id, `${data.firstName} ${data.lastName}`.trim());

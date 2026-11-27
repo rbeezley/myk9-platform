@@ -19,6 +19,7 @@ const harness = vi.hoisted(() => ({
   // What the editor's cached query holds; null means "same as the server".
   cached: null as null | undefined | Record<string, unknown[]>,
   fetchError: null as Error | null,
+  createError: undefined as unknown,
 }));
 
 vi.mock('@/services/database/supabaseClient', () => ({ supabase: { rpc: harness.rpc } }));
@@ -67,8 +68,10 @@ vi.mock('@/components/shows/wizard/steps/OfficialPicker', () => ({
             phone: '(555) 010-2020',
           })
             .then(onSelect)
-            // The real picker shows a refusal inline; the stand-in only swallows it.
-            .catch(() => undefined)
+            // The real picker shows a refusal inline; the stand-in records it for the test.
+            .catch((err: unknown) => {
+              harness.createError = err;
+            })
         }
       >{`add new ${label}`}</button>
     </>
@@ -76,6 +79,7 @@ vi.mock('@/components/shows/wizard/steps/OfficialPicker', () => ({
 }));
 
 import { ShowOfficialsEditor } from '../ShowOfficialsEditor';
+import { OfficialAlreadyHoldsRoleError } from '@/components/shows/wizard/steps/useCreateOfficialPerson';
 
 const holder = (personId: string, firstName: string, lastName: string) => ({
   personId,
@@ -94,6 +98,7 @@ describe('ShowOfficialsEditor replace', () => {
     harness.officials = { secretaries: [], chairmen: [], stewards: [] };
     harness.cached = null;
     harness.fetchError = null;
+    harness.createError = undefined;
     harness.people = [{ id: 'new-person', firstName: 'Alex', lastName: 'Whitfield' }];
   });
 
@@ -133,7 +138,9 @@ describe('ShowOfficialsEditor replace', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'add new Chair' }));
 
-    await waitFor(() => expect(harness.rpc).not.toHaveBeenCalled());
+    await waitFor(() => expect(harness.createError).toBeInstanceOf(OfficialAlreadyHoldsRoleError));
+    expect((harness.createError as OfficialAlreadyHoldsRoleError).personName).toBe('Priya Raman');
+    expect(harness.rpc).not.toHaveBeenCalled();
     expect(harness.updateUser).not.toHaveBeenCalled();
     expect(harness.createUser).not.toHaveBeenCalled();
   });
@@ -278,6 +285,7 @@ describe('ShowOfficialsEditor mailing address for the premium (MYK9-2065)', () =
     harness.officials = { secretaries: [], chairmen: [], stewards: [] };
     harness.cached = null;
     harness.fetchError = null;
+    harness.createError = undefined;
     harness.people = [{ id: 'new-person', firstName: 'Alex', lastName: 'Whitfield' }];
   });
 

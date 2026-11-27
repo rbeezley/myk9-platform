@@ -72,7 +72,7 @@ function Harness({
   );
 }
 
-describe('Use the show\'s current details', () => {
+describe("Use the show's current details", () => {
   afterEach(() => {
     generateMock.mockReset();
   });
@@ -134,7 +134,7 @@ describe('Use the show\'s current details', () => {
   });
 });
 
-describe('Use the show\'s current details in the editor', () => {
+describe("Use the show's current details in the editor", () => {
   afterEach(() => {
     generateMock.mockReset();
   });

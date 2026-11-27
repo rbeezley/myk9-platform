@@ -89,7 +89,7 @@ function setup() {
   );
 }
 
-describe('Use the show\'s current details inside Edit show (MYK9-2280)', () => {
+describe("Use the show's current details inside Edit show (MYK9-2280)", () => {
   afterEach(() => {
     generateMock.mockReset();
   });
@@ -106,7 +106,9 @@ describe('Use the show\'s current details inside Edit show (MYK9-2280)', () => {
     const { user } = setup();
     await screen.findAllByRole('button', { name: LINK });
 
-    await user.click(screen.getByRole('checkbox', { name: 'Generate exhibitor documents on save' }));
+    await user.click(
+      screen.getByRole('checkbox', { name: 'Generate exhibitor documents on save' })
+    );
 
     for (const link of screen.getAllByRole('button', { name: LINK })) expect(link).toBeEnabled();
   });

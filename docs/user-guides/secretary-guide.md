@@ -418,6 +418,8 @@ For one class, **Show Desk → click the class** lists its entries in the panel 
 
 **Show Desk → Actions → Message exhibitors** opens the Message Center for this show, to write to its exhibitors.
 
+**Show Desk → Actions → Email delivery** opens this show's delivery list: the receipts and other emails sent to its exhibitors, each with its delivery status. Look here when an exhibitor says a receipt never came. The same list is linked at the bottom of **About**.
+
 ## 19 · Change a dog's class
 
 There are two doors to the same action, and either one works until the dog has run:

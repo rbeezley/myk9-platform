@@ -86,6 +86,7 @@ export type ActionIconName =
   | 'self-check-in'
   | 'access-codes'
   | 'message'
+  | 'email-delivery'
   | 'volunteers'
   | 'lunch'
   | 'notes'

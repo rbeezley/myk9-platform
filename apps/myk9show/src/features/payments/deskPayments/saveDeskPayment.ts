@@ -1,37 +1,38 @@
-import type {
-  EnrollmentLedgerAction,
-  RecordedEnrollmentPayment,
-} from '@/features/payments/showPaymentLedger';
+import type { PendingMutation } from '@myk9/replication';
+import type { EnrollmentLedgerAction } from '@/features/payments/showPaymentLedger';
 import { logger } from '@/services/LoggingService';
 import { defaultDeskPaymentDeps, type DeskPaymentDeps } from './deskPaymentDeps';
+import { announceDeskPaymentsRecorded } from './deskPaymentEvents';
+import { deadLetterMessage } from './deskPaymentReader';
+import type { DeskSendOutcome } from './DeskPaymentsTable';
 import {
   DESK_PAYMENTS_TABLE,
   type DeskPaymentForm,
   type LocalDeskPayment,
 } from './deskPaymentTypes';
-import { errorCodeOf, NOT_AUTHORIZED_CODE, RPC_REFUSAL_CODE } from './paymentRefusals';
+import { NOT_AUTHORIZED_CODE, RPC_REFUSAL_CODE } from './paymentRefusals';
 
 /**
- * How long the dialog waits on the server's answer before the payment is left to
- * the queue (the precedent is 12 s, `completeStaleClassRpc.ts`). Venue Wi-Fi with no
- * internet keeps `navigator.onLine` true, so the wait, not the flag, ends it.
+ * How long the dialog waits on the queue's first send before leaving the payment to it
+ * (the precedent is 12 s, `completeStaleClassRpc.ts`). Venue Wi-Fi with no internet
+ * keeps `navigator.onLine` true, so the wait, not the flag, ends it.
  */
 export const DESK_PAYMENT_WAIT_MS = 10_000;
-/** The queue's hold outlasts the wait, so no upload pass sends it while this send is out. */
-const HOLD_MARGIN_MS = 5_000;
+/** How often the wait looks at the queue's record of that send. */
+const OUTCOME_POLL_MS = 250;
 
 type PaymentAction = Extract<EnrollmentLedgerAction, { kind: 'payment' }>;
 
 export type DeskPaymentSaveResult =
-  /** The server answered: the record and queue row are settled from its answer. */
-  | { kind: 'saved'; recorded: RecordedEnrollmentPayment }
-  /** The server refused it within the wait; nothing was recorded and nothing stays queued. */
+  /** The queue's send was acknowledged: recorded, and the show's money is being reloaded. */
+  | { kind: 'saved' }
+  /** Refused on its first send; its record and queue row are gone, so nothing can replay. */
   | { kind: 'refused'; error: unknown }
   /** Saved on this device and queued under the same id. `sendBegun`: a send went out unanswered. */
   | { kind: 'queued'; sendBegun: boolean }
   /**
    * Not saved on this device, so NOTHING was sent: `invalid-amount` is not whole cents above
-   * $0; `not-stored` is storage refusing it or no queue owner. Never sent without a record.
+   * $0; `not-stored` is storage refusing it, no queue owner, or an account switch mid-write.
    */
   | { kind: 'not-saved'; reason: 'invalid-amount' | 'not-stored'; error: unknown };
 
@@ -43,20 +44,67 @@ function wholeCents(amount: number): number | null {
     : null;
 }
 
-/** A refusal the server answered with: raised before the RPC writes anything. */
-function isAnsweredRefusal(error: unknown): boolean {
-  const code = errorCodeOf(error);
-  return code === RPC_REFUSAL_CODE || code === NOT_AUTHORIZED_CODE;
+/**
+ * The server's answer to the FIRST send, and a refusal raised before the RPC writes
+ * anything: a 22023 or 42501 with no earlier failed or lost attempt (`retries` counts the
+ * one that moved it, and no send was lost first). Anything later may follow a send that
+ * was recorded, so it is not called refused here.
+ */
+function isFirstSendRefusal(dead: PendingMutation): boolean {
+  return (
+    (dead.errorCode === RPC_REFUSAL_CODE || dead.errorCode === NOT_AUTHORIZED_CODE) &&
+    (dead.retries ?? 0) <= 1 &&
+    !dead.priorTransportRetries
+  );
 }
 
 /**
- * True only when the record, its queue row and any dead letter are gone for the account
- * that saved it. False when any of it may remain: another account is signed in now, it is
- * another account's, or the device could not write. Its queue row then stays to be sent.
+ * Asks the queue to send it now and waits, at most `DESK_PAYMENT_WAIT_MS`, for the queue's
+ * record of that one mutation to say acknowledged or dead-lettered. Reads the queue's own
+ * state, so it hears the outcome whichever upload pass sent it.
  */
-async function settledFor(deps: DeskPaymentDeps, id: string, owner: string | null) {
+async function awaitQueueOutcome(
+  deps: DeskPaymentDeps,
+  id: string,
+  mutationId: string
+): Promise<DeskSendOutcome> {
+  let expired = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<void>(resolve => {
+    timer = setTimeout(() => {
+      expired = true;
+      resolve();
+    }, DESK_PAYMENT_WAIT_MS);
+  });
   try {
-    if ((await deps.table.settle(id, owner)) === 'settled') return true;
+    const sent = deps.queue.sendRowNow(DESK_PAYMENTS_TABLE, id).catch(error => {
+      logger.warn('Desk payment send could not start', 'secretary', {}, error as Error);
+    });
+    await Promise.race([sent, deadline]);
+    let outcome = await deps.table.sendOutcome(id, mutationId);
+    while (outcome.kind === 'pending' && !expired) {
+      await Promise.race([new Promise(resolve => setTimeout(resolve, OUTCOME_POLL_MS)), deadline]);
+      outcome = await deps.table.sendOutcome(id, mutationId);
+    }
+    return outcome;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Settle it for the account that saved it. `settled` / `nothing-held`: its record, queue
+ * row and any dead letter are gone. `kept`: any of it may remain (another account is
+ * signed in now, it is another account's, or the device could not write).
+ */
+async function settleFor(
+  deps: DeskPaymentDeps,
+  id: string,
+  owner: string | null
+): Promise<'settled' | 'nothing-held' | 'kept'> {
+  try {
+    const result = await deps.table.settle(id, owner);
+    if (result !== 'not-owner') return result;
     logger.warn('Desk payment left queued: not the signed-in account’s to settle', 'secretary');
   } catch (error) {
     logger.warn(
@@ -66,21 +114,16 @@ async function settledFor(deps: DeskPaymentDeps, id: string, owner: string | nul
       error as Error
     );
   }
-  return false;
-}
-
-function handToQueue(deps: DeskPaymentDeps, id: string): void {
-  void deps.queue.sendRowNow(DESK_PAYMENTS_TABLE, id).catch(err => {
-    logger.warn('Desk payment hand-off to the queue failed', 'secretary', {}, err as Error);
-  });
+  return 'kept';
 }
 
 /**
- * MYK9-2479: record one cash or check payment. It is saved on this device FIRST,
- * the record and its queue row in one transaction, then (online) sent at once with
- * a bounded wait. The first send and every replay carry the same client payment id
- * and the same explicit amount, so a lost answer is recorded once and a replay never
- * pays "whatever is due by then".
+ * MYK9-2479: record one cash or check payment. It is saved on this device FIRST, the
+ * record and its queue row in one transaction, and the queue is the ONLY path that sends
+ * it: online, the queue is asked to send it at once and the dialog waits on that send.
+ * Every send carries the same client payment id and the same explicit amount, under the
+ * queue owner's session, so a lost answer is recorded once and a replay never pays
+ * "whatever is due by then".
  */
 export async function saveDeskPayment(
   enrollmentId: string,
@@ -109,48 +152,36 @@ export async function saveDeskPayment(
     receivedAt: new Date(deps.now()).toISOString(),
     sendBegun: online,
   };
-  // The account the record is stamped with, captured now: only it may settle the payment.
-  let owner: string | null;
+  let queued: { mutationId: string; owner: string | null };
   try {
-    owner = await deps.table.queuePayment(
-      payment,
-      online ? deps.now() + DESK_PAYMENT_WAIT_MS + HOLD_MARGIN_MS : undefined
-    );
+    queued = await deps.table.queuePayment(payment);
   } catch (error) {
     return { kind: 'not-saved', reason: 'not-stored', error };
   }
   if (!online) return { kind: 'queued', sendBegun: false };
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), DESK_PAYMENT_WAIT_MS);
-  try {
-    const recorded = await deps.send(
-      enrollmentId,
-      { ...action, amount: payment.amount },
-      controller.signal
-    );
-    // Answered. Not settled here, the queue replays it under the same id, and the server
-    // answers that id without recording it twice.
-    if (!(await settledFor(deps, payment.id, owner))) handToQueue(deps, payment.id);
-    return { kind: 'saved', recorded };
-  } catch (error) {
-    // Stays in the dialog, as before, so she sees why and can fix what she typed: but
-    // "not recorded" invites a re-entry under a NEW id, so it is said only once the queued
-    // write is gone for the account that saved it. Not settled (a write failure, or another
-    // account signed in mid-request), the original could still replay beside her re-entry,
-    // so it stays on its line under its own id instead, and the queue's answer decides it.
-    if (
-      !controller.signal.aborted &&
-      isAnsweredRefusal(error) &&
-      (await settledFor(deps, payment.id, owner))
-    ) {
-      return { kind: 'refused', error };
+  const outcome = await awaitQueueOutcome(deps, payment.id, queued.mutationId);
+  if (outcome.kind === 'acknowledged') {
+    // The queue keeps no RPC answer, so the form's figures come back from the server. The
+    // app-wide upload handler may have settled and announced it already: one announcement.
+    if ((await settleFor(deps, payment.id, queued.owner)) === 'settled') {
+      announceDeskPaymentsRecorded([payment.showId]);
     }
-    // No answer (a transport failure, or the wait ran out): the queue sends it again,
-    // under the same id, without her doing anything.
-    handToQueue(deps, payment.id);
-    return { kind: 'queued', sendBegun: true };
-  } finally {
-    clearTimeout(timer);
+    return { kind: 'saved' };
   }
+  // "Not recorded" invites a re-entry under a NEW id, so it is said only for a refusal of
+  // the first send, and only once its record and queue row are gone for the account that
+  // saved it. Otherwise it stays on its line under its own id, and the queue decides it.
+  if (
+    outcome.kind === 'dead' &&
+    isFirstSendRefusal(outcome.mutation) &&
+    (await settleFor(deps, payment.id, queued.owner)) !== 'kept'
+  ) {
+    const dead = outcome.mutation;
+    return {
+      kind: 'refused',
+      error: Object.assign(new Error(deadLetterMessage(dead)), { code: dead.errorCode }),
+    };
+  }
+  return { kind: 'queued', sendBegun: true };
 }

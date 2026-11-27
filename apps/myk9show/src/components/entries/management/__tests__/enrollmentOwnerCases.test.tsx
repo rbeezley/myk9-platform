@@ -87,11 +87,15 @@ function rowMoney(dogName: string) {
   return within(card as HTMLElement).getByText(/^Fee: /).textContent;
 }
 
-/** What the Paid in Full dialog says it will record ("Balance due"). */
+/**
+ * What Paid in Full fills in for her to record (MYK9-2479: the payment dialog's amount,
+ * empty when nothing is due), read as "$0.00" for an empty box.
+ */
 function paidInFullQuote() {
   fireEvent.click(screen.getByRole('button', { name: 'Change payment' }));
   fireEvent.click(screen.getByText('Paid in Full: Cash…'));
-  return within(screen.getByRole('dialog')).getByText(/^\$\d/).textContent;
+  const box = screen.getByPlaceholderText('Amount of this payment ($)') as HTMLInputElement;
+  return `$${Number(box.value || 0).toFixed(2)}`;
 }
 
 describe('owner case 1: money still held covers a later add-on (MYK9-1961)', () => {

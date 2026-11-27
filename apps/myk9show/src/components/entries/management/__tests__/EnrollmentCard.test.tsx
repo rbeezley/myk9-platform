@@ -329,11 +329,12 @@ describe('EnrollmentCard', () => {
       return { record, markPaidOnline };
     }
 
+    // MYK9-2479: Paid in Full opens the payment dialog with the due filled in; she records it.
     it('Paid in Full: Cash records the balance, received today on the show calendar', () => {
       const { record, markPaidOnline } = renderPending();
       fireEvent.click(screen.getByText('Paid in Full: Cash…'));
       expect((screen.getByLabelText('Received on') as HTMLInputElement).value).toBe('2026-09-17');
-      fireEvent.click(screen.getByText('Confirm'));
+      fireEvent.click(screen.getByText('Record Payment'));
 
       // MYK9-2479: the due she is shown, never NULL, and the form its local record names.
       expect(record).toHaveBeenCalledWith(
@@ -367,8 +368,8 @@ describe('EnrollmentCard', () => {
       );
       fireEvent.click(screen.getByText('Payment Due'));
       fireEvent.click(screen.getByText('Paid in Full: Cash…'));
-      expect(screen.getByText('$0.20')).toBeInTheDocument();
-      fireEvent.click(screen.getByText('Confirm'));
+      expect(screen.getByPlaceholderText('Amount of this payment ($)')).toHaveValue(0.2);
+      fireEvent.click(screen.getByText('Record Payment'));
 
       expect(record).toHaveBeenCalledWith(
         'enroll-1',
@@ -377,16 +378,12 @@ describe('EnrollmentCard', () => {
       );
     });
 
-    it('a zero balance queues nothing: Paid in Full cannot be confirmed', () => {
+    it('a zero balance fills in nothing, so nothing is recorded until she types an amount', () => {
       const { record } = renderPending(vi.fn().mockResolvedValue('saved'), 50);
       fireEvent.click(screen.getByText('Paid in Full: Cash…'));
 
-      expect(screen.getByTestId('full-payment-nothing-due')).toHaveTextContent(
-        'Nothing is due on this form, so there is no payment to record.'
-      );
-      const confirm = screen.getByText('Confirm');
-      expect(confirm.closest('button')).toBeDisabled();
-      fireEvent.click(confirm);
+      expect(screen.getByPlaceholderText('Amount of this payment ($)')).toHaveValue(null);
+      expect(screen.getByRole('button', { name: 'Record Payment' })).toBeDisabled();
       expect(record).not.toHaveBeenCalled();
     });
 
@@ -397,7 +394,7 @@ describe('EnrollmentCard', () => {
         target: { value: '1042' },
       });
       fireEvent.change(screen.getByLabelText('Received on'), { target: { value: '2026-08-27' } });
-      fireEvent.click(screen.getByText('Confirm'));
+      fireEvent.click(screen.getByText('Record Payment'));
 
       expect(record).toHaveBeenCalledWith(
         'enroll-1',

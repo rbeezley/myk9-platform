@@ -24,13 +24,11 @@ import {
 import {
   AMOUNT_NOT_AVAILABLE,
   SAVED_ON_DEVICE_PAYMENT_NOTE,
-  EMPTY_FULL_PAYMENT_DIALOG,
   EMPTY_PARTIAL_DIALOG,
   EMPTY_REFUND_DIALOG,
   resolveRefund,
   type RefundDialog,
 } from './enrollmentPayment';
-import { EnrollmentFullPaymentDialog } from './EnrollmentFullPaymentDialog';
 import { EnrollmentPartialPaymentDialog } from './EnrollmentPartialPaymentDialog';
 import { EnrollmentRefundDialog } from './EnrollmentRefundDialog';
 import { EnrollmentEmailDialog } from './EnrollmentEmailDialog';
@@ -80,14 +78,9 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
     paidDollars,
     refundableDollars,
     remainingDollars,
-    fullPaymentDollars,
     amountUnknown,
     today,
     deskPayments,
-    fullPaymentHold,
-    fullDialog,
-    setFullDialog,
-    fullSaveStatus,
     partialDialog,
     setPartialDialog,
     partialSaveStatus,
@@ -98,7 +91,6 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
     confirmLedgerChange,
     openFullPayment,
     openPartialPayment,
-    confirmFullPayment,
     confirmPartialPayment,
     email,
   } = dialogControls ?? ownControls;
@@ -395,18 +387,6 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
               }
             : undefined
         }
-      />
-
-      <EnrollmentFullPaymentDialog
-        state={fullDialog}
-        onChange={setFullDialog}
-        balanceDollars={fullPaymentDollars}
-        amountUnknown={amountUnknown}
-        hold={fullPaymentHold}
-        todayInShowZone={today}
-        saveStatus={fullSaveStatus}
-        onClose={() => setFullDialog(EMPTY_FULL_PAYMENT_DIALOG)}
-        onConfirm={confirmFullPayment}
       />
 
       <EnrollmentPartialPaymentDialog

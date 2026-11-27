@@ -101,9 +101,11 @@ describe('entry form money when the payment record is not loaded (MYK9-1968)', (
     await user.click(screen.getByRole('button', { name: 'Change payment' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Paid in Full: Cash…' }));
 
-    const dialog = await screen.findByRole('dialog', { name: 'Record Cash Payment' });
+    // MYK9-2479: the payment dialog, with nothing filled in for a due that is not known.
+    const dialog = await screen.findByRole('dialog', { name: 'Record Partial Payment' });
     expect(within(dialog).getByText('Amount not available')).toBeInTheDocument();
-    expect(within(dialog).queryByText(/\$\d/)).not.toBeInTheDocument();
+    expect(within(dialog).queryByText(/\$\d+\.\d\d/)).not.toBeInTheDocument();
+    expect(within(dialog).getByPlaceholderText('Amount of this payment ($)')).toHaveValue(null);
   });
 
   it('says the amount is not available when a move-up money root is not in the read', () => {

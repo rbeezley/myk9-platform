@@ -131,10 +131,10 @@ describe('payment and refund dialogs keep what was typed when the save fails (MY
     it('stays open with the check number and date, and says it was not saved', async () => {
       const { record, settle } = deferredRecord();
       openCheckPayment(record);
-      fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Record Payment' }));
 
-      expect(screen.getByRole('button', { name: 'Confirm' })).toBeDisabled();
-      fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+      expect(screen.getByRole('button', { name: 'Record Payment' })).toBeDisabled();
+      fireEvent.click(screen.getByRole('button', { name: 'Record Payment' }));
       expect(record).toHaveBeenCalledTimes(1);
 
       settle('failed');
@@ -142,13 +142,13 @@ describe('payment and refund dialogs keep what was typed when the save fails (MY
       expect(screen.getByRole('dialog')).toBeInTheDocument();
       expect(screen.getByPlaceholderText('Check number (optional)')).toHaveValue('1042');
       expect(screen.getByLabelText('Received on')).toHaveValue('2026-08-27');
-      expect(screen.getByRole('button', { name: 'Confirm' })).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Record Payment' })).toBeEnabled();
     });
 
     it('closes once the write succeeds', async () => {
       const { record, settle } = deferredRecord();
       openCheckPayment(record);
-      fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Record Payment' }));
       expect(screen.getByRole('dialog')).toBeInTheDocument();
 
       settle('saved');
@@ -220,7 +220,7 @@ describe('payment and refund dialogs keep what was typed when the save fails (MY
     it('Paid in Full keeps the check number and date and asks to check first', async () => {
       const { record, settle } = deferredRecord();
       openCheckPayment(record);
-      fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Record Payment' }));
 
       settle('unconfirmed');
       expect(await screen.findByText(UNCONFIRMED)).toBeInTheDocument();
@@ -260,10 +260,10 @@ describe('payment and refund dialogs keep what was typed when the save fails (MY
       .mockResolvedValueOnce('failed')
       .mockResolvedValueOnce('saved');
     openCheckPayment(record);
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Record Payment' }));
     expect(await screen.findByText(/^Not saved\./)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Record Payment' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(record).toHaveBeenCalledTimes(2);
     expect(record).toHaveBeenLastCalledWith(
@@ -306,9 +306,11 @@ describe('every payment carries its own id, kept for a retry (MYK9-1936)', () =>
       .mockResolvedValueOnce('unconfirmed')
       .mockResolvedValueOnce('saved');
     openCheckPayment(record);
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Confirm' })).toBeEnabled());
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Record Payment' }));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Record Payment' })).toBeEnabled()
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Record Payment' }));
     await waitFor(() => expect(record).toHaveBeenCalledTimes(2));
 
     const first = sentPaymentId(record, 0);

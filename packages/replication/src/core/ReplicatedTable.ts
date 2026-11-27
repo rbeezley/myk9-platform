@@ -691,8 +691,6 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       payload: Record<string, unknown>;
       dependsOn?: string[] | undefined;
       rpc?: PendingMutation['rpc'] | undefined;
-      /** No upload pass sends it before this time (MYK9-2479: the caller is sending it itself). */
-      holdUploadUntil?: number | undefined;
     },
     setOptions?: {
       expectedVersion?: number | undefined;
@@ -707,18 +705,15 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       prepare: async () =>
         manager
           ? {
-              mutation: {
-                ...(await manager.prepareMutation(
-                  this.tableName,
-                  queue.operation,
-                  id,
-                  queue.payload,
-                  queue.dependsOn,
-                  queue.rpc,
-                  queue.rpc ? await this.resolveMutationShowId(id) : undefined
-                )),
-                ...(queue.holdUploadUntil !== undefined && { nextRetryAt: queue.holdUploadUntil }),
-              },
+              mutation: await manager.prepareMutation(
+                this.tableName,
+                queue.operation,
+                id,
+                queue.payload,
+                queue.dependsOn,
+                queue.rpc,
+                queue.rpc ? await this.resolveMutationShowId(id) : undefined
+              ),
               sequencer: manager.sequencer,
             }
           : null,
@@ -761,6 +756,13 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   ): Promise<{ result: ReplicatedSetResult; revision: number | undefined }> {
     const attempt: SetAttempt = { rowExisted: false };
     const ownerAuthUserId = await this.rowOwnerFor();
+    // MYK9-2479: the row and its mutation are one account's. The two are resolved apart, so
+    // an account switch between them fails the write here, before anything is committed.
+    if (queued && ownerAuthUserId !== undefined && queued.mutation.authUserId !== ownerAuthUserId) {
+      throw new Error(
+        `[${this.tableName}] The signed-in account changed during this write; nothing was saved.`
+      );
+    }
     const result = await withQuotaEviction(
       () =>
         this.setOnce(

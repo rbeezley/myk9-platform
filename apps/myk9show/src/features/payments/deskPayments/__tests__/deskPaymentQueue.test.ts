@@ -1,6 +1,6 @@
 /**
- * MYK9-2479 through the REAL queue: a desk payment saved on this device, sent, and
- * replayed under the same id against a fake server that dedupes on the client
+ * MYK9-2479 through the REAL queue: a desk payment saved on this device and sent ONLY by
+ * the queue, replayed under the same id against a fake server that dedupes on the client
  * payment id the way `record_enrollment_payment` does.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -11,11 +11,11 @@ import {
   type PendingMutation,
 } from '@myk9/replication';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  ledgerActionRpcArgs,
-  type EnrollmentLedgerAction,
-  type RecordedEnrollmentPayment,
+import type {
+  EnrollmentLedgerAction,
+  RecordedEnrollmentPayment,
 } from '@/features/payments/showPaymentLedger';
+import { recordEnrollmentPayment } from '@/services/database/show-payments';
 import { DeskPaymentsTable } from '../DeskPaymentsTable';
 import type { DeskPaymentDeps } from '../deskPaymentDeps';
 import { settleUploadedDeskPayments, DESK_PAYMENTS_RECORDED_EVENT } from '../deskPaymentEvents';
@@ -25,6 +25,12 @@ import {
   retryDeskPayment,
 } from '../deskPaymentReader';
 import { DESK_PAYMENT_WAIT_MS, saveDeskPayment } from '../saveDeskPayment';
+
+// The direct ledger RPC exists for refunds and resets; a desk payment must never use it.
+vi.mock('@/services/database/show-payments', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/database/show-payments')>()),
+  recordEnrollmentPayment: vi.fn(),
+}));
 
 const SHOW = 'show-1';
 const ENROLLMENT = 'enr-1';
@@ -83,14 +89,14 @@ describe('desk payments on the offline queue (MYK9-2479)', () => {
     return { data: ANSWER, error: null, status: 200 };
   }
 
-  function createQueue(maxRetries = 3) {
+  function createQueue(maxRetries = 3, retryBackoffBase = 60_000) {
     manager?.destroy();
     const client = {
       rpc: vi.fn(async (_name: string, args: Record<string, unknown>) => serve(args)),
     } as unknown as SupabaseClient;
     manager = new MutationManager(client, {
       maxRetries,
-      retryBackoffBase: 60_000,
+      retryBackoffBase,
       getCurrentUserId: async () => auth,
       getCurrentUploadContext: async () => ({ authUserId: auth, supabaseClient: client }),
     });
@@ -99,12 +105,6 @@ describe('desk payments on the offline queue (MYK9-2479)', () => {
     deps = {
       table,
       queue: manager,
-      send: async (enrollmentId, action) => {
-        const { data, error } = await serve(ledgerActionRpcArgs(enrollmentId, action));
-        if (error?.code) throw Object.assign(new Error(error.message), { code: error.code });
-        if (error) throw new TypeError('Failed to fetch');
-        return data as RecordedEnrollmentPayment;
-      },
       canReadLedger: vi.fn(async () => true),
       ledgerIds: vi.fn(async (ids: string[]) => new Set(ids.filter(id => ledger.has(id)))),
       isOnline: () => online,
@@ -184,32 +184,111 @@ describe('desk payments on the offline queue (MYK9-2479)', () => {
     expect(await table.listForShow(SHOW)).toEqual([]);
   });
 
-  // Codex round 1 on #4461: "not recorded" invites a re-entry under a new id, so it is said
-  // only once nothing is left that could still send the original.
-  it('a refusal whose record could not be settled stays on its line under the same id', async () => {
-    const refused = { code: '22023', message: 'a payment amount must be greater than zero' };
-    behaviors = [refused, refused];
+  // Option A (Codex round 3 on #4461): one send path, the queue's, under its owner's session.
+  it('never calls the ledger RPC itself: it queues the payment and asks the queue to send it', async () => {
+    const sendNow = vi.spyOn(manager, 'sendRowNow');
+
+    await saveDeskPayment(ENROLLMENT, PAYMENT, FORM, deps);
+
+    expect(sendNow).toHaveBeenCalledWith('show_payments', ID);
+    expect(recordEnrollmentPayment).not.toHaveBeenCalled();
+    expect(rpcCalls).toHaveLength(1);
+    expectOneIdAndAmount();
+  });
+
+  it('acknowledged within the wait: saved, settled, and the show announced once', async () => {
+    const recorded = vi.fn();
+    window.addEventListener(DESK_PAYMENTS_RECORDED_EVENT, recorded);
+
+    const result = await saveDeskPayment(ENROLLMENT, PAYMENT, FORM, deps);
+
+    window.removeEventListener(DESK_PAYMENTS_RECORDED_EVENT, recorded);
+    expect(result).toEqual({ kind: 'saved' });
+    expect(await table.listForShow(SHOW)).toEqual([]);
+    expect(await store(REPLICATION_STORES.PENDING_MUTATIONS)).toEqual([]);
+    expect(recorded).toHaveBeenCalledTimes(1);
+    expect((recorded.mock.calls[0]![0] as CustomEvent).detail.showIds).toEqual([SHOW]);
+    expect(ledger.size).toBe(1);
+  });
+
+  it('a 22023 on the first send is refused only once its record and queue row are gone', async () => {
+    behaviors = [{ code: '22023', message: 'a payment amount must be greater than zero' }];
+
+    const result = await saveDeskPayment(ENROLLMENT, PAYMENT, FORM, deps);
+
+    expect(result).toMatchObject({ kind: 'refused' });
+    const error = (result as { error: Error & { code?: string } }).error;
+    expect([error.message, error.code]).toEqual([
+      'a payment amount must be greater than zero',
+      '22023',
+    ]);
+    expect(await table.listForShow(SHOW)).toEqual([]);
+    expect(await store(REPLICATION_STORES.PENDING_MUTATIONS)).toEqual([]);
+    expect(await store(REPLICATION_STORES.FAILED_MUTATIONS)).toEqual([]);
+  });
+
+  it('a first-send refusal it could not clean up stays on its line, never refused', async () => {
+    behaviors = [{ code: '22023', message: 'a payment amount must be greater than zero' }];
     vi.spyOn(table, 'settle').mockRejectedValueOnce(new Error('IndexedDB write failed'));
 
     const result = await saveDeskPayment(ENROLLMENT, PAYMENT, FORM, deps);
 
     expect(result).toEqual({ kind: 'queued', sendBegun: true });
-    await vi.waitFor(async () =>
-      expect(await store(REPLICATION_STORES.FAILED_MUTATIONS)).toHaveLength(1)
-    );
     const lines = await readDeskPaymentLines(SHOW, deps);
     expect(lines.map(line => [line.payment.id, line.state])).toEqual([[ID, 'refused']]);
+  });
+
+  it('a refusal after a failed first send is not called refused: it may follow a recorded one', async () => {
+    createQueue(3, 1);
+    behaviors = ['drop', { code: '22023', message: 'a payment amount must be greater than zero' }];
+
+    const result = await saveDeskPayment(ENROLLMENT, PAYMENT, FORM, deps);
+
+    expect(rpcCalls).toHaveLength(2);
+    expect(result).toEqual({ kind: 'queued', sendBegun: true });
+    expect(await store(REPLICATION_STORES.FAILED_MUTATIONS)).toHaveLength(1);
     expectOneIdAndAmount();
   });
 
-  it('online: the answer settles the record and its queue row', async () => {
+  it('no outcome within the wait: queued, and the queue sends it again under the same id', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    behaviors = ['drop'];
+
+    const pending = saveDeskPayment(ENROLLMENT, PAYMENT, FORM, deps);
+    await vi.waitFor(() => expect(rpcCalls).toHaveLength(1));
+    await vi.advanceTimersByTimeAsync(DESK_PAYMENT_WAIT_MS);
+
+    expect(await pending).toEqual({ kind: 'queued', sendBegun: true });
+    vi.useRealTimers();
+    const lines = await readDeskPaymentLines(SHOW, deps);
+    expect(lines.map(line => line.state)).toEqual(['unconfirmed']);
+    expectOneIdAndAmount();
+  });
+
+  it('the row and its queued send belong to the one account that saved them', async () => {
+    await goOffline();
+
+    await saveDeskPayment(ENROLLMENT, PAYMENT, FORM, deps);
+
+    const row = await table.getReplicatedRowIncludingOtherAccounts(ID);
+    const [queued] = await store(REPLICATION_STORES.PENDING_MUTATIONS);
+    expect([row?.ownerAuthUserId, queued?.authUserId]).toEqual(['secretary-a', 'secretary-a']);
+  });
+
+  it('an account switch between the two fails the save before commit, with nothing queued', async () => {
+    await goOffline();
+    const prepare = manager.prepareMutation.bind(manager);
+    vi.spyOn(manager, 'prepareMutation').mockImplementation(async (...args) => {
+      const mutation = await prepare(...args);
+      auth = 'secretary-b';
+      return mutation;
+    });
+
     const result = await saveDeskPayment(ENROLLMENT, PAYMENT, FORM, deps);
 
-    expect(result).toEqual({ kind: 'saved', recorded: ANSWER });
-    expect(await table.listForShow(SHOW)).toEqual([]);
+    expect(result).toMatchObject({ kind: 'not-saved', reason: 'not-stored' });
+    expect(await table.getReplicatedRowIncludingOtherAccounts(ID)).toBeNull();
     expect(await store(REPLICATION_STORES.PENDING_MUTATIONS)).toEqual([]);
-    expect(rpcCalls).toHaveLength(1);
-    expectOneIdAndAmount();
   });
 
   it('offline: saved and waiting to send, then sent once when the connection returns', async () => {
@@ -232,67 +311,13 @@ describe('desk payments on the offline queue (MYK9-2479)', () => {
     expectOneIdAndAmount();
   });
 
-  it('an unreachable RPC while the browser says online stays queued and reads not confirmed', async () => {
-    behaviors = ['drop', 'drop'];
-
-    const result = await saveDeskPayment(ENROLLMENT, PAYMENT, FORM, deps);
-
-    expect(result).toEqual({ kind: 'queued', sendBegun: true });
-    // Handed to the queue, which sends it again at once under the same id.
-    await vi.waitFor(async () => {
-      expect(rpcCalls).toHaveLength(2);
-      const [queued] = await store(REPLICATION_STORES.PENDING_MUTATIONS);
-      expect(queued?.retries).toBe(1);
-    });
-    const lines = await readDeskPaymentLines(SHOW, deps);
-    expect(lines.map(line => line.state)).toEqual(['unconfirmed']);
-    expectOneIdAndAmount();
-  });
-
-  it('no answer within the wait leaves it to the queue under the same id', async () => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
-    behaviors = ['drop'];
-    let aborted = false;
-    deps.send = (_enrollmentId, _action, signal) =>
-      new Promise((_resolve, reject) => {
-        signal.addEventListener('abort', () => {
-          aborted = true;
-          reject(new DOMException('The operation was aborted.', 'AbortError'));
-        });
-      });
-
-    const pending = saveDeskPayment(ENROLLMENT, PAYMENT, FORM, deps);
-    await vi.waitFor(async () => expect(await table.listForShow(SHOW)).toHaveLength(1));
-    await vi.advanceTimersByTimeAsync(DESK_PAYMENT_WAIT_MS);
-
-    expect(await pending).toEqual({ kind: 'queued', sendBegun: true });
-    expect(aborted).toBe(true);
-    vi.useRealTimers();
-    await vi.waitFor(() => expect(rpcCalls).toHaveLength(1));
-    expectOneIdAndAmount();
-  });
-
-  it('a reload during the wait keeps the record and its line, and replays it once', async () => {
-    // The dialog's send is out (the queue is held) when the page goes away.
-    await table.queuePayment(
-      {
-        id: ID,
-        showId: SHOW,
-        enrollmentId: ENROLLMENT,
-        exhibitorName: 'Jane Smith',
-        amount: 25,
-        method: 'cash',
-        receivedOn: '2026-11-26',
-        reference: null,
-        receivedAt: new Date().toISOString(),
-        sendBegun: true,
-      },
-      Date.now() + 60_000
-    );
+  it('a reload before the send keeps the record and its line, and replays it once', async () => {
+    await goOffline();
+    await saveDeskPayment(ENROLLMENT, PAYMENT, FORM, deps);
     createQueue();
 
     const lines = await readDeskPaymentLines(SHOW, deps);
-    expect(lines.map(line => line.state)).toEqual(['unconfirmed']);
+    expect(lines.map(line => line.state)).toEqual(['waiting']);
 
     await goOnlineAndUpload();
 

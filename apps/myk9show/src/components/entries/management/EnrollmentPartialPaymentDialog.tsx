@@ -11,7 +11,7 @@ import {
 import { LedgerNotSavedNote } from './LedgerNotSavedNote';
 import type { LedgerSaveStatus } from './useLedgerDialogSave';
 import { AMOUNT_NOT_AVAILABLE, balanceAfterPayment, type PartialDialog } from './enrollmentPayment';
-import { ReceivedOnField } from './EnrollmentFullPaymentDialog';
+import { ReceivedOnField } from './ReceivedOnField';
 
 interface EnrollmentPartialPaymentDialogProps {
   state: PartialDialog;

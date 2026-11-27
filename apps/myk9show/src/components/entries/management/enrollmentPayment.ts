@@ -13,19 +13,16 @@ import type { EnrollmentGroup } from '@/utils/enrollmentGrouping';
  * components and the card can share one source of truth.
  */
 
-/** "Paid in Full" by cash or check: pays whatever is still due. */
-export type FullPaymentDialog = {
-  open: boolean;
-  method: LedgerMethod;
-  checkNumber: string;
-  /** `YYYY-MM-DD` on the show's calendar; a check banked earlier keeps its day. */
-  receivedOn: string;
-};
+/**
+ * A cash or check payment: the amount she received, typed or (MYK9-2479, "Paid in Full")
+ * filled in with the balance due for her to confirm or edit.
+ */
 export type PartialDialog = {
   open: boolean;
   amountPaid: string;
   method: LedgerMethod;
   checkNumber: string;
+  /** `YYYY-MM-DD` on the show's calendar; a check banked earlier keeps its day. */
   receivedOn: string;
 };
 export type RefundDialog = {
@@ -36,12 +33,6 @@ export type RefundDialog = {
   isPartial: boolean;
 };
 
-export const EMPTY_FULL_PAYMENT_DIALOG: FullPaymentDialog = {
-  open: false,
-  method: 'cash',
-  checkNumber: '',
-  receivedOn: '',
-};
 export const EMPTY_PARTIAL_DIALOG: PartialDialog = {
   open: false,
   amountPaid: '',

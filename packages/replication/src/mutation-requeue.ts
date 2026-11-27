@@ -19,6 +19,7 @@ export function requeueFailedMutation(failed: PendingMutation): PendingMutation 
   delete requeued.error;
   delete requeued.failureKind;
   delete requeued.errorCode;
+  delete requeued.priorTransportRetries;
   delete requeued.nextRetryAt;
   delete requeued.failedAt;
   return requeued;

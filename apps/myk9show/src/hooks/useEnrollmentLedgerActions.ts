@@ -228,7 +228,9 @@ export function useEnrollmentLedgerActions({
       form: DeskPaymentForm
     ): Promise<LedgerWriteOutcome> => {
       const result = await saveDeskPayment(enrollmentId, action, form);
-      if (result.kind === 'saved') return apply(enrollmentId, async () => result.recorded);
+      // The queue keeps no RPC answer: the save announces the show's money moved, and the
+      // form's figures come back from the server's reload, never a local figure.
+      if (result.kind === 'saved') return 'saved';
       if (result.kind === 'refused') return apply(enrollmentId, () => Promise.reject(result.error));
       if (result.kind === 'queued') {
         toast.warning(result.sendBegun ? QUEUED_UNCONFIRMED : QUEUED_OFFLINE);
@@ -252,10 +254,17 @@ export function useEnrollmentLedgerActions({
   );
 
   const record = useCallback<EnrollmentLedgerRecordImpl>(
-    (enrollmentId, action, form) =>
-      action.kind === 'payment' && form
-        ? recordPayment(enrollmentId, action, form)
-        : apply(enrollmentId, () => recordEnrollmentPayment(enrollmentId, action)),
+    async (enrollmentId, action, form) => {
+      if (action.kind !== 'payment') {
+        return apply(enrollmentId, () => recordEnrollmentPayment(enrollmentId, action));
+      }
+      if (form) return recordPayment(enrollmentId, action, form);
+      // A cash or check payment goes only through the device save and the queue; one that
+      // names no form has no record to save under, so it is refused and nothing is sent.
+      logger.error('Desk payment with no form refused', 'secretary', { enrollmentId });
+      toast.error(LEDGER_REFUSED_TECHNICAL);
+      return 'failed';
+    },
     [apply, recordPayment]
   );
 

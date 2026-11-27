@@ -26,6 +26,10 @@ export function deskPaymentRpcArgs(payment: LocalDeskPayment): Record<string, un
   };
 }
 
+/** One queued send: refused or out of retries (its dead letter), still queued, or acknowledged. */
+export type DeskSendOutcome =
+  { kind: 'dead'; mutation: PendingMutation } | { kind: 'pending' } | { kind: 'acknowledged' };
+
 /** A local payment, the account it was saved for, and whether the queue acknowledged it. */
 export interface StoredDeskPayment {
   payment: LocalDeskPayment;
@@ -66,22 +70,48 @@ export class DeskPaymentsTable extends ReplicatedTable<LocalDeskPayment> {
   }
 
   /**
-   * Save the record and its queue row in one transaction. `holdUploadUntil` keeps
-   * every upload pass off it while the caller sends it itself; a reload in that
-   * window leaves it to the queue, which sends it once the hold passes. Resolves to the
-   * account the record was stamped with: the one account that may settle it.
+   * Save the record and its queue row in one transaction; the queue is the only path that
+   * sends it. Resolves to the queued mutation and the ONE account the committed row and
+   * mutation belong to, from the write itself (an account switch mid-write fails it before
+   * commit). `owner` is null only when the mutation was queued without its row.
    */
-  async queuePayment(payment: LocalDeskPayment, holdUploadUntil?: number): Promise<string | null> {
+  async queuePayment(
+    payment: LocalDeskPayment
+  ): Promise<{ mutationId: string; owner: string | null }> {
     const args = deskPaymentRpcArgs(payment);
-    const { mutationId } = await this.writeAndQueue(payment.id, payment, {
+    const { mutationId, ownerAuthUserId } = await this.writeAndQueue(payment.id, payment, {
       operation: 'INSERT',
       payload: args,
       rpc: { name: DESK_PAYMENT_RPC, args },
-      holdUploadUntil,
     });
     if (!mutationId) throw new Error('The payment could not be saved on this device.');
-    const row = await this.getReplicatedRowIncludingOtherAccounts(payment.id);
-    return row?.ownerAuthUserId ?? null;
+    return { mutationId, owner: ownerAuthUserId ?? null };
+  }
+
+  /**
+   * Where one queued send stands, read in one transaction: its dead letter, still queued,
+   * or acknowledged (its row went clean, or was already settled from the acknowledgement).
+   */
+  async sendOutcome(id: string, mutationId: string): Promise<DeskSendOutcome> {
+    const db = await this.init();
+    const tx = db.transaction(
+      [
+        REPLICATION_STORES.REPLICATED_TABLES,
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        REPLICATION_STORES.FAILED_MUTATIONS,
+      ],
+      'readonly'
+    );
+    const dead = (await tx.objectStore(REPLICATION_STORES.FAILED_MUTATIONS).get(mutationId)) as
+      PendingMutation | undefined;
+    const queued = await tx.objectStore(REPLICATION_STORES.PENDING_MUTATIONS).get(mutationId);
+    const row = (await tx
+      .objectStore(REPLICATION_STORES.REPLICATED_TABLES)
+      .get([this.tableName, id])) as ReplicatedRow<LocalDeskPayment> | undefined;
+    await tx.done;
+    if (dead) return { kind: 'dead', mutation: dead };
+    if (queued || row?.isDirty) return { kind: 'pending' };
+    return { kind: 'acknowledged' };
   }
 
   /** This account's local payments for one show. Throws when the device could not read them. */
@@ -163,6 +193,10 @@ export class DeskPaymentsTable extends ReplicatedTable<LocalDeskPayment> {
     if (notOwned) {
       await tx.done;
       return 'not-owner';
+    }
+    if (!row && queued.length === 0) {
+      await tx.done;
+      return 'nothing-held';
     }
     if (row) await rows.delete(key);
     for (const { storeName, mutation } of queued) {

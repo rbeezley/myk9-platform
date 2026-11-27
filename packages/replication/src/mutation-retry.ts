@@ -79,8 +79,10 @@ export function classifyMutationFailure({
           ? 'authorization'
           : 'permanent',
       failedAt: now,
-      // MYK9-2479: the dead letter keeps the server's code, so recovery need not parse its text.
+      // MYK9-2479: the dead letter keeps the server's code, so recovery need not parse its text,
+      // and whether a send was lost before it, so "refused on its first send" can be told apart.
       ...(typeof code === 'string' && code.length > 0 && { errorCode: code }),
+      ...(mutation.transportRetries ? { priorTransportRetries: mutation.transportRetries } : {}),
     };
     delete failed.nextRetryAt;
 

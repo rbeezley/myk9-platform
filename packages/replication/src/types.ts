@@ -190,6 +190,11 @@ export interface PendingMutation {
   failureKind?: 'authorization' | 'permanent' | 'max-retries';
   /** The Postgres code of the failure that moved it there, when the server sent one (MYK9-2479). */
   errorCode?: string;
+  /**
+   * Transport-class failures before the one that moved it there (MYK9-2479). Absent when
+   * there were none: with `retries` 1, the dead letter is the answer to its first send.
+   */
+  priorTransportRetries?: number;
 
   /** Causal dependency tracking */
   dependsOn?: string[]; // IDs of mutations that must complete before this one

@@ -23,6 +23,12 @@ export interface WriteAndQueueSteps {
 export interface WriteAndQueueResult {
   mutationId: string | null;
   result: ReplicatedSetResult;
+  /**
+   * The account the committed row AND its mutation belong to (one account: the write
+   * fails before commit when they differ). Taken from the write itself, never read back
+   * after it (MYK9-2479). Absent when no row was written with a mutation.
+   */
+  ownerAuthUserId?: string | undefined;
 }
 
 /**
@@ -54,7 +60,7 @@ export async function writeAndQueue(steps: WriteAndQueueSteps): Promise<WriteAnd
       steps.logger.warn('[writeAndQueue] Post-commit announce failed:', error);
     });
     steps.requestUpload();
-    return { mutationId: queued.mutation.id, result };
+    return { mutationId: queued.mutation.id, result, ownerAuthUserId: queued.mutation.authUserId };
   } finally {
     releaseLock?.();
   }

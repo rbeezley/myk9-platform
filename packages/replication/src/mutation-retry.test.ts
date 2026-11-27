@@ -65,6 +65,25 @@ describe('classifyMutationFailure', () => {
       errorCode: '22023',
     });
     expect(requeueFailedMutation(result.mutation).errorCode).toBeUndefined();
+    expect(result.mutation.priorTransportRetries).toBeUndefined();
+  });
+
+  // MYK9-2479: a refusal after a lost send is not the answer to the first send.
+  it('keeps how many sends were lost before a dead letter, and requeue clears it', () => {
+    const result = classifyMutationFailure({
+      mutation: {
+        ...mutation({ rpc: { name: 'record_enrollment_payment' } }),
+        transportRetries: 2,
+      },
+      error: { message: 'a payment amount must be greater than zero', code: '22023' },
+      maxRetries: 3,
+      retryBackoffBase: 10,
+      now: 3_000,
+    });
+
+    expect(result.mutation).toMatchObject({ retries: 1, priorTransportRetries: 2 });
+    expect(result.mutation.transportRetries).toBeUndefined();
+    expect(requeueFailedMutation(result.mutation).priorTransportRetries).toBeUndefined();
   });
 
   it('marks retryable errors as failed when max retries are reached', () => {

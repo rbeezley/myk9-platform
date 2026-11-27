@@ -16,9 +16,9 @@ import {
  * reconciliation run with a connection; offline, the card says it cannot load
  * the payments rather than showing a false $0. A desk late entry needs no client
  * write here: the server derives its ledger row from the entry when it syncs.
- * MYK9-2479: a desk cash or check payment is saved on the device first and, when
- * this send gets no answer, sent again from the offline queue under the same id
- * (`features/payments/deskPayments`).
+ * MYK9-2479: a desk cash or check payment is not sent from here: it is saved on the
+ * device and sent only by the offline queue, under the same id on every send
+ * (`features/payments/deskPayments`). Refunds and resets still use this module.
  */
 
 interface DbResult<T> {
@@ -47,11 +47,6 @@ interface ShowPaymentsSelectQuery {
   range(from: number, to: number): Promise<DbResult<ShowPaymentLedgerRow[]>>;
 }
 
-/** A PostgREST RPC call: awaitable, and cancellable by a signal. */
-interface RpcCall<T> extends PromiseLike<DbResult<T>> {
-  abortSignal(signal: AbortSignal): PromiseLike<DbResult<T>>;
-}
-
 // `show_payments` and `record_enrollment_payment` are newer than the checked-in
 // generated types (migration 20260925181937), so the client is narrowed
 // structurally here, as show-incidents.ts and dogFavoritesSync.ts do. One cast,
@@ -61,7 +56,7 @@ const db = supabase as unknown as {
   rpc(
     fn: 'record_enrollment_payment',
     args: Record<string, unknown>
-  ): RpcCall<RecordedEnrollmentPayment>;
+  ): Promise<DbResult<RecordedEnrollmentPayment>>;
 };
 
 const LEDGER_COLUMNS =
@@ -87,18 +82,15 @@ export async function listShowPayments(showId: string): Promise<ShowPaymentLedge
   }
 }
 
-/**
- * Throws the server's message (authorization, validation) on failure. `signal`
- * cancels the request (MYK9-2479: a desk payment waits a bounded time, then the
- * queue sends it again under the same id).
- */
+/** Throws the server's message (authorization, validation) on failure. */
 export async function recordEnrollmentPayment(
   enrollmentId: string,
-  action: EnrollmentLedgerAction,
-  signal?: AbortSignal
+  action: EnrollmentLedgerAction
 ): Promise<RecordedEnrollmentPayment> {
-  const call = db.rpc('record_enrollment_payment', ledgerActionRpcArgs(enrollmentId, action));
-  const { data, error } = await (signal ? call.abortSignal(signal) : call);
+  const { data, error } = await db.rpc(
+    'record_enrollment_payment',
+    ledgerActionRpcArgs(enrollmentId, action)
+  );
   if (error) throw new EnrollmentPaymentError(error.message, error.code);
   if (!data) throw new Error('The payment was not recorded. Please try again.');
   return data;

@@ -29,8 +29,12 @@ export interface LocalDeskPayment {
   sendBegun: boolean;
 }
 
-/** What settling one payment found: `not-owner` removed nothing (another account's, or no account). */
-export type DeskPaymentSettleResult = 'settled' | 'not-owner';
+/**
+ * What settling one payment did. `settled`: it removed what this device held, so the
+ * caller announces the money moved. `nothing-held`: nothing was left (already settled),
+ * so nobody announces twice. `not-owner`: nothing removed (another account's, or none).
+ */
+export type DeskPaymentSettleResult = 'settled' | 'nothing-held' | 'not-owner';
 
 /** The form a payment belongs to, for its local record. */
 export interface DeskPaymentForm {

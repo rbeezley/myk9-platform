@@ -12,24 +12,16 @@ export const DESK_PAYMENTS_RECORDED_EVENT = 'desk-payments:recorded';
 
 export interface DeskPaymentsRecordedDetail {
   showIds: string[];
-  /** A listener hands over the refresh it started, so the announcer knows when it is done. */
-  waitFor: (work: Promise<unknown>) => void;
 }
 
-/**
- * Tell this tab the shows' money moved. Resolves once every refresh a listener started
- * for it is done (each failure is the listener's to log), so a caller can say "the
- * balance is being updated" until the form's figures are current again.
- */
-export function announceDeskPaymentsRecorded(showIds: string[]): Promise<void> {
-  if (showIds.length === 0 || typeof window === 'undefined') return Promise.resolve();
-  const work: Array<Promise<unknown>> = [];
+/** Tell this tab the shows' money moved: whoever settled a payment announces it, once. */
+export function announceDeskPaymentsRecorded(showIds: string[]): void {
+  if (showIds.length === 0 || typeof window === 'undefined') return;
   window.dispatchEvent(
     new CustomEvent<DeskPaymentsRecordedDetail>(DESK_PAYMENTS_RECORDED_EVENT, {
-      detail: { showIds, waitFor: next => work.push(next) },
+      detail: { showIds },
     })
   );
-  return Promise.allSettled(work).then(() => undefined);
 }
 
 /** A desk cash or check payment's queue row. */
@@ -70,6 +62,6 @@ export async function settleUploadedDeskPayments(
       showIds.add(row.data.showId);
     }
   }
-  void announceDeskPaymentsRecorded([...showIds]);
+  announceDeskPaymentsRecorded([...showIds]);
   return [...showIds];
 }

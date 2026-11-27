@@ -35,14 +35,20 @@ describe('desk payments settle only for the account that saved them (MYK9-2479)'
   let manager: MutationManager;
   let table: DeskPaymentsTable;
   let deps: DeskPaymentDeps;
+  /** The queue's client: the server refuses, after `onSend` (an account switch, say). */
+  let onSend: () => void;
 
   beforeEach(async () => {
     await databaseManager.reset();
     auth = 'secretary-a';
     online = false;
+    onSend = () => undefined;
     vi.spyOn(navigator, 'onLine', 'get').mockImplementation(() => online);
     const client = {
-      rpc: vi.fn(async () => ({ data: null, error: REFUSAL, status: 400 })),
+      rpc: vi.fn(async () => {
+        onSend();
+        return { data: null, error: REFUSAL, status: 400 };
+      }),
     } as unknown as SupabaseClient;
     manager = new MutationManager(client, {
       maxRetries: 3,
@@ -52,12 +58,9 @@ describe('desk payments settle only for the account that saved them (MYK9-2479)'
     });
     table = new DeskPaymentsTable();
     table.setMutationManager(manager);
-    // The hand-off to the queue is not under test here.
-    vi.spyOn(manager, 'sendRowNow').mockResolvedValue(undefined as never);
     deps = {
       table,
       queue: manager,
-      send: vi.fn(),
       canReadLedger: vi.fn(async () => true),
       ledgerIds: vi.fn(async () => new Set<string>()),
       isOnline: () => online,
@@ -127,28 +130,24 @@ describe('desk payments settle only for the account that saved them (MYK9-2479)'
   it('a refusal it could not settle for its owner stays queued on its line, never refused', async () => {
     online = true;
     vi.spyOn(table, 'settle').mockResolvedValueOnce('not-owner');
-    deps.send = vi.fn(async () => {
-      throw Object.assign(new Error(REFUSAL.message), { code: REFUSAL.code });
-    });
 
     const result = await saveDeskPayment('enr-1', PAYMENT, FORM, deps);
 
     expect(result).toEqual({ kind: 'queued', sendBegun: true });
-    expect(await heldOnDevice()).toMatchObject({ record: 'secretary-a', queued: 1 });
+    expect(await heldOnDevice()).toMatchObject({ record: 'secretary-a', dead: 1 });
   });
 
   it('an account change during the send keeps the first account’s payment queued', async () => {
     online = true;
-    deps.send = vi.fn(async () => {
+    onSend = () => {
       auth = 'secretary-b';
-      throw Object.assign(new Error(REFUSAL.message), { code: REFUSAL.code });
-    });
+    };
 
     const result = await saveDeskPayment('enr-1', PAYMENT, FORM, deps);
 
     expect(result).toEqual({ kind: 'queued', sendBegun: true });
     auth = 'secretary-a';
     expect((await table.listForShow(SHOW)).map(s => s.payment.id)).toEqual([ID]);
-    expect(await heldOnDevice()).toMatchObject({ record: 'secretary-a', queued: 1 });
+    expect(await heldOnDevice()).toMatchObject({ record: 'secretary-a', dead: 1 });
   });
 });

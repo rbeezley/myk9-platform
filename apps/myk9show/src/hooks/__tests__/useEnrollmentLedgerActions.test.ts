@@ -138,12 +138,12 @@ describe('useEnrollmentLedgerActions', () => {
     }
   });
 
-  it("records once and patches only that enrollment's entries from the server's answer", async () => {
-    mocks.save.mockResolvedValue({ kind: 'saved', recorded: PAID_IN_FULL });
-    let entries = [entry(), entry({ id: 'other', registrationId: 'enr-2' })];
-    const setEntries = vi.fn(update => {
-      entries = typeof update === 'function' ? update(entries) : update;
-    });
+  // MYK9-2479 (Option A): the queue keeps no RPC answer. A payment is saved on this device,
+  // sent by the queue, and the form's figures come back from the server's reload, never a
+  // local figure.
+  it('records a payment through the device save once, and patches no figure itself', async () => {
+    mocks.save.mockResolvedValue({ kind: 'saved' });
+    const setEntries = vi.fn();
     const { result } = renderHook(
       () => useEnrollmentLedgerActions({ setEntries, showTimeZone: 'America/New_York' }),
       { wrapper }
@@ -155,7 +155,6 @@ describe('useEnrollmentLedgerActions', () => {
       receivedOn: '2026-09-17',
       clientPaymentId: '9a4e2c61-0b7d-4f38-8e15-3d6c2a9f7b40',
     };
-
     const form = { showId: 'show-1', exhibitorName: 'Jane' };
 
     let outcome = '';
@@ -164,12 +163,40 @@ describe('useEnrollmentLedgerActions', () => {
     });
 
     expect(outcome).toBe('saved');
-    // MYK9-2479: saved on this device first, with its form, then sent.
     expect(mocks.save).toHaveBeenCalledTimes(1);
     expect(mocks.save).toHaveBeenCalledWith('enr-1', action, form);
     expect(mocks.record).not.toHaveBeenCalled();
-    expect(entries[0]!.enrollmentPaymentStatus).toBe(PaymentStatus.PAID_BY_CASH);
-    expect(entries[1]!.enrollmentPaymentStatus).toBe(PaymentStatus.PENDING);
+    expect(setEntries).not.toHaveBeenCalled();
+  });
+
+  it('refuses a payment that names no form, and sends nothing', async () => {
+    vi.spyOn(logger, 'error').mockImplementation(() => {});
+    const { result } = renderHook(
+      () => useEnrollmentLedgerActions({ setEntries: vi.fn(), showTimeZone: 'America/New_York' }),
+      { wrapper }
+    );
+    const record = result.current.record as unknown as (
+      enrollmentId: string,
+      action: unknown
+    ) => Promise<string>;
+
+    let outcome = '';
+    await act(async () => {
+      outcome = await record('enr-1', {
+        kind: 'payment',
+        method: 'cash',
+        amount: 15,
+        receivedOn: '2026-09-17',
+        clientPaymentId: '1b2c3d4e-5f60-4718-8a9b-0c1d2e3f4a5b',
+      });
+    });
+
+    expect(outcome).toBe('failed');
+    expect(mocks.save).not.toHaveBeenCalled();
+    expect(mocks.record).not.toHaveBeenCalled();
+    expect(mocks.toastError).toHaveBeenCalledWith(
+      'Payment not recorded. Something went wrong with this request. Restart the app and try again.'
+    );
   });
 
   const PAYMENT = {

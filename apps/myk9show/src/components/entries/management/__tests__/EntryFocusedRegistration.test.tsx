@@ -468,14 +468,14 @@ describe('EntryFocusedRegistration', () => {
       const form = enrolled(registration);
       const first = render(<EntryFocusedRegistration {...viaChecklist} registration={form} />);
       await first.user.click(screen.getByRole('button', { name: 'Cash…' }));
-      await first.user.click(screen.getByRole('button', { name: 'Confirm' }));
+      await first.user.click(screen.getByRole('button', { name: 'Record Payment' }));
       first.unmount();
 
       const viaBadge = baseProps();
       const second = render(<EntryFocusedRegistration {...viaBadge} registration={form} />);
       await second.user.click(screen.getByRole('button', { name: 'Change payment' }));
       await second.user.click(await screen.findByRole('menuitem', { name: 'Paid in Full: Cash…' }));
-      await second.user.click(screen.getByRole('button', { name: 'Confirm' }));
+      await second.user.click(screen.getByRole('button', { name: 'Record Payment' }));
 
       const expected = [
         'enrollment-1',
@@ -505,7 +505,7 @@ describe('EntryFocusedRegistration', () => {
       );
       await user.click(screen.getByRole('button', { name: 'Check…' }));
       await user.type(screen.getByPlaceholderText('Check number (optional)'), '9');
-      await user.click(screen.getByRole('button', { name: 'Confirm' }));
+      await user.click(screen.getByRole('button', { name: 'Record Payment' }));
       expect(props.paymentLedger.record).toHaveBeenCalledWith(
         'enrollment-1',
         {

@@ -30,9 +30,14 @@ const LEDGER_CHECK_REUSE_MS = 30_000;
 /** The queue's own prefixes on a dead letter's text, before the server's message. */
 const DEAD_LETTER_PREFIX = /^(Non-retryable error|Max retries exceeded): /;
 
+/** The server's own message on a dead letter, without the queue's prefix. */
+export function deadLetterMessage(dead: Pick<PendingMutation, 'error'>): string {
+  return (dead.error ?? '').replace(DEAD_LETTER_PREFIX, '');
+}
+
 /** A refusal's reason in words for the desk; the raw text only when it was written for her. */
 export function refusalReason(dead: Pick<PendingMutation, 'error'>): string {
-  const message = (dead.error ?? '').replace(DEAD_LETTER_PREFIX, '');
+  const message = deadLetterMessage(dead);
   return isFriendlyRefusal(message) ? message : 'something went wrong with this request';
 }
 
@@ -152,7 +157,7 @@ export async function readDeskPaymentLines(
       proven.map(({ payment, owner }) => deps.table.settle(payment.id, owner))
     );
     if (settled.some(outcome => outcome.status === 'fulfilled' && outcome.value === 'settled')) {
-      void announceDeskPaymentsRecorded([showId]);
+      announceDeskPaymentsRecorded([showId]);
     }
   }
   return lines.sort((a, b) => a.payment.receivedAt.localeCompare(b.payment.receivedAt));

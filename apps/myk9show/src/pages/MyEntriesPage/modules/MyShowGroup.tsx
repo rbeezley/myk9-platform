@@ -39,6 +39,7 @@ import {
   derivePaidStrip,
   hasSeenPaidStrip,
   markPaidStripSeen,
+  paidStripHeadline,
   type PaidStripPayment,
 } from './paidStripSeen';
 import { deriveShowMoneyState, refundNotesByDog, type ShowMoneyKind } from './showMoneyState';
@@ -365,8 +366,7 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
               {/* Echoes the My Payments row and nothing more: no dog names and
                   no class count, which a refund or a partly fulfilled checkout
                   makes false against the gross charge (MYK9-1275). */}
-              Paid {formatPaymentCents(paidStrip.amountCents, 'USD')} on{' '}
-              {formatShortCalendarDate(paidStrip.date)}.
+              {paidStripHeadline(paidStrip.charges)}
             </p>
             <p className="myk9-entries-strip-body">
               {paidStrip.awaitingReview && 'The secretary will review it next. '}

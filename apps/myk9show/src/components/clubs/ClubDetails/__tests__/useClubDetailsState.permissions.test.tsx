@@ -286,3 +286,64 @@ describe('useClubDetailsState canAddShow (MYK9-890)', () => {
     }
   });
 });
+
+// MYK9-2467: the roster read returns every row only to this club's admin or a site admin
+// (`club_members_select`). Anyone else gets at most their own row, so the club page showed an
+// outsider "Active Members 0 · No members yet · Invite members to join" for a club with members.
+describe('useClubDetailsState member count (MYK9-2467)', () => {
+  const memberStat = (stats: { type: string }[]) => stats.find(stat => stat.type === 'members');
+
+  beforeEach(() => {
+    mockAuth.userWithRoles = null;
+    mockAuth.hasPermission = vi.fn<PermissionChecker>(() => false);
+  });
+
+  it("shows the Active Members stat to this club's admin", () => {
+    mockAuth.userWithRoles = userWith(
+      [UserRole.CLUB_ADMIN, UserRole.EXHIBITOR],
+      [clubScope(UserRole.CLUB_ADMIN, CLUB_A)]
+    );
+
+    const { result } = renderState();
+
+    expect(memberStat(result.current.stats)?.title).toBe('Active Members');
+  });
+
+  it('shows it to a site admin', () => {
+    mockAuth.userWithRoles = userWith([UserRole.SITE_ADMIN], []);
+
+    const { result } = renderState();
+
+    expect(memberStat(result.current.stats)).toBeDefined();
+  });
+
+  it('hides it from a signed-in viewer who is not an admin of this club', () => {
+    // A club-wide show secretary, as in the report: staff, but the roster is not hers to read.
+    mockAuth.userWithRoles = userWith(
+      [UserRole.SECRETARY, UserRole.EXHIBITOR],
+      [clubScope(UserRole.SECRETARY, CLUB_A)]
+    );
+
+    const { result } = renderState();
+
+    expect(memberStat(result.current.stats)).toBeUndefined();
+    expect(result.current.stats).toHaveLength(1);
+  });
+
+  it("hides it from another club's admin", () => {
+    mockAuth.userWithRoles = userWith(
+      [UserRole.CLUB_ADMIN],
+      [clubScope(UserRole.CLUB_ADMIN, CLUB_B)]
+    );
+
+    const { result } = renderState();
+
+    expect(memberStat(result.current.stats)).toBeUndefined();
+  });
+
+  it('hides it from a signed-out visitor', () => {
+    const { result } = renderState();
+
+    expect(memberStat(result.current.stats)).toBeUndefined();
+  });
+});

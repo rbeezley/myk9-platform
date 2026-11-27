@@ -160,6 +160,9 @@ export function useClubDetailsState(selectedClub: Club | null) {
     if (!selectedClub) return [];
 
     const memberCount = activeMembers.length;
+    // MYK9-2467: only this club's admin (or a site admin) can read the whole roster; anyone
+    // else reads at most their own row, so a count from it would say 0 or 1 for any club.
+    if (!canManageClubAdmin) return [clubShowsStat(clubShows)];
 
     return [
       clubShowsStat(clubShows),
@@ -175,7 +178,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
         tab: 'members' as const,
       },
     ];
-  }, [selectedClub, clubShows, activeMembers.length]);
+  }, [selectedClub, clubShows, activeMembers.length, canManageClubAdmin]);
 
   // --- Handlers ---
 

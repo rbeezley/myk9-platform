@@ -7,7 +7,11 @@ import { ClubDetails } from '../index';
  * MYK9-1293: the admin of THIS club gets a Payments tab and the members manager on the Members
  * tab; everyone else keeps the read-only roster and no Payments tab.
  */
-const state = vi.hoisted(() => ({ canManageClubAdmin: false, activeTab: 'members' }));
+const state = vi.hoisted(() => ({
+  canManageClubAdmin: false,
+  activeTab: 'members',
+  activeMembers: [] as { id: string }[],
+}));
 
 vi.mock('../useClubDetailsState', () => ({
   useClubDetailsState: () => ({
@@ -17,7 +21,7 @@ vi.mock('../useClubDetailsState', () => ({
     pastShows: [],
     showsStatus: 'ready',
     retryShows: vi.fn(),
-    activeMembers: [],
+    activeMembers: state.activeMembers,
     clubMembers: [],
     stats: [],
     canEditBranding: false,
@@ -57,6 +61,7 @@ describe('ClubDetails admin tabs (MYK9-1293)', () => {
   beforeEach(() => {
     state.canManageClubAdmin = false;
     state.activeTab = 'members';
+    state.activeMembers = [];
   });
 
   it("gives this club's admin a Payments tab and the members manager", async () => {
@@ -83,5 +88,22 @@ describe('ClubDetails admin tabs (MYK9-1293)', () => {
     expect(screen.getByRole('tab', { name: /Members/ })).toBeInTheDocument();
     expect(screen.getByTestId('readonly-members')).toBeInTheDocument();
     expect(screen.queryByTestId('members-manager')).not.toBeInTheDocument();
+  });
+
+  // MYK9-2467: only an admin can read the whole roster. Anyone else reads at most their own
+  // row, so the tab shows them no count: "Members 0" was false for a club with members.
+  it("counts the members on the tab for this club's admin", () => {
+    state.canManageClubAdmin = true;
+    state.activeMembers = [{ id: 'm1' }, { id: 'm2' }];
+    render(<ClubDetails selectedClub={club} />);
+
+    expect(screen.getByRole('tab', { name: /Members/ })).toHaveTextContent('2');
+  });
+
+  it('shows no member count on the tab to a viewer who cannot read the roster', () => {
+    render(<ClubDetails selectedClub={club} />);
+
+    const tab = screen.getByRole('tab', { name: /Members/ });
+    expect(tab.textContent?.trim()).toBe('Members');
   });
 });

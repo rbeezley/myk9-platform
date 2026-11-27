@@ -70,4 +70,17 @@ describe('MembersTab', () => {
     expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
     expect(screen.getByRole('status', { name: 'Updating members' })).toBeInTheDocument();
   });
+
+  // MYK9-2467: whoever reads this list is not the club's admin and can read at most their own
+  // row, so an empty list must not claim the club has no members.
+  it('never tells a viewer who cannot read the roster that the club has no members', () => {
+    renderMembersTab({ members: [] });
+
+    expect(
+      screen.getByText("Only this club's admins can see the member list.")
+    ).toBeInTheDocument();
+    expect(screen.queryByText('No Members Yet')).not.toBeInTheDocument();
+    expect(screen.queryByText(/doesn't have any members/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Add First Member/ })).not.toBeInTheDocument();
+  });
 });

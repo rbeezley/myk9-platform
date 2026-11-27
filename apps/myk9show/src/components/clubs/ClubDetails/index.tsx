@@ -78,7 +78,8 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
         id: 'members',
         label: 'Members',
         icon: Users,
-        count: state.activeMembers.length,
+        // MYK9-2467: a count only for someone who can read the whole roster.
+        ...(state.canManageClubAdmin ? { count: state.activeMembers.length } : {}),
       },
     ];
     if (state.canManageClubAdmin) {

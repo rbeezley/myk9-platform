@@ -4,13 +4,10 @@ import type { Trial } from '@/components/trials/types/trial.types';
 import type { User } from '@/types/user-types';
 import { getDogDisplayName, type Dog } from '@/types/dog-types';
 import { getClassDetailHref } from '@/utils/classDetailHref';
+import { crumbFor, type Crumb } from '@/components/common/breadcrumbCrumb';
 
-interface BreadcrumbItem {
-  label: string;
-  href?: string;
-  id?: string;
-  isCurrentPage?: boolean;
-}
+/** Every crumb but the current page carries a destination; the type requires it (MYK9-2489). */
+type BreadcrumbItem = Crumb;
 
 interface UseBreadcrumbProps {
   currentPage:
@@ -52,12 +49,7 @@ export const useBreadcrumb = ({
 
     // Add Club level
     if (club) {
-      items.push({
-        label: club.name,
-        ...(currentPage !== 'club' && { href: `/clubs/${club.id}` }),
-        id: club.id,
-        isCurrentPage: currentPage === 'club',
-      });
+      items.push(crumbFor(club.name, `/clubs/${club.id}`, currentPage === 'club', club.id));
     } else if (show?.clubName) {
       // Fallback to show's club info if no direct club provided
       items.push({
@@ -69,36 +61,32 @@ export const useBreadcrumb = ({
 
     // Add Show level
     if (show) {
-      items.push({
-        label: show.name,
-        ...(currentPage !== 'show' && { href: `/shows/${show.id}` }),
-        id: show.id,
-        isCurrentPage: currentPage === 'show',
-      });
+      items.push(crumbFor(show.name, `/shows/${show.id}`, currentPage === 'show', show.id));
     }
 
     // Add Trial level
     if (trial) {
-      items.push({
-        label: trial.type || trial.trialNumber || 'Trial',
-        ...(currentPage !== 'trial' && { href: `/trials/${trial.id}` }),
-        id: trial.id,
-        isCurrentPage: currentPage === 'trial',
-      });
+      items.push(
+        crumbFor(
+          trial.type || trial.trialNumber || 'Trial',
+          `/trials/${trial.id}`,
+          currentPage === 'trial',
+          trial.id
+        )
+      );
     }
 
     // Add Class level
     if (classId && className) {
-      items.push({
-        label: className,
-        ...(currentPage !== 'class' && {
+      items.push(
+        crumbFor(
+          className,
           // The one class-detail URL; the legacy /classes/:id redirect only when a show or trial is missing.
-          href:
-            show && trial ? getClassDetailHref(show.id, trial.id, classId) : `/classes/${classId}`,
-        }),
-        id: classId,
-        isCurrentPage: currentPage === 'class',
-      });
+          show && trial ? getClassDetailHref(show.id, trial.id, classId) : `/classes/${classId}`,
+          currentPage === 'class',
+          classId
+        )
+      );
     }
 
     // Add Entries level

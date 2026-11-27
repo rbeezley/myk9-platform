@@ -9,13 +9,12 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, LucideIcon } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import type { Crumb } from '@/components/common/breadcrumbCrumb';
 import { AppShellPage } from '@/components/layout/AppShell';
 
-export interface BreadcrumbItem {
-  label: string;
-  href?: string;
-}
+/** The current page, or an ancestor that must carry a destination (MYK9-2489). */
+export type BreadcrumbItem = Crumb;
 
 export interface PageAction {
   label: string;
@@ -85,19 +84,14 @@ export function StandardPageLayout({
           {breadcrumbs.map((item, index) => (
             <React.Fragment key={index}>
               {index > 0 && <span className="text-muted-foreground/50">/</span>}
-              {item.href ? (
-                <button
-                  onClick={() => navigate(item.href!)}
-                  className="hover:text-foreground transition-colors"
-                >
-                  {item.label}
-                </button>
-              ) : (
-                <span
-                  className={index === breadcrumbs.length - 1 ? 'text-foreground font-medium' : ''}
-                >
+              {item.isCurrentPage ? (
+                <span aria-current="page" className="text-foreground font-medium">
                   {item.label}
                 </span>
+              ) : (
+                <Link to={item.href} className="hover:text-foreground transition-colors">
+                  {item.label}
+                </Link>
               )}
             </React.Fragment>
           ))}

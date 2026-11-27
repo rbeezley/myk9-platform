@@ -7,7 +7,7 @@ export interface TrialOpenBaseline {
   status: string | undefined;
   timeStarted: string | undefined;
   timeEnded: string | undefined;
-  autoCompleteStaleClasses: boolean | undefined;
+  autoCompleteStaleClasses: boolean | null | undefined;
 }
 
 export function trialOpenBaseline(trial: Partial<Trial>): TrialOpenBaseline {
@@ -24,7 +24,10 @@ export function trialOpenBaseline(trial: Partial<Trial>): TrialOpenBaseline {
  * it moves when replication delivers a change from another device while the form is open;
  * this does not follow it.
  */
-export function useTrialOpenBaseline(open: boolean, trial: Partial<Trial>): { current: TrialOpenBaseline } {
+export function useTrialOpenBaseline(
+  open: boolean,
+  trial: Partial<Trial>
+): { current: TrialOpenBaseline } {
   const baseline = useRef(trialOpenBaseline(trial));
   const latest = useRef(trial);
   useEffect(() => {

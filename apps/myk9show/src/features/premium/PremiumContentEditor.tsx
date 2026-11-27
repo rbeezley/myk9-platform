@@ -348,7 +348,6 @@ export function PremiumContentEditor({
               pdfCoverImageRemoteUrl === supplemental?.coverImageUrl ? pdfCoverImageSrc : null,
           })
         : null,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [original, supplemental, narratives, style, pdfCoverImageSrc, pdfCoverImageRemoteUrl]
   );
   useEffect(() => {

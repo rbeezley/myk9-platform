@@ -7,6 +7,8 @@ import {
   isAwaitingSecretaryDecision,
   hasSeenPaidStrip,
   markPaidStripSeen,
+  paidStripHeadline,
+  type PaidStrip,
   type PaidStripPayment,
 } from './paidStripSeen';
 import { mapEntryStatus } from '@/services/entryDisplay/entryStatusUiAdapter';
@@ -104,6 +106,7 @@ function makeRow(overrides: Partial<MyEntry> = {}): MyEntry {
 }
 
 const neverSeen = () => false;
+const chargeAmounts = (strip: PaidStrip | null) => strip?.charges.map(charge => charge.amountCents);
 
 const ledgerFor = onlineLedgerFor;
 
@@ -136,9 +139,8 @@ describe('derivePaidStrip', () => {
 
     expect(strip).toEqual({
       paymentIds: ['c1'],
-      amountCents: 4500,
+      charges: [{ amountCents: 4500, date: PAID_AT }],
       awaitingReview: false,
-      date: PAID_AT,
     });
   });
 
@@ -154,8 +156,7 @@ describe('derivePaidStrip', () => {
 
     const strip = derivePaidStrip(orders, NOW, neverSeen, ledgerFor(orders));
 
-    expect(strip?.date).toEqual(submittedAt);
-    expect(strip?.date).not.toEqual(lastUpdated);
+    expect(strip?.charges.map(charge => charge.date)).toEqual([submittedAt]);
   });
 
   it('ignores a recent unrelated write on an old payment', () => {
@@ -196,9 +197,13 @@ describe('derivePaidStrip', () => {
 
     expect(derivePaidStrip(orders, NOW, neverSeen, ledgerFor(orders))).toEqual({
       paymentIds: ['c1', 'c2', 'c3'],
-      amountCents: 10000,
+      // Three orders, three charges, oldest first, never one total (MYK9-2484).
+      charges: [
+        { amountCents: 4500, date: PAID_AT },
+        { amountCents: 2500, date: PAID_AT },
+        { amountCents: 3000, date: later },
+      ],
       awaitingReview: false,
-      date: later,
     });
   });
 
@@ -380,9 +385,8 @@ describe('derivePaidStrip — reads the row-level ground truth, not the folded d
 
     expect(derivePaidStrip(orders, NOW, neverSeen, ledgerFor(orders))).toEqual({
       paymentIds: ['c-ranger-paid'],
-      amountCents: 3000,
+      charges: [{ amountCents: 3000, date: PAID_AT }],
       awaitingReview: false,
-      date: PAID_AT,
     });
   });
 
@@ -448,7 +452,7 @@ describe('derivePaidStrip — reads the row-level ground truth, not the folded d
 
     const strip = derivePaidStrip(orders, NOW, neverSeen, ledgerFor(orders));
     expect(strip?.paymentIds).toEqual(['c-ranger-paid']);
-    expect(strip?.amountCents).toBe(3000);
+    expect(strip?.charges.map(charge => charge.amountCents)).toEqual([3000]);
   });
 });
 
@@ -576,10 +580,11 @@ describe('derivePaidStrip — the issue scenario (MYK9-804)', () => {
     );
   }
 
-  it('states $210 and confirms all 7 paid rows', () => {
+  it('states both charges, $180 and $30, and confirms all 7 paid rows', () => {
     const strip = derivePaidStrip(scenarioOrders(), NOW, neverSeen, ledgerFor(scenarioOrders()));
 
-    expect(strip?.amountCents).toBe(21000);
+    // $210 was paid in two charges. Each is named; neither is dropped or summed (MYK9-2484).
+    expect(chargeAmounts(strip)).toEqual([18000, 3000]);
     expect(strip?.paymentIds).toHaveLength(7);
   });
 
@@ -592,14 +597,14 @@ describe('derivePaidStrip — the issue scenario (MYK9-804)', () => {
     const full = derivePaidStrip(fullOrders, NOW, neverSeen, ledgerFor(fullOrders));
     const stillFull = derivePaidStrip(fullOrders, NOW, neverSeen, ledgerFor(fullOrders));
     expect(full).toEqual(stillFull);
-    expect(full?.amountCents).toBe(21000);
+    expect(chargeAmounts(full)).toEqual([18000, 3000]);
 
     // Sanity: the narrowed subset alone would have under-counted, which is
     // exactly why the caller must always pass the FULL set, never a filtered
     // one — see `MyShowGroup.tsx`'s `allOrders` prop.
-    expect(derivePaidStrip(rangerOnly, NOW, neverSeen, ledgerFor(rangerOnly))?.amountCents).toBe(
-      3000
-    );
+    expect(
+      chargeAmounts(derivePaidStrip(rangerOnly, NOW, neverSeen, ledgerFor(rangerOnly)))
+    ).toEqual([3000]);
   });
 });
 
@@ -660,8 +665,7 @@ describe('derivePaidStrip — speaks only for orders My Payments lists (MYK9-127
   it("quotes the order's own amount and date, not the class fees or submittedAt", () => {
     const strip = derivePaidStrip(groupEntriesByOrder([makeRow()], NOW), NOW, neverSeen, [order()]);
 
-    expect(strip?.amountCents).toBe(4725);
-    expect(strip?.date).toEqual(new Date(ORDER_PAID_AT));
+    expect(strip?.charges).toEqual([{ amountCents: 4725, date: new Date(ORDER_PAID_AT) }]);
   });
 
   it('shows nothing for a paid row no online order covers (a bare "paid", method unknown)', () => {
@@ -723,7 +727,7 @@ describe('derivePaidStrip — speaks only for orders My Payments lists (MYK9-127
     ).toBeNull();
   });
 
-  it('sums each covering order once and dates the strip by the latest', () => {
+  it('names each covering order once, with its own amount and day, oldest first (MYK9-2484)', () => {
     const rows = [
       makeRow({ id: 'e1', registrationId: 'r1', classes: [makeClass({ id: 'c1' })] }),
       makeRow({
@@ -742,9 +746,12 @@ describe('derivePaidStrip — speaks only for orders My Payments lists (MYK9-127
       order({ id: 'order-2', amountCents: 4725, entryIds: ['c3'], date: later }),
     ]);
 
-    expect(strip?.amountCents).toBe(9450 + 4725);
+    // One checkout covering two classes is still one charge.
+    expect(strip?.charges).toEqual([
+      { amountCents: 9450, date: new Date(ORDER_PAID_AT) },
+      { amountCents: 4725, date: new Date(later) },
+    ]);
     expect(strip?.paymentIds).toEqual(['c1', 'c2', 'c3']);
-    expect(strip?.date).toEqual(new Date(later));
   });
 });
 
@@ -779,9 +786,8 @@ describe('derivePaidStrip — echoes the order, nothing derived (MYK9-1275)', ()
 
     expect(strip).toEqual({
       paymentIds: ['c1'],
-      amountCents: 6300,
+      charges: [{ amountCents: 6300, date: new Date('2026-09-29T15:00:00Z') }],
       awaitingReview: false,
-      date: new Date('2026-09-29T15:00:00Z'),
     });
   });
 
@@ -796,9 +802,75 @@ describe('derivePaidStrip — echoes the order, nothing derived (MYK9-1275)', ()
 
     expect(strip).toEqual({
       paymentIds: ['c1'],
-      amountCents: 6300,
+      charges: [{ amountCents: 6300, date: new Date('2026-09-29T15:00:00Z') }],
       awaitingReview: false,
-      date: new Date('2026-09-29T15:00:00Z'),
     });
+  });
+});
+
+// MYK9-2484: production showed "Paid $64.20 on Nov 26, 2026." for two $32.10 card payments made
+// on Nov 25 and Nov 26. No such charge exists on My Payments.
+describe('paidStripHeadline (MYK9-2484)', () => {
+  const NOV_25 = new Date(2026, 10, 25, 8, 7);
+  const NOV_26 = new Date(2026, 10, 26, 18, 53);
+  const charge = (amountCents: number, date: Date) => ({ amountCents, date });
+
+  it('reads one charge as it always has', () => {
+    expect(paidStripHeadline([charge(3210, NOV_26)])).toBe('Paid $32.10 on Nov 26, 2026.');
+  });
+
+  it('counts two charges and names each with its own amount and day', () => {
+    const headline = paidStripHeadline([charge(3210, NOV_25), charge(3210, NOV_26)]);
+
+    expect(headline).toBe('2 payments: $32.10 on Nov 25, 2026 and $32.10 on Nov 26, 2026.');
+    expect(headline).not.toContain('64.20');
+  });
+
+  it('lists three charges', () => {
+    expect(
+      paidStripHeadline([charge(3210, NOV_25), charge(1500, NOV_25), charge(3210, NOV_26)])
+    ).toBe(
+      '3 payments: $32.10 on Nov 25, 2026, $15.00 on Nov 25, 2026 and $32.10 on Nov 26, 2026.'
+    );
+  });
+
+  it('past three, counts them, says what they came to in all, and names the newest', () => {
+    const headline = paidStripHeadline([
+      charge(1000, NOV_25),
+      charge(1000, NOV_25),
+      charge(1000, NOV_25),
+      charge(3210, NOV_26),
+    ]);
+
+    // The total is said to be four payments, never one charge on one date.
+    expect(headline).toBe('4 payments, $62.10 in all. The newest: $32.10 on Nov 26, 2026.');
+  });
+
+  it('two settled orders on different days never read as one payment on one date', () => {
+    const rows = [
+      makeRow({ id: 'e1', registrationId: 'r1', classes: [makeClass({ id: 'c1' })] }),
+      makeRow({ id: 'e2', registrationId: 'r2', classes: [makeClass({ id: 'c2' })] }),
+    ];
+    const strip = derivePaidStrip(groupEntriesByOrder(rows, NOW), NOW, neverSeen, [
+      {
+        id: 'order-1',
+        status: 'succeeded',
+        date: '2026-09-29T14:07:00Z',
+        amountCents: 3210,
+        entryIds: ['c1'],
+      },
+      {
+        id: 'order-2',
+        status: 'succeeded',
+        date: '2026-09-30T00:53:00Z',
+        amountCents: 3210,
+        entryIds: ['c2'],
+      },
+    ]);
+
+    expect(strip?.charges).toHaveLength(2);
+    expect(paidStripHeadline(strip?.charges ?? [])).toMatch(
+      /^2 payments: \$32\.10 on .+ and \$32\.10 on .+\.$/
+    );
   });
 });

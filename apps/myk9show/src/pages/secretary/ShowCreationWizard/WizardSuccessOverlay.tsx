@@ -11,6 +11,12 @@ interface WizardSuccessOverlayProps {
 }
 
 /**
+ * One column for every block. A phone fills its width; from 1024px up the column is 672px
+ * (was 448px at every width, which read as a phone screen on a desktop, MYK9-2466).
+ */
+const COLUMN = 'w-full max-w-md lg:max-w-2xl';
+
+/**
  * Full-screen confirmation shown after a show is created, before navigating
  * away. Intentionally calm: a static success overlay with no confetti.
  *
@@ -30,10 +36,10 @@ export const WizardSuccessOverlay: React.FC<WizardSuccessOverlayProps> = ({
         <h1 className="text-3xl font-bold">Show Created!</h1>
         <p className="mt-1 text-muted-foreground">{createdShow.name}</p>
       </div>
-      <div className="w-full max-w-md empty:hidden">
+      <div className={`${COLUMN} empty:hidden`}>
         <ShowPublishBlockers showId={createdShow.id} clubId={createdShow.clubId} status="draft" />
       </div>
-      <div className="w-full max-w-md space-y-2 text-center">
+      <div className={`${COLUMN} space-y-2 text-center`}>
         <h2 className="text-xl font-semibold">Role-specific access codes</h2>
         <p className="text-sm text-muted-foreground">
           The Judge and Steward codes are ringside access codes for assigned judges and stewards to
@@ -44,7 +50,7 @@ export const WizardSuccessOverlay: React.FC<WizardSuccessOverlayProps> = ({
           are for their named roles and do not replace normal myK9Show account or exhibitor sign-in.
         </p>
       </div>
-      <div className="w-full max-w-md">
+      <div className={COLUMN}>
         <ShowAccessCodesCard
           showId={createdShow.id}
           showName={createdShow.name}

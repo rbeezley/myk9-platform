@@ -74,7 +74,11 @@ describe('verifySupportAnswerQuotes', () => {
   it('rejects a fourth quote', () => {
     const q = quoteLine(ID, GOOD_QUOTE);
     expect(verify(ANSWER, q, q, q).ok).toBe(true);
-    expect(verify(ANSWER, q, q, q, q)).toEqual({ ok: false, reason: 'quote_rejected' });
+    expect(verify(ANSWER, q, q, q, q)).toEqual({
+      ok: false,
+      reason: 'quote_rejected',
+      detail: 'too_many_quotes',
+    });
   });
 
   it('rejects a quote over 120 tokens and accepts one of exactly 120', () => {
@@ -270,7 +274,7 @@ describe('verifySupportAnswerQuotes tolerance', () => {
   });
 
   it('reports quote_rejected when the answer has no verified quote', () => {
-    expect(verify(ANSWER)).toEqual({ ok: false, reason: 'quote_rejected' });
+    expect(verify(ANSWER)).toEqual({ ok: false, reason: 'quote_rejected', detail: 'no_quotes' });
   });
 
   it('never leaves a marker string in an accepted answer', () => {
@@ -282,5 +286,66 @@ describe('verifySupportAnswerQuotes tolerance', () => {
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.answerText).not.toMatch(/SUPPORT_/);
     if (result.ok) expect(result.answerText).not.toMatch(/Time each area/);
+  });
+});
+
+describe('whole short steps and screenshots (MYK9-2472)', () => {
+  const EXHIBITOR = 'exhibitor-guide';
+  // Step 1 of "Add Your Dog": seven words, under the eight-word floor.
+  const STEP_ONE = 'Go to My Dogs in the navigation.';
+  const STEP_TWO =
+    'Open Actions → Add Dog. (Before you have any dogs, the page shows an Add Dog button instead.) The panel opens on the Registration tab.';
+
+  it('accepts a whole step shorter than eight words on its own line', () => {
+    expect(tokenizeQuoteText(STEP_ONE)).toHaveLength(7);
+    const result = verify(ANSWER, quoteLine(EXHIBITOR, STEP_ONE), quoteLine(EXHIBITOR, STEP_TWO));
+    expect(result.ok && result.answerText).toBe(
+      `From the Exhibitor Guide:\n“${STEP_ONE}”\n“${STEP_TWO}”`
+    );
+  });
+
+  it('accepts a whole short sentence from inside a longer line', () => {
+    expect(verify(ANSWER, quoteLine(EXHIBITOR, 'Any refund returns the entry fee only.')).ok).toBe(
+      true
+    );
+  });
+
+  it('still rejects a short fragment that is not a whole step or sentence', () => {
+    expect(verify(ANSWER, quoteLine(EXHIBITOR, 'Go to My Dogs in the'))).toEqual({
+      ok: false,
+      reason: 'quote_rejected',
+      detail: 'quote_too_short',
+    });
+    // A whole sentence, but under the four-word floor for whole passages.
+    expect(verify(ANSWER, quoteLine(EXHIBITOR, 'Contact the show')).ok).toBe(false);
+  });
+
+  it('accepts a passage that runs on past a screenshot', () => {
+    // The E-05 screenshot sits between step 4 and step 5 in the guide.
+    const acrossTheScreenshot =
+      'Otherwise, fill in the Registered Name and Registered Breed (the other registration fields are optional), then click Save and continue. On the Essential tab, fill in:';
+    expect(verify(ANSWER, quoteLine(EXHIBITOR, acrossTheScreenshot)).ok).toBe(true);
+  });
+
+  it('never matches the words of a screenshot caption', () => {
+    expect(
+      verify(ANSWER, quoteLine(EXHIBITOR, 'Add Dog panel — Registration tab with Find dog'))
+    ).toEqual({ ok: false, reason: 'quote_rejected', detail: 'quote_not_in_guide' });
+  });
+
+  it('names the rule that rejected the quotes', () => {
+    const detail = (...lines: string[]) => {
+      const result = verify(ANSWER, ...lines);
+      return result.ok ? null : result.detail;
+    };
+    expect(detail('SUPPORT_QUOTE exhibitor-guide: no brackets or quote marks')).toBe(
+      'malformed_quote'
+    );
+    expect(detail(quoteLine('no-such-guide', GOOD_QUOTE))).toBe('unknown_guide');
+    expect(
+      detail(quoteLine(ID, 'These words are nowhere in the ringside quickstart at all.'))
+    ).toBe('quote_not_in_guide');
+    const words = tokenizeQuoteText(ASKQ_GUIDES.find(g => g.id === ID)!.content);
+    expect(detail(quoteLine(ID, words.slice(0, 121).join(' ')))).toBe('quote_too_long');
   });
 });

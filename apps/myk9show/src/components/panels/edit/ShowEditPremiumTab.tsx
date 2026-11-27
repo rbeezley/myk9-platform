@@ -18,6 +18,7 @@ import type { GeneratedPremium, PremiumStyle } from '@/types/premium-types';
 import { normalizeEntryLimit } from '@/features/premium/premiumEntryLimit';
 import { usePremiumFacts } from '@/features/premium/usePremiumFacts';
 import { usePremiumDraftCache } from '@/features/premium/premiumDraftCache';
+import { hasUnsavedNarrativeInputs } from '@/features/premium/premiumNarrativeInputs';
 import { applyEditorCopyToPremium } from '@/features/premium/premiumEditorCopy';
 import {
   PREMIUM_JUDGE_AFFILIATIONS_KEY,
@@ -33,6 +34,8 @@ interface ShowEditPremiumTabProps {
   showOrg: 'AKC' | 'UKC' | 'ASCA' | null;
   /** The organization saved on the show; the generator reads it, not the unsaved form value. */
   savedOrganization?: string | undefined;
+  /** The show as saved, to tell whether a narrative input has unsaved changes (MYK9-2280). */
+  savedFormData?: ShowEditFormData | undefined;
   isActive: boolean;
   handleCheckboxChange: (field: keyof ShowEditFormData) => (checked: boolean) => void;
   handleValueChange: <K extends keyof ShowEditFormData>(
@@ -49,6 +52,7 @@ export function ShowEditPremiumTab({
   clubId,
   showOrg,
   savedOrganization,
+  savedFormData,
   isActive,
   handleCheckboxChange,
   handleValueChange,
@@ -223,6 +227,7 @@ export function ShowEditPremiumTab({
               clubId={clubId}
               showOrg={showOrg}
               {...(regenerateBlockedReason ? { regenerateBlockedReason } : {})}
+              unsavedShowInputs={hasUnsavedNarrativeInputs(savedFormData, data)}
               style={(data.style || 'monogram') as PremiumStyle}
               active={isActive}
               {...(initialPremium ? { initialPremium } : {})}

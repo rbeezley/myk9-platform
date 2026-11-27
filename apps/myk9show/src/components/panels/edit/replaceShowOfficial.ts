@@ -1,5 +1,6 @@
 import { supabase } from '@/services/database/supabaseClient';
 import { fetchShowOfficials, type ShowOfficial } from '@/hooks/queries/useShowOfficials';
+import { OfficialAlreadyHoldsRoleError } from '@/components/shows/wizard/steps/useCreateOfficialPerson';
 
 export type SingleHolderRole = 'chairman' | 'secretary';
 
@@ -30,6 +31,16 @@ export async function replaceShowOfficial(params: {
 
   const officials = await fetchShowOfficials(showId);
   const currentHolders = role === 'chairman' ? officials.chairmen : officials.secretaries;
+  // Chair and Secretary are different people (MYK9-2493). Checked on the fresh read, because the
+  // editor's cached list can be minutes old when another manager changed the other role.
+  const otherRoleHolder = (role === 'chairman' ? officials.secretaries : officials.chairmen).find(
+    holder => holder.personId === personId
+  );
+  if (otherRoleHolder) {
+    throw new OfficialAlreadyHoldsRoleError(
+      `${otherRoleHolder.firstName} ${otherRoleHolder.lastName}`.trim()
+    );
+  }
 
   if (currentHolders.length === 1 && currentHolders[0].personId === personId) {
     return { stillListed: [], revokeError: null };

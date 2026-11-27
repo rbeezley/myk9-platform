@@ -3,15 +3,20 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Check, Loader2 } from 'lucide-react';
 import { ShowCommitteeEditor } from '@/components/committee/ShowCommitteeEditor';
 import { OfficialPicker } from '@/components/shows/wizard/steps/OfficialPicker';
-import { useShowOfficials } from '@/hooks/queries/useShowOfficials';
+import { fetchShowOfficials, useShowOfficials } from '@/hooks/queries/useShowOfficials';
 import { useUserStore } from '@/store/userStore';
 import { supabase } from '@/services/database/supabaseClient';
-import { createUser } from '@/services/database/users';
+import {
+  OfficialAlreadyHoldsRoleError,
+  useCreateOfficialPerson,
+  type NewOfficialPerson,
+} from '@/components/shows/wizard/steps/useCreateOfficialPerson';
 import { UserRole } from '@/types/auth-types';
 import { notifications } from '@/lib/notifications';
 import { OfficialMailingAddressField } from './OfficialMailingAddressField';
 import { replaceShowOfficial } from './replaceShowOfficial';
 import { logger } from '@/services/LoggingService';
+import { queryKeys } from '@/lib/queryClient';
 
 interface ShowOfficialsEditorProps {
   showId: string;
@@ -55,6 +60,9 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
   // "Add new" selects a person the moment she is created, before `people` has her: keep the
   // name she typed so the saved note can still say who it is.
   const createdNames = useRef(new Map<string, string>());
+  // MYK9-2493: the wizard's "Add new", so the required phone is saved and an email already on
+  // file reuses that person.
+  const createOfficialPerson = useCreateOfficialPerson();
 
   useEffect(() => {
     if (people.length === 0) loadPeople();
@@ -116,6 +124,13 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
         await invalidate();
       }
     } catch (err) {
+      if (err instanceof OfficialAlreadyHoldsRoleError) {
+        const otherLabel = role === UserRole.CHAIRMAN ? 'Secretary' : 'Chair';
+        const text = `${err.personName} is already the ${otherLabel}. Pick a different person for ${roleLabel}.`;
+        notifications.error(text);
+        report({ saved: false, text });
+        return;
+      }
       // A PostgrestError is a plain object, not an Error: read its message too.
       const message =
         err && typeof err === 'object' && 'message' in err
@@ -129,20 +144,22 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
     }
   };
 
-  const handleCreatePerson = async (data: {
-    firstName: string;
-    lastName: string;
-    email: string;
-  }): Promise<string> => {
-    const result = await createUser({
-      first_name: data.firstName,
-      last_name: data.lastName,
-      email: data.email,
-    });
-    if (result.error) throw result.error;
-    createdNames.current.set(result.data!.id, `${data.firstName} ${data.lastName}`.trim());
-    await loadPeople();
-    return result.data!.id;
+  const handleCreatePerson = async (
+    data: NewOfficialPerson,
+    options?: { excludePersonIds?: string[] },
+    otherRole?: 'chairmen' | 'secretaries'
+  ): Promise<string> => {
+    // The other role's holders are re-read before a matched person's phone is updated: the
+    // server's list alone decides, and the picker's cache is brought up to it.
+    let excludePersonIds = options?.excludePersonIds ?? [];
+    if (otherRole) {
+      const fresh = await fetchShowOfficials(showId);
+      queryClient.setQueryData(queryKeys.showOfficials(showId), fresh);
+      excludePersonIds = fresh[otherRole].map(holder => holder.personId);
+    }
+    const id = await createOfficialPerson(data, { excludePersonIds });
+    createdNames.current.set(id, `${data.firstName} ${data.lastName}`.trim());
+    return id;
   };
 
   if (isLoading) {
@@ -159,6 +176,9 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
   const currentSteward = officials?.stewards[0]?.personId;
   const chairman = officials?.chairmen[0];
   const secretary = officials?.secretaries[0];
+  // Every holder of the other role is excluded, not only the first (Chair and Secretary differ).
+  const allChairmen = (officials?.chairmen ?? []).map(o => o.personId);
+  const allSecretaries = (officials?.secretaries ?? []).map(o => o.personId);
 
   return (
     <div className="space-y-4">
@@ -175,9 +195,11 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
             selectedPersonId={currentChairman}
             people={people}
             suggestedRoles={[UserRole.CHAIRMAN, UserRole.CLUB_ADMIN]}
+            excludePersonIds={allSecretaries}
+            excludedRoleLabel="Secretary"
             onOpen={() => void loadUsers()}
             onSelect={id => handleAssign(UserRole.CHAIRMAN, id)}
-            onCreatePerson={handleCreatePerson}
+            onCreatePerson={(data, options) => handleCreatePerson(data, options, 'secretaries')}
           />
           <PickOutcomeNote outcome={outcomes[UserRole.CHAIRMAN]} />
         </div>
@@ -188,9 +210,11 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
             selectedPersonId={currentSecretary}
             people={people}
             suggestedRoles={[UserRole.SECRETARY]}
+            excludePersonIds={allChairmen}
+            excludedRoleLabel="Chair"
             onOpen={() => void loadUsers()}
             onSelect={id => handleAssign(UserRole.SECRETARY, id)}
-            onCreatePerson={handleCreatePerson}
+            onCreatePerson={(data, options) => handleCreatePerson(data, options, 'chairmen')}
           />
           <PickOutcomeNote outcome={outcomes[UserRole.SECRETARY]} />
         </div>

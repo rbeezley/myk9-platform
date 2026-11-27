@@ -137,6 +137,8 @@ const generatedPremiumSchema = z.object({
     rvHookupNotes: nullableText.optional(),
   }),
   narratives: z.object({ showHours: z.string(), trialInformation: z.string() }),
+  // MYK9-2280: optional, so an older response parses and zod keeps it on a new one.
+  builtNarratives: z.object({ showHours: z.string(), trialInformation: z.string() }).optional(),
 });
 
 const persistedAttemptSchema = z.object({

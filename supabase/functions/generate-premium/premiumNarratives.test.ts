@@ -4,6 +4,7 @@ import {
   buildPremiumNarratives,
   formatNarrativeDate,
   formatNarrativeTime,
+  narrativesForResponse,
   resolvePremiumNarratives,
   type NarrativeShowRow,
 } from './premiumNarratives.ts';
@@ -173,5 +174,24 @@ describe('resolvePremiumNarratives', () => {
 
   it('uses the built text when nothing was published', () => {
     expect(resolvePremiumNarratives({ showHours: '', trialInformation: '' }, built)).toEqual(built);
+  });
+});
+
+describe('narrativesForResponse', () => {
+  it('returns builtNarratives equal to buildPremiumNarratives even when narratives keeps a published edit', () => {
+    const response = narrativesForResponse(
+      { showHours: 'Edited by the secretary.', trialInformation: 'Old trial text.' },
+      show
+    );
+    expect(response.builtNarratives).toEqual(buildPremiumNarratives(show));
+    expect(response.narratives).toEqual({
+      showHours: 'Edited by the secretary.',
+      trialInformation: 'Old trial text.',
+    });
+  });
+
+  it('returns the built text in both when nothing was published', () => {
+    const response = narrativesForResponse({ showHours: '', trialInformation: '' }, show);
+    expect(response.narratives).toEqual(response.builtNarratives);
   });
 });

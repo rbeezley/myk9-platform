@@ -7,6 +7,14 @@ import { CloseOutShowAction } from '../CloseOutShowAction';
 const updateShowMock = vi.hoisted(() => vi.fn());
 const updateTrialMock = vi.hoisted(() => vi.fn());
 const updateClassMock = vi.hoisted(() => vi.fn());
+const saveOpenLinesMock = vi.hoisted(() => vi.fn());
+
+vi.mock('@/services/database/showCloseNotes', () => ({
+  saveClosedOpenLines: saveOpenLinesMock,
+  saveReopenReason: vi.fn(),
+}));
+
+vi.mock('../ReopenShowAction', () => ({ ReopenShowAction: () => null }));
 
 vi.mock('@/services/replication', () => ({
   replicatedShowsTable: { updateShow: updateShowMock },
@@ -18,11 +26,12 @@ vi.mock('sonner', () => ({
   toast: {
     success: vi.fn(),
     error: vi.fn(),
+    warning: vi.fn(),
   },
 }));
 
 const baseProps = {
-  show: { id: 'show-1', status: 'in_progress' },
+  show: { id: 'show-1', status: 'published' },
   trials: [
     { id: 'trial-open', status: 'in_progress' },
     { id: 'trial-completed', status: 'completed' },
@@ -45,6 +54,7 @@ describe('CloseOutShowAction', () => {
     updateShowMock.mockResolvedValue('show-mutation');
     updateTrialMock.mockResolvedValue('trial-mutation');
     updateClassMock.mockResolvedValue('class-mutation');
+    saveOpenLinesMock.mockResolvedValue(undefined);
   });
 
   it('renders the closed state without offering another mutation', () => {
@@ -53,6 +63,18 @@ describe('CloseOutShowAction', () => {
     expect(screen.getByRole('heading', { name: 'Show closed' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Close the show' })).not.toBeInTheDocument();
   });
+
+  // Owner decision 2026-11-27 (MYK9-2428): only a published show closes, so a reopen that
+  // restores `published` always puts it back where it was.
+  it.each(['draft', 'upcoming', 'in_progress', 'cancelled'])(
+    'offers no close for a %s show and says when it can be closed',
+    status => {
+      render(<CloseOutShowAction {...baseProps} show={{ id: 'show-1', status }} />);
+
+      expect(screen.queryByRole('button', { name: 'Close the show' })).not.toBeInTheDocument();
+      expect(screen.getByText('A show can be closed once it is published.')).toBeInTheDocument();
+    }
+  );
 
   it('shows closeout concerns before confirmation', async () => {
     const { user } = render(
@@ -90,13 +112,22 @@ describe('CloseOutShowAction', () => {
     await user.click(await screen.findByRole('button', { name: 'Close the show' }));
 
     await waitFor(() =>
-      expect(updateShowMock).toHaveBeenCalledWith('show-1', { status: 'completed' })
+      expect(updateShowMock).toHaveBeenCalledWith('show-1', {
+        status: 'completed',
+        closedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
+      })
     );
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Show closed.'));
     expect(updateTrialMock).toHaveBeenCalledTimes(1);
-    expect(updateTrialMock).toHaveBeenCalledWith('trial-open', { status: 'completed' });
+    expect(updateTrialMock).toHaveBeenCalledWith('trial-open', {
+      status: 'completed',
+      statusBeforeClose: 'in_progress',
+    });
     expect(updateClassMock).toHaveBeenCalledTimes(1);
-    expect(updateClassMock).toHaveBeenCalledWith('class-open', { classStatus: 'completed' });
+    expect(updateClassMock).toHaveBeenCalledWith('class-open', {
+      classStatus: 'completed',
+      statusBeforeClose: 'in_progress',
+    });
     expect(updateTrialMock.mock.invocationCallOrder[0]).toBeLessThan(
       updateShowMock.mock.invocationCallOrder[0]
     );
@@ -123,6 +154,40 @@ describe('CloseOutShowAction', () => {
     expect(toast.success).not.toHaveBeenCalled();
   });
 
+  it('records what was still open, and says so when that note cannot be saved', async () => {
+    const { toast } = await import('sonner');
+    saveOpenLinesMock.mockRejectedValueOnce(new Error('offline'));
+    const { user } = render(<CloseOutShowAction {...baseProps} entries={[]} submissions={[]} />);
+
+    await user.click(screen.getByRole('button', { name: 'Close the show' }));
+    await user.click(await screen.findByRole('button', { name: 'Close anyway' }));
+
+    await waitFor(() => expect(saveOpenLinesMock).toHaveBeenCalledTimes(1));
+    expect(saveOpenLinesMock).toHaveBeenCalledWith(
+      'show-1',
+      expect.arrayContaining([expect.objectContaining({ key: expect.any(String) })])
+    );
+    await waitFor(() =>
+      expect(toast.warning).toHaveBeenCalledWith(
+        'The list of what was still open could not be saved. It needs a connection; the show is closed.'
+      )
+    );
+    expect(toast.success).toHaveBeenCalledWith('Show closed.');
+  });
+
+  it('finishes closing before the note save settles', async () => {
+    const { toast } = await import('sonner');
+    saveOpenLinesMock.mockReturnValue(new Promise(() => undefined));
+    const { user } = render(<CloseOutShowAction {...baseProps} />);
+
+    await user.click(screen.getByRole('button', { name: 'Close the show' }));
+    await user.click(await screen.findByRole('button', { name: 'Close the show' }));
+
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Show closed.'));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    expect(saveOpenLinesMock).toHaveBeenCalledTimes(1);
+  });
+
   it('reports a failed parent closeout after child updates queue', async () => {
     const { toast } = await import('sonner');
     updateShowMock.mockRejectedValueOnce(new Error('offline queue unavailable'));
@@ -136,8 +201,14 @@ describe('CloseOutShowAction', () => {
         'Closing the show did not finish. Try again after checking your connection.'
       )
     ).toBeInTheDocument();
-    expect(updateTrialMock).toHaveBeenCalledWith('trial-open', { status: 'completed' });
-    expect(updateClassMock).toHaveBeenCalledWith('class-open', { classStatus: 'completed' });
+    expect(updateTrialMock).toHaveBeenCalledWith('trial-open', {
+      status: 'completed',
+      statusBeforeClose: 'in_progress',
+    });
+    expect(updateClassMock).toHaveBeenCalledWith('class-open', {
+      classStatus: 'completed',
+      statusBeforeClose: 'in_progress',
+    });
     expect(toast.error).toHaveBeenCalledWith('Closing the show did not finish. Please try again.');
     expect(toast.success).not.toHaveBeenCalled();
   });

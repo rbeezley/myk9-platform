@@ -187,6 +187,14 @@ export interface GeneratedPremium {
     showHours: string;
     trialInformation: string;
   };
+  /**
+   * MYK9-2280: the narratives the show's facts build today, whatever `narratives` keeps. Optional
+   * so an older response still parses; absent offline. Never published.
+   */
+  builtNarratives?: {
+    showHours: string;
+    trialInformation: string;
+  };
 }
 
 export interface PremiumFieldOverride {

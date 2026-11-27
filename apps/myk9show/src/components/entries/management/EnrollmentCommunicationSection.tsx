@@ -24,6 +24,9 @@ export function EnrollmentCommunicationSection({
   exhibitorEmail,
   resend,
 }: EnrollmentCommunicationSectionProps) {
+  // MYK9-2483: with no address on file a send cannot arrive, so offer none and say why here,
+  // the one place this section explains it.
+  const hasEmail = exhibitorEmail.trim().length > 0;
   return (
     <section
       className="border-t border-border/60 px-4 py-3"
@@ -40,7 +43,7 @@ export function EnrollmentCommunicationSection({
             </p>
           )}
         </div>
-        {canSendDecisionEmail && (
+        {canSendDecisionEmail && hasEmail && (
           <Button
             size="sm"
             variant="outline"
@@ -53,8 +56,15 @@ export function EnrollmentCommunicationSection({
           </Button>
         )}
       </div>
-      {showId && (
-        <ExhibitorEmailHistory showId={showId} recipientEmail={exhibitorEmail} resend={resend} />
+      {!hasEmail ? (
+        <p className="mt-3 text-sm text-muted-foreground">
+          This exhibitor has no email address on file, so an email cannot reach them. Let them know
+          another way.
+        </p>
+      ) : (
+        showId && (
+          <ExhibitorEmailHistory showId={showId} recipientEmail={exhibitorEmail} resend={resend} />
+        )
       )}
     </section>
   );

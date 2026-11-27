@@ -14,8 +14,8 @@ import type { EnrollmentGroup } from '@/utils/enrollmentGrouping';
  */
 
 /**
- * A cash or check payment: the amount she received, typed or (MYK9-2479, "Paid in Full")
- * filled in with the balance due for her to confirm or edit.
+ * A cash or check payment, the whole due or part of it: the amount she received, as she
+ * typed it (MYK9-2479: nothing is filled in for her).
  */
 export type PartialDialog = {
   open: boolean;
@@ -232,23 +232,11 @@ export function enrollmentRemainingDollars(group: FormMoneyGroup): number {
 }
 
 /**
- * What "Paid in Full" charges: the form's due, never below zero. The server's figure
- * (`record_enrollment_payment` with no amount), so the dialog quotes what is recorded.
+ * What the form owes in full: its due, never below zero (the check-in desk's amount owed).
  * MYK9-1961 (owner, 2026-11-13): a payment covers only what it is for and never reopens a
  * refunded entry, so a refunded fee is never charged again; money the form still holds
- * covers a later add-on, so a covered form quotes $0.
+ * covers a later add-on, so a covered form owes $0.
  */
 export function paidInFullDollars(group: FormMoneyGroup): number {
-  return paidInFullCents(group) / 100;
-}
-
-/**
- * MYK9-2479: "Paid in Full" in whole cents, the amount the payment carries on its
- * first send and on every replay. Taken in cents from each figure, never from the
- * dollar subtraction (`25.1 - 0.1` is not `25`); zero means nothing is due.
- */
-export function paidInFullCents(group: FormMoneyGroup): number {
-  const owed = Math.round(formTotalDollars(group) * 100);
-  const received = Math.round(receivedDollars(group) * 100);
-  return Math.max(0, owed - received);
+  return Math.max(0, enrollmentRemainingDollars(group));
 }

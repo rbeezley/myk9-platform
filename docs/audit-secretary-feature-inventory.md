@@ -29,7 +29,7 @@ A secretary can run a show using only these. Every one must stay fast (the 10-ta
 | Publish the show (status)                                                                                    | Status pill in the show header                                         |       |
 | Publish the premium list                                                                                     | Show details panel → Premium card                                      |       |
 | See entry forms and accept / reject                                                                          | Entry Forms → Needs review; form checklist Accept / Reject; Accept all |       |
-| Take cash / check, mark paid                                                                                 | Form checklist Cash… / Check…; Payment menu                            |       |
+| Take cash / check, mark paid                                                                                 | Form checklist Record Payment…; Payment menu                           |       |
 | Assign armbands                                                                                              | Form checklist Assign; armband chip; "Use next available"              |       |
 | Withdraw / pull an entry                                                                                     | Entry status chip                                                      |       |
 | Late entry at the table                                                                                      | Add Entry; More → Add late entry                                       |       |

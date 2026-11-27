@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, screen, within } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import type { SecretaryEntry } from '@/services/database/entries';
 import { mapSecretaryEntryToEntryManagementEntry } from '@/hooks/useEntryManagementData';
@@ -15,7 +15,7 @@ vi.mock('@/features/messages/hooks/useCanSendTargetedShowMessages', () => ({
 
 /**
  * MYK9-1961, the owner's two decisions (2026-11-13), on every figure the entry form shows:
- * the footer, the checklist, the add-on's own row and the Paid in Full quote. The rows are
+ * the footer, the checklist, the add-on's own row and what it owes in full. The rows are
  * the database rows as the server leaves them (migration 20261114013900; the server half is
  * supabase/tests/myk9_1961_refunded_fee_not_owed_test.sql), read through the page's own
  * mapper, so this is the form the secretary sees.
@@ -87,17 +87,6 @@ function rowMoney(dogName: string) {
   return within(card as HTMLElement).getByText(/^Fee: /).textContent;
 }
 
-/**
- * What Paid in Full fills in for her to record (MYK9-2479: the payment dialog's amount,
- * empty when nothing is due), read as "$0.00" for an empty box.
- */
-function paidInFullQuote() {
-  fireEvent.click(screen.getByRole('button', { name: 'Change payment' }));
-  fireEvent.click(screen.getByText('Paid in Full: Cash…'));
-  const box = screen.getByPlaceholderText('Amount of this payment ($)') as HTMLInputElement;
-  return `$${Number(box.value || 0).toFixed(2)}`;
-}
-
 describe('owner case 1: money still held covers a later add-on (MYK9-1961)', () => {
   // $50 paid, $10 refunded at the desk ($40 held), then a $30 class. The server settles the
   // add-on with the held money: the form is 'paid', the add-on 'paid', the two refunded.
@@ -133,10 +122,9 @@ describe('owner case 1: money still held covers a later add-on (MYK9-1961)', () 
     expect(entryAttentionReasons(addOn)).not.toContain('payment_due');
   });
 
-  it('quotes $0.00 for Paid in Full', () => {
+  it('owes $0.00 in full', () => {
     const registration = renderForm(entries());
     expect(paidInFullDollars(registration)).toBe(0);
-    expect(paidInFullQuote()).toBe('$0.00');
   });
 });
 
@@ -175,10 +163,9 @@ describe('owner case 2: a payment covers only what it is for (MYK9-1961)', () =>
     expect(owed).toEqual({ f1: 0, f2: 0, f3: 30 });
   });
 
-  it('quotes $30.00 for Paid in Full: the refunded entries are never charged again', () => {
+  it('owes $30.00 in full: the refunded entries are never charged again', () => {
     const registration = renderForm(entries());
     expect(paidInFullDollars(registration)).toBe(30);
-    expect(paidInFullQuote()).toBe('$30.00');
   });
 
   it('reads Paid in full once $30 is recorded, the refunded entries still refunded', () => {

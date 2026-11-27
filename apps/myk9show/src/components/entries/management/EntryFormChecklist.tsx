@@ -20,7 +20,6 @@ interface EntryFormChecklistProps {
   checkInUnknown?: boolean | undefined;
   /** The same openers the Payment section's menu uses (no second implementation). */
   payment: {
-    openFullPayment: (method: 'cash' | 'check') => void;
     openPartialPayment: () => void;
     askMarkPaidOnline: () => void;
   };
@@ -131,23 +130,10 @@ export function EntryFormChecklist({
                   actions={
                     item.canRecord ? (
                       <>
-                        <Button
-                          size="sm"
-                          className="min-h-11"
-                          onClick={() => payment.openFullPayment('cash')}
-                        >
-                          Cash…
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="min-h-11"
-                          onClick={() => payment.openFullPayment('check')}
-                        >
-                          Check…
+                        <Button size="sm" className="min-h-11" onClick={payment.openPartialPayment}>
+                          Record Payment…
                         </Button>
                         <EntryFormPaymentMoreOptions
-                          openPartialPayment={payment.openPartialPayment}
                           askMarkPaidOnline={payment.askMarkPaidOnline}
                         />
                       </>

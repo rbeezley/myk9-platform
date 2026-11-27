@@ -157,7 +157,7 @@ describe('a desk late entry after the show’s entries pull (MYK9-1930)', () => 
     expect(screen.getByText(SAVED_ON_DEVICE_PAYMENT_NOTE)).toBeInTheDocument();
   });
 
-  it('after the pull: the form id is on the row, its money is read, and Cash / Check are there', async () => {
+  it('after the pull: the form id is on the row, its money is read, and Record Payment is there', async () => {
     mocks.entries = [{ ...lateEntry, registrationId: 'form-1' }];
 
     const { row, group } = await readGroup();
@@ -171,7 +171,7 @@ describe('a desk late entry after the show’s entries pull (MYK9-1930)', () => 
     renderCard(group);
     expect(screen.queryByText(SAVED_ON_DEVICE_PAYMENT_NOTE)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Change payment' }));
-    expect(screen.getByText('Paid in Full: Cash…')).toBeInTheDocument();
-    expect(screen.getByText('Paid in Full: Check…')).toBeInTheDocument();
+    // MYK9-2479: cash and check, full or part, go through Record Payment.
+    expect(screen.getByText('Record Payment…')).toBeInTheDocument();
   });
 });

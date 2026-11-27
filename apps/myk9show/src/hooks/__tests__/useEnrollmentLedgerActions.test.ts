@@ -243,6 +243,17 @@ describe('useEnrollmentLedgerActions', () => {
     );
   });
 
+  // Codex round 4 on #4461: a dead letter will not go again on its own, so it never says so.
+  it('a payment whose send stopped closes the dialog and points to Try again on its line', async () => {
+    const { outcome, setEntries } = await recordPayment({ kind: 'stopped' });
+
+    expect(outcome).toBe('queued');
+    expect(setEntries).not.toHaveBeenCalled();
+    expect(mocks.toastWarning).toHaveBeenCalledWith(
+      "Payment saved on this device, not confirmed. It will not be sent on its own. Use Try again on its line under the form's balance."
+    );
+  });
+
   // Codex round 1 on #4461: a payment this device could not keep is never sent, online or not.
   it('a payment this device could not save sends nothing, even online, and keeps the dialog', async () => {
     vi.spyOn(logger, 'error').mockImplementation(() => {});

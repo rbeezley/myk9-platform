@@ -98,9 +98,14 @@ function renderCard(record: LedgerRecord, paidAmount = 0) {
   fireEvent.click(screen.getByRole('button', { name: 'Change payment' }));
 }
 
+/** A check for the whole $50 due, through Record Payment (MYK9-2479: Paid in Full is online only). */
 function openCheckPayment(record: LedgerRecord) {
   renderCard(record);
-  fireEvent.click(screen.getByText('Paid in Full: Check…'));
+  fireEvent.click(screen.getByText('Record Payment…'));
+  fireEvent.click(screen.getByRole('button', { name: 'Check' }));
+  fireEvent.change(screen.getByPlaceholderText('Amount of this payment ($)'), {
+    target: { value: '50' },
+  });
   fireEvent.change(screen.getByPlaceholderText('Check number (optional)'), {
     target: { value: '1042' },
   });
@@ -109,7 +114,7 @@ function openCheckPayment(record: LedgerRecord) {
 
 function openPartialPayment(record: LedgerRecord) {
   renderCard(record);
-  fireEvent.click(screen.getByText('Partial Payment…'));
+  fireEvent.click(screen.getByText('Record Payment…'));
   fireEvent.change(screen.getByPlaceholderText('Amount of this payment ($)'), {
     target: { value: '35' },
   });
@@ -127,7 +132,7 @@ function openPartialRefund(record: LedgerRecord) {
 }
 
 describe('payment and refund dialogs keep what was typed when the save fails (MYK9-2156)', () => {
-  describe('Paid in Full: Check', () => {
+  describe('Record Payment: a check for the full amount', () => {
     it('stays open with the check number and date, and says it was not saved', async () => {
       const { record, settle } = deferredRecord();
       openCheckPayment(record);
@@ -157,7 +162,7 @@ describe('payment and refund dialogs keep what was typed when the save fails (MY
     });
   });
 
-  describe('Partial Payment', () => {
+  describe('Record Payment: part of the amount', () => {
     it('stays open with the amount, method and check number, and says it was not saved', async () => {
       const { record, settle } = deferredRecord();
       openPartialPayment(record);
@@ -217,7 +222,7 @@ describe('payment and refund dialogs keep what was typed when the save fails (MY
     const UNCONFIRMED =
       'We could not confirm this was saved. Check the payments on this form before you try again.';
 
-    it('Paid in Full keeps the check number and date and asks to check first', async () => {
+    it('a full check payment keeps the check number and date and asks to check first', async () => {
       const { record, settle } = deferredRecord();
       openCheckPayment(record);
       fireEvent.click(screen.getByRole('button', { name: 'Record Payment' }));
@@ -229,7 +234,7 @@ describe('payment and refund dialogs keep what was typed when the save fails (MY
       expect(screen.getByLabelText('Received on')).toHaveValue('2026-08-27');
     });
 
-    it('Partial Payment keeps the amount and check number and asks to check first', async () => {
+    it('a part payment keeps the amount and check number and asks to check first', async () => {
       const { record, settle } = deferredRecord();
       openPartialPayment(record);
       fireEvent.click(screen.getByRole('button', { name: 'Record Payment' }));
@@ -271,7 +276,7 @@ describe('payment and refund dialogs keep what was typed when the save fails (MY
       {
         kind: 'payment',
         method: 'check',
-        // MYK9-2479: the due shown, never NULL.
+        // MYK9-2479: the amount she typed, never NULL.
         amount: 50,
         receivedOn: '2026-08-27',
         reference: '1042',
@@ -300,7 +305,7 @@ function sentPaymentId(record: ReturnType<typeof vi.fn<LedgerRecord>>, call: num
 }
 
 describe('every payment carries its own id, kept for a retry (MYK9-1936)', () => {
-  it('a retry of the same unconfirmed Paid in Full sends the same id', async () => {
+  it('a retry of the same unconfirmed full check payment sends the same id', async () => {
     const record = vi
       .fn<LedgerRecord>()
       .mockResolvedValueOnce('unconfirmed')
@@ -364,7 +369,7 @@ describe('every payment carries its own id, kept for a retry (MYK9-1936)', () =>
 
     // The same amount and method again is a second payment, not a retry.
     fireEvent.click(screen.getByRole('button', { name: 'Change payment' }));
-    fireEvent.click(screen.getByText('Partial Payment…'));
+    fireEvent.click(screen.getByText('Record Payment…'));
     fireEvent.change(screen.getByPlaceholderText('Amount of this payment ($)'), {
       target: { value: '35' },
     });

@@ -8,7 +8,6 @@ import {
   formMoneyUnknown,
   formTotalDollars,
   netReceivedDollars,
-  paidInFullCents,
   receivedDollars,
   resolvePartialPayment,
   type LedgerConfirmState,
@@ -45,14 +44,11 @@ export function useEnrollmentDialogControls(
 
   const enrollmentId = group.enrollmentId ?? '';
   const totalDollars = formTotalDollars(group);
-  // Money received, desk and card (MYK9-1637): what "Paid in Full" charges the rest of.
+  // Money received, desk and card (MYK9-1637).
   const paidDollars = receivedDollars(group);
   // What the desk may hand back: desk money only (card money is refunded through Stripe).
   const refundableDollars = netReceivedDollars(group);
   const remainingDollars = enrollmentRemainingDollars(group);
-  // What "Paid in Full" fills in: the due, never below zero (a payment reopens nothing),
-  // in whole cents (MYK9-2479): the amount in the box is the amount sent, on every replay.
-  const fullPaymentCents = paidInFullCents(group);
   // MYK9-2479: a cash or check payment is saved on this device first, named by its form.
   const form = {
     showId: group.entries[0]?.showId ?? '',
@@ -89,24 +85,20 @@ export function useEnrollmentDialogControls(
   };
 
   // MYK9-677: cash and check money goes through the payments ledger, one row
-  // per payment with the day it was received.
-  const openPaymentDialog = (method: PartialDialog['method'], amountPaid: string) => {
+  // per payment with the day it was received. MYK9-2479 (owner, 2026-11-27, Codex round 4
+  // on #4461): Record Payment is the one cash and check dialog, for a full payment too.
+  // She types the amount she received; nothing is filled in for her.
+  const openPartialPayment = () => {
     partialSave.reset();
     partialAttempt.clear();
-    setPartialDialog({ open: true, amountPaid, method, checkNumber: '', receivedOn: today });
+    setPartialDialog({
+      open: true,
+      amountPaid: '',
+      method: 'cash',
+      checkNumber: '',
+      receivedOn: today,
+    });
   };
-
-  const openPartialPayment = () => openPaymentDialog('cash', '');
-
-  // MYK9-2479 (owner's Option A, Codex round 3 on #4461): "Paid in Full" by cash or check
-  // is the same dialog with the server's balance due filled in. She confirms or edits it,
-  // and the typed amount is sent: nothing records "whatever is due" on its own. Empty when
-  // the due is not known, or nothing is due.
-  const openFullPayment = (method: PartialDialog['method']) =>
-    openPaymentDialog(
-      method,
-      !amountUnknown && fullPaymentCents > 0 ? (fullPaymentCents / 100).toFixed(2) : ''
-    );
 
   // MYK9-2156: the dialog closes only once its write succeeds; a failed write
   // keeps it open with what was typed (useLedgerDialogSave).
@@ -145,7 +137,6 @@ export function useEnrollmentDialogControls(
     ledgerConfirm,
     closeLedgerConfirm,
     confirmLedgerChange,
-    openFullPayment,
     openPartialPayment,
     confirmPartialPayment,
     email: {

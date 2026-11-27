@@ -49,7 +49,7 @@ export const EnrollmentPartialPaymentDialog: React.FC<EnrollmentPartialPaymentDi
   <Dialog open={state.open} onOpenChange={next => !next && onClose()}>
     <DialogContent className="sm:max-w-sm">
       <DialogHeader>
-        <DialogTitle>Record Partial Payment</DialogTitle>
+        <DialogTitle>Record Payment</DialogTitle>
       </DialogHeader>
       <div className="space-y-3 py-2">
         <div className="text-sm text-muted-foreground">

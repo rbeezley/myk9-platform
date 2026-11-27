@@ -65,6 +65,7 @@ describe('desk payments settle only for the account that saved them (MYK9-2479)'
       ledgerIds: vi.fn(async () => new Set<string>()),
       isOnline: () => online,
       now: () => Date.now(),
+      refreshEntries: vi.fn(async () => undefined),
     };
   });
 
@@ -101,6 +102,30 @@ describe('desk payments settle only for the account that saved them (MYK9-2479)'
     };
   }
 
+  // Option A (Codex round 3 on #4461): one owner for the row and its queued send.
+  it('the row and its queued send belong to the one account that saved them', async () => {
+    await saveDeskPayment('enr-1', PAYMENT, FORM, deps);
+
+    const row = await table.getReplicatedRowIncludingOtherAccounts(ID);
+    const [queued] = await store(REPLICATION_STORES.PENDING_MUTATIONS);
+    expect([row?.ownerAuthUserId, queued?.authUserId]).toEqual(['secretary-a', 'secretary-a']);
+  });
+
+  it('an account switch between the two fails the save before commit, with nothing queued', async () => {
+    const prepare = manager.prepareMutation.bind(manager);
+    vi.spyOn(manager, 'prepareMutation').mockImplementation(async (...args) => {
+      const mutation = await prepare(...args);
+      auth = 'secretary-b';
+      return mutation;
+    });
+
+    const result = await saveDeskPayment('enr-1', PAYMENT, FORM, deps);
+
+    expect(result).toMatchObject({ kind: 'not-saved', reason: 'not-stored' });
+    expect(await table.getReplicatedRowIncludingOtherAccounts(ID)).toBeNull();
+    expect(await store(REPLICATION_STORES.PENDING_MUTATIONS)).toEqual([]);
+  });
+
   it('settles for the account that saved it: record, queue row and dead letter go', async () => {
     await saveWithDeadLetter();
 
@@ -127,17 +152,17 @@ describe('desk payments settle only for the account that saved them (MYK9-2479)'
     expect(await heldOnDevice()).toEqual({ record: 'secretary-a', queued: 1, dead: 1 });
   });
 
-  it('a refusal it could not settle for its owner stays queued on its line, never refused', async () => {
+  it('a refusal it could not settle for its owner is stopped on its line, never refused', async () => {
     online = true;
     vi.spyOn(table, 'settle').mockResolvedValueOnce('not-owner');
 
     const result = await saveDeskPayment('enr-1', PAYMENT, FORM, deps);
 
-    expect(result).toEqual({ kind: 'queued', sendBegun: true });
+    expect(result).toEqual({ kind: 'stopped' });
     expect(await heldOnDevice()).toMatchObject({ record: 'secretary-a', dead: 1 });
   });
 
-  it('an account change during the send keeps the first account’s payment queued', async () => {
+  it('an account change during the send keeps the first account’s payment, stopped', async () => {
     online = true;
     onSend = () => {
       auth = 'secretary-b';
@@ -145,7 +170,7 @@ describe('desk payments settle only for the account that saved them (MYK9-2479)'
 
     const result = await saveDeskPayment('enr-1', PAYMENT, FORM, deps);
 
-    expect(result).toEqual({ kind: 'queued', sendBegun: true });
+    expect(result).toEqual({ kind: 'stopped' });
     auth = 'secretary-a';
     expect((await table.listForShow(SHOW)).map(s => s.payment.id)).toEqual([ID]);
     expect(await heldOnDevice()).toMatchObject({ record: 'secretary-a', dead: 1 });

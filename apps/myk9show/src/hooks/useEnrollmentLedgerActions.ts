@@ -88,7 +88,8 @@ const LEDGER_REFUSED_TECHNICAL =
  * RPC writes anything, so nothing was recorded; `unconfirmed` is anything else
  * (a lost connection, a timeout), where the server may have saved it and a
  * retry could record the payment twice. MYK9-2479: `queued` is a cash or check
- * payment saved on this device that the queue sends (again) under the same id.
+ * payment saved on this device under its own id; the toast says whether it goes again
+ * on its own or waits for Try again on its line.
  */
 export type LedgerWriteOutcome = 'saved' | 'queued' | 'failed' | 'unconfirmed';
 
@@ -97,6 +98,9 @@ const QUEUED_OFFLINE =
   'Payment saved on this device. It will be sent on its own when the connection returns.';
 const QUEUED_UNCONFIRMED =
   'Payment saved on this device, not confirmed yet. It will be sent again on its own.';
+/** Its send stopped (a dead letter): saved here, but it goes again only from Try again. */
+const STOPPED_UNCONFIRMED =
+  "Payment saved on this device, not confirmed. It will not be sent on its own. Use Try again on its line under the form's balance.";
 /**
  * The payment could not be kept on this device, so it was NOT sent (Codex round 1 on
  * #4461): a send with no record here has nothing to replay when its answer is lost.
@@ -217,9 +221,10 @@ export function useEnrollmentLedgerActions({
   );
 
   /**
-   * MYK9-2479: a cash or check payment is saved on this device first and sent with a
-   * bounded wait; with no answer it stays queued under the same id and is sent again on
-   * its own. A refusal inside the wait stays in the dialog, as before.
+   * MYK9-2479: a cash or check payment is saved on this device first and sent by the
+   * queue with a bounded wait; with no answer it stays queued under the same id and is
+   * sent again on its own, and a stopped send waits for Try again. A proven refusal of the
+   * first send stays in the dialog, as before.
    */
   const recordPayment = useCallback(
     async (
@@ -234,6 +239,11 @@ export function useEnrollmentLedgerActions({
       if (result.kind === 'refused') return apply(enrollmentId, () => Promise.reject(result.error));
       if (result.kind === 'queued') {
         toast.warning(result.sendBegun ? QUEUED_UNCONFIRMED : QUEUED_OFFLINE);
+        return 'queued';
+      }
+      // Saved on this device, so the dialog closes; its line keeps it in view.
+      if (result.kind === 'stopped') {
+        toast.warning(STOPPED_UNCONFIRMED);
         return 'queued';
       }
       // Not saved here, so nothing was sent: the dialog keeps what she typed.

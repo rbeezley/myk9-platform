@@ -192,7 +192,7 @@ describe('EnrollmentCard', () => {
   it('payment badge is a manual-edit dropdown for enrollment (mail-in) groups', () => {
     render(<EnrollmentCard {...defaultProps} group={makeGroup({ enrollmentId: 'enroll-1' })} />);
     fireEvent.click(screen.getByText('Paid'));
-    expect(screen.getByText('Paid in Full: Cash…')).toBeTruthy();
+    expect(screen.getByText('Record Payment…')).toBeTruthy();
   });
 
   it('payment badge is NOT editable for online-checkout groups (no enrollment record)', () => {
@@ -207,7 +207,7 @@ describe('EnrollmentCard', () => {
     );
     const badge = screen.getByText('Paid');
     fireEvent.click(badge);
-    expect(screen.queryByText('Paid in Full: Cash…')).toBeNull();
+    expect(screen.queryByText('Record Payment…')).toBeNull();
     expect(badge.closest('button')).toBeNull();
   });
 
@@ -329,14 +329,18 @@ describe('EnrollmentCard', () => {
       return { record, markPaidOnline };
     }
 
-    // MYK9-2479: Paid in Full opens the payment dialog with the due filled in; she records it.
-    it('Paid in Full: Cash records the balance, received today on the show calendar', () => {
+    // MYK9-2479 (owner, 2026-11-27): Paid in Full is online only; a full payment in cash
+    // or check goes through Record Payment, for the amount she types.
+    it('Record Payment in cash records the amount typed, received today on the show calendar', () => {
       const { record, markPaidOnline } = renderPending();
-      fireEvent.click(screen.getByText('Paid in Full: Cash…'));
+      fireEvent.click(screen.getByText('Record Payment…'));
       expect((screen.getByLabelText('Received on') as HTMLInputElement).value).toBe('2026-09-17');
-      fireEvent.click(screen.getByText('Record Payment'));
+      fireEvent.change(screen.getByPlaceholderText('Amount of this payment ($)'), {
+        target: { value: '50' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Record Payment' }));
 
-      // MYK9-2479: the due she is shown, never NULL, and the form its local record names.
+      // MYK9-2479: the amount she typed, never NULL, and the form its local record names.
       expect(record).toHaveBeenCalledWith(
         'enroll-1',
         {
@@ -352,49 +356,18 @@ describe('EnrollmentCard', () => {
       expect(markPaidOnline).not.toHaveBeenCalled();
     });
 
-    // MYK9-2479: frozen in whole cents, never the raw dollar subtraction (0.3 - 0.1).
-    it('Paid in Full sends the due in whole cents', () => {
-      const record = vi.fn().mockResolvedValue('saved');
-      render(
-        <EnrollmentCard
-          {...defaultProps}
-          paymentLedger={{ record, markPaidOnline: vi.fn(), todayInShowZone: '2026-09-17' }}
-          group={makeGroup({
-            paymentStatus: PaymentStatus.PENDING,
-            totalAmount: 30,
-            paidAmount: 0.1,
-          })}
-        />
-      );
-      fireEvent.click(screen.getByText('Payment Due'));
-      fireEvent.click(screen.getByText('Paid in Full: Cash…'));
-      expect(screen.getByPlaceholderText('Amount of this payment ($)')).toHaveValue(0.2);
-      fireEvent.click(screen.getByText('Record Payment'));
-
-      expect(record).toHaveBeenCalledWith(
-        'enroll-1',
-        expect.objectContaining({ kind: 'payment', amount: 0.2 }),
-        FORM
-      );
-    });
-
-    it('a zero balance fills in nothing, so nothing is recorded until she types an amount', () => {
-      const { record } = renderPending(vi.fn().mockResolvedValue('saved'), 50);
-      fireEvent.click(screen.getByText('Paid in Full: Cash…'));
-
-      expect(screen.getByPlaceholderText('Amount of this payment ($)')).toHaveValue(null);
-      expect(screen.getByRole('button', { name: 'Record Payment' })).toBeDisabled();
-      expect(record).not.toHaveBeenCalled();
-    });
-
-    it('Paid in Full: Check keeps the day a check was actually received', () => {
+    it('a check keeps the day it was actually received', () => {
       const { record } = renderPending();
-      fireEvent.click(screen.getByText('Paid in Full: Check…'));
+      fireEvent.click(screen.getByText('Record Payment…'));
+      fireEvent.click(screen.getByRole('button', { name: 'Check' }));
+      fireEvent.change(screen.getByPlaceholderText('Amount of this payment ($)'), {
+        target: { value: '50' },
+      });
       fireEvent.change(screen.getByPlaceholderText('Check number (optional)'), {
         target: { value: '1042' },
       });
       fireEvent.change(screen.getByLabelText('Received on'), { target: { value: '2026-08-27' } });
-      fireEvent.click(screen.getByText('Record Payment'));
+      fireEvent.click(screen.getByRole('button', { name: 'Record Payment' }));
 
       expect(record).toHaveBeenCalledWith(
         'enroll-1',
@@ -412,12 +385,12 @@ describe('EnrollmentCard', () => {
 
     it('a partial payment records its own method and amount', () => {
       const { record } = renderPending();
-      fireEvent.click(screen.getByText('Partial Payment…'));
+      fireEvent.click(screen.getByText('Record Payment…'));
       fireEvent.change(screen.getByPlaceholderText('Amount of this payment ($)'), {
         target: { value: '35' },
       });
       fireEvent.click(screen.getByRole('button', { name: 'Check' }));
-      fireEvent.click(screen.getByText('Record Payment'));
+      fireEvent.click(screen.getByRole('button', { name: 'Record Payment' }));
 
       expect(record).toHaveBeenCalledWith(
         'enroll-1',

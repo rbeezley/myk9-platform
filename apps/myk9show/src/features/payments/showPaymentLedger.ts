@@ -28,9 +28,9 @@ export interface ShowPaymentLedgerRow {
  * One call to `record_enrollment_payment`. Amounts are dollars.
  *
  * - `payment`: THIS payment (a partial adds to what was paid). The amount is
- *   always the one she was shown, never NULL (MYK9-2479): a replay of a queued
- *   payment must send the money in the drawer, not whatever is due by then
- *   ("Paid in Full" sends the due shown on the form). `clientPaymentId` is the
+ *   always the one she typed, never NULL (MYK9-2479): a replay of a queued
+ *   payment must send the money in the drawer, not whatever is due by then.
+ *   `clientPaymentId` is the
  *   payment's own id (MYK9-1936): the server records one id once, so a retry
  *   of a save whose answer was lost does not record the payment twice.
  * - `refund`: money handed back. `method: null` means it went back some other

@@ -453,28 +453,33 @@ describe('EntryFocusedRegistration', () => {
       );
       const list = screen.getByRole('region', { name: 'To finish this form' });
       expect(within(list).getByText(/due$/)).toBeInTheDocument();
-      expect(within(list).queryByRole('button', { name: /Cash/ })).not.toBeInTheDocument();
-      expect(within(list).queryByRole('button', { name: /Check/ })).not.toBeInTheDocument();
+      expect(
+        within(list).queryByRole('button', { name: /Record Payment/ })
+      ).not.toBeInTheDocument();
       expect(
         within(list).queryByRole('button', { name: /More payment options/ })
       ).not.toBeInTheDocument();
     });
 
-    it('Cash... and the Payment badge menu record the same ledger payment', async () => {
+    // MYK9-2479 (owner, 2026-11-27): Paid in Full is online only; cash and check, full or
+    // part, go through Record Payment, for the amount she types.
+    it('Record Payment on the checklist and on the Payment badge menu record the same payment', async () => {
       const viaChecklist = baseProps();
       const registration = groupEntriesByShowRegistration([
         accepted('entry-1', 'Poppy', 'dog-1'),
       ])[0]!;
       const form = enrolled(registration);
       const first = render(<EntryFocusedRegistration {...viaChecklist} registration={form} />);
-      await first.user.click(screen.getByRole('button', { name: 'Cash…' }));
+      await first.user.click(screen.getByRole('button', { name: 'Record Payment…' }));
+      await first.user.type(screen.getByPlaceholderText('Amount of this payment ($)'), '25');
       await first.user.click(screen.getByRole('button', { name: 'Record Payment' }));
       first.unmount();
 
       const viaBadge = baseProps();
       const second = render(<EntryFocusedRegistration {...viaBadge} registration={form} />);
       await second.user.click(screen.getByRole('button', { name: 'Change payment' }));
-      await second.user.click(await screen.findByRole('menuitem', { name: 'Paid in Full: Cash…' }));
+      await second.user.click(await screen.findByRole('menuitem', { name: 'Record Payment…' }));
+      await second.user.type(screen.getByPlaceholderText('Amount of this payment ($)'), '25');
       await second.user.click(screen.getByRole('button', { name: 'Record Payment' }));
 
       const expected = [
@@ -482,7 +487,7 @@ describe('EntryFocusedRegistration', () => {
         {
           kind: 'payment',
           method: 'cash',
-          // MYK9-2479: the due shown on the form, never NULL, and the form it belongs to.
+          // MYK9-2479: the amount she typed, never NULL, and the form it belongs to.
           amount: 25,
           receivedOn: '2026-09-17',
           reference: null,
@@ -495,7 +500,7 @@ describe('EntryFocusedRegistration', () => {
       expect(viaBadge.paymentLedger.record).toHaveBeenCalledWith(...expected);
     });
 
-    it('Check... keeps the check number and received-on date; Partial and Online stay reachable', async () => {
+    it('a check keeps its number and received-on date; only Online is under more options', async () => {
       const props = baseProps();
       const registration = groupEntriesByShowRegistration([
         accepted('entry-1', 'Poppy', 'dog-1'),
@@ -503,7 +508,9 @@ describe('EntryFocusedRegistration', () => {
       const { user } = render(
         <EntryFocusedRegistration {...props} registration={enrolled(registration)} />
       );
-      await user.click(screen.getByRole('button', { name: 'Check…' }));
+      await user.click(screen.getByRole('button', { name: 'Record Payment…' }));
+      await user.click(screen.getByRole('button', { name: 'Check' }));
+      await user.type(screen.getByPlaceholderText('Amount of this payment ($)'), '25');
       await user.type(screen.getByPlaceholderText('Check number (optional)'), '9');
       await user.click(screen.getByRole('button', { name: 'Record Payment' }));
       expect(props.paymentLedger.record).toHaveBeenCalledWith(
@@ -520,8 +527,10 @@ describe('EntryFocusedRegistration', () => {
       );
 
       await user.click(screen.getByRole('button', { name: 'More payment options' }));
-      await user.click(await screen.findByRole('menuitem', { name: 'Partial Payment…' }));
-      expect(screen.getByPlaceholderText('Amount of this payment ($)')).toBeInTheDocument();
+      await screen.findByRole('menuitem', { name: 'Paid in Full: Online…' });
+      expect(screen.getAllByRole('menuitem').map(item => item.textContent)).toEqual([
+        'Paid in Full: Online…',
+      ]);
     });
 
     it('Online goes to the server, not the ledger', async () => {

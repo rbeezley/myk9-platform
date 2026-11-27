@@ -88,7 +88,7 @@ describe('EnrollmentCard: a late entry and its entry form (MYK9-1930)', () => {
     expect(screen.queryByText(SAVED_ON_DEVICE_PAYMENT_NOTE)).not.toBeInTheDocument();
   });
 
-  it('once synced, groups under its entry form with the form’s Cash and Check controls', () => {
+  it('once synced, groups under its entry form with the form’s Record Payment control', () => {
     const group = renderGroupOf(
       lateEntry({
         registrationId: 'form-1',
@@ -103,7 +103,7 @@ describe('EnrollmentCard: a late entry and its entry form (MYK9-1930)', () => {
     expect(group.enrollmentId).toBe('form-1');
     expect(screen.queryByText(SAVED_ON_DEVICE_PAYMENT_NOTE)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Change payment' }));
-    expect(screen.getByText('Paid in Full: Cash…')).toBeInTheDocument();
-    expect(screen.getByText('Paid in Full: Check…')).toBeInTheDocument();
+    // MYK9-2479: cash and check, full or part, go through Record Payment.
+    expect(screen.getByText('Record Payment…')).toBeInTheDocument();
   });
 });

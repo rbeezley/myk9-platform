@@ -79,7 +79,7 @@ describe('useDeskPaymentLines (MYK9-2479)', () => {
         sendRowNow: vi.fn(),
         retryFailedMutation: vi.fn(),
       },
-      send: vi.fn(),
+      refreshEntries: vi.fn(async () => undefined),
       canReadLedger: vi.fn(),
       ledgerIds: vi.fn(),
       isOnline: () => true,

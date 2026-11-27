@@ -2,7 +2,7 @@ import type { PendingMutation } from '@myk9/replication';
 import type { EnrollmentLedgerAction } from '@/features/payments/showPaymentLedger';
 import { logger } from '@/services/LoggingService';
 import { defaultDeskPaymentDeps, type DeskPaymentDeps } from './deskPaymentDeps';
-import { announceDeskPaymentsRecorded } from './deskPaymentEvents';
+import { refreshAndAnnounceRecorded } from './deskPaymentEvents';
 import { deadLetterMessage } from './deskPaymentReader';
 import type { DeskSendOutcome } from './DeskPaymentsTable';
 import {
@@ -30,6 +30,11 @@ export type DeskPaymentSaveResult =
   | { kind: 'refused'; error: unknown }
   /** Saved on this device and queued under the same id. `sendBegun`: a send went out unanswered. */
   | { kind: 'queued'; sendBegun: boolean }
+  /**
+   * Saved on this device, but its send was dead-lettered and not proven refused: it will
+   * NOT be sent on its own. Try again lives on its line beside the form's balance.
+   */
+  | { kind: 'stopped' }
   /**
    * Not saved on this device, so NOTHING was sent: `invalid-amount` is not whole cents above
    * $0; `not-stored` is storage refusing it, no queue owner, or an account switch mid-write.
@@ -160,28 +165,45 @@ export async function saveDeskPayment(
   }
   if (!online) return { kind: 'queued', sendBegun: false };
 
+  try {
+    return await afterQueued(deps, payment, queued);
+  } catch (error) {
+    // Saved on this device: whatever failed after it, the queue owns the payment now.
+    logger.warn(
+      'Desk payment outcome not read; left to the queue',
+      'secretary',
+      {},
+      error as Error
+    );
+    return { kind: 'queued', sendBegun: true };
+  }
+}
+
+/** The send's outcome, once the payment and its queue row are committed on this device. */
+async function afterQueued(
+  deps: DeskPaymentDeps,
+  payment: LocalDeskPayment,
+  queued: { mutationId: string; owner: string | null }
+): Promise<DeskPaymentSaveResult> {
   const outcome = await awaitQueueOutcome(deps, payment.id, queued.mutationId);
+  if (outcome.kind === 'pending') return { kind: 'queued', sendBegun: true };
   if (outcome.kind === 'acknowledged') {
     // The queue keeps no RPC answer, so the form's figures come back from the server. The
     // app-wide upload handler may have settled and announced it already: one announcement.
     if ((await settleFor(deps, payment.id, queued.owner)) === 'settled') {
-      announceDeskPaymentsRecorded([payment.showId]);
+      await refreshAndAnnounceRecorded([payment], deps.refreshEntries);
     }
     return { kind: 'saved' };
   }
   // "Not recorded" invites a re-entry under a NEW id, so it is said only for a refusal of
   // the first send, and only once its record and queue row are gone for the account that
-  // saved it. Otherwise it stays on its line under its own id, and the queue decides it.
-  if (
-    outcome.kind === 'dead' &&
-    isFirstSendRefusal(outcome.mutation) &&
-    (await settleFor(deps, payment.id, queued.owner)) !== 'kept'
-  ) {
-    const dead = outcome.mutation;
+  // saved it. Any other dead letter stays on its line under its own id, stopped.
+  const dead = outcome.mutation;
+  if (isFirstSendRefusal(dead) && (await settleFor(deps, payment.id, queued.owner)) !== 'kept') {
     return {
       kind: 'refused',
       error: Object.assign(new Error(deadLetterMessage(dead)), { code: dead.errorCode }),
     };
   }
-  return { kind: 'queued', sendBegun: true };
+  return { kind: 'stopped' };
 }

@@ -294,6 +294,60 @@ describe('ReplicatedTable.writeAndQueue (MYK9-1471)', () => {
     expect(await pendingFor(tableName)).toEqual([]);
   });
 
+  describe('on a table that keeps rows per account (MYK9-2479)', () => {
+    class OwnedWritingTable extends WritingTable {
+      override usesAccountOwnedRows(): boolean {
+        return true;
+      }
+    }
+
+    const cases: Array<[string, string | undefined]> = [
+      ['a sign-out after the mutation was prepared', undefined],
+      ['a switch to another account after the mutation was prepared', 'someone-else'],
+    ];
+
+    it.each(cases)('%s fails the write before anything commits', async (_label, rowOwner) => {
+      const table = new OwnedWritingTable(tableName);
+      await start(table);
+      const before = await snapshot(table);
+      vi.spyOn(
+        table as unknown as { rowOwnerFor: () => Promise<string | undefined> },
+        'rowOwnerFor'
+      ).mockResolvedValueOnce(rowOwner);
+
+      await expect(table.edit('1', 'lost')).rejects.toThrow(/nothing was saved/);
+
+      expect(await snapshot(table)).toEqual(before);
+      expect(await pendingFor(tableName)).toEqual([]);
+    });
+
+    it('commits when the row and the mutation name the same account', async () => {
+      const table = new OwnedWritingTable(tableName);
+      await start(table);
+
+      const { mutationId } = await table.edit('1', 'saved');
+
+      expect((await table.getReplicatedRow('1'))?.data.status).toBe('saved');
+      expect((await pendingFor(tableName)).map(m => [m.id, m.authUserId])).toEqual([
+        [mutationId, AUTH_USER_ID],
+      ]);
+    });
+  });
+
+  it('a table that keeps no owners writes as before with no account resolved', async () => {
+    const table = new WritingTable(tableName);
+    await start(table);
+    vi.spyOn(
+      table as unknown as { rowOwnerFor: () => Promise<string | undefined> },
+      'rowOwnerFor'
+    ).mockResolvedValueOnce(undefined);
+
+    const { mutationId } = await table.edit('1', 'saved');
+
+    expect((await table.getReplicatedRow('1'))?.data.status).toBe('saved');
+    expect(mutationId).not.toBeNull();
+  });
+
   it('stamps the mutation with the revision its own write produced', async () => {
     const table = new WritingTable(tableName);
     await start(table);

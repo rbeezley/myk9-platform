@@ -165,7 +165,7 @@ Under it, **To finish this form** lists only what is left, one card each, with t
 
 - **N entries need review**: **Accept** or **Reject**. Accept gives the dog an armband number. The accepted form leaves the **Needs review** view and the next form on the list opens. A message, "Updated all N items", shows with **Undo**.
 - **N entries are missing information**: get the missing detail from the exhibitor and correct it. **Change handler…** on the entry's menu changes the handler (or the jump height). The card stays until you click the entry's status and choose **Accept**.
-- **$ due**: **Cash…**, **Check…**, or the more options (**Partial Payment…**, **Paid in Full: Online**). A form that shows a balance with none of these buttons cannot record a payment here.
+- **$ due**: **Record Payment…** for cash or a check, the whole amount or part of it: type the amount you were handed. **More payment options** holds **Paid in Full: Online**. A form that shows a balance with none of these buttons cannot record a payment here.
 - **A dog has no armband**: **Assign**.
 - **A dog needs a registration number**: **Add number**.
 - **On a show day, N runs to check in**: **Check in all** (card 18).
@@ -296,7 +296,7 @@ The **Show messages** tab of Message Center lists the show's announcements and m
 
 ## 10 · Payments
 
-Payment status shows on every exhibitor's form in **Entry Forms**; **Filter → Status → Payment due** lists the ones still owing. A mail-in form with money owed has a **$ due** card under **To finish this form** with **Cash…** and **Check…** buttons to record what you were handed. An online-checkout form has no such buttons; its status follows Stripe.
+Payment status shows on every exhibitor's form in **Entry Forms**; **Filter → Status → Payment due** lists the ones still owing. A mail-in form with money owed has a **$ due** card under **To finish this form** with a **Record Payment…** button to record the cash or check you were handed. An online-checkout form has no such buttons; its status follows Stripe.
 
 > **The label tells you how it was paid, when the app knows.** An entry recorded as a cheque reads **Paid by check**, cash reads **Paid by cash**, and one you marked paid yourself reads **Paid, recorded by secretary**.
 >

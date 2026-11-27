@@ -17,7 +17,7 @@ Linear: MYK9-1936, step 3. The owner chose this shape on 2026-11-26: the payment
 
 **Saved before any network attempt.** A cash or check save first writes a local payment record, keyed by its client payment id, in one transaction with its queue row (`prepareMutation`). The record holds the show, the form, the exhibitor's name, the amount, method, received time and check number. The queue row is table `show_payments`, `INSERT`, row id = the client payment id, `rpc: record_enrollment_payment` with explicit args. Online, the save is then sent at once. The first send and every replay use the same id.
 
-**The amount received, always.** Every desk payment, online or offline, on its first send and on every replay, carries the explicit amount she was shown: the money in the drawer. None ever sends NULL. Online "Paid in Full" with a known due sends that due. When the due is unknown (offline it reads "Amount not available", `components/entries/management/enrollmentPayment.ts:209-226`), "Paid in Full" stays disabled as today (`EnrollmentFullPaymentDialog.tsx:109`), and she types the amount in Partial Payment. An amount over the balance lands as money on account, which is the truth about the cash received.
+**The amount received, always.** Every desk payment, online or offline, on its first send and on every replay, carries the explicit amount she typed: the money in the drawer. None ever sends NULL. **Paid in Full for cash and check was removed** (the owner's decision on 2026-11-27, after Codex round 4 on PR #4461): "Paid in Full" is online only (`markPaidOnline`), and every cash or check payment, the whole due or part of it, goes through the one Record Payment dialog, where she types the amount and nothing is filled in. So no figure the device read can go stale before it is sent, whether the due is known or reads "Amount not available". An amount over the balance lands as money on account, which is the truth about the cash received.
 
 **A lost answer stays queued.** A direct send that gets its answer settles the record and queue row from it, as today. A send that fails at the transport level, or gets no answer within 10 seconds (the precedent is 12 s, `completeStaleClassRpc.ts:17`), stays queued under the same id. This covers venue Wi-Fi with no internet, where `navigator.onLine` stays true. A refusal inside the wait stays in the dialog, as today.
 
@@ -56,7 +56,7 @@ If the entry insert dead-letters, or lands with no form, the payment reads "Not 
 - record it again on the entry once the entry exists;
 - **Remove** it, when the cash is being returned or recorded on another form. The confirm dialog says so. This is allowed because the parent's own dead letter proves this payment was never sent, so no ledger row can hold its id.
 
-A device-only form, which today has no payment control (`components/entries/management/EnrollmentCard.tsx:267-275`), gains Partial Payment only. **This RPC is the plan's one migration and its only server change.**
+A device-only form, which today has no payment control (`components/entries/management/EnrollmentCard.tsx:267-275`), gains Record Payment only. **This RPC is the plan's one migration and its only server change.**
 
 **Where she sees it.**
 
@@ -84,14 +84,14 @@ Keep it online and say "No connection. Write the payment down and record it here
    - criteria 1, 3, 4 and 5 hold online and offline;
    - no server figure changes;
    - following the pill shows the affected payment.
-3. **Late entry (migration).** `record_entry_form_payment`, its grants and SQL test, then Partial Payment on a device-only form. `supabase db push` before the app half merges. Done when:
+3. **Late entry (migration).** `record_entry_form_payment`, its grants and SQL test, then Record Payment on a device-only form. `supabase db push` before the app half merges. Done when:
    - a payment on an unsynced late entry is recorded once, on the form the server attaches;
    - a failed parent reads as above.
 
 ## 5. Testing
 
 - **Unit.** Assertion-first on the queue call: `toHaveBeenCalledWith('show_payments', 'INSERT', id, …, { name: 'record_enrollment_payment', args: expect.objectContaining({ p_client_payment_id: id, p_amount: 25 }) })`. Then:
-  - an online "Paid in Full" sends the due, not NULL;
+  - a payment sends the amount she typed, not NULL;
   - an offline save, then its replay;
   - an unreachable RPC while `navigator.onLine` is true (fake timers, or a `TypeError`): queued under the same id and amount, reading Not confirmed;
   - a reload during the wait: the record and line persist and replay once;
@@ -114,6 +114,6 @@ The plan review stopped after four rounds. These are criteria for the implementa
 
 - **Late-entry recovery (PR 3).** When a dead-lettered entry insert is retried and succeeds, the original queued payment replays under its own id. Never "record it again", which would mint a second id. An entry that lands without a form has had its payment RPC attempted, so no parent dead letter proves it was never sent: that payment stays Not confirmed, with no Remove.
 - **Owner scoping (PR 1, PR 2).** The local payment record is stamped with the queue owner. Form rows, close-out rows, counts and actions show only the signed-in owner's payments, including after an account switch on a shared desk device.
-- **Paid in Full amount (PR 1).** A zero displayed balance queues nothing. A positive payment freezes the displayed amount in whole cents, never the raw dollar subtraction. The queue-argument test covers both cases.
+- **Paid in Full amount (PR 1).** Superseded: Paid in Full for cash and check was removed (the owner's decision on 2026-11-27, Codex round 4 on PR #4461). Record Payment sends the amount she typed, in whole cents; an amount that is not whole cents above $0 is not saved. The queue-argument test covers the amount.
 - **Copy follows the queue state (PR 1, PR 2).** While the mutation is pending, the copy promises an automatic send and offers no Try again. Once it is dead-lettered, the copy says it will not send on its own and offers Try again (`retryFailedMutation`).
 - **Reachable when close-out cannot load (PR 2).** The device's payment list on the close step renders independently of `ShowCloseStep`'s schedule and entries read gates. A test follows the pill with those inputs unavailable.

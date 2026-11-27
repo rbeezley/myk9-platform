@@ -757,8 +757,13 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     const attempt: SetAttempt = { rowExisted: false };
     const ownerAuthUserId = await this.rowOwnerFor();
     // MYK9-2479: the row and its mutation are one account's. The two are resolved apart, so
-    // an account switch between them fails the write here, before anything is committed.
-    if (queued && ownerAuthUserId !== undefined && queued.mutation.authUserId !== ownerAuthUserId) {
+    // an account switch or a sign-out between them fails the write here, before anything is
+    // committed. A table that keeps no owners is unchanged.
+    if (
+      queued &&
+      this.usesAccountOwnedRows() &&
+      (ownerAuthUserId === undefined || queued.mutation.authUserId !== ownerAuthUserId)
+    ) {
       throw new Error(
         `[${this.tableName}] The signed-in account changed during this write; nothing was saved.`
       );

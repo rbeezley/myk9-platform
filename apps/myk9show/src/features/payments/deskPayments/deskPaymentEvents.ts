@@ -1,6 +1,7 @@
 import type { PendingMutation, UploadCompleteEventDetail } from '@myk9/replication';
 import type { SyncFailedEventDetail } from '@/providers/replicationSyncFormatters';
-import { DESK_PAYMENT_RPC, DESK_PAYMENTS_TABLE } from './deskPaymentTypes';
+import { logger } from '@/services/LoggingService';
+import { DESK_PAYMENT_RPC, DESK_PAYMENTS_TABLE, type LocalDeskPayment } from './deskPaymentTypes';
 import type { DeskPaymentsTable } from './DeskPaymentsTable';
 
 /**
@@ -14,6 +15,8 @@ export interface DeskPaymentsRecordedDetail {
   showIds: string[];
 }
 
+type RefreshEntries = (showId: string, enrollmentIds: readonly string[]) => Promise<void>;
+
 /** Tell this tab the shows' money moved: whoever settled a payment announces it, once. */
 export function announceDeskPaymentsRecorded(showIds: string[]): void {
   if (showIds.length === 0 || typeof window === 'undefined') return;
@@ -22,6 +25,31 @@ export function announceDeskPaymentsRecorded(showIds: string[]): void {
       detail: { showIds },
     })
   );
+}
+
+/**
+ * A settled payment moved its show's money: its forms' entries are read back first (each
+ * entry's payment status lives in the entries replica), then the show is announced, so the
+ * reload the announcement starts reads them fresh. A failed read-back still announces.
+ */
+export async function refreshAndAnnounceRecorded(
+  recorded: ReadonlyArray<Pick<LocalDeskPayment, 'showId' | 'enrollmentId'>>,
+  refreshEntries: RefreshEntries
+): Promise<void> {
+  const formsByShow = new Map<string, Set<string>>();
+  for (const { showId, enrollmentId } of recorded) {
+    formsByShow.set(showId, (formsByShow.get(showId) ?? new Set()).add(enrollmentId));
+  }
+  await Promise.all(
+    [...formsByShow].map(([showId, forms]) =>
+      Promise.resolve()
+        .then(() => refreshEntries(showId, [...forms]))
+        .catch(error =>
+          logger.warn('Desk payment entries read-back failed', 'secretary', {}, error as Error)
+        )
+    )
+  );
+  announceDeskPaymentsRecorded([...formsByShow.keys()]);
 }
 
 /** A desk cash or check payment's queue row. */
@@ -48,20 +76,21 @@ export function withoutDeskPayments(detail: SyncFailedEventDetail): SyncFailedEv
  */
 export async function settleUploadedDeskPayments(
   detail: UploadCompleteEventDetail,
-  table: DeskPaymentsTable
+  table: DeskPaymentsTable,
+  refreshEntries: RefreshEntries
 ): Promise<string[]> {
   const ids = (detail.mutations ?? [])
     .filter(m => m.tableName === DESK_PAYMENTS_TABLE && m.rpcName === DESK_PAYMENT_RPC)
     .map(m => String(m.rowId));
-  const showIds = new Set<string>();
+  const recorded: LocalDeskPayment[] = [];
   for (const id of ids) {
     // The signed-in account's record only; another account's is settled when it is back.
     const row = await table.getReplicatedRow(id);
     if (!row) continue;
     if ((await table.settle(id, row.ownerAuthUserId ?? null)) === 'settled') {
-      showIds.add(row.data.showId);
+      recorded.push(row.data);
     }
   }
-  announceDeskPaymentsRecorded([...showIds]);
-  return [...showIds];
+  await refreshAndAnnounceRecorded(recorded, refreshEntries);
+  return [...new Set(recorded.map(payment => payment.showId))];
 }

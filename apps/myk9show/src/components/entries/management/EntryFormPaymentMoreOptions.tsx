@@ -7,17 +7,15 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 interface EntryFormPaymentMoreOptionsProps {
-  openPartialPayment: () => void;
   askMarkPaidOnline: () => void;
 }
 
 /**
- * The quieter half of the payment item: Partial and Online, through the same
- * openers as the Payment section's menu (Online asks first). Refunds and resets stay
- * there; a refund is a person's decision in its own dialog.
+ * The quieter half of the payment item: Online, through the same opener as the Payment
+ * section's menu (it asks first). Refunds and resets stay there; a refund is a person's
+ * decision in its own dialog.
  */
 export function EntryFormPaymentMoreOptions({
-  openPartialPayment,
   askMarkPaidOnline,
 }: EntryFormPaymentMoreOptionsProps) {
   return (
@@ -28,7 +26,6 @@ export function EntryFormPaymentMoreOptions({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
-        <DropdownMenuItem onClick={openPartialPayment}>Partial Payment…</DropdownMenuItem>
         <DropdownMenuItem onClick={askMarkPaidOnline}>Paid in Full: Online…</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

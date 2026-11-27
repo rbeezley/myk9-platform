@@ -92,17 +92,19 @@ describe('entry form money when the payment record is not loaded (MYK9-1968)', (
     // The checklist says so too, and offers no button that takes money for an unknown due.
     const checklist = screen.getByRole('region', { name: 'To finish this form' });
     expect(within(checklist).getByText('Amount not available')).toBeInTheDocument();
-    expect(within(checklist).queryByRole('button', { name: 'Cash…' })).not.toBeInTheDocument();
+    expect(
+      within(checklist).queryByRole('button', { name: 'Record Payment…' })
+    ).not.toBeInTheDocument();
   });
 
   it('opens the payment dialog without quoting a balance when the row did not load', async () => {
     const { user } = renderForm([entry('entry-1'), entry('entry-2')]);
 
     await user.click(screen.getByRole('button', { name: 'Change payment' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Paid in Full: Cash…' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Record Payment…' }));
 
     // MYK9-2479: the payment dialog, with nothing filled in for a due that is not known.
-    const dialog = await screen.findByRole('dialog', { name: 'Record Partial Payment' });
+    const dialog = await screen.findByRole('dialog', { name: 'Record Payment' });
     expect(within(dialog).getByText('Amount not available')).toBeInTheDocument();
     expect(within(dialog).queryByText(/\$\d+\.\d\d/)).not.toBeInTheDocument();
     expect(within(dialog).getByPlaceholderText('Amount of this payment ($)')).toHaveValue(null);

@@ -7,7 +7,7 @@ import {
   type LocalDeskPayment,
 } from './deskPaymentTypes';
 import { isFriendlyRefusal, RPC_REFUSAL_CODE } from './paymentRefusals';
-import { announceDeskPaymentsRecorded } from './deskPaymentEvents';
+import { refreshAndAnnounceRecorded } from './deskPaymentEvents';
 import type { StoredDeskPayment } from './DeskPaymentsTable';
 
 /** What one ledger check found. `visible` false: an empty read proves nothing. */
@@ -156,9 +156,11 @@ export async function readDeskPaymentLines(
     const settled = await Promise.allSettled(
       proven.map(({ payment, owner }) => deps.table.settle(payment.id, owner))
     );
-    if (settled.some(outcome => outcome.status === 'fulfilled' && outcome.value === 'settled')) {
-      announceDeskPaymentsRecorded([showId]);
-    }
+    const recorded = proven.flatMap(({ payment }, i) => {
+      const outcome = settled[i];
+      return outcome?.status === 'fulfilled' && outcome.value === 'settled' ? [payment] : [];
+    });
+    if (recorded.length > 0) await refreshAndAnnounceRecorded(recorded, deps.refreshEntries);
   }
   return lines.sort((a, b) => a.payment.receivedAt.localeCompare(b.payment.receivedAt));
 }

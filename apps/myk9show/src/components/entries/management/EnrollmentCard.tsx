@@ -89,7 +89,6 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
     ledgerConfirm,
     closeLedgerConfirm,
     confirmLedgerChange,
-    openFullPayment,
     openPartialPayment,
     confirmPartialPayment,
     email,
@@ -286,19 +285,16 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    {/* Grouped into three concerns so this 7-action money menu
-                        reads as sections, not one flat list: Mark paid (record a
-                        full payment), Adjust (partial / refunds), Reset (back to
-                        unpaid). Handlers and dialogs are unchanged. */}
+                    {/* Grouped into three concerns so this money menu reads as
+                        sections, not one flat list: Mark paid (cash or check through
+                        Record Payment, or online), Adjust (refunds), Reset (back to
+                        unpaid). MYK9-2479: Paid in Full is online only. */}
                     <DropdownMenuGroup>
                       <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
                         Mark paid
                       </DropdownMenuLabel>
-                      <DropdownMenuItem onClick={() => openFullPayment('cash')}>
-                        Paid in Full: Cash…
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => openFullPayment('check')}>
-                        Paid in Full: Check…
+                      <DropdownMenuItem onClick={openPartialPayment}>
+                        Record Payment…
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={askMarkPaidOnline}>
                         Paid in Full: Online…
@@ -309,9 +305,6 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                       <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
                         Adjust
                       </DropdownMenuLabel>
-                      <DropdownMenuItem onClick={openPartialPayment}>
-                        Partial Payment…
-                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => openRefundDialog(false)}>
                         Refunded…
                       </DropdownMenuItem>

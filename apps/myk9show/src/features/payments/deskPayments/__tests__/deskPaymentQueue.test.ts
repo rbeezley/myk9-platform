@@ -109,6 +109,7 @@ describe('desk payments on the offline queue (MYK9-2479)', () => {
       ledgerIds: vi.fn(async (ids: string[]) => new Set(ids.filter(id => ledger.has(id)))),
       isOnline: () => online,
       now: () => Date.now(),
+      refreshEntries: vi.fn(async () => undefined),
     };
   }
 
@@ -196,8 +197,10 @@ describe('desk payments on the offline queue (MYK9-2479)', () => {
     expectOneIdAndAmount();
   });
 
-  it('acknowledged within the wait: saved, settled, and the show announced once', async () => {
-    const recorded = vi.fn();
+  it('acknowledged within the wait: saved, its entries re-read, then the show announced once', async () => {
+    // Codex round 4 (P2): the entries replica holds each entry's payment_status, so it is
+    // re-read BEFORE the announcement reloads the forms, or Request payment stays offered.
+    const recorded = vi.fn(() => expect(deps.refreshEntries).toHaveBeenCalledTimes(1));
     window.addEventListener(DESK_PAYMENTS_RECORDED_EVENT, recorded);
 
     const result = await saveDeskPayment(ENROLLMENT, PAYMENT, FORM, deps);
@@ -207,8 +210,31 @@ describe('desk payments on the offline queue (MYK9-2479)', () => {
     expect(await table.listForShow(SHOW)).toEqual([]);
     expect(await store(REPLICATION_STORES.PENDING_MUTATIONS)).toEqual([]);
     expect(recorded).toHaveBeenCalledTimes(1);
-    expect((recorded.mock.calls[0]![0] as CustomEvent).detail.showIds).toEqual([SHOW]);
+    expect(deps.refreshEntries).toHaveBeenCalledWith(SHOW, [ENROLLMENT]);
+    expect((recorded.mock.calls[0] as unknown as [CustomEvent])[0].detail.showIds).toEqual([SHOW]);
     expect(ledger.size).toBe(1);
+  });
+
+  it('a failed entries re-read after an acknowledged send is still saved and announced', async () => {
+    vi.mocked(deps.refreshEntries).mockRejectedValueOnce(new Error('read-back failed'));
+    const recorded = vi.fn();
+    window.addEventListener(DESK_PAYMENTS_RECORDED_EVENT, recorded);
+
+    const result = await saveDeskPayment(ENROLLMENT, PAYMENT, FORM, deps);
+
+    window.removeEventListener(DESK_PAYMENTS_RECORDED_EVENT, recorded);
+    expect(result).toEqual({ kind: 'saved' });
+    expect(recorded).toHaveBeenCalledTimes(1);
+  });
+
+  // Codex round 4 (P2): once it is saved on this device, nothing after it may throw past
+  // the dialog. The queue owns the payment.
+  it('a failed read of the send outcome after the save is queued, never thrown', async () => {
+    vi.spyOn(table, 'sendOutcome').mockRejectedValue(new Error('IndexedDB read failed'));
+
+    const result = await saveDeskPayment(ENROLLMENT, PAYMENT, FORM, deps);
+
+    expect(result).toEqual({ kind: 'queued', sendBegun: true });
   });
 
   it('a 22023 on the first send is refused only once its record and queue row are gone', async () => {
@@ -227,25 +253,26 @@ describe('desk payments on the offline queue (MYK9-2479)', () => {
     expect(await store(REPLICATION_STORES.FAILED_MUTATIONS)).toEqual([]);
   });
 
-  it('a first-send refusal it could not clean up stays on its line, never refused', async () => {
+  // Codex round 4 (P2): a dead letter is never "queued": it will not be sent on its own.
+  it('a first-send refusal it could not clean up is stopped on its line, never refused', async () => {
     behaviors = [{ code: '22023', message: 'a payment amount must be greater than zero' }];
     vi.spyOn(table, 'settle').mockRejectedValueOnce(new Error('IndexedDB write failed'));
 
     const result = await saveDeskPayment(ENROLLMENT, PAYMENT, FORM, deps);
 
-    expect(result).toEqual({ kind: 'queued', sendBegun: true });
+    expect(result).toEqual({ kind: 'stopped' });
     const lines = await readDeskPaymentLines(SHOW, deps);
     expect(lines.map(line => [line.payment.id, line.state])).toEqual([[ID, 'refused']]);
   });
 
-  it('a refusal after a failed first send is not called refused: it may follow a recorded one', async () => {
+  it('a refusal after a failed first send is stopped, not refused: it may follow a recorded one', async () => {
     createQueue(3, 1);
     behaviors = ['drop', { code: '22023', message: 'a payment amount must be greater than zero' }];
 
     const result = await saveDeskPayment(ENROLLMENT, PAYMENT, FORM, deps);
 
     expect(rpcCalls).toHaveLength(2);
-    expect(result).toEqual({ kind: 'queued', sendBegun: true });
+    expect(result).toEqual({ kind: 'stopped' });
     expect(await store(REPLICATION_STORES.FAILED_MUTATIONS)).toHaveLength(1);
     expectOneIdAndAmount();
   });
@@ -263,32 +290,6 @@ describe('desk payments on the offline queue (MYK9-2479)', () => {
     const lines = await readDeskPaymentLines(SHOW, deps);
     expect(lines.map(line => line.state)).toEqual(['unconfirmed']);
     expectOneIdAndAmount();
-  });
-
-  it('the row and its queued send belong to the one account that saved them', async () => {
-    await goOffline();
-
-    await saveDeskPayment(ENROLLMENT, PAYMENT, FORM, deps);
-
-    const row = await table.getReplicatedRowIncludingOtherAccounts(ID);
-    const [queued] = await store(REPLICATION_STORES.PENDING_MUTATIONS);
-    expect([row?.ownerAuthUserId, queued?.authUserId]).toEqual(['secretary-a', 'secretary-a']);
-  });
-
-  it('an account switch between the two fails the save before commit, with nothing queued', async () => {
-    await goOffline();
-    const prepare = manager.prepareMutation.bind(manager);
-    vi.spyOn(manager, 'prepareMutation').mockImplementation(async (...args) => {
-      const mutation = await prepare(...args);
-      auth = 'secretary-b';
-      return mutation;
-    });
-
-    const result = await saveDeskPayment(ENROLLMENT, PAYMENT, FORM, deps);
-
-    expect(result).toMatchObject({ kind: 'not-saved', reason: 'not-stored' });
-    expect(await table.getReplicatedRowIncludingOtherAccounts(ID)).toBeNull();
-    expect(await store(REPLICATION_STORES.PENDING_MUTATIONS)).toEqual([]);
   });
 
   it('offline: saved and waiting to send, then sent once when the connection returns', async () => {
@@ -345,7 +346,7 @@ describe('desk payments on the offline queue (MYK9-2479)', () => {
     expectOneIdAndAmount();
   });
 
-  it('a replayed payment settles its record and announces its show', async () => {
+  it('a replayed payment settles its record, re-reads its entries and announces its show', async () => {
     await goOffline();
     await saveDeskPayment(ENROLLMENT, PAYMENT, FORM, deps);
     await goOnlineAndUpload();
@@ -365,10 +366,12 @@ describe('desk payments on the offline queue (MYK9-2479)', () => {
           },
         ],
       },
-      table
+      table,
+      deps.refreshEntries
     );
 
     window.removeEventListener(DESK_PAYMENTS_RECORDED_EVENT, recorded);
+    expect(deps.refreshEntries).toHaveBeenCalledWith(SHOW, [ENROLLMENT]);
     expect(shows).toEqual([SHOW]);
     expect((recorded.mock.calls[0]![0] as CustomEvent).detail.showIds).toEqual([SHOW]);
     expect(await table.listForShow(SHOW)).toEqual([]);
@@ -443,6 +446,7 @@ describe('desk payments on the offline queue (MYK9-2479)', () => {
     expect(await store(REPLICATION_STORES.FAILED_MUTATIONS)).toEqual([]);
     expect(await table.listForShow(SHOW)).toEqual([]);
     expect(ledger.size).toBe(1);
+    expect(deps.refreshEntries).toHaveBeenCalledWith(SHOW, [ENROLLMENT]);
   });
 
   it('a max-retries dead letter not in the ledger stops, and Try again resends the same id', async () => {

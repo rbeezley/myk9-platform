@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { UploadCompleteEventDetail } from '@myk9/replication';
 import { showPaymentsQueryKey } from '@/services/database/show-payments';
 import { logger } from '@/services/LoggingService';
-import { deskPaymentsTable } from './deskPaymentDeps';
+import { defaultDeskPaymentDeps } from './deskPaymentDeps';
 import {
   DESK_PAYMENTS_RECORDED_EVENT,
   settleUploadedDeskPayments,
@@ -23,7 +23,11 @@ export function useDeskPaymentRefresh(): void {
   useEffect(() => {
     const onUploadComplete = (event: Event) => {
       const detail = (event as CustomEvent<UploadCompleteEventDetail>).detail;
-      void settleUploadedDeskPayments(detail, deskPaymentsTable).catch(error =>
+      void settleUploadedDeskPayments(
+        detail,
+        defaultDeskPaymentDeps.table,
+        defaultDeskPaymentDeps.refreshEntries
+      ).catch(error =>
         logger.warn('Settling replayed desk payments failed', 'replication', {}, error as Error)
       );
     };

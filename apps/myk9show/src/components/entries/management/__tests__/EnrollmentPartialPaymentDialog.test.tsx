@@ -78,12 +78,16 @@ describe('EnrollmentPartialPaymentDialog', () => {
     const { rerender } = render(
       <EnrollmentPartialPaymentDialog {...baseProps} state={makeState()} />
     );
-    expect(screen.getByText('Record Payment').closest('button')?.disabled).toBe(true);
+    expect(
+      (screen.getByRole('button', { name: 'Record Payment' }) as HTMLButtonElement).disabled
+    ).toBe(true);
 
     rerender(
       <EnrollmentPartialPaymentDialog {...baseProps} state={makeState({ amountPaid: '10' })} />
     );
-    expect(screen.getByText('Record Payment').closest('button')?.disabled).toBe(false);
+    expect(
+      (screen.getByRole('button', { name: 'Record Payment' }) as HTMLButtonElement).disabled
+    ).toBe(false);
   });
 
   it('reveals the check-number field only when the check method is active', () => {
@@ -107,7 +111,7 @@ describe('EnrollmentPartialPaymentDialog', () => {
         state={makeState({ amountPaid: '25' })}
       />
     );
-    fireEvent.click(screen.getByText('Record Payment'));
+    fireEvent.click(screen.getByRole('button', { name: 'Record Payment' }));
     expect(onConfirm).toHaveBeenCalledTimes(1);
   });
 });

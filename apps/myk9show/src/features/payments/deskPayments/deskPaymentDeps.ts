@@ -2,6 +2,7 @@ import type { MutationManager } from '@myk9/replication';
 import { canReadShowLedger, listLedgerClientPaymentIds } from '@/services/database/show-payments';
 import { mutationManager } from '@/services/replication/sharedMutationManager';
 import { DeskPaymentsTable } from './DeskPaymentsTable';
+import { refreshDeskPaymentEntries } from './refreshDeskPaymentEntries';
 
 /** The device's desk payments, on the app's one queue. */
 export const deskPaymentsTable = new DeskPaymentsTable();
@@ -21,6 +22,8 @@ export interface DeskPaymentDeps {
   ledgerIds: (ids: string[]) => Promise<Set<string>>;
   isOnline: () => boolean;
   now: () => number;
+  /** Read back the entries of these forms once their payment is recorded (their payment status). */
+  refreshEntries: (showId: string, enrollmentIds: readonly string[]) => Promise<void>;
 }
 
 // Wrapped, not referenced: the ledger module is read when called, not when this one loads.
@@ -31,4 +34,5 @@ export const defaultDeskPaymentDeps: DeskPaymentDeps = {
   ledgerIds: ids => listLedgerClientPaymentIds(ids),
   isOnline: () => typeof navigator === 'undefined' || navigator.onLine !== false,
   now: () => Date.now(),
+  refreshEntries: (showId, enrollmentIds) => refreshDeskPaymentEntries(showId, enrollmentIds),
 };

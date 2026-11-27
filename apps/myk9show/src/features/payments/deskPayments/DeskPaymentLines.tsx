@@ -15,7 +15,7 @@ type DeskPaymentLinesProps = Pick<
  * Stopped, it says it will not send on its own and offers Try again (the same payment,
  * the same id). Only a proven refusal offers Remove. When the device cannot read its
  * saved payments it says so, keeps what it last knew, and offers nothing to press.
- * The state is the form's own (`useEnrollmentDialogControls`), which Paid in Full reads too.
+ * The state is the form's own (`useEnrollmentDialogControls`).
  */
 export function DeskPaymentLines({
   lines,

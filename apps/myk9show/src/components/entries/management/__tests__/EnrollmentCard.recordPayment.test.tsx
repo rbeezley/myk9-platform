@@ -1,8 +1,8 @@
 /**
- * MYK9-2479 (owner's Option A after Codex round 3 on #4461): "Paid in Full" by cash or
- * check opens the Partial Payment dialog with the server's balance due filled in, in whole
- * cents. She confirms it or edits it, and the amount in the box is the amount sent: there
- * is no second payment path whose figure could be out of date. Online is unchanged.
+ * MYK9-2479 (owner, 2026-11-27, after Codex round 4 on #4461): "Paid in Full" is online
+ * only. Cash and check, full or part, go through the one Record Payment dialog, where she
+ * types the amount she received; nothing is filled in for her, and the amount she typed is
+ * the amount sent. "Paid in Full: Online" is unchanged.
  */
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen } from '@testing-library/react';
@@ -19,16 +19,16 @@ vi.mock('@/components/entries/EmailStatusIcon', () => ({ EmailStatusIcon: () => 
 
 const FORM = { showId: 'show-1', exhibitorName: 'Jane Smith' };
 
-/** $50.00 owed, `paid` received. Not loaded: the entry-fee fallback, so the due is unknown. */
-function makeGroup({ paid = 0, loaded = true } = {}): EnrollmentGroup {
+/** $50.00 owed, `paid` received. */
+function makeGroup({ paid = 0 } = {}): EnrollmentGroup {
   return {
     groupKey: 'enroll-1',
     enrollmentId: 'enroll-1',
     confirmationNumber: 'MK9-000123',
     handlerName: 'Jane Smith',
     paymentStatus: PaymentStatus.PENDING,
-    totalAmount: loaded ? 5000 : 50,
-    totalAmountUnit: loaded ? 'cents' : 'dollars',
+    totalAmount: 5000,
+    totalAmountUnit: 'cents',
     paidAmount: paid,
     cardCoveredAmount: 0,
     paymentReference: null,
@@ -79,15 +79,26 @@ function renderCard(group: EnrollmentGroup) {
 
 const amountBox = () => screen.getByPlaceholderText('Amount of this payment ($)');
 
-describe('Paid in Full fills in Partial Payment (MYK9-2479)', () => {
-  it('cash opens Partial Payment with the balance due, and recording it sends that amount', () => {
+describe('Record Payment is the one cash and check dialog (MYK9-2479)', () => {
+  it('the payment menu offers Record Payment and Paid in Full: Online, never Paid in Full by cash or check', () => {
+    renderCard(makeGroup());
+
+    const items = screen.getAllByRole('menuitem').map(item => item.textContent);
+    expect(items).toEqual(expect.arrayContaining(['Record Payment…', 'Paid in Full: Online…']));
+    expect(items).not.toContain('Paid in Full: Cash…');
+    expect(items).not.toContain('Paid in Full: Check…');
+    expect(items).not.toContain('Partial Payment…');
+  });
+
+  it('opens empty, and a full payment in cash sends the amount she typed', () => {
     const { record } = renderCard(makeGroup({ paid: 12.5 }));
 
-    fireEvent.click(screen.getByText('Paid in Full: Cash…'));
+    fireEvent.click(screen.getByText('Record Payment…'));
 
-    expect(screen.getByRole('dialog', { name: 'Record Partial Payment' })).toBeInTheDocument();
-    expect(amountBox()).toHaveValue(37.5);
-    expect(screen.queryByPlaceholderText('Check number (optional)')).not.toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Record Payment' })).toBeInTheDocument();
+    expect(amountBox()).toHaveValue(null);
+    expect(screen.getByRole('button', { name: 'Record Payment' })).toBeDisabled();
+    fireEvent.change(amountBox(), { target: { value: '37.50' } });
     fireEvent.click(screen.getByRole('button', { name: 'Record Payment' }));
 
     expect(record).toHaveBeenCalledTimes(1);
@@ -98,30 +109,19 @@ describe('Paid in Full fills in Partial Payment (MYK9-2479)', () => {
     );
   });
 
-  it('check opens it as a check, and an edited amount is the amount sent', () => {
+  it('a check is recorded as a check, for the amount she typed', () => {
     const { record } = renderCard(makeGroup());
 
-    fireEvent.click(screen.getByText('Paid in Full: Check…'));
-    expect(amountBox()).toHaveValue(50);
-    expect(screen.getByPlaceholderText('Check number (optional)')).toBeInTheDocument();
-    fireEvent.change(amountBox(), { target: { value: '30' } });
+    fireEvent.click(screen.getByText('Record Payment…'));
+    fireEvent.click(screen.getByRole('button', { name: 'Check' }));
+    fireEvent.change(amountBox(), { target: { value: '50' } });
     fireEvent.click(screen.getByRole('button', { name: 'Record Payment' }));
 
     expect(record).toHaveBeenCalledWith(
       'enroll-1',
-      expect.objectContaining({ kind: 'payment', method: 'check', amount: 30 }),
+      expect.objectContaining({ kind: 'payment', method: 'check', amount: 50 }),
       FORM
     );
-  });
-
-  it('leaves the amount empty when the balance due is not known', () => {
-    const { record } = renderCard(makeGroup({ loaded: false }));
-
-    fireEvent.click(screen.getByText('Paid in Full: Cash…'));
-
-    expect(amountBox()).toHaveValue(null);
-    expect(screen.getByRole('button', { name: 'Record Payment' })).toBeDisabled();
-    expect(record).not.toHaveBeenCalled();
   });
 
   it('Paid in Full: Online still asks the server, never as a desk payment', () => {

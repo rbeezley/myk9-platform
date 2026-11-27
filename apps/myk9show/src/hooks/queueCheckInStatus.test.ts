@@ -47,4 +47,16 @@ describe('queueCheckInStatus', () => {
   it('is pulled for a scored row', () => {
     expect(queueCheckInStatus(row({ is_scored: true }))).toBe('pulled');
   });
+
+  it.each(['submitted', 'no-status', 'pending-payment', 'paid', 'promotion-expired'])(
+    'is pulled for a Pending (%s) row, as the server leaves it out of line (MYK9-2412)',
+    entry_status => {
+      expect(queueCheckInStatus(row({ entry_status }))).toBe('pulled');
+    }
+  );
+
+  it('keeps a confirmed row and a row with no entry status in line', () => {
+    expect(queueCheckInStatus(row({ entry_status: 'confirmed' }))).toBe('checked-in');
+    expect(queueCheckInStatus(row({ entry_status: null }))).toBe('checked-in');
+  });
 });

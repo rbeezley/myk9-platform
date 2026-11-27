@@ -1,4 +1,4 @@
-import { isRunnableEntry } from '@/features/_shared/entryAccounting';
+import { isAwaitingApproval, isRunnableEntry } from '@/features/_shared/entryAccounting';
 import type { ShowEntry } from '@/store/entry-store-types';
 
 /** One row of the notification snapshot's entry read. */
@@ -22,19 +22,20 @@ export interface NotificationEntryRow {
  * The check-in status the shared run queue reads (MYK9-1941). Whether the dog
  * still runs is `isRunnableEntry`'s call, the same predicate behind the
  * ringside run list, so a withdrawn, moved, pulled, scored or deleted row is
- * `pulled` here and never counted ahead. Only a runnable row can be in the ring.
+ * `pulled` here and never counted ahead, as is a Pending row (MYK9-2412). Only a runnable row
+ * can be in the ring.
  */
 export function queueCheckInStatus(
   row: NotificationEntryRow
 ): ShowEntry['checkInStatus'] | undefined {
-  const runnable = isRunnableEntry({
+  const fields = {
     deleted_at: row.deleted_at,
     entry_status: row.entry_status ?? undefined,
     check_in_status: row.check_in_status ?? undefined,
     is_scored: row.is_scored ?? undefined,
     result_status: row.result_status ?? undefined,
-  });
-  if (!runnable) return 'pulled';
+  };
+  if (!isRunnableEntry(fields) || isAwaitingApproval(fields)) return 'pulled';
   if (row.is_in_ring) return 'in-ring';
   return (row.check_in_status as ShowEntry['checkInStatus']) ?? undefined;
 }

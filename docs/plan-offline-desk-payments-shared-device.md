@@ -16,17 +16,20 @@ Linear: MYK9-2479, parked on 2026-11-27 after Codex round 7 on #4461 (draft). Th
 
 **A late payment is a real payment.** The cash is in the drawer. The server records money when it arrives, and that is not wrong. What must not happen is a form-wide change made **on a device that knows about unsent money for that form** while that money is out of sight. Each case follows from that:
 
-| Where the unsent payment is  | Payment Due / Paid in Full: Online on that form | Why                                                                                           |
-| ---------------------------- | ----------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| This device, this account    | Held. Named, with amount (as today)             | Her own line is beside the balance                                                            |
-| This device, another account | **Held. Not named**                             | The device knows. B cannot see or act on it, so the change waits                              |
-| Another device               | Goes through; the payment lands later, on top   | No device can know. This is the same as a paper slip posted later. The ledger shows both rows |
+| Where the unsent payment is  | Payment Due / Paid in Full: Online on that form | Why                                                                          |
+| ---------------------------- | ----------------------------------------------- | ---------------------------------------------------------------------------- |
+| This device, this account    | Held. Named, with amount (as today)             | Her own line is beside the balance                                           |
+| This device, another account | **Held. Not named**                             | The device knows. B cannot see or act on it, so the change waits             |
+| Another device               | Goes through; the payment lands later, on top   | No device can know. This is the same as a paper slip posted later. See below |
 
-**The second row is the round 7 fix.** `unsentForEnrollment` reads through `getAllOrThrowIncludingOtherAccounts` and returns `{ mine, others }`: `mine` is the payments stamped with the signed-in account, and `others` is a count. With others present, she reads: "Not changed: a payment for this form was saved on this device under another account and has not reached myK9Show yet. It sends when that account signs in here again." It gives no amount and no account name. The owner scoping in § 6 holds, because B learns only that something is waiting, and that is the same fact the sign-out warning already tells A. A read that fails still refuses the change (`FORM_CHANGE_UNREADABLE`).
+**The second row is the round 7 fix.** `unsentForEnrollment` reads through `getAllOrThrowIncludingOtherAccounts` and returns `{ mine, others }`: `mine` is the payments stamped with the signed-in account, and `others` is a count. It counts every unacknowledged payment, whether waiting, not confirmed, stopped or refused. With others present, she reads: "Not changed: a payment for this form was saved on this device under another account and has not reached myK9Show yet. That account needs to sign in on this device and check it." It gives no amount, no account name and no promise that the payment sends on its own. A stopped or refused payment does not send by itself, so A may have to press Try again or remove a proven refusal, both of which A sees on the payment's line. The owner scoping in § 6 holds, because B learns only that something is waiting, and that is the same fact the sign-out warning already tells A. A read that fails still refuses the change (`FORM_CHANGE_UNREADABLE`).
 
-**The third row is accepted and written down**, so the next review does not reopen it. Closing it would take a server rule that orders money by when it was received, trusting device clocks. That is a migration and a change to money semantics, out of scope.
+**The third row is accepted and written down**, so the next review does not reopen it. Closing it would take a server rule that orders money by when it was received, trusting device clocks. That is a migration and a change to money semantics, out of scope. The two actions land differently:
 
-**B is stuck until A signs in.** On that one form, B cannot use Payment Due or Paid in Full: Online while A's payment waits. Record Payment and refunds still work. A shared laptop with two desk accounts and a form-wide change on the same form is rare, and the way out is real: A signs in and the payment sends. Letting B override with a confirmation was rejected, because that is the choice the guard exists to remove.
+- **Payment Due, then the late payment.** Payment Due writes reversal rows that net the ledger to zero. The late payment adds its own row, so the form reads paid by that amount. The ledger shows both, in the order they arrived.
+- **Paid in Full: Online, then the late payment.** `mark_enrollment_paid_online` writes no ledger row and no money column. It only sets `payment_status = 'paid_online'` (`20261114013900_myk9_1961_refunded_fee_not_owed.sql:380-381`). The late payment then recomputes the status from cash and card money alone (`:515-525`). A partial payment turns the form back to `pending`, and a payment of the whole due turns it to `paid_by_cash` or `paid_by_check`. This is **accepted**. It is what recording a cash payment after Paid in Full: Online does online today, so it is not new with offline. The form shows what money myK9Show holds. A secretary who sees a form reopen as owing settles it the way she would online: refund the cash, or mark it Paid in Full: Online again. Keeping `paid_online` through a later payment would be a server change to a money rule. The owner is asked in § 4 whether to file it separately.
+
+**B waits until A signs in and checks the payment.** On that one form, B cannot use Payment Due or Paid in Full: Online while A's payment is unacknowledged. Record Payment and refunds still work. A shared laptop with two desk accounts and a form-wide change on the same form is rare, and the way out is real. A signs in, and then the waiting payment sends, a stopped one is tried again, or a proven refusal is removed. Letting B override with a confirmation was rejected, because that is the choice the guard exists to remove.
 
 ## 3. The round 7 P2s
 
@@ -42,11 +45,15 @@ Linear: MYK9-2479, parked on 2026-11-27 after Codex round 7 on #4461 (draft). Th
 
 **Recommendation:** adopt § 2 and § 3 on #4461, and set the stop now: **if round 8 finds a P1 in code this pass adds, close #4461** and stay online-only until after launch.
 
+**Owner question, separate from #4461:** should a cash or check payment recorded after Paid in Full: Online keep the form `paid_online`? Today it does not, online or offline (§ 2). Changing that is a server money rule, so it would be its own issue and migration.
+
 ## 5. Testing
 
 - **Real queue and IndexedDB, two accounts** (extending `deskPaymentHeld.test.ts`):
   - A queues offline and B is signed in: B's Payment Due is held, and the message has no amount.
   - A signs back in, the payment uploads, and B's change is free.
+  - A's payment is stopped (a `max-retries` dead letter) or refused, and B's change is still held. The message promises no automatic send.
+  - The hold clears after A presses Try again and the send succeeds, and also after A removes a proven refusal.
   - A's own held message is unchanged.
   - An unreadable store refuses the change.
 - **Hook:** `useEnrollmentLedgerActions.formChange.test.ts` covers the "another account" message for both form-wide actions.

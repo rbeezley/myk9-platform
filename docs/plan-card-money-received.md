@@ -82,6 +82,10 @@ the ledger core for desk money, the MYK9-1634 trigger for the total.
      reopens a refunded entry on a payment (desk, at submission, or Paid in Full: Online).
      "Payment Due" (the reversal) still reopens the entries the form refunded (MYK9-773),
      because it undoes the refund itself.
+   - **Later change (MYK9-2479, owner 2026-11-27):** "Paid in Full" by cash or check was
+     removed from the entry form. Cash and check, full or part, go through Record Payment
+     with the amount typed, so the "quotes and charges" cases above now apply to "Paid in
+     Full: Online" and to the server's handling of a payment with no amount.
 
 2. **Card-paid entry** = one a `succeeded` order lists in `entry_ids`, with no Stripe
    refund stamp. **Card-covered** (cents) = Σ `entry_fee` over the form's card-paid

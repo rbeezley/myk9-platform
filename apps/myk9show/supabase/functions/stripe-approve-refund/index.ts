@@ -15,7 +15,8 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
-import { alertAdmin } from '../_shared/alertAdmin.ts';
+import { alertAdmin, resolveOperatorAlerts } from '../_shared/alertAdmin.ts';
+import { closeAwaitingApprovalAlert } from '../_shared/refundAlertClosure.ts';
 import { approveRefundRequest, type ApprovalRefund } from '../_shared/refundApproval.ts';
 import { resolveRefundRequestWithoutRefund } from '../_shared/refundResolution.ts';
 import { stepUpRefusal } from '../_shared/stepUpReauth.ts';
@@ -110,6 +111,12 @@ Deno.serve(async req => {
           note: typeof body.note === 'string' ? body.note : '',
         }
       );
+      await closeAwaitingApprovalAlert(resolveOperatorAlerts, {
+        requestId,
+        decision: 'resolved_without_refund',
+        httpStatus: resolved.status,
+        now: new Date(),
+      });
       return json(headers, resolved.body, resolved.status);
     }
     if (body.action !== undefined && body.action !== 'approve') {
@@ -132,6 +139,13 @@ Deno.serve(async req => {
       },
       { requestId, actorAuthUserId: user.id }
     );
+    // MYK9-2540: an issued refund no longer awaits approval, even while Stripe settles it.
+    await closeAwaitingApprovalAlert(resolveOperatorAlerts, {
+      requestId,
+      decision: 'approved',
+      httpStatus: result.status,
+      now: new Date(),
+    });
     return json(headers, result.body, result.status);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

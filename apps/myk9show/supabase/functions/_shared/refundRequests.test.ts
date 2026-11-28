@@ -331,6 +331,9 @@ describe('claimAbandonedCartRefund', () => {
     expect(alerts[0].opts.detail).toMatchObject({
       refund_request_id: 'rr-9',
       kind: 'abandoned_cart',
+      // MYK9-2540: a live alert; the approval closes it, and the screen can open the request.
+      lifecycle: 'live',
+      live_subject: { kind: 'refund_request', refund_request_id: 'rr-9' },
     });
   });
 

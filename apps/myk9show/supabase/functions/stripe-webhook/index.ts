@@ -11,7 +11,7 @@ import {
   reconcileEntryPaymentRequest,
 } from '../_shared/entryPaymentReconcile.ts';
 import { reconcileEntryPaymentUpdateOutcome } from '../_shared/entryPaymentUpdateReconcile.ts';
-import { alertAdmin } from '../_shared/alertAdmin.ts';
+import { alertAdmin, resolveOperatorAlerts } from '../_shared/alertAdmin.ts';
 import { logReceiptEmail, type ReceiptContent } from './receiptEmailLog.ts';
 import { loadStoredEntryJunior, priceCartItems } from '../_shared/cartItemPricing.ts';
 import { showTimeZoneFromTrials, type ShowTrialZoneRow } from '../_shared/showTimeZone.ts';
@@ -50,6 +50,7 @@ import { buildReceiptStampPayload } from '../_shared/entryReceiptStamp.ts';
 import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
 import { createWebhookRequestHandler } from './webhookHandler.ts';
 import { createPayoutsDisabledDeps, notifyPayoutsTurnedOff } from './payoutsDisabledNotice.ts';
+import { createPayoutsReturnedDeps, resolvePayoutsReturned } from './payoutsReturnedNotice.ts';
 import { createResendSender } from '../_shared/clubMoneyEmails.ts';
 import { routePaidSession } from './paidSessionEntry.ts';
 import { buildPaymentLinkOrder } from './paymentLinkOrder.ts';
@@ -916,6 +917,11 @@ async function handleAccountUpdated(account: Stripe.Account, eventId: string, li
       Deno.env.get('SITE_URL'),
       { alert: alertAdmin, eventId, livemode }
     ),
+    patch
+  );
+  // MYK9-2540: claims the false -> true transition, and resolves that club's open payouts-off alerts.
+  await resolvePayoutsReturned(
+    createPayoutsReturnedDeps(supabase, account.id, resolveOperatorAlerts),
     patch
   );
   const { data, error } = await supabase

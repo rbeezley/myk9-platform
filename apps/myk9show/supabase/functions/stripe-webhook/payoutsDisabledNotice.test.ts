@@ -292,9 +292,20 @@ describe('operator alert when Stripe turns payouts off', () => {
     expect(alert).toHaveBeenCalledWith(
       'Stripe turned off payouts for Valley KC',
       expect.stringContaining('<code>acct_test_1</code>'),
-      { source: 'stripe-webhook', severity: 'warn', dedupeKey: 'payouts-turned-off-club-1-evt_1' }
+      {
+        source: 'stripe-webhook',
+        severity: 'warn',
+        dedupeKey: 'payouts-turned-off-club-1-evt_1',
+        detail: {
+          html: expect.stringContaining('<code>acct_test_1</code>'),
+          stripe_account_id: 'acct_test_1',
+          lifecycle: 'live',
+          live_subject: { kind: 'club_payments', club_id: 'club-1' },
+        },
+      }
     );
     const html = alert.mock.calls[0][1];
+    expect(alert.mock.calls[0][2].detail.html).toBe(html);
     expect(html).toContain('live mode');
     expect(html).toContain('Spring Trial, 2026-12-05 to 2026-12-06');
     expect(html).toContain('Ringside Today, 2026-11-18');

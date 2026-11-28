@@ -10,6 +10,7 @@
 // The operator alert rides the same claim, so the two never disagree.
 
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.49.1';
+import { liveAlertDetail } from '../_shared/alertResolve.ts';
 import { loadClubMoneyRecipients } from '../_shared/clubMoneyRecipients.ts';
 import {
   clubPaymentsUrl,
@@ -45,8 +46,21 @@ export interface PublicShow {
 export type OperatorAlert = (
   subject: string,
   html: string,
-  opts: { source: string; severity: 'warn'; dedupeKey: string }
+  opts: {
+    source: string;
+    severity: 'warn';
+    dedupeKey: string;
+    detail: Record<string, unknown>;
+  }
 ) => Promise<void>;
+
+/** The source of the payouts-turned-off alert. */
+export const PAYOUTS_ALERT_SOURCE = 'stripe-webhook';
+
+/** Every payouts-turned-off alert key for a club starts with this; the event id follows. */
+export function payoutsTurnedOffKeyPrefix(clubId: string): string {
+  return `payouts-turned-off-${clubId}-`;
+}
 
 export interface PayoutsOffOperatorContext {
   alert: OperatorAlert;
@@ -143,21 +157,24 @@ async function raiseOperatorAlert(
     console.error(`Payouts-turned-off alert: shows lookup failed for club ${clubId}:`, err);
   }
   const clubName = club?.name ?? `club ${clubId}`;
-  await deps.operator.alert(
-    `Stripe turned off payouts for ${clubName}`,
-    payoutsTurnedOffAlertHtml({
-      clubName,
-      stripeAccountId: deps.stripeAccountId,
-      livemode: deps.operator.livemode,
-      shows,
-      paymentsUrl: clubPaymentsUrl(deps.siteUrl, clubId),
-    }),
-    {
-      source: 'stripe-webhook',
-      severity: 'warn',
-      dedupeKey: `payouts-turned-off-${clubId}-${deps.operator.eventId}`,
-    }
-  );
+  const html = payoutsTurnedOffAlertHtml({
+    clubName,
+    stripeAccountId: deps.stripeAccountId,
+    livemode: deps.operator.livemode,
+    shows,
+    paymentsUrl: clubPaymentsUrl(deps.siteUrl, clubId),
+  });
+  await deps.operator.alert(`Stripe turned off payouts for ${clubName}`, html, {
+    source: PAYOUTS_ALERT_SOURCE,
+    severity: 'warn',
+    dedupeKey: `${payoutsTurnedOffKeyPrefix(clubId)}${deps.operator.eventId}`,
+    // Live (MYK9-2540): payoutsReturnedNotice.ts resolves it when payouts return.
+    detail: {
+      html,
+      stripe_account_id: deps.stripeAccountId,
+      ...liveAlertDetail({ kind: 'club_payments', club_id: clubId }),
+    },
+  });
   return 'done';
 }
 

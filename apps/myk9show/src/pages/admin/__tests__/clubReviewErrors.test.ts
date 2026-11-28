@@ -40,6 +40,21 @@ describe('clubReviewErrorMessage', () => {
     );
   });
 
+  it('tells the admin to decline when approving a request whose club was deleted (23514)', () => {
+    expect(
+      clubReviewErrorMessage(
+        {
+          code: '23514',
+          message:
+            "This request's club has been deleted, so it cannot be approved. Decline the request instead.",
+        },
+        'approve this club'
+      )
+    ).toBe(
+      "This request's club was deleted, so it can't be approved. Decline the request instead."
+    );
+  });
+
   it('falls back to a plain sentence that never echoes raw database text', () => {
     const message = clubReviewErrorMessage(
       { code: 'XX000', message: 'relation "clubs" violates something' },

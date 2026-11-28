@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  getChangeClassBlock,
-  getChangeClassNote,
-  isJudgingUnderway,
-} from '../changeClassEligibility';
+import { getChangeClassBlock, getChangeClassNote } from '../changeClassEligibility';
 
 // MYK9-2476: Change class is offered while the dog has not run, even on a started class.
 describe('getChangeClassBlock', () => {
@@ -59,44 +55,24 @@ describe('getChangeClassBlock', () => {
   });
 });
 
-describe('isJudgingUnderway', () => {
-  it('reads a started or finished class as underway', () => {
-    expect(isJudgingUnderway('active', [])).toBe(true);
-    expect(isJudgingUnderway('complete', [])).toBe(true);
-  });
-
-  it('reads a dog in the ring, scored, or checked in as underway while the class still reads not started', () => {
-    expect(isJudgingUnderway('neutral', [{ runStatusKind: 'active' }])).toBe(true);
-    expect(isJudgingUnderway('neutral', [{ runStatusKind: 'complete' }])).toBe(true);
-    expect(isJudgingUnderway('neutral', [{ checkInStatus: 'checked-in' }])).toBe(true);
-  });
-
-  it('does not count a dog at the gate, a moved or pulled dog, or no evidence', () => {
-    expect(isJudgingUnderway('neutral', [{ checkInStatus: 'at-gate' }])).toBe(false);
-    expect(
-      isJudgingUnderway('neutral', [{ runStatusKind: 'muted', checkInStatus: 'checked-in' }])
-    ).toBe(false);
-    expect(isJudgingUnderway(undefined, [{}])).toBe(false);
-  });
-});
-
 describe('getChangeClassNote', () => {
   const NOTE = "The rulebook's class change deadline has passed. This change is your call.";
 
-  it('says the deadline has passed for AKC and UKC once judging is underway', () => {
-    expect(getChangeClassNote({ registryId: 'AKC', judgingUnderway: true })).toBe(NOTE);
-    expect(getChangeClassNote({ registryId: 'UKC', judgingUnderway: true })).toBe(NOTE);
+  it('says the deadline has passed for AKC and UKC on a started class', () => {
+    expect(getChangeClassNote({ registryId: 'AKC', classStatusKind: 'active' })).toBe(NOTE);
+    expect(getChangeClassNote({ registryId: 'UKC', classStatusKind: 'active' })).toBe(NOTE);
   });
 
   it('reads a missing registry as AKC', () => {
-    expect(getChangeClassNote({ judgingUnderway: true })).toBe(NOTE);
+    expect(getChangeClassNote({ classStatusKind: 'active' })).toBe(NOTE);
   });
 
   it('says nothing for ASCA, whose rules are silent on timing', () => {
-    expect(getChangeClassNote({ registryId: 'ASCA', judgingUnderway: true })).toBeNull();
+    expect(getChangeClassNote({ registryId: 'ASCA', classStatusKind: 'active' })).toBeNull();
   });
 
-  it('says nothing before judging has begun', () => {
-    expect(getChangeClassNote({ registryId: 'AKC', judgingUnderway: false })).toBeNull();
+  it('says nothing for a class whose status says it has not started', () => {
+    expect(getChangeClassNote({ registryId: 'AKC', classStatusKind: 'neutral' })).toBeNull();
+    expect(getChangeClassNote({ registryId: 'AKC' })).toBeNull();
   });
 });

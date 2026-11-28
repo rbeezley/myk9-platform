@@ -329,18 +329,6 @@ describe('entry form Change class eligibility (MYK9-1614)', () => {
     expect(item).toHaveTextContent('This entry is in the ring.');
   });
 
-  it('shows the deadline note when another dog is in the ring while the class still reads not started', async () => {
-    const inRing = makeFormEntry({ id: 'entry-2', dogName: 'Fido', isInRing: true });
-    inRing.classes[0]!.checkInStatus = 'in-ring' as never;
-    const { user } = render(<EntryListCard {...cardProps} entries={[makeFormEntry(), inRing]} />);
-    await user.click(screen.getByRole('button', { name: /Actions for Rex/ }));
-    const item = await screen.findByRole('menuitem', { name: /Change class/ });
-    await waitFor(() =>
-      expect(item).toHaveTextContent("The rulebook's class change deadline has passed.")
-    );
-    expect(item).not.toHaveAttribute('data-disabled');
-  });
-
   it('is disabled with the reason when the class is finished', async () => {
     rawClasses = [
       rawClass('novice-a', 'Novice', 'A', 'Completed'),

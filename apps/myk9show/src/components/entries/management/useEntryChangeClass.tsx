@@ -13,7 +13,6 @@ import {
   CHANGE_CLASS_OFFLINE_REASON,
   getChangeClassBlock,
   getChangeClassNote,
-  isJudgingUnderway,
 } from '@/features/show-map/changeClassEligibility';
 import { ShowMapMoveUpDialog } from '@/features/show-map/ShowMapMoveUpDialog';
 import type { ShowMapAction } from '@/features/show-map/showMapActions';
@@ -134,15 +133,7 @@ export function useEntryChangeClass(
       reason === null
         ? getChangeClassNote({
             registryId: cls?.registryId,
-            judgingUnderway: isJudgingUnderway(
-              classifyClassStatus(cls?.status)?.kind,
-              entries
-                .filter(other => other.classes[0]?.classId === classId)
-                .map(other => ({
-                  runStatusKind: classifyEntryRunStatus(toRunStatusInput(other))?.kind,
-                  checkInStatus: other.classes[0]?.checkInStatus,
-                }))
-            ),
+            classStatusKind: classifyClassStatus(cls?.status)?.kind,
           })
         : null;
     return {

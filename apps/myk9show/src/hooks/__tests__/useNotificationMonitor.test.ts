@@ -235,6 +235,34 @@ describe('useNotificationMonitor', () => {
     );
   });
 
+  it('does not count a Pending dog between two running dogs as a dog ahead (MYK9-2412)', async () => {
+    mockRefetch.mockResolvedValue({
+      data: {
+        classes: [classRow({ status: 'In Progress' })],
+        entries: [
+          entry({ id: 'ring', dog_id: 'ring-dog', armband: '1', check_in_status: 'in-ring' }),
+          entry({ id: 'first', dog_id: 'f-dog', armband: '50', run_order: 1 }),
+          entry({
+            id: 'pending',
+            dog_id: 'p-dog',
+            armband: '45',
+            run_order: 2,
+            entry_status: 'submitted',
+          }),
+          entry({ id: 'second', dog_id: 's-dog', armband: '40', run_order: 3 }),
+          entry({ armband: '10', run_order: 4 }),
+        ],
+      },
+    });
+    mountWithBaseline({ classes: [classRow({ status: 'In Progress' })], entries: [entry()] });
+
+    await emitShowChange();
+
+    expect(buildYourTurnPayload).toHaveBeenCalledWith(
+      expect.objectContaining({ dogName: 'Ditto', dogsAhead: 2 })
+    );
+  });
+
   it('sends no place-based alert for an entry with no run order, as Ringside shows none (MYK9-1941)', async () => {
     mockRefetch.mockResolvedValue({
       data: {

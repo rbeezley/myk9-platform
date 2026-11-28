@@ -17,7 +17,7 @@ import {
 import { setClubAuthorization } from '@/services/database/clubs';
 import { logger } from '@/services/LoggingService';
 import { useClubStore } from '@/store/clubStore';
-import { LegacyWaitingClubCard, WaitingClubCard, type WaitingClubChoices } from './WaitingClubCard';
+import { WaitingClubCard, type WaitingClubChoices } from './WaitingClubCard';
 import { buildWaitingClubRows, type WaitingClubRow } from './waitingClubRows';
 
 /**
@@ -89,9 +89,8 @@ export function ClubsWaitingSection() {
             (await reviewClubAccessRequest({
               requestId: row.request.id,
               decision: 'approved',
-              existingClubId: choices.existingClubId,
-              // Only a legacy request with no club yet picks or names one.
-              clubName: choices.clubName,
+              // No club argument: every request carries its club (MYK9-2549 retired the
+              // no-club paths), and a legacy row is approved the same way.
               reviewNote: choices.reviewNote,
             })) ?? clubId;
         } else if (row.clubId) {
@@ -200,15 +199,14 @@ export function ClubsWaitingSection() {
         </div>
       ) : (
         <div className="space-y-3">
-          {rows.map(row => {
-            const Card =
-              row.request && row.request.createdClubId === null
-                ? LegacyWaitingClubCard
-                : WaitingClubCard;
-            return (
-              <Card key={row.key} row={row} onApprove={handleApprove} onDecline={handleDecline} />
-            );
-          })}
+          {rows.map(row => (
+            <WaitingClubCard
+              key={row.key}
+              row={row}
+              onApprove={handleApprove}
+              onDecline={handleDecline}
+            />
+          ))}
         </div>
       )}
     </section>

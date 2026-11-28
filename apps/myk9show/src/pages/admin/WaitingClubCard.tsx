@@ -1,9 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { CheckCircle2, XCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useClubsQuery } from '@/hooks/queries/useClubsDatabase';
 import { useClubRegistryNumbers } from '@/hooks/queries/useClubRegistryNumbers';
 import { formatShortDate } from '@/lib/format/dates';
 import { getSafeWebsiteLink } from '@/lib/websiteUrl';
@@ -14,38 +13,19 @@ import type { WaitingClubRow } from './waitingClubRows';
 export interface WaitingClubChoices {
   /** Optional note stored with the decision; only a request carries one. */
   reviewNote: string | null;
-  /** Legacy request with no club yet: attach this existing club instead of creating one. */
-  existingClubId: string | null;
-  /** Legacy request with no club yet: the name for the club to create. */
-  clubName: string | null;
-}
-
-export interface ClubDirectory {
-  clubs: { id: string; name: string }[];
-  isPending: boolean;
-  isError: boolean;
-  retry: () => void;
 }
 
 interface WaitingClubCardProps {
   row: WaitingClubRow;
-  /** Only a legacy request (no club yet) needs the club directory, to pick an existing club. */
-  directory?: ClubDirectory | undefined;
   /** Approve or decline; resolves when the action is done, throws never (the caller reports). */
   onApprove: (row: WaitingClubRow, choices: WaitingClubChoices) => Promise<void>;
   onDecline: (row: WaitingClubRow, choices: WaitingClubChoices) => Promise<void>;
 }
 
-export function WaitingClubCard({ row, directory, onApprove, onDecline }: WaitingClubCardProps) {
+export function WaitingClubCard({ row, onApprove, onDecline }: WaitingClubCardProps) {
   const { request } = row;
   const [busy, setBusy] = useState<'approve' | 'decline' | null>(null);
   const [note, setNote] = useState('');
-  // A legacy request (its club was never created) still picks or names its club.
-  const needsClub = request !== null && request.createdClubId === null;
-  const [clubChoice, setClubChoice] = useState('new');
-  const [clubName, setClubName] = useState(request?.requestedClubName ?? '');
-  // Until the directory loads, "Create a new club" would be the only visible choice.
-  const directoryNotReady = needsClub && (directory?.isPending || directory?.isError || !directory);
   const requestNumbers = formatClubRegistryNumbers(request?.clubNumbers);
   // A club made by hand has no request to carry its numbers; read them from the club.
   const numbersQuery = useClubRegistryNumbers(
@@ -58,8 +38,6 @@ export function WaitingClubCard({ row, directory, onApprove, onDecline }: Waitin
     setBusy(kind);
     const choices: WaitingClubChoices = {
       reviewNote: note.trim() || null,
-      existingClubId: needsClub && clubChoice !== 'new' ? clubChoice : null,
-      clubName: needsClub && clubChoice === 'new' ? clubName.trim() : null,
     };
     try {
       await (kind === 'approve' ? onApprove(row, choices) : onDecline(row, choices));
@@ -113,48 +91,6 @@ export function WaitingClubCard({ row, directory, onApprove, onDecline }: Waitin
           Open the club
         </Link>
       )}
-      {needsClub && directory?.isPending && (
-        <p role="status" className="mt-3 text-sm text-muted-foreground">
-          Loading clubs…
-        </p>
-      )}
-      {needsClub && directory?.isError && (
-        <div role="alert" className="mt-3 flex flex-wrap items-center gap-2 text-sm">
-          <span>We couldn&apos;t load the club list, so a club can&apos;t be chosen.</span>
-          <Button type="button" variant="outline" className="min-h-11" onClick={directory.retry}>
-            Try again
-          </Button>
-        </div>
-      )}
-      {needsClub && directory && !directory.isPending && !directory.isError && (
-        <div className="mt-3 grid gap-3 md:grid-cols-[minmax(180px,auto)_minmax(220px,1fr)]">
-          <label className="block text-sm font-medium">
-            Club to use
-            <select
-              aria-label={`Club to use for ${row.name}`}
-              value={clubChoice}
-              onChange={event => setClubChoice(event.target.value)}
-              className="mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-base"
-            >
-              <option value="new">Create a new club</option>
-              {(directory?.clubs ?? []).map(club => (
-                <option key={club.id} value={club.id}>
-                  Use {club.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block text-sm font-medium">
-            New club name
-            <Input
-              value={clubName}
-              onChange={event => setClubName(event.target.value)}
-              disabled={clubChoice !== 'new'}
-              className="mt-1 min-h-11"
-            />
-          </label>
-        </div>
-      )}
       {request && (
         <label className="mt-3 block text-sm font-medium">
           Review note
@@ -171,11 +107,7 @@ export function WaitingClubCard({ row, directory, onApprove, onDecline }: Waitin
           type="button"
           className="min-h-11"
           onClick={() => void run('approve')}
-          disabled={
-            busy !== null ||
-            directoryNotReady ||
-            (needsClub && clubChoice === 'new' && !clubName.trim())
-          }
+          disabled={busy !== null}
           loading={busy === 'approve'}
           aria-label={`Approve ${row.name}`}
         >
@@ -199,20 +131,4 @@ export function WaitingClubCard({ row, directory, onApprove, onDecline }: Waitin
       </div>
     </article>
   );
-}
-
-/** Mounts the club directory read only for a legacy request, the one card that picks a club. */
-export function LegacyWaitingClubCard(props: Omit<WaitingClubCardProps, 'directory'>) {
-  const query = useClubsQuery();
-  const { refetch } = query;
-  const directory = useMemo<ClubDirectory>(
-    () => ({
-      clubs: query.data ?? [],
-      isPending: query.isPending,
-      isError: query.isError,
-      retry: () => void refetch(),
-    }),
-    [query.data, query.isPending, query.isError, refetch]
-  );
-  return <WaitingClubCard {...props} directory={directory} />;
 }

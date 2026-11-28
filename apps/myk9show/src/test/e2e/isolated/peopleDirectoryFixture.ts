@@ -34,12 +34,6 @@ export const TARGET_PERSON_ID = 'ffffffff-ffff-4fff-bfff-ffffffffffff';
 export const FILLER_ID_PREFIX = 'a0000000-0000-4000-8000-';
 export const fillerId = (index: number): string =>
   `${FILLER_ID_PREFIX}${String(index).padStart(12, '0')}`;
-/** Every person this seed adds, for comparing with the saved directory. */
-export const seededPersonIds = (): string[] => [
-  ...Array.from({ length: FILLER_PEOPLE_COUNT }, (_, i) => fillerId(i)),
-  TARGET_PERSON_ID,
-];
-
 export const TARGET_OWNER_NAME = `${TARGET_PERSON.firstName} ${TARGET_PERSON.lastName}`;
 
 export interface PeopleDirectorySeed {
@@ -212,4 +206,21 @@ export async function setTargetPhone(phone: string): Promise<void> {
   const client = getIsolatedAdminClient();
   const { error } = await client.from('people').update({ phone }).eq('id', TARGET_PERSON_ID);
   if (error) throw new Error(`Could not change the target person's phone: ${error.message}`);
+}
+
+/** Every live person's id on the stack, paged past the 1,000-row limit of one response. */
+export async function listLivePersonIds(): Promise<string[]> {
+  const client = getIsolatedAdminClient();
+  const ids: string[] = [];
+  for (let from = 0; ; from += 1_000) {
+    const { data, error } = await client
+      .from('people')
+      .select('id')
+      .is('deleted_at', null)
+      .order('id')
+      .range(from, from + 999);
+    if (error) throw new Error(`Could not list the live people: ${error.message}`);
+    ids.push(...data.map(row => row.id));
+    if (data.length < 1_000) return ids;
+  }
 }

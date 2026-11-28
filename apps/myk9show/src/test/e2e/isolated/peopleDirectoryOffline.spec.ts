@@ -9,9 +9,9 @@ import {
   TARGET_PERSON,
   countPeopleAheadOfTarget,
   countSeededPeople,
+  listLivePersonIds,
   removePeopleDirectorySeed,
   seedPeopleDirectory,
-  seededPersonIds,
   setTargetPhone,
   type PeopleDirectorySeed,
 } from './peopleDirectoryFixture';
@@ -193,7 +193,8 @@ test('a person past row 1,000 is found offline on Entry Forms and in Add Person,
     const converged = await readSavedDirectory(page);
     expect(converged?.incomplete).toBe(false);
     expect(new Set(converged?.ids).size).toBe(converged?.ids.length);
-    expect(converged?.ids).toEqual(expect.arrayContaining(seededPersonIds()));
+    // Exactly the live people the server has, demo people included: none dropped, none stale.
+    expect([...(converged?.ids ?? [])].sort()).toEqual(await listLivePersonIds());
     await searchEntryForms(page);
     await expect(page.getByText(`Owner: ${TARGET_OWNER_NAME}`)).toHaveCount(1, { timeout: 30_000 });
   } finally {

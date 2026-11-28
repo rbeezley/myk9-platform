@@ -34,8 +34,9 @@ export interface AccessRequestRecord {
   reviewerNote: string | null;
   /**
    * New-club requests only: the request made its club when it was filed (`request_new_club`,
-   * MYK9-2046), so the requester can build now. The older `submit_club_access_request` and
-   * signup paths make no club until approval. False for every other kind.
+   * MYK9-2046), so the requester can build now. False for requests filed before MYK9-2549
+   * retired the older no-club paths (`submit_club_access_request`, the sign-up trigger),
+   * which made no club until approval, and for every other kind.
    */
   clubCreatedOnRequest: boolean;
 }

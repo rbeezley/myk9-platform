@@ -275,47 +275,41 @@ SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000001235104
 
 DO $$
 DECLARE
-  v_request_id uuid;
+  v_result jsonb;
+  v_person constant uuid := '00000000-0000-0000-0000-000001235014';
+  v_auth_user constant uuid := '00000000-0000-0000-0000-000001235104';
 BEGIN
   BEGIN
-    PERFORM public.submit_club_access_request('MYK9-1235 Empty Club', NULL, NULL, '{}'::jsonb);
+    PERFORM public.request_new_club('MYK9-1235 Empty Club', '{}'::jsonb);
     RAISE EXCEPTION 'FAIL 1235.14 a club request with no number was accepted';
   EXCEPTION WHEN invalid_parameter_value THEN
     RAISE NOTICE 'PASS 1235.14 a club request with no club number is refused';
   END;
   BEGIN
-    PERFORM public.submit_club_access_request('MYK9-1235 Empty Club', NULL, NULL, '{"UKC":" "}'::jsonb);
+    PERFORM public.request_new_club('MYK9-1235 Empty Club', '{"UKC":" "}'::jsonb);
     RAISE EXCEPTION 'FAIL 1235.14 a club request with a blank number was accepted';
   EXCEPTION WHEN invalid_parameter_value THEN
     NULL;
   END;
 
-  BEGIN
-    PERFORM public.submit_club_access_request('MYK9-1235 Legacy Caller');
-    RAISE EXCEPTION 'FAIL 1235.14 the legacy 3-argument call was accepted';
-  EXCEPTION WHEN invalid_parameter_value THEN
-    RAISE NOTICE 'PASS 1235.14 an old client calling without numbers gets the friendly refusal';
-  END;
-
-  v_request_id := public.submit_club_access_request(
-    'MYK9-1235 New Club', NULL, NULL, '{"AKC":"777","UKC":"U-8"}'::jsonb
-  );
-  PERFORM set_config('myk9.test_1235_request', v_request_id::text, true);
-  PERFORM set_config(
-    'myk9.test_1235_request_owned',
-    public.submit_club_access_request(
-      'MYK9-1235 Owned Club Ask', NULL, NULL, '{"AKC":"999"}'::jsonb
-    )::text,
-    true
-  );
-  PERFORM set_config(
-    'myk9.test_1235_request_existing',
-    public.submit_club_access_request(
-      'MYK9-1235 Existing Club Ask', NULL, NULL, '{"AKC":"888"}'::jsonb
-    )::text,
-    true
-  );
+  v_result := public.request_new_club('MYK9-1235 New Club', '{"AKC":"777","UKC":"U-8"}'::jsonb);
+  PERFORM set_config('myk9.test_1235_request', v_result->>'request_id', true);
   RAISE NOTICE 'PASS 1235.15 an AKC and UKC club request is accepted';
+
+  -- Pre-existing requests that name no club (rows from before MYK9-2549) are
+  -- approved onto an existing club by an admin. No function files them any
+  -- more, so the fixture writes them directly as the table owner.
+  RESET ROLE;
+  INSERT INTO public.club_access_requests (
+    id, requester_person_id, requester_auth_user_id, requested_club_name, club_numbers
+  ) VALUES
+    ('00000000-0000-0000-0000-000001235201', v_person, v_auth_user,
+     'MYK9-1235 Owned Club Ask', '{"AKC":"999"}'::jsonb),
+    ('00000000-0000-0000-0000-000001235202', v_person, v_auth_user,
+     'MYK9-1235 Existing Club Ask', '{"AKC":"888"}'::jsonb);
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('myk9.test_1235_request_owned', '00000000-0000-0000-0000-000001235201', true);
+  PERFORM set_config('myk9.test_1235_request_existing', '00000000-0000-0000-0000-000001235202', true);
 END;
 $$;
 

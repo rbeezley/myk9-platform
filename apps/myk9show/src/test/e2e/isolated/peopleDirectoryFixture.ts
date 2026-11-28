@@ -167,7 +167,7 @@ export async function removePeopleDirectorySeed(seed: PeopleDirectorySeed): Prom
   await client.from('people').delete().like('email', `%@${FILLER_EMAIL_DOMAIN}`);
 }
 
-/** People the secretary's directory read can see, counted with the service key. */
+/** Seeded people (filler plus the target) on the stack, counted with the service key. */
 export async function countSeededPeople(): Promise<number> {
   const client = getIsolatedAdminClient();
   const { count, error } = await client

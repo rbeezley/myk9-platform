@@ -116,7 +116,7 @@ test('a person past row 1,000 is found offline on Entry Forms and in Add Person,
   let seed: PeopleDirectorySeed | null = null;
   try {
     seed = await seedPeopleDirectory();
-    expect(await countSeededPeople()).toBe(FILLER_PEOPLE_COUNT);
+    expect(await countSeededPeople()).toBe(EXPECTED_SAVED_PEOPLE);
 
     // 1. Online: the secretary's device loads the whole directory, paged past 1,000.
     await signInAsSecretary(page, ENTRY_FORMS_PATH);

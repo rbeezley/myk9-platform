@@ -9,7 +9,6 @@ import type { CloseoutFlaggedPulls } from '@/features/show-closeout/useCloseoutF
 import type { SyncableTrial } from '@/store/trial-store-types';
 
 import type { ResultsClassRow } from './buildResultsClassRows';
-import { verifiedPayoutDay } from './verifiedPayoutDay';
 import { ResultsFinishRow } from './ResultsFinishRow';
 import { ResultsJudgeProgress } from './ResultsJudgeProgress';
 
@@ -45,10 +44,7 @@ export function ResultsPackets({
   entriesReadable: boolean;
   timeZone: string;
 }) {
-  const { show, isFromCache, refreshFailed } = useFastShowDetails(showId);
-  // A cached or failed-refresh end date may be a rescheduled show's old one: say it in words.
-  const lastDay = verifiedPayoutDay({ show, isFromCache, refreshFailed });
-  const payoutSchedule = useMemo(() => ({ lastDay, timeZone }), [lastDay, timeZone]);
+  const { show } = useFastShowDetails(showId);
   const [packet, setPacket] = useState<OpenPacket | null>(null);
   // Corrections are read only when the panel opens, so the progress list builds without them.
   const judges = useMemo(
@@ -77,7 +73,6 @@ export function ResultsPackets({
         entriesTrusted={entriesTrusted}
         flaggedPulls={flaggedPulls}
         entriesReadable={entriesReadable}
-        payoutSchedule={payoutSchedule}
         onOpenAfterShow={trialId => setPacket({ kind: 'after-show', trialId })}
       />
       {packet?.kind === 'judge-review' && (

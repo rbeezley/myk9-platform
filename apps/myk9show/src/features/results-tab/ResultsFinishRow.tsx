@@ -6,7 +6,6 @@ import { calculateResultsRowsLeft } from '@/features/show-closeout/fromResultsRo
 import { useResultsSentCheck } from '@/features/show-closeout/useResultsSentCheck';
 import { readHandlerClashes } from '@/features/show-closeout/handlerClash';
 import { buildFinishList } from '@/features/show-closeout/finishList';
-import type { FinishListPayoutSchedule } from '@/features/show-closeout/refundFinishItem';
 import type { CloseoutFlaggedPulls } from '@/features/show-closeout/useCloseoutFlaggedPulls';
 import { FlaggedPullsOffDesk } from '@/features/show-closeout/FlaggedPullsOffDesk';
 import { FINISH_LIST_ANCHOR } from '@/features/show-map/cockpit/cockpitRoutes';
@@ -32,8 +31,6 @@ interface ResultsFinishRowProps {
    * (MYK9-2180).
    */
   flaggedPulls: CloseoutFlaggedPulls;
-  /** The show's last day and zone, so the refund line can date the club's payout (MYK9-2427). */
-  payoutSchedule?: FinishListPayoutSchedule;
   /** False = the entries read failed or is stale: the refund line reads unknown (MYK9-2427). */
   entriesReadable?: boolean;
   /** Opens the after-show packet for a trial (MYK9-1924 phase 2a); absent = no packet button. */
@@ -53,7 +50,6 @@ export function ResultsFinishRow({
   entries,
   entriesTrusted,
   flaggedPulls,
-  payoutSchedule,
   entriesReadable,
   onOpenAfterShow,
 }: ResultsFinishRowProps) {
@@ -74,20 +70,9 @@ export function ResultsFinishRow({
           // The entries read's own state (not the tab's other reads): a stale snapshot cannot say
           // a refund was decided or that none is waiting, so the line reads unknown.
           entriesReadable,
-        }),
-        payoutSchedule
+        })
       ),
-    [
-      entries,
-      entriesTrusted,
-      flaggedPulls,
-      entriesReadable,
-      payoutSchedule,
-      rows,
-      sent,
-      showId,
-      trials,
-    ]
+    [entries, entriesTrusted, flaggedPulls, entriesReadable, rows, sent, showId, trials]
   );
   const ref = useRef<HTMLElement>(null);
   const { hash } = useLocation();

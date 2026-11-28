@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import {
   clubQueryKeys,
   useClubsAwaitingAuthorizationQuery,
-  useClubsQuery,
 } from '@/hooks/queries/useClubsDatabase';
 import { refreshClubAuthorization } from '@/features/clubs/refreshClubAuthorization';
 import { STEP_UP_SQLSTATE } from '@/features/step-up/stepUpFetch';
@@ -18,7 +17,7 @@ import {
 import { setClubAuthorization } from '@/services/database/clubs';
 import { logger } from '@/services/LoggingService';
 import { useClubStore } from '@/store/clubStore';
-import { WaitingClubCard, type WaitingClubChoices } from './WaitingClubCard';
+import { LegacyWaitingClubCard, WaitingClubCard, type WaitingClubChoices } from './WaitingClubCard';
 import { buildWaitingClubRows, type WaitingClubRow } from './waitingClubRows';
 
 /**
@@ -59,7 +58,6 @@ export function ClubsWaitingSection() {
     staleTime: 0,
     refetchOnMount: 'always',
   });
-  const { data: allClubs = [] } = useClubsQuery();
   const { refetch: refetchClubs } = clubsQuery;
   const { refetch: refetchRequests } = requestsQuery;
 
@@ -67,7 +65,7 @@ export function ClubsWaitingSection() {
   // have approved a club, or a new one may have been made, within the cache window.
   useEffect(() => {
     void refetchClubs();
-  }, [refetchClubs]);
+  }, [refetchClubs, creator]);
 
   const refresh = useCallback(async () => {
     await Promise.all([refetchClubs(), refetchRequests()]);
@@ -202,15 +200,15 @@ export function ClubsWaitingSection() {
         </div>
       ) : (
         <div className="space-y-3">
-          {rows.map(row => (
-            <WaitingClubCard
-              key={row.key}
-              row={row}
-              clubs={allClubs}
-              onApprove={handleApprove}
-              onDecline={handleDecline}
-            />
-          ))}
+          {rows.map(row => {
+            const Card =
+              row.request && row.request.createdClubId === null
+                ? LegacyWaitingClubCard
+                : WaitingClubCard;
+            return (
+              <Card key={row.key} row={row} onApprove={handleApprove} onDecline={handleDecline} />
+            );
+          })}
         </div>
       )}
     </section>

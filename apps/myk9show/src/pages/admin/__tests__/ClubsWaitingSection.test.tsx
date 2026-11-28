@@ -5,6 +5,7 @@ import { notifications } from '@/lib/notifications';
 
 const mocks = vi.hoisted(() => ({
   clubs: vi.fn(),
+  directory: vi.fn(),
   requests: vi.fn(),
   review: vi.fn(),
   authorize: vi.fn(),
@@ -18,7 +19,7 @@ vi.mock('@/store/clubStore', () => ({
 }));
 vi.mock('@/hooks/queries/useClubsDatabase', () => ({
   useClubsAwaitingAuthorizationQuery: () => mocks.clubs(),
-  useClubsQuery: () => ({ data: [{ id: 'club-2', name: 'Existing Dog Club' }] }),
+  useClubsQuery: () => mocks.directory(),
   clubQueryKeys: {
     lists: () => ['clubs', 'list'],
     awaitingAuthorization: () => ['clubs', 'list', 'awaiting-authorization'],
@@ -68,6 +69,12 @@ describe('ClubsWaitingSection', () => {
       refetch,
     });
     mocks.requests.mockResolvedValue([request]);
+    mocks.directory.mockReturnValue({
+      data: [{ id: 'club-2', name: 'Existing Dog Club' }],
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
     mocks.review.mockResolvedValue('club-1');
     mocks.authorize.mockResolvedValue(undefined);
     mocks.ensureClubsReady.mockResolvedValue({ status: 'fresh', clubs: [] });
@@ -161,6 +168,46 @@ describe('ClubsWaitingSection', () => {
         reviewNote: null,
       })
     );
+  });
+
+  it('does not fetch the club directory for an ordinary request', async () => {
+    render(<ClubsWaitingSection />, { initialRoute: '/admin/onboarding' });
+    await screen.findByText('Hand Made Club');
+    expect(mocks.directory).not.toHaveBeenCalled();
+  });
+
+  it('holds Approve on a legacy request until the club directory loads, and offers a retry on failure', async () => {
+    mocks.clubs.mockReturnValue({
+      data: [],
+      isPending: false,
+      isError: false,
+      isFetching: false,
+      refetch,
+    });
+    mocks.requests.mockResolvedValue([{ ...request, createdClubId: null }]);
+    const retry = vi.fn();
+    mocks.directory.mockReturnValue({
+      data: undefined,
+      isPending: true,
+      isError: false,
+      refetch: retry,
+    });
+    const view = render(<ClubsWaitingSection />, { initialRoute: '/admin/onboarding' });
+    expect(
+      await screen.findByRole('button', { name: 'Approve Heartland Dog Club' })
+    ).toBeDisabled();
+
+    mocks.directory.mockReturnValue({
+      data: undefined,
+      isPending: false,
+      isError: true,
+      refetch: retry,
+    });
+    view.rerender(<ClubsWaitingSection />);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/couldn't load the club list/);
+    expect(screen.getByRole('button', { name: 'Approve Heartland Dog Club' })).toBeDisabled();
+    await view.user.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(retry).toHaveBeenCalled();
   });
 
   it('does not claim how a club without a pending request was created', async () => {

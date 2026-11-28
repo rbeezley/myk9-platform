@@ -16,7 +16,6 @@ on:
       - '!apps/myk9show/src/test/e2e/verification/nationalsLeaderboardWalk.spec.ts'
       - '!apps/myk9show/src/test/e2e/verification/nationalsFixture.ts'
       - '!apps/myk9show/src/test/e2e/verification/showDayLiveSync.spec.ts'
-      - '!apps/myk9show/src/test/e2e/verification/disposableClass.ts'
 
 permissions:
   contents: read

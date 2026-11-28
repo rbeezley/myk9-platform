@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.test.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "node_modules/.cache/tsc/people-directory.tsbuildinfo"
+  },
+  "include": ["src/vite-env.d.ts", "src/types/**/*.d.ts", "src/test/e2e/isolated/**/*.ts"],
+  "exclude": []
+}

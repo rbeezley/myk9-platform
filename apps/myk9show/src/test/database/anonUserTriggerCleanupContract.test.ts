@@ -36,16 +36,24 @@ describe('anon-user trigger guard — 20260625000000', () => {
     expect(firstPeopleInsert).toBeGreaterThan(guardIndex); // guard precedes creation
   });
 
-  it('guards materialize_club_access_request_from_auth_user for anonymous users', () => {
-    const fnIndex = triggerMigration.indexOf(
-      'FUNCTION public.materialize_club_access_request_from_auth_user'
+  it('no longer has a club-access trigger function to guard (dropped by MYK9-2549)', () => {
+    const retireMigration = readFileSync(
+      resolve(migrationsDir, '20261128164700_myk9_2549_retire_legacy_club_requests.sql'),
+      'utf8'
     );
-    expect(fnIndex).toBeGreaterThanOrEqual(0);
-    const fnBody = triggerMigration.slice(fnIndex);
-    const guardIndex = fnBody.indexOf('if new.is_anonymous then');
-    const accessCall = fnBody.indexOf('insert_club_access_request_from_signup');
-    expect(guardIndex).toBeGreaterThanOrEqual(0);
-    expect(accessCall).toBeGreaterThan(guardIndex);
+    const dropTrigger = retireMigration.indexOf(
+      'DROP TRIGGER IF EXISTS zz_materialize_club_access_request ON auth.users'
+    );
+    const dropFunction = retireMigration.indexOf(
+      'DROP FUNCTION IF EXISTS public.materialize_club_access_request_from_auth_user()'
+    );
+    const dropCallee = retireMigration.indexOf(
+      'DROP FUNCTION IF EXISTS public.insert_club_access_request_from_signup(uuid, uuid, jsonb)'
+    );
+    expect(dropTrigger).toBeGreaterThanOrEqual(0);
+    expect(dropFunction).toBeGreaterThan(dropTrigger);
+    expect(dropCallee).toBeGreaterThan(dropFunction);
+    expect(retireMigration).not.toMatch(/^DROP[^;]*CASCADE/im);
   });
 
   it('preserves the non-anonymous path (still creates person + exhibitor profile)', () => {

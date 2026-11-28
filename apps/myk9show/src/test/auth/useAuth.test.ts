@@ -1,8 +1,4 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import {
-  readClubOnboardingDraft,
-  saveClubOnboardingDraft,
-} from '@/components/landing/lifecycle/clubOnboardingDraft';
 import { testJwt } from '@/features/step-up/stepUpTestTokens';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useAuth } from '@/hooks/useAuth';
@@ -883,29 +879,6 @@ describe('useAuth', () => {
       });
 
       expect(readPersistedRingsideClaim('show-oct10')).toBeNull();
-    });
-
-    it('clears every saved home page club-form draft on SIGNED_OUT', async () => {
-      const clubDraft = {
-        clubName: 'Tri-State Kennel Club',
-        organization: 'AKC',
-        clubNumbers: { AKC: '1', UKC: '', ASCA: '' },
-        contactName: 'Pat',
-        contactEmail: 'pat@example.com',
-        contactPhone: '555',
-        firstShowDate: '',
-        message: '',
-      };
-      const draftId = saveClubOnboardingDraft(clubDraft);
-      const otherDraftId = saveClubOnboardingDraft({ ...clubDraft, clubName: 'Second Club' });
-      renderHook(() => useAuth());
-
-      await act(async () => {
-        authChangeCallback('SIGNED_OUT', null);
-      });
-
-      expect(readClubOnboardingDraft(draftId)).toBeNull();
-      expect(readClubOnboardingDraft(otherDraftId)).toBeNull();
     });
 
     it('the real Account-menu sign-out path (useAuth().signOut) reaches the same clear', async () => {

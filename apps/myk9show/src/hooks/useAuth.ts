@@ -12,7 +12,6 @@ import { ringsideClaimMatchesUser } from '@/features/at-show/ringsideClaimCache'
 import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
 import { bumpSignOutGeneration, setRedactionPending } from '@/store/userStoreContactRedaction';
 import type { User } from '@supabase/supabase-js';
-import { clearAllClubOnboardingDrafts } from '@/components/landing/lifecycle/clubOnboardingDraft';
 import {
   isNetworkClassAuthError,
   resolveGetSessionUser,
@@ -197,8 +196,6 @@ export function useAuth() {
         void import('@/services/database/users/signOutPeopleRedaction')
           .then(m => m.redactPeopleContactsOnDevice())
           .catch(error => console.error('Could not remove saved contact details:', error));
-        // MYK9-2046: the unsent home page club form holds contact details.
-        clearAllClubOnboardingDrafts();
         clearAllRbacWarmTokens();
         useRingsideGrantStore.getState().clearGrant();
       }

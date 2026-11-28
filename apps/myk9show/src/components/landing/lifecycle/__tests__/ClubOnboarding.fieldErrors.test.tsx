@@ -37,10 +37,7 @@ describe('ClubOnboarding required-field callouts', () => {
     expect(mockSubmit).not.toHaveBeenCalled();
     const club = screen.getByLabelText(/club name/i);
     expect(screen.getByText('Enter the club name.')).toBeInTheDocument();
-    expect(screen.getByText('Choose an organization.')).toBeInTheDocument();
     expect(screen.getByText('Enter at least one club number.')).toBeInTheDocument();
-    expect(screen.getByText('Enter your name.')).toBeInTheDocument();
-    expect(screen.getByText('Enter your email address.')).toBeInTheDocument();
     expect(club).toHaveAttribute('aria-invalid', 'true');
     expect(club).toHaveAttribute('aria-describedby', 'onb-club-name-error');
     expect(screen.getByLabelText('AKC club number')).toHaveAttribute('aria-invalid', 'true');
@@ -52,18 +49,6 @@ describe('ClubOnboarding required-field callouts', () => {
     expect(club).not.toHaveAttribute('aria-invalid');
   });
 
-  it('treats a malformed email as a field error under the email', async () => {
-    render(<ClubOnboarding />, { initialRoute: '/' });
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: /add my club/i })).toBeInTheDocument()
-    );
-    fireEvent.change(screen.getByLabelText(/contact email/i), { target: { value: 'nope' } });
-    submit();
-
-    expect(screen.getByText('Enter a valid email address.')).toBeInTheDocument();
-    expect(screen.getByLabelText(/contact email/i)).toHaveAttribute('aria-invalid', 'true');
-  });
-
   it('keeps a failed submission in the bottom line', async () => {
     mockSubmit.mockRejectedValue(new Error('boom'));
     render(<ClubOnboarding />, { initialRoute: '/' });
@@ -71,10 +56,7 @@ describe('ClubOnboarding required-field callouts', () => {
       expect(screen.getByRole('button', { name: /add my club/i })).toBeInTheDocument()
     );
     fireEvent.change(screen.getByLabelText(/club name/i), { target: { value: 'K' } });
-    fireEvent.change(screen.getByLabelText(/organization/i), { target: { value: 'AKC' } });
     fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: '1' } });
-    fireEvent.change(screen.getByLabelText(/contact name/i), { target: { value: 'P' } });
-    fireEvent.change(screen.getByLabelText(/contact email/i), { target: { value: 'a@b.co' } });
     submit();
     await waitFor(() =>
       expect(screen.getByText("We couldn't add your club. Try again.")).toBeInTheDocument()

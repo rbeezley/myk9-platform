@@ -29,6 +29,7 @@ import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
 import type { UserRole as RingsideRole } from '@myk9/ringside';
 import type { TurnstileChallengeHandle } from '@/components/security/TurnstileChallenge';
 import { getTurnstileSiteKey } from '@/config/turnstile';
+import { isAddYourClubTarget } from '@/components/landing/lifecycle/landingCtas';
 
 const INVALID_COPY =
   'That doesn’t look like an email or a show passcode. Passcodes are 5 characters and start with a letter. For example, aa260.';
@@ -119,6 +120,7 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
   const entryShowId = useMemo(() => getShowEntryRedirectShowId(signInReturnTo), [signInReturnTo]);
   const { data: entryShow } = useShowQuery(entryShowId ?? '');
   const heading = resolveSignInHeading({
+    addYourClub: isAddYourClubTarget(signInReturnTo),
     kind,
     step,
     passcodeOnly,

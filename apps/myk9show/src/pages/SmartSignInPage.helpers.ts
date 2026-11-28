@@ -88,9 +88,12 @@ export function resolveSignInHeading(args: {
   step: SignInStep;
   passcodeOnly: boolean;
   entryShowName?: string | undefined;
+  /** MYK9-2547: she arrived from Add your club and returns to its form. */
+  addYourClub?: boolean | undefined;
 }): string {
-  const { kind, step, passcodeOnly, entryShowName } = args;
+  const { kind, step, passcodeOnly, entryShowName, addYourClub } = args;
   if (step === 'passcode') return 'Join the show';
+  if (addYourClub) return 'Sign in to add your club';
   if (entryShowName) return `Sign in to enter ${entryShowName}`;
   if (passcodeOnly) return 'Enter a show passcode';
   return kind === 'email' ? 'Sign in to your account' : 'Sign in';

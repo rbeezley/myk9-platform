@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ADD_YOUR_CLUB_PATH,
   addYourClubPath,
+  isAddYourClubTarget,
   returnPathWithClub,
   safeReturnPath,
 } from '../landingCtas';
@@ -35,24 +36,26 @@ describe('addYourClubPath', () => {
   });
 });
 
-describe('addYourClubPath with a saved draft', () => {
-  it('carries the draft id, with or without a return target', () => {
-    expect(addYourClubPath(null, 'abc-1')).toBe('/?onboarding=true&clubDraft=abc-1#get-started');
-    expect(addYourClubPath('/wizard?x=1', 'abc-1')).toBe(
-      '/?onboarding=true&returnTo=%2Fwizard%3Fx%3D1&clubDraft=abc-1#get-started'
-    );
-  });
-
-  // The id must reach the club form after sign-in, and after the confirmation link's callback,
-  // which both read the target back with getSignInReturnTo.
+describe('addYourClubPath through sign-in', () => {
+  // The target must reach the club form after sign-in, and after the confirmation link's
+  // callback, which both read it back with getSignInReturnTo (MYK9-2547).
   it('survives the sign-in redirect hop and the auth callback hop', () => {
-    const target = addYourClubPath('/wizard?x=1', 'abc-1');
+    const target = addYourClubPath('/wizard?x=1');
     const signIn = new URL(buildSignInPathForRedirect(target), 'http://x');
     expect(getSignInReturnTo(signIn.searchParams)).toBe(target);
 
     const callback = new URL('/auth/callback', 'http://x');
     callback.searchParams.set('redirectTo', target);
     expect(getSignInReturnTo(callback.searchParams)).toBe(target);
+  });
+});
+
+describe('isAddYourClubTarget', () => {
+  it('is true only for the club form address', () => {
+    expect(isAddYourClubTarget(addYourClubPath())).toBe(true);
+    expect(isAddYourClubTarget(addYourClubPath('/wizard?x=1'))).toBe(true);
+    expect(isAddYourClubTarget('/')).toBe(false);
+    expect(isAddYourClubTarget('/shows?onboarding=true')).toBe(false);
   });
 });
 

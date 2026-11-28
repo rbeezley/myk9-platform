@@ -81,4 +81,18 @@ describe('buildWaitingClubRows', () => {
     );
     expect(rows.map(row => row.clubId)).toEqual(['club-1']);
   });
+
+  it('leaves out a declined club that was kept, unless a new request is pending for it', () => {
+    const clubs = [
+      { id: 'club-1', name: 'Kept after decline' },
+      { id: 'club-2', name: 'Asked again' },
+    ];
+    const rows = buildWaitingClubRows(
+      clubs,
+      [request({ id: 'req-2', createdClubId: 'club-2' })],
+      false,
+      new Set(['club-1', 'club-2'])
+    );
+    expect(rows.map(row => row.name)).toEqual(['Asked again']);
+  });
 });

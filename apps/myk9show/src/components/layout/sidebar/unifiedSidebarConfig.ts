@@ -84,6 +84,11 @@ const ADMIN_RAIL_MENU: NavRailMenu = { id: 'admin', title: 'Admin', icon: Shield
 const CLUB_RAIL_MENU: NavRailMenu = { id: 'club', title: 'My Club', icon: Flag };
 const BROWSE_RAIL_LINK: NavRailLink = { id: 'browse', title: 'Browse', icon: LayoutList };
 
+export interface AdminNavBadges {
+  /** Clubs waiting for approval (`useWaitingClubs`), shown on Onboarding when not zero. */
+  clubsWaiting?: number | undefined;
+}
+
 export interface CurrentShowNav {
   /** Changed only by the pin on a Home show card (MYK9-1490); the rail has no Switch. */
   currentShow: ShowRef | null;
@@ -109,7 +114,8 @@ export function buildUnifiedSidebarConfig(
   userRoles: readonly UserRole[],
   clubContext?: ClubContext,
   firstName?: string | null,
-  currentShowNav?: CurrentShowNav
+  currentShowNav?: CurrentShowNav,
+  adminBadges?: AdminNavBadges
 ): SidebarConfig {
   const groups: NavGroup[] = [];
   const hasSiteAdmin = hasAnyRole(userRoles, [UserRole.SITE_ADMIN]);
@@ -239,6 +245,7 @@ export function buildUnifiedSidebarConfig(
             href: '/admin/onboarding',
             icon: Building2,
             description: 'Club onboarding requests',
+            ...(adminBadges?.clubsWaiting ? { badge: String(adminBadges.clubsWaiting) } : {}),
           },
           {
             title: 'Roles & Permissions',

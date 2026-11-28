@@ -1,24 +1,23 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback } from 'react';
 import { Inbox, RefreshCw } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import {
-  clubQueryKeys,
-  useClubsAwaitingAuthorizationQuery,
-} from '@/hooks/queries/useClubsDatabase';
+import { clubQueryKeys } from '@/hooks/queries/useClubsDatabase';
 import { refreshClubAuthorization } from '@/features/clubs/refreshClubAuthorization';
-import { STEP_UP_SQLSTATE } from '@/features/step-up/stepUpFetch';
 import { notifications } from '@/lib/notifications';
-import {
-  getPendingClubAccessRequests,
-  reviewClubAccessRequest,
-} from '@/services/database/club-access-requests';
+import { reviewClubAccessRequest } from '@/services/database/club-access-requests';
 import { setClubAuthorization } from '@/services/database/clubs';
 import { logger } from '@/services/LoggingService';
 import { useClubStore } from '@/store/clubStore';
+import { deleteErrorMessage } from '@/features/delete/deleteErrors';
+import { reconcileLocalDeletion } from '@/features/delete/deleteLocalState';
+import { invalidateAfterDelete } from '@/features/delete/deleteRecords';
+import { deviceHasUnsavedWork, stillSavingError } from '@/features/delete/deleteUnsyncedWork';
 import { WaitingClubCard, type WaitingClubChoices } from './WaitingClubCard';
-import { buildWaitingClubRows, type WaitingClubRow } from './waitingClubRows';
+import { clubReviewErrorMessage } from './clubReviewErrors';
+import { useWaitingClubs } from './useWaitingClubs';
+import type { WaitingClubRow } from './waitingClubRows';
 
 /**
  * MYK9-2527: the one list of clubs waiting for a site admin, and the one Approve.
@@ -36,13 +35,6 @@ import { buildWaitingClubRows, type WaitingClubRow } from './waitingClubRows';
  * and the list narrows to that creator's clubs on the server.
  */
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const REQUESTS_KEY = ['club-access-requests', 'pending'] as const;
-
-function approvalError(error: unknown): string {
-  const code = (error as { code?: unknown } | null)?.code;
-  if (code === STEP_UP_SQLSTATE) return 'Nothing was approved. Confirm your password to continue.';
-  return "We couldn't update this club. Try again.";
-}
 
 export function ClubsWaitingSection() {
   const [searchParams] = useSearchParams();
@@ -51,37 +43,18 @@ export function ClubsWaitingSection() {
   const queryClient = useQueryClient();
   const ensureClubsReady = useClubStore(s => s.ensureClubsReady);
 
-  const clubsQuery = useClubsAwaitingAuthorizationQuery(creator);
-  const requestsQuery = useQuery({
-    queryKey: REQUESTS_KEY,
-    queryFn: getPendingClubAccessRequests,
-    staleTime: 0,
-    refetchOnMount: 'always',
+  const {
+    rows,
+    isPending,
+    isError,
+    isFetching: isRefreshing,
+    refresh,
+  } = useWaitingClubs({
+    creator,
   });
-  const { refetch: refetchClubs } = clubsQuery;
-  const { refetch: refetchRequests } = requestsQuery;
-
-  // A cached list from an earlier visit is not good enough for a to-do list: another admin may
-  // have approved a club, or a new one may have been made, within the cache window.
-  useEffect(() => {
-    void refetchClubs();
-  }, [refetchClubs, creator]);
-
-  const refresh = useCallback(async () => {
-    await Promise.all([refetchClubs(), refetchRequests()]);
-  }, [refetchClubs, refetchRequests]);
-
-  const rows = useMemo(
-    () => buildWaitingClubRows(clubsQuery.data ?? [], requestsQuery.data ?? [], Boolean(creator)),
-    [clubsQuery.data, requestsQuery.data, creator]
-  );
-
-  const isPending = clubsQuery.isPending || requestsQuery.isPending;
-  const isError = clubsQuery.isError || requestsQuery.isError;
-  const isRefreshing = clubsQuery.isFetching || requestsQuery.isFetching;
 
   const handleApprove = useCallback(
-    async (row: WaitingClubRow, choices: WaitingClubChoices) => {
+    async (row: WaitingClubRow, choices: WaitingClubChoices): Promise<boolean> => {
       try {
         let clubId = row.clubId;
         if (row.request) {
@@ -100,36 +73,77 @@ export function ClubsWaitingSection() {
         void queryClient.invalidateQueries({ queryKey: clubQueryKeys.lists() });
         if (clubId) await refreshClubAuthorization({ queryClient, ensureClubsReady, clubId });
         await refresh();
+        return true;
       } catch (error) {
         logger.error('Failed to approve club', 'admin', { clubId: row.clubId }, error as Error);
-        notifications.error(approvalError(error));
+        notifications.error(clubReviewErrorMessage(error, 'approve this club'));
+        return false;
       }
     },
     [ensureClubsReady, queryClient, refresh]
   );
 
   const handleDecline = useCallback(
-    async (row: WaitingClubRow, choices: WaitingClubChoices) => {
-      if (!row.request) return;
+    async (row: WaitingClubRow, choices: WaitingClubChoices): Promise<boolean> => {
+      if (!row.request) return false;
+      // Once the server has declined, a later local step failing must not report "couldn't
+      // decline" or keep the dialog open on a request that is already reviewed.
+      let reviewed = false;
       try {
+        if (choices.deleteClub) {
+          // The same guard as the ordinary delete: a delete cascades, and work on this device
+          // that has not uploaded would be purged. An unreadable queue is never a pass.
+          let refusal: unknown;
+          try {
+            if ((await deviceHasUnsavedWork()).total > 0) refusal = stillSavingError();
+          } catch (error) {
+            refusal = error;
+          }
+          if (refusal !== undefined) {
+            notifications.error(deleteErrorMessage('club', refusal));
+            return false;
+          }
+        }
         await reviewClubAccessRequest({
           requestId: row.request.id,
           decision: 'denied',
           reviewNote: choices.reviewNote,
+          // Sent only when ticked, so a plain decline is the call the server already knew.
+          ...(choices.deleteClub ? { deleteClub: true } : {}),
         });
-        notifications.success('Club request declined');
+        reviewed = true;
+        notifications.success(
+          choices.deleteClub ? 'Club request declined and club deleted' : 'Club request declined'
+        );
+        void queryClient.invalidateQueries({ queryKey: clubQueryKeys.lists() });
+        if (choices.deleteClub && row.clubId) {
+          // The server already deleted it: drop it from this device without a second delete.
+          await reconcileLocalDeletion('club', { id: row.clubId, name: row.name });
+          invalidateAfterDelete(queryClient, 'club');
+        }
         await refresh();
+        return true;
       } catch (error) {
+        if (reviewed) {
+          logger.error(
+            'Club request declined; refreshing this device failed',
+            'admin',
+            { requestId: row.request.id },
+            error as Error
+          );
+          return true;
+        }
         logger.error(
           'Failed to decline club request',
           'admin',
           { requestId: row.request.id },
           error as Error
         );
-        notifications.error(approvalError(error));
+        notifications.error(clubReviewErrorMessage(error, 'decline this club'));
+        return false;
       }
     },
-    [refresh]
+    [queryClient, refresh]
   );
 
   return (
@@ -190,9 +204,7 @@ export function ClubsWaitingSection() {
       ) : rows.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border bg-card px-6 py-8 text-center">
           <Inbox className="mx-auto mb-3 h-8 w-8 text-muted-foreground" aria-hidden="true" />
-          <p className="text-base font-medium">
-            {creator ? 'These clubs have all been approved.' : 'No clubs are waiting for approval.'}
-          </p>
+          <p className="text-base font-medium">No clubs are waiting for approval.</p>
           <p className="mt-1 text-sm text-muted-foreground">
             New clubs will appear here after someone sets one up.
           </p>

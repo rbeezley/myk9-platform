@@ -53,9 +53,8 @@ export async function refreshClubAuthorization({
   await queryClient.invalidateQueries({ queryKey: [...PUBLIC_CLUB_DETAIL_QUERY_KEY, clubId] });
   // The admin to-do list of pending clubs (MYK9-1448).
   await queryClient.invalidateQueries({ queryKey: clubQueryKeys.awaitingAuthorization() });
-  // The admin overview's "waiting clubs" count (useAdminOverview, ['admin','overview','counts',
-  // day]). Authorizing a club also closes its pending request (MYK9-2513), so the count drops.
-  // The pending-request list itself is local state in ClubAccessRequestsSection, not a query.
-  await queryClient.invalidateQueries({ queryKey: ['admin', 'overview'] });
+  // The pending and declined request reads behind the waiting-clubs count (useWaitingClubs,
+  // MYK9-2529): authorizing a club also closes its pending request (MYK9-2513).
+  await queryClient.invalidateQueries({ queryKey: ['club-access-requests'] });
   return readiness.status;
 }

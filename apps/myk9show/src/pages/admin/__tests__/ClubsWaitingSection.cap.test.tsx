@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/services/database/club-access-requests', () => ({
   getPendingClubAccessRequests: mocks.getPendingRequests,
+  getDeclinedRequestClubIds: vi.fn().mockResolvedValue([]),
   reviewClubAccessRequest: vi.fn(),
 }));
 

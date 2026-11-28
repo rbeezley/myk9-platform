@@ -21,6 +21,19 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     ]);
   });
 
+  it('shows the waiting-clubs count on Onboarding only when it is not zero', () => {
+    const onboarding = (count: number | undefined) =>
+      buildUnifiedSidebarConfig([UserRole.SITE_ADMIN], undefined, null, undefined, {
+        clubsWaiting: count,
+      })
+        .groups.find(g => g.title === 'Admin')
+        ?.items.find(i => i.title === 'Onboarding');
+
+    expect(onboarding(3)?.badge).toBe('3');
+    expect(onboarding(0)?.badge).toBeUndefined();
+    expect(onboarding(undefined)?.badge).toBeUndefined();
+  });
+
   it('admin sidebar puts Support and Help in a final Resources group', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SITE_ADMIN]);
     const resourcesGroup = config.groups.find(g => g.title === 'Resources');

@@ -28,9 +28,13 @@ vi.mock('@/hooks/queries/useClubRegistryNumbers', () => ({
 }));
 vi.mock('@/services/database/club-access-requests', () => ({
   getPendingClubAccessRequests: mocks.requests,
+  getDeclinedRequestClubIds: vi.fn().mockResolvedValue([]),
   reviewClubAccessRequest: mocks.review,
 }));
 vi.mock('@/services/database/clubs', () => ({ setClubAuthorization: mocks.authorize }));
+vi.mock('@/hooks/queries/useShowsDatabase', () => ({
+  useShowsByClubQuery: () => ({ data: [], isPending: false, isError: false }),
+}));
 vi.mock('@/lib/notifications', () => ({
   notifications: { success: vi.fn(), error: vi.fn() },
 }));
@@ -80,6 +84,23 @@ describe('ClubsWaitingSection', () => {
     expect(screen.getAllByText('Heartland Dog Club')).toHaveLength(1);
     expect(screen.getByText(/Liz Beezley · liz@example.com/)).toBeInTheDocument();
     expect(screen.getByText('Club numbers: AKC #4521')).toBeInTheDocument();
+  });
+
+  it('says nothing is waiting when a creator-filtered list is empty, never that all were approved', async () => {
+    mocks.clubs.mockReturnValue({
+      data: [],
+      isPending: false,
+      isError: false,
+      isFetching: false,
+      refetch,
+    });
+    mocks.requests.mockResolvedValue([]);
+    render(<ClubsWaitingSection />, {
+      initialRoute: '/admin/onboarding?creator=11111111-1111-4111-8111-111111111111',
+    });
+
+    expect(await screen.findByText('No clubs are waiting for approval.')).toBeInTheDocument();
+    expect(screen.queryByText(/have all been approved/)).not.toBeInTheDocument();
   });
 
   it('still lists a waiting club that has no request, and offers no Decline for it', async () => {
@@ -140,9 +161,28 @@ describe('ClubsWaitingSection', () => {
     expect(screen.queryByText(/without an access request/)).not.toBeInTheDocument();
   });
 
-  it('declines a request as before, with no club change', async () => {
+  it('declines through one confirmation, sending deleteClub only because the box is ticked', async () => {
     const { user } = render(<ClubsWaitingSection />, { initialRoute: '/admin/onboarding' });
     await user.click(await screen.findByRole('button', { name: 'Decline Heartland Dog Club' }));
+    expect(mocks.review).not.toHaveBeenCalled();
+    expect(screen.getByRole('checkbox', { name: 'Also delete this club' })).toBeChecked();
+    await user.click(screen.getByRole('button', { name: 'Decline' }));
+
+    await waitFor(() =>
+      expect(mocks.review).toHaveBeenCalledWith({
+        requestId: 'req-1',
+        decision: 'denied',
+        reviewNote: null,
+        deleteClub: true,
+      })
+    );
+  });
+
+  it('sends no deleteClub when the box is unticked', async () => {
+    const { user } = render(<ClubsWaitingSection />, { initialRoute: '/admin/onboarding' });
+    await user.click(await screen.findByRole('button', { name: 'Decline Heartland Dog Club' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Also delete this club' }));
+    await user.click(screen.getByRole('button', { name: 'Decline' }));
 
     await waitFor(() =>
       expect(mocks.review).toHaveBeenCalledWith({
@@ -151,6 +191,17 @@ describe('ClubsWaitingSection', () => {
         reviewNote: null,
       })
     );
+  });
+
+  it('says in plain words when the network fails, never the raw error', async () => {
+    mocks.review.mockRejectedValue(new TypeError('Failed to fetch'));
+    const { user } = render(<ClubsWaitingSection />, { initialRoute: '/admin/onboarding' });
+    await user.click(await screen.findByRole('button', { name: 'Approve Heartland Dog Club' }));
+
+    await waitFor(() => expect(notifications.error).toHaveBeenCalledTimes(1));
+    const message = vi.mocked(notifications.error).mock.calls[0]?.[0] as string;
+    expect(message).toContain('We could not reach myK9Show.');
+    expect(message).not.toMatch(/TypeError|Failed to fetch/);
   });
 
   it('says nothing was approved when the password step is cancelled, never the raw code', async () => {

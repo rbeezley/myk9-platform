@@ -4,6 +4,8 @@ import { easternDayStartIso } from '@/features/admin-overview/easternDay';
 
 interface TodayCountsProps {
   counts: AdminOverviewCounts | undefined;
+  /** Clubs waiting for approval: the length of Onboarding's own list (`useWaitingClubs`). */
+  clubsWaiting: number | undefined;
   now: number;
 }
 
@@ -18,7 +20,7 @@ const VALUE_CLASS = 'mt-0.5 font-mono text-[19px] font-semibold tabular-nums tex
  * cross-show entries list, so Entries, Shows created and Live shows render static
  * rather than as cards that look clickable.
  */
-export function TodayCounts({ counts, now }: TodayCountsProps) {
+export function TodayCounts({ counts, clubsWaiting, now }: TodayCountsProps) {
   const signupsHref = `/admin/users?${new URLSearchParams({ from: easternDayStartIso(now) })}`;
   const cells: Array<{ label: string; value: number | undefined; href?: string }> = [
     { label: 'Entries', value: counts?.entriesToday },
@@ -27,7 +29,7 @@ export function TodayCounts({ counts, now }: TodayCountsProps) {
     { label: 'Live shows', value: counts?.liveShows },
     {
       label: 'Club requests waiting',
-      value: counts?.clubRequestsWaiting,
+      value: clubsWaiting,
       href: '/admin/onboarding',
     },
   ];

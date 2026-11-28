@@ -75,6 +75,21 @@ export async function getPendingClubAccessRequests(): Promise<ClubAccessRequest[
   return ((data ?? []) as unknown as ClubAccessRequestDbRow[]).map(mapClubAccessRequest);
 }
 
+/**
+ * MYK9-2528: the clubs whose access request was declined. A declined club that was not
+ * deleted stays unauthorized, so Onboarding leaves it out of the waiting list by this set.
+ */
+export async function getDeclinedRequestClubIds(): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('club_access_requests')
+    .select('created_club_id')
+    .eq('status', 'denied')
+    .not('created_club_id', 'is', null);
+
+  if (error) throw error;
+  return (data ?? []).flatMap(row => (row.created_club_id ? [row.created_club_id] : []));
+}
+
 export interface ReviewClubAccessRequestInput {
   requestId: string;
   decision: 'approved' | 'denied';

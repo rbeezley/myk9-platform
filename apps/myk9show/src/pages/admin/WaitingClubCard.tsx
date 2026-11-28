@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { CheckCircle2, XCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { DeclineClubDialog } from './DeclineClubDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useClubRegistryNumbers } from '@/hooks/queries/useClubRegistryNumbers';
@@ -13,19 +14,22 @@ import type { WaitingClubRow } from './waitingClubRows';
 export interface WaitingClubChoices {
   /** Optional note stored with the decision; only a request carries one. */
   reviewNote: string | null;
+  /** Decline only: also delete the club (MYK9-2528). Never set on an approval. */
+  deleteClub: boolean;
 }
 
 interface WaitingClubCardProps {
   row: WaitingClubRow;
-  /** Approve or decline; resolves when the action is done, throws never (the caller reports). */
-  onApprove: (row: WaitingClubRow, choices: WaitingClubChoices) => Promise<void>;
-  onDecline: (row: WaitingClubRow, choices: WaitingClubChoices) => Promise<void>;
+  /** Approve or decline; resolves true when it went through, false when it did not (the caller reports), throws never. */
+  onApprove: (row: WaitingClubRow, choices: WaitingClubChoices) => Promise<boolean>;
+  onDecline: (row: WaitingClubRow, choices: WaitingClubChoices) => Promise<boolean>;
 }
 
 export function WaitingClubCard({ row, onApprove, onDecline }: WaitingClubCardProps) {
   const { request } = row;
   const [busy, setBusy] = useState<'approve' | 'decline' | null>(null);
   const [note, setNote] = useState('');
+  const [declining, setDeclining] = useState(false);
   const requestNumbers = formatClubRegistryNumbers(request?.clubNumbers);
   // A club made by hand has no request to carry its numbers; read them from the club.
   const numbersQuery = useClubRegistryNumbers(
@@ -34,13 +38,17 @@ export function WaitingClubCard({ row, onApprove, onDecline }: WaitingClubCardPr
   const numbersLabel = requestNumbers || formatClubRegistryNumbers(numbersQuery.data);
   const websiteLink = getSafeWebsiteLink(request?.requestedClubWebsite);
 
-  const run = async (kind: 'approve' | 'decline') => {
+  const run = async (kind: 'approve' | 'decline', deleteClub = false, declineNote?: string) => {
     setBusy(kind);
     const choices: WaitingClubChoices = {
-      reviewNote: note.trim() || null,
+      // A decline carries the dialog's reason; an Approve only the card's own note.
+      reviewNote: (declineNote ?? note).trim() || null,
+      deleteClub,
     };
     try {
-      await (kind === 'approve' ? onApprove(row, choices) : onDecline(row, choices));
+      const done = await (kind === 'approve' ? onApprove(row, choices) : onDecline(row, choices));
+      // A refusal or failure leaves the dialog open, with the reason and box as they were.
+      if (done) setDeclining(false);
     } finally {
       setBusy(null);
     }
@@ -119,9 +127,8 @@ export function WaitingClubCard({ row, onApprove, onDecline }: WaitingClubCardPr
             type="button"
             variant="outline"
             className="min-h-11"
-            onClick={() => void run('decline')}
+            onClick={() => setDeclining(true)}
             disabled={busy !== null}
-            loading={busy === 'decline'}
             aria-label={`Decline ${row.name}`}
           >
             <XCircle className="mr-2 h-4 w-4" aria-hidden="true" />
@@ -129,6 +136,17 @@ export function WaitingClubCard({ row, onApprove, onDecline }: WaitingClubCardPr
           </Button>
         )}
       </div>
+      {request && (
+        <DeclineClubDialog
+          open={declining}
+          onOpenChange={setDeclining}
+          clubName={row.name}
+          clubId={row.clubId}
+          initialNote={note}
+          busy={busy === 'decline'}
+          onConfirm={(deleteClub, reason) => void run('decline', deleteClub, reason)}
+        />
+      )}
     </article>
   );
 }

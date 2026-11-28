@@ -30,20 +30,32 @@ Checked against the code on `main` at `16d157b010`. The Linear review comments o
 
 ### Remaining work, mapped to the issues that already exist
 
-Every piece but D, E and F already has a child issue of MYK9-1945. Do not file new ones for those; D, E and F each need one once the owner answers.
+Every piece has a child issue of MYK9-1945. D, E and F were filed on 2026-11-28, after the owner's answers.
 
-- **PR A, the refund line on the Finish list: MYK9-2427, PR #4509 (in review).** It adds the `refund-review` item, links it to Pulls, and reads "unknown" when the entries cannot be read. After three review rounds on a dated note, the orchestrator decided (2026-11-28, recorded on MYK9-2427) that the line states the promise in words: "Your club's payout is promised within five business days of the show's last day." No computed date, because the device's copy of the show's end date has no freshness signal. This departs from decision 8, so the owner may overrule it (Question 4).
-- **PR B1 and B2, undo "Mark as submitted": MYK9-2432.** It is parked in Post-launch at Low priority. It needs a migration, because `result_submissions` has no update path. Nothing here un-parks it (Question 5).
+- **PR A, the refund line on the Finish list: MYK9-2427, PR #4509 (in review).** It adds the `refund-review` item, links it to Pulls, and reads "unknown" when the entries cannot be read. After three review rounds on a dated note, the orchestrator decided (2026-11-28, recorded on MYK9-2427) that the line states the promise in words: "Your club's payout is promised within five business days of the show's last day." No computed date, because the device's copy of the show's end date has no freshness signal. This departs from decision 8; the owner accepted the words on 2026-11-28 (Question 4).
+- **PR B1 and B2, undo "Mark as submitted": MYK9-2432.** It needs a migration, because `result_submissions` has no update path. The owner un-parked it on 2026-11-28 at priority 3, before launch (Question 5).
 - **PR C, a closed show's Status field: MYK9-2430** (In Progress since 2026-11-26 with no PR found). On a completed show the field is read-only and points to Reopen show. No server lock.
-- **PR D, pin what a closed show allows and refuses on the server (test only): no issue yet.** A SQL test, on a completed show, for each operation Phase 0 names: a secretary corrects a score, edits an entry, adds a late entry, and changes a class; plus the existing #778 exhibitor-withdraw refusal. It covers the server half of Phase 0 only. The app half (can she reach each of those in the UI on a closed show) is part of walk E, and the Phase 0 criterion closes only when both pass.
-- **PR F, the unpaid-entries line (money wording): no issue yet.** Item 8. One concern; no migration. The count comes from the one calculation (`whatIsLeft.ts`) and shows in both the Finish list and the close dialog (`buildCloseConcerns` selects its line types, so F adds it there); closing anyway records the open line in `closed_open_lines`. Tests cover all three.
-- **PR E, the two-trial close-out walk (docs only): no issue yet.** Write it in `secretary-task-walk.md` and run it once after A and C are live.
+- **PR D, pin what a closed show allows and refuses on the server (test only): MYK9-2553.** A SQL test, on a completed show, for each operation Phase 0 names: a secretary corrects a score, edits an entry, adds a late entry, and changes a class; plus the existing #778 exhibitor-withdraw refusal. It covers the server half of Phase 0 only. The app half (can she reach each of those in the UI on a closed show) is part of walk E, and the Phase 0 criterion closes only when both pass.
+- **PR F, the unpaid-entries line (money wording): MYK9-2552.** Item 8. One concern; no migration. The count comes from the one calculation (`whatIsLeft.ts`) and shows in both the Finish list and the close dialog (`buildCloseConcerns` selects its line types, so F adds it there); closing anyway records the open line in `closed_open_lines`. Tests cover all three.
+- **PR E, the two-trial close-out walk (docs only): MYK9-2554.** Write it in `secretary-task-walk.md` and run it once after A, C and F are live.
 - **The results email: MYK9-2426** (Todo), outside this plan by owner decision.
 - **The offline close note: MYK9-2508** (Backlog). The "what was still open" note is lost when a show is closed offline. Outside this plan.
 
-Order: A (in review), then C, D and F in parallel, then E once A, C and F are live (if the owner declines F, E runs after A and C). B (MYK9-2432) is parked and is not a prerequisite for anything here. Items 6 and 7 wait for the owner.
+Order: A (in review), then B, C, D and F in parallel, then E once A, C and F are live. B (MYK9-2432) is not a prerequisite for anything here. Items 6 and 7 are dropped from this issue (owner answers 2 and 3).
 
-### Open questions for the owner
+### Owner decisions (2026-11-28)
+
+The owner said "all six as recommended" (recorded on MYK9-1945) and answered question 7 in chat the same day:
+
+1. The reopen person stays as text inside `reopen_reason`, with no column.
+2. Drop the "dogs still need a handler named" line until the AKC rule is found.
+3. Drop the AKC paperwork, the fee and "Mark as mailed" from this issue until the regulations are read.
+4. The refund line states the promise in words, not a date.
+5. Un-park MYK9-2432 (undo "Mark as submitted", needs a migration) before launch, at priority 3.
+6. On a completed show, lock only the Status field, with no server rule.
+7. Build the "N entries unpaid" line now, as PR F (MYK9-2552).
+
+### The questions as asked
 
 1. **Reopen person: keep as text, or add a column?** There is no person column. The person, time and reason sit in one text field, and only the latest reopen is kept. A column or a history table is a migration. Recommendation: leave it as is. A secretary reopens a show rarely, and nobody has asked to list reopens. Reconsider only if support needs to see who reopened a show.
 2. **"N dogs still need a handler named": build it?** AKC § 36 requires the handler on the marked catalog only when it is someone other than the owner. So the line would count only dogs entered with a non-owner handler still unnamed (for example "I'll decide at the show"); an owner-handled dog never counts. Recommendation: build it as that narrow line when the online entry starts recording "handler to be decided", since until then the app cannot tell an unnamed handler from the owner handling.

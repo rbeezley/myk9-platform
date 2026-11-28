@@ -86,6 +86,9 @@ export function ClubsWaitingSection() {
   const handleDecline = useCallback(
     async (row: WaitingClubRow, choices: WaitingClubChoices): Promise<boolean> => {
       if (!row.request) return false;
+      // Once the server has declined, a later local step failing must not report "couldn't
+      // decline" or keep the dialog open on a request that is already reviewed.
+      let reviewed = false;
       try {
         if (choices.deleteClub) {
           // The same guard as the ordinary delete: a delete cascades, and work on this device
@@ -108,18 +111,28 @@ export function ClubsWaitingSection() {
           // Sent only when ticked, so a plain decline is the call the server already knew.
           ...(choices.deleteClub ? { deleteClub: true } : {}),
         });
+        reviewed = true;
+        notifications.success(
+          choices.deleteClub ? 'Club request declined and club deleted' : 'Club request declined'
+        );
+        void queryClient.invalidateQueries({ queryKey: clubQueryKeys.lists() });
         if (choices.deleteClub && row.clubId) {
           // The server already deleted it: drop it from this device without a second delete.
           await reconcileLocalDeletion('club', { id: row.clubId, name: row.name });
           invalidateAfterDelete(queryClient, 'club');
         }
-        notifications.success(
-          choices.deleteClub ? 'Club request declined and club deleted' : 'Club request declined'
-        );
-        void queryClient.invalidateQueries({ queryKey: clubQueryKeys.lists() });
         await refresh();
         return true;
       } catch (error) {
+        if (reviewed) {
+          logger.error(
+            'Club request declined; refreshing this device failed',
+            'admin',
+            { requestId: row.request.id },
+            error as Error
+          );
+          return true;
+        }
         logger.error(
           'Failed to decline club request',
           'admin',

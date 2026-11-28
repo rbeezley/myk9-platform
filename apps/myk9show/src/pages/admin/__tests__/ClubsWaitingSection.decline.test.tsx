@@ -273,4 +273,17 @@ describe('Decline confirmation', () => {
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
+
+  it('reports a decline the server made even when cleaning up this device fails', async () => {
+    mocks.shows.mockReturnValue({ data: [], isPending: false, isError: false });
+    mocks.reconcile.mockRejectedValue(new Error('idb closed'));
+    const { user } = await openDecline();
+    await user.click(screen.getByRole('button', { name: 'Decline' }));
+
+    await waitFor(() =>
+      expect(notifications.success).toHaveBeenCalledWith('Club request declined and club deleted')
+    );
+    expect(notifications.error).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
 });

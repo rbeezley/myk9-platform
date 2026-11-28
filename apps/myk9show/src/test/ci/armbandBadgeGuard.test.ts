@@ -18,16 +18,29 @@ import { describe, expect, it } from 'vitest';
 const SRC = resolve(__dirname, '../..');
 
 const AD_HOC_ARMBAND = [
-  /#\s*\{[^}]*armband[^}]*\}/i, // #{entry.armband}
+  /#\s*\{[^}]*armband[^}]*\}/i, // #{entry.armband}, #{formatArmband(entry)}
   /\bArmband:?\s*\{(?!\s*['"`]\s*['"`]\s*\})[^}]*\}/, // Armband {x}; not the {' '} spacer before a badge
   /\bArmband:\s*<\/\w+>\s*\{[^}]*\}/, // <strong>Armband:</strong> {x}
+  /`[^`]*\bArmband\s*\$\{[^}]*\}/, // `Armband ${x} ${dogName}`
+  /<(?:td|TableCell)\b[^>]*>\s*\{[^{}<>]*armband[^{}<>]*\}\s*<\/(?:td|TableCell)>/i, // bare cell: <TableCell>{entry.armband}</TableCell>
 ];
+
+const PRINTED_DOCUMENT =
+  'Printed report or catalog table (print/PDF layout), out of scope per MYK9-2534.';
 
 /** Paths relative to src/, with the reason each is allowed to print the armband as text. */
 const ALLOWLIST: Record<string, string> = {
   'components/common/ArmbandBadge.tsx': 'The badge itself.',
   'components/reports/labels/ResultLabelCell.tsx':
-    'Printed result label: inline styles for the physical label, not a screen badge.',
+    'Printed result label branch (the on-screen preview passes `screen` and renders the badge).',
+  'components/reports/AKCScentWorkTransferFormPreview.tsx': PRINTED_DOCUMENT,
+  'components/reports/AkcMarkedCatalogClass.tsx': PRINTED_DOCUMENT,
+  'components/reports/FinancialReport.tsx': PRINTED_DOCUMENT,
+  'components/reports/HighInTrialReport.tsx': PRINTED_DOCUMENT,
+  'components/reports/ResultCatalog.tsx': PRINTED_DOCUMENT,
+  'components/reports/ResultsSheet.tsx': PRINTED_DOCUMENT,
+  'components/reports/ShowCatalog.tsx': PRINTED_DOCUMENT,
+  'features/pipeline/print/print-templates.tsx': PRINTED_DOCUMENT,
   'components/reports/PrintableReport.tsx':
     'Printable report (print/PDF layout): a plain-text document, not an on-screen badge.',
   'components/reports/labels/ArmbandLabelChoiceControls.tsx':
@@ -50,7 +63,9 @@ function stripComments(source: string): string {
 
 export function findAdHocArmband(source: string): string[] {
   const text = stripComments(source);
-  return AD_HOC_ARMBAND.flatMap(pattern => text.match(new RegExp(pattern, 'g')) ?? []);
+  return AD_HOC_ARMBAND.flatMap(
+    pattern => text.match(new RegExp(pattern.source, `${pattern.flags}g`)) ?? []
+  );
 }
 
 describe('armband badge guard', () => {
@@ -58,6 +73,9 @@ describe('armband badge guard', () => {
     expect(findAdHocArmband('<span>#{entry.armband}</span>')).toHaveLength(1);
     expect(findAdHocArmband('<span>Armband {entry.armband}</span>')).toHaveLength(1);
     expect(findAdHocArmband('<strong>Armband:</strong> {entry.armband}')).toHaveLength(1);
+    expect(findAdHocArmband('<span>#{formatArmband(entry)}</span>')).toHaveLength(1);
+    expect(findAdHocArmband('<TableCell>{entry.armband || "-"}</TableCell>')).toHaveLength(1);
+    expect(findAdHocArmband('`Armband ${entry.armband} ${entry.dogName}`')).toHaveLength(1);
     expect(findAdHocArmband('<ArmbandBadge armband={entry.armband} />')).toHaveLength(0);
     expect(findAdHocArmband('// #{entry.armband}\n<span>{count}</span>')).toHaveLength(0);
   });

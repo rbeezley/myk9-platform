@@ -14,6 +14,7 @@
 // stripe-webhook/cartFulfillment.ts). A redelivery finds the latch closed and
 // the request beside it.
 
+import { liveAlertDetail } from './alertResolve.ts';
 import {
   abandonedCartMissingInputsAlert,
   dollars,
@@ -116,6 +117,7 @@ export async function ensureRefundRequestAlert(
       dedupeKey: `refund-request-${request.id}`,
       detail: {
         refund_request_id: request.id,
+        ...liveAlertDetail({ kind: 'refund_request', refund_request_id: request.id }),
         kind: request.kind,
         amount_cents: request.amountCents,
         payment_intent_id: request.paymentIntentId,

@@ -27,6 +27,12 @@ import {
   type InsertResultLike,
   type AlertDeliveryOptions,
 } from './alertAdminCore.ts';
+import {
+  dedupeKeyPrefixPattern,
+  resolveOperatorAlertsWith,
+  type AlertMatch,
+  type OpenAlertRow,
+} from './alertResolve.ts';
 import { sendResendEmailWithRetry } from './resendEmail.ts';
 
 export type AlertSeverity = 'info' | 'warn' | 'error';
@@ -81,6 +87,56 @@ async function insertOperatorAlert(
     error: error ? { code: (error as { code?: string }).code, message: error.message } : null,
     storedResolved: (data ?? []).some(row => row.resolved_at != null),
   };
+}
+
+/**
+ * Close the open alerts `match` selects because their condition cleared
+ * (MYK9-2540); see alertResolve.ts. Never throws: logs and returns 0.
+ */
+export async function resolveOperatorAlerts(
+  source: string,
+  match: AlertMatch,
+  note: string
+): Promise<number> {
+  if (!supabase) {
+    console.error(`operator_alerts client unavailable; not resolving ${source} alerts`);
+    return 0;
+  }
+  const client = supabase;
+  try {
+    return await resolveOperatorAlertsWith(
+      {
+        findOpen: async (src, m) => {
+          let query = client
+            .from('operator_alerts')
+            .select('id, detail')
+            .eq('source', src)
+            .is('resolved_at', null);
+          query =
+            'dedupeKey' in m
+              ? query.eq('dedupe_key', m.dedupeKey)
+              : query.like('dedupe_key', dedupeKeyPrefixPattern(m.dedupeKeyPrefix));
+          const { data, error } = await query;
+          if (error) throw new Error(error.message);
+          return (data ?? []) as OpenAlertRow[];
+        },
+        resolve: async (id, resolvedAt, detail) => {
+          const { data, error } = await client
+            .from('operator_alerts')
+            .update({ resolved_at: resolvedAt, detail })
+            .eq('id', id)
+            .is('resolved_at', null)
+            .select('id');
+          if (error) throw new Error(error.message);
+          return (data ?? []).length > 0;
+        },
+      },
+      { source, match, note, now: new Date() }
+    );
+  } catch (err) {
+    console.error(`Resolving ${source} alerts failed:`, err);
+    return 0;
+  }
 }
 
 export async function alertAdmin(

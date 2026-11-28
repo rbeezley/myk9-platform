@@ -138,25 +138,41 @@ BEGIN
       USING ERRCODE = '42501';
   END IF;
 
+  -- A NULL would fall through "IF NOT p_authorized" into an authorize.
+  IF p_authorized IS NULL THEN
+    RAISE EXCEPTION 'Authorized must be true or false' USING ERRCODE = '22023';
+  END IF;
+
   -- A revoke removes access; it never asks for the password and never touches a request.
   IF NOT p_authorized THEN
     PERFORM private.authorize_club_core(p_club_id, false);
     RETURN;
   END IF;
 
+  -- The reauth / no-op decision below is made from LOCKED rows, so a concurrent revoke
+  -- cannot land between the read and the write and re-authorize the club with no password.
+  -- Lock order is requests first, then the club: review_club_access_request locks its
+  -- request row and then the club (through the core), so the opposite order here would
+  -- deadlock against an Onboarding approve of the same club. Re-locking the same rows in
+  -- review or the core, in this transaction, is a no-op.
+  FOR v_request_id IN
+    SELECT id FROM public.club_access_requests
+    WHERE created_club_id = p_club_id AND status = 'pending'
+    ORDER BY created_at, id
+    FOR UPDATE
+  LOOP
+    v_has_pending := true;
+  END LOOP;
+
   SELECT authorized_at INTO v_current_authorized_at
   FROM public.clubs
-  WHERE id = p_club_id;
+  WHERE id = p_club_id
+  FOR UPDATE;
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Club % not found', p_club_id
       USING ERRCODE = 'P0002';
   END IF;
-
-  v_has_pending := EXISTS (
-    SELECT 1 FROM public.club_access_requests
-    WHERE created_club_id = p_club_id AND status = 'pending'
-  );
 
   -- Authorizing an unauthorized club, or closing a waiting request, needs a password
   -- confirmed in the last five minutes (MYK9-1208). An already-authorized club with no
@@ -251,7 +267,7 @@ BEGIN
     RAISE EXCEPTION 'Only site admins can review club access requests' USING ERRCODE = '42501';
   END IF;
 
-  IF p_decision NOT IN ('approved', 'denied') THEN
+  IF p_decision IS NULL OR p_decision NOT IN ('approved', 'denied') THEN
     RAISE EXCEPTION 'Decision must be approved or denied' USING ERRCODE = '22023';
   END IF;
 

@@ -725,4 +725,53 @@ BEGIN
 END;
 $$;
 
+-- 2513.7 A NULL decision or NULL authorized flag is refused (22023) and changes nothing.
+-- The stale-doors club still has its pending request and is unauthorized.
+SET LOCAL ROLE authenticated;
+DO $$
+DECLARE
+  v_club uuid := (SELECT club_id FROM zz_2513 WHERE label = 'stale');
+  v_request uuid := (SELECT request_id FROM zz_2513 WHERE label = 'stale');
+  v_refused boolean;
+BEGIN
+  PERFORM set_config('request.jwt.claims',
+    public.zz_claims_2513('00000000-0000-0000-0000-000000682102', 30), true);
+
+  v_refused := false;
+  BEGIN
+    PERFORM public.set_club_authorization(v_club, NULL);
+  EXCEPTION WHEN SQLSTATE '22023' THEN
+    v_refused := true;
+  END;
+  IF NOT v_refused THEN
+    RAISE EXCEPTION 'FAIL 2513.7 set_club_authorization accepted a NULL flag';
+  END IF;
+
+  v_refused := false;
+  BEGIN
+    PERFORM public.review_club_access_request(v_request, NULL);
+  EXCEPTION WHEN SQLSTATE '22023' THEN
+    v_refused := true;
+  END;
+  IF NOT v_refused THEN
+    RAISE EXCEPTION 'FAIL 2513.7 review_club_access_request accepted a NULL decision';
+  END IF;
+  PERFORM set_config('request.jwt.claims', '', true);
+END;
+$$;
+RESET ROLE;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.club_access_requests r JOIN public.clubs c ON c.id = r.created_club_id
+    WHERE r.id = (SELECT request_id FROM zz_2513 WHERE label = 'stale')
+      AND r.status = 'pending' AND c.authorized_at IS NULL AND c.deleted_at IS NULL
+  ) THEN
+    RAISE EXCEPTION 'FAIL 2513.7 a NULL argument changed the club or the request';
+  END IF;
+  RAISE NOTICE 'PASS 2513.7 NULL flag or decision is refused and changes nothing';
+END;
+$$;
+
 ROLLBACK;

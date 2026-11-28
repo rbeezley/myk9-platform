@@ -45,6 +45,8 @@ export interface AnsweredQuestion {
    * a mixed route's refused guide half used to leave no trace in the log.
    */
   guideRefusal: GuideRefusal | null;
+  /** The guides' one quote retry (MYK9-2472): null when none happened. */
+  guideRetry: GuidesAnswer['retry'];
 }
 
 /** Why the guides refused: the model handed off, or a named quote rule rejected its answer. */
@@ -77,13 +79,26 @@ export function escalationMarkers(
   ];
 }
 
-/** What a question logs about a refused guide answer: the escalation, or the refusal alone. */
+/** The markers for the one quote retry: it happened, and (only if so) that it passed. */
+export function retryMarkers(retry: GuidesAnswer['retry']): string[] {
+  if (!retry) return [];
+  return retry === 'passed'
+    ? ['support_quote_retry', 'support_quote_retry_passed']
+    : ['support_quote_retry'];
+}
+
+/**
+ * What a question logs about the guide answer: the escalation, or the refusal alone, plus the
+ * retry markers, which a retry that passed logs too (it has no refusal).
+ */
 export function refusalMarkers(
-  answered: Pick<AnsweredQuestion, 'escalation' | 'escalationCause' | 'guideRefusal'>
+  answered: Pick<AnsweredQuestion, 'escalation' | 'escalationCause' | 'guideRefusal'> &
+    Partial<Pick<AnsweredQuestion, 'guideRetry'>>
 ): string[] {
-  return answered.escalation
+  const refusal = answered.escalation
     ? escalationMarkers(answered.escalationCause, answered.guideRefusal?.detail ?? null)
     : guideRefusalMarkers(answered.guideRefusal);
+  return [...refusal, ...retryMarkers(answered.guideRetry ?? null)];
 }
 
 /** "Which rulebook should I use?" is a question back, not a rulebook answer: a `plain` section. */
@@ -150,6 +165,7 @@ export async function answerQuestion(input: AnswerQuestionInput): Promise<Answer
       escalation: precheck,
       escalationCause: 'precheck',
       guideRefusal: null,
+      guideRetry: null,
     };
   }
   const base = { call: input.call, message: input.message, userContext: input.userContext };
@@ -194,5 +210,6 @@ export async function answerQuestion(input: AnswerQuestionInput): Promise<Answer
     escalation: guidesOnlyRefused ? (guides?.escalation ?? null) : null,
     escalationCause: guidesOnlyRefused ? (guides?.escalationCause ?? null) : null,
     guideRefusal: guideRefusalOf(guides),
+    guideRetry: guides?.retry ?? null,
   };
 }

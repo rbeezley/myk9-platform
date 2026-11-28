@@ -79,6 +79,8 @@ export interface ParsedSupportAnswer {
   escalationCause: SupportQuoteRefusal | null;
   /** Which quote rule rejected the answer, when one did; for logging only. */
   escalationDetail: SupportQuoteRejection | null;
+  /** The quote that failed `quote_not_in_guide`; used to word the one retry. */
+  failedQuote: string | null;
   guideSources: VerifiedGuideQuote[];
 }
 
@@ -102,6 +104,7 @@ export function parseSupportAnswer(
       escalation: null,
       escalationCause: null,
       escalationDetail: null,
+      failedQuote: null,
       guideSources: verified.guideSources,
     };
   }
@@ -110,6 +113,7 @@ export function parseSupportAnswer(
     escalation: getSupportLowConfidenceEscalation(),
     escalationCause: verified.reason,
     escalationDetail: verified.detail ?? null,
+    failedQuote: verified.failedQuote ?? null,
     guideSources: [],
   };
 }

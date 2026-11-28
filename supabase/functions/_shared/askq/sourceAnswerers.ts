@@ -31,6 +31,13 @@ export interface GuidesAnswer {
   escalation: SupportEscalationPayload | null;
   escalationCause: SupportQuoteRefusal | null;
   escalationDetail: SupportQuoteRejection | null;
+  /** Set only when `quote_not_in_guide` earned the one retry: did the second answer verify? */
+  retry: 'passed' | 'failed' | null;
+}
+
+/** The one retry's follow-up turn (MYK9-2472): names the quote that failed, asks for exact copying. */
+function retryPrompt(failedQuote: string): string {
+  return `The passage "${failedQuote}" is not in the guide word for word. Answer again, copying passages exactly.`;
 }
 
 /** Guides only, no tools. Whatever the model wrote is shown only if its quotes verify. */
@@ -38,8 +45,26 @@ export async function answerFromGuides(
   input: AnswererBase & { hasStaffRole: boolean; allGuides: AskQGuideAsset[] }
 ): Promise<GuidesAnswer> {
   const { systemPrompt, guides } = buildGuidesPrompt(input);
-  const reply = await input.call([{ role: 'user', content: input.message }], [], systemPrompt);
-  const parsed = parseSupportAnswer(firstText(reply), guides);
+  const question: ClaudeMessage = { role: 'user', content: input.message };
+  const reply = await input.call([question], [], systemPrompt);
+  const firstReply = firstText(reply);
+  let parsed = parseSupportAnswer(firstReply, guides);
+  let retry: GuidesAnswer['retry'] = null;
+  // Owner decision A (MYK9-2472): a reworded quote gets one more try, only on this rule. The
+  // exact word-for-word check is unchanged; no loop, no second retry.
+  if (parsed.escalationDetail === 'quote_not_in_guide' && parsed.failedQuote) {
+    const second = await input.call(
+      [
+        question,
+        { role: 'assistant', content: firstReply },
+        { role: 'user', content: retryPrompt(parsed.failedQuote) },
+      ],
+      [],
+      systemPrompt
+    );
+    parsed = parseSupportAnswer(firstText(second), guides);
+    retry = parsed.escalation ? 'failed' : 'passed';
+  }
   if (parsed.escalation) {
     return {
       text: null,
@@ -47,6 +72,7 @@ export async function answerFromGuides(
       escalation: parsed.escalation,
       escalationCause: parsed.escalationCause,
       escalationDetail: parsed.escalationDetail,
+      retry,
     };
   }
   return {
@@ -55,6 +81,7 @@ export async function answerFromGuides(
     escalation: null,
     escalationCause: null,
     escalationDetail: null,
+    retry,
   };
 }
 

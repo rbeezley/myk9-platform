@@ -330,7 +330,12 @@ describe('whole short steps and screenshots (MYK9-2472)', () => {
   it('never matches the words of a screenshot caption', () => {
     expect(
       verify(ANSWER, quoteLine(EXHIBITOR, 'Add Dog panel — Registration tab with Find dog'))
-    ).toEqual({ ok: false, reason: 'quote_rejected', detail: 'quote_not_in_guide' });
+    ).toEqual({
+      ok: false,
+      reason: 'quote_rejected',
+      detail: 'quote_not_in_guide',
+      failedQuote: 'Add Dog panel — Registration tab with Find dog',
+    });
   });
 
   // Codex review of #4464: the caption was dropped for checking but kept for display, so words

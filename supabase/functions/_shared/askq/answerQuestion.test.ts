@@ -342,13 +342,18 @@ describe('guide claims fail closed (criterion 4)', () => {
     expect(shared.guideRefusal?.cause).toBe('quote_rejected');
     expect(guideRefusalMarkers(shared.guideRefusal)).toContain('support_quote_rejected');
     // What index.ts logs: the refusal alone here, and the escalation when it is the whole reply.
-    expect(refusalMarkers(shared)).toEqual(guideRefusalMarkers(shared.guideRefusal));
+    // A fabricated quote is not in the guide, so it earned the one retry (MYK9-2472), which also fails.
+    expect(refusalMarkers(shared)).toEqual([
+      ...guideRefusalMarkers(shared.guideRefusal),
+      'support_quote_retry',
+    ]);
     const sole = await run(stubModel({ verdict: ['guides'], guides: fabricated }), {
       supportMode: true,
     }).promise;
-    expect(refusalMarkers(sole)).toEqual(
-      escalationMarkers(sole.escalationCause, sole.guideRefusal?.detail ?? null)
-    );
+    expect(refusalMarkers(sole)).toEqual([
+      ...escalationMarkers(sole.escalationCause, sole.guideRefusal?.detail ?? null),
+      'support_quote_retry',
+    ]);
     expect(refusalMarkers(sole)[0]).toBe('support_escalation');
     expect(guideRefusalMarkers(null)).toEqual([]);
     expect(guideRefusalMarkers({ cause: 'quote_rejected', detail: 'quote_too_short' })).toEqual([

@@ -15245,6 +15245,19 @@ export type Database = {
         Args: { role_name: string; scope_club_id?: string }
         Returns: boolean
       }
+      heal_cart_fees: {
+        Args: {
+          p_cart_id: string
+          p_expected_updated_at: string
+          p_lease_id: string
+          p_lines: Json
+          p_observed_session_id: string
+          p_platform_fee_cents: number
+          p_subtotal_cents: number
+          p_total_cents: number
+        }
+        Returns: string
+      }
       held_spot_count: {
         Args: { p_class_ids: string[]; p_exclude_auth_user_id?: string }
         Returns: number

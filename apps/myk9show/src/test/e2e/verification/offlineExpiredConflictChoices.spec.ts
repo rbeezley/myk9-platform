@@ -157,13 +157,13 @@ test('both conflict answers settle offline past token expiry, then the server an
     expect(rpcStatuses.get('bMine')?.length ?? 0).toBe(offlineCalls.bMine);
     expect(rpcStatuses.get('bSaved')?.length ?? 0).toBe(offlineCalls.bSaved);
 
-    // Keep my change: the notice goes, the device keeps its NQ and still has it queued.
+    // Keep my score: the notice goes, the device keeps its NQ and still has it queued.
     await bMine.page.getByRole('button', { name: KEEP_MINE }).click();
     await expect(bMine.page.getByText(CONFLICT_TITLE)).toHaveCount(0);
     expect(await localResult(bMine.page, mineId)).toBe('nq');
     expect(await pendingCount(bMine.page, mineId)).toBeGreaterThan(0);
 
-    // Keep the other change: the queued NQ is dropped and the saved Q shows, with nothing sent.
+    // Keep the saved score: the queued NQ is dropped and the saved Q shows, with nothing sent.
     await bSaved.page.getByRole('button', { name: KEEP_SAVED }).click();
     await expect(bSaved.page.getByText(CONFLICT_TITLE)).toHaveCount(0);
     await expect.poll(() => pendingCount(bSaved.page, savedId)).toBe(0);
@@ -171,7 +171,8 @@ test('both conflict answers settle offline past token expiry, then the server an
 
     // Nothing reached the server while offline.
     expect((await row(client, mineId)).result_status).toBe('qualified');
-    expect((await row(client, savedId)).result_status).toBe('qualified');
+    const savedBefore = await row(client, savedId);
+    expect(savedBefore.result_status).toBe('qualified');
     await evidence(info, 'offline-resolved', {
       expired,
       mine: await replica(bMine.page, mineId),
@@ -191,6 +192,13 @@ test('both conflict answers settle offline past token expiry, then the server an
     const saved = await row(client, savedId);
     expect(mine.version).toBeGreaterThan(baseline[0].version);
     expect(saved.result_status).toBe('qualified');
+    // The dropped NQ never reached the server: no write landed, and B sent no score call for it.
+    expect(saved.version).toBe(savedBefore.version);
+    expect(rpcStatuses.get('bSaved')?.length ?? 0).toBe(offlineCalls.bSaved);
+    // The kept NQ was accepted after the token refreshed (as in showDayReliability).
+    const keptCalls = (rpcStatuses.get('bMine') ?? []).slice(offlineCalls.bMine);
+    await evidence(info, 'reconnect-calls', { keptCalls });
+    expect(keptCalls.some(status => status === 200)).toBe(true);
     const refreshed = await sessionIdentity(bMine.page);
     expect(refreshed.userId).toBe(initial.userId);
     expect(refreshed.expiresAt).toBeGreaterThan(expired.expiresAt);

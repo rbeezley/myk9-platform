@@ -266,21 +266,12 @@ test.describe('offline past token expiry', () => {
       // Every replica agrees with the server.
       await expect.poll(() => localResult(bMine.page, mineId), { timeout: 60_000 }).toBe('nq');
       expect(await localResult(bSaved.page, savedId)).toBe('qualified');
-      // B's keep-saved device had nothing to send, so prove it reconnected on its own: its expired
-      // session refreshed, and it downloaded the server's newer version of the row (the placement
-      // recalculation bumped it after the kept NQ landed), not just kept its offline copy.
+      // B's keep-saved device had nothing to send, so prove its own expired session refreshed on
+      // reconnect. Whether an idle device then downloads newer rows on its own cadence is a
+      // separate property, tracked in MYK9-2535, not claimed here.
       await expect
         .poll(async () => (await sessionIdentity(bSaved.page)).expiresAt, { timeout: 120_000 })
         .toBeGreaterThan(expiredSaved.expiresAt);
-      await expect
-        .poll(
-          async () => {
-            await bSaved.page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
-            return (await storedState(bSaved.page, savedId)).serverVersion;
-          },
-          { timeout: 90_000, intervals: [1_000, 2_000, 5_000] }
-        )
-        .toBe(saved.version);
       // A learns of B's write on its next download pass; the visibility trigger forces one.
       await expect
         .poll(

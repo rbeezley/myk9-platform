@@ -18,10 +18,14 @@ vi.mock('@/store/clubStore', () => ({
 }));
 vi.mock('@/hooks/queries/useClubsDatabase', () => ({
   useClubsAwaitingAuthorizationQuery: () => mocks.clubs(),
-  clubQueryKeys: { lists: () => ['clubs', 'list'] },
+  useClubsQuery: () => ({ data: [{ id: 'club-2', name: 'Existing Dog Club' }] }),
+  clubQueryKeys: {
+    lists: () => ['clubs', 'list'],
+    awaitingAuthorization: () => ['clubs', 'list', 'awaiting-authorization'],
+  },
 }));
 vi.mock('@/hooks/queries/useClubRegistryNumbers', () => ({
-  useClubRegistryNumbers: () => ({ data: { AKC: '777' } }),
+  useClubRegistryNumbers: () => ({ data: { AKC: '777' }, isError: false, isPending: false }),
 }));
 vi.mock('@/services/database/club-access-requests', () => ({
   getPendingClubAccessRequests: mocks.requests,
@@ -106,6 +110,8 @@ describe('ClubsWaitingSection', () => {
     );
     expect(mocks.authorize).not.toHaveBeenCalled();
     expect(notifications.success).toHaveBeenCalledWith('Club approved');
+    await waitFor(() => expect(mocks.ensureClubsReady).toHaveBeenCalled());
+    expect(notifications.error).not.toHaveBeenCalled();
   });
 
   it('approves a club with no request by authorizing it', async () => {
@@ -114,6 +120,54 @@ describe('ClubsWaitingSection', () => {
 
     await waitFor(() => expect(mocks.authorize).toHaveBeenCalledWith('club-9', true));
     expect(mocks.review).not.toHaveBeenCalled();
+    await waitFor(() => expect(mocks.ensureClubsReady).toHaveBeenCalled());
+    expect(notifications.error).not.toHaveBeenCalled();
+  });
+
+  it('sends the optional review note with an approval', async () => {
+    const { user } = render(<ClubsWaitingSection />, { initialRoute: '/admin/onboarding' });
+    await user.type(await screen.findByLabelText('Review note'), 'Welcome aboard');
+    await user.click(screen.getByRole('button', { name: 'Approve Heartland Dog Club' }));
+
+    await waitFor(() =>
+      expect(mocks.review).toHaveBeenCalledWith(
+        expect.objectContaining({ decision: 'approved', reviewNote: 'Welcome aboard' })
+      )
+    );
+  });
+
+  it('lets a legacy request with no club pick an existing club', async () => {
+    mocks.clubs.mockReturnValue({
+      data: [],
+      isPending: false,
+      isError: false,
+      isFetching: false,
+      refetch,
+    });
+    mocks.requests.mockResolvedValue([{ ...request, createdClubId: null }]);
+    const { user } = render(<ClubsWaitingSection />, { initialRoute: '/admin/onboarding' });
+    await user.selectOptions(
+      await screen.findByLabelText('Club to use for Heartland Dog Club'),
+      'club-2'
+    );
+    await user.click(screen.getByRole('button', { name: 'Approve Heartland Dog Club' }));
+
+    await waitFor(() =>
+      expect(mocks.review).toHaveBeenCalledWith({
+        requestId: 'req-1',
+        decision: 'approved',
+        existingClubId: 'club-2',
+        clubName: null,
+        reviewNote: null,
+      })
+    );
+  });
+
+  it('does not claim how a club without a pending request was created', async () => {
+    render(<ClubsWaitingSection />, { initialRoute: '/admin/onboarding' });
+
+    expect(await screen.findByText(/No access request is pending/)).toBeInTheDocument();
+    expect(screen.queryByText(/without an access request/)).not.toBeInTheDocument();
   });
 
   it('declines a request as before, with no club change', async () => {

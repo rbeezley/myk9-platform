@@ -60,6 +60,5 @@ describe('ClubsWaitingSection past the 1,000-row cap', () => {
       '/clubs/late-1'
     );
     expect(mocks.getClubsAwaitingAuthorization).toHaveBeenCalled();
-    expect(mocks.getAllClubs).not.toHaveBeenCalled();
   });
 });

@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { Inbox, RefreshCw } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import {
   clubQueryKeys,
   useClubsAwaitingAuthorizationQuery,
+  useClubsQuery,
 } from '@/hooks/queries/useClubsDatabase';
 import { refreshClubAuthorization } from '@/features/clubs/refreshClubAuthorization';
 import { STEP_UP_SQLSTATE } from '@/features/step-up/stepUpFetch';
@@ -17,7 +18,7 @@ import {
 import { setClubAuthorization } from '@/services/database/clubs';
 import { logger } from '@/services/LoggingService';
 import { useClubStore } from '@/store/clubStore';
-import { WaitingClubCard } from './WaitingClubCard';
+import { WaitingClubCard, type WaitingClubChoices } from './WaitingClubCard';
 import { buildWaitingClubRows, type WaitingClubRow } from './waitingClubRows';
 
 /**
@@ -58,8 +59,15 @@ export function ClubsWaitingSection() {
     staleTime: 0,
     refetchOnMount: 'always',
   });
+  const { data: allClubs = [] } = useClubsQuery();
   const { refetch: refetchClubs } = clubsQuery;
   const { refetch: refetchRequests } = requestsQuery;
+
+  // A cached list from an earlier visit is not good enough for a to-do list: another admin may
+  // have approved a club, or a new one may have been made, within the cache window.
+  useEffect(() => {
+    void refetchClubs();
+  }, [refetchClubs]);
 
   const refresh = useCallback(async () => {
     await Promise.all([refetchClubs(), refetchRequests()]);
@@ -75,7 +83,7 @@ export function ClubsWaitingSection() {
   const isRefreshing = clubsQuery.isFetching || requestsQuery.isFetching;
 
   const handleApprove = useCallback(
-    async (row: WaitingClubRow) => {
+    async (row: WaitingClubRow, choices: WaitingClubChoices) => {
       try {
         let clubId = row.clubId;
         if (row.request) {
@@ -83,10 +91,10 @@ export function ClubsWaitingSection() {
             (await reviewClubAccessRequest({
               requestId: row.request.id,
               decision: 'approved',
-              existingClubId: null,
-              // Only a legacy request with no club yet needs one made from its name.
-              clubName: row.request.createdClubId ? null : row.request.requestedClubName,
-              reviewNote: null,
+              existingClubId: choices.existingClubId,
+              // Only a legacy request with no club yet picks or names one.
+              clubName: choices.clubName,
+              reviewNote: choices.reviewNote,
             })) ?? clubId;
         } else if (row.clubId) {
           await setClubAuthorization(row.clubId, true);
@@ -104,13 +112,13 @@ export function ClubsWaitingSection() {
   );
 
   const handleDecline = useCallback(
-    async (row: WaitingClubRow) => {
+    async (row: WaitingClubRow, choices: WaitingClubChoices) => {
       if (!row.request) return;
       try {
         await reviewClubAccessRequest({
           requestId: row.request.id,
           decision: 'denied',
-          reviewNote: null,
+          reviewNote: choices.reviewNote,
         });
         notifications.success('Club request declined');
         await refresh();
@@ -198,6 +206,7 @@ export function ClubsWaitingSection() {
             <WaitingClubCard
               key={row.key}
               row={row}
+              clubs={allClubs}
               onApprove={handleApprove}
               onDecline={handleDecline}
             />

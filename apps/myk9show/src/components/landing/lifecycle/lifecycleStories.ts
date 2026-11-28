@@ -63,7 +63,7 @@ export const MEANWHILE_LABEL: Record<Audience, string> = {
   exhibitor: 'Meanwhile, the club',
 };
 export const PEAK_LEAD: Record<Audience, string> = {
-  club: 'Then show day arrives, and the venue has no signal.',
+  club: 'Then show day arrives, and the venue has no internet.',
   exhibitor: 'Then it’s show day.',
 };
 
@@ -171,9 +171,9 @@ export const SCENE_LINES: Record<SceneId, readonly SceneLine[]> = {
       short: 'Opens the classes',
     },
     {
-      head: 'The signal drops',
+      head: 'The internet goes out',
       text: 'The screen says changes are saved on this device, and the run order stays.',
-      short: 'Signal drops',
+      short: 'Internet goes out',
     },
     {
       head: 'The judge times and scores the run',
@@ -186,9 +186,9 @@ export const SCENE_LINES: Record<SceneId, readonly SceneLine[]> = {
       short: 'Reads it back',
     },
     {
-      head: 'The signal returns',
+      head: 'The internet comes back',
       text: 'The saved score sends itself, and the screen says Scores sent.',
-      short: 'Signal returns',
+      short: 'Internet comes back',
     },
   ],
   'showday-desk': [
@@ -271,7 +271,7 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
       id: 'showday',
       peak: true,
       title: 'Show day',
-      body: 'Judges score at the ring on a phone or tablet, even with no signal. Scores catch up on their own when the connection comes back.',
+      body: 'Judges score at the ring on a phone or tablet, even with no internet. Scores catch up on their own when the connection comes back.',
       shot: null,
       scene: 'showday-ring',
       scoresheetDemo: true,
@@ -318,7 +318,7 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
       body: 'Check in where the club allows it, and follow your classes from your phone.',
       shot: SHOTS['e-13'],
       explainer: EXHIBITOR_SHOW_DAY,
-      meanwhile: 'Judges score at the ring on a phone or tablet, even with no signal at all.',
+      meanwhile: 'Judges score at the ring on a phone or tablet, even with no internet at all.',
       meanwhileScene: 'showday-ring',
     },
     {

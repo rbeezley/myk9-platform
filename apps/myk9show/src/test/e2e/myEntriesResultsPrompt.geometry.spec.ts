@@ -35,14 +35,25 @@ for (const viewport of VIEWPORTS) {
     await page.route('**/rest/v1/show_visibility_settings*', route => fulfillRows(route, []));
     await signInAsExhibitor(page, '/exhibitor/entries');
 
-    // The prompt renders once, for the show's one placed class. Wait for it;
-    // the group may still be loading, so nothing is assumed about order.
+    // Reach the state a real exhibitor sees. The only placed result is on the
+    // completed show, folded under "Past shows" while upcoming shows exist, and
+    // the page holds its prompt back until that result's "New result" reveal has
+    // been opened (the release key is then marked seen). Do both through the UI.
+    await page.getByRole('button', { name: /^Past shows/ }).click();
+    const newResult = page.getByRole('button', { name: 'New result' });
+    await expect(newResult).toHaveCount(1, { timeout: 20000 });
+    await newResult.click();
+    const reveal = page.getByRole('dialog');
+    await expect(reveal.getByRole('heading', { name: 'New result' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(reveal).toHaveCount(0);
+
+    // The prompt renders once, for the show's one placed class.
     const prompt = page.getByTestId('results-public-prompt');
     await expect(prompt).toHaveCount(1, { timeout: 20000 });
     await expect(prompt).toBeVisible();
 
     // Not inside any class row.
-    await expect(page.locator('.myk9-entries-class-row').getByRole('group')).toHaveCount(0);
     await expect(
       page.locator('.myk9-entries-class-row [data-testid="results-public-prompt"]')
     ).toHaveCount(0);

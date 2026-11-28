@@ -9,55 +9,46 @@
 //    subtotal, so changing fees under a page that is complete (payment
 //    processing) or not confirmed expired would get that payment rejected as
 //    stale: charged, no entries. A blocked release leaves the cart untouched.
-// 2. Write the lines, stopping at the first that errors or matches no row.
-// 3. Only then write the totals (which also severs the page link).
+//    Stripe cannot join a database transaction, so this stays a separate step.
+// 2. Then ONE transaction (heal_cart_fees, MYK9-2455) writes every line, the
+//    totals and the cleared page link, or nothing. It refuses unless this
+//    request still holds the checkout lease and the cart and the page it links
+//    are the ones it read: a heal that outlived its lease must never clear the
+//    page a retry has since linked (sessionCartGuard would reject that payment).
 //
-// Any failed write answers heal_failed, never the 409 "fees were updated" (that
-// would be untrue, and every retry would drift again: the loop). Nor does
-// checkout carry on to Stripe with the server price: a page paid over unhealed
-// lines would be rejected by the same guard. Lines and totals are separate
-// PostgREST writes, not one transaction; with the prior page retired no paid
-// session can be judged against a half-written cart, and the next checkout's
-// linkCartCheckout rewrites the totals.
+// A failed heal answers heal_failed, never the 409 "fees were updated" (that
+// would be untrue); because nothing was written, the retry finds the same drift
+// and heals it. A refusal answers the cart-changed 409 so the cart page reloads.
+// Nor does checkout carry on to Stripe with the server price: a page paid over
+// unhealed lines would be rejected by the same guard.
 
 import type { PriorSessionRelease } from '../_shared/cartClassGate.ts';
-
-export interface FeeHealWriteResult {
-  error: { message: string; code?: string } | null;
-  data: readonly unknown[] | null;
-}
-
-export interface DriftedLine {
-  itemId: string;
-  authoritativeCents: number;
-}
+import {
+  CART_CHANGED_MESSAGE,
+  type CartFeeHealResult,
+  type DriftedLine,
+} from '../_shared/cartSpotHold.ts';
 
 export interface FeeHealDeps {
   releasePriorSession: () => Promise<PriorSessionRelease>;
-  /** Must select the updated rows, so a write that matched none is caught. */
-  writeLineFee: (itemId: string, cents: number) => PromiseLike<FeeHealWriteResult>;
-  writeCartTotals: () => PromiseLike<FeeHealWriteResult>;
+  /** heal_cart_fees: every line, the totals and the page link, in one transaction. */
+  applyHeal: (lines: readonly DriftedLine[]) => PromiseLike<CartFeeHealResult>;
   logError: (message: string, error: unknown) => void;
 }
 
 export type FeeHealOutcome =
   | { kind: 'healed' }
   | { kind: 'heal_failed' }
+  | { kind: 'cart_changed' }
   | { kind: 'blocked'; status: 409 | 503; error: string };
 
 export const FEES_HEALED_MESSAGE =
   'Entry fees were updated to current show pricing — review your entry and try again.';
 export const FEES_HEAL_FAILED_MESSAGE = 'Could not confirm the entry fees. Please try again.';
 
-function writeFailure(result: FeeHealWriteResult): unknown {
-  if (result.error) return result.error;
-  if (!result.data || result.data.length === 0) return 'no row updated';
-  return null;
-}
-
 export async function healDriftedCart(
   cartId: string,
-  lines: DriftedLine[],
+  lines: readonly DriftedLine[],
   deps: FeeHealDeps
 ): Promise<FeeHealOutcome> {
   const release = await deps.releasePriorSession();
@@ -65,17 +56,34 @@ export async function healDriftedCart(
     deps.logError(`Cart ${cartId}: fee heal not started:`, release.diagnostic);
     return { kind: 'blocked', status: release.status, error: release.error };
   }
-  for (const { itemId, authoritativeCents } of lines) {
-    const failure = writeFailure(await deps.writeLineFee(itemId, authoritativeCents));
-    if (failure) {
-      deps.logError(`Cart ${cartId}: could not heal the fee on line ${itemId}:`, failure);
-      return { kind: 'heal_failed' };
-    }
+  const result = await deps.applyHeal(lines);
+  if (result.kind === 'refused') {
+    deps.logError(`Cart ${cartId}: fee heal refused, nothing written:`, result.reason);
+    return { kind: 'cart_changed' };
   }
-  const totalsFailure = writeFailure(await deps.writeCartTotals());
-  if (totalsFailure) {
-    deps.logError(`Cart ${cartId}: could not write healed totals:`, totalsFailure);
+  if (result.kind === 'error') {
+    deps.logError(
+      `Cart ${cartId}: could not heal the entry fees, nothing written:`,
+      result.message
+    );
     return { kind: 'heal_failed' };
   }
   return { kind: 'healed' };
+}
+
+/** The answer stripe-checkout sends for each heal outcome; every one stops checkout. */
+export function feeHealResponse(outcome: FeeHealOutcome): {
+  status: number;
+  body: { error: string };
+} {
+  switch (outcome.kind) {
+    case 'blocked':
+      return { status: outcome.status, body: { error: outcome.error } };
+    case 'heal_failed':
+      return { status: 500, body: { error: FEES_HEAL_FAILED_MESSAGE } };
+    case 'cart_changed':
+      return { status: 409, body: { error: CART_CHANGED_MESSAGE } };
+    case 'healed':
+      return { status: 409, body: { error: FEES_HEALED_MESSAGE } };
+  }
 }

@@ -288,6 +288,7 @@ const launchCriticalSqlTests = [
   'myk9_2005_qualified_time_test.sql',
   'myk9_1975_junior_fee_limit_test.sql',
   'myk9_1931_class_fee_wins_test.sql',
+  'myk9_2455_heal_cart_fees_test.sql',
   'golden_replay_trial_27835_test.sql',
   'myk9_2291_club_template_asca_facts_test.sql',
   'myk9_2292_judge_affiliation_test.sql',

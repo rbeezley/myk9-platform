@@ -106,8 +106,12 @@ describe('delete dialog copy', () => {
     expect(blockedReason('show', preview({ scored: 2, blocking: 2 }))).toBe(
       '2 entries are scored, so this show cannot be deleted. If it is not going ahead, cancel it.'
     );
-    expect(blockedReason('show', preview({ paid: 3, blocking: 3 }), true)).toBe(
+    expect(blockedReason('show', preview({ paid: 3, blocking: 3 }), 'cancelled')).toBe(
       '3 entries are paid, so this show cannot be deleted. Refunds are not automatic: open Show details to refund online-paid entries.'
+    );
+    // MYK9-2430: a closed show already ran, so the copy never says "cancel it".
+    expect(blockedReason('show', preview({ paid: 3, scored: 2, blocking: 5 }), 'completed')).toBe(
+      '3 entries are paid and 2 are scored, so this show cannot be deleted.'
     );
     expect(blockedReason('trial', preview({ scored: 2, blocking: 2 }))).toBe(
       '2 entries are scored. Withdraw or Pull those entries first.'

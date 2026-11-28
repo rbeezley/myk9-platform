@@ -12,6 +12,8 @@ export function blockedActionFor(
   if (kind === 'show') {
     // Already cancelled: the Cancel link would be a loop. The refund note carries on.
     if (first.context?.showStatus === 'cancelled') return undefined;
+    // Closed: its status is locked on the Edit panel (MYK9-2430), so Cancel is not a path.
+    if (first.context?.showStatus === 'completed') return undefined;
     // Cancel is the Status select (Cancelled) on the Edit show panel's Basic Info tab.
     // `?edit=true` opens that panel on Basic Info; the Managing tab's "Mark cancelled"
     // only appears after selecting a row, so it is not a one-click target.

@@ -10,6 +10,7 @@ import { judgeSignOffWording } from '@/features/show-map/judgeSignOff';
 import { getResultsStepHref, getFinishLineHref } from '@/features/results-tab/resultsTabRoutes';
 import { writeCockpitScope } from '@/components/entries/management/entryManagementCockpitParams';
 import { getCheckInDeskHref } from '@/components/entries/management/checkInDesk/checkInDeskRoutes';
+import { refundFinishItem, type FinishListPayoutSchedule } from './refundFinishItem';
 import { SENT_FILE_TEXT } from './submissionTimes';
 import type { WhatIsLeft, WhatIsLeftLine } from './whatIsLeft';
 
@@ -31,7 +32,8 @@ export interface FinishListItem {
 function itemFor(
   showId: string,
   line: WhatIsLeftLine,
-  releasedAndInitialed: boolean
+  releasedAndInitialed: boolean,
+  payoutSchedule: FinishListPayoutSchedule | undefined
 ): FinishListItem | null {
   const count = line.count ?? 0;
   const state: FinishListItem['state'] =
@@ -72,6 +74,9 @@ function itemFor(
         href: line.deskLink === false ? null : getCheckInDeskHref({ showId }),
         label: line.label,
       };
+    case 'refund-review':
+      // MYK9-2427: the refunds still to decide, dated by the club's payout.
+      return refundFinishItem(showId, line, payoutSchedule);
     case 'unreleased':
       if (line.open === null) return null;
       return {
@@ -148,11 +153,15 @@ function itemFor(
 /**
  * The list a secretary works down after the last class: the lines this screen can answer from its
  * classes (and, from its entries, unconfirmed pull flags), then the close step. Lines the screen
- * cannot read (refunds, incidents) are not shown here, and a line of `unknown` never claims a tick.
+ * cannot read (incidents) are not shown here, and a line of `unknown` never claims a tick.
  */
-export function buildFinishList(showId: string, left: WhatIsLeft): FinishListItem[] {
+export function buildFinishList(
+  showId: string,
+  left: WhatIsLeft,
+  payoutSchedule?: FinishListPayoutSchedule
+): FinishListItem[] {
   const items = left.lines
-    .map(line => itemFor(showId, line, left.releasedAndInitialed))
+    .map(line => itemFor(showId, line, left.releasedAndInitialed, payoutSchedule))
     .filter((item): item is FinishListItem => item !== null);
   items.push({
     key: 'close',

@@ -32,17 +32,15 @@ export function resultsRowToLeftClass(row: ResultsClassRow): WhatIsLeftClass {
 export function calculateResultsRowsLeft(
   rows: readonly ResultsClassRow[],
   trials: readonly WhatIsLeftTrial[] = [],
-  sent: Pick<
-    WhatIsLeftInput,
-    'submissions' | 'scoreChanges' | 'handlerClashes' | 'flaggedPulls'
-  > = {
+  sent: Pick<WhatIsLeftInput, 'submissions' | 'scoreChanges' | 'handlerClashes' | 'flaggedPulls'> &
+    Partial<Pick<WhatIsLeftInput, 'entries'>> = {
     submissions: null,
   }
 ): WhatIsLeft {
   return calculateWhatIsLeft({
     classes: rows.map(resultsRowToLeftClass),
     trials,
-    entries: [],
+    entries: sent.entries ?? [],
     incidents: null,
     submissions: sent.submissions,
     scoreChanges: sent.scoreChanges,

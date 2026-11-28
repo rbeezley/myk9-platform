@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { buildJudgeRecords } from '@/features/show-map/cockpit/trialPacket/judgeRecord';
 import { buildJudgeReviews } from '@/features/show-map/cockpit/trialPacket/judgeReview';
 import { TrialPacketPanel } from '@/features/show-map/cockpit/trialPacket/TrialPacketPanel';
+import { showCalendarDay } from '@/features/payments/payoutDeadline';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import type { SecretaryEntry } from '@/services/database/entries';
 import type { CloseoutFlaggedPulls } from '@/features/show-closeout/useCloseoutFlaggedPulls';
@@ -43,6 +44,8 @@ export function ResultsPackets({
   timeZone: string;
 }) {
   const { show } = useFastShowDetails(showId);
+  const lastDay = showCalendarDay(show?.endDate);
+  const payoutSchedule = useMemo(() => ({ lastDay, timeZone }), [lastDay, timeZone]);
   const [packet, setPacket] = useState<OpenPacket | null>(null);
   // Corrections are read only when the panel opens, so the progress list builds without them.
   const judges = useMemo(
@@ -70,6 +73,7 @@ export function ResultsPackets({
         entries={entries}
         entriesTrusted={entriesTrusted}
         flaggedPulls={flaggedPulls}
+        payoutSchedule={payoutSchedule}
         onOpenAfterShow={trialId => setPacket({ kind: 'after-show', trialId })}
       />
       {packet?.kind === 'judge-review' && (

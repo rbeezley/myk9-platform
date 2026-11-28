@@ -85,7 +85,7 @@ function isClubFailure(reason: string | null): boolean {
 }
 
 /** "December 9", with the year only when it is not this year on the show's calendar. */
-function formatDay(isoDate: string, today: string): string {
+export function formatPayoutDay(isoDate: string, today: string): string {
   const date = new Date(`${isoDate}T00:00:00Z`);
   const sameYear = isoDate.slice(0, 4) === today.slice(0, 4);
   return new Intl.DateTimeFormat('en-US', {
@@ -99,7 +99,7 @@ function formatDay(isoDate: string, today: string): string {
 /** "Paid by December 16." on a known schedule, the promise in words otherwise. */
 function deadline(timeline: PayoutTimeline | null): string {
   return timeline
-    ? `Paid by ${formatDay(timeline.dueDate, timeline.today)}.`
+    ? `Paid by ${formatPayoutDay(timeline.dueDate, timeline.today)}.`
     : UNKNOWN_SHOW_DEADLINE;
 }
 
@@ -129,7 +129,7 @@ export function resolvePayoutStage({
     const completedAt = payout?.completedAt ?? null;
     const sentDay = completedAt ? calendarDateInTimeZone(new Date(completedAt), timeZone) : null;
     const today = calendarDateInTimeZone(now, timeZone);
-    const label = sentDay ? formatDay(sentDay, today) : null;
+    const label = sentDay ? formatPayoutDay(sentDay, today) : null;
     const sent = label ? `Sent ${label}.` : 'Sent.';
     return {
       kind: 'sent',
@@ -193,7 +193,7 @@ export function resolvePayoutStage({
         'before-due',
         timeline.showEnded
           ? deadline(timeline)
-          : `Paid within five business days of ${formatDay(timeline.lastDay, timeline.today)}.`
+          : `Paid within five business days of ${formatPayoutDay(timeline.lastDay, timeline.today)}.`
       );
   }
 }

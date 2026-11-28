@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import { screen, within } from '@testing-library/react';
 
+import { getEntryListHref } from '@/components/entries/management/entryManagementViews';
 import { calculateResultsRowsLeft } from '@/features/show-closeout/fromResultsRows';
 import { FAILED_FLAGS, NO_FLAGS, readFlags } from '@/features/show-closeout/flaggedPullsTestUtils';
 import type { CloseoutFlaggedPulls } from '@/features/show-closeout/useCloseoutFlaggedPulls';
@@ -389,5 +390,33 @@ describe('ResultsFinishRow', () => {
       )
     ).toBeInTheDocument();
     expect(list.getByRole('group', { name: GROUP })).toBeInTheDocument();
+  });
+
+  it('lists a refund to decide with the date the club is paid by, linking to Pulls (MYK9-2427)', () => {
+    const entry = fromAny<SecretaryEntry, unknown>({
+      id: 'e1',
+      entry_status: 'withdrawn',
+      payment_status: 'paid',
+      payment_method: 'online',
+    });
+    render(
+      <ResultsFinishRow
+        showId="show-1"
+        trials={[trialFor('AKC')]}
+        rows={SHOW_ROWS}
+        entries={[entry]}
+        entriesTrusted
+        flaggedPulls={flags.current}
+        payoutSchedule={{
+          lastDay: '2026-12-02',
+          timeZone: 'America/Chicago',
+          now: new Date('2026-12-03T18:00:00Z'),
+        }}
+      />
+    );
+    const list = within(screen.getByRole('region', { name: 'Finish the show' }));
+    const link = list.getByRole('link', { name: /1 refund to decide/ });
+    expect(link).toHaveAttribute('href', getEntryListHref('show-1', 'pulls'));
+    expect(link).toHaveTextContent('sent by December 9');
   });
 });

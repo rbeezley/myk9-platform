@@ -6,6 +6,7 @@ import { calculateResultsRowsLeft } from '@/features/show-closeout/fromResultsRo
 import { useResultsSentCheck } from '@/features/show-closeout/useResultsSentCheck';
 import { readHandlerClashes } from '@/features/show-closeout/handlerClash';
 import { buildFinishList } from '@/features/show-closeout/finishList';
+import type { FinishListPayoutSchedule } from '@/features/show-closeout/refundFinishItem';
 import type { CloseoutFlaggedPulls } from '@/features/show-closeout/useCloseoutFlaggedPulls';
 import { FlaggedPullsOffDesk } from '@/features/show-closeout/FlaggedPullsOffDesk';
 import { FINISH_LIST_ANCHOR } from '@/features/show-map/cockpit/cockpitRoutes';
@@ -31,6 +32,8 @@ interface ResultsFinishRowProps {
    * (MYK9-2180).
    */
   flaggedPulls: CloseoutFlaggedPulls;
+  /** The show's last day and zone, so the refund line can date the club's payout (MYK9-2427). */
+  payoutSchedule?: FinishListPayoutSchedule;
   /** Opens the after-show packet for a trial (MYK9-1924 phase 2a); absent = no packet button. */
   onOpenAfterShow?: (trialId: string) => void;
 }
@@ -48,6 +51,7 @@ export function ResultsFinishRow({
   entries,
   entriesTrusted,
   flaggedPulls,
+  payoutSchedule,
   onOpenAfterShow,
 }: ResultsFinishRowProps) {
   // Until the schedule is confirmed the rows may be partial: not loaded reads as "checking".
@@ -63,9 +67,14 @@ export function ResultsFinishRow({
           ...sent,
           handlerClashes: entriesTrusted ? readHandlerClashes(entries) : undefined,
           flaggedPulls,
-        })
+          // A stale entries read cannot say a refund was decided: the line then reads unknown.
+          entries: entriesTrusted
+            ? entries
+            : entries.map(entry => ({ ...entry, refund_decision_unknown: true })),
+        }),
+        payoutSchedule
       ),
-    [entries, entriesTrusted, flaggedPulls, rows, sent, showId, trials]
+    [entries, entriesTrusted, flaggedPulls, payoutSchedule, rows, sent, showId, trials]
   );
   const ref = useRef<HTMLElement>(null);
   const { hash } = useLocation();

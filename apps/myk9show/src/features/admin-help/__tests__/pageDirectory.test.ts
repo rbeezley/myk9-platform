@@ -54,16 +54,20 @@ describe('pageDirectory (invariant)', () => {
   });
 
   it('matches canonical show management roles to the route guard', () => {
-    const managementPaths = [
-      '/shows/:showId/entries',
-      '/shows/:showId/reports',
-      '/shows/:showId/results',
-    ];
+    const managementPaths = ['/shows/:showId/reports', '/shows/:showId/results'];
 
     for (const path of managementPaths) {
       const entry = pageDirectory.find(e => e.path === path);
       expect(entry?.roles).toEqual([UserRole.SECRETARY, UserRole.SITE_ADMIN]);
     }
+  });
+
+  it('lists Entry Forms for club admins, filtered the way the help page filters by role', () => {
+    const entry = pageDirectory.find(e => e.path === '/shows/:showId/entries');
+    expect(entry?.roles).toEqual([UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN]);
+
+    const clubAdminPages = pageDirectory.filter(e => e.roles.includes(UserRole.CLUB_ADMIN));
+    expect(clubAdminPages.map(e => e.path)).toContain('/shows/:showId/entries');
   });
 
   it('catalogs the deferred payment-surface routes (PR #1002 follow-up)', () => {

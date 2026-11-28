@@ -13,6 +13,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { getShowMapMessageTemplates } from './showMapMessageTemplates';
 import type { ShowMapNode } from './showMapTypes';
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
+import { armbandAccessibleName } from '@/utils/armbandUtils';
 
 interface ShowMapMessageHandlerDialogProps {
   open: boolean;
@@ -65,7 +67,11 @@ export function ShowMapMessageHandlerDialog({
         <div className="space-y-4">
           <div className="rounded-md bg-muted p-4 text-sm">
             <div className="font-medium">{entryName}</div>
-            {armband && <div className="text-muted-foreground">Armband {armband}</div>}
+            {armbandAccessibleName(armband) && (
+              <div>
+                <ArmbandBadge armband={armband} srLabel className="h-6 min-w-6 text-xs" />
+              </div>
+            )}
             {handler && <div className="text-muted-foreground">Handler: {handler}</div>}
           </div>
 

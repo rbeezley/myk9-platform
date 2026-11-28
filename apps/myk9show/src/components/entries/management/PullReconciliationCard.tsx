@@ -12,6 +12,8 @@ import {
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { PullReconciliationActions } from './PullReconciliationActions';
 import { formatTrialLabel } from './entryFormTrialSummary';
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
+import { armbandAccessibleName } from '@/utils/armbandUtils';
 
 interface PullReconciliationCardProps {
   entry: EntryManagementEntry;
@@ -104,7 +106,13 @@ export function PullReconciliationCard({
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-medium">{entry.dogName || 'Unknown Dog'}</span>
-                {entry.armbandNumber && <Badge variant="outline">#{entry.armbandNumber}</Badge>}
+                {armbandAccessibleName(entry.armbandNumber) && (
+                  <ArmbandBadge
+                    armband={entry.armbandNumber}
+                    srLabel
+                    className="h-6 min-w-6 text-xs"
+                  />
+                )}
               </div>
               <div className="text-sm text-muted-foreground">
                 {trialLabel && `${trialLabel} · `}

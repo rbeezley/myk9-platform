@@ -185,7 +185,7 @@ describe('AtShowClassListPage — exhibitor "Your dogs today" default', () => {
 
     expect(await screen.findByText('Your dogs today')).toBeInTheDocument();
     expect(await screen.findByText('Rex')).toBeInTheDocument();
-    expect(screen.getByText('#101')).toBeInTheDocument();
+    expect(screen.getByText('101')).toBeInTheDocument();
   });
 
   const ownQualified = (resultsReleasedAt: string | null) =>

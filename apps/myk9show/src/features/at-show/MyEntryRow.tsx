@@ -2,6 +2,7 @@
  * One dog-in-one-class row of "Your dogs today" (MYK9-1046).
  */
 import { AlertTriangle, CheckCircle2, ChevronRight, Clock3, Info } from 'lucide-react';
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { Button } from '@/components/ui/button';
 import { ResultsPublicPrompt } from '@/components/preferences/ResultsPublicPrompt';
 import { ResultBadge } from '@/components/common/ResultBadge';
@@ -65,9 +66,11 @@ export function MyEntryRow({
         <div className="flex items-center gap-2">
           <span className="truncate font-medium">{detail.dogName}</span>
           {detail.armband && (
-            <span className="shrink-0 rounded-full bg-[color:var(--chip-stone-bg)] px-2 py-0.5 text-xs font-medium text-[color:var(--chip-stone-fg)]">
-              #{detail.armband}
-            </span>
+            <ArmbandBadge
+              armband={detail.armband}
+              srLabel
+              className="h-6 min-w-6 shrink-0 rounded-md text-xs"
+            />
           )}
         </div>
         <div className="mt-0.5 truncate text-sm text-muted-foreground">

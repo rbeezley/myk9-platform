@@ -13,7 +13,7 @@ assertPlaywrightRunAllowed('playwright.show-day.config.ts', process.env, {
 
 export default defineConfig({
   testDir: './src/test/e2e/verification',
-  testMatch: '**/showDayReliability.spec.ts',
+  testMatch: ['**/showDayReliability.spec.ts', '**/offlineExpiredConflictChoices.spec.ts'],
   projects: [{ name: 'isolated-show-day-proof' }],
   fullyParallel: false,
   workers: 1,

@@ -58,6 +58,7 @@ import {
 } from './cockpitClassEntries';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/entriesRefresh';
+import { armbandAccessibleName } from '@/utils/armbandUtils';
 
 // Tight cells and wrapping Dog and Handler keep the table inside the ~600px focus column; the
 // scroll wrapper stays as the fallback for narrower ones. 4px above and below the 44-48px controls
@@ -100,7 +101,9 @@ export function InRingTile({
               </span>
             </span>
             <span className="sr-only">
-              {`Armband ${inRing.armband ?? 'not assigned'}, ${inRing.dogName}`}
+              {[armbandAccessibleName(inRing.armband) ?? 'Armband not assigned', inRing.dogName]
+                .filter(Boolean)
+                .join(', ')}
             </span>
           </span>
         ) : (
@@ -117,7 +120,11 @@ export function InRingTile({
                   <span aria-hidden="true">
                     <ArmbandBadge armband={entry.armband} className="h-7 min-w-7 text-xs" />
                   </span>
-                  <span className="sr-only">{`Armband ${entry.armband ?? 'not assigned'}, ${entry.dogName}`}</span>
+                  <span className="sr-only">
+                    {[armbandAccessibleName(entry.armband) ?? 'Armband not assigned', entry.dogName]
+                      .filter(Boolean)
+                      .join(', ')}
+                  </span>
                 </li>
               ))}
             </ul>

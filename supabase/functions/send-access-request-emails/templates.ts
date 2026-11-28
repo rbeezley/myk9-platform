@@ -94,7 +94,9 @@ export function requesterReceivedEmail(record: AccessRequestRecord, siteUrl: str
       hello(record.requester) +
         paragraph(`Thank you. We received ${what}.`) +
         paragraph(
-          `${reviewer} will review it. You do not need to do anything else right now. We will email you as soon as it has been reviewed.`
+          isNewClub && record.clubCreatedOnRequest
+            ? 'You can start setting up your club and its first show now. A myK9Show administrator will review the club, and once it is approved you can publish shows. We will email you as soon as it has been reviewed.'
+            : `${reviewer} will review it. You do not need to do anything else right now. We will email you as soon as it has been reviewed.`
         ) +
         paragraph('Your account keeps working as usual while you wait.'),
       openSite(siteUrl)
@@ -144,7 +146,21 @@ export function reviewerNoticeEmail(record: AccessRequestRecord, siteUrl: string
 
 function approvedCopy(record: AccessRequestRecord): { subject: string; body: string } {
   const club = escapeHtml(record.clubName);
+  if (record.kind === 'new_club' && record.clubCreatedOnRequest) {
+    // MYK9-2046: she has built in the club since asking, so approval is the news.
+    return {
+      subject: `Your club is ready: ${record.clubName}`,
+      body:
+        paragraph(
+          `Your request was approved. <strong>${club}</strong> is now approved in myK9Show.`
+        ) +
+        paragraph(
+          'You can now publish your shows so exhibitors can enter. Sign in to get started.'
+        ),
+    };
+  }
   if (record.kind === 'new_club') {
+    // An older request made no club until approval, so approval sets it up.
     return {
       subject: `Your club is ready: ${record.clubName}`,
       body:

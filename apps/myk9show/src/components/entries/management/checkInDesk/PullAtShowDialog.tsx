@@ -11,6 +11,8 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
+import { armbandAccessibleName } from '@/utils/armbandUtils';
 
 interface PullAtShowDialogProps {
   open: boolean;
@@ -52,7 +54,12 @@ export function PullAtShowDialog({
             Pull {dogName}?
           </DialogTitle>
           <DialogDescription>
-            {armband ? `#${armband} · ` : ''}
+            {armbandAccessibleName(armband) && (
+              <>
+                <ArmbandBadge armband={armband} srLabel className="h-6 min-w-6 text-xs" />
+                {' · '}
+              </>
+            )}
             {className}. The judge will skip this dog, and the entry is marked pulled.
           </DialogDescription>
         </DialogHeader>

@@ -4,6 +4,7 @@
  * ringside's `CheckinStatusDialogProps`.
  */
 import React, { useState } from 'react';
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import type { CheckinStatusDialogProps } from '@myk9/ringside';
 import type { CheckInStatus } from '@myk9/core';
 import { checkInStateLabel } from '@myk9/ui';
@@ -55,9 +56,11 @@ export const CheckinStatusDialog: React.FC<CheckinStatusDialogProps> = ({
           <DialogTitle>Change Status</DialogTitle>
         </DialogHeader>
         <div>
-          <p>
-            {dogInfo.armband != null && `#${dogInfo.armband} `}
-            {dogInfo.callName}
+          <p className="flex items-center gap-2">
+            {dogInfo.armband != null && (
+              <ArmbandBadge armband={dogInfo.armband} srLabel className="shrink-0" />
+            )}
+            <span>{dogInfo.callName}</span>
           </p>
           <p>{dogInfo.handler}</p>
         </div>

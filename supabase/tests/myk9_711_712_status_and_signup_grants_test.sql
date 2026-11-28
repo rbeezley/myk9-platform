@@ -1,8 +1,9 @@
 -- MYK9-712: only a site admin (or a server path) may change people.status.
 -- MYK9-710 option C: once a person has a live entry (as handler, owner or
 -- co-owner), only a site admin or a server path may change their email.
--- MYK9-711: insert_club_access_request_from_signup is callable only from the
--- signup trigger path, not by a signed-in client.
+-- MYK9-711 (retired by MYK9-2549): the sign-up club-request path is gone, so the
+-- test now asserts its functions and trigger are absent and that a sign-up with
+-- club-officer metadata still creates its person and files no request.
 -- Behavioral test for 20260923211700_myk9_711_712_status_site_admin_and_signup_grants.sql.
 --
 -- Run with psql -X -v ON_ERROR_STOP=1 after migrations. All fixtures roll back.
@@ -366,48 +367,30 @@ end;
 $$;
 
 -- ===========================================================================
--- MYK9-711
+-- MYK9-711 / MYK9-2549: the legacy no-club request paths are gone.
 -- ===========================================================================
 
 do $$
-declare
-  fn constant regprocedure := 'public.insert_club_access_request_from_signup(uuid,uuid,jsonb)'::regprocedure;
 begin
-  if has_function_privilege('authenticated', fn, 'EXECUTE') then
-    raise exception 'FAIL authenticated can execute insert_club_access_request_from_signup';
+  if to_regprocedure('public.insert_club_access_request_from_signup(uuid,uuid,jsonb)') is not null
+     or to_regprocedure('public.materialize_club_access_request_from_auth_user()') is not null
+     or to_regprocedure('public.submit_club_access_request(text,text,text)') is not null
+     or to_regprocedure('public.submit_club_access_request(text,text,text,jsonb)') is not null then
+    raise exception 'FAIL a legacy no-club club-request function still exists';
   end if;
-  if has_function_privilege('anon', fn, 'EXECUTE') then
-    raise exception 'FAIL anon can execute insert_club_access_request_from_signup';
+  if exists (
+    select 1 from pg_trigger
+     where tgrelid = 'auth.users'::regclass
+       and tgname = 'zz_materialize_club_access_request'
+       and not tgisinternal
+  ) then
+    raise exception 'FAIL the zz_materialize_club_access_request trigger still exists on auth.users';
   end if;
-  if not has_function_privilege('supabase_auth_admin', fn, 'EXECUTE') then
-    raise exception 'FAIL supabase_auth_admin lost EXECUTE on insert_club_access_request_from_signup';
-  end if;
-  if not has_function_privilege('service_role', fn, 'EXECUTE') then
-    raise exception 'FAIL service_role lost EXECUTE on insert_club_access_request_from_signup';
-  end if;
-  raise notice 'PASS insert_club_access_request_from_signup EXECUTE is auth-admin/service-role only';
+  raise notice 'PASS the legacy no-club club-request functions and the sign-up trigger are gone';
 end;
 $$;
 
--- A signed-in user calling it directly to file a request as someone else.
-select pg_temp.expect('authenticated cannot call insert_club_access_request_from_signup',
-  pg_temp.run_as('00000000-0000-0000-0000-000000712101',
-    $s$select public.insert_club_access_request_from_signup(
-         '00000000-0000-0000-0000-000000712012',
-         '00000000-0000-0000-0000-000000712102',
-         '{"intended_roles": ["club_officer"], "requested_club_name": "Forged Club"}'::jsonb)$s$),
-  '42501');
-
-do $$
-begin
-  if exists (select 1 from public.club_access_requests where lower(requested_club_name) = 'forged club') then
-    raise exception 'FAIL a forged club access request was written';
-  end if;
-end;
-$$;
-
--- Signup with club-officer metadata still materializes a request through the
--- auth.users trigger path.
+-- Sign-up with club-officer metadata still creates its person and files no request.
 insert into auth.users (
   id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
   created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
@@ -422,17 +405,18 @@ values ('00000000-0000-0000-0000-000000712109', '00000000-0000-0000-0000-0000000
 do $$
 begin
   if not exists (
-    select 1
-      from public.club_access_requests car
-      join public.people p on p.id = car.requester_person_id
-     where car.requester_auth_user_id = '00000000-0000-0000-0000-000000712109'
-       and p.auth_user_id = '00000000-0000-0000-0000-000000712109'
-       and car.requested_club_name = 'MYK9-711 Kennel Club'
-       and car.status = 'pending'
+    select 1 from public.people
+     where auth_user_id = '00000000-0000-0000-0000-000000712109'
   ) then
-    raise exception 'FAIL signup with club-officer metadata did not materialize a club access request';
+    raise exception 'FAIL sign-up with club-officer metadata did not create a person row';
   end if;
-  raise notice 'PASS signup with club-officer metadata still materializes a club access request';
+  if exists (
+    select 1 from public.club_access_requests
+     where requester_auth_user_id = '00000000-0000-0000-0000-000000712109'
+  ) then
+    raise exception 'FAIL sign-up with club-officer metadata filed a club access request';
+  end if;
+  raise notice 'PASS sign-up with club-officer metadata creates a person and files no request';
 end;
 $$;
 

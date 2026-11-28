@@ -5,6 +5,7 @@
  * Handles deduction-based scoring starting from perfect score.
  */
 
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { useState, useCallback, useMemo } from 'react';
 import { Navigation, Clock, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -170,7 +171,8 @@ export function RallyScoresheet({
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Navigation className="h-5 w-5 text-green-500" />
-            <span>Rally - Entry #{entry.armband}</span>
+            <span>Rally - Entry</span>
+            <ArmbandBadge armband={entry.armband} srLabel className="h-6 min-w-6 text-xs" />
           </CardTitle>
         </CardHeader>
         <CardContent>

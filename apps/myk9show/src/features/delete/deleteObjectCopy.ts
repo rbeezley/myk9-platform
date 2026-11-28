@@ -128,12 +128,16 @@ const SHOW_REFUND_NOTE_CANCELLED =
 export function blockedReason(
   kind: DeleteObjectKind,
   preview: DeletePreview,
-  showCancelled = false
+  showStatus?: string
 ): string {
   switch (kind) {
     case 'show': {
       const phrase = paidScoredPhrase(preview.paid, preview.scored);
-      if (showCancelled) {
+      if (showStatus === 'completed') {
+        // A closed show already ran: "cancel it" is not an option (MYK9-2430).
+        return `${phrase}, so this show cannot be deleted.`;
+      }
+      if (showStatus === 'cancelled') {
         return `${phrase}, so this show cannot be deleted.${preview.paid > 0 ? SHOW_REFUND_NOTE_CANCELLED : ''}`;
       }
       // Cancelling does not make a show deletable, so this never says "cancel,

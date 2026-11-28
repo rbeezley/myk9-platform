@@ -5,6 +5,7 @@
  * Handles exercise-based scoring with point deductions.
  */
 
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { useState, useCallback, useMemo } from 'react';
 import { Award, Minus, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -192,7 +193,8 @@ export function ObedienceScoresheet({
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Award className="h-5 w-5 text-purple-500" />
-            <span>Obedience - Entry #{entry.armband}</span>
+            <span>Obedience - Entry</span>
+            <ArmbandBadge armband={entry.armband} srLabel className="h-6 min-w-6 text-xs" />
           </CardTitle>
         </CardHeader>
         <CardContent>

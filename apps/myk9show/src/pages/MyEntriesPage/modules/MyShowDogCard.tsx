@@ -15,6 +15,7 @@
  */
 
 import React from 'react';
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { ClipboardCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/status';
@@ -29,6 +30,7 @@ import type { JudgeByClassId } from './useMyShowJudges';
 import { deriveDogChip } from './myShowDogState';
 import { dogCardAnchorId } from './dogCardAnchor';
 import { armbandLabel, PENDING_REVIEW_REASSURANCE } from './myShowsCopy';
+import { formatArmbandDisplay, UNASSIGNED_ARMBAND_DISPLAY } from '@/utils/armbandUtils';
 import type { RefundNote } from './showMoneyState';
 
 export interface MyShowDogCardProps {
@@ -101,7 +103,15 @@ const MyShowDogCardComponent: React.FC<MyShowDogCardProps> = ({
           >
             {dog.dogName}
           </span>
-          <span className="text-sm text-muted-foreground">{armbandLabel(dog.armband)}</span>
+          {formatArmbandDisplay(dog.armband) === UNASSIGNED_ARMBAND_DISPLAY ? (
+            <span className="text-sm text-muted-foreground">{armbandLabel(dog.armband)}</span>
+          ) : (
+            <ArmbandBadge
+              armband={dog.armband}
+              srLabel
+              className="h-7 min-w-7 rounded-md text-xs"
+            />
+          )}
         </div>
         <div className="myk9-entries-dog-card-actions">
           <StatusBadge family="entry" status={chip.status} label={chip.label} />

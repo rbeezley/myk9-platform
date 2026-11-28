@@ -1,3 +1,4 @@
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import type { ReactNode } from 'react';
 import { ArrowLeft, CheckCircle2, Circle } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
@@ -289,7 +290,9 @@ function ResultsTable({ showId, row }: Pick<ResultsClassDetailProps, 'showId' | 
           {row.entries.map(entry => (
             <TableRow key={entry.entryId}>
               <TableCell>{entry.placement ?? '—'}</TableCell>
-              <TableCell>{entry.armband || '—'}</TableCell>
+              <TableCell>
+                <ArmbandBadge armband={entry.armband} className="h-6 min-w-6 text-xs" />
+              </TableCell>
               <TableCell>
                 <span className="font-medium">{entry.dogName}</span>
                 {entry.handlerName && (

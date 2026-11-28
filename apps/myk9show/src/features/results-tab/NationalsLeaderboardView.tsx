@@ -1,3 +1,4 @@
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { ArrowLeft, Trophy } from 'lucide-react';
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
@@ -128,7 +129,9 @@ export function NationalsLeaderboardView({
               {board.map(row => (
                 <TableRow key={row.dogId}>
                   <TableCell>{row.rank}</TableCell>
-                  <TableCell>{row.armband ?? DASH}</TableCell>
+                  <TableCell>
+                    <ArmbandBadge armband={row.armband} className="h-6 min-w-6 text-xs" />
+                  </TableCell>
                   <TableCell>{row.dogName}</TableCell>
                   <TableCell>{row.handlerName || DASH}</TableCell>
                   <TableCell className="text-right tabular-nums">{row.totalPoints}</TableCell>

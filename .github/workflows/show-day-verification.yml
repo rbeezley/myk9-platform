@@ -16,7 +16,6 @@ on:
       - '!apps/myk9show/src/test/e2e/verification/nationalsLeaderboardWalk.spec.ts'
       - '!apps/myk9show/src/test/e2e/verification/nationalsFixture.ts'
       - '!apps/myk9show/src/test/e2e/verification/showDayLiveSync.spec.ts'
-      - '!apps/myk9show/src/test/e2e/verification/disposableClass.ts'
 
 permissions:
   contents: read
@@ -29,7 +28,7 @@ jobs:
   proof:
     if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 200
     env:
       MYK9_PLAYWRIGHT_REGRESSION_ENABLED: 'true'
       MYK9_PLAYWRIGHT_REGRESSION_TARGET: isolated
@@ -86,7 +85,7 @@ jobs:
       - name: Compile proof tests
         working-directory: apps/myk9show
         run: pnpm exec tsc --noEmit -p tsconfig.show-day.json
-      - name: Queue matrix then natural offline expiry
+      - name: Offline conflict choices, queue matrix and natural offline expiry
         working-directory: apps/myk9show
         run: pnpm exec playwright test --config=playwright.show-day.config.ts --workers=1 --retries=0 --fail-on-flaky-tests
         env:

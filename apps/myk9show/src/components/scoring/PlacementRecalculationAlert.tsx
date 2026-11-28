@@ -6,6 +6,7 @@
  * and Premium design for professional competition management.
  */
 
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -488,9 +489,11 @@ export function PlacementRecalculationAlert({
                                 <span className="text-xs font-medium truncate">
                                   {change.dogName}
                                 </span>
-                                <Badge variant="outline" className="text-xs">
-                                  #{change.armband}
-                                </Badge>
+                                <ArmbandBadge
+                                  armband={change.armband}
+                                  srLabel
+                                  className="h-5 min-w-5 text-xs"
+                                />
                               </div>
                               <span className="text-xs font-mono">
                                 {formatPlacementChange(change)}

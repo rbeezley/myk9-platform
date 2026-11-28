@@ -1,7 +1,9 @@
 import { judgeLine } from '@/utils/classJudgeDisplay';
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
+import { armbandAccessibleName } from '@/utils/armbandUtils';
 import { Link } from 'react-router-dom';
 import { checkInStateLabel } from '@myk9/ui';
-import { ChevronRight, CheckCircle2, Clock, Hash, MapPin, XCircle } from 'lucide-react';
+import { ChevronRight, CheckCircle2, Clock, MapPin, XCircle } from 'lucide-react';
 import { Chip } from '@/components/base/Chip';
 import { PersonAvatar } from '@/components/common/PersonAvatar';
 import { formatRunQueueState, runQueueStateNote } from '@myk9/ringside/run-queue';
@@ -172,6 +174,7 @@ function TimelineRow({ entry, showId, places, trialTimezone }: TimelineRowProps)
         `${entry.dayLabel} ${accessibleTimeLabel}`.trim(),
         positionLabel,
         checkInLabel,
+        armbandAccessibleName(entry.armband),
       ]
         .filter(Boolean)
         .join(' — ')}
@@ -185,13 +188,11 @@ function TimelineRow({ entry, showId, places, trialTimezone }: TimelineRowProps)
             </span>
           )}
           {entry.armband && (
-            <span
-              className="inline-flex min-w-0 items-center gap-1 text-xs font-medium text-muted-foreground"
-              aria-label={`Armband ${entry.armband}`}
-            >
-              <Hash className="h-3 w-3" />
-              <span className="truncate">{entry.armband}</span>
-            </span>
+            <ArmbandBadge
+              armband={entry.armband}
+              srLabel
+              className="h-6 min-w-6 self-start rounded-md text-xs"
+            />
           )}
         </span>
       )}

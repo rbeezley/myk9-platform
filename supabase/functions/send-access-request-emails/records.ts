@@ -32,6 +32,13 @@ export interface AccessRequestRecord {
   requestedRole: RequestedRole | null;
   requesterNote: string | null;
   reviewerNote: string | null;
+  /**
+   * New-club requests only: the request made its club when it was filed (`request_new_club`,
+   * MYK9-2046), so the requester can build now. False for requests filed before MYK9-2549
+   * retired the older no-club paths (`submit_club_access_request`, the sign-up trigger),
+   * which made no club until approval, and for every other kind.
+   */
+  clubCreatedOnRequest: boolean;
 }
 
 export type ReviewerAudience = { role: 'site_admin' } | { role: 'club_admin'; clubId: string };
@@ -100,6 +107,7 @@ export async function loadAccessRequest(
       status: string;
       requested_club_name: string;
       approved_club_id: string | null;
+      created_club_id: string | null;
       request_note: string | null;
       review_note: string | null;
       requester: Embedded<PersonRow>;
@@ -108,7 +116,7 @@ export async function loadAccessRequest(
       client
         .from('club_access_requests')
         .select(
-          `id, status, requested_club_name, approved_club_id, request_note, review_note, requester:people!club_access_requests_requester_person_id_fkey${PERSON_COLUMNS}, approved_club:clubs!club_access_requests_approved_club_id_fkey(name)`
+          `id, status, requested_club_name, approved_club_id, created_club_id, request_note, review_note, requester:people!club_access_requests_requester_person_id_fkey${PERSON_COLUMNS}, approved_club:clubs!club_access_requests_approved_club_id_fkey(name)`
         )
         .eq('id', requestId)
     );
@@ -123,6 +131,7 @@ export async function loadAccessRequest(
       requestedRole: null,
       requesterNote: row.request_note,
       reviewerNote: row.review_note,
+      clubCreatedOnRequest: Boolean(row.created_club_id),
     };
   }
 
@@ -159,6 +168,7 @@ export async function loadAccessRequest(
         : null,
     requesterNote: row.requester_note,
     reviewerNote: row.reviewer_note,
+    clubCreatedOnRequest: false,
   };
 }
 

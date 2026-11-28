@@ -5,6 +5,7 @@
  * dog page; favorites reuse the armband sync the entry lists use, for both.
  */
 import { useMemo, useState } from 'react';
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -208,9 +209,11 @@ export const AtShowDogsPage: React.FC = () => {
                 data-testid={`at-show-dog-${dog.key}`}
               >
                 <DogRowBody to={isExhibitor ? null : atShowDogPath(showId as string, dog.key)}>
-                  <span className="shrink-0 rounded-full bg-[color:var(--chip-stone-bg)] px-2 py-0.5 text-xs font-medium text-[color:var(--chip-stone-fg)]">
-                    {dog.armband != null ? `#${dog.armband}` : '—'}
-                  </span>
+                  <ArmbandBadge
+                    armband={dog.armband}
+                    srLabel
+                    className="h-7 min-w-7 shrink-0 rounded-md text-xs"
+                  />
                   <span className="min-w-0">
                     <span className="block truncate font-medium">{dog.dogName}</span>
                     <span className="block truncate text-sm text-muted-foreground">

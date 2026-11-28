@@ -17,6 +17,9 @@
 //   run, so a backlog bigger than one run never starves its tail. A payout
 //   claimed this run is stamped past the cutoff and one whose reminder failed
 //   is put back behind the cursor, so neither is read twice in a run.
+// - A payout approved or held between its claim and its alert has the alert
+//   stored already resolved; alertAdmin then sends no email and reports
+//   storedResolved, which is neither reminded nor failed (MYK9-2456).
 // - A reminder that was not saved, or whose email failed or was skipped (no
 //   RESEND_API_KEY), is counted, its stamp is put
 //   back so the next run tries again, and the run raises one alert with the count.
@@ -159,6 +162,10 @@ export async function remindAwaitingApprovals(
         dedupeKey: awaitingApprovalDedupeKey(payout.id),
         severity: 'warn',
       });
+      // Approved or held between the claim and the alert: the trigger stored the
+      // alert already resolved and no email went out. Nothing to send or retry,
+      // so the stamp stays (MYK9-2456).
+      if (result.storedResolved) continue;
       if (reminderFailed(result)) {
         outcome.failed++;
         if (!(await deps.release(payout, stampIso))) {

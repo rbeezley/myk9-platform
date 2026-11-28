@@ -34,6 +34,16 @@ describe('blocked show delete: already cancelled', () => {
   });
 });
 
+describe('blocked show delete: closed (MYK9-2430)', () => {
+  it('offers no Cancel show link, since a closed show cannot change status on the Edit panel', () => {
+    expect(
+      blockedActionFor('show', [
+        { id: 's1', name: 'Heartland', context: { showId: 's1', showStatus: 'completed' } },
+      ])
+    ).toBeUndefined();
+  });
+});
+
 describe('blocked show delete: who can open the Edit panel the link targets', () => {
   // The panel opens only for `canManageShowSurface` (what useShowManageScope calls);
   // every role that can reach the delete dialog must pass it for the show's club.

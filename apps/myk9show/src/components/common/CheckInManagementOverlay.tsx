@@ -19,6 +19,7 @@ import {
 import { CheckInStatus } from '@/types/check-in-types';
 import { Users } from 'lucide-react';
 import { StatusBadge, StatusIcon, getStatusDescriptor } from '@/components/status';
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 
 interface EntryForCheckIn {
   id: string;
@@ -123,9 +124,7 @@ export const CheckInManagementOverlay: React.FC<CheckInManagementOverlayProps> =
                       <div className="flex-1 flex items-center gap-4">
                         {/* Armband */}
                         <div className="flex-shrink-0">
-                          <div className="font-mono text-lg font-bold text-primary bg-primary/10 rounded-lg px-3 py-1.5">
-                            #{entry.armband}
-                          </div>
+                          <ArmbandBadge armband={entry.armband} srLabel />
                         </div>
 
                         {/* Dog/Handler Info */}

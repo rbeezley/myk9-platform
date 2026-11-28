@@ -37,7 +37,7 @@ import {
   type OwnerAddressGateLine,
 } from '../_shared/cartOwnerAddressGate.ts';
 import { checkoutLeasedCart } from '../_shared/leasedCheckoutCart.ts';
-import { hasBlockingSubscription } from '../_shared/existingSubscriptionGuard.ts';
+import { openSubscriptionCheckout } from './subscriptionSessionExpiry.ts';
 import { formatStatementDescriptorSuffix } from '../_shared/statementDescriptor.ts';
 import {
   cartHasBlockedClass,
@@ -1110,31 +1110,26 @@ async function handleSubscriptionCheckout(
     return corsResponse(corsHeaders, { error: 'Invalid price_id' }, 400);
   }
 
-  // Pre-flight: reject if the customer already has an active, trialing or
-  // past_due subscription (MYK9-2444). Without this guard, multi-tab or
-  // direct-call scenarios create duplicate Stripe subscriptions;
-  // syncSubscriptionFromStripe's limit:1 query may then sync the wrong one.
-  if (await hasBlockingSubscription(stripe, customerId)) {
-    return corsResponse(
-      corsHeaders,
-      {
-        error: 'You already have a subscription. Visit your account settings to manage it.',
-      },
-      400
-    );
+  // Refuse a customer with a blocking subscription (MYK9-2444), and expire
+  // their other open subscription sessions first so only one can be paid
+  // (MYK9-2449). A failed expire refuses; it never opens a second session.
+  const result = await openSubscriptionCheckout(stripe, customerId, () =>
+    stripe.checkout.sessions.create({
+      customer: customerId,
+      line_items: [{ price: price_id, quantity: 1 }],
+      mode: 'subscription',
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      metadata: { type: 'subscription' },
+    })
+  );
+
+  if (result.kind === 'refused') {
+    console.error(`Refused subscription checkout for ${customerId}: ${result.diagnostic}`);
+    return corsResponse(corsHeaders, { error: result.error }, result.status);
   }
 
-  const session = await stripe.checkout.sessions.create({
-    customer: customerId,
-    line_items: [{ price: price_id, quantity: 1 }],
-    mode: 'subscription',
-    success_url: successUrl,
-    cancel_url: cancelUrl,
-    metadata: {
-      type: 'subscription',
-    },
-  });
-
-  console.log(`Created subscription checkout session ${session.id}`);
+  const { session, expiredSessionIds } = result;
+  console.log(`Created subscription checkout session ${session.id}`, { expiredSessionIds });
   return corsResponse(corsHeaders, { sessionId: session.id, url: session.url });
 }

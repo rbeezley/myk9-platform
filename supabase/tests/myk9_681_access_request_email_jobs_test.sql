@@ -106,7 +106,9 @@ DECLARE
   v_membership uuid;
   v_duplicate uuid;
 BEGIN
-  v_new_club := public.submit_club_access_request('MYK9-681 Founding Club', NULL, 'Please set us up.', '{"AKC":"681"}'::jsonb);
+  v_new_club := (public.request_new_club(
+    'MYK9-681 Founding Club', '{"AKC":"681"}'::jsonb, 'Please set us up.'
+  ) ->> 'request_id')::uuid;
   v_role := public.submit_role_request(
     'secretary', 'club', '00000000-0000-0000-0000-000000681c01', NULL, 'I run entries.'
   );

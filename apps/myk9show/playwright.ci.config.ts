@@ -54,6 +54,9 @@ const REGRESSION_SPECS = [
   '**/show/atShowOfflineScoring.spec.ts',
   // MYK9-1487: two-device offline OCC conflict on a disposable entry; skips unless isolated.
   '**/show/atShowMultiDeviceOfflineSync.spec.ts',
+  // MYK9-2494: combined A & B Ringside list after a section move, and after a move undone and made
+  // again; disposable dog and Section B class, skips unless isolated.
+  '**/show/atShowCombinedSectionMove.spec.ts',
   // MYK9-1498: walks promoted from the 2026-10-29 evidence sweep. Each writes real
   // rows (disposable entries, a disposable steward, planted cart lines) and skips
   // unless the target is the isolated stack. The channel flap runs ~6 minutes.

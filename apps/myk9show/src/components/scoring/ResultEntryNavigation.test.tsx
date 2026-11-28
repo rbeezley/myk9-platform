@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
+import { within } from '@testing-library/react';
 import type { CheckInStatus } from '@myk9/core';
 import type { EntryWithResult } from './ResultEntryNavigation';
 import { ResultEntryNavigation } from './ResultEntryNavigation';
@@ -177,7 +178,7 @@ describe('ResultEntryNavigation', () => {
       />
     );
 
-    const currentCard = screen.getByText('#101').closest('.myk9-entry-card');
+    const currentCard = screen.getByText('101').closest('.myk9-entry-card');
     expect(currentCard).not.toBeNull();
     expect(
       currentCard?.querySelector('[data-family="entry"][data-status="completed"]')
@@ -185,5 +186,30 @@ describe('ResultEntryNavigation', () => {
     expect(
       currentCard?.querySelector('[data-family="entry"][data-status="in-progress"]')
     ).toBeNull();
+  });
+
+  it('shows each entry armband as its own labelled badge', () => {
+    const entries = ['101', '102', '103'].map((armband, index) => ({
+      ...makeEntry(),
+      id: `entry-${index + 1}`,
+      checkInStatus: 'no-status' as const,
+      displayInfo: { ...makeEntry().displayInfo, armband, dogName: `Dog ${armband}` },
+    }));
+
+    render(
+      <ResultEntryNavigation
+        entries={entries}
+        classInfo={{ element: 'Container', level: 'Novice', judge: 'Judge One', totalEntries: 3 }}
+        onSelectEntry={vi.fn()}
+      />
+    );
+
+    for (const armband of ['101', '102', '103']) {
+      const card = screen.getByText(`Dog ${armband}`).closest('.myk9-entry-card');
+      const badge = within(card as HTMLElement).getByText(armband);
+      expect(badge).toHaveClass('bg-primary');
+      expect(badge).toHaveTextContent(`Armband ${armband}`);
+    }
+    expect(screen.queryByText('#101')).toBeNull();
   });
 });

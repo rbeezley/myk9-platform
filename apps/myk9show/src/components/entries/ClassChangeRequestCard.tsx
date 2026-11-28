@@ -12,6 +12,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatEntryDateTime } from '@/lib/format/dates';
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
+import { armbandAccessibleName } from '@/utils/armbandUtils';
 
 export interface ClassChangeRequestView {
   id: string;
@@ -65,7 +67,9 @@ export const ClassChangeRequestCard: React.FC<ClassChangeRequestCardProps> = ({
               {request.registeredName && (
                 <span className="text-muted-foreground">({request.registeredName})</span>
               )}
-              {request.armband && <Badge variant="outline">#{request.armband}</Badge>}
+              {armbandAccessibleName(request.armband) && (
+                <ArmbandBadge armband={request.armband} srLabel className="h-6 min-w-6 text-xs" />
+              )}
             </div>
             <div className="text-sm text-muted-foreground">
               Handler: {request.handler || 'Not specified'}

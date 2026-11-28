@@ -233,7 +233,7 @@ describe('CockpitScheduleRow status footer (MYK9-2143)', () => {
 
   it('names the dog in the ring by armband and name, then the next armbands', () => {
     renderRow(0, vi.fn(), running);
-    expect(status()).toHaveTextContent('Armband #106 Willow in the ring');
+    expect(status()).toHaveTextContent('Armband 106 Willow in the ring');
     expect(status()).toHaveTextContent('Next #105 · #110');
   });
 

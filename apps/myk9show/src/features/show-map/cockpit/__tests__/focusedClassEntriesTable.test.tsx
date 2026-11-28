@@ -219,7 +219,7 @@ describe('the focused class entries table (MYK9-1782)', () => {
       initialRoute: '/shows/show-1',
     });
     const status = screen.getByTestId('class-status-line');
-    expect(status).toHaveTextContent('Armband #102 Willow in the ring');
+    expect(status).toHaveTextContent('Armband 102 Willow in the ring');
     expect(status).toHaveTextContent('In progress');
     expect(status).toHaveTextContent('1 of 3 scored');
     expect(within(status).getByRole('progressbar', { hidden: true })).toHaveAttribute(

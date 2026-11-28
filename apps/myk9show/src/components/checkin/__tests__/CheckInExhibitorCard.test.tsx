@@ -41,7 +41,7 @@ const makeGroup = (overrides: Partial<ExhibitorCheckInGroup> = {}): ExhibitorChe
 describe('CheckInExhibitorCard', () => {
   it('renders armband, handler name, and dog name', () => {
     render(<CheckInExhibitorCard group={makeGroup()} onCheckIn={vi.fn()} onCheckInAll={vi.fn()} />);
-    expect(screen.getByText('#142')).toBeInTheDocument();
+    expect(screen.getByText('142')).toBeInTheDocument();
     expect(screen.getByText('Sarah Mitchell')).toBeInTheDocument();
     expect(screen.getByText(/Buddy/)).toBeInTheDocument();
   });

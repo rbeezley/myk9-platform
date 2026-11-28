@@ -12,6 +12,8 @@ import { ClassStatusBadge } from './ClassOperationalControls';
 import { getCockpitAnchorElementId } from './cockpitRoutes';
 import { ScheduleRowCheckbox, type TrialGroupSelect } from './ScheduleSelectControls';
 import type { ScheduledClassModel } from './secretaryCockpitTypes';
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
+import { armbandAccessibleName } from '@/utils/armbandUtils';
 
 const CONTROL_SELECTOR =
   'a, button, input, select, textarea, label, [role="button"], [role="menuitem"], [role="combobox"], [role="option"], [role="checkbox"], [role="switch"]';
@@ -46,9 +48,13 @@ function CardNextUp({ status }: { status: ScheduledClassModel['cardStatus'] }) {
             className="h-2 w-2 shrink-0 rounded-full bg-[color:var(--at-show-in-ring)]"
           />
           <span className="min-w-0 break-words">
-            {inRing.armband && (
+            {armbandAccessibleName(inRing.armband) && (
               <>
-                <span className="sr-only">Armband </span>#{inRing.armband}{' '}
+                <ArmbandBadge
+                  armband={inRing.armband}
+                  srLabel
+                  className="h-6 min-w-6 align-middle text-xs"
+                />{' '}
               </>
             )}
             {inRing.dogName}

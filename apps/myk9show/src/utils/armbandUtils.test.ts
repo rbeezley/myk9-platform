@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatArmbandDisplay, resolveStartNumber } from './armbandUtils';
+import { armbandAccessibleName, formatArmbandDisplay, resolveStartNumber } from './armbandUtils';
 
 describe('resolveStartNumber', () => {
   it('returns startNumber when no existing armbands', () => {
@@ -34,5 +34,16 @@ describe('formatArmbandDisplay', () => {
     expect(formatArmbandDisplay(0)).toBe('—');
     expect(formatArmbandDisplay('-')).toBe('—');
     expect(formatArmbandDisplay('--')).toBe('—');
+  });
+});
+
+describe('armbandAccessibleName', () => {
+  it('names an assigned armband', () => {
+    expect(armbandAccessibleName('101')).toBe('Armband 101');
+    expect(armbandAccessibleName(7)).toBe('Armband 7');
+  });
+
+  it.each(['0', '-', '--', '', '  ', 0, null, undefined])('is null for unassigned %p', value => {
+    expect(armbandAccessibleName(value)).toBeNull();
   });
 });

@@ -21,7 +21,7 @@ describe('CheckInStatusDialog', () => {
       />
     );
 
-    const description = screen.getByText('Armband #42').closest('[class*="text-muted-foreground"]');
+    const description = screen.getByText('42').closest('[class*="text-muted-foreground"]');
 
     expect(description).not.toBeNull();
     expect(description?.querySelector('div')).toBeNull();
@@ -100,8 +100,9 @@ describe('CheckInStatusDialog — exhibitor voice', () => {
       />
     );
 
-    expect(screen.getByText('Armband #42')).toBeInTheDocument();
-    expect(screen.queryByText(/Armband #MK9/)).not.toBeInTheDocument();
+    expect(screen.getByText('42')).toBeInTheDocument();
+    expect(screen.getByText('Armband', { exact: false })).toHaveClass('sr-only');
+    expect(screen.queryByText(/MK9/)).not.toBeInTheDocument();
   });
 
   it('falls back to a labeled confirmation number when no armband is assigned yet', () => {
@@ -116,7 +117,7 @@ describe('CheckInStatusDialog — exhibitor voice', () => {
     );
 
     expect(screen.getByText('Confirmation number MK9-000056')).toBeInTheDocument();
-    expect(screen.queryByText(/^Armband #/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Armband/)).not.toBeInTheDocument();
   });
 
   it('does not render a dangling "#" when the class has no number', () => {

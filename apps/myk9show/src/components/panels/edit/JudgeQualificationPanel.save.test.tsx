@@ -14,6 +14,20 @@ const state = vi.hoisted(() => ({
   refetch: vi.fn(),
   replace: vi.fn(),
   empty: [] as never[],
+  suspended: [
+    {
+      id: 'q-1',
+      person_id: 'p1',
+      organization: 'AKC',
+      qualification_level: 'Master',
+      disciplines: ['Scent Work'],
+      judge_number: 'J-1',
+      date_obtained: null,
+      is_active: false,
+      suspension_date: '2026-01-05',
+      suspension_reason: 'Dues',
+    },
+  ] as never[],
 }));
 vi.mock('@/hooks/queries/useJudgeDatabase', () => ({
   useJudgeQualifications: () => ({ data: state.empty, refetch: state.refetch, ...state.query }),
@@ -76,5 +90,18 @@ describe('JudgeQualificationPanel: the form waits for the list', () => {
     const { user } = renderPanel();
     await user.click(addButton()!);
     expect(screen.getByRole('button', { name: /Save Changes/ })).toBeEnabled();
+  });
+
+  it('sends a suspended row back with its id and status when another organization is added (MYK9-2393)', async () => {
+    state.query = { data: state.suspended, hasList: true, isError: false, fetchStatus: 'idle' };
+    state.replace.mockResolvedValue(undefined);
+    const { user } = renderPanel();
+    await user.click(screen.getByRole('button', { name: /Add Another Qualification/ }));
+    await user.click(screen.getByRole('button', { name: /Save Changes/ }));
+
+    expect(state.replace).toHaveBeenCalledWith('p1', [
+      expect.objectContaining({ id: 'q-1', is_active: false, date_obtained: null }),
+      expect.not.objectContaining({ id: expect.anything() }),
+    ]);
   });
 });

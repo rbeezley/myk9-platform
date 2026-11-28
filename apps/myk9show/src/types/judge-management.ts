@@ -66,12 +66,14 @@ export interface JudgeCertification {
 
 // Create/Update Data Types
 export interface CreateJudgeQualificationData {
+  /** Present for an existing row so a save updates it in place (MYK9-2393). */
+  id?: string;
   person_id: string;
   organization: string;
   qualification_level: string;
   disciplines: string[];
   judge_number?: string;
-  date_obtained: string;
+  date_obtained: string | null;
   expiration_date?: string;
   approval_number?: string;
   approved_by?: string;

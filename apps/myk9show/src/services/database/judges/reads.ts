@@ -15,6 +15,7 @@ import { formatDateLocal } from '@/utils/dateLocal';
 import {
   JudgeQualification,
   CreateJudgeQualificationData,
+  ReplaceJudgeQualificationData,
   UpdateJudgeQualificationData,
   JudgeQualificationFilters,
   JudgeQualificationSummary,
@@ -80,7 +81,7 @@ const JUDGE_QUALIFICATIONS_SELECT = `judge_qualifications!inner(
 
 export async function replaceJudgeQualifications(
   personId: string,
-  qualifications: CreateJudgeQualificationData[]
+  qualifications: ReplaceJudgeQualificationData[]
 ): Promise<void> {
   const { error } = await (
     supabase as unknown as {

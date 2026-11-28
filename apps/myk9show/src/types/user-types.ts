@@ -68,6 +68,8 @@ export interface Handler extends User {
 }
 
 export interface JudgeQualification {
+  /** Database row id; absent on a qualification not yet saved (MYK9-2393). */
+  id?: string;
   // Core properties from both definitions
   organization: 'AKC' | 'UKC' | 'FCI' | 'NACSW' | 'CPE' | 'OTHER' | 'Other';
   level: string;

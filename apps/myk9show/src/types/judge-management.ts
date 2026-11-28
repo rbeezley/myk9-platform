@@ -71,12 +71,20 @@ export interface CreateJudgeQualificationData {
   qualification_level: string;
   disciplines: string[];
   judge_number?: string;
-  date_obtained: string;
+  date_obtained: string | null;
   expiration_date?: string;
   approval_number?: string;
   approved_by?: string;
   is_active?: boolean;
   notes?: string | undefined;
+}
+
+/** One row of the panel's whole-list save (`replace_judge_qualifications`), not a table insert. */
+export interface ReplaceJudgeQualificationData extends CreateJudgeQualificationData {
+  /** Present for an existing row so a save updates it in place (MYK9-2393). */
+  id?: string;
+  /** Form status; the save RPC reconciles suspension_date and suspension_reason from it. */
+  status?: 'Active' | 'Suspended' | 'Expired';
 }
 
 export interface UpdateJudgeQualificationData {

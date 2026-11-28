@@ -219,20 +219,34 @@ export const ClubMembersManager: React.FC<ClubMembersManagerProps> = ({ clubId, 
                   searchPlaceholder="Search people by name or email..."
                   fields={[list.statusField]}
                 />
-                <ListResultLine
-                  shown={list.filteredRows.length}
-                  total={list.rows.length}
-                  noun={MEMBER_NOUN}
-                  filtered={list.hasActiveFilters}
-                  // One URL update: separate setters would each clone the same snapshot.
-                  onShowAll={list.showAll}
-                />
+                {list.complete ? (
+                  <ListResultLine
+                    shown={list.filteredRows.length}
+                    total={list.rows.length}
+                    noun={MEMBER_NOUN}
+                    filtered={list.hasActiveFilters}
+                    // The empty table offers its own Show all button: one button, one place.
+                    showAllInEmptyState={list.filteredRows.length === 0}
+                    // One URL update: separate setters would each clone the same snapshot.
+                    onShowAll={list.showAll}
+                  />
+                ) : (
+                  // Some role lists are missing, so people found only there are missing too: say
+                  // what is shown, never "all N".
+                  <p role="status" className="text-sm text-muted-foreground">
+                    Showing {list.filteredRows.length}{' '}
+                    {list.filteredRows.length === 1 ? 'person' : 'people'} found so far. The list is
+                    not complete yet.
+                  </p>
+                )}
 
                 {/* Members Table */}
                 <MembersTable
                   rows={list.filteredRows}
                   roleActions={roleActions}
                   searchQuery={searchQuery}
+                  filtered={list.hasActiveFilters}
+                  onShowAll={list.showAll}
                   onAddMember={() => setShowAddMember(true)}
                   onChangeType={handleChangeType}
                   onChangeStatus={handleChangeStatus}
@@ -314,6 +328,8 @@ export const ClubMembersManager: React.FC<ClubMembersManagerProps> = ({ clubId, 
       <ClubAdminDialogs clubName={clubName} {...list.adminDialogProps} />
 
       <AssignOfficerDialog
+        // A new key per person (and on close) starts the dialog fresh without an effect.
+        key={titleFor?.personId ?? 'closed'}
         open={titleFor !== null}
         onClose={() => setTitleFor(null)}
         onSave={(target, position) =>

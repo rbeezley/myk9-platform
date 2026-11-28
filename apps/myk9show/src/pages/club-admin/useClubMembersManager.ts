@@ -346,14 +346,18 @@ export function useClubMembersManager(clubId: string) {
   // getClubShowManagerIds is the narrowest and most RLS-sensitive of the three,
   // so it is the likeliest to fail. They still must not render absence as fact;
   // they say so inline instead.
-  const rosterError = membersQuery.isError;
-  const officersUnavailable = officersQuery.isError;
-  const showAccessUnavailable = showManagersQuery.isError;
+  // A query paused for lack of a connection with nothing cached has not answered: that is
+  // unavailable, never an empty result.
+  const neverAnswered = (query: { isError: boolean; fetchStatus: string; data: unknown }) =>
+    query.isError || (query.fetchStatus === 'paused' && query.data === undefined);
+  const rosterError = neverAnswered(membersQuery);
+  const officersUnavailable = neverAnswered(officersQuery);
+  const showAccessUnavailable = neverAnswered(showManagersQuery);
 
   const retryRoster = () => {
-    if (membersQuery.isError) void membersQuery.refetch();
-    if (officersQuery.isError) void officersQuery.refetch();
-    if (showManagersQuery.isError) void showManagersQuery.refetch();
+    if (neverAnswered(membersQuery)) void membersQuery.refetch();
+    if (neverAnswered(officersQuery)) void officersQuery.refetch();
+    if (showManagersQuery && neverAnswered(showManagersQuery)) void showManagersQuery.refetch();
   };
 
   return {
@@ -376,6 +380,12 @@ export function useClubMembersManager(clubId: string) {
       isShowAccessRevokeOpen,
       setIsShowAccessRevokeOpen,
       pendingShowAccessRevoke,
+      // Revoking the only secretary of a club with upcoming shows leaves them with nobody to run
+      // them; the confirm says so, from the row menu as well as the Show secretaries tab.
+      lastSecretaryShowCount:
+        showManagers.length === 1 && showManagers[0]?.personId === pendingShowAccessRevoke?.personId
+          ? (upcomingShowsQuery.data ?? 0)
+          : 0,
       confirmShowAccessRevoke,
     },
     membersQuery,

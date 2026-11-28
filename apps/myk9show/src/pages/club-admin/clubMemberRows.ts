@@ -172,8 +172,10 @@ export function filterClubPersonRows(
 
 /** Role views with a count over the whole list; a view whose source is unknown counts as unknown. */
 export function buildRoleViews(rows: ClubPersonRow[], sources: ClubRowSources): ListView[] {
+  // "All" is only a total once every source is known: a person found only in a failed source is
+  // missing from it.
   const unknown: Record<RoleView, boolean> = {
-    all: false,
+    all: sources.admins === null || sources.showManagers === null || sources.officers === null,
     admins: sources.admins === null,
     secretaries: sources.showManagers === null,
     officers: sources.officers === null,

@@ -11,6 +11,7 @@ import type { ListFilterField, ListView } from '@/components/list-toolkit';
 import type { ClubMember, ClubOfficer } from '@/types/club-membership-types';
 import { MEMBERSHIP_STATUS_LABELS, type MembershipStatus } from '@/types/club-membership-types';
 import type { ClubShowManager } from '@/services/database/club-memberships';
+import { useOnlineStatus } from '@/lib/networkUtils';
 import { useClubAdmins } from './useClubAdmins';
 import {
   buildRoleViews,
@@ -49,14 +50,19 @@ export function useClubPeopleList({
   // An unknown ?status= has no control to show or reset it, so it reads as 'all'.
   const status = (STATUS_IDS.find(id => id === rawStatus) ?? 'all') as MemberStatusFilter;
 
-  // The admin list is online-only: offline, still loading or failed, admin badges are unknown.
-  const adminsUnavailable = admins.isOffline || admins.isError;
+  // The admin list is online-only: offline (even with a cached copy, which may be stale), still
+  // loading or failed, admin badges are unknown and admin actions are off.
+  const online = useOnlineStatus();
+  const adminsOffline = !online || admins.isOffline;
+  const adminsUnavailable = adminsOffline || admins.isError;
   const adminsKnown = !adminsUnavailable && !admins.isLoading;
 
   const sources = useMemo<ClubRowSources>(
     () => ({ members, admins: adminsKnown ? admins.admins : null, showManagers, officers }),
     [members, adminsKnown, admins.admins, showManagers, officers]
   );
+  const complete =
+    sources.admins !== null && sources.showManagers !== null && sources.officers !== null;
   const rows = useMemo(() => mergeClubPersonRows(sources), [sources]);
   const views = useMemo<ListView[]>(() => buildRoleViews(rows, sources), [rows, sources]);
   const filteredRows = useMemo(
@@ -98,7 +104,8 @@ export function useClubPeopleList({
     statusField,
     hasActiveFilters: view !== 'all' || status !== 'all' || searchQuery.trim() !== '',
     adminsUnavailable,
-    adminsOffline: admins.isOffline,
+    adminsOffline,
+    complete,
     retryAdmins: admins.retry,
     selectView: (id: string) =>
       patchSearchParams(setSearchParams, { view: id === 'all' ? null : id }),

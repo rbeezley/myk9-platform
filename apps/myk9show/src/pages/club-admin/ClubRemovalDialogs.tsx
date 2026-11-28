@@ -28,6 +28,8 @@ export interface ClubRemovalDialogsProps {
   isShowAccessRevokeOpen: boolean;
   setIsShowAccessRevokeOpen: (open: boolean) => void;
   pendingShowAccessRevoke: { personId: string; personName: string } | null;
+  /** Upcoming shows left with nobody to run them when the person revoked is the only secretary; 0 otherwise. */
+  lastSecretaryShowCount?: number;
   confirmShowAccessRevoke: () => void;
 }
 
@@ -39,6 +41,7 @@ export const ClubRemovalDialogs: React.FC<ClubRemovalDialogsProps> = ({
   isShowAccessRevokeOpen,
   setIsShowAccessRevokeOpen,
   pendingShowAccessRevoke,
+  lastSecretaryShowCount = 0,
   confirmShowAccessRevoke,
 }) => (
   <>
@@ -86,6 +89,8 @@ export const ClubRemovalDialogs: React.FC<ClubRemovalDialogsProps> = ({
           <AlertDialogDescription>
             {pendingShowAccessRevoke?.personName} will no longer be able to create or run any of
             this club&apos;s shows. This does not remove their club membership.
+            {lastSecretaryShowCount > 0 &&
+              ` This is the club's only appointed secretary, with ${lastSecretaryShowCount} upcoming ${lastSecretaryShowCount === 1 ? 'show' : 'shows'}. Appoint someone else before revoking them.`}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter className="gap-2 sm:flex-wrap sm:space-x-0">

@@ -83,6 +83,9 @@ interface MembersTableProps {
   rows: ClubPersonRow[];
   roleActions: RoleActions;
   searchQuery: string;
+  /** A role view, status or search is narrowing the list; defaults to whether there is a search. */
+  filtered?: boolean;
+  onShowAll?: () => void;
   onAddMember: () => void;
   onChangeType: (memberId: string, type: MembershipType) => void;
   onChangeStatus: (memberId: string, status: MembershipStatus) => void;
@@ -94,101 +97,119 @@ export const MembersTable: React.FC<MembersTableProps> = ({
   rows,
   roleActions,
   searchQuery,
+  filtered,
+  onShowAll,
   onAddMember,
   onChangeType,
   onChangeStatus,
   onRemove,
   onToggleShowAccess,
-}) => (
-  <div className="overflow-x-auto rounded-xl border border-border">
-    <table className="w-full text-sm">
-      <thead>
-        <tr className="border-b border-border bg-[color:var(--chip-stone-bg)]">
-          <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Name</th>
-          <th className="text-left px-4 py-3 font-semibold text-muted-foreground hidden sm:table-cell">
-            Email
-          </th>
-          <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Type</th>
-          <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Status</th>
-          <th className="text-left px-4 py-3 font-semibold text-muted-foreground hidden md:table-cell">
-            Joined
-          </th>
-          <th className="text-right px-4 py-3 font-semibold text-muted-foreground">
-            <span className="sr-only">Actions</span>
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map(row => (
-          <tr key={row.key} className="border-b border-border hover:bg-accent transition-colors">
-            <td className="px-4 py-3 font-medium text-foreground">
-              <span className="flex flex-wrap items-center gap-2">
-                {row.name}
-                <RoleBadges row={row} />
-              </span>
-            </td>
-            <td className="px-4 py-3 text-muted-foreground hidden sm:table-cell">
-              {row.email || EMPTY_CELL}
-            </td>
-            <td className="px-4 py-3">
-              {row.member ? (
-                <Badge className={TYPE_BADGE_CLASSES[row.member.membershipType]}>
-                  {MEMBERSHIP_TYPE_LABELS[row.member.membershipType]}
-                </Badge>
-              ) : (
-                <span className="text-muted-foreground">Not a club member</span>
-              )}
-            </td>
-            <td className="px-4 py-3">
-              {row.member ? (
-                <Badge className={STATUS_BADGE_CLASSES[row.member.membershipStatus]}>
-                  {MEMBERSHIP_STATUS_LABELS[row.member.membershipStatus]}
-                </Badge>
-              ) : (
-                EMPTY_CELL
-              )}
-            </td>
-            <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">
-              {row.member?.joinedDate ? formatShortCalendarDate(row.member.joinedDate) : EMPTY_CELL}
-            </td>
-            <td className="px-4 py-3 text-right">
-              <MemberActionMenu
-                row={row}
-                onChangeType={onChangeType}
-                onChangeStatus={onChangeStatus}
-                onRemove={onRemove}
-                onToggleShowAccess={onToggleShowAccess}
-                roleActions={roleActions}
-              />
-            </td>
+}) => {
+  const isFiltered = filtered ?? !!searchQuery;
+  return (
+    <div className="overflow-x-auto rounded-xl border border-border">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-border bg-[color:var(--chip-stone-bg)]">
+            <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Name</th>
+            <th className="text-left px-4 py-3 font-semibold text-muted-foreground hidden sm:table-cell">
+              Email
+            </th>
+            <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Type</th>
+            <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Status</th>
+            <th className="text-left px-4 py-3 font-semibold text-muted-foreground hidden md:table-cell">
+              Joined
+            </th>
+            <th className="text-right px-4 py-3 font-semibold text-muted-foreground">
+              <span className="sr-only">Actions</span>
+            </th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {rows.map(row => (
+            <tr key={row.key} className="border-b border-border hover:bg-accent transition-colors">
+              <td className="px-4 py-3 font-medium text-foreground">
+                <span className="flex flex-wrap items-center gap-2">
+                  {row.name}
+                  <RoleBadges row={row} />
+                </span>
+              </td>
+              <td className="px-4 py-3 text-muted-foreground hidden sm:table-cell">
+                {row.email || EMPTY_CELL}
+              </td>
+              <td className="px-4 py-3">
+                {row.member ? (
+                  <Badge className={TYPE_BADGE_CLASSES[row.member.membershipType]}>
+                    {MEMBERSHIP_TYPE_LABELS[row.member.membershipType]}
+                  </Badge>
+                ) : (
+                  <span className="text-muted-foreground">Not a club member</span>
+                )}
+              </td>
+              <td className="px-4 py-3">
+                {row.member ? (
+                  <Badge className={STATUS_BADGE_CLASSES[row.member.membershipStatus]}>
+                    {MEMBERSHIP_STATUS_LABELS[row.member.membershipStatus]}
+                  </Badge>
+                ) : (
+                  EMPTY_CELL
+                )}
+              </td>
+              <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">
+                {row.member?.joinedDate
+                  ? formatShortCalendarDate(row.member.joinedDate)
+                  : EMPTY_CELL}
+              </td>
+              <td className="px-4 py-3 text-right">
+                <MemberActionMenu
+                  row={row}
+                  onChangeType={onChangeType}
+                  onChangeStatus={onChangeStatus}
+                  onRemove={onRemove}
+                  onToggleShowAccess={onToggleShowAccess}
+                  roleActions={roleActions}
+                />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
 
-    {rows.length === 0 && (
-      <div className="flex flex-col items-center justify-center py-12">
-        <div className="bg-[color:var(--chip-stone-bg)] rounded-full p-6 mb-4">
-          <Users className="h-12 w-12 text-muted-foreground" />
+      {rows.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-12">
+          <div className="bg-[color:var(--chip-stone-bg)] rounded-full p-6 mb-4">
+            <Users className="h-12 w-12 text-muted-foreground" />
+          </div>
+          <h3 className="text-lg font-semibold mb-2 text-foreground">
+            {searchQuery
+              ? 'No Members Found'
+              : isFiltered
+                ? 'Nobody in this view'
+                : 'No Members Yet'}
+          </h3>
+          <p className="text-muted-foreground mb-4 text-center max-w-sm">
+            {searchQuery
+              ? 'Try adjusting your search terms.'
+              : isFiltered
+                ? 'Nobody matches the view and filters you picked.'
+                : 'Add your first club member to get started.'}
+          </p>
+          {isFiltered && onShowAll && (
+            <Button variant="outline" onClick={onShowAll}>
+              Show all people
+            </Button>
+          )}
+          {!isFiltered && (
+            <Button onClick={onAddMember}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Member
+            </Button>
+          )}
         </div>
-        <h3 className="text-lg font-semibold mb-2 text-foreground">
-          {searchQuery ? 'No Members Found' : 'No Members Yet'}
-        </h3>
-        <p className="text-muted-foreground mb-4 text-center max-w-sm">
-          {searchQuery
-            ? 'Try adjusting your search terms.'
-            : 'Add your first club member to get started.'}
-        </p>
-        {!searchQuery && (
-          <Button onClick={onAddMember}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Member
-          </Button>
-        )}
-      </div>
-    )}
-  </div>
-);
+      )}
+    </div>
+  );
+};
 
 // --- Officers table ---
 

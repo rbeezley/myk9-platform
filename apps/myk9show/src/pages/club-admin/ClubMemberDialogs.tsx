@@ -257,7 +257,9 @@ export const AssignOfficerDialog: React.FC<AssignOfficerDialogProps> = ({
       selectedPersonId ? { personId: selectedPersonId } : { displayName: trimmedTypedName },
       position
     );
-    reset();
+    // A failed save leaves the dialog open: keep the chosen title for the retry. The parent remounts the
+    // fixed-person dialog (key) when it closes, which clears it. The picker flow has always cleared on submit.
+    if (!fixedPerson) reset();
   };
 
   const handleClose = () => {

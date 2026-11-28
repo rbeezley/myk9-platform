@@ -16,6 +16,7 @@ const m = vi.hoisted(() => ({
   getClubOfficers: vi.fn(),
   addClubOfficer: vi.fn(),
   removeClubOfficer: vi.fn(),
+  countUpcomingClubShows: vi.fn(),
   refreshPermissions: vi.fn(),
   navigate: vi.fn(),
   notifySuccess: vi.fn(),
@@ -49,7 +50,7 @@ vi.mock('@/lib/notifications', () => ({
 }));
 
 vi.mock('@/services/database/clubs', () => ({
-  countUpcomingClubShows: vi.fn(() => Promise.resolve(0)),
+  countUpcomingClubShows: m.countUpcomingClubShows,
 }));
 
 vi.mock('@/services/database/club-memberships', () => ({
@@ -134,6 +135,7 @@ describe('ClubMembersManager row menu: admin, show secretary and officer titles'
       officer('o-3', null, 'secretary', 'Sam Typed'),
     ]);
     m.refreshPermissions.mockResolvedValue(undefined);
+    m.countUpcomingClubShows.mockResolvedValue(0);
   });
 
   it('shows one row per person with role badges, and "Not a club member" for non-members', async () => {
@@ -406,5 +408,112 @@ describe('ClubMembersManager row menu: admin, show secretary and officer titles'
       expect(within(adaRow).getByText('Show secretary unknown')).toBeInTheDocument()
     );
     expect(screen.getByText(/couldn't load show secretaries/)).toBeInTheDocument();
+  });
+
+  it('warns in the revoke confirm when it is the only secretary and shows are coming up', async () => {
+    m.countUpcomingClubShows.mockResolvedValue(2);
+    const user = userEvent.setup();
+    renderList();
+    await openMenu(user, 'Pat Secretary');
+    await user.click(screen.getByRole('menuitem', { name: 'Revoke show secretary' }));
+
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+      "This is the club's only appointed secretary, with 2 upcoming shows. Appoint someone else before revoking them."
+    );
+  });
+
+  it('does not warn when another secretary remains', async () => {
+    m.countUpcomingClubShows.mockResolvedValue(2);
+    m.getClubShowManagers.mockResolvedValue([
+      {
+        personId: 'person-8',
+        personName: 'Pat Secretary',
+        personEmail: null,
+        isClubMember: false,
+        membershipStatus: null,
+      },
+      {
+        personId: 'person-2',
+        personName: 'Grace Hopper',
+        personEmail: null,
+        isClubMember: true,
+        membershipStatus: 'active',
+      },
+    ]);
+    const user = userEvent.setup();
+    renderList();
+    await openMenu(user, 'Pat Secretary');
+    await user.click(screen.getByRole('menuitem', { name: 'Revoke show secretary' }));
+
+    expect(await screen.findByRole('alertdialog')).not.toHaveTextContent(
+      'only appointed secretary'
+    );
+  });
+
+  it('offline, a cached admin list is not shown as current and admin actions are off', async () => {
+    const onLine = vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false);
+    try {
+      const user = userEvent.setup();
+      renderList();
+      const adaRow = (await screen.findByText('Ada Lovelace')).closest('tr')!;
+      await waitFor(() => expect(within(adaRow).getByText('Admin unknown')).toBeInTheDocument());
+      expect(within(adaRow).queryByText('Admin')).not.toBeInTheDocument();
+      expect(screen.getByText(/You are offline/)).toBeInTheDocument();
+      await openMenu(user, 'Ada Lovelace');
+      expect(
+        screen.queryByRole('menuitem', { name: /Make admin|Remove admin/ })
+      ).not.toBeInTheDocument();
+    } finally {
+      onLine.mockRestore();
+    }
+  });
+
+  it('does not call a partial list the total when a role list failed', async () => {
+    m.getClubAdmins.mockRejectedValue(new Error('network'));
+    renderList();
+    await screen.findByText('Ada Lovelace');
+
+    await waitFor(() => expect(screen.getByText(/found so far/)).toBeInTheDocument());
+    expect(screen.queryByText(/Showing all/)).not.toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'View: Member views' })).toHaveTextContent(
+      /^All \(.*\u2014/
+    );
+  });
+
+  it('an empty role view is not the empty-club prompt', async () => {
+    m.getClubOfficers.mockResolvedValue([]);
+    render(<ClubMembersManager clubId="club-1" clubName="Heartland Club" />, {
+      initialRoute: '/?view=officers',
+    });
+
+    expect(await screen.findByText('Nobody in this view')).toBeInTheDocument();
+    expect(screen.queryByText('No Members Yet')).not.toBeInTheDocument();
+    // Only the header's Add Member remains: the empty-club prompt would be a second one.
+    expect(screen.getAllByRole('button', { name: 'Add Member' })).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Show all people' })).toBeInTheDocument();
+  });
+
+  it('keeps the chosen officer title after a failed save, so a retry sends it', async () => {
+    m.addClubOfficer.mockRejectedValueOnce({ code: '23505' }).mockResolvedValue({});
+    const user = userEvent.setup();
+    renderList();
+    await openMenu(user, 'Grace Hopper');
+    await user.click(screen.getByRole('menuitem', { name: 'Set officer title' }));
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Set officer title for Grace Hopper',
+    });
+    await user.selectOptions(within(dialog).getByLabelText('Position'), 'treasurer');
+    await user.click(within(dialog).getByRole('button', { name: 'Assign Officer' }));
+    await waitFor(() => expect(m.notifyError).toHaveBeenCalled());
+
+    expect(within(dialog).getByLabelText('Position')).toHaveValue('treasurer');
+    await user.click(within(dialog).getByRole('button', { name: 'Assign Officer' }));
+    await waitFor(() =>
+      expect(m.addClubOfficer).toHaveBeenLastCalledWith({
+        clubId: 'club-1',
+        personId: 'person-2',
+        position: 'treasurer',
+      })
+    );
   });
 });

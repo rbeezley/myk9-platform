@@ -151,7 +151,7 @@ function approvedCopy(record: AccessRequestRecord): { subject: string; body: str
       subject: `Your club is ready: ${record.clubName}`,
       body:
         paragraph(
-          `Your request was approved. <strong>${club}</strong> is now set up in myK9Show.`
+          `Your request was approved. <strong>${club}</strong> is now approved in myK9Show.`
         ) +
         paragraph(
           'You can now publish your shows so exhibitors can enter. Sign in to get started.'

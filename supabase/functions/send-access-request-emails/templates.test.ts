@@ -127,6 +127,9 @@ describe('decisionEmail', () => {
     expect(email.emailType).toBe('access_request_new_club_approved');
     expect(email.html).toContain('You can now publish your shows so exhibitors can enter.');
     expect(email.html).not.toContain('Club-admin access is now available');
+    // The club was set up when she asked (MYK9-2046); approval is the news, not the setup.
+    expect(email.html).toContain('is now approved in myK9Show.');
+    expect(email.html).not.toContain('is now set up');
     expect(email.html).toContain('Heartland Dog Club');
   });
 

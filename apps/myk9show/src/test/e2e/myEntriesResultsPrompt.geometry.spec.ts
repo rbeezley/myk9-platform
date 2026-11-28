@@ -68,21 +68,20 @@ for (const viewport of VIEWPORTS) {
     await expect(completedShow).toHaveCount(1);
     await expect(completedShow.getByTestId('results-public-prompt')).toHaveCount(1);
 
-    // In that show's block: above the dog list that follows it.
-    const showBlock = prompt.locator('xpath=..');
-    await expect(completedShow.locator(showBlock)).toHaveCount(1);
-    const dogList = showBlock.locator('> ul').first();
-    await expect(dogList).toBeVisible();
+    // Above the show's first dog card, measured from the show itself so a
+    // wrapper around the prompt cannot change what is compared.
+    await expect(completedShow.locator('.myk9-entries-dog-card').first()).toBeVisible();
+    const dogCard = completedShow.locator('.myk9-entries-dog-card').first();
     const promptBox = await prompt.boundingBox();
-    const listBox = await dogList.boundingBox();
+    const listBox = await dogCard.boundingBox();
     expect(promptBox, 'prompt has a box').not.toBeNull();
-    expect(listBox, 'dog list has a box').not.toBeNull();
+    expect(listBox, 'dog card has a box').not.toBeNull();
     expect(promptBox!.y + promptBox!.height).toBeLessThanOrEqual(listBox!.y + 1);
 
     await expectNoHorizontalOverflow(page, `my entries at ${viewport.width}px`);
 
     // Class names stay readable: wide enough, and not stacked letter by letter.
-    const classNames = showBlock.locator('.myk9-entries-class-name');
+    const classNames = completedShow.locator('.myk9-entries-class-name');
     await expect(classNames.first()).toBeVisible();
     const count = await classNames.count();
     expect(count).toBeGreaterThan(0);

@@ -73,8 +73,10 @@ test.describe('Cross-role workflow smoke', () => {
     // America/Chicago and assigns this judge its Container Novice A, so Today
     // is never empty on the seeded database this suite runs against. The old
     // "No Classes Today" assertion predated that fixture.
+    // Today can list more than one Container Novice A for this judge, so match the first rather
+    // than requiring exactly one (nightly run 45244034566: strict-mode violation, 2 headings).
     const today = page.getByRole('tabpanel', { name: 'Today' });
-    await expect(today.getByRole('heading', { name: 'Container Novice A' })).toBeVisible({
+    await expect(today.getByRole('heading', { name: 'Container Novice A' }).first()).toBeVisible({
       timeout: 15000,
     });
   });

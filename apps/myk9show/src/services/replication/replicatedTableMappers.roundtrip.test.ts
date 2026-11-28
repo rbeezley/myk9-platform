@@ -420,10 +420,14 @@ describe('Replicated*Table mappers — db row -> domain -> db row', () => {
       name: 'Saturday Trial',
       date: '2026-08-01',
       trial_number: '1',
-      status: 'in_progress',
       registry_id: 'AKC',
       timezone: 'America/New_York',
     });
+    // MYK9-2450: a rebuilt resend never re-emits the trial's status or actual times; the queue
+    // restores only the keys the original mutation set (as shows and classes do).
+    expect(rebuilt).not.toHaveProperty('status');
+    expect(rebuilt).not.toHaveProperty('actual_start_time');
+    expect(rebuilt).not.toHaveProperty('actual_end_time');
   });
 
   it('trials: defaults registry_id to AKC on write-back when unset', () => {

@@ -46,9 +46,12 @@ select ('00000000-0000-0000-0000-00000099501' || n)::uuid, 'MYK9-995', 'Person '
 from generate_series(1, 4) n;
 
 -- `check_in_given` separates a row that omits check_in_status (the column
--- default) from one that sets it to JSON null (a NULL column).
+-- default) from one that sets it to JSON null (a NULL column); `entry_status_given`
+-- does the same for entry_status (a NULL entry_status is runnable: neither side's
+-- Pending rule matches it).
 create temp table fixture as
-select ord, r.*, f.row ? 'check_in_status' as check_in_given
+select ord, r.*, f.row ? 'check_in_status' as check_in_given,
+  f.row ? 'entry_status' as entry_status_given
 from jsonb_array_elements($fixture$
 [
   {"key": "a19", "class": "A", "armband": "2",    "run_order": null, "expected": null},
@@ -72,11 +75,17 @@ from jsonb_array_elements($fixture$
   {"key": "a18", "class": "A", "armband": "118",  "run_order": 1,    "is_in_ring": true, "expected": null},
   {"key": "a20", "class": "A", "armband": " 4x",  "run_order": 0,    "expected": null},
   {"key": "a21", "class": "A", "armband": "121",  "run_order": 11,   "entry_status": "completed", "expected": 8},
-  {"key": "a22", "class": "A", "armband": "122",  "run_order": 12,   "entry_status": "draft", "expected": 9},
-  {"key": "a24", "class": "A", "armband": "205",  "run_order": 13,   "expected": 11},
-  {"key": "a25", "class": "A", "armband": "201",  "run_order": 13,   "expected": 10},
-  {"key": "a26", "class": "A", "armband": "126",  "run_order": 14,   "check_in_status": null, "expected": 12},
-  {"key": "a23", "class": "A", "armband": "123",  "run_order": 15,   "result_status": "qualified", "expected": 13},
+  {"key": "a22", "class": "A", "armband": "122",  "run_order": 12,   "entry_status": "draft", "expected": null},
+  {"key": "a24", "class": "A", "armband": "205",  "run_order": 13,   "expected": 10},
+  {"key": "a25", "class": "A", "armband": "201",  "run_order": 13,   "expected": 9},
+  {"key": "a26", "class": "A", "armband": "126",  "run_order": 14,   "check_in_status": null, "expected": 11},
+  {"key": "a23", "class": "A", "armband": "123",  "run_order": 15,   "result_status": "qualified", "expected": 12},
+  {"key": "a27", "class": "A", "armband": "127",  "run_order": 4,    "entry_status": "no-status", "expected": null},
+  {"key": "a28", "class": "A", "armband": "128",  "run_order": 6,    "entry_status": "paid", "expected": null},
+  {"key": "a29", "class": "A", "armband": "129",  "run_order": 8,    "entry_status": "promotion-expired", "expected": null},
+  {"key": "a30", "class": "A", "armband": "130",  "run_order": 16,   "entry_status": null, "expected": 13},
+  {"key": "a31", "class": "A", "armband": "131",  "run_order": 17,   "entry_status": "submitted", "expected": null},
+  {"key": "a32", "class": "A", "armband": "132",  "run_order": 11,   "entry_status": "pending-payment", "expected": null},
   {"key": "b2",  "class": "B", "armband": "302",  "run_order": 2,    "expected": 1}
 ]
 $fixture$::jsonb) with ordinality as f(row, ord)
@@ -107,7 +116,7 @@ select pg_temp.fx_id(key), pg_temp.fx_id('dog-' || key),
   case class when 'A' then '00000000-0000-0000-0000-0000009950a0'::uuid
              else '00000000-0000-0000-0000-0000009950b0'::uuid end,
   '00000000-0000-0000-0000-000000995002', '00000000-0000-0000-0000-000000995003', null,
-  coalesce(entry_status, 'confirmed'), 'pending', 25, armband, run_order,
+  case when entry_status_given then entry_status else 'confirmed' end, 'pending', 25, armband, run_order,
   coalesce(is_scored, false), coalesce(is_in_ring, false),
   case when check_in_given then check_in_status else 'no-status' end,
   coalesce(result_status, 'pending'),

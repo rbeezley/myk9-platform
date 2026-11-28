@@ -130,13 +130,13 @@ export const SITE_ALLOWLIST: readonly SiteAllow[] = [
       'PEOPLE_MAPPER_COLUMNS includes phone, address and others beyond the anon people columns (id, first_name, last_name, email), so anon is denied on the base before the embed',
   },
   {
-    file: 'apps/myk9show/src/services/database/users/reads.ts',
+    file: 'apps/myk9show/src/services/database/users/allPeoplePaged.ts',
     base: 'people',
     embed: 'judge_qualifications',
     role: 'anon',
     match: /deleted_by, judge_qualifications\(/,
     reason:
-      'getAllUsers: ' +
+      'getAllUsers (readAllPeoplePaged): ' +
       'PEOPLE_MAPPER_COLUMNS includes phone, address and others beyond the anon people columns (id, first_name, last_name, email), so anon is denied on the base before the embed',
   },
   {

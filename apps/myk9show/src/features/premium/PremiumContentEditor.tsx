@@ -6,6 +6,7 @@ import { notifications } from '@/lib/notifications';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useCurrentBuiltNarratives } from './useCurrentBuiltNarratives';
 import { useGeneratePremium } from './useGeneratePremium';
 import { PremiumEditorFields } from './PremiumEditorFields';
 import { PREMIUM_PENDING_REASON } from './premiumPendingCopy';
@@ -18,6 +19,7 @@ import { withGenerationTimeout } from './withGenerationTimeout';
 import { stripPlaceholderNarratives } from './premiumNarratives';
 import { PremiumPdfPreviewOverlay } from './PremiumPdfPreviewOverlay';
 import { cachedDraftFor, withFreshFacts, type PremiumDraftCache } from './premiumDraftCache';
+import { buildFinalPremium } from './buildFinalPremium';
 import { usePremiumDraftSync } from './usePremiumDraftSync';
 import type { GeneratedPremium, PremiumStyle } from '../../types/premium-types';
 
@@ -31,6 +33,8 @@ interface PremiumContentEditorProps {
   deferGeneration?: boolean;
   /** Why generating is held (MYK9-2213); disables Regenerate and shows this line. */
   regenerateBlockedReason?: string;
+  /** A narrative input Edit show can change is unsaved (MYK9-2280); holds "Use the show's current details". */
+  unsavedShowInputs?: boolean;
   onPremiumChange?: (premium: GeneratedPremium | undefined) => void;
   /** True once the narratives or supplemental details differ from what first loaded (MYK9-2201). */
   onEditedChange?: (edited: boolean) => void;
@@ -53,6 +57,7 @@ export function PremiumContentEditor({
   initialPremium,
   deferGeneration = false,
   regenerateBlockedReason,
+  unsavedShowInputs = false,
   onPremiumChange,
   onEditedChange,
   onInkSaverChange,
@@ -68,6 +73,7 @@ export function PremiumContentEditor({
   const [original, setOriginal] = useState<GeneratedPremium | null>(
     () => restored?.original ?? initialPremium ?? null
   );
+  const [built, setBuilt] = useCurrentBuiltNarratives(initialPremium?.builtNarratives);
   const [supplemental, setSupplemental] = useState<GeneratedPremium['supplemental'] | null>(
     () => restored?.supplemental ?? initialPremium?.supplemental ?? null
   );
@@ -141,6 +147,7 @@ export function PremiumContentEditor({
       const cleaned = { ...result, narratives: stripPlaceholderNarratives(result.narratives) };
       factsPendingRef.current = false;
       setOriginal(cleaned);
+      setBuilt(cleaned.builtNarratives);
       setSupplemental(cleaned.supplemental);
       setNarratives(cleaned.narratives);
     } catch (err) {
@@ -154,7 +161,7 @@ export function PremiumContentEditor({
         setIsGenerating(false);
       }
     }
-  }, [generate, showId]);
+  }, [generate, setBuilt, showId]);
 
   useEffect(() => {
     // A request in flight owns the draft; this must not populate over it or clear its flag.
@@ -227,23 +234,6 @@ export function PremiumContentEditor({
     onPremiumChangeRef.current?.(undefined);
     onInkSaverChangeRef.current?.(false);
   }, [active, draftCache, reset]);
-
-  function buildFinalPremium(): GeneratedPremium | null {
-    if (!original || !supplemental || !narratives) return null;
-    // MYK9-2173: the resolved image counts only for the URL it was resolved from.
-    const resolvedCover =
-      pdfCoverImageRemoteUrl === supplemental.coverImageUrl ? pdfCoverImageSrc : null;
-    const finalSupplemental = {
-      ...supplemental,
-      coverImageUrl: resolvedCover ?? supplemental.coverImageUrl,
-    };
-    return {
-      ...original,
-      style: style ?? original.style,
-      supplemental: finalSupplemental,
-      narratives,
-    };
-  }
 
   const handleCoverUpload = useCallback(
     async (file: File | null) => {
@@ -350,8 +340,17 @@ export function PremiumContentEditor({
   }
 
   const finalPremium = useMemo(
-    () => (original ? buildFinalPremium() : null),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    () =>
+      original
+        ? buildFinalPremium({
+            original,
+            supplemental,
+            narratives,
+            style,
+            resolvedCover:
+              pdfCoverImageRemoteUrl === supplemental?.coverImageUrl ? pdfCoverImageSrc : null,
+          })
+        : null,
     [original, supplemental, narratives, style, pdfCoverImageSrc, pdfCoverImageRemoteUrl]
   );
   useEffect(() => {
@@ -422,6 +421,7 @@ export function PremiumContentEditor({
               isUploadingCover={isUploadingCover}
               coverImageResolveFailed={coverImageResolveFailed}
               readOnly={isGenerating}
+              narrativeRefresh={{ built, regenerateBlockedReason, unsavedShowInputs }}
               onCoverUpload={file => void handleCoverUpload(file)}
               onCoverRemove={() => void handleCoverRemove()}
             />

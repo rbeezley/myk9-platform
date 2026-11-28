@@ -24,7 +24,6 @@ import { ClassDetailsRedirect } from './ClassDetailsRedirect';
 import { MyEntriesRedirect } from './MyEntriesRedirect';
 import { ComingSoonPage, type ComingSoonPageProps } from '@/components/common/ComingSoonPage';
 import { features } from '@/config/features';
-import ShowDetailsPrototype from '@/pages/ShowDetailsPrototype';
 import {
   SHOW_MANAGEMENT_SECTIONS,
   LEGACY_SHOW_SECTION_REDIRECTS,
@@ -590,8 +589,5 @@ export const PublicRoutes = () => (
         </SuspenseWrapper>
       }
     />
-
-    {/* Design prototype — no auth, dev iteration only */}
-    {import.meta.env.DEV && <Route path="/prototype/show" element={<ShowDetailsPrototype />} />}
   </>
 );

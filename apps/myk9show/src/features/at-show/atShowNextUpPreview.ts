@@ -21,7 +21,7 @@ import {
 } from '@myk9/ringside';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import { countEntryAccounting } from '@/features/_shared/entryAccounting';
-import { inRingReplicated, nextPendingReplicated } from './replicatedRunQueue';
+import { inRingReplicated, nextPendingReplicated, remainingReplicated } from './replicatedRunQueue';
 
 /** How many waiting armbands the row previews (myK9Q showed 3). */
 export const NEXT_UP_PREVIEW_LIMIT = 3;
@@ -86,7 +86,9 @@ export function buildNextUpPreview(entries: ReplicatedEntry[]): AtShowNextUpPrev
   return {
     inRingArmband: inRing ? armbandOf(inRing) : null,
     nextArmbands,
-    remaining: counts.expected - counts.accounted,
+    // MYK9-2391: counted by the queue itself, so it describes the dogs the armbands above are
+    // drawn from. A Pending dog (no place in line) is neither named nor counted as still to run.
+    remaining: remainingReplicated(entries),
     total: counts.expected,
   };
 }

@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import './clubOverviewVideo.css';
 
-/** The unlisted "Run your trials without the paperwork" overview (MYK9-2374). */
+/** The club overview video, public on YouTube (MYK9-2374). */
 export const CLUB_OVERVIEW_VIDEO_ID = 'bAQBMxBGSkw';
-export const CLUB_OVERVIEW_VIDEO_TITLE =
-  'myK9Show for clubs: run your trials without the paperwork';
+// INTENT: "retyping", never "paperwork" or "paperless" (owner, 2026-11-27, MYK9-2517). A show
+// run on myK9Show still has paper: the gate's printed run sheet, and the judge's scoresheets,
+// which a judge keeps for a year. What the app removes is typing entries and scores in again.
+export const CLUB_OVERVIEW_VIDEO_TITLE = 'myK9Show for clubs: run your trials without the retyping';
 const WATCH_URL = `https://youtu.be/${CLUB_OVERVIEW_VIDEO_ID}`;
 // Privacy-enhanced domain, captions on, no related videos; it starts as soon as it is loaded
 // because the visitor has just pressed play.
@@ -25,7 +27,7 @@ export function ClubOverviewVideo() {
         <div className="lc-video-copy">
           <span className="l-eyebrow">For clubs</span>
           <h2 id="club-video-title" className="l-h2">
-            Run your trials without the paperwork.
+            Run your trials without the retyping.
           </h2>
           <p>
             A 2 minute 28 second tour: add your club, appoint your secretary, take entries and

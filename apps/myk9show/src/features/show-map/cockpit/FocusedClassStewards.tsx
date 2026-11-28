@@ -61,6 +61,7 @@ export function FocusedClassStewards({ showId, classId }: { showId: string; clas
         conflictIds={conflictIds}
         onAssign={stewards.onAssign}
         onUnassign={stewards.onUnassign}
+        conflictsStatus={stewards.conflictsStatus}
       />
       {volunteersLink}
     </div>

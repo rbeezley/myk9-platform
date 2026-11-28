@@ -1,8 +1,6 @@
 import { create } from 'zustand';
 import type { StoreShow as Show } from '@/types/show-types';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
-import { mockShows } from '@/mockData/mockShows';
-import { shouldUseMockData } from '@/config/dataSource';
 import { replicatedShowsTable, type ReplicatedShow } from '@/services/replication';
 import { readExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import {
@@ -291,10 +289,10 @@ interface ShowStore {
 }
 
 export const useShowStore = create<ShowStore>()((set, get) => ({
-  shows: shouldUseMockData('USE_MOCK_SHOWS') ? mockShows : [],
-  selectedShowId: shouldUseMockData('USE_MOCK_SHOWS') ? mockShows[0]?.id || '' : '',
+  shows: [],
+  selectedShowId: '',
   isLoading: false,
-  hasLoaded: shouldUseMockData('USE_MOCK_SHOWS'),
+  hasLoaded: false,
   error: null,
   _unsubscribe: null,
 
@@ -571,10 +569,7 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
     try {
       set({ isLoading: true, error: null });
 
-      if (shouldUseMockData('USE_MOCK_SHOWS')) {
-        // Load mock data if configured
-        set({ shows: mockShows, isLoading: false, hasLoaded: true });
-      } else {
+      {
         // Load from replicated table (IndexedDB)
         // A failed device read is an error, never an empty show list.
         const [replicatedShows, clubsById, allAssignments] = await Promise.all([
@@ -635,8 +630,8 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
 
   // Subscription Management
   initializeSubscription: () => {
-    // Skip if already subscribed or using mock data
-    if (get()._unsubscribe || shouldUseMockData('USE_MOCK_SHOWS')) {
+    // Skip if already subscribed
+    if (get()._unsubscribe) {
       return;
     }
 

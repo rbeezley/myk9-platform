@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/dialog';
 import { supabase } from '@/lib/supabase-client';
 import { fetchShowEmailContent, type EmailDeliverySupabaseClient } from './api';
+import { EMAIL_VIEWER_SANDBOX, emailHtmlForViewer } from './emailViewerHtml';
 
 /** Copies are kept for emails sent from this date on (MYK9-2115). */
 export const EMAIL_COPIES_KEPT_FROM = 'November 17, 2026';
@@ -78,11 +79,12 @@ function EmailContentBody({
           />
         )
       ) : query.data ? (
-        // An empty sandbox: no scripts, forms, popups or same-origin access for the email's html.
+        // No scripts, forms or same-origin access for the email's html. Links open a new tab and
+        // never navigate this frame (MYK9-2487); see `emailViewerHtml.ts`.
         <iframe
           title="Email preview"
-          sandbox=""
-          srcDoc={query.data.html}
+          sandbox={EMAIL_VIEWER_SANDBOX}
+          srcDoc={emailHtmlForViewer(query.data.html)}
           className="h-[60vh] w-full rounded-md border bg-white"
         />
       ) : (

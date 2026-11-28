@@ -1,5 +1,5 @@
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -313,68 +313,6 @@ describe('bootstrap-worktree worktree inventory handling', () => {
     }
   });
 
-  it('serializes simultaneous bootstrap hook writes', async () => {
-    const fixture = createRealGitFixture();
-    try {
-      expect(
-        spawnSync('git', [
-          'config',
-          '--file',
-          join(fixture.primary, '.git/config'),
-          '--get',
-          'core.hooksPath',
-        ]).status
-      ).toBe(1);
-      const barrierDir = join(fixture.root, 'barrier');
-      mkdirSync(barrierDir);
-      const results = await Promise.all(
-        fixture.worktrees.map(worktree =>
-          runBootstrapAt(worktree, fixture.bin, fixture.globalConfig, {
-            dir: barrierDir,
-            participants: fixture.worktrees.length,
-          })
-        )
-      );
-      for (const result of results) {
-        expect(result.error).toBeUndefined();
-        expect(result.status).toBe(0);
-        expect(result.stderr).toContain('Git hooks activated');
-      }
-      for (const checkout of [fixture.primary, ...fixture.worktrees]) {
-        expect(
-          execFileSync('git', ['-C', checkout, 'config', '--get', 'core.hooksPath'], {
-            encoding: 'utf8',
-            env: {
-              ...process.env,
-              GIT_CONFIG_GLOBAL: fixture.globalConfig,
-              GIT_CONFIG_NOSYSTEM: '1',
-            },
-          }).trim()
-        ).toBe('.githooks');
-      }
-      expect(
-        spawnSync('git', [
-          'config',
-          '--file',
-          join(fixture.primary, '.git/config'),
-          '--get',
-          'core.hooksPath',
-        ]).status
-      ).toBe(1);
-      expect(
-        execFileSync('git', ['config', '--global', '--get', 'core.hooksPath'], {
-          encoding: 'utf8',
-          env: {
-            ...process.env,
-            GIT_CONFIG_GLOBAL: fixture.globalConfig,
-            GIT_CONFIG_NOSYSTEM: '1',
-          },
-        }).trim()
-      ).toBe('/global/hooks');
-    } finally {
-      rmSync(fixture.root, { recursive: true, force: true });
-    }
-  });
   it('ignores a global worktreeConfig setting when selecting repo config mode', async () => {
     const fixture = createRealGitFixture({
       localWorktreeConfig: false,

@@ -59,6 +59,7 @@ export const OfficialsSection: React.FC<OfficialsSectionProps> = ({
           suggestedRoles={[UserRole.CHAIRMAN, UserRole.CLUB_ADMIN]}
           loading={peopleLoading}
           excludePersonIds={selectedSecretaryId ? [selectedSecretaryId] : []}
+          excludedRoleLabel="Secretary"
           onOpen={onOpenOfficialPicker}
           onSelect={onSelectChairman}
           onCreatePerson={onCreatePerson}
@@ -71,6 +72,7 @@ export const OfficialsSection: React.FC<OfficialsSectionProps> = ({
           suggestedRoles={[UserRole.SECRETARY]}
           loading={peopleLoading}
           excludePersonIds={selectedChairmanId ? [selectedChairmanId] : []}
+          excludedRoleLabel="Chair"
           {...(secretaryIsSelf ? { autoFillBadge: 'You' } : {})}
           onOpen={onOpenOfficialPicker}
           onSelect={onSelectSecretary}

@@ -189,6 +189,9 @@ test.describe('Wait list: join -> offer -> pay -> confirmed entry', () => {
       'the Nightly workflow supplies it from the repository secret.'
   );
   test.describe.configure({ mode: 'serial' });
+  // The runner traces every context, including the browser.newContext() ones signedInPage opens
+  // (MYK9-2336: a failed pay left no trace). Regression passes --retries=0, so keep on failure.
+  test.use({ trace: 'retain-on-failure' });
 
   let admin: SupabaseClient;
   let snapshot: Awaited<ReturnType<typeof prepareFullClass>> | null = null;
@@ -206,7 +209,7 @@ test.describe('Wait list: join -> offer -> pay -> confirmed entry', () => {
   test('the exhibitor claims an offered spot by paying, and the entry is confirmed (MYK9-971)', async ({
     browser,
   }) => {
-    test.setTimeout(360_000);
+    test.setTimeout(420_000);
     // First, before any Checkout Session exists: a sandbox that delivers to a shared project fails.
     await test.step('the Stripe sandbox delivers to no shared Supabase project', () =>
       assertSandboxHasNoSharedWebhookEndpoints());

@@ -4,6 +4,21 @@ import userEvent from '@testing-library/user-event';
 import { ClubOverviewVideo } from '../ClubOverviewVideo';
 
 describe('ClubOverviewVideo', () => {
+  // MYK9-2517 (owner, 2026-11-27): a show is not paperless (the gate's run sheet and the judge's
+  // scoresheets stay), so the page promises less retyping, never less paper.
+  it('promises less retyping, and does not say the paperwork goes away', () => {
+    const { container } = render(<ClubOverviewVideo />);
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Run your trials without the retyping.' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', {
+        name: 'Play the video: myK9Show for clubs: run your trials without the retyping',
+      })
+    ).toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/paperwork|paperless/i);
+  });
+
   it('loads nothing from YouTube until play is pressed', () => {
     const { container } = render(<ClubOverviewVideo />);
     expect(container.querySelector('iframe')).toBeNull();

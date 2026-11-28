@@ -60,10 +60,18 @@ After you're in, you land on the class list for the show. A judge with assigned 
 
 ## See the run order
 
+> **Watch before show day:** [How to check in dogs at the ring (1 min 42 s)](https://youtu.be/UBEsVB1ssag) For stewards. The video needs a signal. Checking dogs in at the ring does not.
+
 Tapping a class opens its entry list — the dogs in run order, on the **Pending** tab. Scored dogs move to the **Completed** tab.
 
 1. Each entry shows the **armband number**, the **dog's call name**, the **breed**, and the **handler**.
-2. **Stewards:** this list is yours to read. Use it to call dogs to the line. If you tap an entry, the scoresheet shows **No Scoring Access**, because stewards view ringside but do not score. Tap **Entries** to go back.
+2. **Stewards:** use this list to call dogs to the line and check them in. Stewards do not score, so tapping the card itself does nothing. Use the check-in control on the right of the card. It reads **Not checked in** until someone changes it, and it opens **Change Status**:
+   - A handler reports to you: tap **Checked-in**. The card then reads **Checked in**.
+   - To call the next dog: tap **Come to Gate**. The card reads **Come to gate**. The handler sees it on their **My Shows** page once your phone has sent it, which needs a signal. Call the handler out loud as well.
+   - **At Gate** marks a handler who is at the gate and ready. **Conflict** marks a handler with a schedule conflict.
+   - **Pulled** asks you to confirm first. The dog then moves to **Not running**, a closed group at the bottom of the list, and the judge skips it. Pulled the wrong dog? Tap **Undo** on the message that appears, or open **Not running** and change that dog's status.
+   - Chose the wrong one? Tap the control again and choose the right tile.
+   - A card that says **Not running** under the dog's name has no check-in control: the dog was scratched, withdrawn or marked absent. Only the secretary can bring it back.
 3. **Judges and others allowed to score:** tap anywhere on an entry's card to open its scoresheet. The check-in control on the right of the card only changes the dog's check-in status. It opens **Change Status**, a grid with a tile for each status you can set (a steward uses it to check a dog in); tap **Close** to leave it unchanged.
 
 ![Entry list — dogs in run order with armband number, call name, breed, and handler; Pending and Completed tabs (tablet)](../screenshots/J-03.png)
@@ -103,7 +111,7 @@ The entry list updates to show the saved result. The secretary sees it once it s
 A class with two or three areas shows one time field per area under the timer, labelled with the area's name. Time each area on its own:
 
 1. For each area, tap **Start**, then **Stop** when that area is finished.
-2. Tap **Record Area 1 time** (then **Record Area 2 time**, and so on; the button names the area). Stopping the timer alone does not put the time on the sheet. You can also type a time into an area's field. A time field can show **Max** and **Use max time**, which fills in the class's time limit. A class with one area can read **Area 1 time** too.
+2. Tap the button that reads _Record 0:42.10 to Area 1_ (your time and the area's name; it appears once the timer is stopped). Recording the time resets the timer and hides the button until you time and stop the next area. Stopping the timer alone does not put the time on the sheet. You can also type a time into an area's field. A time field can show **Max** and **Use max time**, which fills in the class's time limit. A class with one area shows a single time field.
 3. Before you tap **Save**, check that every area's field has a time.
 4. Choose the result and tap **Save**. On the **Score Confirmation** screen, check each area time and the total before **Confirm & Submit**. An area showing "--" was not recorded: tap **Cancel** and fix it.
 
@@ -111,13 +119,17 @@ A class with two or three areas shows one time field per area under the timer, l
 
 ## When the signal drops
 
-Show venues often have weak signal. The app is built for it.
+> **Watch before show day:** [How to score with no signal (1 min 23 s)](https://youtu.be/ObID-sB29v4) The video needs a signal. Scoring at the ring does not.
+
+Show venues often have weak signal. The app is built for it. Open your class while you still have a signal, before the first dog.
 
 - Scoring and viewing the run order **keep working offline**.
-- The sync label at the top reads **Offline**, then **Not sent yet** while scores are waiting to be sent. This is normal at most venues. On a phone the label shrinks to an icon: the words are still there for a screen reader, so look for the icon rather than the words.
+- When the signal drops, a short message says you're offline, and that your changes are saved on this device and will be sent when you are back online.
+- The sync label at the top reads **Offline**, then **Not sent yet** with a number beside it, while work on this device is waiting to be sent. This is normal at most venues. On a phone the label shrinks to an icon: the words are still there for a screen reader, so look for the icon rather than the words.
+- After you save with no signal, the **Saved:** line at the top of the dog list ends with **on this device, not sent yet**.
 - A chip at the top reads **Offline ready** once the show is saved on the device, and **Preparing offline copy…** until then. On a phone the **Offline ready** chip is hidden; on a tablet or larger screen it shows.
-- Your work is saved on the device and **is sent automatically** when signal returns. A **Scores sent** message shows when they go through. On a larger screen the label changes to **All sent**; a phone may show only the message.
-- On the class list, **Offline copy: saved on this device** means the show is stored on your device. A line such as **1 score not sent yet** under a class means that score has not reached the secretary yet.
+- Your work is saved on the device and **is sent automatically** when signal returns. You do not need to tap anything. A **Scores sent** message shows on the class's dog list when they go through, and **not sent yet** drops off the **Saved:** line. The **Not sent yet** label at the top of the dog list goes away once nothing is waiting.
+- On the class list, **Offline copy: saved on this device** means the show is stored on your device. A class with scores waiting on this device shows **Offline Scoring** and a line such as **1 score not sent yet**, which means that score has not reached the secretary yet. The line goes away once the scores are sent. **Offline Scoring** can also be the class's own status, so it may stay.
 
 **Scores not showing for the secretary after signal returns?** Reload the page once you have a solid connection. If entries are still missing, find the trial secretary.
 

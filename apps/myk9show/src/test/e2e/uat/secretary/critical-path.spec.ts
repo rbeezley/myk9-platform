@@ -98,7 +98,7 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
     await expect(
       page.getByText('Find the dog or its owner, or add them, then choose classes and payment.')
     ).toBeVisible();
-    await expect(page.getByText(/Step 1 of 5/).first()).toBeVisible();
+    await expect(page.getByText(/Step 1 of 4/).first()).toBeVisible();
 
     const search = page.getByPlaceholder(/Search all dogs/i);
     await expect(search).toBeVisible();

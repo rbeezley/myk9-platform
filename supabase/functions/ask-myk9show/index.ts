@@ -8,7 +8,7 @@ import { type AskQRulebookAsset, selectRulebook } from '../_shared/askq/document
 import { parseAskQRouting } from '../_shared/askq/requestRouting.ts';
 import {
   answerQuestion,
-  escalationMarkers,
+  refusalMarkers,
   guideSourcesForEvent,
   routeMarkers,
 } from '../_shared/askq/answerQuestion.ts';
@@ -263,7 +263,9 @@ Deno.serve(async (req: Request) => {
       ...new Set([
         ...routeMarkers(answered.sources),
         ...toolsUsed,
-        ...(supportAnswerEscalation ? escalationMarkers(answered.escalationCause) : []),
+        // A refused guide answer logs its cause whether or not it became the whole reply
+        // (MYK9-2472, MYK9-2473): the escalation, or a guide half left out of a mixed answer.
+        ...refusalMarkers(answered),
       ]),
     ];
 

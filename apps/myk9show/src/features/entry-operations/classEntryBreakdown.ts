@@ -2,8 +2,7 @@ import {
   getEntryStatusKind,
   type EntryStatusKind,
 } from '@/services/entryDisplay/entryDisplaySelectors';
-import { mapEntryStatus } from '@/services/entryDisplay/entryStatusUiAdapter';
-import { EntryStatus } from '@/types/show-registration-types';
+import { isPendingEntryStatus } from '@/features/_shared/entryPendingStatus';
 
 /**
  * Per-class entry counts for the Overview schedule (MYK9-943). Counts only.
@@ -32,19 +31,7 @@ const ENTERED_KINDS: ReadonlySet<EntryStatusKind> = new Set<EntryStatusKind>([
   'move_up_requested',
 ]);
 
-/**
- * True while an entry is not yet accepted: the schedule card's "pending", which
- * the Entries review lane also uses. `kind === 'pending'`, plus the owner's
- * override that `paid` and `promotion-expired` stay pending (MYK9-976 uses this
- * to keep Move up hidden until acceptance).
- */
-export function isPendingEntryStatus(raw: string | null | undefined): boolean {
-  const kind = getEntryStatusKind(raw);
-  // The override only: `mapEntryStatus` also says PENDING for in-ring and absent dogs.
-  const keptPendingByOverride =
-    (kind === 'accepted' || kind === 'not_accepted') && mapEntryStatus(raw) === EntryStatus.PENDING;
-  return kind === 'pending' || keptPendingByOverride;
-}
+export { isPendingEntryStatus };
 
 export function buildClassEntryBreakdowns(
   entries: readonly EntryRowLike[]

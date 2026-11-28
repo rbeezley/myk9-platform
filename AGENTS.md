@@ -88,6 +88,8 @@ Redirect check output to a file and echo the real exit status, because a pipe th
 
 Linear (workspace `myk9-platform`, team **MyK9-platform**, prefix `MYK9-*`) is the tracker of record; rules in `docs/agents/issue-tracker.md`. Every new issue gets a priority at creation (`1` Urgent to `4` Low by launch relevance, default `3`).
 
+**Machines (owner, 2026-11-26):** code is written only on the Mac and in the cloud sessions it dispatches; only the Mac merges, pushes migrations and deploys. The Windows PC does the acceptance verification of In Review issues (the Antigravity app, with Playwright), never the PR review gate, and records the owner's decisions in Linear.
+
 ### Gates, in order
 
 1. **Before starting** work that will produce a PR: `pnpm qa:inflight` (exit 1 = an open PR, worktree or recent branch touches these paths; exit 2 = could not decide, not a pass), then Linear issues **In Progress** naming the paths and (Claude Code) `list_sessions`. Set the issue In Progress through review and post one claim comment (format in the rules reference); one claim per worktree. **Batch by surface:** open issues naming the same page, sheet or flow share one branch, PR and deploy, each claimed and closed on its own; money work and anything adding a migration never joins a batch.

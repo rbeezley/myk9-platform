@@ -16,6 +16,7 @@ import { FormField } from '@/components/common/FormField';
 import type { FormValidation } from '@/hooks/useFormValidation';
 import type { ShowEditFormData } from './ShowEditPanel.types';
 import { ownFeeClassesNote } from './classEntryFeeCopy';
+import { isAkcNationalsEnabled } from '@/features/registries/akcNationals';
 import { useShowClassOwnFees } from '@/components/classes/useShowClassOwnFees';
 
 interface ShowEditFeesTabProps {
@@ -191,21 +192,23 @@ export const ShowEditFeesTab: React.FC<ShowEditFeesTabProps> = ({
               </FormField>
             </div>
 
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="isNationals"
-                checked={data.isNationals || false}
-                onCheckedChange={handleCheckboxChange('isNationals')}
-              />
-              <div className="space-y-0.5">
-                <Label htmlFor="isNationals" className="text-sm font-medium">
-                  Nationals event
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  Finalizes placements by points (Nationals) instead of faults (Regular).
-                </p>
+            {isAkcNationalsEnabled() && (
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="isNationals"
+                  checked={data.isNationals || false}
+                  onCheckedChange={handleCheckboxChange('isNationals')}
+                />
+                <div className="space-y-0.5">
+                  <Label htmlFor="isNationals" className="text-sm font-medium">
+                    Nationals event
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Finalizes placements by points (Nationals) instead of faults (Regular).
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           <Separator />

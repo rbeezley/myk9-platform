@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { getTrialRegistry } from '@/features/registries';
 import { useEntryFormData } from '@/hooks/queries/useEntryFormData';
 import type { ReportProps } from '@/lib/reports/types';
 import type { OfficialPdfAction } from './ReportControlsBar';
@@ -81,11 +82,11 @@ interface UseAKCOfficialPdfActionInput {
 }
 
 function isAKCRegistry(props: ReportProps | null | undefined): boolean {
-  return props?.trial?.registryId?.trim().toUpperCase() === 'AKC';
+  return props?.trial ? getTrialRegistry(props.trial).id === 'AKC' : false;
 }
 
 function isUKCRegistry(props: ReportProps | null | undefined): boolean {
-  return props?.trial?.registryId?.trim().toUpperCase() === 'UKC';
+  return props?.trial ? getTrialRegistry(props.trial).id === 'UKC' : false;
 }
 
 /**
@@ -566,7 +567,9 @@ export function useAKCOfficialPdfAction({
   const selectedTrialAllowsOfficialPdfConfig =
     trialId === 'all' || officialPdfConfigRegistry == null
       ? true
-      : officialPdfConfigRegistry === officialPdfProps?.trial?.registryId?.trim().toUpperCase();
+      : officialPdfProps?.trial
+        ? officialPdfConfigRegistry === getTrialRegistry(officialPdfProps.trial).id
+        : false;
   const canShowScoreSheetAction =
     isAKCScoreSheetReport && selectedTrialAllowsAKCAction && selectedClassAllowsAKCAction;
   const canShowTransferFormAction =

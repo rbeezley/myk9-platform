@@ -10,13 +10,18 @@ vi.mock('react-router-dom', async () => {
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
+const DOG = {
+  id: 'dog-1',
+  registeredName: "GCh. Ridgeway's Wandering Cooper, CGC",
+  callName: 'Cooper',
+  classSummary: 'Excellent · Containers, Interiors, Buried',
+};
+
 const BASE_PROPS = {
   showName: 'Spring Scent Work Trial',
   clubName: 'Bexar County Kennel Club',
   dateRange: '12–14 June 2026',
-  dogRegisteredName: "GCh. Ridgeway's Wandering Cooper, CGC",
-  dogCallName: 'Cooper',
-  classSummary: 'Excellent · Containers, Interiors, Buried',
+  dogs: [DOG],
   totalFeesFormatted: '$69.00',
   totalLabel: 'Total · Paid by check',
   registrationNumber: 'MK9-000427',
@@ -73,7 +78,7 @@ describe('HeadlineEntryReceived', () => {
   });
 
   it('renders without the optional call name', () => {
-    render(<HeadlineEntryReceived {...BASE_PROPS} dogCallName={null} />);
+    render(<HeadlineEntryReceived {...BASE_PROPS} dogs={[{ ...DOG, callName: null }]} />);
 
     expect(screen.getByRole('heading', { name: /entry submitted/i })).toBeTruthy();
   });

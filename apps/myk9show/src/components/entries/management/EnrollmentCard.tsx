@@ -377,6 +377,17 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
         )}
         canSendDecisionEmail={Boolean(onSendDecisionEmail && enrollmentId)}
         onEmail={email.openDialog}
+        showId={group.entries[0]?.showId}
+        exhibitorEmail={group.entries[0]?.ownerEmail ?? ''}
+        resend={
+          onResendEmail && group.entries[0]?.registrationId
+            ? {
+                registrationId: group.entries[0].registrationId,
+                onResend: onResendEmail,
+                disabled: isResendDisabled?.(group.entries[0].registrationId) === true,
+              }
+            : undefined
+        }
       />
 
       <EnrollmentFullPaymentDialog

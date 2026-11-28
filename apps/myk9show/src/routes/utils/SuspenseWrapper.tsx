@@ -51,8 +51,9 @@ class LoadingErrorBoundary extends React.Component<
     this.state = { hasError: false, error: null, retryCount: 0 };
   }
 
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-    return { hasError: true, error, retryCount: 0 };
+  static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
+    // retryCount is deliberately left out: retry() increments it, and it must survive the next catch.
+    return { hasError: true, error };
   }
 
   override componentDidCatch(thrown: unknown, errorInfo: React.ErrorInfo) {

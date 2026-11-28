@@ -137,7 +137,7 @@ describe('dispatch-cloud-session.sh', () => {
     expect(() => readFileSync(sb.callLog, 'utf8')).toThrow();
   });
 
-  it('exits 5 with the desktop launcher fallback, and never calls claude, when script(1) is missing', () => {
+  it('exits 5, hands the dispatch back to the Mac, and never calls claude, when script(1) is missing', () => {
     // A PATH holding only the fake claude: no script, and no other tool the script would reach for.
     const result = spawnSync('/bin/bash', [SCRIPT, sb.promptFile, sb.logFile], {
       encoding: 'utf8',
@@ -145,7 +145,9 @@ describe('dispatch-cloud-session.sh', () => {
     });
     expect(result.status, result.stderr).toBe(5);
     expect(result.stderr).toContain('script(1)');
-    expect(result.stderr).toContain("desktop app's cloud session launcher");
+    expect(result.stderr).toContain('Hand this dispatch back to the Mac');
+    // The desktop-launcher fallback (MYK9-2059) went when the Windows PC stopped building.
+    expect(result.stderr).not.toContain('cloud session launcher');
     expect(result.stdout).not.toContain('SESSION_URL=');
     expect(() => readFileSync(sb.callLog, 'utf8')).toThrow();
   });

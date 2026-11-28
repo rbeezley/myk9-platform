@@ -107,6 +107,7 @@ describe('show tool icons (MYK9-1727)', () => {
       ...TOOLS,
       { id: 'check-in-desk', group: 'show-day', title: 'Check-in desk' },
       { id: 'message-exhibitors', group: 'show-day', title: 'Message exhibitors' },
+      { id: 'email-delivery', group: 'show-day', title: 'Email delivery' },
       { id: 'lunch-orders', group: 'show-logistics', title: 'Lunch orders' },
       { id: 'tasks-notes', group: 'show-logistics', title: 'Tasks and notes' },
     ];

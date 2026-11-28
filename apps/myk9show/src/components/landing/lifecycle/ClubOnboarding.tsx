@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import {
   ClubNameTakenError,
@@ -8,6 +8,7 @@ import {
   requestNewClub,
 } from '@/services/database/club-access-requests.request';
 import {
+  CLUB_DRAFT_PARAM,
   clearClubOnboardingDraft,
   readClubOnboardingDraft,
   saveClubOnboardingDraft,
@@ -43,9 +44,12 @@ import { addYourClubPath, returnPathWithClub, safeReturnPath } from './landingCt
 export function ClubOnboarding() {
   const { user, refreshPermissions, userWithRoles } = useAuthContext();
   const navigate = useNavigate();
+  const location = useLocation();
   // The show wizard sends its own address here so a new host club leads back to the draft.
   const [searchParams] = useSearchParams();
   const returnTo = safeReturnPath(searchParams.get('returnTo'));
+  // Which saved draft is hers: only an address carrying its id brings it back.
+  const draftId = searchParams.get(CLUB_DRAFT_PARAM);
 
   // Form state
   const [clubName, setClubName] = useState('');
@@ -75,10 +79,11 @@ export function ClubOnboarding() {
   const rolesPending = Boolean(createdClubId) && !rolesLoaded;
   useEffect(() => {
     if (!createdClubId || !rolesLoaded) return;
-    clearClubOnboardingDraft();
+    // Only her own draft: another club flow in this browser keeps its own.
+    clearClubOnboardingDraft(draftId);
     // Not when the wizard sent her here (returnTo leads back).
     if (!returnTo) navigate(`/secretary/dashboard?clubId=${encodeURIComponent(createdClubId)}`);
-  }, [createdClubId, rolesLoaded, returnTo, navigate]);
+  }, [createdClubId, rolesLoaded, returnTo, draftId, navigate]);
 
   // Required-field and format errors sit under their own field; `error` keeps only
   // what belongs to no field (a failed submission).
@@ -100,7 +105,7 @@ export function ClubOnboarding() {
   useEffect(() => {
     if (restored.current) return;
     restored.current = true;
-    const draft = readClubOnboardingDraft();
+    const draft = readClubOnboardingDraft(draftId);
     if (!draft) return;
     setClubName(draft.clubName);
     setOrganization(draft.organization);
@@ -110,7 +115,7 @@ export function ClubOnboarding() {
     setContactPhone(draft.contactPhone);
     setFirstShowDate(draft.firstShowDate);
     setMessage(draft.message);
-  }, []);
+  }, [draftId]);
 
   // Pre-fill from the auth session, only into fields still empty (never over
   // what the visitor typed or a restored draft).
@@ -132,17 +137,30 @@ export function ClubOnboarding() {
     if (fail()) return;
 
     if (!user) {
-      saveClubOnboardingDraft({
-        clubName,
-        organization,
-        clubNumbers,
-        contactName,
-        contactEmail,
-        contactPhone,
-        firstShowDate,
-        message,
-      });
-      navigate(buildSignInPathForRedirect(addYourClubPath(returnTo)));
+      const savedId = saveClubOnboardingDraft(
+        {
+          clubName,
+          organization,
+          clubNumbers,
+          contactName,
+          contactEmail,
+          contactPhone,
+          firstShowDate,
+          message,
+        },
+        draftId
+      );
+      // Back from sign-in must land on this form with what she typed: put the draft id on the
+      // form's own history entry first (keeping onboarding, returnTo and the hash).
+      if (savedId) {
+        const own = new URLSearchParams(searchParams);
+        own.set(CLUB_DRAFT_PARAM, savedId);
+        navigate(
+          { pathname: location.pathname, search: `?${own.toString()}`, hash: location.hash },
+          { replace: true }
+        );
+      }
+      navigate(buildSignInPathForRedirect(addYourClubPath(returnTo, savedId)));
       return;
     }
 

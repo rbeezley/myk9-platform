@@ -188,14 +188,6 @@ describe('Application Smoke Tests', () => {
     expect(typeof useShowRegistrationStore).toBe('function');
   });
 
-  it('should validate armband store functionality', async () => {
-    // Test armband store
-    const { useArmbandStore } = await import('../../store/armbandStore');
-
-    expect(useArmbandStore).toBeDefined();
-    expect(typeof useArmbandStore).toBe('function');
-  });
-
   it('should validate RBAC types and utilities', async () => {
     // Test auth types
     const authTypes = await import('../../types/auth-types');

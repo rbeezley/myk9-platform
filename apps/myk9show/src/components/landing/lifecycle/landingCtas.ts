@@ -1,4 +1,5 @@
 import { normalizeSignInRedirect } from '@/pages/SignInPage.helpers';
+import { CLUB_DRAFT_PARAM } from './clubOnboardingDraft';
 import type { Audience } from './lifecycleStories';
 
 // The single source for landing CTA labels, targets and order: clubs first.
@@ -6,6 +7,13 @@ export const ADD_YOUR_CLUB = { label: 'Add your club', href: '#get-started' } as
 // The one door to ask for a club (MYK9-2048): the home page form, reached from anywhere in
 // the app. `onboarding=true` keeps a signed-in visitor on the landing instead of the dashboard.
 export const ADD_YOUR_CLUB_PATH = '/?onboarding=true#get-started';
+
+/** True on the home page opened for its club form (`/?onboarding=true`), with or without a `returnTo`. */
+export function isAddYourClubLocation(location: { pathname: string; search: string }): boolean {
+  return (
+    location.pathname === '/' && new URLSearchParams(location.search).get('onboarding') === 'true'
+  );
+}
 
 /** A same-origin app path (`/x?y`), or null for anything else (`//host`, a scheme, relative). */
 export function safeReturnPath(value: string | null | undefined): string | null {
@@ -17,10 +25,14 @@ export function safeReturnPath(value: string | null | undefined): string | null 
  * The add-a-club door, optionally carrying where to come back to (the show wizard's draft), so the
  * secretary lands back on the show she started with the new club chosen.
  */
-export function addYourClubPath(returnTo?: string | null): string {
+export function addYourClubPath(returnTo?: string | null, draftId?: string | null): string {
   const safe = safeReturnPath(returnTo);
-  if (!safe) return ADD_YOUR_CLUB_PATH;
-  return `/?${new URLSearchParams({ onboarding: 'true', returnTo: safe }).toString()}#get-started`;
+  if (!safe && !draftId) return ADD_YOUR_CLUB_PATH;
+  const params = new URLSearchParams({ onboarding: 'true' });
+  if (safe) params.set('returnTo', safe);
+  // The saved draft's id: the form restores what she typed only where this id is present.
+  if (draftId) params.set(CLUB_DRAFT_PARAM, draftId);
+  return `/?${params.toString()}#get-started`;
 }
 
 /**

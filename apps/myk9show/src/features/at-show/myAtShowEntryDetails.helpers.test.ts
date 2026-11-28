@@ -4,6 +4,7 @@ import {
   buildMyAtShowEntryDetails,
   deriveAtShowNextAction,
   deriveAtShowQueueLine,
+  isAwaitingPlaceInLine,
   isExhibitorOnlyForAtShow,
   type AtShowClassSummary,
   type AtShowEntryDetail,
@@ -93,6 +94,30 @@ describe('buildMyAtShowEntryDetails', () => {
         },
       ],
     ]);
+
+  it.each(['', 'Not/AZone'])(
+    'reads a %j trial timezone as America/New_York on the detail',
+    timezone => {
+      const trials: ReadonlyMap<string, AtShowTrialSummary> = new Map([
+        ['trial-1', { date: '2026-09-27', timezone }],
+      ]);
+      const entry: ReplicatedEntry = {
+        id: 'scored-1',
+        classId: 'class-1',
+        trialId: 'trial-1',
+        dogCallName: 'Ranger',
+      };
+      const [detail] = buildMyAtShowEntryDetails(
+        [entry],
+        new Set(['scored-1']),
+        classAt(null),
+        trials,
+        undefined,
+        new Date('2026-09-27T18:00:00Z')
+      );
+      expect(detail?.trialTimezone).toBe('America/New_York');
+    }
+  );
 
   it('shows a released own result as final', () => {
     expect(
@@ -635,5 +660,28 @@ describe('place in line on a paper class (MYK9-1970)', () => {
     expect(deriveAtShowQueueLine({ ...detail, scoresOnPaper: true }, undefined)).toEqual({
       kind: 'paper',
     });
+  });
+
+  it('says nothing about a place for a Pending dog, checked in or on paper (MYK9-2391)', () => {
+    const pending = { ...detail, awaitingApproval: true };
+    expect(deriveAtShowQueueLine(pending, undefined)).toBeNull();
+    expect(deriveAtShowQueueLine({ ...pending, scoresOnPaper: true }, undefined)).toBeNull();
+    expect(
+      deriveAtShowQueueLine(
+        { ...pending, checkInStatus: 'no-status' as const, scoresOnPaper: true },
+        undefined
+      )
+    ).toBeNull();
+    expect(isAwaitingPlaceInLine(pending)).toBe(false);
+    expect(isAwaitingPlaceInLine(detail)).toBe(true);
+  });
+
+  it('flags a Pending entry as awaiting approval when the details are built', () => {
+    const row = {
+      ...entries[0],
+      entryStatus: 'pending',
+    } as ReplicatedEntry;
+    const [built] = buildMyAtShowEntryDetails([row], new Set([row.id]), classesById, noTrials);
+    expect(built?.awaitingApproval).toBe(true);
   });
 });

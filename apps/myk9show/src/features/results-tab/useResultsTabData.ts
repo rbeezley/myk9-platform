@@ -27,6 +27,7 @@ import { useShowClassPaperwork } from '@/features/show-map/cockpit/useShowClassP
 import { getShowDeskEntriesAvailability } from '@/pages/secretary/showDeskEntryAvailability';
 import { useCloseoutFlaggedPulls } from '@/features/show-closeout/useCloseoutFlaggedPulls';
 import { useShowDeskScheduleRead } from '@/pages/secretary/useShowDeskScheduleRead';
+import { showIsNationals } from '@/features/registries/akcNationals';
 import { buildResultsClassRows, type ResultsClassRow } from './buildResultsClassRows';
 
 const NO_ENTRIES: never[] = [];
@@ -156,7 +157,7 @@ export function useResultsTabData(showId: string) {
     queryFn: () => replicatedShowsTable.getShowById(showId),
     enabled: Boolean(showId),
   });
-  const isNationals = showQuery.data ? showQuery.data.isNationals === true : null;
+  const isNationals = showQuery.data ? showIsNationals(showQuery.data) : null;
   // The show row is replicated: a later sync (or the row arriving after a first empty read) must
   // repair the cached null. Never on the initial emit.
   useEffect(() => {

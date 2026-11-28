@@ -10,10 +10,11 @@
  * @module at-show/myAtShowEntryDetails.helpers
  */
 import type { CheckInStatus } from '@myk9/core';
-import { isPulledEntry } from '@/features/_shared/entryAccounting';
+import { isAwaitingApproval, isPulledEntry } from '@/features/_shared/entryAccounting';
 import type { ReplicatedEntry } from '@/services/replication';
 import { UserRole } from '@/types/auth-types';
 import { isTrialDayToday } from '@/pages/MyEntriesPage/modules/dayCheckIn';
+import { getTrialTimezone } from '@/features/registries';
 import { parseShowDate } from '@/pages/MyEntriesPage/modules/myEntriesStats.helpers';
 import type { SelfCheckinState } from '@/hooks/queries/useSelfCheckinEnabled';
 import type { ClassEntry } from '@myk9/ringside';
@@ -131,6 +132,8 @@ export interface AtShowEntryDetail {
   /** Whether the exhibitor's row has a run-order position assigned. */
   hasRunOrder: boolean;
   isScored: boolean;
+  /** Not yet approved (Pending): the dog is outside the line, so no place or waiting line (MYK9-2391). */
+  awaitingApproval?: boolean | undefined;
   /** The exhibitor's own masked result (MYK9-1026). Null when withheld or not scored. */
   resultStatus: string | null;
   resultTimeSeconds: number | null;
@@ -216,7 +219,8 @@ export function buildMyAtShowEntryDetails(
 
     const trialId = entry.trialId ?? entry.trial_id;
     const trial = trialId ? (trialsById.get(trialId) ?? null) : null;
-    if (trial && !isTrialDayToday(parseShowDate(trial.date), trial.timezone, now)) continue;
+    if (trial && !isTrialDayToday(parseShowDate(trial.date), getTrialTimezone(trial), now))
+      continue;
 
     const classSummary = entry.classId ? (classesById.get(entry.classId) ?? null) : null;
     // INTENT: the result comes ONLY from the exhibitor's own masked read
@@ -261,6 +265,7 @@ export function buildMyAtShowEntryDetails(
       isRevisedStart: classSummary?.isRevisedStart ?? false,
       hasRunOrder: entry.runOrder != null,
       isScored: (entry.isScored ?? false) && !pulled,
+      ...(isAwaitingApproval(entry) ? { awaitingApproval: true } : {}),
       resultStatus: hasVisibleResult ? status : null,
       resultTimeSeconds:
         hasVisibleResult && typeof seconds === 'number' && Number.isFinite(seconds) && seconds >= 0
@@ -286,7 +291,7 @@ export function buildMyAtShowEntryDetails(
       isCancelled: classSummary?.isCancelled === true,
       scoresOnPaper: classSummary?.scoresOnPaper === true,
       classOrder: classSummary?.classOrder,
-      trialTimezone: trial?.timezone ?? null,
+      trialTimezone: trial ? getTrialTimezone(trial) : null,
     });
   }
 
@@ -333,7 +338,12 @@ const NO_PLACE_STATUSES: ReadonlySet<CheckInStatus> = new Set([
  * order posted. Finished, in-ring and pulled dogs are state-only.
  */
 export function isAwaitingPlaceInLine(detail: AtShowEntryDetail): boolean {
-  return !detail.isScored && !NO_PLACE_STATUSES.has(detail.checkInStatus) && detail.hasRunOrder;
+  return (
+    !detail.isScored &&
+    detail.awaitingApproval !== true &&
+    !NO_PLACE_STATUSES.has(detail.checkInStatus) &&
+    detail.hasRunOrder
+  );
 }
 
 /**
@@ -348,6 +358,8 @@ export function deriveAtShowQueueLine(
   place: QueuePlace | undefined
 ): RunQueueState | { kind: 'pending' } | null {
   if (detail.isScored) return null;
+  // MYK9-2391: a Pending dog is outside the line; saying "waiting" or "paper" would claim a place.
+  if (detail.awaitingApproval === true) return null;
   // MYK9-1970 (owner, 2026-11-25): a paper class says so before check-in too. Its position is
   // the running order, so it needs a posted order; the place itself only follows check-in.
   if (

@@ -34,6 +34,11 @@ describe('generate-premium edge function style contract', () => {
   it('makes no model call and uses no generation allowance (MYK9-2055)', () => {
     expect(source).not.toMatch(/api\.anthropic\.com|ANTHROPIC_API_KEY|anthropic-version/i);
     expect(source).not.toMatch(/check_and_record_premium_generation_attempt|premiumRateLimit/);
-    expect(source).toMatch(/buildPremiumNarratives\(show\)/);
+    expect(source).toMatch(/narrativesForResponse\(\s*publishedNarratives\([^)]*\),\s*show\s*\)/);
+  });
+
+  it('returns the built narratives next to the kept ones (MYK9-2280)', () => {
+    expect(source).toMatch(/const \{ narratives, builtNarratives \} = narrativesForResponse/);
+    expect(source).toMatch(/narratives,\s*builtNarratives,\s*\};/);
   });
 });

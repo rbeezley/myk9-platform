@@ -99,7 +99,15 @@ Deno.serve(async req => {
     }
 
     // Parse request
-    const body: UpgradeRequest = await req.json();
+    let body: UpgradeRequest | null;
+    try {
+      body = await req.json();
+    } catch {
+      return corsResponse(corsHeaders, { error: 'Invalid JSON body' }, 400);
+    }
+    if (!body || typeof body !== 'object') {
+      return corsResponse(corsHeaders, { error: 'Invalid JSON body' }, 400);
+    }
     const { subscriptionId, newPlanId } = body;
 
     if (!subscriptionId || !newPlanId) {
@@ -150,13 +158,10 @@ Deno.serve(async req => {
 
     return corsResponse(corsHeaders, { success: true });
   } catch (error: unknown) {
-    console.error('Upgrade subscription error:', error);
-    return corsResponse(
-      corsHeaders,
-      {
-        error: error instanceof Error ? error.message : 'Unknown error',
-      },
-      502
-    );
+    // MP-20: log the detail (Stripe SDK messages embed customer/subscription
+    // ids and internal phrasing) but return a generic body to the caller.
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('stripe-upgrade-subscription error:', message);
+    return corsResponse(corsHeaders, { error: 'request_failed' }, 500);
   }
 });

@@ -16,6 +16,8 @@ vi.mock('@myk9/replication', async importOriginal => {
 const db = vi.hoisted(() => ({
   pages: [] as unknown[][],
   cursors: [] as string[],
+  signals: [] as AbortSignal[],
+  afterRange: undefined as (() => void) | undefined,
 }));
 
 vi.mock('@/services/database/supabaseClient', () => {
@@ -30,7 +32,15 @@ vi.mock('@/services/database/supabaseClient', () => {
       return query;
     },
     order: () => query,
-    range: async () => ({ data: db.pages.shift() ?? [], error: null }),
+    abortSignal: (signal: AbortSignal) => {
+      db.signals.push(signal);
+      return query;
+    },
+    range: async () => {
+      const data = db.pages.shift() ?? [];
+      db.afterRange?.();
+      return { data, error: null };
+    },
   };
   return { supabase: { from: () => query } };
 });
@@ -46,6 +56,8 @@ beforeEach(() => {
   engine.calls.length = 0;
   db.pages = [];
   db.cursors = [];
+  db.signals = [];
+  db.afterRange = undefined;
 });
 
 // MYK9-775: judge assignments are hard-deleted, so without this opt-in a judge
@@ -81,5 +93,37 @@ describe('ReplicatedJudgeAssignmentsTable fetch', () => {
       // The short second page does not end the read; the empty third page does.
       `updated_at.gt.2026-09-25T00:00:00Z,and(updated_at.eq.2026-09-25T00:00:00Z,id.gt.ja-${JUDGE_ASSIGNMENTS_PAGE_SIZE})`,
     ]);
+  });
+
+  // MYK9-2420: a cancelled sync must release the in-flight request.
+  type SignalFetch = (args: { since: number; signal: AbortSignal }) => Promise<unknown[]>;
+  const row = (i: number) => ({ id: `ja-${i}`, updated_at: '2026-09-25T00:00:00Z' });
+
+  it('hands the sync signal to every page request, including the terminal empty page', async () => {
+    db.pages = [[row(1)], [row(2)]];
+    await new ReplicatedJudgeAssignmentsTable().sync();
+    const adapter = engine.calls[0] as { fetchRemoteRows: SignalFetch };
+    const controller = new AbortController();
+
+    await adapter.fetchRemoteRows({ since: 0, signal: controller.signal });
+
+    // Two pages, then the empty page that ends the read.
+    expect(db.signals).toHaveLength(3);
+    expect(db.signals.every(signal => signal === controller.signal)).toBe(true);
+  });
+
+  it('never requests page two once the signal aborts after page one', async () => {
+    db.pages = [[row(1)], [row(2)]];
+    await new ReplicatedJudgeAssignmentsTable().sync();
+    const adapter = engine.calls[0] as { fetchRemoteRows: SignalFetch };
+    const controller = new AbortController();
+    db.afterRange = () => controller.abort();
+
+    await expect(
+      adapter.fetchRemoteRows({ since: 0, signal: controller.signal })
+    ).rejects.toThrow();
+
+    expect(db.signals).toHaveLength(1);
+    expect(db.cursors).toEqual(['first']);
   });
 });

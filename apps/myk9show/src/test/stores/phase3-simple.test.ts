@@ -5,7 +5,6 @@ import 'fake-indexeddb/auto';
 import { useRegistrationsStore } from '@/store/registrationsStore';
 import { useCompetitionStore } from '@/store/competitionStore';
 import { useShowRegistrationStore } from '@/store/showRegistrationStore';
-import { useArmbandStore } from '@/store/armbandStore';
 
 // Type imports
 import type { Registration } from '@/types/dog-types';
@@ -43,16 +42,6 @@ describe('Phase 3 Store Configuration Tests', () => {
       expect(typeof store.updateRegistration).toBe('function');
       expect(typeof store.deleteRegistration).toBe('function');
       expect(Array.isArray(store.registrations)).toBe(true);
-    });
-
-    it('should have properly configured armband store', () => {
-      const store = useArmbandStore.getState();
-
-      expect(typeof store.assignArmband).toBe('function');
-      expect(typeof store.unassignArmband).toBe('function');
-      expect(typeof store.createRange).toBe('function');
-      expect(Array.isArray(store.assignments)).toBe(true);
-      expect(Array.isArray(store.ranges)).toBe(true);
     });
   });
 
@@ -116,24 +105,6 @@ describe('Phase 3 Store Configuration Tests', () => {
       const found = store.getRegistration(registration.id);
       expect(found).toEqual(registration);
     });
-
-    it('should handle armband operations', () => {
-      const store = useArmbandStore.getState();
-
-      const assignment = store.assignArmband({
-        showId: 'test-show-1',
-        dogId: 'test-dog-1',
-        armbandNumber: '101',
-        assignedBy: 'test-user-1',
-      });
-
-      expect(assignment.armbandNumber).toBe('101');
-      expect(assignment.dogId).toBe('test-dog-1');
-
-      const foundAssignments = store.getAssignmentsByShow('test-show-1');
-      expect(foundAssignments).toHaveLength(1);
-      expect(foundAssignments[0].armbandNumber).toBe('101');
-    });
   });
 
   describe('IndexedDB Integration Status', () => {
@@ -146,7 +117,6 @@ describe('Phase 3 Store Configuration Tests', () => {
         { name: 'registrations', store: useRegistrationsStore },
         { name: 'competition', store: useCompetitionStore },
         { name: 'showRegistration', store: useShowRegistrationStore },
-        { name: 'armband', store: useArmbandStore },
       ];
 
       stores.forEach(({ store }) => {

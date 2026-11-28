@@ -174,12 +174,15 @@ describe('OfficialPicker', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: /add show chairman/i }));
     await waitFor(() =>
-      expect(onCreatePerson).toHaveBeenCalledWith({
-        firstName: 'Jane',
-        lastName: 'Doe',
-        email: 'jane@doe.com',
-        phone: '555-111-2222',
-      })
+      expect(onCreatePerson).toHaveBeenCalledWith(
+        {
+          firstName: 'Jane',
+          lastName: 'Doe',
+          email: 'jane@doe.com',
+          phone: '555-111-2222',
+        },
+        { excludePersonIds: [] }
+      )
     );
   });
 

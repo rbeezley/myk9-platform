@@ -44,6 +44,25 @@ describe('fetchShowEmailDeliveryHistory', () => {
       p_before_id: 'attempt-9',
     });
   });
+
+  it('narrows to one exhibitor with p_recipient_email, and leaves it out when unset', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: [], error: null });
+    await fetchShowEmailDeliveryHistory({
+      supabase: { rpc },
+      showId: 'show-1',
+      recipientEmail: 'jamie@example.com',
+    });
+    expect(rpc).toHaveBeenLastCalledWith('get_show_email_delivery_history', {
+      p_show_id: 'show-1',
+      p_limit: 50,
+      p_before_created_at: null,
+      p_before_id: null,
+      p_recipient_email: 'jamie@example.com',
+    });
+
+    await fetchShowEmailDeliveryHistory({ supabase: { rpc }, showId: 'show-1' });
+    expect(rpc.mock.lastCall?.[1]).not.toHaveProperty('p_recipient_email');
+  });
 });
 
 describe('fetchShowEmailContent', () => {

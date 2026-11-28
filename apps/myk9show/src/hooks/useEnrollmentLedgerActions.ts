@@ -65,8 +65,9 @@ const RPC_REFUSAL_CODE = '22023';
 const NOT_AUTHORIZED_CODE = '42501';
 
 const LEDGER_NOT_AUTHORIZED = 'You do not have permission to record payments for this entry.';
-// Anything else, including a lost connection after the server saved it. No
-// client payment id is sent, so a blind retry could record the payment twice.
+// Anything else, including a lost connection after the server saved it. A retry
+// of the same payment from its dialog carries the same id and is recorded once
+// (MYK9-1936); a refund carries no id, so the secretary still checks first.
 const LEDGER_UNCONFIRMED =
   "We could not confirm this was saved. Check the entry's payments: if it is not there, try again.";
 
@@ -84,6 +85,16 @@ const FRIENDLY_REFUSALS: readonly RegExp[] = [
   /^invalid refund amount \S*$/,
   /^refund \S+ exceeds the \S+ still held \(\S+ paid, \S+ already refunded\)$/,
 ];
+
+/**
+ * MYK9-1936: a retry carried the payment's id with a changed received date or check
+ * number, and the first save had landed. Nothing new is written, but the payment IS on
+ * the form (as first typed), so this is not "not recorded".
+ */
+const CHANGED_RETRY_REFUSAL =
+  /^client_payment_id \S+ was already saved with a different received date or reference$/;
+const LEDGER_CHANGED_RETRY =
+  "This payment may already be saved with the earlier date or check number. Check the entry's payments before saving again.";
 
 // Every 22023 is raised before either RPC writes a row, so "not recorded" is
 // true here; the cause is on our side, not something the secretary typed.
@@ -109,6 +120,14 @@ function ledgerFailure(err: unknown): {
 } {
   const code =
     typeof err === 'object' && err !== null ? (err as { code?: unknown }).code : undefined;
+  if (
+    code === RPC_REFUSAL_CODE &&
+    err instanceof Error &&
+    CHANGED_RETRY_REFUSAL.test(err.message)
+  ) {
+    // The dialog then asks to check the form's payments, never "Not saved".
+    return { outcome: 'unconfirmed', message: LEDGER_CHANGED_RETRY };
+  }
   if (code === RPC_REFUSAL_CODE && err instanceof Error) {
     return {
       outcome: 'failed',

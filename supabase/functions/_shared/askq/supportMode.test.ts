@@ -84,8 +84,7 @@ describe('AskQ support mode', () => {
   });
 
   it('accepts a verified answer and shows only the quoted passage', () => {
-    const quote =
-      'Tap Record Area 1 time (then Record Area 2 time, and so on; the button names the area).';
+    const quote = "Before you tap Save, check that every area's field has a time.";
     const parsed = parseSupportAnswer(
       `SUPPORT_ANSWER\nTime each area, then record the area time.\nSUPPORT_QUOTE [judge-steward-quickstart]: "${quote}"`,
       ASKQ_GUIDES

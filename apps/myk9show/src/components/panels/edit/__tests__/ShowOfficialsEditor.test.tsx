@@ -2,9 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '@/test/utils/testUtils';
+import type { OfficialPickerProps } from '@/components/shows/wizard/steps/OfficialPicker';
 
 const harness = vi.hoisted(() => ({
   rpc: vi.fn(),
+  createUser: vi.fn(async () => ({ data: { id: 'created-1' }, error: null })),
+  updateUser: vi.fn(async () => ({ data: null, error: null })),
+  people: [] as Array<Record<string, string>>,
   success: vi.fn(),
   error: vi.fn(),
   officials: {
@@ -15,6 +19,7 @@ const harness = vi.hoisted(() => ({
   // What the editor's cached query holds; null means "same as the server".
   cached: null as null | undefined | Record<string, unknown[]>,
   fetchError: null as Error | null,
+  createError: undefined as unknown,
 }));
 
 vi.mock('@/services/database/supabaseClient', () => ({ supabase: { rpc: harness.rpc } }));
@@ -33,23 +38,52 @@ vi.mock('@/hooks/queries/useShowOfficials', () => ({
 }));
 vi.mock('@/store/userStore', () => ({
   useUserStore: () => ({
-    people: [{ id: 'new-person', firstName: 'Alex', lastName: 'Whitfield' }],
+    people: harness.people,
     loadPeople: vi.fn(),
     loadUsers: vi.fn(),
   }),
 }));
 vi.mock('@/components/committee/ShowCommitteeEditor', () => ({ ShowCommitteeEditor: () => null }));
+vi.mock('@/services/database/users', () => ({
+  createUser: harness.createUser,
+  updateUser: harness.updateUser,
+}));
 vi.mock('@/components/shows/wizard/steps/OfficialPicker', () => ({
   OfficialPicker: ({
     label,
+    excludePersonIds,
     onSelect,
-  }: {
-    label: string;
-    onSelect: (id: string) => Promise<void>;
-  }) => <button onClick={() => void onSelect('new-person')}>{`pick ${label}`}</button>,
+    onCreatePerson,
+  }: Pick<OfficialPickerProps, 'label' | 'excludePersonIds' | 'onSelect' | 'onCreatePerson'>) => (
+    <>
+      <span data-testid={`excluded ${label}`}>{(excludePersonIds ?? []).join(',')}</span>
+      <button onClick={() => void onSelect('new-person')}>{`pick ${label}`}</button>
+      {/* The real picker's "Add new": create the person, then select the id it returns. */}
+      <button
+        onClick={() =>
+          // Passes the exclusions it was given, as the real picker does.
+          void onCreatePerson(
+            {
+              firstName: 'Priya',
+              lastName: 'Raman',
+              email: 'p@example.com',
+              phone: '(555) 010-2020',
+            },
+            { excludePersonIds }
+          )
+            .then(onSelect)
+            // The real picker shows a refusal inline; the stand-in records it for the test.
+            .catch((err: unknown) => {
+              harness.createError = err;
+            })
+        }
+      >{`add new ${label}`}</button>
+    </>
+  ),
 }));
 
 import { ShowOfficialsEditor } from '../ShowOfficialsEditor';
+import { OfficialAlreadyHoldsRoleError } from '@/components/shows/wizard/steps/useCreateOfficialPerson';
 
 const holder = (personId: string, firstName: string, lastName: string) => ({
   personId,
@@ -68,6 +102,79 @@ describe('ShowOfficialsEditor replace', () => {
     harness.officials = { secretaries: [], chairmen: [], stewards: [] };
     harness.cached = null;
     harness.fetchError = null;
+    harness.createError = undefined;
+    harness.people = [{ id: 'new-person', firstName: 'Alex', lastName: 'Whitfield' }];
+  });
+
+  it('keeps every holder of the other role out of each picker, not only the first', () => {
+    harness.officials.secretaries = [holder('s1', 'A', 'One'), holder('s2', 'B', 'Two')];
+    harness.officials.chairmen = [holder('c1', 'C', 'Three'), holder('c2', 'D', 'Four')];
+    renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
+
+    expect(screen.getByTestId('excluded Chair')).toHaveTextContent('s1,s2');
+    expect(screen.getByTestId('excluded Secretary')).toHaveTextContent('c1,c2');
+  });
+
+  // Codex round 3 (MYK9-2493): the cached list can be minutes old, so the other-role check is
+  // made on the fresh server read before anything is granted or updated.
+  it('refuses a Chair the server already has as Secretary, though the cache does not show it', async () => {
+    harness.cached = { secretaries: [], chairmen: [], stewards: [] };
+    harness.officials.secretaries = [holder('new-person', 'Alex', 'Whitfield')];
+    renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'pick Chair' }));
+
+    expect(
+      await screen.findByText(
+        'Alex Whitfield is already the Secretary. Pick a different person for Chair.'
+      )
+    ).toBeInTheDocument();
+    expect(harness.rpc).not.toHaveBeenCalledWith('grant_show_official', expect.anything());
+  });
+
+  it('refuses "Add new" for an email whose person the server has in the other role, before updating the phone', async () => {
+    harness.cached = { secretaries: [], chairmen: [], stewards: [] };
+    harness.people = [
+      { id: 'sec-1', firstName: 'Priya', lastName: 'Raman', email: 'p@example.com', phone: '' },
+    ];
+    harness.officials.secretaries = [holder('sec-1', 'Priya', 'Raman')];
+    renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'add new Chair' }));
+
+    await waitFor(() => expect(harness.createError).toBeInstanceOf(OfficialAlreadyHoldsRoleError));
+    expect((harness.createError as OfficialAlreadyHoldsRoleError).personName).toBe('Priya Raman');
+    expect(harness.rpc).not.toHaveBeenCalled();
+    expect(harness.updateUser).not.toHaveBeenCalled();
+    expect(harness.createUser).not.toHaveBeenCalled();
+  });
+
+  // Codex round 5: the server's list alone decides. A former Secretary the cache still shows is
+  // no longer excluded, so "Add new" reuses her and makes her Chair.
+  it('lets "Add new" make a former Secretary the Chair when only the stale cache still lists her', async () => {
+    harness.cached = {
+      secretaries: [holder('sec-1', 'Priya', 'Raman')],
+      chairmen: [],
+      stewards: [],
+    };
+    harness.people = [
+      { id: 'sec-1', firstName: 'Priya', lastName: 'Raman', email: 'p@example.com', phone: '' },
+    ];
+    renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
+    expect(screen.getByTestId('excluded Chair')).toHaveTextContent('sec-1');
+
+    await userEvent.click(screen.getByRole('button', { name: 'add new Chair' }));
+
+    await waitFor(() =>
+      expect(harness.rpc).toHaveBeenCalledWith('grant_show_official', {
+        p_person_id: 'sec-1',
+        p_role_name: 'chairman',
+        p_show_id: SHOW,
+      })
+    );
+    expect(harness.createError).toBeUndefined();
+    expect(harness.createUser).not.toHaveBeenCalled();
+    expect(await screen.findByText('Saved. Priya Raman is now Chair.')).toBeInTheDocument();
   });
 
   it('assigning a second Chair revokes the first', async () => {
@@ -75,7 +182,9 @@ describe('ShowOfficialsEditor replace', () => {
     renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
     await userEvent.click(screen.getByText('pick Chair'));
 
-    await waitFor(() => expect(harness.success).toHaveBeenCalledWith('Official assigned'));
+    await waitFor(() =>
+      expect(harness.success).toHaveBeenCalledWith('Alex Whitfield is now Chair.')
+    );
     expect(harness.rpc).toHaveBeenCalledWith('grant_show_official', {
       p_person_id: 'new-person',
       p_role_name: 'chairman',
@@ -136,7 +245,9 @@ describe('ShowOfficialsEditor replace', () => {
     renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
     await userEvent.click(screen.getByText('pick Chair'));
 
-    await waitFor(() => expect(harness.success).toHaveBeenCalledWith('Official assigned'));
+    await waitFor(() =>
+      expect(harness.success).toHaveBeenCalledWith('Alex Whitfield is now Chair.')
+    );
     expect(harness.rpc).toHaveBeenCalledWith('revoke_show_official', {
       p_person_id: 'old-1',
       p_role_name: 'chairman',
@@ -206,6 +317,8 @@ describe('ShowOfficialsEditor mailing address for the premium (MYK9-2065)', () =
     harness.officials = { secretaries: [], chairmen: [], stewards: [] };
     harness.cached = null;
     harness.fetchError = null;
+    harness.createError = undefined;
+    harness.people = [{ id: 'new-person', firstName: 'Alex', lastName: 'Whitfield' }];
   });
 
   it('offers no field until a Chair or Secretary is named', () => {
@@ -328,5 +441,110 @@ describe('ShowOfficialsEditor mailing address for the premium (MYK9-2065)', () =
     };
     view.rerender(<ShowOfficialsEditor showId={SHOW} />);
     expect(screen.getByLabelText(label)).toHaveValue('PO Box 2x');
+  });
+
+  // MYK9-2470: a pick saves at once and the panel's Save Changes stays disabled, so the answer
+  // has to be under the picker she just used.
+  describe('saved and failed notes under the picker', () => {
+    it('says who is now Secretary, under the picker and on the toast', async () => {
+      harness.officials.secretaries = [holder('old-1', 'Jordan', 'Ellis')];
+      renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
+      await userEvent.click(screen.getByText('pick Secretary'));
+
+      expect(
+        await screen.findByText('Saved. Alex Whitfield is now Secretary.')
+      ).toBeInTheDocument();
+      expect(harness.success).toHaveBeenCalledWith('Alex Whitfield is now Secretary.');
+      expect(screen.getAllByRole('status')).toHaveLength(1);
+    });
+
+    // Codex review of #4472: the people list she picked from cannot hold a person made a moment ago.
+    it('names a person added with "Add new", not "The new person"', async () => {
+      renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
+      await userEvent.click(screen.getByText('add new Chair'));
+
+      expect(await screen.findByText('Saved. Priya Raman is now Chair.')).toBeInTheDocument();
+      expect(harness.success).toHaveBeenCalledWith('Priya Raman is now Chair.');
+      expect(screen.queryByText(/The new person/)).not.toBeInTheDocument();
+    });
+
+    // MYK9-2493: the form requires a phone; Edit Show dropped it on the way to the database.
+    it('saves the phone typed in "Add new" on the created person', async () => {
+      renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
+      await userEvent.click(screen.getByText('add new Chair'));
+
+      await waitFor(() =>
+        expect(harness.createUser).toHaveBeenCalledWith({
+          first_name: 'Priya',
+          last_name: 'Raman',
+          email: 'p@example.com',
+          phone: '(555) 010-2020',
+        })
+      );
+    });
+
+    it('reuses the person already on file with that email and keeps her phone current', async () => {
+      harness.people = [
+        { id: 'new-person', firstName: 'Alex', lastName: 'Whitfield' },
+        {
+          id: 'on-file',
+          firstName: 'Priya',
+          lastName: 'Raman-Holt',
+          email: 'P@example.com',
+          phone: '(555) 000-0000',
+        },
+      ];
+      renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
+      await userEvent.click(screen.getByText('add new Chair'));
+
+      expect(await screen.findByText('Saved. Priya Raman-Holt is now Chair.')).toBeInTheDocument();
+      expect(harness.updateUser).toHaveBeenCalledWith('on-file', { phone: '(555) 010-2020' });
+      expect(harness.createUser).not.toHaveBeenCalled();
+    });
+
+    it('confirms a Steward the same way', async () => {
+      renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
+      await userEvent.click(screen.getByText('pick Steward'));
+
+      expect(await screen.findByText('Saved. Alex Whitfield is now Steward.')).toBeInTheDocument();
+    });
+
+    it('says under the picker that the role was not changed when the save fails', async () => {
+      harness.officials.chairmen = [holder('old-1', 'Caleb', 'Morgan')];
+      harness.rpc.mockResolvedValue({ error: { message: 'nope' } });
+      renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
+      await userEvent.click(screen.getByText('pick Chair'));
+
+      expect(await screen.findByText('Chair was not changed. Try again.')).toBeInTheDocument();
+      expect(screen.queryByText(/^Saved\./)).not.toBeInTheDocument();
+    });
+
+    it('shows a half-finished replace under the picker, not as saved', async () => {
+      harness.officials.chairmen = [holder('old-1', 'Caleb', 'Morgan')];
+      harness.rpc.mockImplementation(async (name: string) =>
+        name === 'revoke_show_official' ? { error: { message: 'denied' } } : { error: null }
+      );
+      renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
+      await userEvent.click(screen.getByText('pick Chair'));
+
+      expect(
+        await screen.findByText(
+          'Alex Whitfield is now Chair, but Caleb Morgan is still listed. Try again.'
+        )
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/^Saved\./)).not.toBeInTheDocument();
+    });
+
+    it('clears the last note for a role when it is picked again', async () => {
+      harness.rpc.mockResolvedValueOnce({ error: { message: 'nope' } });
+      renderWithProviders(<ShowOfficialsEditor showId={SHOW} />);
+      await userEvent.click(screen.getByText('pick Steward'));
+      expect(await screen.findByText('Steward was not changed. Try again.')).toBeInTheDocument();
+
+      await userEvent.click(screen.getByText('pick Steward'));
+
+      expect(await screen.findByText('Saved. Alex Whitfield is now Steward.')).toBeInTheDocument();
+      expect(screen.queryByText('Steward was not changed. Try again.')).not.toBeInTheDocument();
+    });
   });
 });

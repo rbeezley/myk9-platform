@@ -18,14 +18,14 @@ describe('TrialFinancialsCard', () => {
   it('labels same-named trials on different days by their date', () => {
     render(<TrialFinancialsCard trialId="sun-1" trials={trials} onPickTrial={vi.fn()} />);
 
-    expect(screen.getByRole('button', { name: 'Trial 1 · 2026-12-05' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: 'Trial 1 · 12/5/2026' })).toHaveAttribute(
       'aria-pressed',
       'false'
     );
-    expect(screen.getByRole('button', { name: 'Trial 1 · 2026-12-06' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: 'Trial 1 · 12/6/2026' })).toHaveAttribute(
       'aria-pressed',
       'true'
     );
-    expect(screen.getByText('Trial financials: Trial 1 · 2026-12-06')).toBeInTheDocument();
+    expect(screen.getByText('Trial financials: Trial 1 · 12/6/2026')).toBeInTheDocument();
   });
 });

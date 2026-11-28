@@ -8,6 +8,30 @@ import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.49.1';
 
 export const DEFAULT_CLASS_NAME = 'your class';
 
+// MYK9-2412: the dogs counted ahead are the ones `entry_queue_places_for_classes` puts in line
+// (MYK9-2391), so the alert's "N dogs away" matches the place on screen. The Deno function
+// cannot import app code: keep these two lists in step with that function's two NOT IN lists
+// and the client's `isExpectedEntry` / `isPendingEntryStatus`.
+const OFF_LINE_ENTRY_STATUSES = ['withdrawn', 'scratched', 'absent', 'moved', 'not_accepted'];
+
+/** Not yet approved (Pending), so not in the running line. 'no-status' is the column default. */
+const PENDING_ENTRY_STATUSES = [
+  'submitted',
+  'pending',
+  'draft',
+  'no-status',
+  'pending-payment',
+  'paid',
+  'promotion-expired',
+];
+
+export const EXCLUDED_QUEUE_STATUSES = [...OFF_LINE_ENTRY_STATUSES, ...PENDING_ENTRY_STATUSES];
+
+// A NULL status stays in line, as on the server; a bare `not.in` would drop it.
+const QUEUE_STATUS_FILTER = `entry_status.is.null,entry_status.not.in.(${EXCLUDED_QUEUE_STATUSES.map(
+  status => `"${status}"`
+).join(',')})`;
+
 interface ClassPaperRow {
   scores_on_paper?: boolean | null;
   trial?: { show?: { uses_device_scoring?: boolean | null } | null } | null;
@@ -31,7 +55,7 @@ export async function fetchQueueAndClassName(supabase: SupabaseClient, classId: 
       )
       .eq('class_id', classId)
       .is('deleted_at', null)
-      .not('entry_status', 'in', '("withdrawn","scratched","absent")'),
+      .or(QUEUE_STATUS_FILTER),
     // MYK9-1970: paper = classes.scores_on_paper, else NOT shows.uses_device_scoring (the rule
     // entry_queue_places_for_classes applies, MYK9-1969). The trial and show ride along.
     supabase

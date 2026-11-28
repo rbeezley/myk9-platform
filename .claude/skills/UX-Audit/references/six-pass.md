@@ -222,12 +222,22 @@ RLS-filtered empty array being read as "none".
 - Identify abandonment risks
 - Check recovery paths (back, undo, cancel)
 
+**Turn the design off first.** Before judging friction, write each main job for the audited role as a plain list of steps, the way it works today: every tap, screen change, field and decision, as if the app had no colour, icons or animation. Polished styling can make a slow flow look easy; a counted list can't hide it. Start with the role's most frequent jobs. For a secretary, those are the show-day jobs first: checking a dog in, pulling or moving an entry, and releasing a class's results. Count taps, screens and decisions for each job.
+
+**Write each finding as the need, not the widget.** State what the person must be able to do ("set the check-in status for any day without leaving the class list"), not a UI part ("add a status dropdown"). Then, before proposing anything new, look for an existing surface that already meets the need, or a deep-link with the filters pre-applied (CLAUDE.md § "Current development phase — consolidate, don't duplicate"). A fix that adds a page, sheet or dialog must say why a link to an existing one isn't enough.
+
 **Required output:**
 
 ```markdown
 ## Pass 6: Flow Integrity
 
 **Primary flow tested:** [Description]
+
+**Step counts (design off):**
+
+| Job             | Steps today (taps / screens / decisions) | Steps after fix  | Fix (need → existing surface or link) |
+| --------------- | ---------------------------------------- | ---------------- | ------------------------------------- |
+| [Most frequent] | [e.g. 7 / 3 / 2]                         | [e.g. 3 / 1 / 1] | [Need; where it's met]                |
 
 **Step-by-step findings:**
 

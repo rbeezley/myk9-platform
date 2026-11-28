@@ -42,7 +42,7 @@ const FAILED_TEXT = "Couldn't check for dogs flagged as pulled at the show.";
 
 /** Everything else about the show is done: scored, results sent, no incidents. */
 const CLEAN_SHOW = {
-  show: { id: 'show-1', status: 'in_progress' },
+  show: { id: 'show-1', status: 'published' },
   trials: [{ id: 'trial-1', status: 'in_progress' }],
   classes: [{ id: 'class-1', status: 'in_progress', entryCount: 1, scoredCount: 1 }],
   incidents: { reportableCount: 0, urgentCount: 0 },
@@ -72,7 +72,12 @@ describe('MYK9-2145: an unconfirmed pull flag at close', () => {
       flaggedPulls: NO_FLAGS,
     });
 
-    expect(readiness).toEqual({ concerns: [], concernItems: [], hasConcerns: false });
+    expect(readiness).toEqual({
+      concerns: [],
+      concernItems: [],
+      hasConcerns: false,
+      openLines: [],
+    });
   });
 
   it('reads the same on the summary card, the close action and its confirmation', async () => {

@@ -11,18 +11,6 @@ import * as path from 'path';
  */
 
 describe('Handler Assignment Bug Fixes', () => {
-  describe('HandlerAssignmentStep', () => {
-    it('should check handlerName not handlerId for hasHandler', () => {
-      const filePath = path.join(
-        __dirname,
-        '../../components/shows/RegistrationWorkflow/HandlerAssignmentStep.tsx'
-      );
-      const content = fs.readFileSync(filePath, 'utf8');
-      expect(content).toContain('hasHandler: !!handler?.handlerName');
-      expect(content).not.toContain('hasHandler: !!handler?.handlerId');
-    });
-  });
-
   describe('RegistrationWizardPage proceed gating', () => {
     // Next-button gating moved from an inline canProceed() switch into
     // proceedBlockedReason (proceedGating.ts); the handlerName-vs-handlerId

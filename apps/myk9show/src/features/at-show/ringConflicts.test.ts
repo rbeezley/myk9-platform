@@ -95,6 +95,24 @@ describe('detectMyRingConflicts', () => {
     expect(at1.size).toBe(0); // Sparky at 2 away is outside leadDogs=1
   });
 
+  it('does not count a Pending dog ahead of the threshold (MYK9-2391)', () => {
+    const entries: RingConflictEntry[] = [
+      entry({ id: 'a1', classId: 'class-a', runOrder: 1 }),
+      entry({ id: 'a2', classId: 'class-a', runOrder: 2, dogCallName: 'Ditto' }),
+      entry({ id: 'b1', classId: 'class-b', runOrder: 1 }),
+      entry({ id: 'b2', classId: 'class-b', runOrder: 2, entryStatus: 'pending' }),
+      entry({ id: 'b3', classId: 'class-b', runOrder: 3, dogCallName: 'Sparky' }),
+    ];
+    const conflicts = detectMyRingConflicts({
+      entries,
+      classes,
+      ownEntryIds: new Set(['a2', 'b3']),
+      leadDogs: 1,
+    });
+    // b2 is outside the line, so Sparky is 1 away (not 2) and the conflict stands.
+    expect(conflicts.get('b3')).toBe('Ditto 1 away in Container Novice');
+  });
+
   it('counts an in-ring own entry as near up', () => {
     const inRingEntries: RingConflictEntry[] = [
       entry({ id: 'a1', classId: 'class-a', runOrder: 1, checkInStatus: 'in-ring' }),

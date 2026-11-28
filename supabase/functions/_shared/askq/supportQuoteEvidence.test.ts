@@ -6,8 +6,7 @@ import {
   verifySupportAnswerQuotes,
 } from './supportQuoteEvidence.ts';
 
-const GOOD_QUOTE =
-  'Tap Record Area 1 time (then Record Area 2 time, and so on; the button names the area).';
+const GOOD_QUOTE = "Before you tap Save, check that every area's field has a time.";
 const ANSWER = 'SUPPORT_ANSWER\nTime each area, then tap the Record button for that area.';
 const quoteLine = (id: string, quote: string) => `SUPPORT_QUOTE [${id}]: "${quote}"`;
 const verify = (...lines: string[]) => verifySupportAnswerQuotes(lines.join('\n'), ASKQ_GUIDES);
@@ -75,7 +74,11 @@ describe('verifySupportAnswerQuotes', () => {
   it('rejects a fourth quote', () => {
     const q = quoteLine(ID, GOOD_QUOTE);
     expect(verify(ANSWER, q, q, q).ok).toBe(true);
-    expect(verify(ANSWER, q, q, q, q)).toEqual({ ok: false, reason: 'quote_rejected' });
+    expect(verify(ANSWER, q, q, q, q)).toEqual({
+      ok: false,
+      reason: 'quote_rejected',
+      detail: 'too_many_quotes',
+    });
   });
 
   it('rejects a quote over 120 tokens and accepts one of exactly 120', () => {
@@ -118,7 +121,7 @@ describe('verifySupportAnswerQuotes', () => {
       ANSWER,
       quoteLine(
         'judge-steward-quickstart',
-        'Tap **Record Area 1 time** (then Record Area 2 time, and so on; the button names the area).'
+        "Before you tap **Save**, check that every area's field has a time."
       )
     );
     expect(result.ok).toBe(true);
@@ -137,7 +140,7 @@ describe('verifySupportAnswerQuotes', () => {
   });
 
   it('rejects a quote under 8 words', () => {
-    expect(verify(ANSWER, quoteLine('judge-steward-quickstart', 'Record Area 1 time')).ok).toBe(
+    expect(verify(ANSWER, quoteLine('judge-steward-quickstart', 'Before you tap Save')).ok).toBe(
       false
     );
   });
@@ -222,10 +225,7 @@ describe('verifySupportAnswerQuotes tolerance', () => {
   it('accepts curly quotes, dashes and a .md id', () => {
     const result = verify(
       ANSWER,
-      quoteLine(
-        `${ID}.md`,
-        'Tap **Record Area 1 time** (then Record Area 2 time, and so on; the button names the area)'
-      )
+      quoteLine(`${ID}.md`, "Before you tap **Save**, check that every area's field has a time")
     );
     expect(result.ok).toBe(true);
     expect(verify(ANSWER, `SUPPORT_QUOTE [${ID}]: “${GOOD_QUOTE}”`).ok).toBe(true);
@@ -241,10 +241,12 @@ describe('verifySupportAnswerQuotes tolerance', () => {
 
   it('rejects a quote that starts or ends mid-word', () => {
     expect(
-      verify(ANSWER, quoteLine(ID, 'ap Record Area 1 time (then Record Area 2 time, and so on')).ok
+      verify(ANSWER, quoteLine(ID, "efore you tap Save, check that every area's field has a time"))
+        .ok
     ).toBe(false);
     expect(
-      verify(ANSWER, quoteLine(ID, 'Tap Record Area 1 time (then Record Area 2 time, and so o')).ok
+      verify(ANSWER, quoteLine(ID, "Before you tap Save, check that every area's field has a ti"))
+        .ok
     ).toBe(false);
   });
 
@@ -272,7 +274,7 @@ describe('verifySupportAnswerQuotes tolerance', () => {
   });
 
   it('reports quote_rejected when the answer has no verified quote', () => {
-    expect(verify(ANSWER)).toEqual({ ok: false, reason: 'quote_rejected' });
+    expect(verify(ANSWER)).toEqual({ ok: false, reason: 'quote_rejected', detail: 'no_quotes' });
   });
 
   it('never leaves a marker string in an accepted answer', () => {
@@ -284,5 +286,101 @@ describe('verifySupportAnswerQuotes tolerance', () => {
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.answerText).not.toMatch(/SUPPORT_/);
     if (result.ok) expect(result.answerText).not.toMatch(/Time each area/);
+  });
+});
+
+describe('whole short steps and screenshots (MYK9-2472)', () => {
+  const EXHIBITOR = 'exhibitor-guide';
+  // Step 1 of "Add Your Dog": seven words, under the eight-word floor.
+  const STEP_ONE = 'Go to My Dogs in the navigation.';
+  const STEP_TWO =
+    'Open Actions → Add Dog. (Before you have any dogs, the page shows an Add Dog button instead.) The panel opens on the Registration tab.';
+
+  it('accepts a whole step shorter than eight words on its own line', () => {
+    expect(tokenizeQuoteText(STEP_ONE)).toHaveLength(7);
+    const result = verify(ANSWER, quoteLine(EXHIBITOR, STEP_ONE), quoteLine(EXHIBITOR, STEP_TWO));
+    expect(result.ok && result.answerText).toBe(
+      `From the Exhibitor Guide:\n“${STEP_ONE}”\n“${STEP_TWO}”`
+    );
+  });
+
+  it('accepts a whole short sentence from inside a longer line', () => {
+    expect(verify(ANSWER, quoteLine(EXHIBITOR, 'Any refund returns the entry fee only.')).ok).toBe(
+      true
+    );
+  });
+
+  it('still rejects a short fragment that is not a whole step or sentence', () => {
+    expect(verify(ANSWER, quoteLine(EXHIBITOR, 'Go to My Dogs in the'))).toEqual({
+      ok: false,
+      reason: 'quote_rejected',
+      detail: 'quote_too_short',
+    });
+    // A whole sentence, but under the four-word floor for whole passages.
+    expect(verify(ANSWER, quoteLine(EXHIBITOR, 'Contact the show')).ok).toBe(false);
+  });
+
+  it('accepts a passage that runs on past a screenshot', () => {
+    // The E-05 screenshot sits between step 4 and step 5 in the guide.
+    const acrossTheScreenshot =
+      'Otherwise, fill in the Registered Name and Registered Breed (the other registration fields are optional), then click Save and continue. On the Essential tab, fill in:';
+    expect(verify(ANSWER, quoteLine(EXHIBITOR, acrossTheScreenshot)).ok).toBe(true);
+  });
+
+  it('never matches the words of a screenshot caption', () => {
+    expect(
+      verify(ANSWER, quoteLine(EXHIBITOR, 'Add Dog panel — Registration tab with Find dog'))
+    ).toEqual({ ok: false, reason: 'quote_rejected', detail: 'quote_not_in_guide' });
+  });
+
+  // Codex review of #4464: the caption was dropped for checking but kept for display, so words
+  // nobody verified reached the answer and its citation.
+  it('keeps a copied screenshot out of the answer and its citation', () => {
+    const withTheScreenshot =
+      'Otherwise, fill in the Registered Name and Registered Breed (the other registration fields are optional), then click Save and continue. ![E-05: Add Dog panel — Registration tab with Find dog](../screenshots/E-05.png) On the Essential tab, fill in:';
+    const result = verify(ANSWER, quoteLine(EXHIBITOR, withTheScreenshot));
+
+    expect(result.ok).toBe(true);
+    const shown = result.ok ? [result.answerText, ...result.guideSources.map(s => s.quote)] : [];
+    for (const text of shown) {
+      expect(text).not.toMatch(/E-05|Find dog|screenshots|!/);
+      expect(text).toContain('then click Save and continue. On the Essential tab, fill in:');
+    }
+  });
+
+  // Codex review of #4464: in the Secretary Guide this sentence follows a bold question that
+  // ends `?**`, so a split on "punctuation then space" never saw the boundary.
+  it('accepts a whole short sentence that follows bold or quoted text', () => {
+    const afterBold = 'Do not ask for it again.';
+    expect(tokenizeQuoteText(afterBold)).toHaveLength(6);
+    expect(verify(ANSWER, quoteLine('secretary-guide', afterBold)).ok).toBe(true);
+
+    const guide = { id: 'g', title: 'G', audience: 'all', content: '' };
+    const inGuide = (content: string, quote: string) =>
+      verifySupportAnswerQuotes(`${ANSWER}\n${quoteLine('g', quote)}`, [{ ...guide, content }]).ok;
+    expect(
+      inGuide('She said "Is it ready?" Send the premium now. Then wait.', 'Send the premium now.')
+    ).toBe(true);
+    expect(
+      inGuide('(See the Fees tab.) Enter the fee here. Then save.', 'Enter the fee here.')
+    ).toBe(true);
+    // Still a fragment: not a whole sentence.
+    expect(inGuide('**Ready?** Do not ask for it again today.', 'Do not ask for it')).toBe(false);
+  });
+
+  it('names the rule that rejected the quotes', () => {
+    const detail = (...lines: string[]) => {
+      const result = verify(ANSWER, ...lines);
+      return result.ok ? null : result.detail;
+    };
+    expect(detail('SUPPORT_QUOTE exhibitor-guide: no brackets or quote marks')).toBe(
+      'malformed_quote'
+    );
+    expect(detail(quoteLine('no-such-guide', GOOD_QUOTE))).toBe('unknown_guide');
+    expect(
+      detail(quoteLine(ID, 'These words are nowhere in the ringside quickstart at all.'))
+    ).toBe('quote_not_in_guide');
+    const words = tokenizeQuoteText(ASKQ_GUIDES.find(g => g.id === ID)!.content);
+    expect(detail(quoteLine(ID, words.slice(0, 121).join(' ')))).toBe('quote_too_long');
   });
 });

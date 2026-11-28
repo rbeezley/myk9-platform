@@ -10,7 +10,7 @@ import {
   PREMIUM_OFFICIALS_SELECT,
   type PremiumOfficialRow,
 } from './showOfficialsRow.ts';
-import { buildPremiumNarratives, resolvePremiumNarratives } from './premiumNarratives.ts';
+import { narrativesForResponse } from './premiumNarratives.ts';
 import {
   PREMIUM_JUDGE_ASSIGNMENTS_SELECT,
   premiumTrialJudges,
@@ -171,9 +171,10 @@ handle<GeneratePremiumPayload>(
 
     // Step 9: the narratives are built from the show's facts, with no model call (MYK9-2055). A
     // section a secretary already published keeps its text, edits included.
-    const narratives = resolvePremiumNarratives(
+    // `builtNarratives` is what the facts build today, kept or not (MYK9-2280).
+    const { narratives, builtNarratives } = narrativesForResponse(
       publishedNarratives(show.experience_published_content, showOrg),
-      buildPremiumNarratives(show)
+      show
     );
 
     // Step 10: Assemble and return GeneratedPremium. The schedule prints live trials only
@@ -305,6 +306,7 @@ handle<GeneratePremiumPayload>(
           ((template as Record<string, unknown> | null)?.rv_hookup_notes as string | null) ?? null,
       },
       narratives,
+      builtNarratives,
     };
 
     return result;

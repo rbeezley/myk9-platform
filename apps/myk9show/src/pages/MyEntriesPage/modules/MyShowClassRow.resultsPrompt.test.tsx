@@ -90,6 +90,25 @@ describe('My Shows list asks once (MYK9-1944)', () => {
     );
     expect(screen.getAllByTestId('prompt')).toHaveLength(1);
   });
+
+  it('puts the prompt in the show block, outside every class row (MYK9-2386)', () => {
+    renderClass({ finalPlacement: 1, resultsReleasedAt: '2026-10-24T18:00:00Z' });
+    const prompt = screen.getByTestId('prompt');
+    const classRow = document.querySelector('.myk9-entries-dog-classes');
+    expect(classRow).not.toBeNull();
+    expect(classRow?.contains(prompt)).toBe(false);
+    expect(prompt.closest('section')?.contains(classRow)).toBe(true);
+    // In the show block, before the dog list, and inside no dog card or list item.
+    const section = prompt.closest('section');
+    const items = Array.from(section?.querySelectorAll('li') ?? []);
+    expect(items.length).toBeGreaterThan(0);
+    expect(items.some(item => item.contains(prompt))).toBe(false);
+    expect(
+      prompt.compareDocumentPosition(items[0] as Node) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    // The class name keeps a readable width next to the prompt: no prompt inside its row.
+    expect(screen.getAllByText('Container Novice A').length).toBeGreaterThan(0);
+  });
 });
 
 describe('My Shows class row results-public prompt (MYK9-1944)', () => {

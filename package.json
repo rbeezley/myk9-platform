@@ -30,6 +30,7 @@
     "qa:openspec-proof": "tsx scripts/qa/openspec-scenario-proof.ts",
     "qa:openspec-proof:test": "vitest run scripts/qa/openspec-scenario-proof.test.ts",
     "qa:guide-ui": "tsx scripts/qa/guide-ui-strings.ts",
+    "qa:guide-shots": "tsx scripts/qa/guide-screenshot-staleness.ts",
     "qa:plans": "node --import tsx scripts/qa/plan-metadata.ts",
     "qa:plans:test": "vitest run scripts/qa/plan-metadata.test.ts",
     "qa:nightly:prepare": "bash scripts/qa/run-nightly-isolated.sh",

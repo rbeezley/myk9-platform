@@ -56,32 +56,13 @@ export function createRealGitFixture(
     });
   }
   writeFileSync(join(bin, 'pnpm'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
-  // Opt-in rendezvous (MYK9_BOOTSTRAP_BARRIER): the first `git worktree list`
-  // of each bootstrap, which runs before the config lock, blocks until every
-  // participant has arrived. That forces real lock contention without a sleep
-  // tuned to timing; the wait has no deadline, so a slow runner cannot trip it.
-  const realGit = execFileSync('which', ['git'], { encoding: 'utf8' }).trim();
-  writeFileSync(
-    join(bin, 'git'),
-    `#!/bin/sh
-if [ -n "$MYK9_BOOTSTRAP_BARRIER" ] && [ "$1" = "worktree" ] && [ "$2" = "list" ]; then
-  : > "$MYK9_BOOTSTRAP_BARRIER/arrived.$$"
-  while [ "$(ls "$MYK9_BOOTSTRAP_BARRIER" | wc -l)" -lt "$MYK9_BOOTSTRAP_PARTICIPANTS" ]; do
-    sleep 0.01
-  done
-fi
-exec '${realGit}' "$@"
-`,
-    { mode: 0o755 }
-  );
   return { root, primary, worktrees, bin, globalConfig };
 }
 
 export function runBootstrapAt(
   worktree: string,
   bin: string,
-  globalConfig: string,
-  barrier?: { dir: string; participants: number }
+  globalConfig: string
 ): Promise<BootstrapResult> {
   return new Promise(resolvePromise => {
     const child = spawn('bash', [bootstrapScript], {
@@ -90,12 +71,6 @@ export function runBootstrapAt(
         ...process.env,
         GIT_CONFIG_GLOBAL: globalConfig,
         GIT_CONFIG_NOSYSTEM: '1',
-        ...(barrier
-          ? {
-              MYK9_BOOTSTRAP_BARRIER: barrier.dir,
-              MYK9_BOOTSTRAP_PARTICIPANTS: String(barrier.participants),
-            }
-          : {}),
         PATH: `${bin}:${process.env.PATH ?? ''}`,
       },
     });

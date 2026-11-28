@@ -3,13 +3,13 @@ import { useMemo, useState } from 'react';
 import { buildJudgeRecords } from '@/features/show-map/cockpit/trialPacket/judgeRecord';
 import { buildJudgeReviews } from '@/features/show-map/cockpit/trialPacket/judgeReview';
 import { TrialPacketPanel } from '@/features/show-map/cockpit/trialPacket/TrialPacketPanel';
-import { showCalendarDay } from '@/features/payments/payoutDeadline';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import type { SecretaryEntry } from '@/services/database/entries';
 import type { CloseoutFlaggedPulls } from '@/features/show-closeout/useCloseoutFlaggedPulls';
 import type { SyncableTrial } from '@/store/trial-store-types';
 
 import type { ResultsClassRow } from './buildResultsClassRows';
+import { verifiedPayoutDay } from './verifiedPayoutDay';
 import { ResultsFinishRow } from './ResultsFinishRow';
 import { ResultsJudgeProgress } from './ResultsJudgeProgress';
 
@@ -45,9 +45,9 @@ export function ResultsPackets({
   entriesReadable: boolean;
   timeZone: string;
 }) {
-  const { show, refreshFailed } = useFastShowDetails(showId);
-  // A cached end date after a failed refresh may be a rescheduled show's old one: say it in words.
-  const lastDay = refreshFailed ? null : showCalendarDay(show?.endDate);
+  const { show, isFromCache, refreshFailed } = useFastShowDetails(showId);
+  // A cached or failed-refresh end date may be a rescheduled show's old one: say it in words.
+  const lastDay = verifiedPayoutDay({ show, isFromCache, refreshFailed });
   const payoutSchedule = useMemo(() => ({ lastDay, timeZone }), [lastDay, timeZone]);
   const [packet, setPacket] = useState<OpenPacket | null>(null);
   // Corrections are read only when the panel opens, so the progress list builds without them.

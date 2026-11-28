@@ -233,9 +233,22 @@ test.describe('offline past token expiry', () => {
       const saved = await row(client, savedId);
       expect(mine.version).toBeGreaterThan(baseline[0].version);
       expect(saved.result_status).toBe('qualified');
-      // The dropped NQ never reached the server: no write landed, and B sent no score call for it.
-      expect(saved.version).toBe(savedBefore.version);
+      // The dropped NQ never reached the server: B sent no score call for it, and its score fields
+      // are unchanged. The row's version is not compared: the two dogs tie on time, so the kept NQ
+      // landing makes the server's placement recalculation clear this row's tie marker, which bumps
+      // its version with no write from B (run 46096755917).
       expect(rpcStatuses.get('bSaved')?.length ?? 0).toBe(offlineCalls.bSaved);
+      expect({
+        is_scored: saved.is_scored,
+        result_status: saved.result_status,
+        search_time_seconds: saved.search_time_seconds,
+        total_faults: saved.total_faults,
+      }).toEqual({
+        is_scored: savedBefore.is_scored,
+        result_status: savedBefore.result_status,
+        search_time_seconds: savedBefore.search_time_seconds,
+        total_faults: savedBefore.total_faults,
+      });
       // The kept NQ was accepted after the token refreshed (as in showDayReliability).
       const keptCalls = (rpcStatuses.get('bMine') ?? []).slice(offlineCalls.bMine);
       await evidence(info, 'reconnect-calls', { keptCalls });

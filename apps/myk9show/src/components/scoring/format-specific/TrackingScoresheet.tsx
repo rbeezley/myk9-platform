@@ -8,6 +8,7 @@
  * - Article finding assessment
  */
 
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 
@@ -150,7 +151,13 @@ export function TrackingScoresheet({
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2">
             <MapPin className="h-5 w-5 text-green-600" />
-            Entry #{entry.displayInfo.armband}: {entry.displayInfo.dogName}
+            Entry
+            <ArmbandBadge
+              armband={entry.displayInfo.armband}
+              srLabel
+              className="h-6 min-w-6 text-xs"
+            />
+            {entry.displayInfo.dogName}
           </CardTitle>
           <CardDescription>
             {entry.displayInfo.dogBreed} • {entry.displayInfo.handlerName}

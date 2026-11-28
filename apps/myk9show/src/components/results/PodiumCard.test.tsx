@@ -38,13 +38,15 @@ describe('PodiumCard', () => {
 
   it('renders armband when present', () => {
     render(<PodiumCard classTitle="Test Class" placements={placements} />);
-    expect(screen.getByText('#101')).toBeInTheDocument();
-    expect(screen.getByText('#102')).toBeInTheDocument();
+    expect(screen.getByText('101')).toHaveClass('bg-primary');
+    expect(screen.getByText('102')).toHaveClass('bg-primary');
+    expect(screen.queryByText('#101')).not.toBeInTheDocument();
   });
 
   it('does not render armband when null', () => {
     render(<PodiumCard classTitle="Test Class" placements={placements} />);
     expect(screen.queryByText('#null')).not.toBeInTheDocument();
+    expect(screen.getAllByText(/Armband/)).toHaveLength(2);
   });
 
   it('renders placements in given order', () => {

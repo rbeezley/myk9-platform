@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -11,8 +12,9 @@ import {
 } from '@/components/ui/dialog';
 import { formatPlacement } from '@/components/classes/ClassResultsTable/utils';
 import { cn } from '@/lib/utils';
+import { armbandAccessibleName } from '@/utils/armbandUtils';
 import { dbSecondsToInputFormat } from '@/utils/scoringMappings';
-import type { ClassTieEntry, ClassTieGroup } from './coinFlipRows';
+import type { ClassTieGroup } from './coinFlipRows';
 
 /** Offline wording, same pattern as the other Results actions that need the server. */
 export const OFFLINE_COIN_FLIP_MESSAGE = 'Connect to record the coin flip';
@@ -24,10 +26,6 @@ function resultLine(group: ClassTieGroup): string {
     ? `${first.pointsEarned ?? 0} ${first.pointsEarned === 1 ? 'point' : 'points'}`
     : `${first.totalFaults ?? 0} ${first.totalFaults === 1 ? 'fault' : 'faults'}`;
   return first.timeSeconds ? `${score}, ${dbSecondsToInputFormat(first.timeSeconds)}` : score;
-}
-
-function dogLabel(entry: ClassTieEntry): string {
-  return entry.armband === '' ? entry.dogName : `Armband ${entry.armband} ${entry.dogName}`;
 }
 
 /** The order a group will be saved in: the taps so far, plus the last dog once only one is left. */
@@ -160,7 +158,21 @@ export function CoinFlipDialog({
                           disabled={saving}
                           onClick={() => toggle(group, entry.entryId)}
                         >
-                          <span>{dogLabel(entry)}</span>
+                          <span className="flex items-center gap-2">
+                            {armbandAccessibleName(entry.armband) ? (
+                              <>
+                                <ArmbandBadge
+                                  armband={entry.armband}
+                                  srLabel
+                                  className={cn(
+                                    'h-6 min-w-6 text-xs',
+                                    position >= 0 && 'ring-2 ring-primary-foreground'
+                                  )}
+                                />{' '}
+                              </>
+                            ) : null}
+                            {entry.dogName}
+                          </span>
                           <span>
                             {position >= 0 ? formatPlacement(group.rank + position) : 'Tap'}
                           </span>

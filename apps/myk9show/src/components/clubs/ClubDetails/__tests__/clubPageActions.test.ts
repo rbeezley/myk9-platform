@@ -11,7 +11,7 @@ function input(overrides: Partial<ClubPageActionInput> = {}): ClubPageActionInpu
     isAuthorizationUpdating: false,
     onEditPhoto: vi.fn(),
     onAddShow: vi.fn(),
-    onAuthorize: vi.fn(),
+    onOpenOnboarding: vi.fn(),
     onRequestRevoke: vi.fn(),
     ...overrides,
   };
@@ -36,14 +36,17 @@ describe('buildClubPageActions (CRUD standard decision 6)', () => {
     expect(labels({ canEditBranding: false })).toEqual([]);
   });
 
-  it('offers a site admin Authorize Club on an unauthorized club, and it authorizes', () => {
-    const onAuthorize = vi.fn();
+  // MYK9-2527: a waiting club is approved on Onboarding (one list, one Approve, with the
+  // password step), so the club page links there and never runs a second approval.
+  it('offers a site admin Approve in Onboarding on a waiting club, and it opens Onboarding', () => {
+    const onOpenOnboarding = vi.fn();
     const actions = buildClubPageActions(
-      input({ canAuthorizeClub: true, isClubAuthorized: false, onAuthorize })
+      input({ canAuthorizeClub: true, isClubAuthorized: false, onOpenOnboarding })
     );
-    expect(actions.map(action => action.label)).toEqual(['Authorize Club']);
+    expect(actions.map(action => action.label)).toEqual(['Approve in Onboarding']);
+    expect(actions.map(action => action.label)).not.toContain('Authorize Club');
     actions[0]?.run();
-    expect(onAuthorize).toHaveBeenCalledTimes(1);
+    expect(onOpenOnboarding).toHaveBeenCalledTimes(1);
   });
 
   it('offers Revoke Authorization on an authorized club, opening the confirm, never revoking', () => {
@@ -87,7 +90,7 @@ describe('buildClubPageActions (CRUD standard decision 6)', () => {
     expect(labels({ canAddShow: true, canEditBranding: true, canAuthorizeClub: true })).toEqual([
       'Add Show for this club',
       'Change Photo',
-      'Authorize Club',
+      'Approve in Onboarding',
     ]);
   });
 

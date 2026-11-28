@@ -13,14 +13,15 @@ export interface ClubPageActionInput {
   onEditPhoto: () => void;
   /** The show wizard, opened with this club already chosen. */
   onAddShow: () => void;
-  onAuthorize: () => void;
+  /** A waiting club is approved on Onboarding (the one Approve), so the menu links there. */
+  onOpenOnboarding: () => void;
   /** Opens the confirm dialog; revoking never fires straight from the menu (P3-C). */
   onRequestRevoke: () => void;
 }
 
 /**
  * The club page's actions beyond Edit, for the header Actions menu (CRUD standard decision 6),
- * with the gates of the hero ⋮ and the toolbar Add Show button they replace. Authorize/Revoke waits for the authorization read,
+ * with the gates of the hero ⋮ and the toolbar Add Show button they replace. Approve-in-Onboarding/Revoke waits for the authorization read,
  * so it never offers the wrong one of the pair, and greys with a reason while a change saves.
  * The card's Email / Call / Website items are gone: About shows them as links.
  */
@@ -50,10 +51,10 @@ export function buildClubPageActions(input: ClubPageActionInput): PageExtraActio
           }
         : {
             id: 'authorize',
-            label: 'Authorize Club',
+            label: 'Approve in Onboarding',
             icon: 'authorize',
             disabledReason,
-            run: input.onAuthorize,
+            run: input.onOpenOnboarding,
           }
     );
   }

@@ -1,6 +1,6 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
-import { render, screen, waitFor } from '@/test/utils/testUtils';
+import { render, screen, waitFor, within } from '@/test/utils/testUtils';
 import type { Club } from '@/types/club-types';
 import { AboutTab } from '../AboutTab';
 import { ClubHeader } from '../ClubHeader';
@@ -204,7 +204,7 @@ describe('club authorization control', () => {
     expect(notice).not.toHaveTextContent(/menu/i);
   });
 
-  it('shows a visible notice pointing a site admin at the menu action, for an unauthorized club', () => {
+  it('points a site admin at Onboarding, not the Actions menu, for a waiting club', () => {
     render(
       <ClubHeader
         club={baseClub}
@@ -217,7 +217,12 @@ describe('club authorization control', () => {
     );
 
     const notice = screen.getByTestId('club-unauthorized-notice');
-    expect(notice).toHaveTextContent(/authorize this club from the actions menu/i);
+    expect(notice).toHaveTextContent(/approve this club on onboarding/i);
+    expect(notice).not.toHaveTextContent(/actions menu/i);
+    expect(within(notice).getByRole('link', { name: 'Onboarding' })).toHaveAttribute(
+      'href',
+      '/admin/onboarding'
+    );
     expect(notice).not.toHaveTextContent(/myk9 operator/i);
   });
 

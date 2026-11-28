@@ -51,11 +51,14 @@ describe('Edit show save carries the note to exhibitors (MYK9-2114)', () => {
     const opened = showToFormData({
       ...SHOW,
       ...(heldNote !== undefined && { confirmationMessage: heldNote }),
-    } as StoreShow);
+    } as unknown as StoreShow);
     const changes = changedShowSaveData(opened, { ...opened, confirmationMessage: typed });
     useShowStore.setState({
       shows: [
-        { ...SHOW, ...(heldNote !== undefined && { confirmationMessage: heldNote }) } as StoreShow,
+        {
+          ...SHOW,
+          ...(heldNote !== undefined && { confirmationMessage: heldNote }),
+        } as unknown as StoreShow,
       ],
       error: null,
       isLoading: false,
@@ -110,9 +113,9 @@ describe('Edit show save uploads the note through the real queue (MYK9-2114)', (
     });
     replicatedShowsTable.setMutationManager(manager);
     await replicatedShowsTable.set(SHOW.id, SHOW, false);
-    const opened = showToFormData(SHOW as StoreShow);
+    const opened = showToFormData(SHOW as unknown as StoreShow);
     const changes = changedShowSaveData(opened, { ...opened, confirmationMessage: 'Park north.' });
-    useShowStore.setState({ shows: [SHOW as StoreShow], error: null, isLoading: false });
+    useShowStore.setState({ shows: [SHOW as unknown as StoreShow], error: null, isLoading: false });
 
     await useShowStore.getState().updateShow(SHOW.id, changes as never);
     await manager.uploadPendingMutations();

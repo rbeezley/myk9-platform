@@ -132,6 +132,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-ai-support-triage-implementation.md](plan-ai-support-triage-implementation.md)                             | Active    | AI Support Triage — implementation plan (9 tasks)                                         |
 | [plan-stripe-golive-enforcement.md](plan-stripe-golive-enforcement.md)                                           | Active    | Stripe Go-Live Enforcement — capacity gate + waitlist Phases 7/8                          |
 | [plan-stripe-nightly-reconciliation.md](plan-stripe-nightly-reconciliation.md)                                   | Active    | Nightly check of the app's money records against Stripe (MYK9-1957)                       |
+| [plan-foreign-row-heal.md](plan-foreign-row-heal.md) | Active | A phone holding another account's clean copy of a row never finishes syncing (MYK9-2507) |
 | [plan-trial-packet-automation.md](plan-trial-packet-automation.md)                                               | Active    | Trial Packet Automation — per-day unit, Deno renderer, cron (MYK9-228)                    |
 | [superpowers/plans/2026-08-23-unified-scoresheet.md](superpowers/plans/2026-08-23-unified-scoresheet.md)         | Active    | Unified check-in sheet + scoresheet — one jsPDF renderer for Reports + packet             |
 | [superpowers/plans/2026-09-14-review-gate-tiers.md](superpowers/plans/2026-09-14-review-gate-tiers.md)           | Active    | Risk-scaled review gate tiers — floor calculator, tiered evidence, owner override         |

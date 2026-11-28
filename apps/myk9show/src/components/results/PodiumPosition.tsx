@@ -1,3 +1,5 @@
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
+import { armbandAccessibleName } from '@/utils/armbandUtils';
 import { cn } from '@/lib/utils';
 
 export interface PodiumPositionProps {
@@ -72,7 +74,9 @@ export function PodiumPosition({
           <p className="text-xs text-muted-foreground">{breed}</p>
         </>
       )}
-      {armband && <p className="text-[10px] text-muted-foreground">#{armband}</p>}
+      {armbandAccessibleName(armband) ? (
+        <ArmbandBadge armband={armband} srLabel className="h-5 min-w-5 text-xs" />
+      ) : null}
       <div className={cn('mt-1 w-full rounded-t-sm', config.platform)} />
     </div>
   );

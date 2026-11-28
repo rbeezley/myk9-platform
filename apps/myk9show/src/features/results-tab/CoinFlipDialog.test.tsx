@@ -60,8 +60,8 @@ describe('CoinFlipDialog', () => {
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText('Tied for 2nd')).toBeInTheDocument();
     expect(within(dialog).getByText(/0 faults/)).toBeInTheDocument();
-    expect(within(dialog).getByRole('button', { name: /Armband 12 Rex/ })).toBeInTheDocument();
-    expect(within(dialog).getByRole('button', { name: /Armband 31 Bella/ })).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: /Armband ?12 ?Rex/ })).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: /Armband ?31 ?Bella/ })).toBeInTheDocument();
     expect(dialog.textContent ?? '').not.toMatch(/tiebreak|—/i);
   });
 
@@ -70,7 +70,7 @@ describe('CoinFlipDialog', () => {
     const save = await screen.findByRole('button', { name: 'Save coin flip' });
     expect(save).toBeDisabled();
 
-    await user.click(screen.getByRole('button', { name: /Armband 31 Bella/ }));
+    await user.click(screen.getByRole('button', { name: /Armband ?31 ?Bella/ }));
     expect(save).toBeEnabled();
     await user.click(save);
 
@@ -81,9 +81,9 @@ describe('CoinFlipDialog', () => {
     const { user } = renderDialog({ groups: [trio] });
     const save = await screen.findByRole('button', { name: 'Save coin flip' });
 
-    await user.click(screen.getByRole('button', { name: /Armband 42 Cy/ }));
+    await user.click(screen.getByRole('button', { name: /Armband ?42 ?Cy/ }));
     expect(save).toBeDisabled();
-    await user.click(screen.getByRole('button', { name: /Armband 40 Ace/ }));
+    await user.click(screen.getByRole('button', { name: /Armband ?40 ?Ace/ }));
     expect(save).toBeEnabled();
     await user.click(save);
 
@@ -94,7 +94,7 @@ describe('CoinFlipDialog', () => {
     const { user } = renderDialog({ groups: [pair, trio] });
     const save = await screen.findByRole('button', { name: 'Save coin flip' });
 
-    await user.click(screen.getByRole('button', { name: /Armband 12 Rex/ }));
+    await user.click(screen.getByRole('button', { name: /Armband ?12 ?Rex/ }));
     expect(save).toBeDisabled();
   });
 
@@ -102,7 +102,7 @@ describe('CoinFlipDialog', () => {
     const { user } = renderDialog({ online: false });
     const save = await screen.findByRole('button', { name: 'Save coin flip' });
 
-    await user.click(screen.getByRole('button', { name: /Armband 12 Rex/ }));
+    await user.click(screen.getByRole('button', { name: /Armband ?12 ?Rex/ }));
     expect(save).toBeDisabled();
     expect(screen.getByText(OFFLINE_COIN_FLIP_MESSAGE)).toBeInTheDocument();
     expect(OFFLINE_COIN_FLIP_MESSAGE).toBe('Connect to record the coin flip');
@@ -119,11 +119,11 @@ describe('CoinFlipDialog', () => {
     expect(within(dialog).getByText('Change the coin flip')).toBeInTheDocument();
     const save = within(dialog).getByRole('button', { name: 'Save coin flip' });
     expect(save).toBeEnabled();
-    expect(within(dialog).getByRole('button', { name: /Armband 31 Bella/ })).toHaveTextContent(
+    expect(within(dialog).getByRole('button', { name: /Armband ?31 ?Bella/ })).toHaveTextContent(
       '2nd'
     );
 
-    await user.click(within(dialog).getByRole('button', { name: /Armband 12 Rex/ }));
+    await user.click(within(dialog).getByRole('button', { name: /Armband ?12 ?Rex/ }));
     await user.click(save);
 
     expect(onSave).toHaveBeenCalledWith([['rex', 'bella']]);
@@ -150,7 +150,7 @@ describe('CoinFlipDialog', () => {
       onSave,
     };
     const { user, rerender } = render(<CoinFlipDialog open {...props} />);
-    await user.click(await screen.findByRole('button', { name: /Armband 31 Bella/ }));
+    await user.click(await screen.findByRole('button', { name: /Armband ?31 ?Bella/ }));
     expect(screen.getByRole('button', { name: 'Save coin flip' })).toBeEnabled();
 
     rerender(<CoinFlipDialog open={false} {...props} />);

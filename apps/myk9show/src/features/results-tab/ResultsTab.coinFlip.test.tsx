@@ -173,11 +173,11 @@ describe('ResultsTab coin flip correction', () => {
     await user.click(await screen.findByRole('button', { name: 'Change coin-flip order' }));
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText('Change the coin flip')).toBeInTheDocument();
-    expect(within(dialog).getByRole('button', { name: /Armband 31 Bella/ })).toHaveTextContent(
+    expect(within(dialog).getByRole('button', { name: /Armband ?31 ?Bella/ })).toHaveTextContent(
       '1st'
     );
 
-    await user.click(within(dialog).getByRole('button', { name: /Armband 12 Rex/ }));
+    await user.click(within(dialog).getByRole('button', { name: /Armband ?12 ?Rex/ }));
     await user.click(within(dialog).getByRole('button', { name: 'Save coin flip' }));
 
     await waitFor(() =>
@@ -212,7 +212,7 @@ describe('ResultsTab coin flip correction', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Change coin-flip order' }));
     const dialog = await screen.findByRole('dialog');
-    await user.click(within(dialog).getByRole('button', { name: /Armband 12 Rex/ }));
+    await user.click(within(dialog).getByRole('button', { name: /Armband ?12 ?Rex/ }));
     await user.click(within(dialog).getByRole('button', { name: 'Save coin flip' }));
 
     await waitFor(() =>

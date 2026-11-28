@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
+import { armbandAccessibleName } from '@/utils/armbandUtils';
 import type { ResultCardModel } from './resultCardModel';
 
 interface ResultCardProps {
@@ -12,10 +14,8 @@ export function ResultCard({ model }: ResultCardProps) {
         <ResultPhoto model={model} />
         <div className="flex flex-wrap items-center justify-center gap-2">
           <h2 className="text-2xl font-bold tracking-normal">{model.dogName}</h2>
-          {model.armband ? (
-            <span className="rounded-full bg-background/80 px-2 py-0.5 text-xs font-semibold text-muted-foreground">
-              Armband {model.armband}
-            </span>
+          {armbandAccessibleName(model.armband) ? (
+            <ArmbandBadge armband={model.armband} srLabel className="h-6 min-w-6 text-xs" />
           ) : null}
         </div>
         <p className="mt-0.5 text-sm text-muted-foreground">{model.showName}</p>

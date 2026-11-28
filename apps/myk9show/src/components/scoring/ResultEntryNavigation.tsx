@@ -6,6 +6,7 @@
  * and progress tracking.
  */
 
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { useMemo, useState, useCallback } from 'react';
 import { AlertCircle, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -256,7 +257,13 @@ export function ResultEntryNavigation({
                 {/* Armband and Status */}
                 <div className="myk9-entry-header">
                   <div className="flex items-center gap-2">
-                    <div className="myk9-entry-armband">#{entry.displayInfo.armband}</div>
+                    <div className="myk9-entry-armband">
+                      <ArmbandBadge
+                        armband={entry.displayInfo.armband}
+                        srLabel
+                        className="h-9 min-w-9 text-base"
+                      />
+                    </div>
                   </div>
                   <div className="myk9-entry-status-indicator">
                     {entry.navigationStatus === 'completed' && entry.placement && (

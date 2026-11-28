@@ -121,7 +121,7 @@ serve(async (req: Request) => {
   const { data: show, error: showError } = await supabase
     .from('shows')
     .select(
-      'id, name, venue_name, location, address, city, state, trials(id, name, date, timezone, planned_start_time, actual_start_time, actual_end_time)'
+      'id, name, venue_name, location, address, city, state, zip_code, trials(id, name, date, timezone, planned_start_time, actual_start_time, actual_end_time)'
     )
     .eq('id', showId)
     .is('deleted_at', null)
@@ -140,6 +140,7 @@ serve(async (req: Request) => {
     address: string | null;
     city: string | null;
     state: string | null;
+    zip_code: string | null;
     trials?: Array<{
       id: string;
       name: string | null;

@@ -118,7 +118,7 @@ function EntryRow({ entry, href }: EntryRowProps) {
     <Link
       to={href}
       className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 hover:bg-muted/40 transition-colors"
-      aria-label={`${entry.classTitle}${entry.armband ? ` — Armband ${entry.armband}` : ''} — see where to be`}
+      aria-label={`${entry.classTitle}${entry.armband ? `, Armband ${entry.armband}` : ''} — see where to be`}
     >
       <span className={`h-10 w-10 shrink-0 rounded-lg flex items-center justify-center ${bg}`}>
         <Icon className={`h-5 w-5 ${fg}`} />

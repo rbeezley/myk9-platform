@@ -1,6 +1,6 @@
 import type {
   JudgeQualification as DbJudgeQualification,
-  CreateJudgeQualificationData,
+  ReplaceJudgeQualificationData,
 } from '@/types/judge-management';
 import type { JudgeQualification } from '@/types/user-types';
 import { toLocalDate } from '@/utils/date-format';
@@ -33,7 +33,7 @@ function resolveDateObtained(qual: JudgeQualification): string | null {
 export function mapUiToDbQualification(
   qual: JudgeQualification,
   personId: string
-): CreateJudgeQualificationData {
+): ReplaceJudgeQualificationData {
   return {
     ...(qual.id ? { id: qual.id } : {}),
     person_id: personId,

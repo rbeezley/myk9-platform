@@ -131,6 +131,29 @@ describe('remindAwaitingApprovals: once a day', () => {
     expect(w.alerts.map(a => a.dedupeKey)).toEqual([awaitingApprovalDedupeKey(w.rows[1].id)]);
   });
 
+  it('treats a payout approved between the claim and the alert as nothing to send (MYK9-2456)', async () => {
+    const rows = [payout(1), payout(2)];
+    const stored: ReminderAlertResult = {
+      insertOutcome: 'inserted',
+      emailAttempted: false,
+      emailError: null,
+      emailSent: false,
+      storedResolved: true,
+    };
+    const w = world(rows, key => (key === awaitingApprovalDedupeKey(rows[0].id) ? stored : OK));
+    const release = vi.fn(w.deps.release);
+    w.deps.release = release;
+
+    const outcome = await remindAwaitingApprovals(w.deps, NOW);
+
+    expect(outcome).toEqual({ reminded: 1, failed: 0, listFailed: false, deferred: false });
+    expect(release).not.toHaveBeenCalled();
+    expect(rows.map(r => r.remindedAt)).toEqual([
+      new Date(NOW).toISOString(),
+      new Date(NOW).toISOString(),
+    ]);
+  });
+
   it('raises the reminder as a warn alert under the payout-scoped key', async () => {
     const w = world([payout(7)]);
     await remindAwaitingApprovals(w.deps, NOW);

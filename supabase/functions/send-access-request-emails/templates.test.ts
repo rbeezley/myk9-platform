@@ -36,6 +36,22 @@ describe('requesterReceivedEmail', () => {
     expect(email.html).toContain('Heartland Dog Club');
   });
 
+  it('tells a new-club requester to build now and that approval lets her publish', () => {
+    const email = requesterReceivedEmail(record(), SITE);
+
+    expect(email.html).toContain('You can start setting up your club and its first show now.');
+    expect(email.html).toContain('once it is approved you can publish shows');
+    expect(email.html).not.toContain('You do not need to do anything else right now');
+  });
+
+  it('keeps the wait-for-review wording for membership and role requests', () => {
+    const membership = requesterReceivedEmail(record({ kind: 'membership', clubId: 'c1' }), SITE);
+    const role = requesterReceivedEmail(record({ kind: 'role', requestedRole: 'secretary' }), SITE);
+
+    expect(membership.html).toContain('You do not need to do anything else right now');
+    expect(role.html).toContain('You do not need to do anything else right now');
+  });
+
   it('describes the thing asked for on club requests', () => {
     expect(
       requesterReceivedEmail(record({ kind: 'role', requestedRole: 'secretary' }), SITE).html
@@ -105,11 +121,12 @@ describe('reviewerNoticeEmail', () => {
 });
 
 describe('decisionEmail', () => {
-  it('tells a new-club requester that club-admin access is available', () => {
+  it('tells a new-club requester the club is approved and shows can be published', () => {
     const email = decisionEmail(record({ status: 'approved' }), 'approved', SITE);
 
     expect(email.emailType).toBe('access_request_new_club_approved');
-    expect(email.html).toContain('Club-admin access is now available');
+    expect(email.html).toContain('You can now publish your shows so exhibitors can enter.');
+    expect(email.html).not.toContain('Club-admin access is now available');
     expect(email.html).toContain('Heartland Dog Club');
   });
 

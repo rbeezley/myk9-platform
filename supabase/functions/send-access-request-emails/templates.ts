@@ -94,7 +94,9 @@ export function requesterReceivedEmail(record: AccessRequestRecord, siteUrl: str
       hello(record.requester) +
         paragraph(`Thank you. We received ${what}.`) +
         paragraph(
-          `${reviewer} will review it. You do not need to do anything else right now. We will email you as soon as it has been reviewed.`
+          isNewClub
+            ? 'You can start setting up your club and its first show now. A myK9Show administrator will review the club, and once it is approved you can publish shows. We will email you as soon as it has been reviewed.'
+            : `${reviewer} will review it. You do not need to do anything else right now. We will email you as soon as it has been reviewed.`
         ) +
         paragraph('Your account keeps working as usual while you wait.'),
       openSite(siteUrl)
@@ -152,7 +154,7 @@ function approvedCopy(record: AccessRequestRecord): { subject: string; body: str
           `Your request was approved. <strong>${club}</strong> is now set up in myK9Show.`
         ) +
         paragraph(
-          'Club-admin access is now available on your account, so you can manage the club and set up its shows. Sign in to get started.'
+          'You can now publish your shows so exhibitors can enter. Sign in to get started.'
         ),
     };
   }

@@ -381,10 +381,54 @@ describe('ReplicatedTrialsTable', () => {
           'actual_start_time',
           'actual_end_time',
           'status_before_close',
+          'auto_complete_stale_classes',
         ]);
         for (const key of internals.getLegacyOmittedKeysServerWins()) {
           expect(payload).not.toHaveProperty(key);
         }
+      });
+
+      it('a rename from a device with the stale-class switch cached on does not turn it back on (MYK9-2499)', async () => {
+        await table.set('trial-dep', { ...seeded, autoCompleteStaleClasses: true });
+        const spy = spyOnWriteAndQueue(table).queue.mockResolvedValue('mutation-10');
+
+        await table.updateTrial('trial-dep', { name: 'Renamed' });
+
+        const payload = spy.mock.calls[0]?.[2] as Record<string, unknown>;
+        expect(payload).toHaveProperty('name', 'Renamed');
+        expect(payload).not.toHaveProperty('auto_complete_stale_classes');
+      });
+
+      it('sends auto_complete_stale_classes when the update sets it, false included (MYK9-2499)', async () => {
+        await table.set('trial-dep', { ...seeded, autoCompleteStaleClasses: true });
+        const spy = spyOnWriteAndQueue(table).queue.mockResolvedValue('mutation-11');
+
+        await table.updateTrial('trial-dep', { autoCompleteStaleClasses: false });
+        await table.updateTrial('trial-dep', { autoCompleteStaleClasses: true });
+
+        expect(spy.mock.calls[0]?.[2]).toHaveProperty('auto_complete_stale_classes', false);
+        expect(spy.mock.calls[1]?.[2]).toHaveProperty('auto_complete_stale_classes', true);
+      });
+
+      it('a rebuilt resend carries no auto_complete_stale_classes (MYK9-2499)', () => {
+        const internals = table as unknown as {
+          rebuildUpdatePayload: (trial: ReplicatedTrial) => Record<string, unknown>;
+        };
+
+        const payload = internals.rebuildUpdatePayload({
+          ...seeded,
+          autoCompleteStaleClasses: true,
+        });
+
+        expect(payload).not.toHaveProperty('auto_complete_stale_classes');
+      });
+
+      it('createTrial still sends auto_complete_stale_classes when set (MYK9-2499)', async () => {
+        const spy = spyOnWriteAndQueue(table).queue.mockResolvedValue('mutation-12');
+
+        await table.createTrial({ ...seeded, id: 'trial-new', autoCompleteStaleClasses: false });
+
+        expect(spy.mock.calls[0]?.[2]).toHaveProperty('auto_complete_stale_classes', false);
       });
 
       it('sends status_before_close when the update sets it, including null on reopen', async () => {

@@ -34,6 +34,7 @@ import {
   isSyntheticDisplayActionNode,
   sourceIdFromNodeId,
 } from './showMapActionHelpers';
+import { getChangeClassNote } from './changeClassEligibility';
 import { isNodeScheduledAfter } from './showMapTimeScope';
 import { SHOW_MAP_WRAP_UP_STATUS } from './showMapTypes';
 import type { ShowMapNode, ShowMapTree } from './showMapTypes';
@@ -74,6 +75,8 @@ export interface ShowMapAction {
   trialId?: string | undefined;
   icon: ComponentType<SVGProps<SVGSVGElement>>;
   createsAttention?: boolean;
+  /** One plain line beside the action (Change class on a started class). */
+  note?: string | undefined;
 }
 
 export interface ShowMapActionState {
@@ -312,6 +315,11 @@ function liveOpsActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAct
       });
     }
     if (canMoveUpEntry(node, tree)) {
+      const parentClass = node.parentId ? tree.nodesById[node.parentId] : undefined;
+      const changeClassNote = getChangeClassNote({
+        registryId: parentClass?.registryId,
+        classStatusKind: parentClass?.status?.kind,
+      });
       actions.push(
         withHref(
           {
@@ -322,6 +330,7 @@ function liveOpsActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAct
             priority: 32,
             icon: ArrowUpCircle,
             ...(classId ? { classId } : {}),
+            ...(changeClassNote ? { note: changeClassNote } : {}),
           },
           undefined
         )

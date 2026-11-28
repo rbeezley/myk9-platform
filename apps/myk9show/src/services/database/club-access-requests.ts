@@ -81,6 +81,8 @@ export interface ReviewClubAccessRequestInput {
   existingClubId?: string | null;
   clubName?: string | null;
   reviewNote?: string | null;
+  /** MYK9-2513: with a decline, also delete the club the request created (refused while it has shows). */
+  deleteClub?: boolean;
 }
 
 export async function reviewClubAccessRequest(
@@ -92,6 +94,8 @@ export async function reviewClubAccessRequest(
     p_existing_club_id: input.existingClubId ?? null,
     p_club_name: input.clubName ?? null,
     p_review_note: input.reviewNote ?? null,
+    // Sent only when asked for, so every other call is the one the server already knew.
+    ...(input.deleteClub ? { p_delete_club: true } : {}),
   });
 
   if (error) throw error;

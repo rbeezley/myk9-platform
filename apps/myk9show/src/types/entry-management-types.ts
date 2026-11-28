@@ -117,6 +117,8 @@ export interface EntryManagementEntry {
    * doesn't always flip lifecycle status to COMPLETED), so guards that only
    * check entryStatus === COMPLETED can miss a real recorded result. */
   isScored?: boolean | null;
+  /** `entries.is_in_ring`: the dog is in the ring now (Change class reads it with the check-in). */
+  isInRing?: boolean | null;
   resultStatus?: string | null;
   paymentStatus: PaymentStatus;
   submittedAt: Date;

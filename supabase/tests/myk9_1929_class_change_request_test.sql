@@ -405,6 +405,116 @@ select pg_temp.call_as('handler takes it back',
   '00000000-0000-0000-0000-000001929203',
   pg_temp.take_back_sql('00000000-0000-0000-0000-000001929031'));
 
+-- ---- Switch 2: move-ups between trials on the same day (MYK9-2425) --------
+-- allow_same_day_move_ups defaults to allowed. When off, an exhibitor cannot ask
+-- for a class in ANOTHER trial of the same date, whatever the reason; a class in
+-- the same trial, or in a trial on another date, is untouched, and so is the
+-- secretary's own move_up_entry. Entry 31 is in trial 04 (class 11).
+insert into public.trials (id, show_id, name, date, registry_id)
+values ('00000000-0000-0000-0000-000001929076', '00000000-0000-0000-0000-000001929002',
+  'MYK9-1929 Same Day Trial', current_date + 7, 'AKC'),
+  ('00000000-0000-0000-0000-000001929077', '00000000-0000-0000-0000-000001929002',
+  'MYK9-1929 Next Day Trial', current_date + 8, 'AKC');
+insert into public.classes (id, trial_id, name, status, max_entries)
+values
+  ('00000000-0000-0000-0000-000001929074', '00000000-0000-0000-0000-000001929076', 'Container Advanced B', 'upcoming', 5),
+  ('00000000-0000-0000-0000-000001929075', '00000000-0000-0000-0000-000001929077', 'Container Advanced C', 'upcoming', 5);
+
+do $$
+begin
+  if (select allow_same_day_move_ups from public.shows
+       where id = '00000000-0000-0000-0000-000001929002') is not true then
+    raise exception 'FAIL allow_same_day_move_ups does not default to allowed';
+  end if;
+  raise notice 'PASS allow_same_day_move_ups defaults to allowed';
+end;
+$$;
+
+select pg_temp.call_as('switch 2 on (default): same-day other-trial request is allowed',
+  '00000000-0000-0000-0000-000001929201',
+  pg_temp.ask_sql('00000000-0000-0000-0000-000001929031', '00000000-0000-0000-0000-000001929074', 'finished_level'));
+select pg_temp.assert_request_state('switch 2 on: same-day request recorded',
+  '00000000-0000-0000-0000-000001929031', 'move-up-requested',
+  '00000000-0000-0000-0000-000001929074', 'finished_level');
+select pg_temp.call_as('switch 2 on: owner takes the request back',
+  '00000000-0000-0000-0000-000001929201',
+  pg_temp.take_back_sql('00000000-0000-0000-0000-000001929031'));
+
+update public.shows set allow_same_day_move_ups = false
+ where id = '00000000-0000-0000-0000-000001929002';
+select pg_temp.call_as('switch 2 off: same-day other-trial request is refused',
+  '00000000-0000-0000-0000-000001929201',
+  pg_temp.ask_sql('00000000-0000-0000-0000-000001929031', '00000000-0000-0000-0000-000001929074', 'finished_level'),
+  'This show does not take requests to move up to another trial on the same day.');
+select pg_temp.assert_request_state('switch 2 off: refused request leaves the entry confirmed',
+  '00000000-0000-0000-0000-000001929031', 'confirmed', null, null);
+select pg_temp.call_as('switch 2 off: the refusal does not depend on the reason',
+  '00000000-0000-0000-0000-000001929201',
+  pg_temp.ask_sql('00000000-0000-0000-0000-000001929031', '00000000-0000-0000-0000-000001929074', 'wrong_section'),
+  'This show does not take requests to move up to another trial on the same day.');
+do $$
+declare
+  v_hint text;
+begin
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000001929201', true);
+  perform set_config('request.jwt.claims',
+    jsonb_build_object('sub', '00000000-0000-0000-0000-000001929201', 'role', 'authenticated')::text, true);
+  perform set_config('role', 'authenticated', true);
+  begin
+    perform public.request_own_entry_class_change(
+      '00000000-0000-0000-0000-000001929031', '00000000-0000-0000-0000-000001929074', 'finished_level');
+  exception when others then
+    get stacked diagnostics v_hint = pg_exception_hint;
+    if sqlstate <> '22023' or v_hint is distinct from 'same_day_move_ups_not_allowed' then
+      reset role;
+      raise exception 'FAIL switch 2 off: wanted 22023 / same_day_move_ups_not_allowed, got % / %', sqlstate, v_hint;
+    end if;
+  end;
+  reset role;
+  if v_hint is null then
+    raise exception 'FAIL switch 2 off: the same-day request was not refused';
+  end if;
+  raise notice 'PASS switch 2 off: errcode 22023 and hint same_day_move_ups_not_allowed';
+end;
+$$;
+select pg_temp.call_as('switch 2 off: a class in the same trial is still allowed',
+  '00000000-0000-0000-0000-000001929201',
+  pg_temp.ask_sql('00000000-0000-0000-0000-000001929031', '00000000-0000-0000-0000-000001929012', 'finished_level'));
+select pg_temp.call_as('switch 2 off: owner takes the same-trial request back',
+  '00000000-0000-0000-0000-000001929201',
+  pg_temp.take_back_sql('00000000-0000-0000-0000-000001929031'));
+select pg_temp.call_as('switch 2 off: a trial on another day is still allowed',
+  '00000000-0000-0000-0000-000001929201',
+  pg_temp.ask_sql('00000000-0000-0000-0000-000001929031', '00000000-0000-0000-0000-000001929075', 'finished_level'));
+select pg_temp.assert_request_state('switch 2 off: next-day request recorded',
+  '00000000-0000-0000-0000-000001929031', 'move-up-requested',
+  '00000000-0000-0000-0000-000001929075', 'finished_level');
+select pg_temp.call_as('switch 2 off: owner takes the next-day request back',
+  '00000000-0000-0000-0000-000001929201',
+  pg_temp.take_back_sql('00000000-0000-0000-0000-000001929031'));
+-- The secretary's own Change class (move_up_entry) ignores switch 2.
+-- Moved and reversed inside the block, so entry 31 is back in its class afterwards.
+do $$
+declare
+  v_new uuid := gen_random_uuid();
+begin
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000001929205', true);
+  perform set_config('request.jwt.claims',
+    jsonb_build_object('sub', '00000000-0000-0000-0000-000001929205', 'role', 'authenticated')::text, true);
+  perform set_config('role', 'authenticated', true);
+  perform public.move_up_entry('00000000-0000-0000-0000-000001929031',
+    '00000000-0000-0000-0000-000001929074', v_new);
+  perform public.reverse_move_up_entry(v_new);
+  reset role;
+  raise notice 'PASS switch 2 off: the secretary can still move the entry into the same-day trial';
+exception when others then
+  reset role;
+  raise;
+end;
+$$;
+update public.shows set allow_same_day_move_ups = true
+ where id = '00000000-0000-0000-0000-000001929002';
+
 -- ---- Only the hyphen spelling exists ---------------------------------------
 -- The underscore twin was retired in 20261114201700: the constraint refuses it,
 -- on an insert-shaped update as well as any other write.

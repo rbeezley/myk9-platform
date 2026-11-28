@@ -4,6 +4,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { VenueLocationCard } from '@/components/secretary/VenueLocationCard';
 import { VenueWifiCard } from '@/components/secretary/VenueWifiCard';
 import { RefundAllEntriesCard } from '@/components/shows/RefundAllEntriesCard';
+import { ClassChangeSettingsCard } from '@/components/shows/ClassChangeSettingsCard';
 import { WithdrawalPolicyCard } from '@/components/shows/WithdrawalPolicyCard';
 import { useVenueWifiMutation } from '@/hooks/mutations/useVenueWifiMutation';
 import { useShowVenueWifi } from '@/hooks/queries/useShowVenueWifi';
@@ -41,7 +42,7 @@ const ShowVenueWifi: React.FC<{ showId: string }> = ({ showId }) => {
 
 /**
  * The show-level settings that used to live on the unlinked /secretary/settings page (IA-1):
- * the venue map pin, the Wi-Fi the armband labels print, the per-show withdrawal policy, and the
+ * the venue map pin, the Wi-Fi the armband labels print, the per-show withdrawal policy, the class change switches, and the
  * human-approved refund-all for a cancelled show. Every card is keyed on the show the route
  * opened, never on the store's `selectedShowId`. Managers only. Rendered by the Edit show panel's Venue & policies tab.
  *
@@ -59,6 +60,7 @@ export const ShowSettingsCards: React.FC<{ showId: string; showStatus: string }>
     <VenueLocationCard showId={showId} />
     <ShowVenueWifi showId={showId} />
     <WithdrawalPolicyCard scope="show" entityId={showId} />
+    <ClassChangeSettingsCard showId={showId} />
     {showStatus === 'cancelled' && <RefundAllEntriesCard showId={showId} />}
   </div>
 );

@@ -25,6 +25,21 @@ export const TARGET_PERSON = {
   state: 'KS',
   zipCode: '99999',
 } as const;
+/**
+ * The directory is paged by `id` ascending (`readAllPeoplePaged`), so the target's id is the
+ * greatest possible and every filler's is lower: the target is always on the LAST server page,
+ * past row 1,000, whatever ids the demo seed's people drew.
+ */
+export const TARGET_PERSON_ID = 'ffffffff-ffff-4fff-bfff-ffffffffffff';
+export const FILLER_ID_PREFIX = 'a0000000-0000-4000-8000-';
+export const fillerId = (index: number): string =>
+  `${FILLER_ID_PREFIX}${String(index).padStart(12, '0')}`;
+/** Every person this seed adds, for comparing with the saved directory. */
+export const seededPersonIds = (): string[] => [
+  ...Array.from({ length: FILLER_PEOPLE_COUNT }, (_, i) => fillerId(i)),
+  TARGET_PERSON_ID,
+];
+
 export const TARGET_OWNER_NAME = `${TARGET_PERSON.firstName} ${TARGET_PERSON.lastName}`;
 
 export interface PeopleDirectorySeed {
@@ -40,6 +55,7 @@ const BATCH_SIZE = 250;
 function fillerRow(index: number) {
   const n = String(index).padStart(4, '0');
   return {
+    id: fillerId(index),
     first_name: 'Filler',
     last_name: `Aardvark${n}`,
     email: `filler.${n}@${FILLER_EMAIL_DOMAIN}`,
@@ -61,6 +77,7 @@ export async function seedPeopleDirectory(): Promise<PeopleDirectorySeed> {
   const { data: person, error: personError } = await client
     .from('people')
     .insert({
+      id: TARGET_PERSON_ID,
       first_name: TARGET_PERSON.firstName,
       last_name: TARGET_PERSON.lastName,
       email: TARGET_PERSON.email,
@@ -176,4 +193,23 @@ export async function countSeededPeople(): Promise<number> {
     .like('email', `%@${FILLER_EMAIL_DOMAIN}`);
   if (error) throw new Error(`Could not count the seeded people: ${error.message}`);
   return count ?? 0;
+}
+
+/** Live people the server's paging order puts ahead of the target (they sit on earlier pages). */
+export async function countPeopleAheadOfTarget(): Promise<number> {
+  const client = getIsolatedAdminClient();
+  const { count, error } = await client
+    .from('people')
+    .select('id', { count: 'exact', head: true })
+    .is('deleted_at', null)
+    .lt('id', TARGET_PERSON_ID);
+  if (error) throw new Error(`Could not rank the target person: ${error.message}`);
+  return count ?? 0;
+}
+
+/** A change made on the server while the browser is offline, to be seen after reconnect. */
+export async function setTargetPhone(phone: string): Promise<void> {
+  const client = getIsolatedAdminClient();
+  const { error } = await client.from('people').update({ phone }).eq('id', TARGET_PERSON_ID);
+  if (error) throw new Error(`Could not change the target person's phone: ${error.message}`);
 }

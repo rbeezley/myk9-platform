@@ -1,3 +1,5 @@
+import { armbandAccessibleName } from '@/utils/armbandUtils';
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { formatPacketArmband } from '@/features/emergency-trial-packet/armband';
 import React from 'react';
 import type { ResultLabelItem } from '@/lib/labels/resultLabelData';
@@ -64,13 +66,20 @@ const styles = {
   } as React.CSSProperties,
 };
 
-export const ResultLabelCell: React.FC<{ item: ResultLabelItem }> = ({ item }) => {
+export const ResultLabelCell: React.FC<{ item: ResultLabelItem; screen?: boolean }> = ({
+  item,
+  screen = false,
+}) => {
   const metaLine = [item.showName, item.trialClassLine].filter(Boolean).join(' — ');
 
   return (
     <div style={styles.label}>
       <div style={styles.head}>
-        <span style={styles.armband}>#{formatPacketArmband(item.armband)}</span>
+        {screen && armbandAccessibleName(item.armband) ? (
+          <ArmbandBadge armband={item.armband} srLabel className="h-5 min-w-5 text-xs" />
+        ) : (
+          <span style={styles.armband}>#{formatPacketArmband(item.armband)}</span>
+        )}
         <span style={styles.name}>{item.callName}</span>
       </div>
       {item.handler && <div style={styles.handler}>{item.handler}</div>}

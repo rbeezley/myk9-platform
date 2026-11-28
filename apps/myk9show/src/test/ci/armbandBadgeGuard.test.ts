@@ -32,7 +32,7 @@ const PRINTED_DOCUMENT =
 const ALLOWLIST: Record<string, string> = {
   'components/common/ArmbandBadge.tsx': 'The badge itself.',
   'components/reports/labels/ResultLabelCell.tsx':
-    'Result label cell: the on-screen label preview draws this same cell and must match the physical label by design (owner decision, MYK9-2534).',
+    'Printed result label branch; the on-screen preview passes `screen` and renders the badge (unassigned keeps the printed text so it stays readable on the white sheet).',
   'components/reports/AKCScentWorkTransferFormPreview.tsx': PRINTED_DOCUMENT,
   'components/reports/AkcMarkedCatalogClass.tsx': PRINTED_DOCUMENT,
   'components/reports/FinancialReport.tsx': PRINTED_DOCUMENT,
@@ -62,7 +62,8 @@ function stripComments(source: string): string {
 }
 
 export function findAdHocArmband(source: string): string[] {
-  const text = stripComments(source);
+  // aria-label values are accessible names, not visible text.
+  const text = stripComments(source).replace(/aria-label=(?:\{[^}]*\}|"[^"]*")/g, '');
   return AD_HOC_ARMBAND.flatMap(
     pattern => text.match(new RegExp(pattern.source, `${pattern.flags}g`)) ?? []
   );
@@ -76,6 +77,7 @@ describe('armband badge guard', () => {
     expect(findAdHocArmband('<span>#{formatArmband(entry)}</span>')).toHaveLength(1);
     expect(findAdHocArmband('<TableCell>{entry.armband || "-"}</TableCell>')).toHaveLength(1);
     expect(findAdHocArmband('`Armband ${entry.armband} ${entry.dogName}`')).toHaveLength(1);
+    expect(findAdHocArmband('<b aria-label={`Armband ${entry.armband}`} />')).toHaveLength(0);
     expect(findAdHocArmband('<ArmbandBadge armband={entry.armband} />')).toHaveLength(0);
     expect(findAdHocArmband('// #{entry.armband}\n<span>{count}</span>')).toHaveLength(0);
   });

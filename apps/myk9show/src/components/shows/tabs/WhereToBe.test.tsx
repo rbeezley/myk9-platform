@@ -322,6 +322,11 @@ describe('WhereToBe', () => {
     expect(screen.getByRole('link', { name: /Armband 104/ })).toBeInTheDocument();
   });
 
+  it('leaves an unassigned armband out of the link name', () => {
+    render(<WhereToBe entries={[makeEntry({ armband: '0' })]} showId={SHOW_ID} />);
+    expect(screen.queryByRole('link', { name: /Armband/ })).not.toBeInTheDocument();
+  });
+
   it('collapses missing row details into one honest schedule message', () => {
     render(
       <WhereToBe

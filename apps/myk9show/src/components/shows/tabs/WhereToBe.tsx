@@ -1,5 +1,6 @@
 import { judgeLine } from '@/utils/classJudgeDisplay';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
+import { formatArmbandDisplay, UNASSIGNED_ARMBAND_DISPLAY } from '@/utils/armbandUtils';
 import { Link } from 'react-router-dom';
 import { checkInStateLabel } from '@myk9/ui';
 import { ChevronRight, CheckCircle2, Clock, MapPin, XCircle } from 'lucide-react';
@@ -173,7 +174,7 @@ function TimelineRow({ entry, showId, places, trialTimezone }: TimelineRowProps)
         `${entry.dayLabel} ${accessibleTimeLabel}`.trim(),
         positionLabel,
         checkInLabel,
-        entry.armband ? `Armband ${entry.armband}` : null,
+        armbandName(entry.armband),
       ]
         .filter(Boolean)
         .join(' — ')}
@@ -281,4 +282,10 @@ function ResultChip({ entry, didNotRun }: { entry: EnrichedShowEntry; didNotRun:
       NQ{preliminarySuffix}
     </Chip>
   );
+}
+
+/** The armband phrase for a link's accessible name; nothing when it is not assigned. */
+function armbandName(armband: string | null | undefined): string | null {
+  const display = formatArmbandDisplay(armband);
+  return display === UNASSIGNED_ARMBAND_DISPLAY ? null : `Armband ${display}`;
 }

@@ -56,13 +56,15 @@ export const PermissionGuard: React.FC<PermissionGuardProps> = ({
   if (!isLoading) {
     const checks: boolean[] = [];
     if (permission) checks.push(hasPermission(permission, scope));
+    // A list that is given counts even when empty: nothing matches an empty
+    // requireAny or roles list, so it denies. An empty requireAll asks nothing.
     if (requireAll && requireAll.length > 0) {
       checks.push(requireAll.every(perm => hasPermission(perm, scope)));
     }
-    if (requireAny && requireAny.length > 0) {
+    if (requireAny) {
       checks.push(requireAny.some(perm => hasPermission(perm, scope)));
     }
-    if (roles && roles.length > 0) {
+    if (roles) {
       const current = new Set(
         userRoles.filter(ur => isRoleAssignmentCurrent(ur)).map(ur => ur.role?.name)
       );

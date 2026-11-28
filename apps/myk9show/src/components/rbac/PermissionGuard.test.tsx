@@ -258,6 +258,22 @@ describe('PermissionGuard — checks combine with AND', () => {
     expect(screen.queryByTestId('content')).not.toBeInTheDocument();
   });
 
+  it.each([
+    ['roles', { roles: [] }],
+    ['requireAny', { requireAny: [] }],
+  ])('denies an explicitly empty %s list beside a passing permission', (_name, emptyList) => {
+    mockRBAC({
+      hasPermission: () => true,
+      userRoles: [{ is_active: true, role: { name: 'secretary' } }],
+    });
+    render(
+      <PermissionGuard permission="x:y" showFallback={false} {...emptyList}>
+        {content}
+      </PermissionGuard>
+    );
+    expect(screen.queryByTestId('content')).not.toBeInTheDocument();
+  });
+
   it('denies when the role passes but the permission does not', () => {
     mockRBAC({
       hasPermission: () => false,

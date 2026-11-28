@@ -33,6 +33,7 @@ export function ResultsPackets({
   entries,
   entriesTrusted,
   flaggedPulls,
+  entriesReadable,
   timeZone,
 }: {
   showId: string;
@@ -41,10 +42,12 @@ export function ResultsPackets({
   entries: readonly SecretaryEntry[];
   entriesTrusted: boolean;
   flaggedPulls: CloseoutFlaggedPulls;
+  entriesReadable: boolean;
   timeZone: string;
 }) {
-  const { show } = useFastShowDetails(showId);
-  const lastDay = showCalendarDay(show?.endDate);
+  const { show, refreshFailed } = useFastShowDetails(showId);
+  // A cached end date after a failed refresh may be a rescheduled show's old one: say it in words.
+  const lastDay = refreshFailed ? null : showCalendarDay(show?.endDate);
   const payoutSchedule = useMemo(() => ({ lastDay, timeZone }), [lastDay, timeZone]);
   const [packet, setPacket] = useState<OpenPacket | null>(null);
   // Corrections are read only when the panel opens, so the progress list builds without them.
@@ -73,6 +76,7 @@ export function ResultsPackets({
         entries={entries}
         entriesTrusted={entriesTrusted}
         flaggedPulls={flaggedPulls}
+        entriesReadable={entriesReadable}
         payoutSchedule={payoutSchedule}
         onOpenAfterShow={trialId => setPacket({ kind: 'after-show', trialId })}
       />

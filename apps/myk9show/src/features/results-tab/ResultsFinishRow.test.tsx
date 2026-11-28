@@ -57,7 +57,8 @@ const SHOW_ROWS = [
 function renderList(
   rows: ResultsClassRow[],
   trials: SyncableTrial[],
-  entries: SecretaryEntry[] = []
+  entries: SecretaryEntry[] = [],
+  entriesReadable = true
 ) {
   render(
     <ResultsFinishRow
@@ -67,6 +68,7 @@ function renderList(
       entries={entries}
       entriesTrusted
       flaggedPulls={flags.current}
+      entriesReadable={entriesReadable}
     />
   );
   return within(screen.getByRole('region', { name: 'Finish the show' }));
@@ -417,6 +419,11 @@ describe('ResultsFinishRow', () => {
     const list = within(screen.getByRole('region', { name: 'Finish the show' }));
     const link = list.getByRole('link', { name: /1 refund to decide/ });
     expect(link).toHaveAttribute('href', getEntryListHref('show-1', 'pulls'));
-    expect(link).toHaveTextContent('sent by December 9');
+    expect(link).toHaveTextContent('promised by December 9');
+  });
+
+  it('says the refund count is unknown when the entries read failed, even with nothing in the snapshot', () => {
+    const list = renderList(SHOW_ROWS, [trialFor('AKC')], [], false);
+    expect(list.getByText(/Refunds to decide: the entries could not be refreshed/)).toBeVisible();
   });
 });

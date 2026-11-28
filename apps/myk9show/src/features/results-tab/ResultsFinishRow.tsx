@@ -34,6 +34,8 @@ interface ResultsFinishRowProps {
   flaggedPulls: CloseoutFlaggedPulls;
   /** The show's last day and zone, so the refund line can date the club's payout (MYK9-2427). */
   payoutSchedule?: FinishListPayoutSchedule;
+  /** False = the entries read failed or is stale: the refund line reads unknown (MYK9-2427). */
+  entriesReadable?: boolean;
   /** Opens the after-show packet for a trial (MYK9-1924 phase 2a); absent = no packet button. */
   onOpenAfterShow?: (trialId: string) => void;
 }
@@ -52,6 +54,7 @@ export function ResultsFinishRow({
   entriesTrusted,
   flaggedPulls,
   payoutSchedule,
+  entriesReadable,
   onOpenAfterShow,
 }: ResultsFinishRowProps) {
   // Until the schedule is confirmed the rows may be partial: not loaded reads as "checking".
@@ -67,14 +70,24 @@ export function ResultsFinishRow({
           ...sent,
           handlerClashes: entriesTrusted ? readHandlerClashes(entries) : undefined,
           flaggedPulls,
-          // A stale entries read cannot say a refund was decided: the line then reads unknown.
-          entries: entriesTrusted
-            ? entries
-            : entries.map(entry => ({ ...entry, refund_decision_unknown: true })),
+          entries,
+          // The entries read's own state (not the tab's other reads): a stale snapshot cannot say
+          // a refund was decided or that none is waiting, so the line reads unknown.
+          entriesReadable,
         }),
         payoutSchedule
       ),
-    [entries, entriesTrusted, flaggedPulls, payoutSchedule, rows, sent, showId, trials]
+    [
+      entries,
+      entriesTrusted,
+      flaggedPulls,
+      entriesReadable,
+      payoutSchedule,
+      rows,
+      sent,
+      showId,
+      trials,
+    ]
   );
   const ref = useRef<HTMLElement>(null);
   const { hash } = useLocation();

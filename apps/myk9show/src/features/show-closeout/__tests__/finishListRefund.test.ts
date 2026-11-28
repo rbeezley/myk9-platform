@@ -73,8 +73,31 @@ describe('Finish the show: refund line', () => {
     });
     const dueDate = payoutDueDate(LAST_DAY) ?? '';
     expect(item?.note).toContain(formatPayoutDay(dueDate, '2026-12-14'));
-    expect(item?.note).toMatch(/was due/);
-    expect(item?.note).not.toMatch(/paid by/i);
+    expect(item?.note).toMatch(/was promised by/);
+    expect(item?.note).not.toMatch(/sent|go out|before/i);
+  });
+
+  it('never says a transfer is pending, with or without a date', () => {
+    const dated = refundItem([removal('e1')], {
+      lastDay: LAST_DAY,
+      timeZone: TIME_ZONE,
+      now: BEFORE_DUE,
+    });
+    const undated = refundItem([removal('e1')]);
+    for (const item of [dated, undated]) expect(item?.note).not.toMatch(/sent|go out|before/i);
+  });
+
+  it('reads unknown, even with no removals in the snapshot, when the entries are not readable', () => {
+    const left = calculateResultsRowsLeft([], [{ id: 't1', registry_id: 'AKC' }], {
+      submissions: null,
+      entries: [],
+      entriesReadable: false,
+    });
+    const item = buildFinishList('show-1', left).find(
+      candidate => candidate.key === 'refund-review'
+    );
+    expect(item).toMatchObject({ state: 'unknown', href: null });
+    expect(item?.note).toBeUndefined();
   });
 
   it('is unknown, with no date, when the saved decisions could not be read', () => {

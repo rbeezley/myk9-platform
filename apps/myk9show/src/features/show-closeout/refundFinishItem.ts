@@ -20,8 +20,10 @@ export interface FinishListPayoutSchedule {
   now?: Date;
 }
 
+// Wording states the promised date only, never that a transfer is pending: an open refund does not
+// establish payout status (MYK9-2427 review).
 const PROMISE_IN_WORDS =
-  "Decide these before your club's payout. It is sent within five business days of the show's last day.";
+  "Your club's payout is promised within five business days of the show's last day.";
 
 function payoutNote(schedule: FinishListPayoutSchedule | undefined): string {
   const timeline = schedule
@@ -30,8 +32,8 @@ function payoutNote(schedule: FinishListPayoutSchedule | undefined): string {
   if (!timeline) return PROMISE_IN_WORDS;
   const due = formatPayoutDay(timeline.dueDate, timeline.today);
   return timeline.pastDue
-    ? `Your club's payout was due ${due}. Decide these now so it can go out.`
-    : `Decide these before your club's payout. It is sent by ${due}.`;
+    ? `Your club's payout was promised by ${due}.`
+    : `Your club's payout is promised by ${due}.`;
 }
 
 /** Listed while a refund waits or cannot be read; nothing left is not listed. */

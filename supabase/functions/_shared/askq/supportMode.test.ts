@@ -32,6 +32,9 @@ describe('AskQ support mode', () => {
     'Does Stripe need my full Social Security number?',
     'When do we get paid, and does myK9Show take a cut?',
     'A dog was pulled. How do I refund the exhibitor?',
+    'Where is the refund button?',
+    'Is the service fee refunded on a $45 entry?',
+    "What is my club's refund policy?",
   ])('sends the guide-policy money question to the guide path: %s', question => {
     expect(isPaymentOrRefundQuestion(question)).toBe(true);
     expect(getSupportEscalationForQuestion(question)).toBeNull();
@@ -44,6 +47,9 @@ describe('AskQ support mode', () => {
     'Can you refund my Stripe payment?',
     'I have not received my payout yet',
     'I was charged $45 for an entry',
+    'Please refund my entry for Heartland',
+    'I paid twice for the same entry',
+    'Why was my credit card declined?',
   ])('escalates the account-specific money question: %s', question => {
     expect(getSupportEscalationForQuestion(question)).toMatchObject({
       escalate: true,

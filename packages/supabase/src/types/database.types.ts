@@ -9208,6 +9208,7 @@ export type Database = {
           address: string | null
           allow_class_changes_after_close: boolean
           allow_non_owner_handlers: boolean | null
+          allow_same_day_move_ups: boolean
           allow_waitlist: boolean
           asca_sanction_status: string | null
           brand_color: string
@@ -9292,6 +9293,7 @@ export type Database = {
           address?: string | null
           allow_class_changes_after_close?: boolean
           allow_non_owner_handlers?: boolean | null
+          allow_same_day_move_ups?: boolean
           allow_waitlist?: boolean
           asca_sanction_status?: string | null
           brand_color?: string
@@ -9376,6 +9378,7 @@ export type Database = {
           address?: string | null
           allow_class_changes_after_close?: boolean
           allow_non_owner_handlers?: boolean | null
+          allow_same_day_move_ups?: boolean
           allow_waitlist?: boolean
           asca_sanction_status?: string | null
           brand_color?: string
@@ -14731,6 +14734,7 @@ export type Database = {
           address: string | null
           allow_class_changes_after_close: boolean
           allow_non_owner_handlers: boolean | null
+          allow_same_day_move_ups: boolean
           allow_waitlist: boolean
           asca_sanction_status: string | null
           brand_color: string
@@ -16014,6 +16018,7 @@ export type Database = {
           address: string | null
           allow_class_changes_after_close: boolean
           allow_non_owner_handlers: boolean | null
+          allow_same_day_move_ups: boolean
           allow_waitlist: boolean
           asca_sanction_status: string | null
           brand_color: string
@@ -16130,6 +16135,7 @@ export type Database = {
         Args: {
           p_club_name?: string
           p_decision: string
+          p_delete_club?: boolean
           p_existing_club_id?: string
           p_request_id: string
           p_review_note?: string

@@ -78,17 +78,18 @@ export interface ReplicatedTrial {
 /** MYK9-1945: absent until the migration is applied, so an older row reads as unset, not null. */
 /**
  * MYK9-2450: DB columns only a deliberate act writes (close-out, reopen, a secretary setting the
- * status or the actual times), paired with the `ReplicatedTrial` key a caller sets to change
- * them. An UPDATE sends one only when its caller set that key, so an unrelated edit from a
- * device holding an old copy (a rename after another device closed the show) cannot put the old
- * value back. Same shape as classes (`SERVER_OWNED_CLASS_COLUMNS`); replaces the single-column
- * strip from MYK9-2431.
+ * status or the actual times, or flipping the stale-class switch, MYK9-2499), paired with the
+ * `ReplicatedTrial` key a caller sets to change them. An UPDATE sends one only when its caller
+ * set that key, so an unrelated edit from a device holding an old copy (a rename after another
+ * device closed the show or turned the switch off) cannot put the old value back. Same shape as
+ * classes (`SERVER_OWNED_CLASS_COLUMNS`); replaces the single-column strip from MYK9-2431.
  */
 const SERVER_OWNED_TRIAL_COLUMNS: ReadonlyArray<readonly [string, keyof ReplicatedTrial]> = [
   ['status', 'status'],
   ['actual_start_time', 'actualStartTime'],
   ['actual_end_time', 'actualEndTime'],
   ['status_before_close', 'statusBeforeClose'],
+  ['auto_complete_stale_classes', 'autoCompleteStaleClasses'],
 ];
 
 const LEGACY_OMITTED_TRIAL_KEYS_SERVER_WINS: readonly string[] = SERVER_OWNED_TRIAL_COLUMNS.map(

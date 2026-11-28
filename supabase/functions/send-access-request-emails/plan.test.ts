@@ -17,6 +17,7 @@ function record(overrides: Partial<AccessRequestRecord> = {}): AccessRequestReco
     requestedRole: null,
     requesterNote: 'Long-time exhibitor.',
     reviewerNote: null,
+    clubCreatedOnRequest: false,
     ...overrides,
   };
 }

@@ -22,6 +22,7 @@ function record(overrides: Partial<AccessRequestRecord> = {}): AccessRequestReco
     requestedRole: null,
     requesterNote: null,
     reviewerNote: null,
+    clubCreatedOnRequest: true,
     ...overrides,
   };
 }
@@ -42,6 +43,13 @@ describe('requesterReceivedEmail', () => {
     expect(email.html).toContain('You can start setting up your club and its first show now.');
     expect(email.html).toContain('once it is approved you can publish shows');
     expect(email.html).not.toContain('You do not need to do anything else right now');
+  });
+
+  it('keeps the wait wording for an older new-club request that made no club yet', () => {
+    const email = requesterReceivedEmail(record({ clubCreatedOnRequest: false }), SITE);
+
+    expect(email.html).toContain('You do not need to do anything else right now');
+    expect(email.html).not.toContain('You can start setting up your club');
   });
 
   it('keeps the wait-for-review wording for membership and role requests', () => {
@@ -131,6 +139,18 @@ describe('decisionEmail', () => {
     expect(email.html).toContain('is now approved in myK9Show.');
     expect(email.html).not.toContain('is now set up');
     expect(email.html).toContain('Heartland Dog Club');
+  });
+
+  it('keeps the set-up wording when approval is what made the club (older request paths)', () => {
+    const email = decisionEmail(
+      record({ status: 'approved', clubCreatedOnRequest: false }),
+      'approved',
+      SITE
+    );
+
+    expect(email.html).toContain('is now set up in myK9Show.');
+    expect(email.html).toContain('Club-admin access is now available on your account');
+    expect(email.html).not.toContain('You can now publish your shows');
   });
 
   it('tells a secretary requester that show-secretary access is available', () => {

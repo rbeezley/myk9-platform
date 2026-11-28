@@ -22,25 +22,21 @@ Tracking: MYK9-2541. Owner decision 3 (2026-11-27): "Nightly retry". Money code,
 
 **Recommendation: its own small cron, `cron-stripe-fee-backfill`, at 03:00 UTC.** It runs after payouts and before reconciliation. MYK9-1957 then compares a fee that is already filled in. The cost is one more Vault secret and one migration.
 
+## Owner decision
+
+Owner, 2026-11-28 (in chat): "2541 go with option 2", the minimal cron, after review round 2 showed the fuller design growing past the problem (four test orders, $9.80). Dropped from the earlier draft: the attempts table, the alert takeover, and the N-nights threshold. The webhook keeps raising one alert per order, as it does today, with new wording.
+
 ## The shape
 
-Two parts: one edge function, `cron-stripe-fee-backfill`, and one migration. The migration carries the trigger change, a small attempts table, three service-role RPCs and the schedule.
+Two parts: one edge function, `cron-stripe-fee-backfill`, and one migration. The migration carries the trigger change, one service-role RPC and the schedule.
 
 1. **A typed lookup, shared.** `_shared/processingFee.ts` exports `lookupProcessingFee(stripe, { paymentIntentId, checkoutSessionId })`. It returns one of five outcomes: `fee`, `pending` (no balance transaction yet), `not_found` (`resource_missing`), `config_error` (authentication or permission error) or `transient` (rate limit, connection, 5xx). With no intent id it retrieves the checkout session, expanded to `payment_intent.latest_charge.balance_transaction`. Only the webhook turns every outcome except `fee` into NULL, so its insert behaves as today. On the first `config_error` the job stops the run and raises one `error` alert, keyed per run date.
-2. **Select the population the Payouts line counts.** Use the predicate of `financial_reconciliation_summary` (`:529-533` and the entry filter at `:544`): `order_type = 'entry'`, then `status IN ('succeeded','refunded') OR refunded_cents > 0 OR make_whole_refunded_cents > 0`, then `stripe_processing_fee_cents IS NULL`. A row with neither an intent id nor a checkout session id is reported as `not_found`, keyed by order id. The job does not try to read it from Stripe.
-   - **Measure first.** Run this select against the live database, grouped by whether an intent id is present, before building. The issue saw 5 excluded orders but only 4 alerts. The PR names the fifth order and says why it has no alert.
-3. **Rotation, so permanent misses cannot starve new orders.** A new table, `stripe_fee_backfill_attempts`, holds `order_id` (primary key), `attempts`, `last_checked_at` and `last_outcome`. It has explicit grants: service_role only, with `REVOKE ALL … FROM anon, authenticated`. Each night takes 50 rows, ordered by `last_checked_at NULLS FIRST, created_at`, and skips any row checked in the last 20 hours. A row that is checked moves to the back. The table lives outside `stripe_orders`, so tracking an attempt is never a write to a money row.
-4. **Write the fee and resolve the alert in one transaction.** The job calls RPC `record_order_processing_fee(p_order_id, p_fee_cents, p_note)` (SECURITY DEFINER). It sets the fee only `WHERE stripe_processing_fee_cents IS NULL`. The fee is set, never added, so a second run or a late webhook writes nothing and counts nothing twice. In the same transaction it resolves every open alert for that order and merges `resolution_note` into `detail`. A failure leaves both the fee and the alert as they were, so the next night retries both. The alerts are matched by key, from either source: `processing-fee-pending-<pi>`, or for an order with no intent, the webhook's fallback key built from `cart <metadata.cart_id>` or `payment link <id>`.
-5. **The fee write must not fire the enrollment trigger.** Today `trg_stripe_orders_sync_enrollment` fires `BEFORE UPDATE` on every column (`20260914001837_confirm_successful_checkout_enrollments.sql:65`). It can upsert an enrollment (`20261101213300_myk9_1637_card_money_received.sql:332-381`). The migration recreates it as `BEFORE UPDATE OF status, show_id, customer_id, entry_ids, enrollment_id, stripe_payment_intent_id`, which are the only columns the function reads. A fee-only update then never fires it, however many such orders exist later. The two `AFTER UPDATE` triggers are already narrowed to `status` and `entry_ids`.
-6. **Close alerts that a person already settled.** Each run first calls RPC `resolve_settled_fee_alerts()`. It resolves any open `processing-fee-pending-*` alert whose order already has a fee, for example after a manual backfill, with the note "fee already recorded". It never writes the fee.
-7. **Alert after 3 nights, and take over the old alerts.** The webhook stops alerting and keeps its log line. Its comment and the two UI comments are rewritten. Once an order is more than 3 days old and still missing its fee, the job calls RPC `raise_fee_pending_alert(p_key, p_title, p_detail)`:
-   - an open `stripe-webhook` row with that key is updated in place: its source becomes `cron-stripe-fee-backfill` and the title and detail are rewritten, with no new row and no email;
-   - if a row already exists under the job's source, nothing changes;
-   - otherwise the job inserts through `alertAdmin` with `skipEmailOnDuplicate: true`, which sends one email.
-
-   Each unresolved order therefore has exactly one current alert. The title reads "Stripe processing fee still missing after N nights". The detail gives the intent, the order date, the last outcome, and the fact that this order's net income is not final. Why 3 nights: Stripe normally creates the fee within minutes, so one miss is noise. Three nights rides out an outage, and the alert still comes within the week.
-
-8. **Report.** Each run logs one line: "checked, filled, pending, not found, errors". It also sends a Sentry check-in (monitor `cron-stripe-fee-backfill`), and the job appears in `background_jobs` automatically.
+2. **Select the population the Payouts line counts.** Use the predicate of `financial_reconciliation_summary` (`:529-533` and the entry filter at `:544`): `order_type = 'entry'`, then `status IN ('succeeded','refunded') OR refunded_cents > 0 OR make_whole_refunded_cents > 0`, then `stripe_processing_fee_cents IS NULL`. Only orders from the last 30 days, oldest first, at most 50 a night. Stripe creates the fee within minutes, so an order still missing it after 30 days will not heal by retrying: it ages out of the job and keeps its open alert for a person. The age limit also stops a few permanent misses from filling every night's batch. A row with neither an intent id nor a checkout session id is skipped and logged.
+   - **Measure first.** Run this select against the live database, grouped by whether an intent id is present, before building. The issue saw 5 excluded orders but only 4 alerts. The PR names the fifth order and says why it has no alert. The four 2026-11-01 orders are older than 30 days by the time this ships, so the hand run after deploy passes a one-time `since` of 2026-10-01.
+3. **Write the fee and resolve the alert in one transaction.** The job calls RPC `record_order_processing_fee(p_order_id, p_fee_cents, p_note)` (SECURITY DEFINER, service_role only). It sets the fee only `WHERE stripe_processing_fee_cents IS NULL`. The fee is set, never added, so a second run or a late webhook writes nothing and counts nothing twice. In the same transaction it resolves every open alert for that order, matched by key (`processing-fee-pending-<pi>`, or the webhook's fallback key for an order with no intent), and merges `resolution_note` into `detail`. A failure leaves both as they were, so the next night retries both. Each run also resolves open fee alerts whose order already has a fee, for example after a manual backfill, without writing the fee.
+4. **The fee write must not fire the enrollment trigger.** Today `trg_stripe_orders_sync_enrollment` fires `BEFORE UPDATE` on every column (`20260914001837_confirm_successful_checkout_enrollments.sql:65`). It can upsert an enrollment (`20261101213300_myk9_1637_card_money_received.sql:332-381`). The migration recreates it as `BEFORE UPDATE OF status, show_id, customer_id, entry_ids, enrollment_id, stripe_payment_intent_id`, which are the only columns the function reads. A fee-only update then never fires it. The two `AFTER UPDATE` triggers are already narrowed to `status` and `entry_ids`.
+5. **New alert wording.** The webhook still raises one alert per order on a missing fee, deduped as today. It no longer says "MANUAL BACKFILL REQUIRED". It says: "Stripe processing fee not recorded yet: the nightly job retries it for 30 days." Its code comment and the two UI comments that say nothing retries are rewritten.
+6. **Report.** Each run logs one line: "checked, filled, pending, not found, errors". It also sends a Sentry check-in (monitor `cron-stripe-fee-backfill`), and the job appears in `background_jobs` automatically.
 
 The function deploy and `supabase db push` need the owner's go-ahead. The migration takes the `independent` review tier.
 
@@ -57,20 +53,14 @@ The function deploy and `supabase db push` need the owner's go-ahead. The migrat
   - each lookup outcome, including a lookup by checkout session when the order has no intent;
   - a `config_error` stops the run and raises one alert;
   - a `transient` error on one order does not stop the others;
-  - running twice writes nothing the second time and sends no email.
-- vitest for rotation: 50 permanent misses fill one night. On the next night, a newer order whose fee is recoverable is still processed.
-- A behavioral SQL test under `supabase/tests/`, run in CI against the real triggers and RPCs:
+  - running twice writes nothing the second time and sends no email;
+  - an order older than 30 days is not selected.
+- A behavioral SQL test under `supabase/tests/`, run in CI against the real triggers and RPC:
   - a fee-only update on a succeeded order with `enrollment_id` NULL leaves `enrollments` and `entries.registration_id` unchanged, and a status change still syncs;
-  - the selection includes a refunded order and a `succeeded` order with only `make_whole_refunded_cents > 0`, and excludes a non-entry order and a `failed` order with no refunds;
-  - `record_order_processing_fee` writes only into a NULL fee, and resolves the alert in the same transaction;
-  - `resolve_settled_fee_alerts` closes the alert of an order whose fee was filled in by hand, without changing the fee;
-  - `raise_fee_pending_alert` turns a legacy `stripe-webhook` row into the job's row and leaves one unresolved row per key;
-  - the attempts table has the grants it should (checked with `relacl`).
-- After deploy, run the job once by hand:
+  - the selection includes a refunded order and a `succeeded` order with only `make_whole_refunded_cents > 0`, and excludes a non-entry order and a `failed` order with no refunds (each branch on its own);
+  - `record_order_processing_fee` writes only into a NULL fee and resolves the alert in the same transaction;
+  - an open alert whose order already has a fee is resolved, and the fee is unchanged;
+  - the RPC's grants (`proacl`): service_role only.
+- After deploy, run the job once by hand with `since` 2026-10-01:
   - before and after, record the Payouts page's excluded count (`processing_fee_pending_count` from `financial_reconciliation_summary('platform')`) and check it falls by the number of fees filled;
-  - list the orders still pending, with their intents, joined to their open alerts. The Payouts card shows no names, so this is the only way to see which orders remain. The PR says why Stripe cannot return each of them.
-
-## Owner questions
-
-1. **Own cron at 03:00 UTC, or wait and fold it into MYK9-1957?** Recommend its own cron. It ships now, and the checker keeps its "never writes money tables" promise.
-2. **Alert after 3 nights?** Recommend 3: long enough to ride out a Stripe outage, short enough to surface within the week.
+  - list the orders still pending, with their intents, joined to their open alerts. The PR says why Stripe cannot return each of them.

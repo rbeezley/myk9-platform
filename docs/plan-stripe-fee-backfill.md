@@ -20,45 +20,55 @@ Tracking: MYK9-2541. Owner decision 3 (2026-11-27): "Nightly retry". Money code,
 - **For a step inside it:** one schedule, one Vault secret, one Stripe client.
 - **Against:** that plan promises the job "never writes to `stripe_orders`". That promise is what makes a report-only checker safe to run against money tables, and this job must write there. Also, MYK9-1957 still needs a cutover column, a store for its result, a health check and an `independent` review. Waiting on it keeps the four alerts open for no reason.
 
-**Recommendation: its own small cron, `cron-stripe-fee-backfill`, at 03:00 UTC.** It runs after payouts and before reconciliation. MYK9-1957 then compares a fee that is already filled in. The cost is one more Vault secret and one cron migration.
+**Recommendation: its own small cron, `cron-stripe-fee-backfill`, at 03:00 UTC.** It runs after payouts and before reconciliation. MYK9-1957 then compares a fee that is already filled in. The cost is one more Vault secret and one migration.
 
 ## The shape
 
-1. **Share the read.** Move `fetchProcessingFeeCents` into `_shared/processingFee.ts` and pass it the Stripe client. The webhook and the job then call the same function, which calls `extractProcessingFeeCents`.
-2. **Select.** Service-role read of `stripe_orders` where `stripe_processing_fee_cents IS NULL`, `stripe_payment_intent_id IS NOT NULL` and the summary's scope (`status IN ('succeeded','refunded')`). Oldest `created_at` first, **50 a night**. At most four such rows exist today, so 50 leaves room and keeps Stripe calls low.
-3. **Read Stripe.** One `paymentIntents.retrieve` per order. There are three outcomes:
-   - **Fee found:** write it.
-   - **Still pending, or the call failed:** leave the row; it is retried the next night.
-   - **Not found** (`resource_missing`, for example an intent from another mode's key): leave the row and note "Stripe has no such payment" in the alert.
-4. **Write.** `UPDATE stripe_orders SET stripe_processing_fee_cents = :fee WHERE stripe_payment_intent_id = :pi AND stripe_processing_fee_cents IS NULL`. The intent id is unique (`005_myk9show_specific.sql:301`). The null guard makes a second run, or a race with a late webhook, write nothing. The fee is set, never added, so it cannot be counted twice. No other column is touched, and no money moves.
-   - **Trigger to check when building:** `trg_stripe_orders_sync_enrollment` fires `BEFORE UPDATE` on every column (`20260914001837_confirm_successful_checkout_enrollments.sql:65`). For a succeeded order with `enrollment_id` NULL, a customer and entries, it upserts an enrollment (`20261101213300_myk9_1637_card_money_received.sql:332-381`). Count such pending rows first. If any exist, narrow the trigger to `UPDATE OF status, entry_ids, enrollment_id` in the job's migration.
-5. **Resolve.** After a write, resolve any open alert with dedupe key `processing-fee-pending-<pi>` from either source, `stripe-webhook` (the old alerts) or `cron-stripe-fee-backfill`. Merge `{"resolution_note": "Fee <amount> filled in from Stripe by the nightly retry on <date>"}` into `detail`. No schema change is needed.
-6. **Alert after 3 nights.** The webhook stops alerting. It keeps its log line, and its comment and the two UI comments are rewritten. The job raises the alert for a row whose `created_at` is more than 3 days old. Source is `cron-stripe-fee-backfill`, the key is unchanged, and `skipEmailOnDuplicate: true` means one email per order. Wording: "Stripe processing fee still missing after N nights", followed by the payment intent, the order date, and the fact that this order's net income is not final. Why 3: Stripe normally creates the balance transaction within minutes, so one miss is noise. Three nights also covers a Stripe or network outage, and the alert still comes well before the weekly money review. Nights are counted from `created_at`, so the job keeps no extra state.
-7. **Report.** It logs one line per run: "checked N, filled N, still pending N, not found N". It sends a Sentry check-in (monitor `cron-stripe-fee-backfill`), and the job appears in `background_jobs` automatically. A run-level failure, such as a bad key or a failed select, raises an `error` alert.
-8. **The four 2026-11-01 orders.** After deploy, run the job once by hand (curl with the job secret). All four are older than 3 nights, so each is either filled and resolved, or re-alerted with the reason. The PR records which happened and why for any that Stripe cannot return.
+Two parts: one edge function, `cron-stripe-fee-backfill`, and one migration. The migration carries the trigger change, a small attempts table, three service-role RPCs and the schedule.
 
-Deploying the function and pushing the cron migration need the owner's go-ahead.
+1. **A typed lookup, shared.** `_shared/processingFee.ts` exports `lookupProcessingFee(stripe, { paymentIntentId, checkoutSessionId })`. It returns one of five outcomes: `fee`, `pending` (no balance transaction yet), `not_found` (`resource_missing`), `config_error` (authentication or permission error) or `transient` (rate limit, connection, 5xx). With no intent id it retrieves the checkout session, expanded to `payment_intent.latest_charge.balance_transaction`. Only the webhook turns every outcome except `fee` into NULL, so its insert behaves as today. On the first `config_error` the job stops the run and raises one `error` alert, keyed per run date.
+2. **Select the population the Payouts line counts.** Use the predicate of `financial_reconciliation_summary` (`:529-533` and the entry filter at `:544`): `order_type = 'entry'`, then `status IN ('succeeded','refunded') OR refunded_cents > 0 OR make_whole_refunded_cents > 0`, then `stripe_processing_fee_cents IS NULL`. A row with neither an intent id nor a checkout session id is reported as `not_found`, keyed by order id. The job does not try to read it from Stripe.
+   - **Measure first.** Run this select against the live database, grouped by whether an intent id is present, before building. The issue saw 5 excluded orders but only 4 alerts. The PR names the fifth order and says why it has no alert.
+3. **Rotation, so permanent misses cannot starve new orders.** A new table, `stripe_fee_backfill_attempts`, holds `order_id` (primary key), `attempts`, `last_checked_at` and `last_outcome`. It has explicit grants: service_role only, with `REVOKE ALL … FROM anon, authenticated`. Each night takes 50 rows, ordered by `last_checked_at NULLS FIRST, created_at`, and skips any row checked in the last 20 hours. A row that is checked moves to the back. The table lives outside `stripe_orders`, so tracking an attempt is never a write to a money row.
+4. **Write the fee and resolve the alert in one transaction.** The job calls RPC `record_order_processing_fee(p_order_id, p_fee_cents, p_note)` (SECURITY DEFINER). It sets the fee only `WHERE stripe_processing_fee_cents IS NULL`. The fee is set, never added, so a second run or a late webhook writes nothing and counts nothing twice. In the same transaction it resolves every open alert for that order and merges `resolution_note` into `detail`. A failure leaves both the fee and the alert as they were, so the next night retries both. The alerts are matched by key, from either source: `processing-fee-pending-<pi>`, or for an order with no intent, the webhook's fallback key built from `cart <metadata.cart_id>` or `payment link <id>`.
+5. **The fee write must not fire the enrollment trigger.** Today `trg_stripe_orders_sync_enrollment` fires `BEFORE UPDATE` on every column (`20260914001837_confirm_successful_checkout_enrollments.sql:65`). It can upsert an enrollment (`20261101213300_myk9_1637_card_money_received.sql:332-381`). The migration recreates it as `BEFORE UPDATE OF status, show_id, customer_id, entry_ids, enrollment_id, stripe_payment_intent_id`, which are the only columns the function reads. A fee-only update then never fires it, however many such orders exist later. The two `AFTER UPDATE` triggers are already narrowed to `status` and `entry_ids`.
+6. **Close alerts that a person already settled.** Each run first calls RPC `resolve_settled_fee_alerts()`. It resolves any open `processing-fee-pending-*` alert whose order already has a fee, for example after a manual backfill, with the note "fee already recorded". It never writes the fee.
+7. **Alert after 3 nights, and take over the old alerts.** The webhook stops alerting and keeps its log line. Its comment and the two UI comments are rewritten. Once an order is more than 3 days old and still missing its fee, the job calls RPC `raise_fee_pending_alert(p_key, p_title, p_detail)`:
+   - an open `stripe-webhook` row with that key is updated in place: its source becomes `cron-stripe-fee-backfill` and the title and detail are rewritten, with no new row and no email;
+   - if a row already exists under the job's source, nothing changes;
+   - otherwise the job inserts through `alertAdmin` with `skipEmailOnDuplicate: true`, which sends one email.
+
+   Each unresolved order therefore has exactly one current alert. The title reads "Stripe processing fee still missing after N nights". The detail gives the intent, the order date, the last outcome, and the fact that this order's net income is not final. Why 3 nights: Stripe normally creates the fee within minutes, so one miss is noise. Three nights rides out an outage, and the alert still comes within the week.
+
+8. **Report.** Each run logs one line: "checked, filled, pending, not found, errors". It also sends a Sentry check-in (monitor `cron-stripe-fee-backfill`), and the job appears in `background_jobs` automatically.
+
+The function deploy and `supabase db push` need the owner's go-ahead. The migration takes the `independent` review tier.
 
 ## Do nothing, delete it, or link to what exists
 
-- **One-off SQL backfill and keep the alert.** This fixes four rows today, and every future miss again needs a person. The owner chose nightly retry instead.
-- **Let MYK9-1957 report only.** That job would flag the gap but never close it, and the Payouts line would stay non-zero.
-- **Delete the column.** Net platform income needs the real fee, so this is not an option.
-- **Reused, not rebuilt:** the webhook's fee read, the existing partial index, `alertAdmin` dedupe, the Vault cron pattern, and the `background_jobs` health row. The only new surface is one function.
+- **One-off SQL backfill and keep the alert.** It fixes today's rows, and every later miss again needs a person. The owner chose nightly retry.
+- **Let MYK9-1957 report only.** It would flag the gap and never close it.
+- **Delete the column.** Not possible: net platform income needs the real fee.
+- **Reused:** the webhook's fee read, the summary's own predicate, `alertAdmin`, the Vault cron pattern and the `background_jobs` row.
 
 ## Testing
 
-- vitest on the pure core, with a stubbed Stripe client:
-  - fee available: written once, and its alert resolved with a note;
-  - still pending: nothing written, and no alert before 3 nights, one alert after;
-  - not found: nothing written, and the alert says so;
-  - a Stripe error on one order does not stop the others;
-  - run twice: the second run writes nothing and sends no email;
-  - an order whose fee is already set is never selected;
-  - the cap of 50 is applied oldest first.
-- A webhook test: a missing fee still stores NULL, and no alert is raised.
-- A guard test that the job writes only `stripe_processing_fee_cents` and `operator_alerts`.
-- After deploy: one hand run. The Payouts line reads zero excluded orders, or names the orders Stripe cannot return, and the four alerts are gone from `/admin/health`.
+- vitest, with a stubbed Stripe client:
+  - each lookup outcome, including a lookup by checkout session when the order has no intent;
+  - a `config_error` stops the run and raises one alert;
+  - a `transient` error on one order does not stop the others;
+  - running twice writes nothing the second time and sends no email.
+- vitest for rotation: 50 permanent misses fill one night. On the next night, a newer order whose fee is recoverable is still processed.
+- A behavioral SQL test under `supabase/tests/`, run in CI against the real triggers and RPCs:
+  - a fee-only update on a succeeded order with `enrollment_id` NULL leaves `enrollments` and `entries.registration_id` unchanged, and a status change still syncs;
+  - the selection includes a refunded order and a `succeeded` order with only `make_whole_refunded_cents > 0`, and excludes a non-entry order and a `failed` order with no refunds;
+  - `record_order_processing_fee` writes only into a NULL fee, and resolves the alert in the same transaction;
+  - `resolve_settled_fee_alerts` closes the alert of an order whose fee was filled in by hand, without changing the fee;
+  - `raise_fee_pending_alert` turns a legacy `stripe-webhook` row into the job's row and leaves one unresolved row per key;
+  - the attempts table has the grants it should (checked with `relacl`).
+- After deploy, run the job once by hand:
+  - before and after, record the Payouts page's excluded count (`processing_fee_pending_count` from `financial_reconciliation_summary('platform')`) and check it falls by the number of fees filled;
+  - list the orders still pending, with their intents, joined to their open alerts. The Payouts card shows no names, so this is the only way to see which orders remain. The PR says why Stripe cannot return each of them.
 
 ## Owner questions
 

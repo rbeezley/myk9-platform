@@ -516,4 +516,60 @@ describe('ClubMembersManager row menu: admin, show secretary and officer titles'
       })
     );
   });
+
+  it('counts people, not grants: one person holding two secretary rows is still the last secretary', async () => {
+    m.countUpcomingClubShows.mockResolvedValue(3);
+    const pat = {
+      personId: 'person-8',
+      personName: 'Pat Secretary',
+      personEmail: null,
+      isClubMember: false,
+      membershipStatus: null,
+    };
+    m.getClubShowManagers.mockResolvedValue([pat, { ...pat }]);
+    const user = userEvent.setup();
+    renderList();
+    await openMenu(user, 'Pat Secretary');
+    await user.click(screen.getByRole('menuitem', { name: 'Revoke show secretary' }));
+
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+      'only appointed secretary, with 3 upcoming shows'
+    );
+  });
+
+  it('still warns it is the last secretary when the show count could not be loaded', async () => {
+    m.countUpcomingClubShows.mockRejectedValue(new Error('network'));
+    const user = userEvent.setup();
+    renderList();
+    await openMenu(user, 'Pat Secretary');
+    await user.click(screen.getByRole('menuitem', { name: 'Revoke show secretary' }));
+
+    const dialog = await screen.findByRole('alertdialog');
+    expect(dialog).toHaveTextContent(
+      "This is the club's only appointed secretary. Appoint someone else before revoking them."
+    );
+    expect(dialog).not.toHaveTextContent('upcoming');
+    expect(within(dialog).getByRole('button', { name: 'Revoke show secretary' })).toBeEnabled();
+  });
+
+  it('an unavailable role list is not reported as an empty view', async () => {
+    m.getClubAdmins.mockRejectedValue(new Error('network'));
+    render(<ClubMembersManager clubId="club-1" clubName="Heartland Club" />, {
+      initialRoute: '/?view=admins',
+    });
+
+    expect(await screen.findByText("Can't tell who matches yet")).toBeInTheDocument();
+    expect(screen.queryByText('Nobody in this view')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Show all people' })).toBeInTheDocument();
+  });
+
+  it('keeps Show all people next to a partial count while filters match someone', async () => {
+    m.getClubAdmins.mockRejectedValue(new Error('network'));
+    render(<ClubMembersManager clubId="club-1" clubName="Heartland Club" />, {
+      initialRoute: '/?status=active',
+    });
+
+    await waitFor(() => expect(screen.getByText(/found so far/)).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: 'Show all people' })).toBeInTheDocument();
+  });
 });

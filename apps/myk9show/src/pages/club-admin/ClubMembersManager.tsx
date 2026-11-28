@@ -11,7 +11,12 @@ import { Badge } from '@/components/ui/badge';
 import { TabsContent } from '@/components/ui/tabs';
 import { PrimaryTabs } from '@/components/common/PrimaryTabs';
 import { TableSkeleton } from '@/components/common/SkeletonLoaders';
-import { ListFilterBar, ListResultLine, ListViewTabs } from '@/components/list-toolkit';
+import {
+  ListFilterBar,
+  ListResultLine,
+  ListViewTabs,
+  LIST_LINK_BUTTON,
+} from '@/components/list-toolkit';
 import { Plus, Shield, AlertTriangle } from 'lucide-react';
 import { AddMemberDialog, AssignOfficerDialog } from './ClubMemberDialogs';
 import { ClubShowAccessRequests } from './ClubShowAccessRequests';
@@ -237,6 +242,11 @@ export const ClubMembersManager: React.FC<ClubMembersManagerProps> = ({ clubId, 
                     Showing {list.filteredRows.length}{' '}
                     {list.filteredRows.length === 1 ? 'person' : 'people'} found so far. The list is
                     not complete yet.
+                    {list.hasActiveFilters && list.filteredRows.length > 0 && (
+                      <button type="button" onClick={list.showAll} className={LIST_LINK_BUTTON}>
+                        Show all people
+                      </button>
+                    )}
                   </p>
                 )}
 
@@ -246,6 +256,7 @@ export const ClubMembersManager: React.FC<ClubMembersManagerProps> = ({ clubId, 
                   roleActions={roleActions}
                   searchQuery={searchQuery}
                   filtered={list.hasActiveFilters}
+                  incomplete={!list.complete}
                   onShowAll={list.showAll}
                   onAddMember={() => setShowAddMember(true)}
                   onChangeType={handleChangeType}

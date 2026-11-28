@@ -85,6 +85,8 @@ interface MembersTableProps {
   searchQuery: string;
   /** A role view, status or search is narrowing the list; defaults to whether there is a search. */
   filtered?: boolean;
+  /** A role list is missing, so "no match" cannot be confirmed from what loaded. */
+  incomplete?: boolean;
   onShowAll?: () => void;
   onAddMember: () => void;
   onChangeType: (memberId: string, type: MembershipType) => void;
@@ -98,6 +100,7 @@ export const MembersTable: React.FC<MembersTableProps> = ({
   roleActions,
   searchQuery,
   filtered,
+  incomplete = false,
   onShowAll,
   onAddMember,
   onChangeType,
@@ -106,6 +109,8 @@ export const MembersTable: React.FC<MembersTableProps> = ({
   onToggleShowAccess,
 }) => {
   const isFiltered = filtered ?? !!searchQuery;
+  // Unknown role flags match nobody, so an empty result is only a finding when every list loaded.
+  const unverified = isFiltered && incomplete;
   return (
     <div className="overflow-x-auto rounded-xl border border-border">
       <table className="w-full text-sm">
@@ -181,18 +186,22 @@ export const MembersTable: React.FC<MembersTableProps> = ({
             <Users className="h-12 w-12 text-muted-foreground" />
           </div>
           <h3 className="text-lg font-semibold mb-2 text-foreground">
-            {searchQuery
-              ? 'No Members Found'
-              : isFiltered
-                ? 'Nobody in this view'
-                : 'No Members Yet'}
+            {unverified
+              ? "Can't tell who matches yet"
+              : searchQuery
+                ? 'No Members Found'
+                : isFiltered
+                  ? 'Nobody in this view'
+                  : 'No Members Yet'}
           </h3>
           <p className="text-muted-foreground mb-4 text-center max-w-sm">
-            {searchQuery
-              ? 'Try adjusting your search terms.'
-              : isFiltered
-                ? 'Nobody matches the view and filters you picked.'
-                : 'Add your first club member to get started.'}
+            {unverified
+              ? "Some lists couldn't be loaded, so we can't confirm that nobody matches. Reconnect or try again, or show everyone."
+              : searchQuery
+                ? 'Try adjusting your search terms.'
+                : isFiltered
+                  ? 'Nobody matches the view and filters you picked.'
+                  : 'Add your first club member to get started.'}
           </p>
           {isFiltered && onShowAll && (
             <Button variant="outline" onClick={onShowAll}>

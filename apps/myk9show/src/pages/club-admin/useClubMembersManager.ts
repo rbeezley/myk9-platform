@@ -382,10 +382,14 @@ export function useClubMembersManager(clubId: string) {
       pendingShowAccessRevoke,
       // Revoking the only secretary of a club with upcoming shows leaves them with nobody to run
       // them; the confirm says so, from the row menu as well as the Show secretaries tab.
-      lastSecretaryShowCount:
-        showManagers.length === 1 && showManagers[0]?.personId === pendingShowAccessRevoke?.personId
-          ? (upcomingShowsQuery.data ?? 0)
-          : 0,
+      // Counted by person: one person can hold two secretary grants, and revoking removes both.
+      // A show count that has not loaded stays unknown (null), never a confirmed zero.
+      lastSecretary:
+        showManagerIds.size === 1 &&
+        !!pendingShowAccessRevoke &&
+        showManagerIds.has(pendingShowAccessRevoke.personId)
+          ? { showCount: upcomingShowsQuery.isSuccess ? upcomingShowsQuery.data : null }
+          : null,
       confirmShowAccessRevoke,
     },
     membersQuery,

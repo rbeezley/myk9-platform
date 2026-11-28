@@ -71,4 +71,22 @@ describe('judge qualification id and null-date round trip (MYK9-2393)', () => {
     expect(saved.id).toBeUndefined();
     expect(saved.date_obtained).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
+
+  it('saves null when the secretary clears the date on an existing row', () => {
+    const ui = mapDbToUiQualification({
+      ...suspended,
+      date_obtained: '2020-01-02',
+    } as DbJudgeQualification);
+
+    const saved = mapUiToDbQualification({ ...ui, certificationDate: '' }, 'person-1');
+
+    expect(saved.date_obtained).toBeNull();
+  });
+
+  it('sends the form status so the server can reconcile suspension data', () => {
+    const ui = mapDbToUiQualification(suspended);
+
+    expect(mapUiToDbQualification(ui, 'person-1').status).toBe('Suspended');
+    expect(mapUiToDbQualification({ ...ui, status: 'Expired' }, 'person-1').status).toBe('Expired');
+  });
 });

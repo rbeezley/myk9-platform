@@ -59,6 +59,18 @@ BEGIN
     date_obtained = q.date_obtained,
     expiration_date = q.expiration_date,
     is_active = COALESCE(q.is_active, jq.is_active),
+    -- The form status reconciles suspension data the way suspend/reinstate do: Active or
+    -- Expired clears it, Suspended keeps the existing date (or starts today), no status
+    -- leaves it alone, so an unchanged row round-trips untouched.
+    suspension_date = CASE
+      WHEN q.status = 'Suspended' THEN COALESCE(jq.suspension_date, current_date)
+      WHEN q.status IN ('Active', 'Expired') THEN NULL
+      ELSE jq.suspension_date
+    END,
+    suspension_reason = CASE
+      WHEN q.status IN ('Active', 'Expired') THEN NULL
+      ELSE jq.suspension_reason
+    END,
     updated_at = now()
   FROM jsonb_to_recordset(COALESCE(p_qualifications, '[]'::jsonb)) AS q(
     id uuid,
@@ -68,7 +80,8 @@ BEGIN
     judge_number text,
     date_obtained date,
     expiration_date date,
-    is_active boolean
+    is_active boolean,
+    status text
   )
   WHERE q.id IS NOT NULL
     AND jq.id = q.id
@@ -90,7 +103,8 @@ BEGIN
     judge_number,
     date_obtained,
     expiration_date,
-    is_active
+    is_active,
+    suspension_date
   )
   SELECT
     q.person_id,
@@ -100,7 +114,8 @@ BEGIN
     q.judge_number,
     q.date_obtained,
     q.expiration_date,
-    COALESCE(q.is_active, true)
+    COALESCE(q.is_active, true),
+    CASE WHEN q.status = 'Suspended' THEN current_date END
   FROM jsonb_to_recordset(COALESCE(p_qualifications, '[]'::jsonb)) AS q(
     id uuid,
     person_id uuid,
@@ -110,7 +125,8 @@ BEGIN
     judge_number text,
     date_obtained date,
     expiration_date date,
-    is_active boolean
+    is_active boolean,
+    status text
   )
   WHERE q.id IS NULL;
 END;

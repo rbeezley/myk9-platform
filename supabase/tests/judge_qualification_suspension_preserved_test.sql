@@ -65,6 +65,8 @@ DECLARE
   dropped_id CONSTANT uuid := '00000000-0000-0000-0000-000000239502';
   foreign_id CONSTANT uuid := '00000000-0000-0000-0000-000000239503';
   kept public.judge_qualifications%ROWTYPE;
+  new_status text;
+  new_active boolean;
   row_count integer;
   denied boolean;
 BEGIN
@@ -76,7 +78,7 @@ BEGIN
     jsonb_build_object(
       'id', suspended_id, 'person_id', target_person_id, 'organization', 'AKC',
       'qualification_level', 'Master', 'disciplines', jsonb_build_array('Scent Work'),
-      'judge_number', 'AKC-2', 'is_active', false
+      'judge_number', 'AKC-2', 'is_active', false, 'status', 'Suspended'
     ),
     jsonb_build_object(
       'person_id', target_person_id, 'organization', 'NACSW',
@@ -117,6 +119,29 @@ BEGIN
   IF row_count <> 2 THEN
     RAISE EXCEPTION 'FAIL expected 2 qualifications after save, found %', row_count;
   END IF;
+
+  -- Status transitions reconcile suspension data (Suspended -> Expired -> Suspended -> Active).
+  FOREACH new_status IN ARRAY ARRAY['Expired', 'Suspended', 'Active'] LOOP
+    new_active := new_status = 'Active';
+    PERFORM public.replace_judge_qualifications(target_person_id, jsonb_build_array(
+      jsonb_build_object(
+        'id', suspended_id, 'person_id', target_person_id, 'organization', 'AKC',
+        'qualification_level', 'Master', 'disciplines', jsonb_build_array('Scent Work'),
+        'judge_number', 'AKC-2', 'is_active', new_active, 'status', new_status
+      )
+    ));
+    SELECT * INTO kept FROM public.judge_qualifications WHERE id = suspended_id;
+    IF new_status = 'Suspended' THEN
+      IF kept.suspension_date IS DISTINCT FROM current_date OR kept.suspension_reason IS NOT NULL THEN
+        RAISE EXCEPTION 'FAIL Suspended on a row without a date should start today: %', to_jsonb(kept);
+      END IF;
+    ELSIF kept.suspension_date IS NOT NULL OR kept.suspension_reason IS NOT NULL THEN
+      RAISE EXCEPTION 'FAIL % did not clear suspension data: %', new_status, to_jsonb(kept);
+    END IF;
+    IF kept.notes IS DISTINCT FROM 'Keep these notes' OR kept.approval_number IS DISTINCT FROM 'APP-77' THEN
+      RAISE EXCEPTION 'FAIL status change lost notes or approval number: %', to_jsonb(kept);
+    END IF;
+  END LOOP;
 
   -- An id belonging to another person is refused and changes nothing.
   denied := false;

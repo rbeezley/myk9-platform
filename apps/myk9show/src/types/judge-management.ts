@@ -78,6 +78,8 @@ export interface CreateJudgeQualificationData {
   approval_number?: string;
   approved_by?: string;
   is_active?: boolean;
+  /** Form status; the save RPC reconciles suspension_date and suspension_reason from it. */
+  status?: 'Active' | 'Suspended' | 'Expired';
   notes?: string | undefined;
 }
 

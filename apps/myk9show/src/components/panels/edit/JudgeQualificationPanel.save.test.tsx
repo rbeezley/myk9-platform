@@ -100,7 +100,12 @@ describe('JudgeQualificationPanel: the form waits for the list', () => {
     await user.click(screen.getByRole('button', { name: /Save Changes/ }));
 
     expect(state.replace).toHaveBeenCalledWith('p1', [
-      expect.objectContaining({ id: 'q-1', is_active: false, date_obtained: null }),
+      expect.objectContaining({
+        id: 'q-1',
+        is_active: false,
+        status: 'Suspended',
+        date_obtained: null,
+      }),
       expect.not.objectContaining({ id: expect.anything() }),
     ]);
   });

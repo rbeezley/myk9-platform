@@ -21,6 +21,15 @@ export function mapDbToUiQualification(q: DbJudgeQualification): JudgeQualificat
   } as JudgeQualification;
 }
 
+// The date input edits certificationDate; dateObtained is only the parsed copy of the loaded
+// value, so a cleared input must not fall back to it (MYK9-2393). An existing row keeps null;
+// only a new row defaults to today.
+function resolveDateObtained(qual: JudgeQualification): string | null {
+  const picked = qual.certificationDate ?? (qual.dateObtained ? toYYYYMMDD(qual.dateObtained) : '');
+  if (picked) return picked;
+  return qual.id ? null : toYYYYMMDD(new Date());
+}
+
 export function mapUiToDbQualification(
   qual: JudgeQualification,
   personId: string
@@ -33,10 +42,9 @@ export function mapUiToDbQualification(
     disciplines: qual.showTypes || qual.disciplines || [],
     ...(qual.judgeNumber ? { judge_number: qual.judgeNumber } : {}),
     // MYK9-2393: an existing credential with no date keeps null; only a new row gets today.
-    date_obtained:
-      qual.certificationDate ||
-      (qual.dateObtained ? toYYYYMMDD(qual.dateObtained) : qual.id ? null : toYYYYMMDD(new Date())),
+    date_obtained: resolveDateObtained(qual),
     ...(qual.expirationDate ? { expiration_date: toYYYYMMDD(qual.expirationDate) } : {}),
     is_active: qual.status === 'Active',
+    status: qual.status,
   };
 }

@@ -26,6 +26,9 @@ const { mockFrom, mockSingle, mockSelect, mockUpdate, mockUpdateEq, mockUpdateSe
     };
   });
 
+const network = vi.hoisted(() => ({ online: true }));
+vi.mock('@/hooks/useNetworkStatus', () => ({ useIsOnline: () => network.online }));
+
 vi.mock('@/lib/supabase', () => ({
   supabase: {
     from: (table: string) => mockFrom(table),
@@ -49,6 +52,7 @@ function makeRow(overrides: Record<string, unknown> = {}) {
 describe('ClassChangeSettingsCard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    network.online = true;
     mockSingle.mockResolvedValue({ data: makeRow(), error: null });
     mockSaved.mockResolvedValue({ data: { id: 'show-1' }, error: null });
   });
@@ -162,5 +166,20 @@ describe('ClassChangeSettingsCard', () => {
 
     for (const sw of screen.getAllByRole('switch'))
       expect(sw).toHaveAttribute('aria-disabled', 'true');
+  });
+
+  it('offline, both switches are locked and say a change needs a connection', async () => {
+    network.online = false;
+    render(<ClassChangeSettingsCard showId="show-1" />);
+    const sameDay = await screen.findByRole('switch', {
+      name: 'Allow requests to move to another trial on the same day',
+    });
+    await waitFor(() => expect(sameDay).toBeChecked());
+
+    for (const sw of screen.getAllByRole('switch')) {
+      expect(sw).toHaveAttribute('aria-disabled', 'true');
+    }
+    expect(screen.getByText('Changing these settings needs a connection.')).toBeInTheDocument();
+    expect(mockUpdate).not.toHaveBeenCalled();
   });
 });

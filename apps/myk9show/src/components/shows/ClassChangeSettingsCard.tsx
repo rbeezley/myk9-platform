@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { useIsOnline } from '@/hooks/useNetworkStatus';
 import {
   classChangeSettingsQueryOptions,
   useClassChangeSwitch,
@@ -67,6 +68,8 @@ export function ClassChangeSettingsCard({ showId }: { showId: string }) {
   const sameDay = useClassChangeSwitch(showId, 'sameDay', data?.sameDay);
   // Until this show's settings are read, the switches cannot say what the show allows.
   const unknown = data === undefined;
+  // Show setup is online only: offline, a tap would show a policy the server is not enforcing.
+  const isOnline = useIsOnline();
 
   if (unknown && isError) {
     return (
@@ -96,6 +99,11 @@ export function ClassChangeSettingsCard({ showId }: { showId: string }) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        {!isOnline && (
+          <p className="text-sm text-muted-foreground">
+            Changing these settings needs a connection.
+          </p>
+        )}
         <SettingSwitch
           id="allow-class-changes-after-close"
           label="Allow class change requests after entries close"
@@ -107,7 +115,7 @@ export function ClassChangeSettingsCard({ showId }: { showId: string }) {
                 : 'Once entries close, exhibitors cannot ask to change class. They are told to ask you.'
           }
           control={afterClose}
-          disabled={unknown}
+          disabled={unknown || !isOnline}
         />
         <SettingSwitch
           id="allow-same-day-move-ups"
@@ -120,7 +128,7 @@ export function ClassChangeSettingsCard({ showId }: { showId: string }) {
                 : 'Exhibitors cannot ask for a class in a different trial on the same day. A class in the same trial, or on another day, is still fine.'
           }
           control={sameDay}
-          disabled={unknown}
+          disabled={unknown || !isOnline}
         />
       </CardContent>
     </Card>

@@ -67,7 +67,11 @@ import {
   myShowsUrl,
   type JudgeAssignmentNameRow,
 } from '../_shared/exhibitorEmailDetails.ts';
-import { persistNoSubscription } from './noSubscription.ts';
+import {
+  syncSubscriptionFromStripe as syncSubscriptionFromStripeWith,
+  type SyncDeps,
+} from './subscriptionSync.ts';
+import { queueDuplicateSubscriptions } from './duplicateSubscription.ts';
 import {
   loadPaymentReconciliationEntries as loadPaymentReconciliationEntriesFrom,
   PAYMENT_RECONCILIATION_ENTRY_COLUMNS,
@@ -2993,7 +2997,16 @@ async function handleSubscriptionCheckoutCompleted(session: Stripe.Checkout.Sess
       ? session.subscription
       : (session.subscription as { id?: string } | null)?.id;
 
-  await syncSubscriptionFromStripe(customerId, subscriptionId ?? undefined);
+  const subscriptions = await syncSubscriptionFromStripe(customerId, subscriptionId ?? undefined);
+  // MYK9-2497: a second live subscription is queued for a refund, never granted.
+  if (subscriptions) {
+    await queueDuplicateSubscriptions(
+      { stripe, queue: refundQueueDeps },
+      customerId,
+      session,
+      subscriptions
+    );
+  }
 }
 
 /**
@@ -3038,102 +3051,21 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
   await syncSubscriptionFromStripe(customerId, subscriptionId ?? undefined);
 }
 
-/**
- * Sync subscription data from Stripe to database
- * Updates both stripe_subscriptions and exhibitor_profiles
- */
-async function syncSubscriptionFromStripe(stripeCustomerId: string, knownSubscriptionId?: string) {
-  try {
-    // Get stripe_customers record
-    const { data: stripeCustomer, error: customerError } = await supabase
-      .from('stripe_customers')
-      .select('id, person_id')
-      .eq('stripe_customer_id', stripeCustomerId)
-      .single();
+// The cast is structural only (subscriptionSync.ts names the calls it makes):
+// checking the full client against SyncClient exceeds Deno's instantiation depth.
+const subscriptionSyncDeps: SyncDeps = {
+  db: supabase as unknown as SyncDeps['db'],
+  stripe,
+  mapPriceToTier,
+};
 
-    if (customerError || !stripeCustomer) {
-      console.error('Stripe customer not found in database:', customerError);
-      return;
-    }
-
-    // When the specific subscription ID is known (e.g. from checkout.session.completed),
-    // retrieve it directly — avoids the limit:1 ordering ambiguity that could
-    // pick a newer canceled/incomplete sub over an older active one.
-    let subscriptions: { data: Stripe.Subscription[] };
-    if (knownSubscriptionId) {
-      const sub = await stripe.subscriptions.retrieve(knownSubscriptionId, {
-        expand: ['default_payment_method'],
-      });
-      subscriptions = { data: [sub] };
-    } else {
-      subscriptions = await stripe.subscriptions.list({
-        customer: stripeCustomerId,
-        limit: 1,
-        status: 'all',
-        expand: ['data.default_payment_method'],
-      });
-    }
-
-    if (subscriptions.data.length === 0) {
-      console.log(`No subscriptions found for customer: ${stripeCustomerId}`);
-
-      await persistNoSubscription(supabase, stripeCustomer, stripeCustomerId);
-      return;
-    }
-
-    const subscription = subscriptions.data[0];
-    const priceId = subscription.items.data[0]?.price.id;
-
-    // Map price ID to subscription tier
-    const subscriptionTier = mapPriceToTier(priceId);
-
-    // Upsert stripe_subscriptions
-    const { error: subError } = await supabase.from('stripe_subscriptions').upsert(
-      {
-        customer_id: stripeCustomer.id,
-        stripe_subscription_id: subscription.id,
-        stripe_price_id: priceId,
-        status: subscription.status,
-        current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-        current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-        cancel_at_period_end: subscription.cancel_at_period_end,
-        cancelled_at: subscription.canceled_at
-          ? new Date(subscription.canceled_at * 1000).toISOString()
-          : null,
-      },
-      {
-        onConflict: 'stripe_subscription_id',
-      }
-    );
-
-    if (subError) {
-      console.error('Error syncing subscription:', subError);
-      return;
-    }
-
-    // Update exhibitor_profiles subscription tier
-    const isActive = ['active', 'trialing'].includes(subscription.status);
-    const { error: profileError } = await supabase
-      .from('exhibitor_profiles')
-      .update({
-        subscription_tier: isActive ? subscriptionTier : 'free',
-        subscription_expires_at: isActive
-          ? new Date(subscription.current_period_end * 1000).toISOString()
-          : null,
-      })
-      .eq('person_id', stripeCustomer.person_id);
-
-    if (profileError) {
-      console.error('Error updating exhibitor profile:', profileError);
-    }
-
-    console.log(
-      `Synced subscription for customer ${stripeCustomerId}: ${subscription.status}, tier: ${subscriptionTier}`
-    );
-  } catch (error) {
-    console.error(`Failed to sync subscription for customer ${stripeCustomerId}:`, error);
-    throw error;
-  }
+/** Sync one subscription (subscriptionSync.ts); returns the customer's subscriptions. */
+function syncSubscriptionFromStripe(stripeCustomerId: string, knownSubscriptionId?: string) {
+  return syncSubscriptionFromStripeWith(
+    subscriptionSyncDeps,
+    stripeCustomerId,
+    knownSubscriptionId
+  );
 }
 
 /**

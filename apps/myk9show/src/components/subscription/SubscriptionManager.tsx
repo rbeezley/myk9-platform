@@ -12,6 +12,10 @@ import { products, annualPriceId } from '@/stripe-config';
 import { useEntitlement } from '@/features/entitlement/useEntitlement';
 import type { EffectiveEntitlement, EntitlementSource } from '@/features/entitlement/types';
 import { BILLING_COPY } from './billingErrorCopy';
+import { pickBillingSubscription } from './billingSubscription';
+
+/** Rows read to find the live one; a customer has a handful at most. */
+const SUBSCRIPTION_ROW_LIMIT = 20;
 
 /** Display amount/interval per known price id; unknown ids show no price line. */
 function priceDisplay(priceId: string | null): { amount: number; interval: 'month' | 'year' } {
@@ -97,19 +101,19 @@ export function SubscriptionManager({
 
       if (customerError) throw customerError;
 
-      const { data: subData, error: subError } = customer
+      const { data: subRows, error: subError } = customer
         ? await supabase
             .from('stripe_subscriptions')
             .select(
-              'status, stripe_price_id, current_period_start, current_period_end, cancel_at_period_end, customer_id'
+              'status, stripe_price_id, current_period_start, current_period_end, cancel_at_period_end, customer_id, created_at'
             )
             .eq('customer_id', customer.id)
             .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle()
+            .limit(SUBSCRIPTION_ROW_LIMIT)
         : { data: null, error: null };
 
       if (subError) throw subError;
+      const subData = pickBillingSubscription(subRows ?? []);
 
       // Stripe creates a sentinel `none` row before a customer has a real
       // subscription. It is not an unpaid subscription and has no billing

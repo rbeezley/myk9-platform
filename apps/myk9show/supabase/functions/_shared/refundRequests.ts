@@ -25,8 +25,8 @@ export const APPROVED_REFUND_METADATA_TYPE = 'approved_refund_request';
 export const REFUND_REQUEST_METADATA_KEY = 'refund_request_id';
 export const REFUND_ATTEMPT_METADATA_KEY = 'refund_attempt_no';
 
-export type RefundRequestKind =
-  'abandoned_cart' | 'entry_payment_link' | 'cart_overflow' | 'unfulfilled_charge';
+import type { RefundAlertOptions, RefundRequestKind } from './refundRequestTypes.ts';
+export type { RefundRequestKind };
 
 interface RpcError {
   message: string;
@@ -38,11 +38,7 @@ export interface RefundQueueDeps {
     fn: string,
     args: Record<string, unknown>
   ) => PromiseLike<{ data: unknown; error: RpcError | null }>;
-  alertAdmin: (
-    title: string,
-    html: string,
-    opts: { source: string; dedupeKey: string; detail?: Record<string, unknown> }
-  ) => Promise<void>;
+  alertAdmin: (title: string, html: string, opts: RefundAlertOptions) => Promise<void>;
 }
 
 const SOURCE = 'stripe-webhook';

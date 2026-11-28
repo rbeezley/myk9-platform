@@ -4,9 +4,14 @@ import { STEP_UP_REQUIRED_CODE } from '@/features/step-up/stepUpFetch';
 import { formatCents } from '@/lib/format/cents';
 
 // Cart overflow is queued with its cart latch since MYK9-964; a paid checkout
-// that created nothing, for its full charge, since MYK9-963.
+// that created nothing, for its full charge, since MYK9-963; a duplicate
+// premium subscription's first invoice since MYK9-2497.
 export type RefundRequestKind =
-  'abandoned_cart' | 'entry_payment_link' | 'cart_overflow' | 'unfulfilled_charge';
+  | 'abandoned_cart'
+  | 'entry_payment_link'
+  | 'cart_overflow'
+  | 'unfulfilled_charge'
+  | 'duplicate_subscription';
 
 export interface RefundRequest {
   id: string;
@@ -59,6 +64,7 @@ const KIND_LABEL: Record<RefundRequestKind, string> = {
   entry_payment_link: 'Payment-link entries that could not be honored',
   cart_overflow: 'Paid cart lines the classes could not take',
   unfulfilled_charge: 'Paid checkout that created no entries',
+  duplicate_subscription: 'Second premium subscription for one customer',
 };
 
 export function refundKindLabel(kind: string): string {

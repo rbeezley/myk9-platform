@@ -235,6 +235,9 @@ describe('failedRowCopy: each failure_reason and its copy', () => {
 describe('refundKindLabel', () => {
   it('names every queued kind, including a paid checkout that created nothing (MYK9-963)', () => {
     expect(refundKindLabel('unfulfilled_charge')).toBe('Paid checkout that created no entries');
+    expect(refundKindLabel('duplicate_subscription')).toBe(
+      'Second premium subscription for one customer'
+    );
     for (const kind of ['abandoned_cart', 'entry_payment_link', 'cart_overflow']) {
       expect(refundKindLabel(kind)).not.toBe('Refund owed');
     }

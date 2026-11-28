@@ -355,6 +355,13 @@ describe('round 7: no-order kinds route by the request row', () => {
     expect(approvedRefundHasNoOrder({ kind: 'abandoned_cart', reason: 'cart_expired' })).toBe(true);
     // MYK9-963: a paid cart checkout that created nothing has no order.
     expect(approvedRefundHasNoOrder({ kind: 'unfulfilled_charge', reason: 'no_cart' })).toBe(true);
+    // MYK9-2497: a subscription invoice never records a stripe_orders row.
+    expect(
+      approvedRefundHasNoOrder({
+        kind: 'duplicate_subscription',
+        reason: 'duplicate_subscription',
+      })
+    ).toBe(true);
     expect(approvedRefundHasNoOrder({ kind: 'entry_payment_link', reason: 'no_link_record' })).toBe(
       true
     );

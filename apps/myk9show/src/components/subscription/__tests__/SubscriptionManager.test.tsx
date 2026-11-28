@@ -28,6 +28,15 @@ const { builders, fromMock, loggerErrorMock, entitlementHolder, refetchMock } = 
       b[m] = vi.fn(() => b);
     }
     b.maybeSingle = vi.fn(() => Promise.resolve(b.result));
+    // A list read (stripe_subscriptions) awaits the builder itself: one row
+    // set as `data` reads back as a one-row list.
+    b.then = (resolve: (value: unknown) => unknown, reject: (reason: unknown) => unknown) => {
+      const data = b.result.data;
+      return Promise.resolve({
+        data: data == null ? null : Array.isArray(data) ? data : [data],
+        error: b.result.error,
+      }).then(resolve, reject);
+    };
     return b;
   }
   const builders = {
@@ -349,5 +358,50 @@ describe('SubscriptionManager', () => {
     expect(await screen.findByText(/billing details are unavailable/i)).toBeInTheDocument();
     expect(screen.queryByText('Unpaid')).not.toBeInTheDocument();
     expect(screen.queryByText(/your subscription is unpaid/i)).not.toBeInTheDocument();
+  });
+  // MYK9-2497: two premium checkouts paid at once leave two subscriptions; the
+  // webhook keeps the older and the newer is cancelled. The cancelled
+  // duplicate is the NEWEST row, so "newest row" would tell a renewing
+  // customer their subscription is canceled.
+  it('shows the retained live subscription, not a newer cancelled duplicate', async () => {
+    entitlementHolder.value = activeEntitlement('paid');
+    builders.stripe_customers.result = { data: { id: 'cus-row-uuid' }, error: null };
+    builders.stripe_subscriptions.result = {
+      data: [
+        {
+          status: 'canceled',
+          stripe_price_id: 'price_month',
+          current_period_start: '2026-11-02T12:00:00Z',
+          current_period_end: '2026-12-02T12:00:00Z',
+          cancel_at_period_end: false,
+          customer_id: 'cus-row-uuid',
+          created_at: '2026-11-02T12:00:05Z',
+        },
+        {
+          status: 'active',
+          stripe_price_id: 'price_month',
+          current_period_start: '2026-11-01T12:00:00Z',
+          current_period_end: '2026-12-01T12:00:00Z',
+          cancel_at_period_end: false,
+          customer_id: 'cus-row-uuid',
+          created_at: '2026-11-01T12:00:05Z',
+        },
+      ],
+      error: null,
+    };
+
+    render(<SubscriptionManager />);
+
+    expect(await screen.findByText('Active')).toBeInTheDocument();
+    expect(screen.queryByText('Canceled')).not.toBeInTheDocument();
+    expect(screen.queryByText(/your subscription is canceled/i)).not.toBeInTheDocument();
+    const kept = new Date('2026-12-01T12:00:00Z').toLocaleDateString();
+    const duplicate = new Date('2026-12-02T12:00:00Z').toLocaleDateString();
+    expect(
+      screen.getByText(`${new Date('2026-11-01T12:00:00Z').toLocaleDateString()} - ${kept}`)
+    ).toBeInTheDocument();
+    expect(screen.getByText(kept)).toBeInTheDocument();
+    expect(screen.queryByText(duplicate)).not.toBeInTheDocument();
+    expect(screen.getByText('$4.99 / month')).toBeInTheDocument();
   });
 });

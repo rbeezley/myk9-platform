@@ -6206,6 +6206,7 @@ export type Database = {
           status: string
           stripe_checkout_session_id: string
           stripe_payment_intent_id: string
+          stripe_subscription_id: string | null
           updated_at: string
         }
         Insert: {
@@ -6225,6 +6226,7 @@ export type Database = {
           status?: string
           stripe_checkout_session_id: string
           stripe_payment_intent_id: string
+          stripe_subscription_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -6244,6 +6246,7 @@ export type Database = {
           status?: string
           stripe_checkout_session_id?: string
           stripe_payment_intent_id?: string
+          stripe_subscription_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -15513,6 +15516,23 @@ export type Database = {
           p_storage_path: string
         }
         Returns: Json
+      }
+      queue_duplicate_subscription_refund: {
+        Args: {
+          p_amount_cents: number
+          p_detail?: Json
+          p_payment_intent_id: string
+          p_session_id: string
+          p_subscription_id: string
+        }
+        Returns: {
+          amount_cents: number
+          outcome: string
+          refund_request_id: string
+          request_status: string
+          stripe_checkout_session_id: string
+          stripe_payment_intent_id: string
+        }[]
       }
       queue_entry_changed_email: {
         Args: { p_entry_id: string; p_events: Json; p_prior_handler_id: string }

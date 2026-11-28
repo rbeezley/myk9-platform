@@ -15,7 +15,7 @@ export interface AlertCopy {
   html: string;
 }
 
-const DO_NOT_REFUND_IN_DASHBOARD =
+export const DO_NOT_REFUND_IN_DASHBOARD =
   'Do NOT refund it from the Stripe dashboard: a dashboard refund carries no request, so an approval could refund the same money again.';
 
 const QUEUE_IT_BY_HAND =

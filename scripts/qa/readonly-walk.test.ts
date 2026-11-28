@@ -26,6 +26,7 @@ describe('decideRequest: what a read-only walk may send', () => {
     // on the walk list
     ['POST', '/rest/v1/rpc/get_show_entry_counts'],
     ['POST', '/rest/v1/rpc/tv_class_entry_counts'],
+    ['POST', '/rest/v1/rpc/get_admin_user_list'],
     ['GET', '/rest/v1/rpc/get_show_judges?p_show_id=x'],
     ['POST', '/auth/v1/token?grant_type=password'],
     ['POST', '/auth/v1/token?grant_type=refresh_token'],

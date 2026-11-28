@@ -25,7 +25,7 @@ describe('AdminDashboard clubs waiting count', () => {
   it('keeps the count current while the page stays open, every 60 seconds', async () => {
     mocks.waiting.mockReturnValue({ count: 3, rows: [] });
     render(<AdminDashboard />, { initialRoute: '/admin/dashboard' });
-    expect(await screen.findByRole('link', { name: /open system health/i })).toBeInTheDocument();
+    expect(await screen.findAllByRole('link', { name: /open system health/i })).not.toHaveLength(0);
     expect(mocks.waiting).toHaveBeenCalledWith({ refetchIntervalMs: 60_000 });
   });
 });

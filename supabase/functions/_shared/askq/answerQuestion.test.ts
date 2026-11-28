@@ -419,7 +419,7 @@ describe('money pre-check runs only on guides-only routes (supportMode)', () => 
   it('still escalates a guide refund question without calling the guides model', async () => {
     const model = stubModel({ verdict: ['guides'], guides: GUIDE_REPLY });
     const answered = await run(model, {
-      message: 'Can I get a refund for my entry?',
+      message: 'Where is my refund for my entry?',
       supportMode: true,
     }).promise;
     expect(answered.escalation).toMatchObject({ escalate: true, reason: 'payment_or_refund' });
@@ -428,7 +428,7 @@ describe('money pre-check runs only on guides-only routes (supportMode)', () => 
 
   it('does not pre-check outside supportMode', async () => {
     const model = stubModel({ verdict: ['guides'], guides: GUIDE_REPLY });
-    const answered = await run(model, { message: 'Can I get a refund for my entry?' }).promise;
+    const answered = await run(model, { message: 'Where is my refund for my entry?' }).promise;
     expect(answered.escalation).toBeNull();
     expect(model.recorded.guides).toHaveLength(1);
   });
@@ -465,7 +465,7 @@ describe('money pre-check runs only on guides-only routes (supportMode)', () => 
   });
 
   describe('classifier failure still pre-checks money questions', () => {
-    const refund = 'Can I get a refund for my entry?';
+    const refund = 'Where is my refund for my entry?';
 
     it('escalates when the classifier throws, calling no show-data or rulebook model', async () => {
       const model = stubModel({ verdict: ['guides'], showData: 'x', rulebook: RULE_REPLY });
@@ -504,7 +504,7 @@ describe('money pre-check runs only on guides-only routes (supportMode)', () => 
 
   it('logs the pre-check under its own marker, apart from a guide refusal', async () => {
     const pre = await run(stubModel({ verdict: ['guides'] }), {
-      message: 'Can I get a refund for my entry?',
+      message: 'Where is my refund for my entry?',
       supportMode: true,
     }).promise;
     expect(escalationMarkers(pre.escalationCause)).toEqual([

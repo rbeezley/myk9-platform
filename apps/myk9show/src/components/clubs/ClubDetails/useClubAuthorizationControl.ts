@@ -31,34 +31,33 @@ export function useClubAuthorizationControl(club: Club | null | undefined, isSit
   const [isUpdating, setIsUpdating] = useState(false);
   const clubId = club?.id;
 
-  const setAuthorization = useCallback(
-    async (authorized: boolean) => {
-      if (!clubId) return;
-      setIsUpdating(true);
-      try {
-        await setClubAuthorization(clubId, authorized);
-        // Replica resync plus the publish gate's cache: see refreshClubAuthorization.
-        const readinessStatus = await refreshClubAuthorization({
-          queryClient,
-          ensureClubsReady,
-          clubId,
-        });
-        const done = authorized ? 'Club authorized.' : 'Club authorization revoked.';
-        // The change is saved either way; only a fresh resync means the header
-        // and menu on this page already show it (MYK9-750).
-        if (readinessStatus === 'fresh') notifications.success(done);
-        else
-          notifications.warning(
-            `${done} This page could not update yet. Restart the app to see the change.`
-          );
-      } catch (error) {
-        notifications.error(getErrorMessage(error) || 'Could not update club authorization.');
-      } finally {
-        setIsUpdating(false);
-      }
-    },
-    [clubId, ensureClubsReady, queryClient]
-  );
+  // Revoke only: approving a waiting club is Admin > Onboarding's one Approve (MYK9-2527),
+  // so the club page links there instead of running a second approval path.
+  const revokeAuthorization = useCallback(async () => {
+    if (!clubId) return;
+    setIsUpdating(true);
+    try {
+      await setClubAuthorization(clubId, false);
+      // Replica resync plus the publish gate's cache: see refreshClubAuthorization.
+      const readinessStatus = await refreshClubAuthorization({
+        queryClient,
+        ensureClubsReady,
+        clubId,
+      });
+      const done = 'Club authorization revoked.';
+      // The change is saved either way; only a fresh resync means the header
+      // and menu on this page already show it (MYK9-750).
+      if (readinessStatus === 'fresh') notifications.success(done);
+      else
+        notifications.warning(
+          `${done} This page could not update yet. Restart the app to see the change.`
+        );
+    } catch (error) {
+      notifications.error(getErrorMessage(error) || 'Could not update club authorization.');
+    } finally {
+      setIsUpdating(false);
+    }
+  }, [clubId, ensureClubsReady, queryClient]);
 
   return {
     // The badge is visible to ANY viewer who can see this club at all
@@ -80,7 +79,6 @@ export function useClubAuthorizationControl(club: Club | null | undefined, isSit
     // rendering isClubAuthorized === undefined as a false "authorized".
     isAuthorizationLoading: club?.authorizedAt === undefined,
     isAuthorizationUpdating: isUpdating,
-    handleAuthorizeClub: () => void setAuthorization(true),
-    handleRevokeAuthorization: () => void setAuthorization(false),
+    handleRevokeAuthorization: () => void revokeAuthorization(),
   };
 }

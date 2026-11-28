@@ -218,7 +218,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
           canEditBranding,
           onAddShow: () => handleAddShow(),
           onEditPhoto: () => setShowPhotoDialog(true),
-          onAuthorize: authorizationControl.handleAuthorizeClub,
+          onOpenOnboarding: () => navigate('/admin/onboarding'),
           onRequestRevoke: () => setShowRevokeConfirm(true),
         })
       : [],

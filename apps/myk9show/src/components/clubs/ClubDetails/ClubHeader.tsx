@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { MapPin, Award, Shield, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CoverImageUpload } from '@/components/ui/cover-image-upload';
@@ -22,7 +23,7 @@ interface ClubHeaderProps {
   canEditBranding?: boolean;
   // MYK9-572: who may authorize (site admin) and the club's state, for the
   // waiting-for-approval badge and notice. isClubAuthorized is undefined while loading.
-  // The Authorize / Revoke action itself is in the header Actions menu.
+  // Revoke is in the header Actions menu; approving a waiting club is on Onboarding.
   canAuthorizeClub?: boolean;
   isClubAuthorized?: boolean | undefined;
 }
@@ -197,9 +198,17 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
           data-testid="club-unauthorized-notice"
           className="max-w-2xl text-sm text-muted-foreground"
         >
-          {canAuthorizeClub
-            ? 'Waiting for myK9Show approval. Authorize this club from the Actions menu at the top of the page to unlock show publishing and the public club directory.'
-            : 'Waiting for myK9Show approval. A myK9 operator reviews every new club, usually within a day. Meanwhile you can build draft shows and connect the bank account on the Payments tab. Nothing is public until the club is approved.'}
+          {canAuthorizeClub ? (
+            <>
+              Waiting for myK9Show approval. Approve this club on{' '}
+              <Link to="/admin/onboarding" className="font-medium text-primary underline">
+                Onboarding
+              </Link>{' '}
+              to unlock show publishing and the public club directory.
+            </>
+          ) : (
+            'Waiting for myK9Show approval. A myK9 operator reviews every new club, usually within a day. Meanwhile you can build draft shows and connect the bank account on the Payments tab. Nothing is public until the club is approved.'
+          )}
         </p>
       )}
     </>

@@ -399,6 +399,7 @@ test.describe('Clubs UI — Non-admin permissions', () => {
       'Edit club',
       'Change Photo',
       'Authorize Club',
+      'Approve in Onboarding',
       'Revoke Authorization',
       'Add Show for this club',
     ]) {

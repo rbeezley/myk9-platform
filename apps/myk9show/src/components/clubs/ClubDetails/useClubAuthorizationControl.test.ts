@@ -140,23 +140,12 @@ describe('useClubAuthorizationControl', () => {
     expect(result.current.canAuthorizeClub).toBe(false);
   });
 
-  it('handleAuthorizeClub calls the RPC, forces a club resync, invalidates the authorization query, and toasts success', async () => {
-    mockedSetClubAuthorization.mockResolvedValue(undefined);
-    const { wrapper, invalidateQueries } = createWrapper();
+  it("offers no way to authorize from the club page: approval is Onboarding's one Approve", () => {
+    const { wrapper } = createWrapper();
     const { result } = renderHook(() => useClubAuthorizationControl(makeClub(null), true), {
       wrapper,
     });
-
-    await act(async () => {
-      result.current.handleAuthorizeClub();
-    });
-
-    await waitFor(() => {
-      expect(mockedSetClubAuthorization).toHaveBeenCalledWith('club-1', true);
-    });
-    expect(mockEnsureClubsReady).toHaveBeenCalledWith({ requestedClubId: 'club-1', force: true });
-    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['club-authorization', 'club-1'] });
-    expect(mockedNotifications.success).toHaveBeenCalledWith('Club authorized.');
+    expect(result.current).not.toHaveProperty('handleAuthorizeClub');
   });
 
   it('handleRevokeAuthorization calls the RPC with false and toasts the revoke message', async () => {
@@ -207,12 +196,13 @@ describe('useClubAuthorizationControl', () => {
   it('toasts an error and does not throw when the RPC fails', async () => {
     mockedSetClubAuthorization.mockRejectedValue(new Error('nope'));
     const { wrapper } = createWrapper();
-    const { result } = renderHook(() => useClubAuthorizationControl(makeClub(null), true), {
-      wrapper,
-    });
+    const { result } = renderHook(
+      () => useClubAuthorizationControl(makeClub('2026-01-01T00:00:00Z'), true),
+      { wrapper }
+    );
 
     await act(async () => {
-      result.current.handleAuthorizeClub();
+      result.current.handleRevokeAuthorization();
     });
 
     await waitFor(() => {
@@ -226,7 +216,7 @@ describe('useClubAuthorizationControl', () => {
     const { result } = renderHook(() => useClubAuthorizationControl(null, true), { wrapper });
 
     await act(async () => {
-      result.current.handleAuthorizeClub();
+      result.current.handleRevokeAuthorization();
     });
 
     expect(mockedSetClubAuthorization).not.toHaveBeenCalled();

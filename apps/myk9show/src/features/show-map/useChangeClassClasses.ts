@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { getTrialRegistry } from '@/features/registries';
 import { queryKeys } from '@/lib/queryClient';
 
 import { replicatedClassesTable, replicatedTrialsTable } from '@/services/replication';
@@ -43,6 +44,7 @@ export function useChangeClassClasses(showId: string): ChangeClassClass[] | unde
             .map((cls): ChangeClassClass => ({
               id: cls.id,
               trialId: trial.id,
+              registryId: getTrialRegistry(trial).id,
               name: cls.name,
               ...(cls.element && { element: cls.element }),
               ...(cls.level && { level: cls.level }),

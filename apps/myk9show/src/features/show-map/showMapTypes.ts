@@ -123,6 +123,8 @@ export interface ShowMapTree {
 
 export interface ShowMapClassInput {
   id: string;
+  /** The trial's registry id, for registry-specific wording where there is no tree (Change class note). */
+  registryId?: string | undefined;
   trialId: string;
   name: string;
   element?: string | undefined;

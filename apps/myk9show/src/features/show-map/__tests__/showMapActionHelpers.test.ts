@@ -138,7 +138,7 @@ describe('showMapActionHelpers', () => {
     expect(canMoveUpEntry(makeNode({ id: 'class:not-an-entry', type: 'class' }), tree)).toBe(false);
   });
 
-  it('offers Move up only before the dog runs, in a class that has not started (owner, 2026-10-03)', () => {
+  it('offers Move up only while the dog has not run, in a class that is not finished (owner, 2026-11-26, MYK9-2476)', () => {
     const classNode = (kind: 'neutral' | 'active' | 'complete') =>
       ({
         nodesById: {
@@ -157,10 +157,11 @@ describe('showMapActionHelpers', () => {
         ...(kind && { status: { value: kind, label: kind, kind } }),
       });
 
-    expect(canMoveUpEntry(entry(), classNode('active'))).toBe(false);
+    expect(canMoveUpEntry(entry(), classNode('active'))).toBe(true);
     expect(canMoveUpEntry(entry(), classNode('complete'))).toBe(false);
     expect(canMoveUpEntry(entry('complete'), classNode('neutral'))).toBe(false);
     expect(canMoveUpEntry(entry('active'), classNode('neutral'))).toBe(false);
+    expect(canMoveUpEntry(entry('complete'), classNode('active'))).toBe(false);
     expect(canMoveUpEntry(entry(), classNode('neutral'))).toBe(true);
   });
 

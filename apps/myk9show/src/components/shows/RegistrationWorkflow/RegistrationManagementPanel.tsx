@@ -16,7 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
-import { PermissionGuard } from '@/components/auth/PermissionGuard';
+import { PermissionGuard } from '@/components/rbac/PermissionGuard';
 import {
   getPaymentMethodDisplay,
   getPaymentStatusBadgeColor,
@@ -63,7 +63,7 @@ export const RegistrationManagementPanel: React.FC<RegistrationManagementPanelPr
   };
 
   return (
-    <PermissionGuard permission="registration:manage_status">
+    <PermissionGuard permission="registration:manage_status" showFallback={false}>
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Registration Management</CardTitle>

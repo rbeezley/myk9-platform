@@ -4,15 +4,16 @@
  * Created: December 2024
  */
 
-import React, { ReactNode, useEffect, useState } from 'react';
+import React, { ReactNode } from 'react';
 import { useRBAC } from '@/hooks/useRBAC';
+import { isRoleAssignmentCurrent } from '@/services/rbac/roleAssignment';
 import { Lock, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { logger } from '@/services/LoggingService';
 
 interface PermissionGuardProps {
   children: ReactNode;
-  permission: string;
+  /** Single permission code. Empty or omitted means no single-permission check. */
+  permission?: string | undefined;
   scope?:
     | {
         type: string;
@@ -20,23 +21,21 @@ interface PermissionGuardProps {
       }
     | undefined;
   fallback?: ReactNode | undefined;
+  /** When false, a denied (or still loading) guard renders nothing. */
   showFallback?: boolean | undefined;
   requireAll?: string[] | undefined; // Require all these permissions
   requireAny?: string[] | undefined; // Require any of these permissions
-  roles?: string[] | undefined; // Alternative: check for specific roles
+  roles?: string[] | undefined; // Require any one of these (current) roles
   onPermissionDenied?: (() => void) | undefined;
   loading?: ReactNode | undefined;
   className?: string | undefined;
 }
 
 /**
- * Enhanced PermissionGuard that supports:
- * - Single permission checking
- * - Multiple permission checking (all or any)
- * - Role-based checking
- * - Scoped permissions
- * - Custom fallbacks
- * - Loading states
+ * The one PermissionGuard. Every check that is given must pass (AND): the
+ * single permission, all of requireAll, any of requireAny, and any of roles.
+ * Permission checks go through useRBAC (scope-aware); role checks ignore
+ * inactive and expired assignments. With no check given, access is denied.
  */
 export const PermissionGuard: React.FC<PermissionGuardProps> = ({
   children,
@@ -51,77 +50,37 @@ export const PermissionGuard: React.FC<PermissionGuardProps> = ({
   loading,
   className,
 }) => {
-  const { hasPermission, userRoles, isLoading: rbacLoading } = useRBAC();
+  const { hasPermission, userRoles, isLoading } = useRBAC();
 
-  const [hasAccess, setHasAccess] = useState(false);
-  const [isChecking, setIsChecking] = useState(true);
-
-  useEffect(() => {
-    const checkPermissions = async () => {
-      setIsChecking(true);
-
-      try {
-        let granted = false;
-
-        // Single permission check
-        if (permission && !requireAll && !requireAny && !roles) {
-          granted = hasPermission(permission, scope);
-        }
-
-        // Multiple permissions - require all
-        if (requireAll && requireAll.length > 0) {
-          granted = requireAll.every(perm => hasPermission(perm, scope));
-        }
-
-        // Multiple permissions - require any
-        if (requireAny && requireAny.length > 0) {
-          granted = requireAny.some(perm => hasPermission(perm, scope));
-        }
-
-        // Role-based checking
-        if (roles && roles.length > 0) {
-          const userRoleNames = userRoles
-            .filter(ur => ur.is_active)
-            .map(ur => ur.role?.name)
-            .filter(Boolean);
-
-          granted = roles.some(role => userRoleNames.includes(role));
-        }
-
-        setHasAccess(granted);
-
-        // Callback for permission denied
-        if (!granted && onPermissionDenied) {
-          onPermissionDenied();
-        }
-      } catch (error) {
-        logger.error('Permission check failed:', 'components', {}, error as Error);
-        setHasAccess(false);
-      } finally {
-        setIsChecking(false);
-      }
-    };
-
-    if (!rbacLoading) {
-      checkPermissions();
+  let hasAccess = false;
+  if (!isLoading) {
+    const checks: boolean[] = [];
+    if (permission) checks.push(hasPermission(permission, scope));
+    // A list that is given counts even when empty: nothing matches an empty
+    // requireAny or roles list, so it denies. An empty requireAll asks nothing.
+    if (requireAll && requireAll.length > 0) {
+      checks.push(requireAll.every(perm => hasPermission(perm, scope)));
     }
-  }, [
-    permission,
-    scope,
-    requireAll,
-    requireAny,
-    roles,
-    hasPermission,
-    userRoles,
-    rbacLoading,
-    onPermissionDenied,
-  ]);
-
-  // Show loading state
-  if (rbacLoading || isChecking) {
-    if (loading) {
-      return <>{loading}</>;
+    if (requireAny) {
+      checks.push(requireAny.some(perm => hasPermission(perm, scope)));
     }
+    if (roles) {
+      const current = new Set(
+        userRoles.filter(ur => isRoleAssignmentCurrent(ur)).map(ur => ur.role?.name)
+      );
+      checks.push(roles.some(role => current.has(role)));
+    }
+    hasAccess = checks.length > 0 && checks.every(Boolean);
+  }
+
+  const denied = !isLoading && !hasAccess;
+  React.useEffect(() => {
+    if (denied && onPermissionDenied) onPermissionDenied();
+  }, [denied, onPermissionDenied]);
+
+  if (isLoading) {
+    if (loading) return <>{loading}</>;
+    if (!showFallback) return null;
 
     return (
       <div className={`flex items-center justify-center p-4 ${className || ''}`}>
@@ -131,12 +90,10 @@ export const PermissionGuard: React.FC<PermissionGuardProps> = ({
     );
   }
 
-  // Permission granted - render children
   if (hasAccess) {
     return <>{children}</>;
   }
 
-  // Permission denied - show fallback or nothing
   if (!showFallback) {
     return null;
   }
@@ -145,7 +102,6 @@ export const PermissionGuard: React.FC<PermissionGuardProps> = ({
     return <>{fallback}</>;
   }
 
-  // Default permission denied message
   return (
     <div className={`p-4 ${className || ''}`}>
       <Alert variant="destructive">
@@ -188,7 +144,7 @@ export const IfRole: React.FC<{
 
   const roleArray = Array.isArray(roles) ? roles : [roles];
   const userRoleNames = userRoles
-    .filter(ur => ur.is_active)
+    .filter(ur => isRoleAssignmentCurrent(ur))
     .map(ur => ur.role?.name)
     .filter(Boolean);
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
-import { useRBAC, useRole, useIsAdmin } from './useRBAC';
+import { useRBAC, useRole, useIsAdmin, useRoleBasedPermissions } from './useRBAC';
 
 vi.mock('./useAuthContext', () => ({
   useAuthContext: vi.fn(),
@@ -322,5 +322,57 @@ describe('useIsAdmin', () => {
 
     const { result } = renderHook(() => useIsAdmin());
     await waitFor(() => expect(result.current.isAdmin).toBe(expected));
+  });
+});
+
+describe('useRoleBasedPermissions — parity with useRBAC / useIsAdmin', () => {
+  it('passes scope through to the context permission check', () => {
+    const ctx = mockSharedAccessContext({ hasPermission: vi.fn(() => true) });
+    const { result } = renderHook(() => useRoleBasedPermissions());
+    const scope = { type: 'show', id: 'show-1' };
+
+    result.current.hasPermission('entry:update', scope);
+
+    expect(ctx.hasPermission).toHaveBeenCalledWith('entry:update', scope);
+  });
+
+  it('isAdmin follows admin:manage, like useIsAdmin', () => {
+    mockSharedAccessContext({
+      hasPermission: vi.fn((permission: string) => permission === 'admin:manage'),
+      rbacUserRoles: [],
+    });
+    const combined = renderHook(() => useRoleBasedPermissions());
+    const admin = renderHook(() => useIsAdmin());
+
+    expect(combined.result.current.isAdmin).toBe(true);
+    expect(admin.result.current.isAdmin).toBe(true);
+  });
+
+  it('a site_admin role row without admin:manage is not an admin', () => {
+    mockSharedAccessContext({
+      hasPermission: vi.fn(() => false),
+      rbacUserRoles: [{ is_active: true, role: { name: 'site_admin' } }],
+    });
+    const combined = renderHook(() => useRoleBasedPermissions());
+    const admin = renderHook(() => useIsAdmin());
+
+    expect(combined.result.current.isAdmin).toBe(admin.result.current.isAdmin);
+    expect(combined.result.current.isAdmin).toBe(false);
+  });
+
+  it('hasRole ignores an expired assignment', () => {
+    mockSharedAccessContext({
+      rbacUserRoles: [
+        {
+          is_active: true,
+          expires_at: new Date(Date.now() - 86_400_000).toISOString(),
+          role: { name: 'secretary' },
+        },
+      ],
+    });
+    const { result } = renderHook(() => useRoleBasedPermissions());
+
+    expect(result.current.hasRole('secretary')).toBe(false);
+    expect(result.current.isSecretary).toBe(false);
   });
 });

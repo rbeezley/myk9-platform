@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { PermissionGuard } from '@/components/auth/PermissionGuard';
+import { PermissionGuard } from '@/components/rbac/PermissionGuard';
 import { REGISTRATION_PERMISSIONS } from '@/hooks/useRegistrationPermissions';
 import { UserRole } from '@/types/auth-types';
 import type { PaymentDetails, PaymentMethod } from '@/types/show-registration-types';
@@ -233,7 +233,11 @@ export const StaffPaymentChoices: React.FC<StaffPaymentChoicesProps> = ({
             )}
           </ChoiceGroup>
         )}
-        <PermissionGuard permission={REGISTRATION_PERMISSIONS.MARK_PAYMENT} role={STAFF_ROLES}>
+        <PermissionGuard
+          permission={REGISTRATION_PERMISSIONS.MARK_PAYMENT}
+          roles={STAFF_ROLES}
+          showFallback={false}
+        >
           <ChoiceGroup id="staff-payment-paid" title="Paid with the entry">
             {paymentMethod === 'secretary_paid' && !fields.receivedMethod && (
               <p role="status" className="text-sm text-muted-foreground">
@@ -303,7 +307,7 @@ export const StaffPaymentChoices: React.FC<StaffPaymentChoicesProps> = ({
         )}
 
         {allowFreeEntry && (
-          <PermissionGuard permission="registration:override_fees">
+          <PermissionGuard permission="registration:override_fees" showFallback={false}>
             <ChoiceGroup id="staff-payment-free" title="No fee">
               {card('waived', Tag, 'Free entry', 'No entry fees are charged.')}
               {isSelected('waived') && (
@@ -333,7 +337,7 @@ export const StaffPaymentChoices: React.FC<StaffPaymentChoicesProps> = ({
         )}
 
         {allowFreeEntry && (
-          <PermissionGuard permission="registration:override_fees">
+          <PermissionGuard permission="registration:override_fees" showFallback={false}>
             <p className="text-xs text-muted-foreground">
               To accept an entry or move it to the waitlist, set it back to unpaid, or mark several
               entries paid at once, use Entry management after you save.

@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { EntryClosedNotice } from '@/components/shows/browse/EntryClosedNotice';
 import { ShowCalendar } from '@/components/common/LazyComponents';
-import { PermissionGuard } from '@/components/auth/PermissionGuard';
+import { PermissionGuard } from '@/components/rbac/PermissionGuard';
 import '@/styles/myk9-show-details.css';
 
 import {
@@ -336,7 +336,7 @@ const BrowseShowsPage: React.FC = () => {
               action.icon
             ] || Plus;
           return action.permission ? (
-            <PermissionGuard key={action.id} permission={action.permission}>
+            <PermissionGuard key={action.id} permission={action.permission} showFallback={false}>
               <Button
                 variant={action.variant}
                 size="default"

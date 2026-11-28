@@ -121,7 +121,7 @@ vi.mock('@/components/shows/browse', () => ({
   ),
 }));
 
-vi.mock('@/components/auth/PermissionGuard', () => ({
+vi.mock('@/components/rbac/PermissionGuard', () => ({
   PermissionGuard: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 vi.mock('@/styles/myk9-show-details.css', () => ({}));

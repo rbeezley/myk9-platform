@@ -20,7 +20,7 @@ import { Button } from '@/components/ui/button';
 // Hooks and services
 import { useAdminUsersQuery, useUpdateUserMutation } from '@/hooks/queries/useUsersQuery';
 import { User } from '@/types/user-types';
-import { getUserFriendlyError } from '@/utils/errorMessages';
+import { loadFailureDescription } from './clubReviewErrors';
 // Components
 import { UserTable } from '@/components/admin/users/UserTable';
 import { CreateUserDialog } from '@/components/admin/users/CreateUserDialog';
@@ -335,7 +335,7 @@ const UserManagementPage: React.FC = () => {
       {error && !isLoading && !isRosterOffline && (
         <ErrorState
           message="Failed to load users."
-          description={getUserFriendlyError(error, 'Check your connection and try again.')}
+          description={loadFailureDescription(error)}
           onRetry={() => refetch()}
         />
       )}

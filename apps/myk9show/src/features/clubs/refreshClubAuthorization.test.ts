@@ -34,6 +34,6 @@ describe('refreshClubAuthorization (MYK9-2153)', () => {
       clubId: CLUB_ID,
     });
 
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['admin', 'overview'] });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['club-access-requests'] });
   });
 });

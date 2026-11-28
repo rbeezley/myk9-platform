@@ -10,7 +10,6 @@ const COUNTS = {
   entriesToday: 41,
   signupsToday: 7,
   showsCreatedToday: 2,
-  clubRequestsWaiting: 4,
 };
 
 function cell(label: string) {
@@ -19,7 +18,7 @@ function cell(label: string) {
 
 describe('TodayCounts', () => {
   it('Signups links to /admin/users and the roster actually applies that filter', () => {
-    render(<TodayCounts counts={COUNTS} now={NOW} />);
+    render(<TodayCounts counts={COUNTS} clubsWaiting={4} now={NOW} />);
     const link = within(cell('Signups')).getByRole('link');
     expect(link).toHaveClass('min-h-11');
 
@@ -33,7 +32,7 @@ describe('TodayCounts', () => {
   });
 
   it('Club requests waiting shows the count and opens the onboarding inbox', () => {
-    render(<TodayCounts counts={COUNTS} now={NOW} />);
+    render(<TodayCounts counts={COUNTS} clubsWaiting={4} now={NOW} />);
     expect(cell('Club requests waiting')).toHaveTextContent('4');
     expect(within(cell('Club requests waiting')).getByRole('link')).toHaveAttribute(
       'href',
@@ -44,15 +43,15 @@ describe('TodayCounts', () => {
   it.each(['Entries', 'Shows created', 'Live shows'])(
     '%s has no destination that applies its filter, so it renders static',
     label => {
-      render(<TodayCounts counts={COUNTS} now={NOW} />);
+      render(<TodayCounts counts={COUNTS} clubsWaiting={4} now={NOW} />);
       expect(within(cell(label)).queryByRole('link')).not.toBeInTheDocument();
     }
   );
 
   it('shows the numbers, with a dash while they load', () => {
-    const { rerender } = render(<TodayCounts counts={COUNTS} now={NOW} />);
+    const { rerender } = render(<TodayCounts counts={COUNTS} clubsWaiting={4} now={NOW} />);
     expect(cell('Live shows')).toHaveTextContent('3');
-    rerender(<TodayCounts counts={undefined} now={NOW} />);
+    rerender(<TodayCounts counts={undefined} clubsWaiting={undefined} now={NOW} />);
     expect(cell('Signups')).toHaveTextContent('—');
   });
 });

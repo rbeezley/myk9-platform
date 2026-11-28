@@ -6,6 +6,9 @@
  * on them — four numbers paid for with three unbounded table reads. PostgREST's
  * `head: true` with an exact count returns the number and no rows at all.
  *
+ * The clubs waiting for approval are NOT counted here (MYK9-2529): the dashboard reads the
+ * same `useWaitingClubs` list Onboarding shows, so the two numbers cannot disagree.
+ *
  * Deliberate reads straight from Supabase: this is server-authoritative admin
  * data, not show-day data, so it does not belong in `@myk9/replication`.
  */
@@ -21,8 +24,6 @@ export interface AdminOverviewCounts {
   /** Shows CREATED today. There is no `published_at` column, so this is not
    * "published today" and the UI must not label it as such. */
   showsCreatedToday: number;
-  /** Club requests still waiting on a decision (not limited to today). */
-  clubRequestsWaiting: number;
 }
 
 /** `head: true` with an exact count returns the number and zero rows. */
@@ -64,34 +65,28 @@ async function fetchOverviewCounts(now: number): Promise<AdminOverviewCounts> {
   // `shows.status` does not have — so it reported 0 live shows while a show
   // was running. `deleted_at` is required because the site-admin RLS policy
   // deliberately exposes soft-deleted rows.
-  const [liveShows, entriesToday, signupsToday, showsCreatedToday, clubRequestsWaiting] =
-    await Promise.all([
-      supabase
-        .from('shows')
-        .select(COUNT_COLUMN, HEAD_COUNT)
-        .eq('status', 'published')
-        .is('deleted_at', null)
-        .lte('start_date', easternMidnightUtc)
-        .gte('end_date', easternMidnightUtc),
-      supabase.from('entries').select(COUNT_COLUMN, HEAD_COUNT).gte('created_at', dayStart),
-      supabase.from('people').select(COUNT_COLUMN, HEAD_COUNT).gte('created_at', dayStart),
-      supabase
-        .from('shows')
-        .select(COUNT_COLUMN, HEAD_COUNT)
-        .is('deleted_at', null)
-        .gte('created_at', dayStart),
-      supabase
-        .from('club_access_requests')
-        .select(COUNT_COLUMN, HEAD_COUNT)
-        .eq('status', 'pending'),
-    ]);
+  const [liveShows, entriesToday, signupsToday, showsCreatedToday] = await Promise.all([
+    supabase
+      .from('shows')
+      .select(COUNT_COLUMN, HEAD_COUNT)
+      .eq('status', 'published')
+      .is('deleted_at', null)
+      .lte('start_date', easternMidnightUtc)
+      .gte('end_date', easternMidnightUtc),
+    supabase.from('entries').select(COUNT_COLUMN, HEAD_COUNT).gte('created_at', dayStart),
+    supabase.from('people').select(COUNT_COLUMN, HEAD_COUNT).gte('created_at', dayStart),
+    supabase
+      .from('shows')
+      .select(COUNT_COLUMN, HEAD_COUNT)
+      .is('deleted_at', null)
+      .gte('created_at', dayStart),
+  ]);
 
   return {
     liveShows: countFrom(liveShows),
     entriesToday: countFrom(entriesToday),
     signupsToday: countFrom(signupsToday),
     showsCreatedToday: countFrom(showsCreatedToday),
-    clubRequestsWaiting: countFrom(clubRequestsWaiting),
   };
 }
 

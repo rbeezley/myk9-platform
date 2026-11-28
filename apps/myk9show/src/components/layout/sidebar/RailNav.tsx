@@ -201,7 +201,17 @@ function RailMenu({ title, icon: Icon, sections, isActive }: RailMenuProps) {
                           : 'text-foreground hover:bg-muted/50'
                       )}
                     >
-                      <span>{item.title}</span>
+                      <span className="flex items-center justify-between gap-2">
+                        {item.title}
+                        {item.badge && (
+                          <span
+                            aria-label={`${item.badge} waiting`}
+                            className="rounded-full bg-primary px-1.5 text-xs font-semibold leading-5 text-primary-foreground"
+                          >
+                            {item.badge}
+                          </span>
+                        )}
+                      </span>
                       {item.description && (
                         <span className="text-xs text-muted-foreground">{item.description}</span>
                       )}

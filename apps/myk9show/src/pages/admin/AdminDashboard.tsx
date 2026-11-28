@@ -27,6 +27,7 @@ import { useNow } from '@/hooks/useNow';
 import { Link } from 'react-router-dom';
 import { Settings, Users } from 'lucide-react';
 import { TodayCounts } from './AdminDashboard/TodayCounts';
+import { useWaitingClubs } from './useWaitingClubs';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -117,6 +118,7 @@ export default function AdminDashboard() {
   const health = useSystemHealthSnapshots();
   const alerts = useOperatorAlerts();
   const overview = useAdminOverview(now);
+  const clubsWaiting = useWaitingClubs({ poll: true });
   const sentry = useSentryDashboardMetrics();
   const latest = health.data?.latest ?? null;
   const checks = useMemo(() => latest?.checks ?? [], [latest]);
@@ -265,7 +267,7 @@ export default function AdminDashboard() {
               <aside className="flex flex-col gap-[18px]">
                 <BoardCard>
                   <Eyebrow as="h2">Today at a glance</Eyebrow>
-                  <TodayCounts counts={counts} now={now} />
+                  <TodayCounts counts={counts} clubsWaiting={clubsWaiting.count} now={now} />
                   {/* Fees processed is the fourth number the design asks for. It
                       has no clean source — money lives in Stripe and there is no
                       payments table — so it is left out rather than approximated. */}

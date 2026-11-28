@@ -15,9 +15,11 @@ import { RoleSidebar } from '@/components/layout/sidebar';
 import { useSidebarLayoutState } from '@/hooks/useSidebarLayoutState';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { UserRole } from '@/types/auth-types';
 import { useClubStore } from '@/store/clubStore';
 import { useRegisterAppShellMobileNav } from './useAppShellMobileNav';
 import { buildUnifiedSidebarConfig } from './sidebar/unifiedSidebarConfig';
+import { useWaitingClubs } from '@/pages/admin/useWaitingClubs';
 import { useCurrentShow } from './sidebar/useCurrentShow';
 import { useRememberBrowseList } from './sidebar/useRememberBrowseList';
 import type { ClubContext } from './sidebar/unifiedSidebarConfig';
@@ -46,9 +48,13 @@ export const UnifiedAppLayout: React.FC = () => {
     };
   }, [validatedClubContext]);
   const { currentShow } = useCurrentShow();
+  // MYK9-2529: the Admin menu's Onboarding count is the length of Onboarding's own list.
+  const isSiteAdmin = roles.includes(UserRole.SITE_ADMIN);
+  const { count: clubsWaiting } = useWaitingClubs({ enabled: isSiteAdmin, poll: true });
   const sidebarConfig = useMemo(
-    () => buildUnifiedSidebarConfig(roles, clubContext, firstName, { currentShow }),
-    [roles, clubContext, firstName, currentShow]
+    () =>
+      buildUnifiedSidebarConfig(roles, clubContext, firstName, { currentShow }, { clubsWaiting }),
+    [roles, clubContext, firstName, currentShow, clubsWaiting]
   );
   useRememberBrowseList(sidebarConfig);
   const { mobileOpen, setMobileOpen } = useSidebarLayoutState();

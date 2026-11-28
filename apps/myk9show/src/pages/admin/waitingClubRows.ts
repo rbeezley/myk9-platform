@@ -20,6 +20,8 @@ export interface WaitingClubRow {
   createdAt: string | null;
 }
 
+const NO_DECLINED_CLUBS: ReadonlySet<string> = new Set();
+
 /**
  * MYK9-2527: one list, one row per club. The unauthorized clubs are the spine; each is
  * joined to its pending request (by `created_club_id`) so a club the requester just made
@@ -32,7 +34,8 @@ export interface WaitingClubRow {
 export function buildWaitingClubRows(
   clubs: readonly WaitingClub[],
   requests: readonly ClubAccessRequest[],
-  clubsOnly = false
+  clubsOnly = false,
+  declinedClubIds: ReadonlySet<string> = NO_DECLINED_CLUBS
 ): WaitingClubRow[] {
   const pending = requests.filter(request => request.status === 'pending');
   const requestByClub = new Map<string, ClubAccessRequest>();
@@ -42,7 +45,11 @@ export function buildWaitingClubRows(
     }
   }
 
-  const rows: WaitingClubRow[] = clubs.map(club => {
+  // MYK9-2528: a declined club that was kept stays unauthorized but is no longer waiting,
+  // unless a new request has been made for it.
+  const waiting = clubs.filter(club => requestByClub.has(club.id) || !declinedClubIds.has(club.id));
+
+  const rows: WaitingClubRow[] = waiting.map(club => {
     const request = requestByClub.get(club.id) ?? null;
     return {
       key: club.id,

@@ -206,7 +206,9 @@ describe('useClubAuthorizationControl', () => {
     });
 
     await waitFor(() => {
-      expect(mockedNotifications.error).toHaveBeenCalledWith('nope');
+      expect(mockedNotifications.error).toHaveBeenCalledWith(
+        "We couldn't update this club. Nothing was changed. Try again."
+      );
     });
     expect(result.current.isAuthorizationUpdating).toBe(false);
   });

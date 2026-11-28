@@ -22,7 +22,7 @@ import { setClubAuthorization } from '@/services/database/clubs';
 import { refreshClubAuthorization } from '@/features/clubs/refreshClubAuthorization';
 import { useClubStore } from '@/store/clubStore';
 import { notifications } from '@/lib/notifications';
-import { getErrorMessage } from '@myk9/core';
+import { clubReviewErrorMessage } from '@/pages/admin/clubReviewErrors';
 import type { Club } from '@/types/club-types';
 
 export function useClubAuthorizationControl(club: Club | null | undefined, isSiteAdmin: boolean) {
@@ -53,7 +53,7 @@ export function useClubAuthorizationControl(club: Club | null | undefined, isSit
           `${done} This page could not update yet. Restart the app to see the change.`
         );
     } catch (error) {
-      notifications.error(getErrorMessage(error) || 'Could not update club authorization.');
+      notifications.error(clubReviewErrorMessage(error, 'update this club'));
     } finally {
       setIsUpdating(false);
     }

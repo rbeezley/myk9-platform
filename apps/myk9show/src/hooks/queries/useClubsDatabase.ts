@@ -84,8 +84,9 @@ export const useClubsQuery = () => {
  * the server so it is complete at any club count. The key sits under lists(),
  * so existing lists() and all invalidations refresh it.
  */
-export const useClubsAwaitingAuthorizationQuery = (createdBy?: string) => {
+export const useClubsAwaitingAuthorizationQuery = (createdBy?: string, enabled = true) => {
   return useQuery({
+    enabled,
     queryKey: clubQueryKeys.awaitingAuthorization(createdBy),
     queryFn: async () => {
       const { data, error } = await getClubsAwaitingAuthorization(createdBy);

@@ -32,7 +32,7 @@ const PRINTED_DOCUMENT =
 const ALLOWLIST: Record<string, string> = {
   'components/common/ArmbandBadge.tsx': 'The badge itself.',
   'components/reports/labels/ResultLabelCell.tsx':
-    'Printed result label branch (the on-screen preview passes `screen` and renders the badge).',
+    'Result label cell: the on-screen label preview draws this same cell and must match the physical label by design (owner decision, MYK9-2534).',
   'components/reports/AKCScentWorkTransferFormPreview.tsx': PRINTED_DOCUMENT,
   'components/reports/AkcMarkedCatalogClass.tsx': PRINTED_DOCUMENT,
   'components/reports/FinancialReport.tsx': PRINTED_DOCUMENT,

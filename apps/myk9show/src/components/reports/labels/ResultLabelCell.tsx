@@ -1,4 +1,3 @@
-import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { formatPacketArmband } from '@/features/emergency-trial-packet/armband';
 import React from 'react';
 import type { ResultLabelItem } from '@/lib/labels/resultLabelData';
@@ -65,20 +64,13 @@ const styles = {
   } as React.CSSProperties,
 };
 
-export const ResultLabelCell: React.FC<{ item: ResultLabelItem; screen?: boolean }> = ({
-  item,
-  screen = false,
-}) => {
+export const ResultLabelCell: React.FC<{ item: ResultLabelItem }> = ({ item }) => {
   const metaLine = [item.showName, item.trialClassLine].filter(Boolean).join(' — ');
 
   return (
     <div style={styles.label}>
       <div style={styles.head}>
-        {screen ? (
-          <ArmbandBadge armband={item.armband} className="h-5 min-w-5 text-xs" />
-        ) : (
-          <span style={styles.armband}>#{formatPacketArmband(item.armband)}</span>
-        )}
+        <span style={styles.armband}>#{formatPacketArmband(item.armband)}</span>
         <span style={styles.name}>{item.callName}</span>
       </div>
       {item.handler && <div style={styles.handler}>{item.handler}</div>}

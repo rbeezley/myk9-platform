@@ -63,10 +63,14 @@ export function useClassChangeSwitch(
   const [pending, setPending] = useState<boolean | null>(null);
   const mutation = useMutation({
     mutationFn: async (enabled: boolean) => {
+      // An UPDATE the shows policy filters out returns no error and no row, so ask for the
+      // row back: `.single()` fails unless exactly this show was saved.
       const { error } = await supabase
         .from('shows')
         .update(payloadFor(name, enabled))
-        .eq('id', showId);
+        .eq('id', showId)
+        .select('id')
+        .single();
       if (error) throw error;
     },
     onMutate: enabled => setPending(enabled),

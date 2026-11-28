@@ -4,15 +4,27 @@ import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { ClassChangeSettingsCard } from '../ClassChangeSettingsCard';
 
-const { mockFrom, mockSingle, mockSelect, mockUpdate, mockUpdateEq } = vi.hoisted(() => {
-  const mockSingle = vi.fn();
-  const mockEq = vi.fn(() => ({ single: mockSingle }));
-  const mockSelect = vi.fn(() => ({ eq: mockEq }));
-  const mockUpdateEq = vi.fn();
-  const mockUpdate = vi.fn(() => ({ eq: mockUpdateEq }));
-  const mockFrom = vi.fn((_table?: string) => ({ select: mockSelect, update: mockUpdate }));
-  return { mockFrom, mockSingle, mockSelect, mockUpdate, mockUpdateEq };
-});
+const { mockFrom, mockSingle, mockSelect, mockUpdate, mockUpdateEq, mockUpdateSelect, mockSaved } =
+  vi.hoisted(() => {
+    const mockSingle = vi.fn();
+    const mockEq = vi.fn(() => ({ single: mockSingle }));
+    const mockSelect = vi.fn(() => ({ eq: mockEq }));
+    // update(...).eq(...).select('id').single(): the save must hand back the one row it wrote.
+    const mockSaved = vi.fn();
+    const mockUpdateSelect = vi.fn(() => ({ single: mockSaved }));
+    const mockUpdateEq = vi.fn(() => ({ select: mockUpdateSelect }));
+    const mockUpdate = vi.fn(() => ({ eq: mockUpdateEq }));
+    const mockFrom = vi.fn((_table?: string) => ({ select: mockSelect, update: mockUpdate }));
+    return {
+      mockFrom,
+      mockSingle,
+      mockSelect,
+      mockUpdate,
+      mockUpdateEq,
+      mockUpdateSelect,
+      mockSaved,
+    };
+  });
 
 vi.mock('@/lib/supabase', () => ({
   supabase: {
@@ -38,7 +50,7 @@ describe('ClassChangeSettingsCard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSingle.mockResolvedValue({ data: makeRow(), error: null });
-    mockUpdateEq.mockResolvedValue({ data: null, error: null });
+    mockSaved.mockResolvedValue({ data: { id: 'show-1' }, error: null });
   });
 
   it('reads only its two columns and shows both switches on by default', async () => {
@@ -84,6 +96,7 @@ describe('ClassChangeSettingsCard', () => {
     expect(mockFrom).toHaveBeenCalledWith('shows');
     expect(mockUpdate).toHaveBeenCalledWith({ allow_same_day_move_ups: false });
     expect(mockUpdateEq).toHaveBeenCalledWith('id', 'show-1');
+    expect(mockUpdateSelect).toHaveBeenCalledWith('id');
     await waitFor(() => expect(toggle).not.toBeChecked());
   });
 
@@ -102,7 +115,7 @@ describe('ClassChangeSettingsCard', () => {
   });
 
   it('a failed save says so and puts the switch back', async () => {
-    mockUpdateEq.mockResolvedValue({ data: null, error: { message: 'permission denied' } });
+    mockSaved.mockResolvedValue({ data: null, error: { message: 'permission denied' } });
     const user = userEvent.setup();
     render(<ClassChangeSettingsCard showId="show-1" />);
     const toggle = await screen.findByRole('switch', {
@@ -114,5 +127,40 @@ describe('ClassChangeSettingsCard', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't save that change");
     expect(toggle).toBeChecked();
+  });
+
+  it('a save the shows policy filtered out (no row back) says so and puts the switch back', async () => {
+    // PostgREST answers an UPDATE that matched no row with no error; .single() turns that into one.
+    mockSaved.mockResolvedValue({
+      data: null,
+      error: { code: 'PGRST116', message: 'JSON object requested, multiple (or no) rows returned' },
+    });
+    const user = userEvent.setup();
+    render(<ClassChangeSettingsCard showId="show-1" />);
+    const toggle = await screen.findByRole('switch', {
+      name: 'Allow requests to move to another trial on the same day',
+    });
+    await waitFor(() => expect(toggle).toBeChecked());
+
+    await user.click(toggle);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't save that change");
+    expect(toggle).toBeChecked();
+  });
+
+  it('a failed read offers Try again instead of switches that claim the show allows changes', async () => {
+    mockSingle.mockResolvedValue({ data: null, error: { message: 'Failed to fetch' } });
+    render(<ClassChangeSettingsCard showId="show-1" />);
+
+    expect(await screen.findByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+  });
+
+  it('keeps both switches locked until the show has been read', () => {
+    mockSingle.mockReturnValue(new Promise(() => {}));
+    render(<ClassChangeSettingsCard showId="show-1" />);
+
+    for (const sw of screen.getAllByRole('switch'))
+      expect(sw).toHaveAttribute('aria-disabled', 'true');
   });
 });

@@ -10,6 +10,7 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -17,6 +18,8 @@ import {
   useClassChangeSwitch,
   type ClassChangeSwitch,
 } from './useClassChangeSwitch';
+
+const CHECKING = "Checking this show's setting.";
 
 function SettingSwitch({
   id,
@@ -59,9 +62,29 @@ function SettingSwitch({
 }
 
 export function ClassChangeSettingsCard({ showId }: { showId: string }) {
-  const { data, isLoading } = useQuery(classChangeSettingsQueryOptions(showId));
+  const { data, isError, refetch, isFetching } = useQuery(classChangeSettingsQueryOptions(showId));
   const afterClose = useClassChangeSwitch(showId, 'afterClose', data?.afterClose);
   const sameDay = useClassChangeSwitch(showId, 'sameDay', data?.sameDay);
+  // Until this show's settings are read, the switches cannot say what the show allows.
+  const unknown = data === undefined;
+
+  if (unknown && isError) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Class changes</CardTitle>
+          <CardDescription>
+            Couldn't load this show's class change settings. Check your connection and try again.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button variant="outline" onClick={() => void refetch()} disabled={isFetching}>
+            Try again
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -77,23 +100,27 @@ export function ClassChangeSettingsCard({ showId }: { showId: string }) {
           id="allow-class-changes-after-close"
           label="Allow class change requests after entries close"
           help={
-            afterClose.checked
-              ? 'Exhibitors can ask to change class until the show is over. You approve each request.'
-              : 'Once entries close, exhibitors cannot ask to change class. They are told to ask you.'
+            unknown
+              ? CHECKING
+              : afterClose.checked
+                ? 'Exhibitors can ask to change class until the show is over. You approve each request.'
+                : 'Once entries close, exhibitors cannot ask to change class. They are told to ask you.'
           }
           control={afterClose}
-          disabled={isLoading}
+          disabled={unknown}
         />
         <SettingSwitch
           id="allow-same-day-move-ups"
           label="Allow requests to move to another trial on the same day"
           help={
-            sameDay.checked
-              ? 'Exhibitors can ask for a class in a different trial on the same day as their entry.'
-              : 'Exhibitors cannot ask for a class in a different trial on the same day. A class in the same trial, or on another day, is still fine.'
+            unknown
+              ? CHECKING
+              : sameDay.checked
+                ? 'Exhibitors can ask for a class in a different trial on the same day as their entry.'
+                : 'Exhibitors cannot ask for a class in a different trial on the same day. A class in the same trial, or on another day, is still fine.'
           }
           control={sameDay}
-          disabled={isLoading}
+          disabled={unknown}
         />
       </CardContent>
     </Card>

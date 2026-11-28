@@ -42,6 +42,28 @@ function isMissingVersionedPublishColumn(error: unknown): boolean {
   );
 }
 
+/**
+ * MYK9-2471: the Chair and Secretary print on the premium but live in show_officials, whose
+ * changes never touch the show row. A replace is revoke (delete) plus grant (insert), so the
+ * newest created_at is the time of the latest assignment. Removing an official with no
+ * replacement, and editing an official's mailing address, leave no timestamp here.
+ */
+async function fetchNewestOfficialChange(showId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('show_officials')
+    .select('created_at')
+    .eq('show_id', showId)
+    .order('created_at', { ascending: false })
+    .limit(1);
+  if (error) throw error;
+  return (data?.[0]?.created_at as string | undefined) ?? null;
+}
+
+function laterOf(a: string | null, b: string | null): string | null {
+  if (!a || !b) return a ?? b;
+  return new Date(b).getTime() > new Date(a).getTime() ? b : a;
+}
+
 export async function fetchPublishInfo(showId: string): Promise<PublishInfo> {
   // Direct query bypasses the IndexedDB-replicated show row, which doesn't
   // include the post-189 premium-publish columns. Read-only and cheap.
@@ -58,6 +80,7 @@ export async function fetchPublishInfo(showId: string): Promise<PublishInfo> {
     ));
   }
   if (error) throw error;
+  const newestOfficialChange = await fetchNewestOfficialChange(showId);
   const row = data as Record<string, unknown> | null;
   const publishedPath = (row?.published_premium_path as string | null) ?? null;
   const legacyPublishedUrl = (row?.published_premium_url as string | null) ?? null;
@@ -71,7 +94,7 @@ export async function fetchPublishInfo(showId: string): Promise<PublishInfo> {
     }),
     publishedPath,
     publishedAt,
-    updatedAt: (row?.updated_at as string | null) ?? null,
+    updatedAt: laterOf((row?.updated_at as string | null) ?? null, newestOfficialChange),
     experienceIsPublished: (row?.experience_is_published as boolean | null) ?? null,
     versionedSchemaAvailable,
   };

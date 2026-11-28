@@ -2,7 +2,7 @@
 
 > **Status:** Active
 
-Linear: MYK9-2485 (owner request, 2026-11-26). Plan only: no code, and none until the owner answers the questions below. Everything here was read in code on 2026-11-27; nothing was walked in the running app yet (that is phase 0).
+Linear: MYK9-2485 (owner request, 2026-11-26). The owner answered all seven questions on 2026-11-28, each as recommended (see "Owner decisions" below). Everything here was read in code on 2026-11-27; nothing was walked in the running app yet (that is phase 0).
 
 **Duplication question (CLAUDE.md):** the exhibitor view and the secretary view of `/shows/:id` are two page designs for one show. Duplication is not justified. The aim is to delete one of them, not to add a third.
 
@@ -70,7 +70,19 @@ One page component, one header, one tab list with an audience on each tab.
 3. **Merge tabs, keep the exhibitor hero.** One tab list, two headers. Removes the tab mismatch, leaves the visible difference the owner dislikes.
 4. **Full merge (recommended).** One component, one header, one tab list gated by role. Do it in the phases below so each step ships and checks alone.
 
-## Open questions for the owner
+## Owner decisions (2026-11-28)
+
+The owner said "all seven as recommended" (recorded on MYK9-2485):
+
+1. Three exhibitor tabs: My Entries, Results and About. Overview, Trials and Classes fold into About.
+2. One compact header for both roles, with the Enter button in it. The big date block goes.
+3. The facts strip (service-fee line, "How our fees work") stays above the tabs for the exhibitor.
+4. Signed-out and no-entry visitors keep the club's styled landing, unchanged.
+5. "Preview as exhibitor" stays on the styled landing.
+6. Exhibitor URLs become paths, with `?tab=` redirects.
+7. Phase 1 waits for MYK9-1942 to merge.
+
+## The questions as asked
 
 1. **Exhibitor tabs: three (My Entries, Results, About) or four (add Classes)?** Recommend three: the class list becomes About's "Classes" section, and Trials folds into its day grouping. An exhibitor with no entries already sees the styled landing, which lists the classes. Fallback: a fourth tab "Classes" that merges Trials and Classes. Either way each trial keeps its link to the trial page; say so if you would rather retire the trial page for exhibitors.
 2. **Header: the secretary's compact header for both, with the Enter button in it, dropping the big date block?** Recommend yes. INTENT asks only that entering stay one tap, near the top, on a phone. If the owner wants the date block kept for exhibitors, that is option 3 and a separate decision.

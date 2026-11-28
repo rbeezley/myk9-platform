@@ -71,11 +71,15 @@ async function insertOperatorAlert(
       },
     };
   }
-  const { error } = await supabase
+  // Read resolved_at back: a trigger may store the row already resolved
+  // (MYK9-2456), or refresh an open one and store nothing (no row comes back).
+  const { data, error } = await supabase
     .from('operator_alerts')
-    .insert(buildAlertRow(subject, html, opts));
+    .insert(buildAlertRow(subject, html, opts))
+    .select('resolved_at');
   return {
     error: error ? { code: (error as { code?: string }).code, message: error.message } : null,
+    storedResolved: (data ?? []).some(row => row.resolved_at != null),
   };
 }
 

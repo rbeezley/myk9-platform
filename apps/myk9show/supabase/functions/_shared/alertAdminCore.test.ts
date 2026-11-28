@@ -185,6 +185,38 @@ describe('runAlertAdmin', () => {
     expect(log).toHaveBeenCalledWith(expect.stringContaining('deduped'));
   });
 
+  it('sends no email for a row the database stored already resolved (MYK9-2456)', async () => {
+    const insert = vi.fn().mockResolvedValue({ error: null, storedResolved: true });
+    const sendEmail = vi.fn().mockResolvedValue({ sent: true });
+
+    const result = await runAlertAdmin('subject', { insert, sendEmail });
+
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      insertOutcome: 'inserted',
+      emailAttempted: false,
+      emailError: null,
+      emailSent: false,
+      storedResolved: true,
+    });
+    expect(alertWasEmailed(result)).toBe(false);
+  });
+
+  it('emails as before when the stored row is open, and adds no field to the result', async () => {
+    const insert = vi.fn().mockResolvedValue({ error: null, storedResolved: false });
+    const sendEmail = vi.fn().mockResolvedValue({ sent: true });
+
+    const result = await runAlertAdmin('subject', { insert, sendEmail });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({
+      insertOutcome: 'inserted',
+      emailAttempted: true,
+      emailError: null,
+      emailSent: true,
+    });
+  });
+
   it('logs (not throws) on a real insert failure', async () => {
     const insert = vi.fn().mockResolvedValue({ error: { code: '42501', message: 'nope' } });
     const sendEmail = vi.fn().mockResolvedValue(undefined);

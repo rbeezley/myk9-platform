@@ -19,6 +19,10 @@ export type InsertOutcome = 'inserted' | 'deduped' | 'insert_failed';
 
 export interface InsertResultLike {
   error: { code?: string; message: string } | null;
+  /** True when the row the insert stored is already resolved: a database
+   * trigger resolved it on insert because its condition had already cleared
+   * (the payout approval reminder, MYK9-2456). Absent or false otherwise. */
+  storedResolved?: boolean;
 }
 
 /** Options accepted by `buildAlertRow` — a structural subset of
@@ -90,6 +94,9 @@ export interface RunAlertAdminResult {
   emailError: unknown;
   /** False when the send was skipped (no key). Never true after an error. */
   emailSent: boolean;
+  /** Present (true) only when the stored row was already resolved, so no email
+   * was sent: the condition cleared before the alert landed. Nothing to retry. */
+  storedResolved?: true;
 }
 
 /** True only when an email really went out for a row that was really saved.
@@ -108,9 +115,11 @@ export async function runAlertAdmin(
   const logError = deps.logError ?? (() => {});
 
   let insertOutcome: InsertOutcome;
+  let storedResolved = false;
   try {
     const result = await deps.insert();
     insertOutcome = classifyInsertResult(result);
+    storedResolved = insertOutcome === 'inserted' && result.storedResolved === true;
     if (insertOutcome === 'deduped') {
       log(`operator_alerts insert deduped (existing unresolved match): ${subject}`);
     } else if (insertOutcome === 'insert_failed') {
@@ -119,6 +128,17 @@ export async function runAlertAdmin(
   } catch (err) {
     insertOutcome = 'insert_failed';
     logError(`operator_alerts insert threw: ${subject}`, err);
+  }
+
+  if (storedResolved) {
+    log(`operator_alerts row stored already resolved; email skipped: ${subject}`);
+    return {
+      insertOutcome,
+      emailAttempted: false,
+      emailError: null,
+      emailSent: false,
+      storedResolved: true,
+    };
   }
 
   if (insertOutcome === 'deduped' && deps.skipEmailOnDuplicate) {

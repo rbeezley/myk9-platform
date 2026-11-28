@@ -21,6 +21,7 @@ import { useClubAuthorizationControl } from './useClubAuthorizationControl';
 import { clubShowsStat, useClubShows } from './useClubShows';
 import type { ClubTab, StatCard } from './types';
 import { buildClubPageActions } from './clubPageActions';
+import { useClubRequestDeclined } from './useClubRequestDeclined';
 
 /** Maximum photo file size in bytes (5 MB) */
 const MAX_PHOTO_SIZE_BYTES = 5 * 1024 * 1024;
@@ -104,6 +105,11 @@ export function useClubDetailsState(selectedClub: Club | null) {
 
   // MYK9-572: site-admin-only control, independent of computeClubPermissions.
   const authorizationControl = useClubAuthorizationControl(selectedClub, isSiteAdmin);
+  // MYK9-2528: a kept, declined club is not waiting for approval.
+  const isRequestDeclined = useClubRequestDeclined(
+    selectedClub?.id,
+    isClubStaff && authorizationControl.isClubAuthorized === false
+  );
 
   // MYK9-1293: the manager and Payments tab take their club id from this page, so the gate is
   // "club admin for THIS club" (canManageMembers) or a site admin, who /club-admin/* also admitted;
@@ -214,6 +220,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
     extras: selectedClub
       ? buildClubPageActions({
           ...authorizationControl,
+          isRequestDeclined,
           canAddShow,
           canEditBranding,
           onAddShow: () => handleAddShow(),
@@ -468,6 +475,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
     // Staff = site admin or hasClubStaffGrant (club admin or either secretary role) on this club. Active
     // non-admin members are not covered: the hook has no people id (people.id is never auth.uid()).
     isClubAuthorized: isClubStaff ? authorizationControl.isClubAuthorized : undefined,
+    isRequestDeclined,
     showRevokeConfirm,
     setShowRevokeConfirm,
     // Edit panel

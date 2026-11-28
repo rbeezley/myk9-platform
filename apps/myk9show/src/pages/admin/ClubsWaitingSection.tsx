@@ -10,6 +10,10 @@ import { reviewClubAccessRequest } from '@/services/database/club-access-request
 import { setClubAuthorization } from '@/services/database/clubs';
 import { logger } from '@/services/LoggingService';
 import { useClubStore } from '@/store/clubStore';
+import { deleteErrorMessage } from '@/features/delete/deleteErrors';
+import { reconcileLocalDeletion } from '@/features/delete/deleteLocalState';
+import { invalidateAfterDelete } from '@/features/delete/deleteRecords';
+import { deviceHasUnsavedWork, stillSavingError } from '@/features/delete/deleteUnsyncedWork';
 import { WaitingClubCard, type WaitingClubChoices } from './WaitingClubCard';
 import { clubReviewErrorMessage } from './clubReviewErrors';
 import { useWaitingClubs } from './useWaitingClubs';
@@ -81,6 +85,20 @@ export function ClubsWaitingSection() {
     async (row: WaitingClubRow, choices: WaitingClubChoices) => {
       if (!row.request) return;
       try {
+        if (choices.deleteClub) {
+          // The same guard as the ordinary delete: a delete cascades, and work on this device
+          // that has not uploaded would be purged. An unreadable queue is never a pass.
+          let refusal: unknown;
+          try {
+            if ((await deviceHasUnsavedWork()).total > 0) refusal = stillSavingError();
+          } catch (error) {
+            refusal = error;
+          }
+          if (refusal !== undefined) {
+            notifications.error(deleteErrorMessage('club', refusal));
+            return;
+          }
+        }
         await reviewClubAccessRequest({
           requestId: row.request.id,
           decision: 'denied',
@@ -88,6 +106,11 @@ export function ClubsWaitingSection() {
           // Sent only when ticked, so a plain decline is the call the server already knew.
           ...(choices.deleteClub ? { deleteClub: true } : {}),
         });
+        if (choices.deleteClub && row.clubId) {
+          // The server already deleted it: drop it from this device without a second delete.
+          await reconcileLocalDeletion('club', { id: row.clubId, name: row.name });
+          invalidateAfterDelete(queryClient, 'club');
+        }
         notifications.success(
           choices.deleteClub ? 'Club request declined and club deleted' : 'Club request declined'
         );
@@ -164,9 +187,7 @@ export function ClubsWaitingSection() {
       ) : rows.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border bg-card px-6 py-8 text-center">
           <Inbox className="mx-auto mb-3 h-8 w-8 text-muted-foreground" aria-hidden="true" />
-          <p className="text-base font-medium">
-            {creator ? 'These clubs have all been approved.' : 'No clubs are waiting for approval.'}
-          </p>
+          <p className="text-base font-medium">No clubs are waiting for approval.</p>
           <p className="mt-1 text-sm text-muted-foreground">
             New clubs will appear here after someone sets one up.
           </p>

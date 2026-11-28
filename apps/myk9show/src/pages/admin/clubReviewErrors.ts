@@ -10,7 +10,14 @@ export const CLUB_HAS_SHOWS_MESSAGE =
 
 function isTransportFailure(error: unknown): boolean {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return true;
-  const message = error instanceof Error ? error.message : '';
+  // PostgREST hands back a plain object, `{ message: 'TypeError: Failed to fetch' }`, not an Error.
+  // Read only to classify; the text is never shown.
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof (error as { message?: unknown } | null)?.message === 'string'
+        ? (error as { message: string }).message
+        : '';
   return (
     error instanceof TypeError ||
     /failed to fetch|networkerror|load failed|network request failed/i.test(message)

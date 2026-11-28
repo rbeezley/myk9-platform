@@ -9,6 +9,17 @@ describe('clubReviewErrorMessage', () => {
     );
   });
 
+  it('recognises a PostgREST transport error, a plain object, without echoing its text', () => {
+    const message = clubReviewErrorMessage(
+      { message: 'TypeError: Failed to fetch', details: '', hint: '', code: '' },
+      'decline this club'
+    );
+    expect(message).toBe(
+      'We could not reach myK9Show. Nothing was changed. Check your connection, then try to decline this club again.'
+    );
+    expect(message).not.toContain('TypeError');
+  });
+
   it('names the step-up, has-shows and permission refusals by code, not message', () => {
     expect(clubReviewErrorMessage({ code: 'MKAUT', message: 'x' }, 'approve this club')).toBe(
       'Nothing was approved. Confirm your password to continue.'

@@ -84,7 +84,11 @@ export const useClubsQuery = () => {
  * the server so it is complete at any club count. The key sits under lists(),
  * so existing lists() and all invalidations refresh it.
  */
-export const useClubsAwaitingAuthorizationQuery = (createdBy?: string, enabled = true) => {
+export const useClubsAwaitingAuthorizationQuery = (
+  createdBy?: string,
+  enabled = true,
+  refetchIntervalMs?: number
+) => {
   return useQuery({
     enabled,
     queryKey: clubQueryKeys.awaitingAuthorization(createdBy),
@@ -94,6 +98,7 @@ export const useClubsAwaitingAuthorizationQuery = (createdBy?: string, enabled =
       return mapDatabaseClubsArray(data as Parameters<typeof mapDatabaseClubsArray>[0]);
     },
     ...cacheStrategies.moderate,
+    ...(refetchIntervalMs ? { refetchInterval: refetchIntervalMs } : {}),
   });
 };
 

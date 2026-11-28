@@ -86,6 +86,23 @@ describe('ClubsWaitingSection', () => {
     expect(screen.getByText('Club numbers: AKC #4521')).toBeInTheDocument();
   });
 
+  it('says nothing is waiting when a creator-filtered list is empty, never that all were approved', async () => {
+    mocks.clubs.mockReturnValue({
+      data: [],
+      isPending: false,
+      isError: false,
+      isFetching: false,
+      refetch,
+    });
+    mocks.requests.mockResolvedValue([]);
+    render(<ClubsWaitingSection />, {
+      initialRoute: '/admin/onboarding?creator=11111111-1111-4111-8111-111111111111',
+    });
+
+    expect(await screen.findByText('No clubs are waiting for approval.')).toBeInTheDocument();
+    expect(screen.queryByText(/have all been approved/)).not.toBeInTheDocument();
+  });
+
   it('still lists a waiting club that has no request, and offers no Decline for it', async () => {
     render(<ClubsWaitingSection />, { initialRoute: '/admin/onboarding' });
 

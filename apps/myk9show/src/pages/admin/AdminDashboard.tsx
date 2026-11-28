@@ -118,7 +118,8 @@ export default function AdminDashboard() {
   const health = useSystemHealthSnapshots();
   const alerts = useOperatorAlerts();
   const overview = useAdminOverview(now);
-  const clubsWaiting = useWaitingClubs();
+  // Same 60 s as the overview counts: the app refetches nothing on window focus.
+  const clubsWaiting = useWaitingClubs({ refetchIntervalMs: 60_000 });
   const sentry = useSentryDashboardMetrics();
   const latest = health.data?.latest ?? null;
   const checks = useMemo(() => latest?.checks ?? [], [latest]);

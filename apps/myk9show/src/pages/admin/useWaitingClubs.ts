@@ -35,14 +35,21 @@ export interface WaitingClubs {
 export function useWaitingClubs({
   creator,
   enabled = true,
-}: { creator?: string | undefined; enabled?: boolean } = {}): WaitingClubs {
-  const clubsQuery = useClubsAwaitingAuthorizationQuery(creator, enabled);
+  refetchIntervalMs,
+}: {
+  creator?: string | undefined;
+  enabled?: boolean;
+  /** Keep the read current while the page stays open (the app refetches nothing on focus). */
+  refetchIntervalMs?: number | undefined;
+} = {}): WaitingClubs {
+  const clubsQuery = useClubsAwaitingAuthorizationQuery(creator, enabled, refetchIntervalMs);
   const requestsQuery = useQuery({
     queryKey: WAITING_REQUESTS_KEY,
     queryFn: getPendingClubAccessRequests,
     enabled,
     staleTime: 0,
     refetchOnMount: 'always',
+    refetchInterval: refetchIntervalMs ?? false,
   });
   const declinedQuery = useQuery({
     queryKey: DECLINED_REQUESTS_KEY,
@@ -50,6 +57,7 @@ export function useWaitingClubs({
     enabled,
     staleTime: 0,
     refetchOnMount: 'always',
+    refetchInterval: refetchIntervalMs ?? false,
   });
   const { refetch: refetchClubs } = clubsQuery;
   const { refetch: refetchRequests } = requestsQuery;

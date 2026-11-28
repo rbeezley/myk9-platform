@@ -13,6 +13,8 @@ import { ClubOfficialsLine } from './ClubOfficialsLine';
 import { useClubRegistryNumbers } from '@/hooks/queries/useClubRegistryNumbers';
 import { formatClubRegistryNumbers } from '@/utils/clubRegistryNumbers';
 
+const DECLINED_NOTICE = "This club's request was declined.";
+
 interface ClubHeaderProps {
   club: Club;
   onEditPhoto: () => void;
@@ -26,6 +28,8 @@ interface ClubHeaderProps {
   // Revoke is in the header Actions menu; approving a waiting club is on Onboarding.
   canAuthorizeClub?: boolean;
   isClubAuthorized?: boolean | undefined;
+  /** MYK9-2528: unauthorized because its request was declined, not because it is waiting. */
+  isRequestDeclined?: boolean | undefined;
 }
 
 export const ClubHeader: React.FC<ClubHeaderProps> = ({
@@ -37,6 +41,7 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
   canEditBranding = false,
   canAuthorizeClub = false,
   isClubAuthorized,
+  isRequestDeclined = false,
 }) => {
   const palette = useMemo(
     () => (club.accentColor ? generatePalette(club.accentColor) : null),
@@ -159,10 +164,10 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
     ...(isClubAuthorized === false
       ? [
           {
-            label: 'Waiting for myK9Show approval',
+            label: isRequestDeclined ? 'Request declined' : 'Waiting for myK9Show approval',
             variant: 'warning' as const,
             icon: <ShieldAlert className="h-3 w-3" />,
-            title: CLUB_UNAUTHORIZED_MESSAGE,
+            title: isRequestDeclined ? DECLINED_NOTICE : CLUB_UNAUTHORIZED_MESSAGE,
             testId: 'club-unauthorized-badge',
           },
         ]
@@ -198,7 +203,9 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
           data-testid="club-unauthorized-notice"
           className="max-w-2xl text-sm text-muted-foreground"
         >
-          {canAuthorizeClub ? (
+          {isRequestDeclined ? (
+            DECLINED_NOTICE
+          ) : canAuthorizeClub ? (
             <>
               Waiting for myK9Show approval. Approve this club on{' '}
               <Link to="/admin/onboarding" className="font-medium text-primary underline">

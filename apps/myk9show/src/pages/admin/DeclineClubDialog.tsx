@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { CLUB_ACCESS_SENTENCE } from '@/features/delete/deleteObjectCopy';
 import { useShowsByClubQuery } from '@/hooks/queries/useShowsDatabase';
 
 interface DeclineClubDialogProps {
@@ -19,11 +20,11 @@ interface DeclineClubDialogProps {
   clubName: string;
   /** Null for a legacy request whose club was never created: nothing to delete. */
   clubId: string | null;
-  /** The reason the requester is shown; shared with the card's Review note. */
-  note: string;
-  onNoteChange: (note: string) => void;
+  /** Where the reason starts (the card's Review note). The dialog edits its own copy. */
+  initialNote: string;
   busy: boolean;
-  onConfirm: (deleteClub: boolean) => void;
+  /** The reason leaves the dialog only here; Cancel discards it. */
+  onConfirm: (deleteClub: boolean, note: string) => void;
 }
 
 /**
@@ -46,11 +47,11 @@ function DeclineClubDialogBody({
   onOpenChange,
   clubName,
   clubId,
-  note,
-  onNoteChange,
+  initialNote,
   busy,
   onConfirm,
 }: DeclineClubDialogProps) {
+  const [note, setNote] = useState(initialNote);
   const showsQuery = useShowsByClubQuery(clubId ?? '');
   const [deleteClub, setDeleteClub] = useState(true);
   const showCount = showsQuery.data?.length ?? 0;
@@ -73,7 +74,7 @@ function DeclineClubDialogBody({
           Reason (optional)
           <Input
             value={note}
-            onChange={event => onNoteChange(event.target.value)}
+            onChange={event => setNote(event.target.value)}
             placeholder="Optional note for the requester"
             className="mt-1 min-h-11"
           />
@@ -91,6 +92,7 @@ function DeclineClubDialogBody({
               <label htmlFor="decline-delete-club" className="font-medium">
                 Also delete this club
               </label>
+              {canDelete && <p className="text-muted-foreground">{CLUB_ACCESS_SENTENCE}</p>}
               {checking && <p className="text-muted-foreground">Checking for shows…</p>}
               {checkFailed && (
                 <p className="text-muted-foreground">
@@ -129,7 +131,7 @@ function DeclineClubDialogBody({
             className="min-h-11"
             loading={busy}
             disabled={busy}
-            onClick={() => onConfirm(canDelete && deleteClub)}
+            onClick={() => onConfirm(canDelete && deleteClub, note)}
           >
             Decline
           </Button>

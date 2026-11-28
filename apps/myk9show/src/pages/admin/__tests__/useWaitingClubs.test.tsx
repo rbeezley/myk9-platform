@@ -71,4 +71,38 @@ describe('useWaitingClubs', () => {
     await waitFor(() => expect(result.current.count).toBeDefined());
     expect(mocks.awaiting).toHaveBeenCalledWith(undefined);
   });
+
+  it('polls all three reads on the interval it is given, and not otherwise', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const { result } = renderHook(() => useWaitingClubs({ refetchIntervalMs: 60_000 }), {
+        wrapper,
+      });
+      await waitFor(() => expect(result.current.count).toBeDefined());
+      const before = [
+        mocks.awaiting.mock.calls.length,
+        mocks.pending.mock.calls.length,
+        mocks.declined.mock.calls.length,
+      ];
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(mocks.awaiting.mock.calls.length).toBeGreaterThan(before[0] ?? 0);
+      expect(mocks.pending.mock.calls.length).toBeGreaterThan(before[1] ?? 0);
+      expect(mocks.declined.mock.calls.length).toBeGreaterThan(before[2] ?? 0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not poll by default (the rail badge and Onboarding)', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const { result } = renderHook(() => useWaitingClubs(), { wrapper });
+      await waitFor(() => expect(result.current.count).toBeDefined());
+      const calls = mocks.pending.mock.calls.length;
+      await vi.advanceTimersByTimeAsync(180_000);
+      expect(mocks.pending.mock.calls.length).toBe(calls);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

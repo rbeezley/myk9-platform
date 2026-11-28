@@ -38,10 +38,11 @@ export function WaitingClubCard({ row, onApprove, onDecline }: WaitingClubCardPr
   const numbersLabel = requestNumbers || formatClubRegistryNumbers(numbersQuery.data);
   const websiteLink = getSafeWebsiteLink(request?.requestedClubWebsite);
 
-  const run = async (kind: 'approve' | 'decline', deleteClub = false) => {
+  const run = async (kind: 'approve' | 'decline', deleteClub = false, declineNote?: string) => {
     setBusy(kind);
     const choices: WaitingClubChoices = {
-      reviewNote: note.trim() || null,
+      // A decline carries the dialog's reason; an Approve only the card's own note.
+      reviewNote: (declineNote ?? note).trim() || null,
       deleteClub,
     };
     try {
@@ -140,10 +141,9 @@ export function WaitingClubCard({ row, onApprove, onDecline }: WaitingClubCardPr
           onOpenChange={setDeclining}
           clubName={row.name}
           clubId={row.clubId}
-          note={note}
-          onNoteChange={setNote}
+          initialNote={note}
           busy={busy === 'decline'}
-          onConfirm={deleteClub => void run('decline', deleteClub)}
+          onConfirm={(deleteClub, reason) => void run('decline', deleteClub, reason)}
         />
       )}
     </article>

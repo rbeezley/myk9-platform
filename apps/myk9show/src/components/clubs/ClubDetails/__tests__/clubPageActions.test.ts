@@ -49,6 +49,12 @@ describe('buildClubPageActions (CRUD standard decision 6)', () => {
     expect(onOpenOnboarding).toHaveBeenCalledTimes(1);
   });
 
+  it('offers no Approve on a club kept after its request was declined', () => {
+    expect(
+      labels({ canAuthorizeClub: true, isClubAuthorized: false, isRequestDeclined: true })
+    ).toEqual([]);
+  });
+
   it('offers Revoke Authorization on an authorized club, opening the confirm, never revoking', () => {
     const onRequestRevoke = vi.fn();
     const actions = buildClubPageActions(

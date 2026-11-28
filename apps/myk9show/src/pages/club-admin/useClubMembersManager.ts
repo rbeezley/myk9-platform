@@ -32,11 +32,6 @@ import { notifications } from '@/lib/notifications';
 import { queryKeys } from '@/lib/queryClient';
 import { useClubShowAccessRequests } from './useClubShowAccessRequests';
 import { useClubMembershipRequests } from './useClubMembershipRequests';
-import {
-  buildClubMemberViews,
-  filterClubMembers,
-  type MemberStatusFilter,
-} from './clubMemberListViews';
 
 export function useClubMembersManager(clubId: string) {
   const queryClient = useQueryClient();
@@ -48,24 +43,12 @@ export function useClubMembersManager(clubId: string) {
   // local state — these two params only mean anything on the Members tab.
   const [searchParams, setSearchParams] = useSearchParams();
   const searchQuery = searchParams.get('q') ?? '';
-  const rawMemberStatus = searchParams.get('status') ?? 'all';
   const setSearchQuery = (value: string) => {
     setSearchParams(
       prev => {
         const next = new URLSearchParams(prev);
         if (value) next.set('q', value);
         else next.delete('q');
-        return next;
-      },
-      { replace: true }
-    );
-  };
-  const setMemberStatus = (status: MemberStatusFilter) => {
-    setSearchParams(
-      prev => {
-        const next = new URLSearchParams(prev);
-        if (status === 'all') next.delete('status');
-        else next.set('status', status);
         return next;
       },
       { replace: true }
@@ -135,19 +118,6 @@ export function useClubMembersManager(clubId: string) {
       (a, b) => (positionIndex[a.position] ?? 99) - (positionIndex[b.position] ?? 99)
     );
   }, [officers]);
-
-  const memberViews = useMemo(() => buildClubMemberViews(members), [members]);
-  // An unknown ?status= has no control to show or reset it, so it reads as 'all'.
-  const memberStatus = (
-    memberViews.some(view => view.id === rawMemberStatus) ? rawMemberStatus : 'all'
-  ) as MemberStatusFilter;
-
-  // Filtered members
-  const filteredMembers = useMemo(
-    () => filterClubMembers(members, memberStatus, searchQuery),
-    [members, memberStatus, searchQuery]
-  );
-  const hasActiveMemberFilters = memberStatus !== 'all' || searchQuery.trim() !== '';
 
   // Mutations
   // A rejected write used to do nothing at all: five of these six mutations
@@ -392,9 +362,6 @@ export function useClubMembersManager(clubId: string) {
     setSelectedTab,
     searchQuery,
     setSearchQuery,
-    memberStatus,
-    setMemberStatus,
-    setSearchParams,
     showAddMember,
     setShowAddMember,
     showAssignOfficer,
@@ -421,9 +388,6 @@ export function useClubMembersManager(clubId: string) {
     showManagers,
     showManagerIds,
     sortedOfficers,
-    memberViews,
-    filteredMembers,
-    hasActiveMemberFilters,
     addMemberMutation,
     addOfficerMutation,
     toggleShowAccessMutation,

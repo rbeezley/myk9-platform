@@ -68,6 +68,9 @@ vi.mock('@/services/database/club-memberships', () => ({
   addClubOfficer: vi.fn(),
   removeClubOfficer: vi.fn(),
   setClubShowManagerAccess,
+  getClubAdmins: vi.fn(() => Promise.resolve([])),
+  addClubAdminByEmail: vi.fn(),
+  removeClubAdmin: vi.fn(),
 }));
 
 vi.mock('@/services/database/clubs', () => ({

@@ -213,6 +213,8 @@ interface AssignOfficerDialogProps {
   members: ClubMember[];
   people: User[];
   isSaving: boolean;
+  /** Set from a row's menu (MYK9-2364): the person is already chosen, so no picker is shown. */
+  fixedPerson?: { personId: string; name: string } | null;
 }
 
 export const AssignOfficerDialog: React.FC<AssignOfficerDialogProps> = ({
@@ -222,8 +224,10 @@ export const AssignOfficerDialog: React.FC<AssignOfficerDialogProps> = ({
   members,
   people,
   isSaving,
+  fixedPerson,
 }) => {
-  const [selectedPersonId, setSelectedPersonId] = useState('');
+  const [pickedPersonId, setSelectedPersonId] = useState('');
+  const selectedPersonId = fixedPerson?.personId ?? pickedPersonId;
   const [position, setPosition] = useState<OfficerPosition>('president');
   const [search, setSearch] = useState('');
   const [typedName, setTypedName] = useState('');
@@ -273,77 +277,83 @@ export const AssignOfficerDialog: React.FC<AssignOfficerDialogProps> = ({
               <Shield className="h-5 w-5 text-primary" />
             </div>
             <DialogTitle className="text-lg font-semibold text-foreground">
-              Assign Officer
+              {fixedPerson ? `Set officer title for ${fixedPerson.name}` : 'Assign Officer'}
             </DialogTitle>
           </div>
         </div>
         <div className="space-y-4 pt-2">
-          {/* Person search */}
-          <FormField label="Person" fieldId="officer-search">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="officer-search"
-                placeholder="Search people by name or email..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="pl-9 border-border"
-              />
-            </div>
-            <div className="max-h-40 overflow-y-auto rounded-lg border border-border bg-[color:var(--chip-stone-bg)]">
-              {picker.people.length === 0 ? (
-                <p className="p-3 text-sm text-muted-foreground text-center">{picker.hint}</p>
-              ) : (
-                picker.people.map(person => {
-                  const isMember = members.some(m => m.personId === person.id);
-                  return (
-                    <button
-                      key={person.id}
-                      onClick={() => {
-                        setSelectedPersonId(person.id);
-                        setTypedName('');
-                      }}
-                      className={`w-full text-left px-3 py-2 text-sm min-h-11 transition-colors ${
-                        selectedPersonId === person.id
-                          ? 'bg-primary/10 text-primary'
-                          : 'hover:bg-card text-foreground'
-                      }`}
-                    >
-                      <span className="font-medium">
-                        {person.firstName} {person.lastName}
-                      </span>
-                      {isMember && (
-                        <Badge className="ml-2 text-xs bg-primary/10 text-primary border-primary/20">
-                          Member
-                        </Badge>
-                      )}
-                      {person.email && (
-                        <span className="text-muted-foreground ml-2 text-xs">{person.email}</span>
-                      )}
-                    </button>
-                  );
-                })
-              )}
-            </div>
-            {picker.people.length > 0 && picker.hint && (
-              <p className="mt-1 text-sm text-muted-foreground">{picker.hint}</p>
-            )}
-          </FormField>
+          {!fixedPerson && (
+            <>
+              {/* Person search */}
+              <FormField label="Person" fieldId="officer-search">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="officer-search"
+                    placeholder="Search people by name or email..."
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    className="pl-9 border-border"
+                  />
+                </div>
+                <div className="max-h-40 overflow-y-auto rounded-lg border border-border bg-[color:var(--chip-stone-bg)]">
+                  {picker.people.length === 0 ? (
+                    <p className="p-3 text-sm text-muted-foreground text-center">{picker.hint}</p>
+                  ) : (
+                    picker.people.map(person => {
+                      const isMember = members.some(m => m.personId === person.id);
+                      return (
+                        <button
+                          key={person.id}
+                          onClick={() => {
+                            setSelectedPersonId(person.id);
+                            setTypedName('');
+                          }}
+                          className={`w-full text-left px-3 py-2 text-sm min-h-11 transition-colors ${
+                            selectedPersonId === person.id
+                              ? 'bg-primary/10 text-primary'
+                              : 'hover:bg-card text-foreground'
+                          }`}
+                        >
+                          <span className="font-medium">
+                            {person.firstName} {person.lastName}
+                          </span>
+                          {isMember && (
+                            <Badge className="ml-2 text-xs bg-primary/10 text-primary border-primary/20">
+                              Member
+                            </Badge>
+                          )}
+                          {person.email && (
+                            <span className="text-muted-foreground ml-2 text-xs">
+                              {person.email}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+                {picker.people.length > 0 && picker.hint && (
+                  <p className="mt-1 text-sm text-muted-foreground">{picker.hint}</p>
+                )}
+              </FormField>
 
-          {/* Someone with no account: the list prints their name; they get no access. */}
-          <FormField label="Not on myK9Show? Type their name" fieldId="officer-typed-name">
-            <Input
-              id="officer-typed-name"
-              placeholder="Full name"
-              maxLength={120}
-              value={typedName}
-              onChange={e => {
-                setTypedName(e.target.value);
-                if (e.target.value) setSelectedPersonId('');
-              }}
-              className="border-border"
-            />
-          </FormField>
+              {/* Someone with no account: the list prints their name; they get no access. */}
+              <FormField label="Not on myK9Show? Type their name" fieldId="officer-typed-name">
+                <Input
+                  id="officer-typed-name"
+                  placeholder="Full name"
+                  maxLength={120}
+                  value={typedName}
+                  onChange={e => {
+                    setTypedName(e.target.value);
+                    if (e.target.value) setSelectedPersonId('');
+                  }}
+                  className="border-border"
+                />
+              </FormField>
+            </>
+          )}
 
           {/* Position select */}
           <FormField label="Position" fieldId="officer-position">

@@ -6,18 +6,9 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { UserMinus } from 'lucide-react';
 import { useClubAdmins } from './useClubAdmins';
+import { ClubAdminDialogs } from './ClubAdminDialogs';
 
 interface ClubAdminsTabProps {
   clubId: string;
@@ -61,11 +52,6 @@ export const ClubAdminsTab: React.FC<ClubAdminsTabProps> = ({ clubId, clubName }
       // The hook already told the admin; keep the address so they can fix it.
     }
   };
-
-  // Rendered from the last non-null value so the confirm dialog's exit animation never reads "undefined".
-  const [lastPending, setLastPending] = useState(pendingRemoval);
-  if (pendingRemoval && pendingRemoval !== lastPending) setLastPending(pendingRemoval);
-  const removalName = lastPending?.personName ?? lastPending?.personEmail ?? 'this person';
 
   return (
     <div className="space-y-4">
@@ -136,41 +122,15 @@ export const ClubAdminsTab: React.FC<ClubAdminsTabProps> = ({ clubId, clubName }
         </ul>
       )}
 
-      <AlertDialog
-        open={!!confirmingEmail}
-        onOpenChange={open => !open && setConfirmingEmail(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              Add {confirmingEmail} as an admin of {clubName}?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              They will be able to edit the club, manage members and open Payments.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => void confirmAdd()}>Add admin</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={!!pendingRemoval} onOpenChange={open => !open && cancelRemoval()}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove {removalName} as an admin?</AlertDialogTitle>
-            <AlertDialogDescription>
-              They can no longer edit this club or open its Payments. You can add them again later.
-              A club always keeps at least one admin.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Keep them</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmRemoval}>Remove admin</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ClubAdminDialogs
+        clubName={clubName}
+        confirmingEmail={confirmingEmail}
+        onCancelAdd={() => setConfirmingEmail(null)}
+        onConfirmAdd={() => void confirmAdd()}
+        pendingRemoval={pendingRemoval}
+        onCancelRemoval={cancelRemoval}
+        onConfirmRemoval={confirmRemoval}
+      />
     </div>
   );
 };

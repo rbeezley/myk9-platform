@@ -19,6 +19,7 @@ vi.mock('@/lib/notifications', () => ({
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
     getUserRoles: () => ['club_admin'],
+    hasRole: () => false,
     userWithRoles: {
       scopes: [{ scopeType: 'club', roleId: 'club_admin', scopeId: 'club-1' }],
     },
@@ -65,6 +66,9 @@ vi.mock('@/services/database/club-memberships', () => ({
   removeClubOfficer: vi.fn(),
   getClubShowManagers: vi.fn(() => Promise.resolve([])),
   setClubShowManagerAccess: vi.fn(),
+  getClubAdmins: vi.fn(() => Promise.resolve([])),
+  addClubAdminByEmail: vi.fn(),
+  removeClubAdmin: vi.fn(),
 }));
 
 vi.mock('@/services/database/club-memberships/committee', () => ({

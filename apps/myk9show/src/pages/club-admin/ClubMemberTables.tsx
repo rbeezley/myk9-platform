@@ -8,7 +8,7 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Users, Plus, Shield, Trash2, KeyRound } from 'lucide-react';
+import { Users, Plus, Shield, Trash2, KeyRound, ShieldCheck } from 'lucide-react';
 import { formatMonthYear, formatShortCalendarDate } from '@/lib/format/dates';
 import {
   MEMBERSHIP_TYPE_LABELS,
@@ -16,31 +16,83 @@ import {
   OFFICER_POSITION_LABELS,
   type MembershipType,
   type MembershipStatus,
-  type ClubMember,
   type ClubOfficer,
 } from '@/types/club-membership-types';
 import { TYPE_BADGE_CLASSES, STATUS_BADGE_CLASSES } from './ClubMemberDialogs';
-import { MemberActionMenu } from './MemberActionMenu';
+import { MemberActionMenu, type RoleActions } from './MemberActionMenu';
+import type { ClubPersonRow } from './clubMemberRows';
 
 /** Placeholder for an empty table cell (ASCII hyphen — no em dash in UI copy). */
 const EMPTY_CELL = '-';
 
+/** "Jun 2025 - Jun 2027", "From Jun 2025" or the empty cell. */
+function termLabel(officer: ClubOfficer): string {
+  if (officer.termStart && officer.termEnd) {
+    return `${formatMonthYear(officer.termStart)} - ${formatMonthYear(officer.termEnd)}`;
+  }
+  return officer.termStart ? `From ${formatMonthYear(officer.termStart)}` : EMPTY_CELL;
+}
+
+const ROLE_BADGE_CLASS = 'text-xs';
+const UNKNOWN_BADGE_CLASS =
+  'text-xs border-dashed bg-transparent text-muted-foreground hover:bg-transparent';
+
+/**
+ * The role badges on a person's Name cell (MYK9-2364). A role whose list could not be read shows
+ * as "unknown", never as absent: "no badge" has to mean the person does not hold the role.
+ */
+const RoleBadges: React.FC<{ row: ClubPersonRow }> = ({ row }) => (
+  <>
+    {row.isAdmin === true && (
+      <Badge
+        className={`${ROLE_BADGE_CLASS} bg-info/10 text-info-strong border-info/20 hover:bg-info/10`}
+      >
+        <ShieldCheck className="h-3 w-3 mr-1" />
+        Admin
+      </Badge>
+    )}
+    {row.isAdmin === null && <Badge className={UNKNOWN_BADGE_CLASS}>Admin unknown</Badge>}
+    {row.isShowSecretary === true && (
+      <Badge
+        className={`${ROLE_BADGE_CLASS} bg-success/10 text-success border-success/20 hover:bg-success/10`}
+      >
+        <KeyRound className="h-3 w-3 mr-1" />
+        Show secretary
+      </Badge>
+    )}
+    {row.isShowSecretary === null && (
+      <Badge className={UNKNOWN_BADGE_CLASS}>Show secretary unknown</Badge>
+    )}
+    {row.officerTitles.map(officer => (
+      <Badge
+        key={officer.id}
+        title={`Term: ${termLabel(officer)}`}
+        className={`${ROLE_BADGE_CLASS} bg-[color:var(--chip-stone-bg)] text-[color:var(--chip-stone-fg)] border-transparent hover:bg-[color:var(--chip-stone-bg)]`}
+      >
+        <Shield className="h-3 w-3 mr-1" />
+        {OFFICER_POSITION_LABELS[officer.position]}
+      </Badge>
+    ))}
+    {!row.officersKnown && <Badge className={UNKNOWN_BADGE_CLASS}>Officer titles unknown</Badge>}
+  </>
+);
+
 // --- Members table ---
 
 interface MembersTableProps {
-  members: ClubMember[];
-  showManagerIds: Set<string>;
+  rows: ClubPersonRow[];
+  roleActions: RoleActions;
   searchQuery: string;
   onAddMember: () => void;
   onChangeType: (memberId: string, type: MembershipType) => void;
   onChangeStatus: (memberId: string, status: MembershipStatus) => void;
   onRemove: (memberId: string) => void;
-  onToggleShowAccess: (personId: string, grant: boolean) => void;
+  onToggleShowAccess: (personId: string, grant: boolean, personName?: string) => void;
 }
 
 export const MembersTable: React.FC<MembersTableProps> = ({
-  members,
-  showManagerIds,
+  rows,
+  roleActions,
   searchQuery,
   onAddMember,
   onChangeType,
@@ -67,43 +119,46 @@ export const MembersTable: React.FC<MembersTableProps> = ({
         </tr>
       </thead>
       <tbody>
-        {members.map(member => (
-          <tr key={member.id} className="border-b border-border hover:bg-accent transition-colors">
+        {rows.map(row => (
+          <tr key={row.key} className="border-b border-border hover:bg-accent transition-colors">
             <td className="px-4 py-3 font-medium text-foreground">
               <span className="flex flex-wrap items-center gap-2">
-                {member.personName || 'Unknown'}
-                {showManagerIds.has(member.personId) && (
-                  <Badge className="bg-success/10 text-success border-success/20 hover:bg-success/10 text-xs">
-                    <KeyRound className="h-3 w-3 mr-1" />
-                    Show secretary
-                  </Badge>
-                )}
+                {row.name}
+                <RoleBadges row={row} />
               </span>
             </td>
             <td className="px-4 py-3 text-muted-foreground hidden sm:table-cell">
-              {member.personEmail || EMPTY_CELL}
+              {row.email || EMPTY_CELL}
             </td>
             <td className="px-4 py-3">
-              <Badge className={TYPE_BADGE_CLASSES[member.membershipType]}>
-                {MEMBERSHIP_TYPE_LABELS[member.membershipType]}
-              </Badge>
+              {row.member ? (
+                <Badge className={TYPE_BADGE_CLASSES[row.member.membershipType]}>
+                  {MEMBERSHIP_TYPE_LABELS[row.member.membershipType]}
+                </Badge>
+              ) : (
+                <span className="text-muted-foreground">Not a club member</span>
+              )}
             </td>
             <td className="px-4 py-3">
-              <Badge className={STATUS_BADGE_CLASSES[member.membershipStatus]}>
-                {MEMBERSHIP_STATUS_LABELS[member.membershipStatus]}
-              </Badge>
+              {row.member ? (
+                <Badge className={STATUS_BADGE_CLASSES[row.member.membershipStatus]}>
+                  {MEMBERSHIP_STATUS_LABELS[row.member.membershipStatus]}
+                </Badge>
+              ) : (
+                EMPTY_CELL
+              )}
             </td>
             <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">
-              {member.joinedDate ? formatShortCalendarDate(member.joinedDate) : EMPTY_CELL}
+              {row.member?.joinedDate ? formatShortCalendarDate(row.member.joinedDate) : EMPTY_CELL}
             </td>
             <td className="px-4 py-3 text-right">
               <MemberActionMenu
-                member={member}
-                hasShowAccess={showManagerIds.has(member.personId)}
+                row={row}
                 onChangeType={onChangeType}
                 onChangeStatus={onChangeStatus}
                 onRemove={onRemove}
                 onToggleShowAccess={onToggleShowAccess}
+                roleActions={roleActions}
               />
             </td>
           </tr>
@@ -111,7 +166,7 @@ export const MembersTable: React.FC<MembersTableProps> = ({
       </tbody>
     </table>
 
-    {members.length === 0 && (
+    {rows.length === 0 && (
       <div className="flex flex-col items-center justify-center py-12">
         <div className="bg-[color:var(--chip-stone-bg)] rounded-full p-6 mb-4">
           <Users className="h-12 w-12 text-muted-foreground" />
@@ -180,11 +235,7 @@ export const OfficersTable: React.FC<OfficersTableProps> = ({
               {officer.personEmail || EMPTY_CELL}
             </td>
             <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">
-              {officer.termStart && officer.termEnd
-                ? `${formatMonthYear(officer.termStart)} - ${formatMonthYear(officer.termEnd)}`
-                : officer.termStart
-                  ? `From ${formatMonthYear(officer.termStart)}`
-                  : EMPTY_CELL}
+              {termLabel(officer)}
             </td>
             <td className="px-4 py-3 text-right">
               <button

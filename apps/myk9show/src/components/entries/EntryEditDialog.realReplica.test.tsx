@@ -99,7 +99,7 @@ function EntryFormsCard() {
   const [handler, setHandler] = useState('Mariana Alexander');
   const reload = async () => {
     const { data } = await getEntriesForShow('show-1');
-    setHandler(data[0]?.handler ?? 'missing');
+    setHandler(data?.[0]?.handler ?? 'missing');
   };
   return (
     <>

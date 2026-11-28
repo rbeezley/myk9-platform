@@ -169,11 +169,22 @@ describe('ShowEditBasicInfoTab status dropdown — public statuses (MYK9-979)', 
     expect(screen.queryByRole('option', { name: /^completed/i })).toBeNull();
   });
 
-  it('still reads Completed on a show that is already closed', async () => {
+  it('locks the status of a closed show and points to Reopen show (MYK9-2430)', async () => {
     const { user } = renderTab('completed');
-    await user.click(statusCombobox());
+    const status = statusCombobox();
 
-    expect(await screen.findByRole('option', { name: /^completed/i })).toBeInTheDocument();
+    expect(status).toBeDisabled();
+    expect(status).toHaveTextContent(/completed/i);
+    expect(screen.getByText(/use Reopen show on the Results tab/i)).toBeInTheDocument();
+    await user.click(status);
+    expect(screen.queryByRole('option', { name: /^draft/i })).toBeNull();
+    expect(screen.queryByRole('option', { name: /^cancelled/i })).toBeNull();
+  });
+
+  it('leaves the status open on a show that is not closed (MYK9-2430)', () => {
+    renderTab('upcoming');
+    expect(statusCombobox()).toBeEnabled();
+    expect(screen.queryByText(/use Reopen show/i)).not.toBeInTheDocument();
   });
 });
 

@@ -45,6 +45,19 @@ describe('InRingTile', () => {
     expect(within(tile).queryByText('Nobody in the ring')).toBeNull();
   });
 
+  it.each(['0', '-'])(
+    'announces an unassigned armband (%p) for the in-ring dog and the next-up dogs',
+    armband => {
+      render(
+        <InRingTile entries={inRunOrder([row(armband, 'in-ring'), row(armband, 'waiting')])} />
+      );
+      expect(screen.getByTestId('in-ring-tile')).toHaveTextContent(
+        `Armband not assigned, Dog${armband}`
+      );
+      expect(nextUp()).toEqual([`Armband not assigned, Dog${armband}`]);
+    }
+  );
+
   it('says nobody is in the ring when no row is', () => {
     render(<InRingTile entries={[row('101', 'scored'), row('102', 'waiting')]} />);
     expect(screen.getByTestId('in-ring-tile')).toHaveTextContent('Nobody in the ring');

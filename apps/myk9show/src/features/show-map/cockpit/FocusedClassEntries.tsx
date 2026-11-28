@@ -101,7 +101,9 @@ export function InRingTile({
               </span>
             </span>
             <span className="sr-only">
-              {[armbandAccessibleName(inRing.armband), inRing.dogName].filter(Boolean).join(', ')}
+              {[armbandAccessibleName(inRing.armband) ?? 'Armband not assigned', inRing.dogName]
+                .filter(Boolean)
+                .join(', ')}
             </span>
           </span>
         ) : (
@@ -119,7 +121,7 @@ export function InRingTile({
                     <ArmbandBadge armband={entry.armband} className="h-7 min-w-7 text-xs" />
                   </span>
                   <span className="sr-only">
-                    {[armbandAccessibleName(entry.armband), entry.dogName]
+                    {[armbandAccessibleName(entry.armband) ?? 'Armband not assigned', entry.dogName]
                       .filter(Boolean)
                       .join(', ')}
                   </span>

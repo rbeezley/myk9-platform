@@ -63,7 +63,7 @@ export function ClubOverviewVideo() {
               type="button"
               className="lc-video-play"
               onClick={() => setPlaying(true)}
-              aria-label={`Play the video: ${TRAILER_VIDEO_TITLE}`}
+              aria-label={`Play the trailer (1 min): ${TRAILER_VIDEO_TITLE}`}
             >
               <img
                 src="/landing/trailer-poster.jpg"

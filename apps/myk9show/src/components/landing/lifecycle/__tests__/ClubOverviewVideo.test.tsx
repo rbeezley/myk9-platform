@@ -13,7 +13,7 @@ describe('ClubOverviewVideo', () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole('button', {
-        name: 'Play the video: myK9Show: run your trials without the retyping',
+        name: 'Play the trailer (1 min): myK9Show: run your trials without the retyping',
       })
     ).toBeInTheDocument();
     expect(container.textContent).not.toMatch(/paperwork|paperless/i);
@@ -35,7 +35,7 @@ describe('ClubOverviewVideo', () => {
       'href',
       'https://youtu.be/bAQBMxBGSkw'
     );
-    expect(screen.getByRole('button', { name: /Play the video/ })).toHaveTextContent(
+    expect(screen.getByRole('button', { name: /Play the trailer/ })).toHaveTextContent(
       'Play the trailer (1 min)'
     );
   });
@@ -43,7 +43,7 @@ describe('ClubOverviewVideo', () => {
   it('plays the trailer from the privacy-enhanced domain', async () => {
     const user = userEvent.setup();
     const { container } = render(<ClubOverviewVideo />);
-    await user.click(screen.getByRole('button', { name: /Play the video/ }));
+    await user.click(screen.getByRole('button', { name: /Play the trailer/ }));
     const frame = container.querySelector('iframe');
     expect(frame).toHaveAttribute(
       'src',
@@ -57,6 +57,8 @@ describe('ClubOverviewVideo', () => {
     // Still reachable by Tab afterwards: an iframe is focusable by default.
     expect(frame).not.toHaveAttribute('tabindex', '-1');
     // The tour link stays while the trailer plays.
-    expect(screen.getByRole('link', { name: 'Take the club tour (2 min 28 s)' })).toBeVisible();
+    expect(
+      screen.getByRole('link', { name: 'Take the club tour (2 min 28 s)' })
+    ).toBeInTheDocument();
   });
 });

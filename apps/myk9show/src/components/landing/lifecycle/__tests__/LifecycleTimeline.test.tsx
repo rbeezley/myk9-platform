@@ -63,26 +63,26 @@ describe('LifecycleTimeline', () => {
     expect(document.body.contains(showday)).toBe(true);
   });
 
-  it('marks show day as the peak with its lead line and the signal switch', () => {
+  it('marks show day as the peak with its lead line and the internet switch', () => {
     render(<LifecycleTimeline />);
     const peak = document.getElementById('showday')!;
     expect(peak).toHaveAttribute('data-peak', 'true');
     expect(
-      within(peak).getByText('Then show day arrives, and the venue has no signal.')
+      within(peak).getByText('Then show day arrives, and the venue has no internet.')
     ).toBeInTheDocument();
-    expect(within(peak).getByRole('switch', { name: 'Venue signal' })).toBeInTheDocument();
+    expect(within(peak).getByRole('switch', { name: 'Venue internet' })).toBeInTheDocument();
   });
 
   // Review Focus 7
   it('switching audience mid-demo does not crash; each side shows its own show-day piece', () => {
     render(<LifecycleTimeline />);
     const peak = () => document.getElementById('showday')!;
-    fireEvent.click(within(peak()).getByRole('switch', { name: 'Venue signal' }));
+    fireEvent.click(within(peak()).getByRole('switch', { name: 'Venue internet' }));
     fireEvent.click(within(peak()).getByRole('button', { name: 'Start' }));
     fireEvent.click(screen.getByRole('button', { name: 'I’m entering a show' }));
     expect(within(peak()).getByText('1 of 3')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'I’m running a show' }));
-    expect(within(peak()).getByRole('switch', { name: 'Venue signal' })).toHaveAttribute(
+    expect(within(peak()).getByRole('switch', { name: 'Venue internet' })).toHaveAttribute(
       'aria-checked',
       'true'
     );

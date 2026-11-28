@@ -17,8 +17,8 @@ const steps: ExplainerStep[] = [
     y: 0,
     w: 0,
     h: 0,
-    caption: 'No signal at the venue',
-    badge: { text: 'No signal', tone: 'amber' },
+    caption: 'No internet at the venue',
+    badge: { text: 'No internet', tone: 'amber' },
   },
   { x: 10, y: 20, w: 50, h: 10, caption: 'Time the search' },
   {
@@ -70,7 +70,7 @@ describe('ScreenshotExplainer', () => {
     setReducedMotion(false);
     render(<ScreenshotExplainer shot={shot} steps={steps} intervalMs={1000} />);
     show();
-    expect(screen.getByText('No signal at the venue')).toBeInTheDocument();
+    expect(screen.getByText('No internet at the venue')).toBeInTheDocument();
     act(() => vi.advanceTimersByTime(1000));
     expect(screen.getByText('Time the search')).toBeInTheDocument();
     expect(screen.getByText('2 of 3')).toBeInTheDocument();
@@ -129,7 +129,7 @@ describe('ScreenshotExplainer', () => {
     setReducedMotion(false);
     render(<ScreenshotExplainer shot={shot} steps={steps} intervalMs={1000} />);
     show();
-    const caption = screen.getByText('No signal at the venue');
+    const caption = screen.getByText('No internet at the venue');
     expect(caption).toHaveAttribute('aria-live', 'off');
     fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
     expect(caption).toHaveAttribute('aria-live', 'polite');

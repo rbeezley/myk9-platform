@@ -50,7 +50,7 @@ describe('landing trust bar, pricing and FAQ copy', () => {
   it('carries four trust facts and the six agreed questions, none repeated', () => {
     expect(TRUST_ITEMS).toHaveLength(4);
     expect(FAQ_ITEMS.map(item => item.q)).toEqual([
-      'Does it work with no signal?',
+      'Does it work with no internet?',
       'Which registries and sports?',
       'What does it cost?',
       'How do results get to the registry?',

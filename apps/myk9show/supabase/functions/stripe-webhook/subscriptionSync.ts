@@ -9,6 +9,11 @@
 // of the kept one, and cancelling the duplicate (or any other event on a
 // non-live subscription) no longer drops a customer who still holds a live
 // subscription to free.
+//
+// A database failure THROWS (5xx), so Stripe redelivers the event: a sync that
+// did not land must never let the checkout handler skip duplicate detection
+// and acknowledge (Codex on #4522). Only a customer we do not know returns
+// null, which is a fact, not a failure.
 
 import {
   entitlingSubscription,
@@ -59,10 +64,21 @@ export interface SyncDeps {
 
 const isoFromUnix = (seconds: number) => new Date(seconds * 1000).toISOString();
 
+/** PostgREST's .single() code for "no row": the customer is not ours. */
+const NO_ROW_CODE = 'PGRST116';
+
+function failed(what: string, error: unknown): Error {
+  const message =
+    error && typeof error === 'object' && 'message' in error
+      ? String((error as { message: unknown }).message)
+      : String(error);
+  return new Error(`Subscription sync: ${what} failed: ${message}`);
+}
+
 /**
  * Returns the customer's subscriptions as Stripe has them now (the given one
- * at its freshest), or null when nothing was synced: the customer is unknown,
- * a write failed, or the customer has no subscription at all.
+ * at its freshest), or null when there is nothing to check: the customer is
+ * unknown, or has no subscription at all. Throws when a read or write fails.
  */
 export async function syncSubscriptionFromStripe(
   deps: SyncDeps,
@@ -76,8 +92,11 @@ export async function syncSubscriptionFromStripe(
       .eq('stripe_customer_id', stripeCustomerId)
       .single();
 
-    if (customerError || !stripeCustomer) {
-      console.error('Stripe customer not found in database:', customerError);
+    if (customerError && (customerError as { code?: string }).code !== NO_ROW_CODE) {
+      throw failed('stripe_customers read', customerError);
+    }
+    if (!stripeCustomer) {
+      console.error('Stripe customer not found in database:', stripeCustomerId);
       return null;
     }
 
@@ -107,14 +126,13 @@ export async function syncSubscriptionFromStripe(
         current_period_end: isoFromUnix(subscription.current_period_end),
         cancel_at_period_end: subscription.cancel_at_period_end,
         cancelled_at: subscription.canceled_at ? isoFromUnix(subscription.canceled_at) : null,
+        // Stripe's creation time: the billing card's "kept" order (MYK9-2497).
+        stripe_created_at: isoFromUnix(subscription.created),
       },
       { onConflict: 'stripe_subscription_id' }
     );
 
-    if (subError) {
-      console.error('Error syncing subscription:', subError);
-      return null;
-    }
+    if (subError) throw failed('stripe_subscriptions upsert', subError);
 
     const entitling = entitlingSubscription(all);
     const { error: profileError } = await deps.db
@@ -127,9 +145,7 @@ export async function syncSubscriptionFromStripe(
       })
       .eq('person_id', stripeCustomer.person_id);
 
-    if (profileError) {
-      console.error('Error updating exhibitor profile:', profileError);
-    }
+    if (profileError) throw failed('exhibitor_profiles update', profileError);
 
     console.log(
       `Synced subscription ${subscription.id} for customer ${stripeCustomerId}: ${subscription.status}; tier from ${entitling?.id ?? 'none'}`

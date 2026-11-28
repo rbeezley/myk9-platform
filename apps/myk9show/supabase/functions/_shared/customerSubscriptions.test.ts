@@ -37,11 +37,16 @@ describe('splitLiveSubscriptions', () => {
 });
 
 describe('entitlingSubscription', () => {
-  it('is the oldest active or trialing subscription; past_due grants nothing', () => {
+  it('is the kept (oldest live) subscription when it is active or trialing', () => {
     expect(
-      entitlingSubscription([s('b', 'active', 20), s('a', 'past_due', 10), s('c', 'trialing', 30)])
+      entitlingSubscription([s('b', 'active', 20), s('x', 'canceled', 1), s('c', 'trialing', 30)])
         ?.id
     ).toBe('b');
+    expect(entitlingSubscription([s('c', 'trialing', 30)])?.id).toBe('c');
+  });
+
+  it('is null when the kept subscription is past_due, even beside an active duplicate', () => {
+    expect(entitlingSubscription([s('b', 'active', 20), s('a', 'past_due', 10)])).toBeNull();
     expect(entitlingSubscription([s('a', 'past_due', 10), s('x', 'canceled', 1)])).toBeNull();
   });
 });

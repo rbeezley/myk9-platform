@@ -40,6 +40,17 @@
 --      other_request   another live request holds the session or the payment
 --                      intent. Nothing is inserted.
 --
+-- 5. stripe_subscriptions.stripe_created_at: Stripe's own creation time of the
+--    subscription, written by the webhook's sync. The webhook keeps the OLDEST
+--    live subscription by Stripe's (created, id) order; the account billing
+--    card orders by this column so it describes that same one. created_at is
+--    the row's insert time, which is the order the webhooks happened to
+--    arrive in, not the order Stripe created them (Codex on #4522). Existing
+--    rows stay NULL until their next sync; the card falls back to created_at.
+--    stripe_subscriptions grants are table-level
+--    (20260730220000_codify_pre_rule_table_grants.sql) and cover the column;
+--    no column-level grant is added.
+--
 -- No settle-RPC change: settle_refund_attempt and begin_refund_attempt do not
 -- branch on kind for this one. A subscription charge records no stripe_orders
 -- row, which the webhook's ledger routing knows (approvedRefundHasNoOrder).
@@ -163,5 +174,14 @@ REVOKE ALL ON FUNCTION public.queue_duplicate_subscription_refund(text, text, te
   FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.queue_duplicate_subscription_refund(text, text, text, integer, jsonb)
   TO service_role;
+
+-- ============================================================================
+-- 5. Stripe's creation time on the subscription row
+-- ============================================================================
+
+ALTER TABLE public.stripe_subscriptions ADD COLUMN stripe_created_at timestamptz;
+
+COMMENT ON COLUMN public.stripe_subscriptions.stripe_created_at IS
+  'MYK9-2497: Stripe''s created time for the subscription (written by stripe-webhook). With stripe_subscription_id it orders a customer''s subscriptions the way the webhook picks the kept one.';
 
 COMMIT;

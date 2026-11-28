@@ -38,7 +38,7 @@ export interface RefundQueueDeps {
     fn: string,
     args: Record<string, unknown>
   ) => PromiseLike<{ data: unknown; error: RpcError | null }>;
-  alertAdmin: (title: string, html: string, opts: RefundAlertOptions) => Promise<void>;
+  alertAdmin: (title: string, html: string, opts: RefundAlertOptions) => Promise<unknown>;
 }
 
 const SOURCE = 'stripe-webhook';

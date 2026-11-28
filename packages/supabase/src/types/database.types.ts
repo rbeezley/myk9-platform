@@ -10011,6 +10011,7 @@ export type Database = {
           customer_id: string | null
           id: string
           status: string | null
+          stripe_created_at: string | null
           stripe_price_id: string | null
           stripe_subscription_id: string
           updated_at: string | null
@@ -10024,6 +10025,7 @@ export type Database = {
           customer_id?: string | null
           id?: string
           status?: string | null
+          stripe_created_at?: string | null
           stripe_price_id?: string | null
           stripe_subscription_id: string
           updated_at?: string | null
@@ -10037,6 +10039,7 @@ export type Database = {
           customer_id?: string | null
           id?: string
           status?: string | null
+          stripe_created_at?: string | null
           stripe_price_id?: string | null
           stripe_subscription_id?: string
           updated_at?: string | null

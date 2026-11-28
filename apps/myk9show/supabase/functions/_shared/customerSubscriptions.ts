@@ -2,8 +2,10 @@
 // Deno-free (structural Stripe types) so it runs under vitest.
 //
 // When a customer holds more than one live subscription (two premium
-// checkouts paid at once), the OLDEST is the one they keep: it alone grants
+// checkouts paid at once), the OLDEST is the one they keep: it alone can grant
 // the tier, and every newer live one is a duplicate queued for a refund.
+// "Oldest" is Stripe's (created, id) order, the same order the billing card
+// uses (stripe_subscriptions.stripe_created_at).
 
 import { BLOCKING_SUBSCRIPTION_STATUSES } from './existingSubscriptionGuard.ts';
 
@@ -73,14 +75,13 @@ export function splitLiveSubscriptions<T extends RankedSubscription>(
 }
 
 /**
- * The subscription that grants the customer's tier: the oldest active or
- * trialing one, or null when none does. A duplicate never grants a second
- * entitlement, and cancelling it leaves the kept one in charge.
+ * The subscription that grants the customer's tier: the KEPT one (the oldest
+ * live subscription, splitLiveSubscriptions) when its status entitles, or
+ * null. A duplicate never grants anything, even while the kept one is
+ * past_due, so cancelling the duplicate never changes the tier (Codex on
+ * #4522).
  */
 export function entitlingSubscription<T extends RankedSubscription>(subscriptions: T[]): T | null {
-  return (
-    subscriptions
-      .filter(sub => ENTITLING_SUBSCRIPTION_STATUSES.has(sub.status))
-      .sort(oldestFirst)[0] ?? null
-  );
+  const { kept } = splitLiveSubscriptions(subscriptions);
+  return kept && ENTITLING_SUBSCRIPTION_STATUSES.has(kept.status) ? kept : null;
 }

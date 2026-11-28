@@ -78,7 +78,7 @@ describe('queueDuplicateSubscriptionRefund', () => {
     expect(h.alerts).toHaveLength(1);
     expect(h.alerts[0].opts).toMatchObject({
       source: 'stripe-webhook',
-      dedupeKey: duplicateSubscriptionAlertKey('sub_dup'),
+      dedupeKey: duplicateSubscriptionAlertKey('sub_dup', 'awaiting_approval'),
       skipEmailOnDuplicate: true,
       detail: { refund_request_id: 'rr-1', amount_cents: 4900 },
     });
@@ -97,7 +97,9 @@ describe('queueDuplicateSubscriptionRefund', () => {
     const h = deps([row('other_request')]);
 
     expect(await queueDuplicateSubscriptionRefund(h.d, INPUT)).toBe('other_request');
-    expect(h.alerts.map(a => a.opts.dedupeKey)).toEqual([duplicateSubscriptionAlertKey('sub_dup')]);
+    expect(h.alerts.map(a => a.opts.dedupeKey)).toEqual([
+      duplicateSubscriptionAlertKey('sub_dup', 'other_request'),
+    ]);
     expect(instructsManualRefund(h.alerts[0].html)).toBe(false);
   });
 
@@ -112,6 +114,9 @@ describe('queueDuplicateSubscriptionRefund', () => {
       skipEmailOnDuplicate: true,
     });
     expect(instructsManualRefund(h.alerts[0].html)).toBe(false);
+    // The request is not confirmed: cancelling now would lose it on the retry.
+    expect(h.alerts[0].html).toContain('Do NOT cancel subscription <code>sub_dup</code> yet');
+    expect(h.alerts[0].html).not.toContain('in the Stripe dashboard now');
   });
 
   it('recovers when a retry confirms the write', async () => {
@@ -135,5 +140,8 @@ describe('queueDuplicateSubscriptionRefund', () => {
       'Duplicate subscription: nothing queued to refund',
     ]);
     expect(h.alerts[0].opts.skipEmailOnDuplicate).toBe(true);
+    expect(h.alerts[0].opts.dedupeKey).toBe(duplicateSubscriptionAlertKey('sub_dup', 'not_queued'));
+    expect(h.alerts[0].html).toContain('Do NOT cancel subscription <code>sub_dup</code> until');
+    expect(instructsManualRefund(h.alerts[0].html)).toBe(false);
   });
 });

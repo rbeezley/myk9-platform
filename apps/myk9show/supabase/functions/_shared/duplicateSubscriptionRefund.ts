@@ -12,8 +12,10 @@
 // (refund_requests_once_per_duplicate_subscription), so both checkout
 // completion events, which name the same duplicate under different session
 // ids, write one request between them, and a redelivery after the refund
-// settled writes none. The alert is keyed on the duplicate too and sent with
-// skipEmailOnDuplicate, so the admin gets one email, not one per event.
+// settled writes none. The alert is keyed on the duplicate and its state and
+// sent with skipEmailOnDuplicate, so the admin gets one email per state, not
+// one per event. Only an alert raised AFTER the request is confirmed tells the
+// admin to cancel; before that, cancelling would lose the refund.
 
 import { dollars, DO_NOT_REFUND_IN_DASHBOARD, queueUnconfirmedAlert } from './refundAlertCopy.ts';
 import { QUEUE_WRITE_ATTEMPTS } from './refundRequests.ts';
@@ -57,13 +59,35 @@ interface QueueRow {
 const OUTCOMES: ReadonlySet<string> = new Set(['queued', 'already_queued', 'other_request']);
 const CLOSED_STATUSES: ReadonlySet<string> = new Set(['refunded', 'resolved_without_refund']);
 
-/** The dedupe key of the one alert raised for a duplicate subscription. */
-export function duplicateSubscriptionAlertKey(duplicateSubscriptionId: string): string {
-  return `duplicate-subscription-${duplicateSubscriptionId}`;
+/** What an alert reports; each state is its own alert (Codex on #4522). */
+export type DuplicateAlertState = 'awaiting_approval' | 'not_queued' | 'other_request';
+
+/**
+ * The dedupe key of a duplicate subscription's alert. It carries the state,
+ * so a repeat of the same state is suppressed (one email), but a change (for
+ * example nothing queued, then queued on the other event) raises a new alert
+ * instead of hiding behind the old one.
+ */
+export function duplicateSubscriptionAlertKey(
+  duplicateSubscriptionId: string,
+  state: DuplicateAlertState
+): string {
+  return `duplicate-subscription-${duplicateSubscriptionId}-${state}`;
 }
 
+const KEEP = (input: DuplicateSubscriptionInput) =>
+  `Keep <code>${input.keptSubscriptionId}</code>: the customer's premium comes from it.`;
+
+/** Safe once the refund obligation is recorded: cancelling cannot lose it. */
 const CANCEL_IN_STRIPE = (input: DuplicateSubscriptionInput) =>
-  `Cancel subscription <code>${input.duplicateSubscriptionId}</code> in the Stripe dashboard now, or it bills again at renewal. Keep <code>${input.keptSubscriptionId}</code>: the customer's premium comes from it.`;
+  `Cancel subscription <code>${input.duplicateSubscriptionId}</code> in the Stripe dashboard now, or it bills again at renewal. ${KEEP(input)}`;
+
+/**
+ * Before the obligation is recorded, cancelling first would lose it: the
+ * webhook only finds a duplicate while it is still live (Codex on #4522).
+ */
+const QUEUE_BEFORE_CANCEL = (input: DuplicateSubscriptionInput) =>
+  `Do NOT cancel subscription <code>${input.duplicateSubscriptionId}</code> until any charge on it is queued: the webhook only finds a duplicate while it is still live, so after a cancel nothing queues its refund. Check its first invoice in Stripe. If it was paid, queue that charge with <code>queue_duplicate_subscription_refund</code> (service role: subscription, checkout session, payment intent, amount) so it appears under <strong>Refunds awaiting approval</strong> on /admin/health. Then cancel it, or it bills again at renewal. ${KEEP(input)}`;
 
 function summary(input: DuplicateSubscriptionInput): string {
   return `Customer <code>${input.customerId}</code> holds two live premium subscriptions. The newer one, <code>${input.duplicateSubscriptionId}</code>, is a duplicate and grants nothing.`;
@@ -89,16 +113,18 @@ async function callQueue(
 async function raise(
   deps: RefundQueueDeps,
   input: DuplicateSubscriptionInput,
+  state: DuplicateAlertState,
   title: string,
   body: string,
   detail: Record<string, unknown>
 ): Promise<void> {
   await deps.alertAdmin(title, `<p>${summary(input)}</p><p>${body}</p>`, {
     source: SOURCE,
-    dedupeKey: duplicateSubscriptionAlertKey(input.duplicateSubscriptionId),
+    dedupeKey: duplicateSubscriptionAlertKey(input.duplicateSubscriptionId, state),
     skipEmailOnDuplicate: true,
     detail: {
       kind: KIND,
+      alert_state: state,
       duplicate_subscription_id: input.duplicateSubscriptionId,
       kept_subscription_id: input.keptSubscriptionId,
       stripe_customer_id: input.customerId,
@@ -124,8 +150,9 @@ export async function queueDuplicateSubscriptionRefund(
     await raise(
       deps,
       input,
+      'not_queued',
       'Duplicate subscription: nothing queued to refund',
-      `${CANCEL_IN_STRIPE(input)} No refund was queued: its first invoice has no charge to refund, or its checkout session or payment intent could not be found (session <code>${input.sessionId ?? 'unknown'}</code>, payment intent <code>${input.paymentIntentId ?? 'unknown'}</code>). Check its invoices in Stripe. ${DO_NOT_REFUND_IN_DASHBOARD}`,
+      `No refund was queued: its first invoice has no charge to refund, or its checkout session or payment intent could not be found (session <code>${input.sessionId ?? 'unknown'}</code>, payment intent <code>${input.paymentIntentId ?? 'unknown'}</code>). ${QUEUE_BEFORE_CANCEL(input)} ${DO_NOT_REFUND_IN_DASHBOARD}`,
       { checkout_session_id: input.sessionId, payment_intent_id: input.paymentIntentId }
     );
     return 'not_queued';
@@ -157,7 +184,7 @@ export async function queueDuplicateSubscriptionRefund(
 
   if (!row) {
     const copy = queueUnconfirmedAlert({
-      summaryHtml: `${summary(input)} ${CANCEL_IN_STRIPE(input)}`,
+      summaryHtml: `${summary(input)} Do NOT cancel subscription <code>${input.duplicateSubscriptionId}</code> yet: the retry only queues its refund while it is still live. Cancel it once its request shows under <strong>Refunds awaiting approval</strong>, or it bills again at renewal.`,
       kind: KIND,
       sessionId: input.sessionId,
       paymentIntentId: input.paymentIntentId,
@@ -180,6 +207,7 @@ export async function queueDuplicateSubscriptionRefund(
     await raise(
       deps,
       input,
+      'other_request',
       'Duplicate subscription: refund not queued, another request holds the payment',
       `${CANCEL_IN_STRIPE(input)} Its first invoice (${dollars(amountCents)} USD, payment intent <code>${input.paymentIntentId}</code>, session <code>${input.sessionId}</code>) already has another open refund request, so no second one was queued. Check <strong>Refunds awaiting approval</strong> on /admin/health. ${DO_NOT_REFUND_IN_DASHBOARD}`,
       { checkout_session_id: input.sessionId, payment_intent_id: input.paymentIntentId }
@@ -196,6 +224,7 @@ export async function queueDuplicateSubscriptionRefund(
   await raise(
     deps,
     input,
+    'awaiting_approval',
     'Duplicate subscription: refund awaiting approval',
     `${CANCEL_IN_STRIPE(input)} Its first invoice, ${dollars(owed)} USD on payment intent <code>${row.stripe_payment_intent_id ?? input.paymentIntentId}</code> (session <code>${row.stripe_checkout_session_id ?? input.sessionId}</code>), is queued for a refund. Refunds are never automatic: approve it under <strong>Refunds awaiting approval</strong> on /admin/health. ${DO_NOT_REFUND_IN_DASHBOARD}`,
     {

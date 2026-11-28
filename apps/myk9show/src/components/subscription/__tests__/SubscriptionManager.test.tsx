@@ -360,32 +360,64 @@ describe('SubscriptionManager', () => {
     expect(screen.queryByText(/your subscription is unpaid/i)).not.toBeInTheDocument();
   });
   // MYK9-2497: two premium checkouts paid at once leave two subscriptions; the
-  // webhook keeps the older and the newer is cancelled. The cancelled
-  // duplicate is the NEWEST row, so "newest row" would tell a renewing
-  // customer their subscription is canceled.
+  // webhook keeps the one Stripe created first and the newer one is refunded
+  // and cancelled. The row order in our table is webhook arrival order, so the
+  // card must use Stripe's creation time, not created_at or "newest row".
+  const KEPT_ROW = {
+    status: 'active',
+    stripe_price_id: 'price_month',
+    current_period_start: '2026-11-01T12:00:00Z',
+    current_period_end: '2026-12-01T12:00:00Z',
+    cancel_at_period_end: false,
+    customer_id: 'cus-row-uuid',
+    stripe_subscription_id: 'sub_kept',
+    stripe_created_at: '2026-11-01T12:00:00Z',
+    // Synced AFTER the duplicate.
+    created_at: '2026-11-01T12:00:09Z',
+  };
+  const DUPLICATE_ROW = {
+    status: 'active',
+    stripe_price_id: 'price_year',
+    current_period_start: '2026-11-01T12:00:03Z',
+    current_period_end: '2027-11-01T12:00:03Z',
+    cancel_at_period_end: false,
+    customer_id: 'cus-row-uuid',
+    stripe_subscription_id: 'sub_dup',
+    stripe_created_at: '2026-11-01T12:00:03Z',
+    created_at: '2026-11-01T12:00:05Z',
+  };
+
+  function expectKeptPlanShown() {
+    const kept = new Date(KEPT_ROW.current_period_end).toLocaleDateString();
+    expect(
+      screen.getByText(`${new Date(KEPT_ROW.current_period_start).toLocaleDateString()} - ${kept}`)
+    ).toBeInTheDocument();
+    expect(screen.getByText(kept)).toBeInTheDocument();
+    expect(screen.getByText('$4.99 / month')).toBeInTheDocument();
+    expect(screen.queryByText('$49 / year')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(new Date(DUPLICATE_ROW.current_period_end).toLocaleDateString())
+    ).not.toBeInTheDocument();
+  }
+
+  it('while both are live, shows the subscription Stripe created first, even if synced last', async () => {
+    entitlementHolder.value = activeEntitlement('paid');
+    builders.stripe_customers.result = { data: { id: 'cus-row-uuid' }, error: null };
+    builders.stripe_subscriptions.result = { data: [DUPLICATE_ROW, KEPT_ROW], error: null };
+
+    render(<SubscriptionManager />);
+
+    expect(await screen.findByText('Active')).toBeInTheDocument();
+    expectKeptPlanShown();
+  });
+
   it('shows the retained live subscription, not a newer cancelled duplicate', async () => {
     entitlementHolder.value = activeEntitlement('paid');
     builders.stripe_customers.result = { data: { id: 'cus-row-uuid' }, error: null };
     builders.stripe_subscriptions.result = {
       data: [
-        {
-          status: 'canceled',
-          stripe_price_id: 'price_month',
-          current_period_start: '2026-11-02T12:00:00Z',
-          current_period_end: '2026-12-02T12:00:00Z',
-          cancel_at_period_end: false,
-          customer_id: 'cus-row-uuid',
-          created_at: '2026-11-02T12:00:05Z',
-        },
-        {
-          status: 'active',
-          stripe_price_id: 'price_month',
-          current_period_start: '2026-11-01T12:00:00Z',
-          current_period_end: '2026-12-01T12:00:00Z',
-          cancel_at_period_end: false,
-          customer_id: 'cus-row-uuid',
-          created_at: '2026-11-01T12:00:05Z',
-        },
+        { ...DUPLICATE_ROW, status: 'canceled', created_at: '2026-11-02T12:00:00Z' },
+        KEPT_ROW,
       ],
       error: null,
     };
@@ -395,13 +427,6 @@ describe('SubscriptionManager', () => {
     expect(await screen.findByText('Active')).toBeInTheDocument();
     expect(screen.queryByText('Canceled')).not.toBeInTheDocument();
     expect(screen.queryByText(/your subscription is canceled/i)).not.toBeInTheDocument();
-    const kept = new Date('2026-12-01T12:00:00Z').toLocaleDateString();
-    const duplicate = new Date('2026-12-02T12:00:00Z').toLocaleDateString();
-    expect(
-      screen.getByText(`${new Date('2026-11-01T12:00:00Z').toLocaleDateString()} - ${kept}`)
-    ).toBeInTheDocument();
-    expect(screen.getByText(kept)).toBeInTheDocument();
-    expect(screen.queryByText(duplicate)).not.toBeInTheDocument();
-    expect(screen.getByText('$4.99 / month')).toBeInTheDocument();
+    expectKeptPlanShown();
   });
 });

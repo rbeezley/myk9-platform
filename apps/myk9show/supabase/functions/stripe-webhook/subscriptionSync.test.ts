@@ -32,25 +32,30 @@ const DUP = sub('sub_dup', 'active', 1_000_000 + DAY, 1_000_000 + 31 * DAY);
 function harness(subscriptions: SyncedSubscription[]) {
   const upserts: Record<string, unknown>[] = [];
   const profileUpdates: Record<string, unknown>[] = [];
+  const state = { failOn: '', customerMissing: false };
+  const err = (table: string) => (state.failOn === table ? { message: 'boom' } : null);
   const db = {
     from: vi.fn((table: string) => ({
       select: () => ({
         eq: () => ({
-          single: async () => ({
-            data: table === 'stripe_customers' ? { id: 'cust-row', person_id: 'person-1' } : null,
-            error: null,
-          }),
+          single: async () =>
+            state.customerMissing
+              ? { data: null, error: { code: 'PGRST116', message: 'no rows' } }
+              : {
+                  data: err(table) ? null : { id: 'cust-row', person_id: 'person-1' },
+                  error: err(table),
+                },
         }),
       }),
       update: (values: Record<string, unknown>) => ({
         eq: async () => {
-          if (table === 'exhibitor_profiles') profileUpdates.push(values);
-          return { error: null };
+          if (table === 'exhibitor_profiles' && !err(table)) profileUpdates.push(values);
+          return { error: err(table) };
         },
       }),
       upsert: async (values: Record<string, unknown>) => {
-        upserts.push(values);
-        return { error: null };
+        if (!err(table)) upserts.push(values);
+        return { error: err(table) };
       },
     })),
   };
@@ -70,7 +75,17 @@ function harness(subscriptions: SyncedSubscription[]) {
     },
     mapPriceToTier: priceId => (priceId === 'price_premium' ? 'premium' : 'free'),
   };
-  return { deps, upserts, profileUpdates };
+  return {
+    deps,
+    upserts,
+    profileUpdates,
+    set failOn(table: string) {
+      state.failOn = table;
+    },
+    set customerMissing(value: boolean) {
+      state.customerMissing = value;
+    },
+  };
 }
 
 const iso = (seconds: number) => new Date(seconds * 1000).toISOString();
@@ -141,5 +156,44 @@ describe('syncSubscriptionFromStripe', () => {
     expect(h.profileUpdates).toEqual([
       { subscription_tier: 'free', subscription_expires_at: null },
     ]);
+  });
+
+  it('a past_due kept subscription grants nothing, even beside an active duplicate', async () => {
+    const h = harness([{ ...KEPT, status: 'past_due' }, DUP]);
+
+    await syncSubscriptionFromStripe(h.deps, 'cus_1', 'sub_dup');
+
+    expect(h.profileUpdates).toEqual([
+      { subscription_tier: 'free', subscription_expires_at: null },
+    ]);
+  });
+
+  it('records Stripe created time on the row', async () => {
+    const h = harness([KEPT, DUP]);
+
+    await syncSubscriptionFromStripe(h.deps, 'cus_1', 'sub_dup');
+
+    expect(h.upserts[0]).toMatchObject({ stripe_created_at: iso(DUP.created) });
+  });
+
+  it.each([
+    ['the customer read', 'stripe_customers'],
+    ['the subscription upsert', 'stripe_subscriptions'],
+    ['the profile update', 'exhibitor_profiles'],
+  ])('throws when %s fails, so Stripe redelivers', async (_what, table) => {
+    const h = harness([KEPT, DUP]);
+    h.failOn = table;
+
+    await expect(syncSubscriptionFromStripe(h.deps, 'cus_1', 'sub_dup')).rejects.toThrow(
+      /Subscription sync: .* failed: boom/
+    );
+  });
+
+  it('an unknown customer returns null without throwing', async () => {
+    const h = harness([KEPT]);
+    h.customerMissing = true;
+
+    expect(await syncSubscriptionFromStripe(h.deps, 'cus_1', 'sub_kept')).toBeNull();
+    expect(h.upserts).toEqual([]);
   });
 });

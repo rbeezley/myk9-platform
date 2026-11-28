@@ -149,7 +149,9 @@ describe('queueDuplicateSubscriptions', () => {
     // The event's own session is the duplicate's: no session lookup.
     expect(stripe.sessionsList).not.toHaveBeenCalled();
     expect(stripe.invoicesRetrieve).toHaveBeenCalledWith('in_dup');
-    expect(h.storedAlerts.map(a => a.key)).toEqual([duplicateSubscriptionAlertKey('sub_dup')]);
+    expect(h.storedAlerts.map(a => a.key)).toEqual([
+      duplicateSubscriptionAlertKey('sub_dup', 'awaiting_approval'),
+    ]);
     expect(h.emails).toHaveLength(1);
   });
 
@@ -261,6 +263,9 @@ describe('queueDuplicateSubscriptions', () => {
 
     expect(outcomes).toEqual(['not_queued']);
     expect(stripe.sessionsList).toHaveBeenCalledWith({ subscription: 'sub_dup', limit: 1 });
+    // Nothing is recorded yet, so the alert must not say to cancel first.
+    expect(h.storedAlerts[0].html).toContain('Do NOT cancel subscription <code>sub_dup</code>');
+    expect(h.storedAlerts[0].html).not.toContain('in the Stripe dashboard now');
     expect(h.rpcCalls).toEqual([]);
     expect(h.storedAlerts.map(a => a.title)).toEqual([
       'Duplicate subscription: nothing queued to refund',
@@ -294,5 +299,26 @@ describe('queueDuplicateSubscriptions', () => {
 
     expect(outcomes).toEqual(['queued']);
     expect(h.requests[0].subscriptionId).toBe('sub_dup');
+  });
+
+  it('a later event that does queue raises its own alert and email, not hidden by the first', async () => {
+    const h = harness();
+    const stripe = fakeStripe();
+    // The kept session's event arrives first and cannot find the duplicate's session.
+    stripe.sessionsList.mockResolvedValueOnce({ data: [] });
+    await queueDuplicateSubscriptions({ stripe, queue: h.deps }, 'cus_1', KEPT_SESSION, [
+      KEPT,
+      DUP,
+    ]);
+    await queueDuplicateSubscriptions({ stripe, queue: h.deps }, 'cus_1', DUP_SESSION, [KEPT, DUP]);
+    // A third delivery repeats the queued state: no new alert or email.
+    await queueDuplicateSubscriptions({ stripe, queue: h.deps }, 'cus_1', DUP_SESSION, [KEPT, DUP]);
+
+    expect(h.requests).toHaveLength(1);
+    expect(h.storedAlerts.map(a => a.title)).toEqual([
+      'Duplicate subscription: nothing queued to refund',
+      'Duplicate subscription: refund awaiting approval',
+    ]);
+    expect(h.emails).toHaveLength(2);
   });
 });

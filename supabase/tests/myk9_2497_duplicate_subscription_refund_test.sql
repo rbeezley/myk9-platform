@@ -6,7 +6,8 @@
 --   D1  Shape and ACL: queue_duplicate_subscription_refund is SECURITY DEFINER
 --       with search_path '' and executable by service_role only; the kind
 --       CHECK accepts 'duplicate_subscription'; the new column carries no
---       column-level grant and anon still has no table privilege.
+--       column-level grant and anon still has no table privilege; and
+--       stripe_subscriptions.stripe_created_at exists with no column grant.
 --   D2  It refuses a missing subscription, session or intent and a
 --       non-positive amount, writing nothing.
 --   D3  'queued' inserts one pending request: the kind, the reason, the
@@ -96,6 +97,13 @@ BEGIN
     has_table_privilege('anon', 'public.refund_requests', 'SELECT') || ' '
       || has_column_privilege('anon', 'public.refund_requests', 'stripe_subscription_id', 'SELECT'),
     'false false', 'D1 anon still cannot read refund_requests or the new column');
+  PERFORM pg_temp.expect_eq(
+    (SELECT (a.attacl IS NULL)::text || ' ' || format_type(a.atttypid, a.atttypmod)
+       FROM pg_attribute a
+      WHERE a.attrelid = 'public.stripe_subscriptions'::regclass
+        AND a.attname = 'stripe_created_at'),
+    'true timestamp with time zone',
+    'D1 stripe_subscriptions.stripe_created_at exists with no column-level grant');
 END;
 $$;
 

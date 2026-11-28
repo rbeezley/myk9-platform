@@ -319,6 +319,7 @@ describe('WhereToBe', () => {
   it('shows armband in the leading column', () => {
     render(<WhereToBe entries={[makeEntry({ armband: '104' })]} showId={SHOW_ID} />);
     expect(screen.getByText('104')).toHaveTextContent('Armband 104');
+    expect(screen.getByRole('link', { name: /Armband 104/ })).toBeInTheDocument();
   });
 
   it('collapses missing row details into one honest schedule message', () => {

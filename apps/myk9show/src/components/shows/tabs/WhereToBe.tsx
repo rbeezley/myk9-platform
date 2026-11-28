@@ -173,6 +173,7 @@ function TimelineRow({ entry, showId, places, trialTimezone }: TimelineRowProps)
         `${entry.dayLabel} ${accessibleTimeLabel}`.trim(),
         positionLabel,
         checkInLabel,
+        entry.armband ? `Armband ${entry.armband}` : null,
       ]
         .filter(Boolean)
         .join(' — ')}

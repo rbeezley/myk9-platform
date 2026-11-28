@@ -25,13 +25,24 @@ vi.mock('@/services/database/supabaseClient', () => ({
     functions: { invoke: invokeMock },
     auth: { getUser: getUserMock },
     rpc: vi.fn(async () => ({ data: { status: 'reserved', version: 1 }, error: null })),
-    from: vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          maybeSingle: maybeSingleMock,
+    from: vi.fn((table: string) => {
+      if (table === 'show_officials') {
+        const officials = {
+          select: vi.fn(() => officials),
+          eq: vi.fn(() => officials),
+          order: vi.fn(() => officials),
+          limit: vi.fn(async () => ({ data: [], error: null })),
+        };
+        return officials;
+      }
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            maybeSingle: maybeSingleMock,
+          })),
         })),
-      })),
-    })),
+      };
+    }),
   },
 }));
 

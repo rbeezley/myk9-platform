@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { QueryClient } from '@tanstack/react-query';
 import { renderWithProviders } from '@/test/utils/testUtils';
+import { publishInfoQueryKey } from '@/features/premium/usePublishInfo';
 import type { OfficialPickerProps } from '@/components/shows/wizard/steps/OfficialPicker';
 
 const harness = vi.hoisted(() => ({
@@ -195,6 +197,18 @@ describe('ShowOfficialsEditor replace', () => {
       p_role_name: 'chairman',
       p_show_id: SHOW,
     });
+  });
+
+  it('refetches the premium publish info after a replace, so the stale notice shows', async () => {
+    harness.officials.secretaries = [holder('old-1', 'Jordan', 'Ellis')];
+    const queryClient = new QueryClient();
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+    renderWithProviders(<ShowOfficialsEditor showId={SHOW} />, { queryClient });
+    await userEvent.click(screen.getByText('pick Secretary'));
+
+    await waitFor(() =>
+      expect(invalidate).toHaveBeenCalledWith({ queryKey: publishInfoQueryKey(SHOW) })
+    );
   });
 
   it('revokes every prior holder of the role', async () => {

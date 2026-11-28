@@ -59,6 +59,11 @@ export function EntryPullProvider({
   );
 }
 
+/** The page's single-entry Pull (the desks' dialog), or null on a page with no provider. */
+export function useEntryPullRequest(): ((entry: EntryManagementEntry) => void) | null {
+  return useContext(EntryPullContext);
+}
+
 type StatusChange = (
   entryId: string,
   status: EntryStatus

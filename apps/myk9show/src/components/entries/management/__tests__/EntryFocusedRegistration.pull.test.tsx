@@ -85,6 +85,19 @@ describe('Pull from an opened entry on Entry Forms (MYK9-2478)', () => {
     expect(h.scratchShowMapEntry).not.toHaveBeenCalled();
   });
 
+  it("the dog's ⋯ menu Pull opens the same Pull dialog and writes nothing", async () => {
+    const onStatusChange = vi.fn();
+    const { user } = renderOpenedEntry(onStatusChange);
+
+    await user.click(screen.getByRole('button', { name: 'Actions for Hazel, all entries' }));
+    await user.click(await screen.findByRole('menuitem', { name: /Pull Hazel from all entries/ }));
+
+    expect(await screen.findByText('Pull Hazel?')).toBeInTheDocument();
+    expect(screen.getByText(/Refunds are not automatic/)).toBeInTheDocument();
+    expect(onStatusChange).not.toHaveBeenCalled();
+    expect(h.scratchShowMapEntry).not.toHaveBeenCalled();
+  });
+
   it('confirming names the armband, dog and class, and Undo restores the entry', async () => {
     const { user } = renderOpenedEntry();
 

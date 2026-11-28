@@ -30,6 +30,7 @@ import { resolveDogBulkEligibility, type DogBulkVerb } from './dogBulkStatusElig
 import { runDogBulkStatus, type DogStatusChange } from './dogBulkStatusRun';
 import { ExcludedEntries, WithdrawPreview } from './DogBulkStatusPreview';
 import { WithdrawalReasonDialog } from './WithdrawalReasonDialog';
+import { useEntryPullRequest } from './entryPull';
 
 interface DogBulkStatusMenuProps {
   dogName: string;
@@ -45,6 +46,7 @@ interface DogBulkStatusMenuProps {
 export function DogBulkStatusMenu({ dogName, entries, onStatusChange }: DogBulkStatusMenuProps) {
   const [dialog, setDialog] = useState<DogBulkVerb | null>(null);
   const [running, setRunning] = useState(false);
+  const requestPull = useEntryPullRequest();
   const pull = useMemo(() => resolveDogBulkEligibility(entries, 'pull'), [entries]);
   const withdraw = useMemo(() => resolveDogBulkEligibility(entries, 'withdraw'), [entries]);
 
@@ -119,7 +121,13 @@ export function DogBulkStatusMenu({ dogName, entries, onStatusChange }: DogBulkS
               key={verb}
               className="min-h-11 flex-col items-start"
               disabled={eligible === 0}
-              onClick={() => setDialog(verb)}
+              onClick={() => {
+                // MYK9-2478: a dog with one entry to pull is a single-entry Pull, so it takes
+                // the desks' Pull (refund note, shared Undo), like every other Pull on the page.
+                const single = verb === 'pull' && pull.eligible.length === 1 && pull.eligible[0];
+                if (single && requestPull) requestPull(single);
+                else setDialog(verb);
+              }}
             >
               <span>{label}</span>
               <span className="text-xs text-muted-foreground">

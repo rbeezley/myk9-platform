@@ -28,6 +28,8 @@ vi.mock('react-router-dom', async importOriginal => ({
 import { render, screen } from '@/test/utils/testUtils';
 import { MemberActionMenu } from './MemberActionMenu';
 import type { ClubMember } from '@/types/club-membership-types';
+import { memberRow, noopRoleActions } from './__tests__/clubPersonRowFixtures';
+import type { ClubPersonRow } from './clubMemberRows';
 
 const baseMember: ClubMember = {
   id: 'm1',
@@ -42,11 +44,14 @@ const baseMember: ClubMember = {
 
 const noop = () => {};
 
-function renderMenu(overrides: Partial<React.ComponentProps<typeof MemberActionMenu>> = {}) {
+function renderMenu(
+  overrides: Partial<React.ComponentProps<typeof MemberActionMenu>> = {},
+  row: ClubPersonRow = memberRow(baseMember)
+) {
   return render(
     <MemberActionMenu
-      member={baseMember}
-      hasShowAccess={false}
+      row={row}
+      roleActions={noopRoleActions}
       onChangeType={noop}
       onChangeStatus={noop}
       onRemove={noop}
@@ -143,10 +148,10 @@ describe('MemberActionMenu', () => {
     // here would enforce the retired rule in the client alone — the shape where a fix
     // ships and is unreachable.
     const granted: Array<[string, boolean]> = [];
-    const { user } = renderMenu({
-      member: { ...baseMember, membershipStatus: 'lapsed' },
-      onToggleShowAccess: (personId, grant) => granted.push([personId, grant]),
-    });
+    const { user } = renderMenu(
+      { onToggleShowAccess: (personId, grant) => granted.push([personId, grant]) },
+      memberRow({ ...baseMember, membershipStatus: 'lapsed' })
+    );
     await openMenu(user);
 
     await screen.findByRole('menu');
@@ -163,10 +168,10 @@ describe('MemberActionMenu', () => {
   it('still offers revoke for an appointed member whose membership lapsed', async () => {
     // The pairing that makes the change safe: appointment survives a lapse, so the
     // club must retain a way to end it.
-    const { user } = renderMenu({
-      member: { ...baseMember, membershipStatus: 'lapsed' },
-      hasShowAccess: true,
-    });
+    const { user } = renderMenu(
+      {},
+      memberRow({ ...baseMember, membershipStatus: 'lapsed' }, { isShowSecretary: true })
+    );
     await openMenu(user);
 
     await screen.findByRole('menu');

@@ -25,8 +25,9 @@ describe('roster query gating', () => {
     // access" as fact, permanently and with no retry.
     expect(page).toContain('officersQuery.isLoading');
     expect(page).toContain('showManagersQuery.isLoading');
-    expect(page).toContain('officersQuery.isError');
-    expect(page).toContain('showManagersQuery.isError');
+    // A query paused offline with nothing cached counts as unavailable, like an error.
+    expect(page).toContain('const officersUnavailable = neverAnswered(officersQuery);');
+    expect(page).toContain('const showAccessUnavailable = neverAnswered(showManagersQuery);');
   });
 
   it('retries whichever query actually failed', () => {
@@ -53,7 +54,7 @@ describe('partial failure never asserts absence', () => {
     // The full-page error takeover is members-only. Officers populate a
     // different tab and show-managers annotate one column; letting either blank
     // a roster that loaded fine is worse than the bug it was fixing.
-    expect(page).toContain('const rosterError = membersQuery.isError;');
+    expect(page).toContain('const rosterError = neverAnswered(membersQuery);');
   });
 });
 

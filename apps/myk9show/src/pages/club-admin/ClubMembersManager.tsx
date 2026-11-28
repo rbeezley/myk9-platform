@@ -4,7 +4,7 @@
  * Everyone else keeps the read-only MembersTab.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,20 +15,28 @@ import {
   ListFilterBar,
   ListResultLine,
   ListViewTabs,
-  patchSearchParams,
+  LIST_LINK_BUTTON,
 } from '@/components/list-toolkit';
 import { Plus, Shield, AlertTriangle } from 'lucide-react';
 import { AddMemberDialog, AssignOfficerDialog } from './ClubMemberDialogs';
 import { ClubShowAccessRequests } from './ClubShowAccessRequests';
 import { MembersTable, OfficersTable } from './ClubMemberTables';
 import { ClubAdminsTab } from './ClubAdminsTab';
+import { ClubAdminDialogs } from './ClubAdminDialogs';
+import { useClubPeopleList } from './useClubPeopleList';
+import type { RoleActions } from './MemberActionMenu';
 import { ClubShowAccessTab, AppointSecretaryDialog } from './ClubShowAccessTab';
 import { ClubRemovalDialogs } from './ClubRemovalDialogs';
 import { ClubCommitteeSection } from '@/components/committee/ClubCommitteeSection';
 import { useClubMembersManager } from './useClubMembersManager';
-import type { MemberStatusFilter } from './clubMemberListViews';
 
-const MEMBER_NOUN = ['member', 'members'] as const;
+const MEMBER_NOUN = ['person', 'people'] as const;
+
+const ROLE_EXPLAINER =
+  "Admins manage the club: members, payments and branding. Show secretaries create and run the club's shows. Officer titles print in your premium list and change nothing else.";
+
+const NOTICE_CLASS =
+  'rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning';
 
 interface ClubMembersManagerProps {
   clubId: string;
@@ -42,9 +50,6 @@ export const ClubMembersManager: React.FC<ClubMembersManagerProps> = ({ clubId, 
     setSelectedTab,
     searchQuery,
     setSearchQuery,
-    memberStatus,
-    setMemberStatus,
-    setSearchParams,
     showAddMember,
     setShowAddMember,
     showAssignOfficer,
@@ -61,9 +66,6 @@ export const ClubMembersManager: React.FC<ClubMembersManagerProps> = ({ clubId, 
     showManagers,
     showManagerIds,
     sortedOfficers,
-    memberViews,
-    filteredMembers,
-    hasActiveMemberFilters,
     addMemberMutation,
     addOfficerMutation,
     toggleShowAccessMutation,
@@ -83,6 +85,25 @@ export const ClubMembersManager: React.FC<ClubMembersManagerProps> = ({ clubId, 
     showAccessUnavailable,
     retryRoster,
   } = useClubMembersManager(clubId);
+
+  // MYK9-2364: one merged list. A source that failed to load is passed as null so its badges read
+  // as unknown, never as absent.
+  const list = useClubPeopleList({
+    clubId,
+    members,
+    officers: officersUnavailable ? null : officers,
+    showManagers: showAccessUnavailable ? null : showManagers,
+    searchQuery,
+  });
+  const [titleFor, setTitleFor] = useState<{ personId: string; name: string } | null>(null);
+  const roleActions: RoleActions = {
+    onMakeAdmin: list.makeAdmin,
+    onRemoveAdmin: list.removeAdmin,
+    onSetOfficerTitle: row => {
+      if (row.personId) setTitleFor({ personId: row.personId, name: row.name });
+    },
+    onRemoveOfficer: handleRemoveOfficer,
+  };
 
   // Loading state
   if (rosterLoading) {
@@ -154,13 +175,36 @@ export const ClubMembersManager: React.FC<ClubMembersManagerProps> = ({ clubId, 
             >
               {/* Members Tab */}
               <TabsContent value="members" className="mt-6 space-y-4">
+                <p className="text-sm text-muted-foreground">{ROLE_EXPLAINER}</p>
                 {showAccessUnavailable && (
-                  <p
-                    role="status"
-                    className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning"
-                  >
-                    We couldn&apos;t check show access just now, so that column may be incomplete.
-                    Everything else on this roster is current.
+                  <p role="status" className={NOTICE_CLASS}>
+                    We couldn&apos;t load show secretaries just now, so who holds that role is
+                    unknown here. Everything else on this list is current.
+                  </p>
+                )}
+                {officersUnavailable && (
+                  <p role="status" className={NOTICE_CLASS}>
+                    We couldn&apos;t load officer titles just now, so who holds them is unknown
+                    here.
+                  </p>
+                )}
+                {list.adminsUnavailable && (
+                  <p role="status" className={NOTICE_CLASS}>
+                    {list.adminsOffline
+                      ? 'You are offline, so who is an admin is unknown here. Reconnect to see it.'
+                      : "We couldn't load the admins list, so who is an admin is unknown here."}
+                    {!list.adminsOffline && (
+                      <>
+                        {' '}
+                        <button
+                          type="button"
+                          onClick={list.retryAdmins}
+                          className="underline underline-offset-2"
+                        >
+                          Try again
+                        </button>
+                      </>
+                    )}
                   </p>
                 )}
                 <ClubShowAccessRequests {...membershipRequests.listProps} />
@@ -170,30 +214,50 @@ export const ClubMembersManager: React.FC<ClubMembersManagerProps> = ({ clubId, 
                     bulk action was drafted for club members. */}
                 <ListViewTabs
                   label="Member views"
-                  views={memberViews}
-                  activeId={memberStatus}
-                  onSelect={id => setMemberStatus(id as MemberStatusFilter)}
+                  views={list.views}
+                  activeId={list.view}
+                  onSelect={list.selectView}
                 />
                 <ListFilterBar
                   searchValue={searchQuery}
                   onSearchChange={setSearchQuery}
-                  searchPlaceholder="Search members by name or email..."
-                  fields={[]}
+                  searchPlaceholder="Search people by name or email..."
+                  fields={[list.statusField]}
                 />
-                <ListResultLine
-                  shown={filteredMembers.length}
-                  total={members.length}
-                  noun={MEMBER_NOUN}
-                  filtered={hasActiveMemberFilters}
-                  // One URL update: two setters would each clone the same snapshot.
-                  onShowAll={() => patchSearchParams(setSearchParams, { status: null, q: null })}
-                />
+                {list.complete ? (
+                  <ListResultLine
+                    shown={list.filteredRows.length}
+                    total={list.rows.length}
+                    noun={MEMBER_NOUN}
+                    filtered={list.hasActiveFilters}
+                    // The empty table offers its own Show all button: one button, one place.
+                    showAllInEmptyState={list.filteredRows.length === 0}
+                    // One URL update: separate setters would each clone the same snapshot.
+                    onShowAll={list.showAll}
+                  />
+                ) : (
+                  // Some role lists are missing, so people found only there are missing too: say
+                  // what is shown, never "all N".
+                  <p role="status" className="text-sm text-muted-foreground">
+                    Showing {list.filteredRows.length}{' '}
+                    {list.filteredRows.length === 1 ? 'person' : 'people'} found so far. The list is
+                    not complete yet.
+                    {list.hasActiveFilters && list.filteredRows.length > 0 && (
+                      <button type="button" onClick={list.showAll} className={LIST_LINK_BUTTON}>
+                        Show all people
+                      </button>
+                    )}
+                  </p>
+                )}
 
                 {/* Members Table */}
                 <MembersTable
-                  members={filteredMembers}
-                  showManagerIds={showManagerIds}
+                  rows={list.filteredRows}
+                  roleActions={roleActions}
                   searchQuery={searchQuery}
+                  filtered={list.hasActiveFilters}
+                  incomplete={!list.complete}
+                  onShowAll={list.showAll}
                   onAddMember={() => setShowAddMember(true)}
                   onChangeType={handleChangeType}
                   onChangeStatus={handleChangeStatus}
@@ -271,6 +335,22 @@ export const ClubMembersManager: React.FC<ClubMembersManagerProps> = ({ clubId, 
       </div>
 
       <ClubRemovalDialogs {...removalDialogs} />
+
+      <ClubAdminDialogs clubName={clubName} {...list.adminDialogProps} />
+
+      <AssignOfficerDialog
+        // A new key per person (and on close) starts the dialog fresh without an effect.
+        key={titleFor?.personId ?? 'closed'}
+        open={titleFor !== null}
+        onClose={() => setTitleFor(null)}
+        onSave={(target, position) =>
+          addOfficerMutation.mutate({ ...target, position }, { onSuccess: () => setTitleFor(null) })
+        }
+        members={members}
+        people={people}
+        isSaving={addOfficerMutation.isPending}
+        fixedPerson={titleFor}
+      />
 
       <AddMemberDialog
         open={showAddMember}

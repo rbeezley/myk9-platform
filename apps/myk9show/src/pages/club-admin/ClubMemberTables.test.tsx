@@ -5,6 +5,7 @@ import { render, screen } from '@/test/utils/testUtils';
 import { MembersTable, OfficersTable } from './ClubMemberTables';
 import { TYPE_BADGE_CLASSES, STATUS_BADGE_CLASSES } from './ClubMemberDialogs';
 import type { ClubMember, ClubOfficer } from '@/types/club-membership-types';
+import { memberRow, noopRoleActions } from './__tests__/clubPersonRowFixtures';
 
 const baseMember: ClubMember = {
   id: 'm1',
@@ -32,8 +33,8 @@ describe('MembersTable', () => {
   it('renders a member row with name and email', () => {
     render(
       <MembersTable
-        members={[baseMember]}
-        showManagerIds={new Set()}
+        rows={[memberRow(baseMember)]}
+        roleActions={noopRoleActions}
         searchQuery=""
         onAddMember={noop}
         onChangeType={noop}
@@ -49,8 +50,8 @@ describe('MembersTable', () => {
   it('shows the Show secretary badge when the member has show access', () => {
     render(
       <MembersTable
-        members={[baseMember]}
-        showManagerIds={new Set(['p1'])}
+        rows={[memberRow(baseMember, { isShowSecretary: true })]}
+        roleActions={noopRoleActions}
         searchQuery=""
         onAddMember={noop}
         onChangeType={noop}
@@ -65,8 +66,8 @@ describe('MembersTable', () => {
   it('renders the empty state with an Add Member CTA when there are no members', () => {
     render(
       <MembersTable
-        members={[]}
-        showManagerIds={new Set()}
+        rows={[]}
+        roleActions={noopRoleActions}
         searchQuery=""
         onAddMember={noop}
         onChangeType={noop}
@@ -82,8 +83,8 @@ describe('MembersTable', () => {
   it('renders the search-empty state without the Add Member CTA', () => {
     render(
       <MembersTable
-        members={[]}
-        showManagerIds={new Set()}
+        rows={[]}
+        roleActions={noopRoleActions}
         searchQuery="zzz"
         onAddMember={noop}
         onChangeType={noop}
@@ -99,8 +100,8 @@ describe('MembersTable', () => {
   it('uses a plain ASCII hyphen (no em dash) for a missing email', () => {
     render(
       <MembersTable
-        members={[{ ...baseMember, personEmail: undefined }]}
-        showManagerIds={new Set()}
+        rows={[memberRow({ ...baseMember, personEmail: undefined })]}
+        roleActions={noopRoleActions}
         searchQuery=""
         onAddMember={noop}
         onChangeType={noop}

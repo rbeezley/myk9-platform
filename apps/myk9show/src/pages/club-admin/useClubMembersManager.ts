@@ -32,11 +32,6 @@ import { notifications } from '@/lib/notifications';
 import { queryKeys } from '@/lib/queryClient';
 import { useClubShowAccessRequests } from './useClubShowAccessRequests';
 import { useClubMembershipRequests } from './useClubMembershipRequests';
-import {
-  buildClubMemberViews,
-  filterClubMembers,
-  type MemberStatusFilter,
-} from './clubMemberListViews';
 
 export function useClubMembersManager(clubId: string) {
   const queryClient = useQueryClient();
@@ -48,24 +43,12 @@ export function useClubMembersManager(clubId: string) {
   // local state — these two params only mean anything on the Members tab.
   const [searchParams, setSearchParams] = useSearchParams();
   const searchQuery = searchParams.get('q') ?? '';
-  const rawMemberStatus = searchParams.get('status') ?? 'all';
   const setSearchQuery = (value: string) => {
     setSearchParams(
       prev => {
         const next = new URLSearchParams(prev);
         if (value) next.set('q', value);
         else next.delete('q');
-        return next;
-      },
-      { replace: true }
-    );
-  };
-  const setMemberStatus = (status: MemberStatusFilter) => {
-    setSearchParams(
-      prev => {
-        const next = new URLSearchParams(prev);
-        if (status === 'all') next.delete('status');
-        else next.set('status', status);
         return next;
       },
       { replace: true }
@@ -135,19 +118,6 @@ export function useClubMembersManager(clubId: string) {
       (a, b) => (positionIndex[a.position] ?? 99) - (positionIndex[b.position] ?? 99)
     );
   }, [officers]);
-
-  const memberViews = useMemo(() => buildClubMemberViews(members), [members]);
-  // An unknown ?status= has no control to show or reset it, so it reads as 'all'.
-  const memberStatus = (
-    memberViews.some(view => view.id === rawMemberStatus) ? rawMemberStatus : 'all'
-  ) as MemberStatusFilter;
-
-  // Filtered members
-  const filteredMembers = useMemo(
-    () => filterClubMembers(members, memberStatus, searchQuery),
-    [members, memberStatus, searchQuery]
-  );
-  const hasActiveMemberFilters = memberStatus !== 'all' || searchQuery.trim() !== '';
 
   // Mutations
   // A rejected write used to do nothing at all: five of these six mutations
@@ -376,14 +346,18 @@ export function useClubMembersManager(clubId: string) {
   // getClubShowManagerIds is the narrowest and most RLS-sensitive of the three,
   // so it is the likeliest to fail. They still must not render absence as fact;
   // they say so inline instead.
-  const rosterError = membersQuery.isError;
-  const officersUnavailable = officersQuery.isError;
-  const showAccessUnavailable = showManagersQuery.isError;
+  // A query paused for lack of a connection with nothing cached has not answered: that is
+  // unavailable, never an empty result.
+  const neverAnswered = (query: { isError: boolean; fetchStatus: string; data: unknown }) =>
+    query.isError || (query.fetchStatus === 'paused' && query.data === undefined);
+  const rosterError = neverAnswered(membersQuery);
+  const officersUnavailable = neverAnswered(officersQuery);
+  const showAccessUnavailable = neverAnswered(showManagersQuery);
 
   const retryRoster = () => {
-    if (membersQuery.isError) void membersQuery.refetch();
-    if (officersQuery.isError) void officersQuery.refetch();
-    if (showManagersQuery.isError) void showManagersQuery.refetch();
+    if (neverAnswered(membersQuery)) void membersQuery.refetch();
+    if (neverAnswered(officersQuery)) void officersQuery.refetch();
+    if (showManagersQuery && neverAnswered(showManagersQuery)) void showManagersQuery.refetch();
   };
 
   return {
@@ -392,9 +366,6 @@ export function useClubMembersManager(clubId: string) {
     setSelectedTab,
     searchQuery,
     setSearchQuery,
-    memberStatus,
-    setMemberStatus,
-    setSearchParams,
     showAddMember,
     setShowAddMember,
     showAssignOfficer,
@@ -409,6 +380,16 @@ export function useClubMembersManager(clubId: string) {
       isShowAccessRevokeOpen,
       setIsShowAccessRevokeOpen,
       pendingShowAccessRevoke,
+      // Revoking the only secretary of a club with upcoming shows leaves them with nobody to run
+      // them; the confirm says so, from the row menu as well as the Show secretaries tab.
+      // Counted by person: one person can hold two secretary grants, and revoking removes both.
+      // A show count that has not loaded stays unknown (null), never a confirmed zero.
+      lastSecretary:
+        showManagerIds.size === 1 &&
+        !!pendingShowAccessRevoke &&
+        showManagerIds.has(pendingShowAccessRevoke.personId)
+          ? { showCount: upcomingShowsQuery.isSuccess ? upcomingShowsQuery.data : null }
+          : null,
       confirmShowAccessRevoke,
     },
     membersQuery,
@@ -421,9 +402,6 @@ export function useClubMembersManager(clubId: string) {
     showManagers,
     showManagerIds,
     sortedOfficers,
-    memberViews,
-    filteredMembers,
-    hasActiveMemberFilters,
     addMemberMutation,
     addOfficerMutation,
     toggleShowAccessMutation,

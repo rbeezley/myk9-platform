@@ -1647,10 +1647,25 @@ describe('showMapActions', () => {
       expect(action?.label).toBe('Change class');
     });
 
-    // Owner, 2026-10-03: a move-up happens before the dog runs, on the next
-    // trial's class before it starts -- never on a class already under way.
+    // Owner, 2026-11-26 (MYK9-2476): offered while the dog has not run, even on a started class.
+    it('offers Change class on a class in progress, with the AKC deadline note', () => {
+      const tree = buildShowMapTree({
+        show,
+        trials: [trial],
+        classes: [
+          { id: 'class-source', trialId: 'trial-1', name: 'Vehicle Novice', status: 'In Progress' },
+        ],
+        entries: [{ id: 'entry-x', class_id: 'class-source', entry_status: 'accepted' }],
+      });
+      const action = getDirectActionsForNode(tree.nodesById['entry:entry-x']!, { tree }).find(
+        a => a.id === 'move-up-entry'
+      );
+      expect(action?.note).toBe(
+        "The rulebook's class change deadline has passed. This change is your call."
+      );
+    });
+
     it.each([
-      ['a class in progress', 'In Progress', { entry_status: 'accepted' }],
       ['a completed class', 'Completed', { entry_status: 'accepted' }],
       ['a scored entry in a not-started class', 'Upcoming', { is_scored: true }],
       ['an entry in the ring', 'Upcoming', { check_in_status: 'in-ring' }],

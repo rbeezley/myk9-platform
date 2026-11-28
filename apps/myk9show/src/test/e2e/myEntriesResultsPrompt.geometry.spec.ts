@@ -1,6 +1,10 @@
 import { test, expect } from '@playwright/test';
 import { signInAsExhibitor } from './helpers/testUsers';
-import { entriesAcrossThreeShows, installExhibitorFixture } from './helpers/exhibitorFixture';
+import {
+  entriesAcrossThreeShows,
+  FIXTURE_PAST_SHOW_NAME,
+  installExhibitorFixture,
+} from './helpers/exhibitorFixture';
 import { fulfillRows } from './helpers/postgrestRoute';
 import { expectNoHorizontalOverflow } from './helpers/horizontalOverflow';
 
@@ -58,8 +62,15 @@ for (const viewport of VIEWPORTS) {
       page.locator('.myk9-entries-class-row [data-testid="results-public-prompt"]')
     ).toHaveCount(0);
 
-    // In the show block: above the dog list that follows it.
+    // The prompt belongs to the completed show that holds the released result,
+    // found by its own heading, never by where the prompt happens to sit.
+    const completedShow = page.getByRole('region', { name: FIXTURE_PAST_SHOW_NAME });
+    await expect(completedShow).toHaveCount(1);
+    await expect(completedShow.getByTestId('results-public-prompt')).toHaveCount(1);
+
+    // In that show's block: above the dog list that follows it.
     const showBlock = prompt.locator('xpath=..');
+    await expect(completedShow.locator(showBlock)).toHaveCount(1);
     const dogList = showBlock.locator('> ul').first();
     await expect(dogList).toBeVisible();
     const promptBox = await prompt.boundingBox();

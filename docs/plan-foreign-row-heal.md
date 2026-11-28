@@ -26,7 +26,7 @@ MYK9-1133 (#2963) made cached rows belong to the account that synced them. MYK9-
 
 1. **Recommended: a clean foreign row yields to the server copy.** `shouldKeepNewerRow` is called only by the ordinary and chunked writes in `ReplicatedTableBatch`; this change is to that helper and those two paths. `repairStuckPendingFlags` and the conflict code use `isOlderThanRow` on their own and stay as they are. Another account's row no longer blocks the download when all of these hold:
    - it is not dirty, and the mutation queue holds no pending or failed mutation for it under any account;
-   - it has no `lastOwnUpload`, or this is a full sync and its `serverVersion` has not moved since the fetch began (the MYK9-1633 rule, extended to foreign rows), so an upload acknowledged during the fetch is never rolled back.
+   - it has no `lastOwnUpload`, or this is a full sync and its `serverVersion` has not moved since the fetch began (the MYK9-1633 rule, extended to foreign rows), so an upload acknowledged during the fetch is never rolled back. `syncReplicatedTable` builds `versionsAtFetch` from `getLocalRowsForScope()`, which leaves out other accounts' rows, so the pre-fetch snapshot must also take the scope's foreign rows' versions (read by id, not through the account-scoped reader). Without that, an acknowledged foreign row has nothing to compare and stays stuck.
 
    It is then replaced and becomes this account's row. A dirty or queued foreign row keeps the guard, as MYK9-1148 intended. The MYK9-1148 test is narrowed to "another account's unsent row", and new tests cover the clean case and the acknowledged-upload case.
 
@@ -48,3 +48,4 @@ Option 1, with the MYK9-1148 test narrowed to "another account's unsent row"? Re
 - A's row with `lastOwnUpload`, clean, `syncStatus: 'synced'`: on a full sync whose fetch saw the same version, it yields; if an acknowledgment moved it during the fetch, it is kept.
 - At-show: the notice shows one Try again, also when `StaleReadNotice` shows too, and pressing it runs the forced full sync.
 - **Confirmed after the first sync** (issue criterion 3): sync a judge's phone first, then confirm an entry on Show Desk, then check that it appears under Pending through the normal sync path, with no Try again and no sign-out. A walk on the deployed build, after the stale phone's row has been recorded.
+- **The incident itself:** after the stale phone's row is recorded, deploy, then on that same phone (no site-data reset, no sign-out) open Exterior Excellent: the notice clears and Juni is under Pending.

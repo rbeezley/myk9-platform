@@ -59,6 +59,12 @@ import {
  * `afterAll` because later specs in the same serial pass read this show.
  */
 
+// The runner traces every context, including the browser.newContext() ones signedInPage opens
+// (MYK9-2336: a failed pay left no trace). Regression passes --retries=0, so keep on failure.
+// Top level, because Playwright refuses a worker-forcing `trace` inside a describe and then
+// loads no spec at all (Playwright Regression run 46108699323).
+test.use({ trace: 'retain-on-failure' });
+
 test.describe('Wait list: join -> offer -> decline -> expire -> mail-in head', () => {
   test.skip(
     !DATA_REQUIRED,
@@ -189,9 +195,6 @@ test.describe('Wait list: join -> offer -> pay -> confirmed entry', () => {
       'the Nightly workflow supplies it from the repository secret.'
   );
   test.describe.configure({ mode: 'serial' });
-  // The runner traces every context, including the browser.newContext() ones signedInPage opens
-  // (MYK9-2336: a failed pay left no trace). Regression passes --retries=0, so keep on failure.
-  test.use({ trace: 'retain-on-failure' });
 
   let admin: SupabaseClient;
   let snapshot: Awaited<ReturnType<typeof prepareFullClass>> | null = null;

@@ -23,6 +23,8 @@ import { CheckInStatusIndicator } from './CheckInStatusIndicator';
 import { CheckCircle2, XCircle, Clock, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getStatusDescriptor } from '@/components/status';
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
+import { armbandAccessibleName } from '@/utils/armbandUtils';
 
 interface CheckInStatusDialogProps {
   open: boolean;
@@ -150,8 +152,8 @@ export const CheckInStatusDialog: React.FC<CheckInStatusDialogProps> = ({
                   "Armband #" against a confirmation number (or nothing) taught
                   the wrong vocabulary. Label whichever identifier is actually
                   known, or omit the identifier entirely if neither is set. */}
-              {entryInfo.armband ? (
-                <span className="font-medium">Armband #{entryInfo.armband}</span>
+              {armbandAccessibleName(entryInfo.armband) ? (
+                <ArmbandBadge armband={entryInfo.armband} srLabel />
               ) : entryInfo.confirmationNumber ? (
                 <span className="font-medium">
                   Confirmation number {entryInfo.confirmationNumber}
@@ -160,7 +162,9 @@ export const CheckInStatusDialog: React.FC<CheckInStatusDialogProps> = ({
               {/* Only show the separator when an identifier precedes it —
                   otherwise an entry with no armband/confirmation rendered a
                   stray "• Handler". */}
-              {(entryInfo.armband || entryInfo.confirmationNumber) && <span>•</span>}
+              {(armbandAccessibleName(entryInfo.armband) || entryInfo.confirmationNumber) && (
+                <span>•</span>
+              )}
               <span>{entryInfo.handlerName}</span>
             </span>
             <span className="block text-sm mt-2">

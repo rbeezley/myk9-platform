@@ -34,6 +34,7 @@ import type {
 } from '@/types/scent-work-types';
 import { msToDisplay } from '@/lib/timeUtils';
 import { buildPlacementData } from './PlacementCalculator.helpers';
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 
 export interface PlacementCalculatorProps {
   entries: ScentWorkEntry[];
@@ -289,7 +290,9 @@ export function PlacementCalculator({
                   )}
                 >
                   <TableCell>{renderPlacementBadge(entry.placement)}</TableCell>
-                  <TableCell className="font-medium">#{entry.armband}</TableCell>
+                  <TableCell>
+                    <ArmbandBadge armband={entry.armband} className="h-7 min-w-7 text-xs" />
+                  </TableCell>
                   <TableCell>
                     <div>
                       <div className="font-medium">{entry.dogName}</div>

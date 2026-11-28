@@ -16,6 +16,12 @@ export function formatArmbandDisplay(armband: ArmbandDisplayValue): string {
   return trimmed;
 }
 
+/** "Armband N" for an accessible name; null when the armband is not assigned. */
+export function armbandAccessibleName(armband: ArmbandDisplayValue): string | null {
+  const display = formatArmbandDisplay(armband);
+  return display === UNASSIGNED_ARMBAND_DISPLAY ? null : `Armband ${display}`;
+}
+
 export function resolveStartNumber(
   existingMaxArmband: string | null | undefined,
   startNumber: number

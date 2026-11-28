@@ -21,6 +21,8 @@ import { Textarea } from '@/components/ui/textarea';
 import type { MoveUpCapacityState } from './useMoveUpTargets';
 import type { ShowMapNode } from './showMapTypes';
 import { MOVE_UP_REVERSAL_REFUSALS, type MoveUpReversalState } from './moveUpSupersession';
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
+import { armbandAccessibleName } from '@/utils/armbandUtils';
 
 export interface ShowMapMoveUpTarget {
   id: string;
@@ -146,7 +148,11 @@ function ShowMapMoveUpDialogFields({
       <div className="space-y-4">
         <div className="rounded-md bg-muted p-4 text-sm">
           <div className="font-medium">{entryName}</div>
-          {armband && <div className="text-muted-foreground">Armband {armband}</div>}
+          {armbandAccessibleName(armband) && (
+            <div>
+              <ArmbandBadge armband={armband} srLabel className="h-6 min-w-6 text-xs" />
+            </div>
+          )}
           {currentClass && (
             <div className="text-muted-foreground">Current class: {currentClass.label}</div>
           )}

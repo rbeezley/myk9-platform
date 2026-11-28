@@ -4,6 +4,7 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 import { StatusIcon } from '@/components/status';
 import { CheckInClassRow } from './CheckInClassRow';
 import type { ExhibitorCheckInGroup } from '@/hooks/queries/useCheckInReport';
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 
 function getSummaryEntryStatus(summaryStatus: ExhibitorCheckInGroup['summaryStatus']) {
   if (summaryStatus === 'checked-in') return 'checked-in';
@@ -44,9 +45,7 @@ export function CheckInExhibitorCard({
         onClick={() => setExpanded(prev => !prev)}
       >
         <div className="flex items-center gap-3">
-          <span className="rounded-md bg-muted px-2.5 py-0.5 text-sm font-bold tabular-nums">
-            {group.armbandNumber != null ? `#${group.armbandNumber}` : '—'}
-          </span>
+          <ArmbandBadge armband={group.armbandNumber} srLabel />
           <div>
             <div className="text-sm font-semibold">{group.handlerName}</div>
             <div className="text-xs text-muted-foreground">

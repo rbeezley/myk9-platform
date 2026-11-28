@@ -1,6 +1,6 @@
 import { judgeLine } from '@/utils/classJudgeDisplay';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
-import { formatArmbandDisplay, UNASSIGNED_ARMBAND_DISPLAY } from '@/utils/armbandUtils';
+import { armbandAccessibleName } from '@/utils/armbandUtils';
 import { Link } from 'react-router-dom';
 import {
   Package,
@@ -243,6 +243,6 @@ function EntryResultBadge({ entry }: { entry: EnrichedShowEntry }) {
 
 /** ", Armband N" for a link's accessible name; nothing when it is not assigned. */
 function armbandSuffix(armband: string | null | undefined): string {
-  const display = formatArmbandDisplay(armband);
-  return display === UNASSIGNED_ARMBAND_DISPLAY ? '' : `, Armband ${display}`;
+  const name = armbandAccessibleName(armband);
+  return name ? `, ${name}` : '';
 }

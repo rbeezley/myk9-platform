@@ -24,6 +24,22 @@ describe('ArmbandBadge', () => {
     expect(screen.getByText('142')).toBeInTheDocument();
   });
 
+  it('adds a visually hidden Armband label only when asked', () => {
+    const { rerender } = render(<ArmbandBadge armband="142" srLabel />);
+
+    expect(screen.getByText('142')).toHaveTextContent('Armband 142');
+    expect(screen.getByText('Armband')).toHaveClass('sr-only');
+
+    rerender(<ArmbandBadge armband="142" />);
+    expect(screen.queryByText('Armband')).not.toBeInTheDocument();
+  });
+
+  it('keeps the unassigned dash free of the label', () => {
+    render(<ArmbandBadge armband={null} srLabel />);
+
+    expect(screen.queryByText('Armband')).not.toBeInTheDocument();
+  });
+
   it('renders unassigned armbands as an em dash', () => {
     const { rerender } = render(<ArmbandBadge armband={null} />);
 

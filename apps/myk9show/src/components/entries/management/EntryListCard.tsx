@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -146,9 +147,10 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                 aria-label={`${entry.armbandNumber}, change armband for ${entry.dogName}`}
                 title="Change armband"
               >
-                <Badge variant="outline" className="font-mono">
-                  {entry.armbandNumber}
-                </Badge>
+                <ArmbandBadge
+                  armband={entry.armbandNumber}
+                  className="h-7 min-w-7 rounded-md text-xs"
+                />
                 <ChevronDown className="h-3 w-3 text-muted-foreground" />
               </button>
             ) : hideAssignArmband?.(entry) ? null : (

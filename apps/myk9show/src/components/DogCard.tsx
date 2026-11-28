@@ -6,6 +6,7 @@
  */
 
 import React from 'react';
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { cn } from '@/lib/utils';
 
 export interface DogCardProps {
@@ -25,7 +26,7 @@ export const DogCard: React.FC<DogCardProps> = ({
 }) => {
   return (
     <div className={cn('dog-card', className)}>
-      <div className="dog-card-armband">#{armband}</div>
+      <ArmbandBadge armband={armband} srLabel className="dog-card-armband shrink-0" />
       <div className="dog-card-info">
         <div className="dog-card-name">{callName}</div>
         <div className="dog-card-breed">{breed}</div>

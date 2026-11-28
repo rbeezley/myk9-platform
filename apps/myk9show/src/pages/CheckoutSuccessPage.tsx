@@ -1,6 +1,7 @@
 /** Verifies the Stripe return and shows entry confirmation. */
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { CheckCircle, Receipt, Calendar, Dog, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -554,9 +555,11 @@ export default function CheckoutSuccessPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         {entry.armband_number && (
-                          <span className="rounded-md bg-primary/10 px-2 py-0.5 text-sm font-semibold text-primary">
-                            Armband #{entry.armband_number}
-                          </span>
+                          <ArmbandBadge
+                            armband={entry.armband_number}
+                            srLabel
+                            className="h-7 min-w-7 rounded-md"
+                          />
                         )}
                         <CheckCircle className="h-4 w-4 text-green-600" />
                       </div>

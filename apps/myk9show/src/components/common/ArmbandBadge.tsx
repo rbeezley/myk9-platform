@@ -4,9 +4,11 @@ import { formatArmbandDisplay, UNASSIGNED_ARMBAND_DISPLAY } from '@/utils/armban
 interface ArmbandBadgeProps {
   armband: string | number | null | undefined;
   className?: string;
+  /** Adds a visually hidden "Armband" label for places where the bare number would be unclear. */
+  srLabel?: boolean;
 }
 
-export function ArmbandBadge({ armband, className }: ArmbandBadgeProps) {
+export function ArmbandBadge({ armband, className, srLabel = false }: ArmbandBadgeProps) {
   const display = formatArmbandDisplay(armband);
 
   if (display === UNASSIGNED_ARMBAND_DISPLAY) {
@@ -28,6 +30,7 @@ export function ArmbandBadge({ armband, className }: ArmbandBadgeProps) {
         className
       )}
     >
+      {srLabel && <span className="sr-only">Armband </span>}
       {display}
     </span>
   );

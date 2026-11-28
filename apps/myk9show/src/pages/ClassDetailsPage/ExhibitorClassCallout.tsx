@@ -1,4 +1,5 @@
 import { Star, CheckCircle2, XCircle } from 'lucide-react';
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { cn } from '@/lib/utils';
 import { Chip } from '@/components/base/Chip';
 import { formatRunQueueState, runQueueStateNote } from '@myk9/ringside/run-queue';
@@ -121,8 +122,9 @@ function BeforeEntryRow({
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-sm">{entry.dogName}</p>
         {entry.armband && (
-          <p className="text-xs text-muted-foreground">
-            Armband <span className="font-mono font-semibold">#{entry.armband}</span>
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            Armband{' '}
+            <ArmbandBadge armband={entry.armband} className="h-6 min-w-6 rounded-md text-xs" />
           </p>
         )}
         {paperNote && <p className="text-xs text-muted-foreground">{paperNote}</p>}

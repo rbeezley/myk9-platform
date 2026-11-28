@@ -1,4 +1,5 @@
 import { ChevronRight, Clock3, User } from 'lucide-react';
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { getEffectiveClassStatus, type ClassEntry } from '@myk9/ringside';
 import { StatusBadge } from '@/components/status';
 import { cn } from '@/lib/utils';
@@ -90,7 +91,11 @@ function AtShowClassRowNextUp({ preview }: { preview: AtShowNextUpPreview }) {
             aria-hidden
             className="h-2 w-2 shrink-0 rounded-full bg-[color:var(--at-show-in-ring)]"
           />
-          <span className="sr-only">Armband </span>#{preview.inRingArmband}
+          <ArmbandBadge
+            armband={preview.inRingArmband}
+            srLabel
+            className="h-6 min-w-6 rounded-md text-xs"
+          />
           <span className="sr-only"> in the ring</span>
         </span>
       )}

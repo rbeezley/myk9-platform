@@ -1,4 +1,6 @@
 import { judgeLine } from '@/utils/classJudgeDisplay';
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
+import { formatArmbandDisplay, UNASSIGNED_ARMBAND_DISPLAY } from '@/utils/armbandUtils';
 import { Link } from 'react-router-dom';
 import {
   Package,
@@ -11,7 +13,6 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
-  Hash,
   ArrowUpRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -118,7 +119,7 @@ function EntryRow({ entry, href }: EntryRowProps) {
     <Link
       to={href}
       className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 hover:bg-muted/40 transition-colors"
-      aria-label={`${entry.classTitle} — see where to be`}
+      aria-label={`${entry.classTitle}${armbandSuffix(entry.armband)} — see where to be`}
     >
       <span className={`h-10 w-10 shrink-0 rounded-lg flex items-center justify-center ${bg}`}>
         <Icon className={`h-5 w-5 ${fg}`} />
@@ -144,10 +145,11 @@ function EntryRow({ entry, href }: EntryRowProps) {
             </span>
           )}
           {entry.armband && (
-            <span className="inline-flex max-w-full items-center gap-1 text-xs font-medium text-muted-foreground">
-              <Hash className="h-3 w-3" />
-              <span className="truncate">{entry.armband}</span>
-            </span>
+            <ArmbandBadge
+              armband={entry.armband}
+              srLabel
+              className="h-6 min-w-6 rounded-md text-xs"
+            />
           )}
         </div>
       )}
@@ -237,4 +239,10 @@ function EntryResultBadge({ entry }: { entry: EnrichedShowEntry }) {
       {isPreliminary && <span className="text-xs text-muted-foreground">preliminary</span>}
     </div>
   );
+}
+
+/** ", Armband N" for a link's accessible name; nothing when it is not assigned. */
+function armbandSuffix(armband: string | null | undefined): string {
+  const display = formatArmbandDisplay(armband);
+  return display === UNASSIGNED_ARMBAND_DISPLAY ? '' : `, Armband ${display}`;
 }

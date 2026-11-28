@@ -51,8 +51,19 @@ Build the phone channel once, as **a property of the `operator_alerts` row**, de
 4. **Test alert, confirmed on the phone.** Add a **Send a test alert to my phone** button on `/admin/health`.
    - It calls `page-operator` for the caller only and reports three outcomes: "Sent to N devices", "No device set up: turn on alerts in Account", or "Sending failed".
    - A push service accepting the message proves nothing about the phone, so the test push's link opens `/admin/health?confirmTest=<id>`, and opening it records the confirmation.
-   - The board shows "Last confirmed on a phone: <time>" from that confirmation only, never from the send count.
+   - The board shows "Last confirmed on a device: <time>" from that confirmation only, never from the send count (see Details settled in review).
    - Each urgent alert on the board shows its `page_state` and counts: accepted by N devices, no device, or failed.
+
+### Details settled in review (Codex round 2)
+
+These bind the implementing PRs:
+
+- **Recipient lookup is callable.** `private` is not exposed through PostgREST (`supabase/config.toml`). So `page-operator` calls a `public.operator_page_recipients()` RPC that only `service_role` may execute, and that RPC delegates to the private helper. A test exercises the lookup through the worker's real Supabase client, not only from SQL.
+- **The row carries a safe kind.** `operator_alerts` gains `page_kind`, drawn from an allowlist (`dispute`, `payout_failed`, `money_mismatch`, `ringside_conflicts`, `score_stuck`, `short_download`, `support_ticket`, `test`), plus an optional `page_show_id` that the writer has verified. The worker renders lock-screen text from those two fields only, never from the title or the detail, since money details can hold payment HTML. A row marked urgent with no `page_kind` is refused by a CHECK constraint.
+- **Mixed results are retried per device.** `page_detail` records each subscription endpoint's outcome. A retry sends only to endpoints that failed with a retryable error, never to one that already accepted. The row is `paged` once any device accepted, `no_device` when the recipients have no subscriptions, and `failed` while every attempt failed. Tests cover two devices on one admin and two admins, with one accepting and one failing.
+- **A short download with no show** may be reported by any signed-in user, as a platform-level `short_download` row. It is rate-limited per caller and needs no show role. `score_stuck` still requires `p_show_id` and a role at that show. Tests cover the null-show case allowed for `short_download` and refused for `score_stuck`.
+- **One first notification per show-day ticket.** `create_support_ticket` inserts the ticket and its first message together. For a ticket with `is_show_day_priority`, the urgent row pages, and `push-trigger-support-message` skips the push for that first message only. Follow-up messages push as today. Tests check one initial notification, normal follow-ups, and one reminder if nobody answers.
+- **"Device", not "phone".** The test push goes to every subscription the caller has. So the board says "Last confirmed on a device: <time>", and the show-eve check says to open the test alert on your phone. Nothing claims the phone without the person doing that.
 
 ## Do nothing, delete or link
 
@@ -104,6 +115,15 @@ Recommendation: build steps 1, 2 and 4 first, as one PR with one migration. Step
 - **App:**
   - The health board shows "sent to your phone at …".
   - The test button reports all three outcomes.
-  - "Last confirmed on a phone" changes only after the `confirmTest` link is opened.
+  - "Last confirmed on a device" changes only after the `confirmTest` link is opened.
   - A device with a score unsent for 10 minutes online calls the RPC once.
 - **After deploy:** on a show eve, press the test button, then raise a real urgent alert on a test show and confirm one push, one reminder at 30 minutes, and silence after Resolve.
+- Codex round 2, the last round in the docs budget, raised six findings (one P1, five P2). All were accepted and recorded in "Details settled in review":
+  - a callable recipient RPC;
+  - an allowlisted `page_kind`;
+  - retries per device;
+  - who may report a short download with no show;
+  - one first notification per ticket;
+  - "device", not "phone".
+
+  No third round: the implementing PRs get the full code gate.

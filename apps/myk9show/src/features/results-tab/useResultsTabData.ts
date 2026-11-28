@@ -212,6 +212,8 @@ export function useResultsTabData(showId: string) {
     entries,
     /** Unconfirmed check-in pull flags for the Finish list (MYK9-2180). */
     flaggedPulls,
+    /** The entries read's own state: false while it failed or is stale (MYK9-2427). */
+    entriesReadable: flaggedPulls.status === 'read',
     /** The show's first day, which the leaderboard counts competition days from. */
     showStartDate: showQuery.data?.startDate ?? null,
     /** The show ranks by points (nationals); null while the show row is unread. */

@@ -32,21 +32,36 @@ export function resultsRowToLeftClass(row: ResultsClassRow): WhatIsLeftClass {
 export function calculateResultsRowsLeft(
   rows: readonly ResultsClassRow[],
   trials: readonly WhatIsLeftTrial[] = [],
-  sent: Pick<
-    WhatIsLeftInput,
-    'submissions' | 'scoreChanges' | 'handlerClashes' | 'flaggedPulls'
-  > = {
+  sent: Pick<WhatIsLeftInput, 'submissions' | 'scoreChanges' | 'handlerClashes' | 'flaggedPulls'> &
+    Partial<Pick<WhatIsLeftInput, 'entries'>> & {
+      /** False = the entries read is stale or failed: the refund line reads unknown, whatever it holds. */
+      entriesReadable?: boolean | undefined;
+    } = {
     submissions: null,
   }
 ): WhatIsLeft {
-  return calculateWhatIsLeft({
+  const left = calculateWhatIsLeft({
     classes: rows.map(resultsRowToLeftClass),
     trials,
-    entries: [],
+    entries: sent.entries ?? [],
     incidents: null,
     submissions: sent.submissions,
     scoreChanges: sent.scoreChanges,
     handlerClashes: sent.handlerClashes,
     flaggedPulls: sent.flaggedPulls,
   });
+  if (sent.entriesReadable !== false) return left;
+  return {
+    ...left,
+    lines: left.lines.map(line =>
+      line.kind === 'refund-review'
+        ? {
+            ...line,
+            label: 'Refunds to decide: the entries could not be refreshed',
+            count: null,
+            open: null,
+          }
+        : line
+    ),
+  };
 }

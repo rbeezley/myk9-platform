@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import { screen, within } from '@testing-library/react';
 
+import { getEntryListHref } from '@/components/entries/management/entryManagementViews';
 import { calculateResultsRowsLeft } from '@/features/show-closeout/fromResultsRows';
 import { FAILED_FLAGS, NO_FLAGS, readFlags } from '@/features/show-closeout/flaggedPullsTestUtils';
 import type { CloseoutFlaggedPulls } from '@/features/show-closeout/useCloseoutFlaggedPulls';
@@ -56,7 +57,8 @@ const SHOW_ROWS = [
 function renderList(
   rows: ResultsClassRow[],
   trials: SyncableTrial[],
-  entries: SecretaryEntry[] = []
+  entries: SecretaryEntry[] = [],
+  entriesReadable = true
 ) {
   render(
     <ResultsFinishRow
@@ -66,6 +68,7 @@ function renderList(
       entries={entries}
       entriesTrusted
       flaggedPulls={flags.current}
+      entriesReadable={entriesReadable}
     />
   );
   return within(screen.getByRole('region', { name: 'Finish the show' }));
@@ -389,5 +392,33 @@ describe('ResultsFinishRow', () => {
       )
     ).toBeInTheDocument();
     expect(list.getByRole('group', { name: GROUP })).toBeInTheDocument();
+  });
+
+  it('lists a refund to decide with when the club is paid, linking to Pulls (MYK9-2427)', () => {
+    const entry = fromAny<SecretaryEntry, unknown>({
+      id: 'e1',
+      entry_status: 'withdrawn',
+      payment_status: 'paid',
+      payment_method: 'online',
+    });
+    render(
+      <ResultsFinishRow
+        showId="show-1"
+        trials={[trialFor('AKC')]}
+        rows={SHOW_ROWS}
+        entries={[entry]}
+        entriesTrusted
+        flaggedPulls={flags.current}
+      />
+    );
+    const list = within(screen.getByRole('region', { name: 'Finish the show' }));
+    const link = list.getByRole('link', { name: /1 refund to decide/ });
+    expect(link).toHaveAttribute('href', getEntryListHref('show-1', 'pulls'));
+    expect(link).toHaveTextContent('promised within five business days');
+  });
+
+  it('says the refund count is unknown when the entries read failed, even with nothing in the snapshot', () => {
+    const list = renderList(SHOW_ROWS, [trialFor('AKC')], [], false);
+    expect(list.getByText(/Refunds to decide: the entries could not be refreshed/)).toBeVisible();
   });
 });

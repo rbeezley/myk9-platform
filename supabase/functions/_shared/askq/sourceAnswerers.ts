@@ -53,17 +53,23 @@ export async function answerFromGuides(
   // Owner decision A (MYK9-2472): a reworded quote gets one more try, only on this rule. The
   // exact word-for-word check is unchanged; no loop, no second retry.
   if (parsed.escalationDetail === 'quote_not_in_guide' && parsed.failedQuote) {
-    const second = await input.call(
-      [
-        question,
-        { role: 'assistant', content: firstReply },
-        { role: 'user', content: retryPrompt(parsed.failedQuote) },
-      ],
-      [],
-      systemPrompt
-    );
-    parsed = parseSupportAnswer(firstText(second), guides);
-    retry = parsed.escalation ? 'failed' : 'passed';
+    try {
+      const second = await input.call(
+        [
+          question,
+          { role: 'assistant', content: firstReply },
+          { role: 'user', content: retryPrompt(parsed.failedQuote) },
+        ],
+        [],
+        systemPrompt
+      );
+      parsed = parseSupportAnswer(firstText(second), guides);
+      retry = parsed.escalation ? 'failed' : 'passed';
+    } catch {
+      // The retry is optional: a failed request (a rate limit, say) keeps the first answer's
+      // handoff rather than turning it into an error for the user.
+      retry = 'failed';
+    }
   }
   if (parsed.escalation) {
     return {

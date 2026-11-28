@@ -69,6 +69,21 @@ describe('answerFromGuides quote retry (MYK9-2472)', () => {
     expect(result.retry).toBe('failed');
   });
 
+  it('keeps the first handoff when the retry request itself fails', async () => {
+    let calls = 0;
+    const call: ModelCall = async () => {
+      calls += 1;
+      if (calls === 2) throw new Error('rate limited');
+      return { content: [{ type: 'text', text: answer(REWORDED) }], stop_reason: 'end_turn' };
+    };
+    const result = await run(call);
+
+    expect(calls).toBe(2);
+    expect(result.escalation?.reason).toBe('low_confidence');
+    expect(result.escalationDetail).toBe('quote_not_in_guide');
+    expect(result.retry).toBe('failed');
+  });
+
   it.each([
     ['too many quotes', answer(STEP_1, STEP_1, STEP_1, STEP_1)],
     ['too short', answer('Go to My Dogs.')],

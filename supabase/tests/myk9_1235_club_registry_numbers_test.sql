@@ -332,7 +332,7 @@ BEGIN
   );
   IF (SELECT jsonb_object_agg(organization, number)
       FROM public.club_registry_numbers WHERE club_id = v_club_id)
-     <> '{"AKC":"777","UKC":"U-8"}'::jsonb THEN
+     IS DISTINCT FROM '{"AKC":"777","UKC":"U-8"}'::jsonb THEN
     RAISE EXCEPTION 'FAIL 1235.16 approval did not copy the request''s numbers to the new club';
   END IF;
   -- Re-approval (idempotent retry) must leave them alone and not error.

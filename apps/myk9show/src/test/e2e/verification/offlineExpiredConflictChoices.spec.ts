@@ -178,7 +178,8 @@ test.describe('offline past token expiry', () => {
       const expired = await sessionIdentity(bMine.page);
       expect(expired.userId).toBe(initial.userId);
       expect(expired.expiresAt * 1000).toBeLessThan(Date.now());
-      expect((await sessionIdentity(bSaved.page)).expiresAt * 1000).toBeLessThan(Date.now());
+      const expiredSaved = await sessionIdentity(bSaved.page);
+      expect(expiredSaved.expiresAt * 1000).toBeLessThan(Date.now());
       for (const device of [bMine, bSaved]) {
         expect(await device.page.evaluate(() => navigator.onLine)).toBe(false);
         await expect(device.page.getByText(CONFLICT_TITLE)).toBeVisible();
@@ -209,6 +210,11 @@ test.describe('offline past token expiry', () => {
       await expect(bSaved.page.getByText(CONFLICT_TITLE)).toHaveCount(0);
       await expect.poll(() => pendingCount(bSaved.page, savedId)).toBe(0);
       await expect.poll(() => localResult(bSaved.page, savedId)).toBe('qualified');
+      // The notice goes before the choice is applied, so wait for the stored row: the conflict
+      // snapshot cleared and the row synced, or the notice would return on the next visit.
+      await expect
+        .poll(() => storedState(bSaved.page, savedId), { timeout: 15_000 })
+        .toEqual(expect.objectContaining({ syncStatus: 'synced', hasConflict: false }));
 
       // Nothing reached the server while offline.
       expect((await row(client, mineId)).result_status).toBe('qualified');
@@ -260,6 +266,21 @@ test.describe('offline past token expiry', () => {
       // Every replica agrees with the server.
       await expect.poll(() => localResult(bMine.page, mineId), { timeout: 60_000 }).toBe('nq');
       expect(await localResult(bSaved.page, savedId)).toBe('qualified');
+      // B's keep-saved device had nothing to send, so prove it reconnected on its own: its expired
+      // session refreshed, and it downloaded the server's newer version of the row (the placement
+      // recalculation bumped it after the kept NQ landed), not just kept its offline copy.
+      await expect
+        .poll(async () => (await sessionIdentity(bSaved.page)).expiresAt, { timeout: 120_000 })
+        .toBeGreaterThan(expiredSaved.expiresAt);
+      await expect
+        .poll(
+          async () => {
+            await bSaved.page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+            return (await storedState(bSaved.page, savedId)).serverVersion;
+          },
+          { timeout: 90_000, intervals: [1_000, 2_000, 5_000] }
+        )
+        .toBe(saved.version);
       // A learns of B's write on its next download pass; the visibility trigger forces one.
       await expect
         .poll(

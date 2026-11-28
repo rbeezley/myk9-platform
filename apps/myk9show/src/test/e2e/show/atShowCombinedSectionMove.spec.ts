@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { signInAsExhibitor, signInAsSecretary } from '../helpers/testUsers';
+import { signInAsSecretary } from '../helpers/testUsers';
 import {
   cleanupDisposableEntry,
   getIsolatedAdminClient,
@@ -29,7 +29,6 @@ const SHOW_ID = 'dededede-0000-0000-0000-000000000010';
 // The template entry only lends its trial, handler and fee: its seeded class is finalized
 // (completed, results released), so it is never a move source and is never cloned.
 const TRIAL_ID = 'dededede-0000-0000-0000-000000000021';
-const REPLICATION_DB_NAME = 'myK9_Replication';
 const TEMPLATE_ENTRY_ID = 'dededede-0000-0000-0000-000000000051';
 const CLASS_A_LABEL = 'Buried Novice A';
 const CLASS_B_LABEL = 'Buried Novice B';
@@ -165,9 +164,11 @@ test('combined A & B: after a section move the live entry shows once and only th
   await expectCombinedList(page, classAId, classBId, callName);
 });
 
-test('combined A & B: a device holding the undone entry lists the live one once and only the old one as Not running', async ({
+// One device. A second device that already held the entry before the undo is not covered: no seeded
+// account both receives the soft-deleted row and sees the combined list (MYK9-2494, owner decision
+// 2026-11-28). Why the owning exhibitor's list lacks Not running is MYK9-2548.
+test('combined A & B: after a move is undone and made again the live entry shows once and only the old one is Not running', async ({
   page,
-  browser,
 }) => {
   test.setTimeout(300_000);
   if (!seed || !classAId || !classBId) throw new Error('fixture was not seeded');
@@ -175,74 +176,18 @@ test('combined A & B: a device holding the undone entry lists the live one once 
 
   await signInAsSecretary(page, `/shows/${SHOW_ID}?focus=${classAId}`);
   await moveAToB(page, classAId, callName);
+  await moveBackToA(page, classBId, callName);
+  await moveAToB(page, classAId, callName);
 
-  // The viewer is the exhibitor who owns the fixture dog: the replication view hides a soft-deleted
-  // entry from everyone else, staff included. A second device (its own replica) is looking at the combined list when the move is undone, so
-  // it holds the entry that is about to be soft-deleted. The undoing browser drops it locally.
-  const viewerContext = await browser.newContext();
-  try {
-    const viewer = await viewerContext.newPage();
-    await signInAsExhibitor(viewer, `/at-show/${SHOW_ID}/class/${classAId}/${classBId}`);
-    await expectCombinedList(viewer, classAId, classBId, callName);
+  // The undo must really have left a soft-deleted Section B row, or this proves nothing.
+  const { data: rows, error } = await getIsolatedAdminClient()
+    .from('entries')
+    .select('id, deleted_at')
+    .eq('dog_id', dogId)
+    .eq('class_id', classBId);
+  expect(error).toBeNull();
+  expect(rows?.filter(row => row.deleted_at !== null).length).toBeGreaterThanOrEqual(1);
+  expect(rows?.filter(row => row.deleted_at === null)).toHaveLength(1);
 
-    await moveBackToA(page, classBId, callName);
-    await moveAToB(page, classAId, callName);
-
-    // The undo must really have left a soft-deleted Section B row, or this proves nothing.
-    const { data: rows, error } = await getIsolatedAdminClient()
-      .from('entries')
-      .select('id, deleted_at')
-      .eq('dog_id', dogId)
-      .eq('class_id', classBId);
-    expect(error).toBeNull();
-    const tombstones = rows?.filter(row => row.deleted_at !== null) ?? [];
-    expect(tombstones.length).toBeGreaterThanOrEqual(1);
-    expect(rows?.filter(row => row.deleted_at === null)).toHaveLength(1);
-
-    // Reload the viewer and wait until ITS replica holds the tombstone: the list is only a test of
-    // the filter when the soft-deleted row is on the device that renders it.
-    await viewer.reload();
-    for (const tombstone of tombstones) {
-      await expect
-        .poll(() => readReplicaDeletedAt(viewer, tombstone.id), { timeout: 30_000 })
-        .not.toBeNull();
-    }
-    await expectCombinedList(viewer, classAId, classBId, callName);
-  } finally {
-    await viewerContext.close();
-  }
+  await expectCombinedList(page, classAId, classBId, callName);
 });
-
-/** `deleted_at` of an entry in this browser's replica; null when absent or live. */
-async function readReplicaDeletedAt(page: Page, entryId: string): Promise<string | null> {
-  return page.evaluate(
-    ({ dbName, entryId }) =>
-      new Promise<string | null>(resolve => {
-        const openReq = indexedDB.open(dbName);
-        openReq.onerror = () => resolve(null);
-        openReq.onsuccess = () => {
-          const db = openReq.result;
-          if (!db.objectStoreNames.contains('replicated_tables')) {
-            db.close();
-            resolve(null);
-            return;
-          }
-          const getReq = db
-            .transaction('replicated_tables', 'readonly')
-            .objectStore('replicated_tables')
-            .get(['entries', entryId]);
-          getReq.onsuccess = () => {
-            db.close();
-            const data = getReq.result?.data as
-              { deleted_at?: string | null; deletedAt?: string | null } | undefined;
-            resolve(data?.deleted_at ?? data?.deletedAt ?? null);
-          };
-          getReq.onerror = () => {
-            db.close();
-            resolve(null);
-          };
-        };
-      }),
-    { dbName: REPLICATION_DB_NAME, entryId }
-  );
-}

@@ -46,6 +46,10 @@ VALUES
    'authenticated', 'authenticated', 'myk9-2418-siteadmin@example.test', '', now(), now(), now(),
    '{}', '{}', false, false, false);
 
+-- Only the site admin has signed in before (grant_club_admin's caller check needs it); the club
+-- admin account is the never-signed-in target of case 2d.
+UPDATE auth.users SET last_sign_in_at = now() WHERE id = '00000000-0000-0000-0000-000002418022';
+
 UPDATE public.people SET auth_user_id = '00000000-0000-0000-0000-000002418021'
  WHERE id = '00000000-0000-0000-0000-000002418011';
 UPDATE public.people SET auth_user_id = '00000000-0000-0000-0000-000002418022'
@@ -241,7 +245,7 @@ BEGIN
   END IF;
 
   -- grant_club_admin: deleted club P0002 where a live club passes the club lookup (and then
-  -- stops at the person check, 22023, for a person with no account).
+  -- stops at the person check, 22023, for a target who has never signed in).
   v_state := NULL;
   BEGIN
     PERFORM public.grant_club_admin(
@@ -259,8 +263,8 @@ BEGIN
   EXCEPTION WHEN OTHERS THEN
     v_state := SQLSTATE;
   END;
-  IF v_state IS NOT NULL AND v_state = 'P0002' THEN
-    RAISE EXCEPTION 'FAIL 2d grant_club_admin on a live club said not found';
+  IF v_state IS DISTINCT FROM '22023' THEN
+    RAISE EXCEPTION 'FAIL 2d grant_club_admin on a live club did not reach the target check (%)', v_state;
   END IF;
 
   -- club_publish_blockers

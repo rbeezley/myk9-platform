@@ -34,6 +34,7 @@ import {
   buildIcsDocument,
   type CalendarClassEvent,
 } from './icsBuilder.ts';
+import { feedVenue } from './feedVenue.ts';
 import {
   resolveTrialZone,
   selectFeedEvents,
@@ -120,7 +121,7 @@ serve(async (req: Request) => {
   const { data: show, error: showError } = await supabase
     .from('shows')
     .select(
-      'id, name, venue_name, address, city, state, trials(id, name, date, timezone, planned_start_time, actual_start_time, actual_end_time)'
+      'id, name, venue_name, location, address, city, state, trials(id, name, date, timezone, planned_start_time, actual_start_time, actual_end_time)'
     )
     .eq('id', showId)
     .is('deleted_at', null)
@@ -135,6 +136,7 @@ serve(async (req: Request) => {
     id: string;
     name: string | null;
     venue_name: string | null;
+    location: string | null;
     address: string | null;
     city: string | null;
     state: string | null;
@@ -189,10 +191,7 @@ serve(async (req: Request) => {
     .maybeSingle();
   const personId = (person as { id?: string } | null)?.id ?? null;
 
-  const venue =
-    [showRow.venue_name, [showRow.address, showRow.city, showRow.state].filter(Boolean).join(', ')]
-      .filter(Boolean)
-      .join('\n') || null;
+  const venue = feedVenue(showRow);
 
   // One event per class, deduped: an exhibitor with two dogs in the same class
   // gets one calendar entry, not two overlapping ones.

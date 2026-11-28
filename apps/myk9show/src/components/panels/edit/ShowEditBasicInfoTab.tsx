@@ -224,8 +224,8 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
               </Select>
               {closedShow && (
                 <p id="status-closed-hint" className="text-xs text-muted-foreground">
-                  This show is closed, so its status cannot change here. To make changes, use Reopen
-                  show on the Results tab.
+                  This show is closed, so its status cannot change here. The show secretary can
+                  reopen it with Reopen show on the Results tab.
                 </p>
               )}
               {!initialIsPublic && (

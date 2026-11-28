@@ -175,7 +175,9 @@ describe('ShowEditBasicInfoTab status dropdown — public statuses (MYK9-979)', 
 
     expect(status).toBeDisabled();
     expect(status).toHaveTextContent(/completed/i);
-    expect(screen.getByText(/use Reopen show on the Results tab/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/show secretary can reopen it with Reopen show on the Results tab/i)
+    ).toBeInTheDocument();
     await user.click(status);
     expect(screen.queryByRole('option', { name: /^draft/i })).toBeNull();
     expect(screen.queryByRole('option', { name: /^cancelled/i })).toBeNull();
@@ -184,7 +186,7 @@ describe('ShowEditBasicInfoTab status dropdown — public statuses (MYK9-979)', 
   it('leaves the status open on a show that is not closed (MYK9-2430)', () => {
     renderTab('upcoming');
     expect(statusCombobox()).toBeEnabled();
-    expect(screen.queryByText(/use Reopen show/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Reopen show/i)).not.toBeInTheDocument();
   });
 });
 

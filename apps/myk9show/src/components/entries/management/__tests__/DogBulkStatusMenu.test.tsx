@@ -113,6 +113,9 @@ describe('DogBulkStatusMenu', () => {
     expect(
       screen.getByText('Not competing, for any reason. No refund promise; the club decides.')
     ).toBeInTheDocument();
+    // MYK9-2478: a multi-entry Pull carries the desks' refund note too, and writes nothing yet.
+    expect(screen.getByText(/Refunds are not automatic/)).toBeInTheDocument();
+    expect(onStatusChange).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: 'Pull Rex' }));
     await waitFor(() => expect(onStatusChange).toHaveBeenCalledTimes(3));
     for (const id of ['e1', 'e2', 'e3']) {

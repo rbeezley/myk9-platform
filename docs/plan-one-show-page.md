@@ -1,0 +1,113 @@
+# One show page for the exhibitor and the secretary
+
+> **Status:** Active
+
+Linear: MYK9-2485 (owner request, 2026-11-26). The owner answered all seven questions on 2026-11-28, each as recommended (see "Owner decisions" below). Everything here was read in code on 2026-11-27; nothing was walked in the running app yet (that is phase 0).
+
+**Duplication question (CLAUDE.md):** the exhibitor view and the secretary view of `/shows/:id` are two page designs for one show. Duplication is not justified. The aim is to delete one of them, not to add a third.
+
+## Inventory
+
+`/shows/:id` is `pages/ShowDetailsPage.tsx`. It picks one of three surfaces with `resolveShowAudience` (`ShowDetailsPage.audience.ts`). The owner named two. There are three.
+
+| Tab or panel                                                                                                  | Who sees it                                                                             | File                                                                      | What it shows                                                                                                                   | Proposed home                                                |
+| ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Styled landing (Heritage, Gazette)                                                                            | Signed out, or signed in with no entries, no entry history and no ringside staff access | `ShowPublicLanding.tsx`                                                   | The club's published marketing page: countdown, classes offered, Enter button, service fee line, "How our fees work"            | Unchanged. Out of scope (question 4)                         |
+| Exhibitor hero                                                                                                | Exhibitor                                                                               | `ShowExhibitorView.tsx`, `DetailHero`, `ShowDateBlock`                    | Large date block, name, registry badge, entry status ("Entry Submitted"), See classes, Enter This Show / Add Entry / View Entry | One compact header (question 2)                              |
+| Facts strip                                                                                                   | Exhibitor (and secretary on About)                                                      | `overview/QuickInfoCards.tsx`                                             | Entries close, location, entry fee, day-of fee, service-fee line with "How our fees work", payment methods                      | Shared component. Exhibitor keeps it (question 3)            |
+| Secretary header                                                                                              | Secretary                                                                               | `ShowHeader.tsx`, `ShowStatusLine`, `ShowHeaderControls`                  | Name, registry badge, club, dates, entry count, status pill, presence, Actions menu, publish nudge                              | The one header; controls and nudge secretary-only            |
+| Overview tab: Classes offered summary, schedule summary, venue map, officials, judges, share, More from club  | Exhibitor                                                                               | `tabs/ShowOverviewTab.tsx`                                                | Show facts and schedule                                                                                                         | About, as sections                                           |
+| Overview tab: access codes card                                                                               | Judge or steward (not manager)                                                          | `ShowOverviewTab.tsx` -> `ShowAccessCodesCard`                            | Codes the server projects for them                                                                                              | About, same gate                                             |
+| Trials tab                                                                                                    | Exhibitor                                                                               | `tabs/TrialsTab.tsx` (437 lines, carries manager branches nobody reaches) | Trial day cards with class and entry counts, scoring progress                                                                   | Folded into About's day grouping; component deleted          |
+| Classes tab                                                                                                   | Exhibitor                                                                               | `tabs/ClassesTab.tsx`                                                     | Class table with All and Mine views; rows open the class page                                                                   | About section "Classes" (reuse the component)                |
+| My Entries tab: My run schedule, Where to be & when, one card per dog                                         | Exhibitor                                                                               | `tabs/MyEntriesTab.tsx`, `WhereToBe.tsx`, `DogEntriesSection.tsx`         | Her scheduled runs, times, armbands, judges, check-in, results per dog                                                          | Stays a tab, exhibitor-only, first and default               |
+| Results tab (podium)                                                                                          | Exhibitor                                                                               | `components/results/ShowResultsTab.tsx`                                   | Released results only                                                                                                           | Same tab id as the secretary's Results; body differs by role |
+| Show Desk tab                                                                                                 | Secretary                                                                               | `ShowWorkbenchShowDeskPage` (cockpit)                                     | Schedule, class panel, check-in, readiness                                                                                      | Secretary only                                               |
+| Entry Forms tab                                                                                               | Secretary                                                                               | `EntryManagementPage`                                                     | Approve, pay, waitlist, pulls                                                                                                   | Secretary only                                               |
+| Results tab (control)                                                                                         | Secretary                                                                               | `pages/secretary/ShowResultsSection.tsx`                                  | Class list with scores, Submit, Close the show                                                                                  | Secretary body of the shared Results tab                     |
+| Reports tab                                                                                                   | Secretary                                                                               | `pages/secretary/ReportsPage`                                             | Paperwork library, financial report                                                                                             | Secretary only                                               |
+| About tab: Where, Withdrawal policy, Entries & fees, About this show                                          | Secretary                                                                               | `pages/secretary/ShowAboutPage.tsx`, `about/ShowAboutFacts.tsx`           | The same facts the exhibitor's hero strip shows, using the same `QuickInfoCards`                                                | Shared. Exhibitor sees these too                             |
+| About tab: publish cards, blockers, premium notice, landing page card, access codes link, Email delivery link | Secretary                                                                               | `ShowAboutPage.tsx`                                                       | Publishing and delivery                                                                                                         | Secretary only (hidden for the exhibitor)                    |
+| Edit panel, delete, status changes, presence                                                                  | Secretary                                                                               | `ShowManagementShell.tsx`, `ShowEditPanel`                                | Edit show, status, delete                                                                                                       | Secretary only                                               |
+
+## The existing design and why it is that way
+
+- **There was never one page.** `ShowExhibitorView` came from the shared-shell work (MYK9-930, #2664: detail pages share one hero, breadcrumb and not-found state), which gave every detail page a `DetailHero`. The exhibitor view is that hero plus the facts strip.
+- **The secretary page was rebuilt around her work.** MYK9-630 phase 2 (#2331) made her one row of real-route tabs. MYK9-957 and `docs/plan-secretary-show-home.md` made Show Desk her home and said outright "no change to the exhibitor or public show page". MYK9-1683 added About (owner, 2026-11-03). Her compact header is deliberate: Show Desk must start in the top half of a 375x812 phone (MYK9-1729), and the header height is published as `--show-header-h` for sticky panels.
+- **The split is guarded by comments.** `ShowDetailsPage.tsx` explains why an exhibitor's `?tab=` strip and a manager's route tabs must not share ids (MYK9-634, the `my-entries` hazard). `ShowExhibitorView` keeps an `<Outlet/>` so a non-manager on `/shows/:id/setup` is still bounced. Both must survive.
+- **INTENT comments to keep:** "See classes" lets an exhibitor check that her dog fits the classes before she commits (UX-P2-04); the Enter button labels follow `docs/reference/ui-vocabulary.md`; the service-fee line sits beside the fee it adds to (MYK9-1963). `docs/INTENT.md` sets the exhibitor's word as "This respects my time" and the schedule moment as "I know where to be". It does not ask for a hero or a date block.
+- `git log -S` finds only squashed commits for these names, so the issue that first chose the hero is MYK9-930; I found no decision that the exhibitor must look different.
+
+## Proposed merged layout
+
+One page component, one header, one tab list with an audience on each tab.
+
+| Role                                                        | Tabs, in order                                  | Default tab                                 |
+| ----------------------------------------------------------- | ----------------------------------------------- | ------------------------------------------- |
+| Secretary                                                   | Show Desk, Entry Forms, Results, Reports, About | Show Desk (unchanged)                       |
+| Exhibitor                                                   | My Entries, Results, About                      | My Entries when she has entries, else About |
+| Ringside staff (passcode, judge or steward) with no entries | Results, About                                  | About                                       |
+
+- **Who is admitted is decided by the viewer, never by the path.** Today `ShowDetailsPage` admits a non-manager past the styled landing when she has entries or entry history (`historyCount`, so a dog whose last entry was withdrawn still shows its history on My Entries), or when she has ringside staff access (`useHasRingsideStaffAccess`, so a passcode holder can open released Results with no entry). `hasActiveEntries` only picks the default tab. This plan keeps that rule exactly. `resolveShowAudience` today skips the landing check for paths in `SHOW_MANAGEMENT_SECTIONS`; once `/results` and `/about` admit exhibitors, a shared `/shows/:id/results` link must still send a signed-out visitor, or a signed-in visitor with no entries, no history and no staff access, to the styled landing. Phase 1 resolves admission first and the path second.
+- **Header:** the compact `ShowHeader` for both. The exhibitor slot carries the entry status, entry close date and the Enter This Show / Add Entry / View Entry button. The secretary slot carries presence, Actions menu and the publish nudge.
+- **Hidden from the exhibitor:** Show Desk, Entry Forms, Reports, the Actions menu items (edit show, status, delete, publish, access codes), the publish cards, Email delivery, the entry count, presence.
+- **About for the exhibitor:** Where, Withdrawal policy, Entries & fees (with the service-fee line and "How our fees work"), About this show, then the Overview content (schedule, venue map, officials, judges, share, More from club) and a Classes section by day. Each day lists its trials, and each trial keeps a link to its trial page (`/shows/:id/trials/:trialId`, today reached through `TrialsTab.openTrial`), since a day can hold more than one trial and the class rows open classes, not trials. The Classes section carries an anchor (`#classes`).
+- **"See classes" keeps working in every phase (UX-P2-04).** The hero's See classes, Overview's "View all classes" and, for an admitted exhibitor, legacy `?tab=classes` links all land on About's Classes section itself, not the top of About. For a manager, `?tab=classes` keeps today's redirect to Show Desk with `select=classes` (`LEGACY_SHOW_TAB_PARAM_REDIRECTS`). Phase 1 retargets them in the same PR that removes the `classes` tab id, and phase 2 carries See classes into the compact header.
+- **URLs:** both roles use paths (`/shows/:id/results`, `/about`; `/shows/:id/my-entries` for the exhibitor). `?tab=` links redirect, as `LEGACY_SHOW_TAB_PARAM_REDIRECTS` already does for managers. Live `?tab=` emitters to keep working: notifications, `ringsideMenuItems`, `CompactScheduleTimeline`, `MyEntriesTab`.
+- **Reachability check (AC3):** dates, location, fees, service fee, payment methods, her entries, run schedule and results all stay reachable (header, facts strip, My Entries, Results, About).
+
+## Overlap: what this plan must not take
+
+- **MYK9-1942** (In Review; one home for a class). It owns the class page, class links, and turning "Where to be & when" into a link to My Shows or Ringside. This plan moves `WhereToBe` and `MyEntriesTab` as they are and changes none of their links or copy. It does not touch `ClassDetailsPage` or the class-page link audit (#4489). Phase 1 starts after 1942 merges.
+- **MYK9-1998** (In Review; the exhibitor's wait). It owns My Shows card content (judge, armband, address, money owed). Its non-goal is "a separate show-details page". This plan adds no show-page content for those questions; the show page's My Entries stays what it is.
+- **`docs/plan-ia-exhibitor-surface.md`** keeps My Shows as the one front door for "what I have entered"; this plan does not add another.
+- **Money:** no change to fees, the wizard, or `ServiceFeeNote`. No migration.
+
+## Options weighed
+
+1. **Do nothing.** Cheapest. Costs: two code paths for one URL, `TrialsTab` and `ClassesTab` carrying manager branches nobody reaches, and the owner's complaint stays true. Honest: pre-launch there are no users to confuse, so the cost is maintenance and the owner's eye, not harm.
+2. **Link instead of merge.** Keep both layouts, make names and order match, and link the exhibitor's tabs to the same shared components. Smallest change, but it leaves two components and the owner asked for one.
+3. **Merge tabs, keep the exhibitor hero.** One tab list, two headers. Removes the tab mismatch, leaves the visible difference the owner dislikes.
+4. **Full merge (recommended).** One component, one header, one tab list gated by role. Do it in the phases below so each step ships and checks alone.
+
+## Owner decisions (2026-11-28)
+
+The owner said "all seven as recommended" (recorded on MYK9-2485):
+
+1. Three exhibitor tabs: My Entries, Results and About. Overview, Trials and Classes fold into About.
+2. One compact header for both roles, with the Enter button in it. The big date block goes.
+3. The facts strip (service-fee line, "How our fees work") stays above the tabs for the exhibitor.
+4. Signed-out and no-entry visitors keep the club's styled landing, unchanged.
+5. "Preview as exhibitor" stays on the styled landing.
+6. Exhibitor URLs become paths, with `?tab=` redirects.
+7. Phase 1 waits for MYK9-1942 to merge.
+
+## The questions as asked
+
+1. **Exhibitor tabs: three (My Entries, Results, About) or four (add Classes)?** Recommend three: the class list becomes About's "Classes" section, and Trials folds into its day grouping. An exhibitor with no entries already sees the styled landing, which lists the classes. Fallback: a fourth tab "Classes" that merges Trials and Classes. Either way each trial keeps its link to the trial page; say so if you would rather retire the trial page for exhibitors.
+2. **Header: the secretary's compact header for both, with the Enter button in it, dropping the big date block?** Recommend yes. INTENT asks only that entering stay one tap, near the top, on a phone. If the owner wants the date block kept for exhibitors, that is option 3 and a separate decision.
+3. **Keep the facts strip (close date, fee, service fee, payment methods) above the tabs for the exhibitor?** Recommend yes: MYK9-1963 says the fee is said beside the Enter button before she starts the wizard, and on About alone it would be one tab away. The secretary has the same strip inside About.
+4. **Signed-out visitors, and signed-in people with no entries, no entry history and no ringside staff access, keep the club's styled landing on `/shows/:id` and its tab routes? Shared public links below the show, such as a released class's results (`/shows/:id/trials/:trialId/classes/:classId/results`, kept public by `anonymousAccessBoundary.test.ts`), stay as they are.** Recommend yes, unchanged: it is the club's published page, and "signed-out view" in the acceptance criteria then means "unchanged".
+5. **Secretary's "Preview as exhibitor" still opens the styled landing, not the new exhibitor view?** Recommend leave it; file a separate issue if she wants to see her page as Mary sees it.
+6. **Exhibitor URLs: paths with `?tab=` redirects?** Recommend yes (see layout).
+7. **Wait for MYK9-1942 to merge before phase 1?** Recommend yes; it changes `WhereToBe`, class links and the Classes rows this plan moves.
+
+## Phases
+
+0. **Before code.** Owner answers. Walk the exhibitor (Mary Smith on Heartland Scent Work Classic), secretary and signed-out views with writes refused (`scripts/qa/readonly-walk.ts`) and record what `TrialsTab` shows that `ClassesTab` does not. Run `pnpm qa:inflight` on the paths.
+1. **One tab list and route guard.** Extend `SHOW_TABS` with an audience per tab; `ShowManagementSectionRoute` admits the audience each section names; exhibitor `?tab=` redirects; exhibitor strip and ids come from the one list. Fold Overview and Classes into About; delete `TrialsTab` and the dead manager branches.
+2. **One header.** `ShowHeader` takes role slots; the exhibitor view stops using `DetailHero`.
+3. **Delete** `ShowExhibitorView` and `ShowDetailTabs`, once grep (code and `*.md`) and typecheck prove nothing else uses them.
+
+Each phase is its own PR on one surface branch (not money, no migration). Review tier from `pnpm qa:review-tier`.
+
+## Testing phase
+
+- **Unit, written red first:** the tab list per role (exhibitor three, secretary five, judge two); an exhibitor on `/shows/:id/reports` and `/entries` is bounced; exhibitor About shows the service-fee line and "How our fees work" and none of the publish cards; secretary About still shows them; every legacy `?tab=` value lands on its new path; the `?preview=public` and management-section `<Outlet/>` bounce still work. Admission: a direct `/shows/:id/results` and `/about` link opens the styled landing for a signed-out visitor and for a signed-in visitor with no entries, history or staff access; a ringside passcode holder with no entry reaches Results; a visitor whose only entry was withdrawn reaches My Entries and its history. See classes and "View all classes" land on the `#classes` section; `?tab=classes` lands there for an exhibitor and on Show Desk with `select=classes` for a manager; a signed-out visitor still opens a released class's public results page; each trial in About links to its trial page. Update `ShowExhibitorView.test`, `ShowDetailTabs.test`, `ShowDetailsPage.tabDefs.test`, `ShowDetailsPage.test` and `show-details-issue.spec`.
+- **Shuffled runs:** `pnpm vitest run --sequence.shuffle` once on the app suite before pushing.
+- **Browser walk** (`playwright-cli`, own session, writes refused): Mary Smith, the secretary and a signed-out visitor, at 1440 and 375 px, on the same show. Check every fact in the reachability list, the Enter button above the fold on a phone, and an offline reload of the exhibitor's My Entries.
+- **Not covered by tests, so walked:** the service-fee line live rate (`usePlatformFeeRatesQuery`) rendering on About.
+
+## Not verified
+
+The running app was not walked for this plan. I did not confirm what `TrialsTab` shows beyond the code, what every `?tab=` emitter links to outside the four found, or the MYK9-1942 PR's final file list.

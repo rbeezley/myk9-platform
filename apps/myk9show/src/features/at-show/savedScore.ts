@@ -90,6 +90,8 @@ interface SavedScoreState {
   saved: SavedScore | null;
   set: (saved: SavedScore) => void;
   clear: () => void;
+  /** That dog's score was cleared: drop the line only if it names that dog (MYK9-2518). */
+  forget: (entryId: string) => void;
   /** The list has scrolled back; do not do it again if the line remounts. */
   clearScroll: () => void;
 }
@@ -98,6 +100,7 @@ export const useSavedScoreStore = create<SavedScoreState>()(set => ({
   saved: null,
   set: saved => set({ saved }),
   clear: () => set({ saved: null }),
+  forget: entryId => set(state => (state.saved?.entryId === entryId ? { saved: null } : state)),
   clearScroll: () =>
     set(state => {
       if (!state.saved) return state;

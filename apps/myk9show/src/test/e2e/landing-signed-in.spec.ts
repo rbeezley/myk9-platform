@@ -29,7 +29,8 @@ test.describe('landing for a signed-in secretary', () => {
 
     const form = page.locator('#get-started');
     await expect(form).toBeInViewport({ timeout: 10000 });
-    await expect(page.locator('#onb-contact-email')).toHaveValue(TEST_USERS.SECRETARY.email);
+    await expect(form.getByRole('button', { name: /add my club/i })).toBeVisible();
+    await expect(form).toContainText(TEST_USERS.SECRETARY.email);
 
     // Scroll so the sticky landing header pins, then check it sits below the app header.
     await page.mouse.wheel(0, 400);

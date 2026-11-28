@@ -3,7 +3,6 @@ import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { ExhibitorOnboardingChecker } from '../ExhibitorOnboardingChecker';
 import { UserRole } from '@/types/auth-types';
-import { saveClubOnboardingDraft } from '@/components/landing/lifecycle/clubOnboardingDraft';
 
 // Mock hooks
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -114,48 +113,11 @@ describe('ExhibitorOnboardingChecker', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/onboarding', { replace: true });
   });
 
-  // MYK9-2469: she comes back by the club form's own address (sign-in, or the confirmation link
-  // in a new tab, which passes the exempt auth callback first). The address is the whole test.
-  it('does not redirect from the club form address when it carries the saved draft id', () => {
-    mockPathname = '/';
-    const id = saveClubOnboardingDraft({
-      clubName: 'Tri-State Kennel Club',
-      organization: 'AKC',
-      clubNumbers: { AKC: '1', UKC: '', ASCA: '' },
-      contactName: 'Pat',
-      contactEmail: 'pat@example.com',
-      contactPhone: '',
-      firstShowDate: '',
-      message: '',
-    });
-    mockSearch = `?onboarding=true&clubDraft=${id}`;
-    setupMocks({ hasProfile: false, onboardingCompleted: false });
-    renderChecker();
-    expect(mockNavigate).not.toHaveBeenCalled();
-  });
-
-  // Someone else's leftover draft must not skip onboarding for an unrelated sign-up.
-  it('runs onboarding as normal for an unrelated sign-up while a draft sits in storage', () => {
-    mockPathname = '/';
-    saveClubOnboardingDraft({
-      clubName: 'Tri-State Kennel Club',
-      organization: 'AKC',
-      clubNumbers: { AKC: '1', UKC: '', ASCA: '' },
-      contactName: 'Pat',
-      contactEmail: 'pat@example.com',
-      contactPhone: '',
-      firstShowDate: '',
-      message: '',
-    });
-    setupMocks({ hasProfile: false, onboardingCompleted: false });
-    renderChecker();
-    expect(mockNavigate).toHaveBeenCalledWith('/onboarding', { replace: true });
-  });
-
-  // MYK9-2469: the confirmation link was opened in another browser, so no draft came with her.
-  // She still lands on the club form, not on the profile step.
+  // MYK9-2547: she comes back by the club form's own address (sign-in, or the confirmation link
+  // in a new tab, which passes the exempt auth callback first). The address is the whole test:
+  // she lands on the club form, not on the profile step.
   it.each(['?onboarding=true', '?onboarding=true&returnTo=%2Fshows%2Fnew'])(
-    'does not redirect from the club form address (/%s) even with no draft',
+    'does not redirect from the club form address (/%s) with nothing else saved',
     search => {
       mockPathname = '/';
       mockSearch = search;

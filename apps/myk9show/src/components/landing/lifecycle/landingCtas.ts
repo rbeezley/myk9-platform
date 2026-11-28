@@ -1,5 +1,4 @@
 import { normalizeSignInRedirect } from '@/pages/SignInPage.helpers';
-import { CLUB_DRAFT_PARAM } from './clubOnboardingDraft';
 import type { Audience } from './lifecycleStories';
 
 // The single source for landing CTA labels, targets and order: clubs first.
@@ -15,6 +14,12 @@ export function isAddYourClubLocation(location: { pathname: string; search: stri
   );
 }
 
+/** True when a same-origin return target (`/?onboarding=true#get-started`) is the club form. */
+export function isAddYourClubTarget(target: string): boolean {
+  const url = new URL(target, 'http://local.invalid');
+  return isAddYourClubLocation({ pathname: url.pathname, search: url.search });
+}
+
 /** A same-origin app path (`/x?y`), or null for anything else (`//host`, a scheme, relative). */
 export function safeReturnPath(value: string | null | undefined): string | null {
   if (!value?.startsWith('/') || value.startsWith('//')) return null;
@@ -25,13 +30,10 @@ export function safeReturnPath(value: string | null | undefined): string | null 
  * The add-a-club door, optionally carrying where to come back to (the show wizard's draft), so the
  * secretary lands back on the show she started with the new club chosen.
  */
-export function addYourClubPath(returnTo?: string | null, draftId?: string | null): string {
+export function addYourClubPath(returnTo?: string | null): string {
   const safe = safeReturnPath(returnTo);
-  if (!safe && !draftId) return ADD_YOUR_CLUB_PATH;
-  const params = new URLSearchParams({ onboarding: 'true' });
-  if (safe) params.set('returnTo', safe);
-  // The saved draft's id: the form restores what she typed only where this id is present.
-  if (draftId) params.set(CLUB_DRAFT_PARAM, draftId);
+  if (!safe) return ADD_YOUR_CLUB_PATH;
+  const params = new URLSearchParams({ onboarding: 'true', returnTo: safe });
   return `/?${params.toString()}#get-started`;
 }
 

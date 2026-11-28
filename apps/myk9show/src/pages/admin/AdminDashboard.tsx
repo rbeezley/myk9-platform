@@ -118,7 +118,7 @@ export default function AdminDashboard() {
   const health = useSystemHealthSnapshots();
   const alerts = useOperatorAlerts();
   const overview = useAdminOverview(now);
-  const clubsWaiting = useWaitingClubs({ poll: true });
+  const clubsWaiting = useWaitingClubs();
   const sentry = useSentryDashboardMetrics();
   const latest = health.data?.latest ?? null;
   const checks = useMemo(() => latest?.checks ?? [], [latest]);

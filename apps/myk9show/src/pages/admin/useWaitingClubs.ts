@@ -11,8 +11,6 @@ import { buildWaitingClubRows, type WaitingClubRow } from './waitingClubRows';
 export const WAITING_REQUESTS_KEY = ['club-access-requests', 'pending'] as const;
 export const DECLINED_REQUESTS_KEY = ['club-access-requests', 'declined'] as const;
 
-const POLL_MS = 60_000;
-
 export interface WaitingClubs {
   rows: WaitingClubRow[];
   /** The number of rows, or undefined until the list has loaded (never a guess of 0). */
@@ -37,8 +35,7 @@ export interface WaitingClubs {
 export function useWaitingClubs({
   creator,
   enabled = true,
-  poll = false,
-}: { creator?: string | undefined; enabled?: boolean; poll?: boolean } = {}): WaitingClubs {
+}: { creator?: string | undefined; enabled?: boolean } = {}): WaitingClubs {
   const clubsQuery = useClubsAwaitingAuthorizationQuery(creator, enabled);
   const requestsQuery = useQuery({
     queryKey: WAITING_REQUESTS_KEY,
@@ -67,13 +64,6 @@ export function useWaitingClubs({
   const refresh = useCallback(async () => {
     await Promise.all([refetchClubs(), refetchRequests(), refetchDeclined()]);
   }, [refetchClubs, refetchRequests, refetchDeclined]);
-
-  // A count shown beside other work (the dashboard, the Admin menu) keeps up with another admin.
-  useEffect(() => {
-    if (!enabled || !poll) return;
-    const timer = window.setInterval(() => void refresh(), POLL_MS);
-    return () => window.clearInterval(timer);
-  }, [enabled, poll, refresh]);
 
   const rows = useMemo(
     () =>

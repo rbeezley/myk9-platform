@@ -50,7 +50,7 @@ export const UnifiedAppLayout: React.FC = () => {
   const { currentShow } = useCurrentShow();
   // MYK9-2529: the Admin menu's Onboarding count is the length of Onboarding's own list.
   const isSiteAdmin = roles.includes(UserRole.SITE_ADMIN);
-  const { count: clubsWaiting } = useWaitingClubs({ enabled: isSiteAdmin, poll: true });
+  const { count: clubsWaiting } = useWaitingClubs({ enabled: isSiteAdmin });
   const sidebarConfig = useMemo(
     () =>
       buildUnifiedSidebarConfig(roles, clubContext, firstName, { currentShow }, { clubsWaiting }),

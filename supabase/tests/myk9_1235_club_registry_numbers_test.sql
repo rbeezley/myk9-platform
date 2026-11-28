@@ -296,7 +296,7 @@ BEGIN
   IF v_result->>'club_id' IS NULL OR v_result->>'request_id' IS NULL
      OR (SELECT jsonb_object_agg(organization, number)
          FROM public.club_registry_numbers WHERE club_id = (v_result->>'club_id')::uuid)
-        <> '{"AKC":"777","UKC":"U-8"}'::jsonb THEN
+        IS DISTINCT FROM '{"AKC":"777","UKC":"U-8"}'::jsonb THEN
     RAISE EXCEPTION 'FAIL 1235.15 the request did not make its club with both numbers';
   END IF;
   RAISE NOTICE 'PASS 1235.15 an AKC and UKC club request is accepted';

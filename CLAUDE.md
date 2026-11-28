@@ -166,14 +166,6 @@ Each task owns a unique Playwright CLI session; never the default, a generic nam
 
 Single-context — root `CONTEXT.md` + `docs/adr/`, extended with `docs/INTENT.md` for UX-facing work. See [`docs/agents/domain.md`](docs/agents/domain.md).
 
-## Worktrees (Claude Code)
-
-A `PostToolUse` hook runs `scripts/bootstrap-worktree.sh` automatically after `EnterWorktree`. If something is missing (`node_modules/`, `.env`, `dist/`), run it manually:
-
-```bash
-bash scripts/bootstrap-worktree.sh   # installs deps, copies .env, builds packages, activates git hooks
-```
-
 ## Self Learning
 
 When I correct you or you catch yourself making a mistake, before continuing, add the lesson as a one-line rule under LESSONS so it never happens again. Its narrative section in `docs/lessons/README.md` carries one `**Guard:**` line: the program that catches the trap, a filed `MYK9-<n>` issue to build that check, or `human-only: <why>`; `lessonGuards.test.ts` fails without it.

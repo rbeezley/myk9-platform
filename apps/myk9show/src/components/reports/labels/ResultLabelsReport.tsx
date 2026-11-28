@@ -227,7 +227,7 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
             key={page.pageNumber}
             page={page}
             template={template}
-            renderItem={item => <ResultLabelCell item={item} screen />}
+            renderItem={item => <ResultLabelCell item={item} />}
           />
         ))}
     </div>

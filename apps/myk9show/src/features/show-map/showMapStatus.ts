@@ -243,7 +243,7 @@ export function classifyEntryCheckInStatus(
 }
 
 /** Check-ins that mean the dog is at this class: not just called or waiting at the gate. */
-const STARTED_CHECK_IN_STATUSES = new Set(['checked-in', 'in-ring', 'completed']);
+export const STARTED_CHECK_IN_STATUSES = new Set(['checked-in', 'in-ring', 'completed']);
 
 /**
  * MYK9-2015: the class has started once its status says so, or once any dog that still belongs

@@ -1,6 +1,7 @@
 import { isOnClassRunList } from '@/features/_shared/entryAccounting';
 import { isPendingEntryStatus } from '@/features/entry-operations/classEntryBreakdown';
 import { getTrialRegistry } from '@/features/registries';
+import { STARTED_CHECK_IN_STATUSES } from './showMapStatus';
 import type { ShowMapStatusKind } from './showMapTypes';
 
 /**
@@ -61,16 +62,41 @@ export function canChangeClass(facts: ChangeClassFacts): boolean {
   return getChangeClassBlock(facts) === null;
 }
 
+/** What one dog in a class says about whether judging has begun (the run kind and check-in value). */
+export interface ClassEntryEvidence {
+  runStatusKind?: ShowMapStatusKind | undefined;
+  checkInStatus?: string | undefined;
+}
+
 /**
- * One plain line shown beside an offered Change class on a class that has started, for the
- * registries whose rulebook sets a class change deadline (AKC, UKC); `null` for ASCA, whose
- * rules are silent on timing, and for a class that has not started. Informational only.
+ * Whether judging is underway in a class whose stored status may still read "not started":
+ * `refresh_class_scoring_state` flips it only once a dog is accounted for, so a dog in the ring
+ * or checked in is also evidence. Same rule as `hasClassStarted` (showMapStatus), read from
+ * facts the callers already hold; a moved, pulled or scratched dog does not start a class.
+ */
+export function isJudgingUnderway(
+  classStatusKind: ShowMapStatusKind | undefined,
+  entries: readonly ClassEntryEvidence[]
+): boolean {
+  if (classStatusKind === 'active' || classStatusKind === 'complete') return true;
+  return entries.some(entry => {
+    if (entry.runStatusKind === 'muted') return false;
+    if (entry.runStatusKind === 'complete' || entry.runStatusKind === 'active') return true;
+    return entry.checkInStatus !== undefined && STARTED_CHECK_IN_STATUSES.has(entry.checkInStatus);
+  });
+}
+
+/**
+ * One plain line shown beside an offered Change class once judging has started in the class,
+ * for the registries whose rulebook sets a class change deadline (AKC, UKC); `null` for ASCA,
+ * whose rules are silent on timing, and while judging has not begun. Informational only.
+ * `judgingUnderway` is `isJudgingUnderway(...)`; the stored class status alone can lag the ring.
  */
 export function getChangeClassNote(input: {
   registryId?: string | null | undefined;
-  classStatusKind?: ShowMapStatusKind | undefined;
+  judgingUnderway: boolean;
 }): string | null {
-  if (input.classStatusKind !== 'active') return null;
+  if (!input.judgingUnderway) return null;
   const registryId = getTrialRegistry({ registryId: input.registryId }).id;
   if (registryId !== 'AKC' && registryId !== 'UKC') return null;
   return "The rulebook's class change deadline has passed. This change is your call.";

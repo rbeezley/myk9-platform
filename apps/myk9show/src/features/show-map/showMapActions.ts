@@ -34,7 +34,7 @@ import {
   isSyntheticDisplayActionNode,
   sourceIdFromNodeId,
 } from './showMapActionHelpers';
-import { getChangeClassNote } from './changeClassEligibility';
+import { getChangeClassNote, isJudgingUnderway } from './changeClassEligibility';
 import { isNodeScheduledAfter } from './showMapTimeScope';
 import { SHOW_MAP_WRAP_UP_STATUS } from './showMapTypes';
 import type { ShowMapNode, ShowMapTree } from './showMapTypes';
@@ -318,7 +318,13 @@ function liveOpsActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAct
       const parentClass = node.parentId ? tree.nodesById[node.parentId] : undefined;
       const changeClassNote = getChangeClassNote({
         registryId: parentClass?.registryId,
-        classStatusKind: parentClass?.status?.kind,
+        judgingUnderway: isJudgingUnderway(
+          parentClass?.status?.kind,
+          (tree.childIdsByParentId[node.parentId ?? ''] ?? []).map(id => ({
+            runStatusKind: tree.nodesById[id]?.status?.kind,
+            checkInStatus: tree.nodesById[id]?.checkInStatus?.value,
+          }))
+        ),
       });
       actions.push(
         withHref(

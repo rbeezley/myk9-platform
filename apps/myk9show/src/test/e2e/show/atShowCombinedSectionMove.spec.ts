@@ -20,64 +20,74 @@ import {
  * (the undo) and Change class again. The adapter shape is covered by
  * `atShowDataAdapter.undoneMove.test.ts`; this is the browser check on the rendered list.
  *
- * Fixture: a disposable dog entered in the seeded Container Novice A, and a disposable
- * Container Novice B in the same trial (the seed has no A/B pair). Both are deleted afterwards.
+ * Fixture: disposable, open Buried Novice A and B classes in one trial (the seed has no open A/B
+ * pair) and a disposable dog entered in A. Both are deleted afterwards.
  * It writes real rows, so it skips unless the target is the isolated stack.
  */
 
 const SHOW_ID = 'dededede-0000-0000-0000-000000000010';
-const CLASS_A_ID = 'dec1a55e-0000-0000-0000-000000000031';
+// The template entry only lends its trial, handler and fee: its seeded class is finalized
+// (completed, results released), so it is never a move source and is never cloned.
+const TRIAL_ID = 'dededede-0000-0000-0000-000000000021';
+const REPLICATION_DB_NAME = 'myK9_Replication';
 const TEMPLATE_ENTRY_ID = 'dededede-0000-0000-0000-000000000051';
-const CLASS_A_LABEL = 'Container Novice A';
-const CLASS_B_LABEL = 'Container Novice B';
+const CLASS_A_LABEL = 'Buried Novice A';
+const CLASS_B_LABEL = 'Buried Novice B';
 
 test.describe.configure({ mode: 'serial' });
 test.skip(!isIsolatedTarget(), 'writes real rows: isolated Supabase target only');
 
 let seed: DisposableEntry | null = null;
+let classAId: string | null = null;
 let classBId: string | null = null;
 
-async function seedSectionB(): Promise<string> {
+/** Two open, empty classes with explicit fields; never a clone of the finalized results fixture. */
+async function seedSections(): Promise<{ a: string; b: string }> {
   const client = getIsolatedAdminClient();
-  const { data: classA, error: readError } = await client
+  const row = (section: 'A' | 'B') => ({
+    trial_id: TRIAL_ID,
+    name: `Buried Novice ${section}`,
+    element: 'Buried',
+    level: 'Novice',
+    section,
+    entry_fee: 30,
+    status: 'upcoming',
+    time_limit_seconds: 120,
+    num_hides: 1,
+    num_areas: 1,
+    has_blank: false,
+    timer_mode: 'single',
+    hides_known: true,
+    display_order: section === 'A' ? 91 : 92,
+  });
+  const { data, error } = await client
     .from('classes')
-    .select('*')
-    .eq('id', CLASS_A_ID)
-    .single();
-  if (readError || !classA) {
-    throw new Error(`Could not read Container Novice A: ${readError?.message ?? 'missing'}`);
+    .insert([row('A'), row('B')])
+    .select('id, section');
+  if (error || !data || data.length !== 2) {
+    throw new Error(`Could not seed Buried Novice A and B: ${error?.message ?? 'missing classes'}`);
   }
-  const {
-    id: _id,
-    created_at: _createdAt,
-    updated_at: _updatedAt,
-    ...template
-  } = classA as Record<string, unknown>;
-  const { data: classB, error } = await client
-    .from('classes')
-    .insert({ ...template, name: CLASS_B_LABEL, section: 'B' })
-    .select('id')
-    .single();
-  if (error || !classB) {
-    throw new Error(`Could not seed Container Novice B: ${error?.message ?? 'missing class'}`);
-  }
-  return classB.id as string;
+  const idFor = (section: string) => data.find(c => c.section === section)?.id as string;
+  return { a: idFor('A'), b: idFor('B') };
 }
 
 test.beforeEach(async () => {
+  const classes = await seedSections();
+  classAId = classes.a;
+  classBId = classes.b;
   seed = await seedDisposableEntry({
     showId: SHOW_ID,
-    classId: CLASS_A_ID,
+    classId: classes.a,
     templateEntryId: TEMPLATE_ENTRY_ID,
     label: 'Section Move',
   });
-  classBId = await seedSectionB();
 });
 
 test.afterEach(async () => {
   const current = seed;
-  const classId = classBId;
+  const classIds = [classAId, classBId].filter((id): id is string => id !== null);
   seed = null;
+  classAId = null;
   classBId = null;
   const client = getIsolatedAdminClient();
   if (current) {
@@ -85,7 +95,7 @@ test.afterEach(async () => {
     await client.from('entries').delete().eq('dog_id', current.dogId);
     await cleanupDisposableEntry(current);
   }
-  if (classId) await client.from('classes').delete().eq('id', classId);
+  if (classIds.length > 0) await client.from('classes').delete().in('id', classIds);
 });
 
 /** Show Desk: the dog's row menu in the focused class, Change class, then `confirm` the dialog. */
@@ -117,8 +127,13 @@ async function moveBackToA(page: Page, classBClassId: string, callName: string) 
 }
 
 /** Ringside's combined list: the dog is in the run list once and under Not running once. */
-async function expectCombinedList(page: Page, classBClassId: string, callName: string) {
-  await page.goto(`/at-show/${SHOW_ID}/class/${CLASS_A_ID}/${classBClassId}`);
+async function expectCombinedList(
+  page: Page,
+  classAClassId: string,
+  classBClassId: string,
+  callName: string
+) {
+  await page.goto(`/at-show/${SHOW_ID}/class/${classAClassId}/${classBClassId}`);
   const notRunning = page.locator('details').filter({ hasText: /Not running \(/ });
   await expect(notRunning.getByText('Not running (1)')).toBeVisible({ timeout: 30_000 });
 
@@ -142,35 +157,91 @@ test('combined A & B: after a section move the live entry shows once and only th
   page,
 }) => {
   test.setTimeout(240_000);
-  if (!seed || !classBId) throw new Error('fixture was not seeded');
+  if (!seed || !classAId || !classBId) throw new Error('fixture was not seeded');
   const { callName } = seed;
 
-  await signInAsSecretary(page, `/shows/${SHOW_ID}?focus=${CLASS_A_ID}`);
-  await moveAToB(page, CLASS_A_ID, callName);
-  await expectCombinedList(page, classBId, callName);
+  await signInAsSecretary(page, `/shows/${SHOW_ID}?focus=${classAId}`);
+  await moveAToB(page, classAId, callName);
+  await expectCombinedList(page, classAId, classBId, callName);
 });
 
-test('combined A & B: a move undone and made again leaves no soft-deleted entry in the list', async ({
+test('combined A & B: a device holding the undone entry lists the live one once and only the old one as Not running', async ({
   page,
+  browser,
 }) => {
-  test.setTimeout(240_000);
-  if (!seed || !classBId) throw new Error('fixture was not seeded');
+  test.setTimeout(300_000);
+  if (!seed || !classAId || !classBId) throw new Error('fixture was not seeded');
   const { callName, dogId } = seed;
 
-  await signInAsSecretary(page, `/shows/${SHOW_ID}?focus=${CLASS_A_ID}`);
-  await moveAToB(page, CLASS_A_ID, callName);
-  await moveBackToA(page, classBId, callName);
-  await moveAToB(page, CLASS_A_ID, callName);
+  await signInAsSecretary(page, `/shows/${SHOW_ID}?focus=${classAId}`);
+  await moveAToB(page, classAId, callName);
 
-  // The undo must really have left a soft-deleted Section B row, or this proves nothing.
-  const { data: rows, error } = await getIsolatedAdminClient()
-    .from('entries')
-    .select('id, class_id, deleted_at')
-    .eq('dog_id', dogId)
-    .eq('class_id', classBId);
-  expect(error).toBeNull();
-  expect(rows?.filter(row => row.deleted_at !== null).length).toBeGreaterThanOrEqual(1);
-  expect(rows?.filter(row => row.deleted_at === null)).toHaveLength(1);
+  // A second device (its own replica) is looking at the combined list when the move is undone, so
+  // it holds the entry that is about to be soft-deleted. The undoing browser drops it locally.
+  const viewerContext = await browser.newContext();
+  try {
+    const viewer = await viewerContext.newPage();
+    await signInAsSecretary(viewer, `/at-show/${SHOW_ID}/class/${classAId}/${classBId}`);
+    await expectCombinedList(viewer, classAId, classBId, callName);
 
-  await expectCombinedList(page, classBId, callName);
+    await moveBackToA(page, classBId, callName);
+    await moveAToB(page, classAId, callName);
+
+    // The undo must really have left a soft-deleted Section B row, or this proves nothing.
+    const { data: rows, error } = await getIsolatedAdminClient()
+      .from('entries')
+      .select('id, deleted_at')
+      .eq('dog_id', dogId)
+      .eq('class_id', classBId);
+    expect(error).toBeNull();
+    const tombstones = rows?.filter(row => row.deleted_at !== null) ?? [];
+    expect(tombstones.length).toBeGreaterThanOrEqual(1);
+    expect(rows?.filter(row => row.deleted_at === null)).toHaveLength(1);
+
+    // Reload the viewer and wait until ITS replica holds the tombstone: the list is only a test of
+    // the filter when the soft-deleted row is on the device that renders it.
+    await viewer.reload();
+    for (const tombstone of tombstones) {
+      await expect
+        .poll(() => readReplicaDeletedAt(viewer, tombstone.id), { timeout: 30_000 })
+        .not.toBeNull();
+    }
+    await expectCombinedList(viewer, classAId, classBId, callName);
+  } finally {
+    await viewerContext.close();
+  }
 });
+
+/** `deleted_at` of an entry in this browser's replica; null when absent or live. */
+async function readReplicaDeletedAt(page: Page, entryId: string): Promise<string | null> {
+  return page.evaluate(
+    ({ dbName, entryId }) =>
+      new Promise<string | null>(resolve => {
+        const openReq = indexedDB.open(dbName);
+        openReq.onerror = () => resolve(null);
+        openReq.onsuccess = () => {
+          const db = openReq.result;
+          if (!db.objectStoreNames.contains('replicated_tables')) {
+            db.close();
+            resolve(null);
+            return;
+          }
+          const getReq = db
+            .transaction('replicated_tables', 'readonly')
+            .objectStore('replicated_tables')
+            .get(['entries', entryId]);
+          getReq.onsuccess = () => {
+            db.close();
+            const data = getReq.result?.data as
+              { deleted_at?: string | null; deletedAt?: string | null } | undefined;
+            resolve(data?.deleted_at ?? data?.deletedAt ?? null);
+          };
+          getReq.onerror = () => {
+            db.close();
+            resolve(null);
+          };
+        };
+      }),
+    { dbName: REPLICATION_DB_NAME, entryId }
+  );
+}

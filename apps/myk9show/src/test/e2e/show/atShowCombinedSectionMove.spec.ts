@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { signInAsSecretary } from '../helpers/testUsers';
+import { signInAsExhibitor, signInAsSecretary } from '../helpers/testUsers';
 import {
   cleanupDisposableEntry,
   getIsolatedAdminClient,
@@ -176,12 +176,13 @@ test('combined A & B: a device holding the undone entry lists the live one once 
   await signInAsSecretary(page, `/shows/${SHOW_ID}?focus=${classAId}`);
   await moveAToB(page, classAId, callName);
 
-  // A second device (its own replica) is looking at the combined list when the move is undone, so
+  // The viewer is the exhibitor who owns the fixture dog: the replication view hides a soft-deleted
+  // entry from everyone else, staff included. A second device (its own replica) is looking at the combined list when the move is undone, so
   // it holds the entry that is about to be soft-deleted. The undoing browser drops it locally.
   const viewerContext = await browser.newContext();
   try {
     const viewer = await viewerContext.newPage();
-    await signInAsSecretary(viewer, `/at-show/${SHOW_ID}/class/${classAId}/${classBId}`);
+    await signInAsExhibitor(viewer, `/at-show/${SHOW_ID}/class/${classAId}/${classBId}`);
     await expectCombinedList(viewer, classAId, classBId, callName);
 
     await moveBackToA(page, classBId, callName);

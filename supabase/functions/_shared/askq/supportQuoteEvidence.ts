@@ -176,7 +176,12 @@ export function verifySupportAnswerQuotes(
     const quoteTokens = tokenizeQuoteText(quote);
     if (quoteTokens.length > MAX_QUOTE_TOKENS) return rejected('quote_too_long');
     if (!containsSequence(tokenizeQuoteText(guide.content), quoteTokens)) {
-      return { ...rejected('quote_not_in_guide'), failedQuote: quote };
+      return {
+        ok: false,
+        reason: 'quote_rejected',
+        detail: 'quote_not_in_guide',
+        failedQuote: quote,
+      };
     }
     if (
       quoteTokens.length < MIN_QUOTE_WORDS &&

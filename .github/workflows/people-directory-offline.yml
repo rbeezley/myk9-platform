@@ -144,7 +144,7 @@ jobs:
         run: pnpm exec tsx scripts/verify-artifact-secrets.ts --skip-zip-files playwright-report-ci test-results
 
       - name: Preserve the report
-        if: ${{ always() && steps.verify-artifacts.outcome == 'success' }}
+        if: ${{ always() && steps.verify-artifacts.outcome != 'failure' && steps.verify-artifacts.outcome == 'success' }}
         uses: actions/upload-artifact@v7
         with:
           name: people-directory-offline

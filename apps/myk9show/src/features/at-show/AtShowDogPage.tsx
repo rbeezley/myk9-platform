@@ -4,6 +4,7 @@
  * and the secretary check-in desk; this links there.
  */
 import { Link, Navigate, useParams } from 'react-router-dom';
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { ArrowLeft, ChevronRight, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StatusBadge, getStatusDescriptor } from '@/components/status';
@@ -82,9 +83,11 @@ export const AtShowDogPage: React.FC = () => {
       {back}
       <div className="mb-3 flex items-center gap-2">
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-lg font-semibold">
-            {dog.armband != null ? `#${dog.armband} ` : ''}
-            {dog.dogName}
+          <h1 className="flex items-center gap-2 text-lg font-semibold">
+            {dog.armband != null && (
+              <ArmbandBadge armband={dog.armband} srLabel className="shrink-0" />
+            )}
+            <span className="truncate">{dog.dogName}</span>
           </h1>
           <p className="truncate text-sm text-muted-foreground">
             {[dog.breed, dog.handler].filter(Boolean).join(' · ')}

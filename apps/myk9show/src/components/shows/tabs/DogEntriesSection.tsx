@@ -1,4 +1,5 @@
 import { judgeLine } from '@/utils/classJudgeDisplay';
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { Link } from 'react-router-dom';
 import {
   Package,
@@ -11,7 +12,6 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
-  Hash,
   ArrowUpRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -144,10 +144,11 @@ function EntryRow({ entry, href }: EntryRowProps) {
             </span>
           )}
           {entry.armband && (
-            <span className="inline-flex max-w-full items-center gap-1 text-xs font-medium text-muted-foreground">
-              <Hash className="h-3 w-3" />
-              <span className="truncate">{entry.armband}</span>
-            </span>
+            <ArmbandBadge
+              armband={entry.armband}
+              srLabel
+              className="h-6 min-w-6 rounded-md text-xs"
+            />
           )}
         </div>
       )}

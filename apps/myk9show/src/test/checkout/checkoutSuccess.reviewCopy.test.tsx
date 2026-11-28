@@ -87,7 +87,7 @@ describe('checkout success copy follows the entry, not the payment', () => {
     mockEntries.rows = [entryRow('paid')];
     renderPage();
 
-    await waitFor(() => expect(screen.getByText('Armband #142')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('142')).toBeInTheDocument());
     expect(screen.getByText(REVIEW_COPY)).toBeInTheDocument();
     expect(screen.queryByText(/confirmed\./i)).not.toBeInTheDocument();
   });

@@ -89,7 +89,7 @@ describe('AtShowClassRow next-up line', () => {
   it('shows the in-ring armband, the next armbands and the remaining count on a live class', () => {
     renderRow(classEntry(), preview);
 
-    expect(screen.getByText('#12')).toBeInTheDocument();
+    expect(screen.getByText('12')).toBeInTheDocument();
     expect(screen.getByText('Next #13 · #14')).toBeInTheDocument();
     expect(screen.getByText('3 of 4 remaining')).toBeInTheDocument();
   });
@@ -97,7 +97,7 @@ describe('AtShowClassRow next-up line', () => {
   it('hides the line on a class that is not live', () => {
     renderRow(classEntry({ class_status: 'completed', completed_count: 4 }), preview);
 
-    expect(screen.queryByText('#12')).not.toBeInTheDocument();
+    expect(screen.queryByText('12')).not.toBeInTheDocument();
     expect(screen.queryByText('3 of 4 remaining')).not.toBeInTheDocument();
   });
 
@@ -201,21 +201,21 @@ describe('AtShowClassRow next-up on a paper class (MYK9-1970)', () => {
 
   it('shows the in-ring and next armbands on a phone-scored class', () => {
     rowWith(classEntry(live), 'not-paper');
-    expect(screen.getByText('#12')).toBeInTheDocument();
+    expect(screen.getByText('12')).toBeInTheDocument();
   });
 
   it.each(['paper', 'unknown'] as const)(
     'shows no next-up line when the paper claim is %s',
     claim => {
       rowWith(classEntry(live), claim);
-      expect(screen.queryByText('#12')).not.toBeInTheDocument();
+      expect(screen.queryByText('12')).not.toBeInTheDocument();
       expect(screen.queryByText(/remaining/)).not.toBeInTheDocument();
     }
   );
 
   it('still shows next-up in the offline-scoring phase when the class is not paper', () => {
     rowWith(classEntry({ class_status: 'offline-scoring' }), 'not-paper');
-    expect(screen.getByText('#12')).toBeInTheDocument();
+    expect(screen.getByText('12')).toBeInTheDocument();
   });
 });
 
@@ -234,7 +234,7 @@ describe('AtShowClassRow combined A/B cancellation (MYK9-1847)', () => {
 
   it('un-cancelling restores the live cues', () => {
     const view = renderRow(classEntry({ ...live, is_cancelled: true }), preview);
-    expect(screen.queryByText('#12')).not.toBeInTheDocument();
+    expect(screen.queryByText('12')).not.toBeInTheDocument();
     view.rerender(
       <ul>
         <AtShowClassRow
@@ -247,7 +247,7 @@ describe('AtShowClassRow combined A/B cancellation (MYK9-1847)', () => {
         />
       </ul>
     );
-    expect(screen.getByText('#12')).toBeInTheDocument();
+    expect(screen.getByText('12')).toBeInTheDocument();
     expect(screen.queryByText('Cancelled')).not.toBeInTheDocument();
   });
 });

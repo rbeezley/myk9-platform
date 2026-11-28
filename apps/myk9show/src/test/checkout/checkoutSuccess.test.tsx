@@ -453,7 +453,7 @@ describe('CheckoutSuccessPage', () => {
     renderSuccessPage();
 
     await waitFor(() => {
-      expect(screen.getByText('Armband #142')).toBeInTheDocument();
+      expect(screen.getByText('142')).toBeInTheDocument();
     });
     // Copy must NOT claim the number is assigned later; it already exists.
     expect(screen.queryByText(/will be assigned at check-in/i)).not.toBeInTheDocument();

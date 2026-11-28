@@ -1,4 +1,5 @@
 import { Calendar, Dog, Hash, MapPin, User } from 'lucide-react';
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
@@ -147,7 +148,10 @@ export function ConfirmationEntryDetails({
                         </h6>
                         {armband ? (
                           <div className="text-sm bg-primary/10 rounded p-2">
-                            <div className="font-semibold text-primary">#{armband.armband}</div>
+                            <ArmbandBadge
+                              armband={armband.armband}
+                              className="h-7 min-w-7 text-xs"
+                            />
                             {armbandRingLabel && (
                               <div className="text-primary/70 text-xs">{armbandRingLabel}</div>
                             )}

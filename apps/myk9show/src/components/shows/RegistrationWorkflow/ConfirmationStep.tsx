@@ -1,4 +1,5 @@
 import React, { useCallback, useRef } from 'react';
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { TO_BE_ANNOUNCED_LABEL } from '@/lib/format/fallbackLabels';
 import { SHOW_NOT_PUBLISHED_LABEL } from '@/lib/showNotPublished';
 import { getDogBreedLabel } from '@/types/dog-types';
@@ -452,8 +453,15 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
               </li>
             )}
             {armbandAssignments.length > 0 && (
-              <li>
-                Your armband number(s): {armbandAssignments.map(a => `#${a.armband}`).join(', ')}
+              <li className="flex flex-wrap items-center gap-1.5">
+                Your armband number(s):
+                {armbandAssignments.map(a => (
+                  <ArmbandBadge
+                    key={a.dogId}
+                    armband={a.armband}
+                    className="h-7 min-w-7 rounded-md text-xs"
+                  />
+                ))}
               </li>
             )}
           </ul>

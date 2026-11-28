@@ -151,6 +151,10 @@ export function DogBulkStatusMenu({ dogName, entries, onStatusChange }: DogBulkS
             </AlertDialogTitle>
             <AlertDialogDescription>{ENTRY_VERB_HELP.pull}</AlertDialogDescription>
           </AlertDialogHeader>
+          {/* MYK9-2478: the same note the desks' Pull dialog shows. */}
+          <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-foreground">
+            Refunds are not automatic. You decide each paid entry&apos;s refund afterwards.
+          </div>
           <ExcludedEntries excluded={pull.excluded} />
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>

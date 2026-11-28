@@ -229,4 +229,48 @@ describe('Decline confirmation', () => {
       })
     );
   });
+
+  it('keeps Decline off while the show check is pending, and on once it settles', async () => {
+    mocks.shows.mockReturnValue({ data: undefined, isPending: true, isError: false });
+    const { user, rerender } = await openDecline();
+    expect(screen.getByText('Checking for shows…')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Decline' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Decline' }));
+    expect(mocks.review).not.toHaveBeenCalled();
+
+    mocks.shows.mockReturnValue({ data: [], isPending: false, isError: false });
+    rerender(<ClubsWaitingSection />);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Decline' })).toBeEnabled());
+  });
+
+  it('keeps the dialog open, with the reason, after an unsaved-work refusal', async () => {
+    mocks.shows.mockReturnValue({ data: [], isPending: false, isError: false });
+    mocks.unsaved.mockResolvedValue({ total: 1, failed: 0 });
+    const { user } = await openDecline();
+    await user.type(screen.getByLabelText('Reason (optional)'), 'Duplicate');
+    await user.click(screen.getByRole('button', { name: 'Decline' }));
+
+    await waitFor(() => expect(notifications.error).toHaveBeenCalled());
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByLabelText('Reason (optional)')).toHaveValue('Duplicate');
+    expect(screen.getByRole('checkbox', { name: 'Also delete this club' })).toBeChecked();
+  });
+
+  it('keeps the dialog open after the server refuses', async () => {
+    mocks.shows.mockReturnValue({ data: [], isPending: false, isError: false });
+    mocks.review.mockRejectedValue({ code: 'MK011', message: 'club has live shows' });
+    const { user } = await openDecline();
+    await user.click(screen.getByRole('button', { name: 'Decline' }));
+
+    await waitFor(() => expect(notifications.error).toHaveBeenCalled());
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('closes the dialog once the decline goes through', async () => {
+    mocks.shows.mockReturnValue({ data: [], isPending: false, isError: false });
+    const { user } = await openDecline();
+    await user.click(screen.getByRole('button', { name: 'Decline' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
 });

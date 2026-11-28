@@ -32,6 +32,14 @@ describe('clubReviewErrorMessage', () => {
     );
   });
 
+  it('says in plain words when the request was already reviewed or its club removed (23514)', () => {
+    expect(
+      clubReviewErrorMessage({ code: '23514', message: 'raw check violation' }, 'decline this club')
+    ).toBe(
+      'This request was already reviewed, or its club was removed. Refresh the list to see where it stands.'
+    );
+  });
+
   it('falls back to a plain sentence that never echoes raw database text', () => {
     const message = clubReviewErrorMessage(
       { code: 'XX000', message: 'relation "clubs" violates something' },

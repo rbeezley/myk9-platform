@@ -9,8 +9,6 @@ export interface ClubPageActionInput {
   /** Undefined while the authorization read is in flight. */
   isClubAuthorized: boolean | undefined;
   isAuthorizationLoading: boolean;
-  /** MYK9-2528: the club was kept after its request was declined; nothing to approve. */
-  isRequestDeclined?: boolean | undefined;
   isAuthorizationUpdating: boolean;
   onEditPhoto: () => void;
   /** The show wizard, opened with this club already chosen. */
@@ -42,8 +40,6 @@ export function buildClubPageActions(input: ClubPageActionInput): PageExtraActio
   }
   if (input.canAuthorizeClub && !input.isAuthorizationLoading) {
     const disabledReason = input.isAuthorizationUpdating ? 'Saving…' : undefined;
-    // A kept, declined club is not on Onboarding's list, so there is nothing to approve there.
-    if (!input.isClubAuthorized && input.isRequestDeclined) return actions;
     actions.push(
       input.isClubAuthorized
         ? {

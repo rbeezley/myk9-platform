@@ -20,9 +20,9 @@ export interface WaitingClubChoices {
 
 interface WaitingClubCardProps {
   row: WaitingClubRow;
-  /** Approve or decline; resolves when the action is done, throws never (the caller reports). */
-  onApprove: (row: WaitingClubRow, choices: WaitingClubChoices) => Promise<void>;
-  onDecline: (row: WaitingClubRow, choices: WaitingClubChoices) => Promise<void>;
+  /** Approve or decline; resolves true when it went through, false when it did not (the caller reports), throws never. */
+  onApprove: (row: WaitingClubRow, choices: WaitingClubChoices) => Promise<boolean>;
+  onDecline: (row: WaitingClubRow, choices: WaitingClubChoices) => Promise<boolean>;
 }
 
 export function WaitingClubCard({ row, onApprove, onDecline }: WaitingClubCardProps) {
@@ -46,10 +46,11 @@ export function WaitingClubCard({ row, onApprove, onDecline }: WaitingClubCardPr
       deleteClub,
     };
     try {
-      await (kind === 'approve' ? onApprove(row, choices) : onDecline(row, choices));
+      const done = await (kind === 'approve' ? onApprove(row, choices) : onDecline(row, choices));
+      // A refusal or failure leaves the dialog open, with the reason and box as they were.
+      if (done) setDeclining(false);
     } finally {
       setBusy(null);
-      setDeclining(false);
     }
   };
 

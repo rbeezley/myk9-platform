@@ -54,7 +54,7 @@ export function ClubsWaitingSection() {
   });
 
   const handleApprove = useCallback(
-    async (row: WaitingClubRow, choices: WaitingClubChoices) => {
+    async (row: WaitingClubRow, choices: WaitingClubChoices): Promise<boolean> => {
       try {
         let clubId = row.clubId;
         if (row.request) {
@@ -73,17 +73,19 @@ export function ClubsWaitingSection() {
         void queryClient.invalidateQueries({ queryKey: clubQueryKeys.lists() });
         if (clubId) await refreshClubAuthorization({ queryClient, ensureClubsReady, clubId });
         await refresh();
+        return true;
       } catch (error) {
         logger.error('Failed to approve club', 'admin', { clubId: row.clubId }, error as Error);
         notifications.error(clubReviewErrorMessage(error, 'approve this club'));
+        return false;
       }
     },
     [ensureClubsReady, queryClient, refresh]
   );
 
   const handleDecline = useCallback(
-    async (row: WaitingClubRow, choices: WaitingClubChoices) => {
-      if (!row.request) return;
+    async (row: WaitingClubRow, choices: WaitingClubChoices): Promise<boolean> => {
+      if (!row.request) return false;
       try {
         if (choices.deleteClub) {
           // The same guard as the ordinary delete: a delete cascades, and work on this device
@@ -96,7 +98,7 @@ export function ClubsWaitingSection() {
           }
           if (refusal !== undefined) {
             notifications.error(deleteErrorMessage('club', refusal));
-            return;
+            return false;
           }
         }
         await reviewClubAccessRequest({
@@ -116,6 +118,7 @@ export function ClubsWaitingSection() {
         );
         void queryClient.invalidateQueries({ queryKey: clubQueryKeys.lists() });
         await refresh();
+        return true;
       } catch (error) {
         logger.error(
           'Failed to decline club request',
@@ -124,6 +127,7 @@ export function ClubsWaitingSection() {
           error as Error
         );
         notifications.error(clubReviewErrorMessage(error, 'decline this club'));
+        return false;
       }
     },
     [queryClient, refresh]

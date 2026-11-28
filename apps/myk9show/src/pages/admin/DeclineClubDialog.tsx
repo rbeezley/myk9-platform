@@ -130,7 +130,7 @@ function DeclineClubDialogBody({
             variant="destructive"
             className="min-h-11"
             loading={busy}
-            disabled={busy}
+            disabled={busy || checking}
             onClick={() => onConfirm(canDelete && deleteClub, note)}
           >
             Decline

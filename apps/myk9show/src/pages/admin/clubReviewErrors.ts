@@ -8,6 +8,12 @@ export const CLUB_HAS_SHOWS_SQLSTATE = 'MK011';
 export const CLUB_HAS_SHOWS_MESSAGE =
   'Nothing was declined. This club still has shows. Delete or move its shows first, or decline without deleting the club.';
 
+/** The review RPC raises this when the request was already reviewed or its club was deleted. */
+export const REQUEST_ALREADY_REVIEWED_SQLSTATE = '23514';
+
+export const REQUEST_ALREADY_REVIEWED_MESSAGE =
+  'This request was already reviewed, or its club was removed. Refresh the list to see where it stands.';
+
 function isTransportFailure(error: unknown): boolean {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return true;
   // PostgREST hands back a plain object, `{ message: 'TypeError: Failed to fetch' }`, not an Error.
@@ -34,6 +40,7 @@ export function clubReviewErrorMessage(error: unknown, action: string): string {
   const code = (error as { code?: unknown } | null)?.code;
   if (code === STEP_UP_SQLSTATE) return 'Nothing was approved. Confirm your password to continue.';
   if (code === CLUB_HAS_SHOWS_SQLSTATE) return CLUB_HAS_SHOWS_MESSAGE;
+  if (code === REQUEST_ALREADY_REVIEWED_SQLSTATE) return REQUEST_ALREADY_REVIEWED_MESSAGE;
   if (isTransportFailure(error)) {
     return `${COULD_NOT_REACH_MYK9SHOW} Nothing was changed. Check your connection, then try to ${action} again.`;
   }

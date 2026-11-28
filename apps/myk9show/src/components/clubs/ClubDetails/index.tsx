@@ -131,7 +131,6 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
           canEditBranding={state.canEditBranding}
           canAuthorizeClub={state.canAuthorizeClub}
           isClubAuthorized={state.isClubAuthorized}
-          isRequestDeclined={state.isRequestDeclined}
         />
         <RevokeClubAuthorizationDialog
           open={state.showRevokeConfirm}

@@ -6,6 +6,7 @@ import type { ResultCardModel } from './resultCardModel';
 
 function makeModel(overrides: Partial<ResultCardModel> = {}): ResultCardModel {
   return {
+    entryId: 'entry-1',
     releaseKey: 'entry-1:release',
     dogName: 'Ditto',
     showName: 'Rocky Mountain Classic',

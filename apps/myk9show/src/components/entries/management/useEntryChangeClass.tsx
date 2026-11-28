@@ -12,6 +12,7 @@ import { dayOfDogLabel } from '@/features/show-map/dayOfMessages';
 import {
   CHANGE_CLASS_OFFLINE_REASON,
   getChangeClassBlock,
+  getChangeClassNote,
 } from '@/features/show-map/changeClassEligibility';
 import { ShowMapMoveUpDialog } from '@/features/show-map/ShowMapMoveUpDialog';
 import type { ShowMapAction } from '@/features/show-map/showMapActions';
@@ -126,12 +127,21 @@ export function useEntryChangeClass(
           classStatusKind: classifyClassStatus(cls.status)?.kind,
         });
     const reason = block ?? (isOnline ? null : CHANGE_CLASS_OFFLINE_REASON);
+    // An enabled item carries the rulebook-deadline note in the slot a disabled one uses for its reason.
+    const note =
+      reason === null
+        ? getChangeClassNote({
+            registryId: cls?.registryId,
+            classStatusKind: classifyClassStatus(cls?.status)?.kind,
+          })
+        : null;
     return {
       id: 'change-class',
       label: 'Change class…',
       icon: <ArrowUpCircle />,
       disabled: reason !== null,
       ...(reason !== null && { description: reason }),
+      ...(note !== null && { description: note }),
       onSelect: () =>
         executor.executeAction(toAction(entry, classId), {
           kind: 'dialog',

@@ -43,6 +43,7 @@ export function useChangeClassClasses(showId: string): ChangeClassClass[] | unde
             .map((cls): ChangeClassClass => ({
               id: cls.id,
               trialId: trial.id,
+              ...(trial.registryId && { registryId: trial.registryId }),
               name: cls.name,
               ...(cls.element && { element: cls.element }),
               ...(cls.level && { level: cls.level }),

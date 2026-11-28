@@ -117,6 +117,7 @@ function entryRowsForClass(classId: string, tree: ShowMapTree): SecretaryCockpit
         commandId: `${action.id}:${action.nodeId}`,
         label: action.label,
         why: action.why,
+        ...(action.note && { note: action.note }),
       }));
     if (actions.length === 0) continue;
 

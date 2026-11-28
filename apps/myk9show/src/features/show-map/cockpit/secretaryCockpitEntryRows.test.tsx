@@ -182,7 +182,7 @@ describe('cockpit entry rows carry the stranded actions', () => {
     expect(screen.queryAllByRole('button', { name: /^Actions for #\d+ Dog/ })).toHaveLength(0);
   });
 
-  it('offers no Change class once the class is in progress, built through the real builder', async () => {
+  it('MYK9-2476: offers Change class with the deadline note once the class is in progress, built through the real builder', async () => {
     const { snapshot } = buildSnapshot(classesWithStatus('in_progress'));
     const model = buildSecretaryCockpitModel(snapshot, {
       selectedDays: undefined,
@@ -206,10 +206,18 @@ describe('cockpit entry rows carry the stranded actions', () => {
       />
     );
     expect(screen.getAllByTestId('class-entry-row')).toHaveLength(ENTRY_COUNT);
-    // The engine offers no move-up now, but the menu still carries Change handler.
+    // A dog that has not run can still change class on a started class; AKC adds the one-line note.
     await userEvent.click(screen.getAllByRole('button', { name: /^Actions for #\d+ Dog/ })[0]!);
-    expect(await screen.findByRole('menuitem', { name: 'Change handler' })).toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', { name: /^Change class/i })).toBeNull();
+    const item = await screen.findByRole('menuitem', { name: /^Change class/i });
+    expect(item).not.toHaveAttribute('data-disabled');
+    expect(item).toHaveTextContent("The rulebook's class change deadline has passed.");
+    expect(screen.getByRole('menuitem', { name: 'Change handler' })).toBeInTheDocument();
+  });
+
+  it('MYK9-2476: offers no Change class once the class is finished', () => {
+    const { snapshot } = buildSnapshot(classesWithStatus('completed'));
+    const rows = snapshot.classes.find(c => c.id === 'class-1')?.entryRows ?? [];
+    expect(rows.flatMap(row => row.actions).some(a => a.id === 'move-up-entry')).toBe(false);
   });
 
   it('offers move-up on EVERY entry, not just the first 25', () => {

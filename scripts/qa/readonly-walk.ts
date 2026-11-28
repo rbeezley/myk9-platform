@@ -78,6 +78,9 @@ export type WalkLog = {
  * `AUDIT_READ_ONLY_RPCS`.
  */
 export const WALK_READ_ONLY_RPCS: ReadonlySet<string> = new Set([
+  // 20261128041700_myk9_2515_admin_user_list_stable.sql (declares it STABLE; the
+  // 20261104174100 definition was VOLATILE, so read this migration, not that one)
+  'get_admin_user_list',
   // 20260928034700_myk9_860_get_club_officials.sql
   'get_club_officials',
   // 20260722120000_onboarding_notes_owner_isolation.sql

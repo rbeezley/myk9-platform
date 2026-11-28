@@ -207,7 +207,7 @@ for (const vp of VIEWPORTS) {
       await openLanding(page);
       const peak = page.locator('#showday');
       await peak.scrollIntoViewIfNeeded();
-      const sw = peak.getByRole('switch', { name: 'Venue signal' });
+      const sw = peak.getByRole('switch', { name: 'Venue internet' });
       await sw.click();
       // The ring scene's numbered lines sit in the same step and are buttons whose names hold
       // these words ("Start, Stop, then Qualified..."), so the lookups stay inside the scoresheet.
@@ -219,7 +219,7 @@ for (const vp of VIEWPORTS) {
       await demo.getByRole('button', { name: 'Save', exact: true }).click();
       await demo.getByRole('button', { name: 'Absent', exact: true }).click();
       await demo.getByRole('button', { name: 'Save', exact: true }).click();
-      await expect(peak.getByText('No signal · 2 waiting')).toBeVisible();
+      await expect(peak.getByText('No internet · 2 waiting')).toBeVisible();
       await sw.click();
       await expect(peak.getByText('All sent')).toBeVisible({ timeout: 4000 });
     });

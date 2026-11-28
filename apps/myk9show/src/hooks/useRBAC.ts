@@ -6,6 +6,7 @@
 
 import { useCallback, useMemo } from 'react';
 import { useAuthContext } from './useAuthContext';
+import { isRoleAssignmentCurrent } from '@/services/rbac/roleAssignment';
 import { rbacService } from '@/services/rbac/RBACService';
 import {
   UserRoleWithDetails,
@@ -234,20 +235,20 @@ export function useRoleBasedPermissions() {
   // Maintain backward compatibility with existing auth context
   const hasRole = useCallback(
     (roleName: string): boolean => {
-      return rbac.userRoles.some(ur => ur.role?.name === roleName && ur.is_active);
+      return rbac.userRoles.some(ur => ur.role?.name === roleName && isRoleAssignmentCurrent(ur));
     },
     [rbac.userRoles]
   );
 
   const hasPermission = useCallback(
-    (permission: string): boolean => {
-      return rbac.hasPermission(permission);
+    (permission: string, scope?: { type: string; id: string }): boolean => {
+      return rbac.hasPermission(permission, scope);
     },
     [rbac]
   );
 
   // Legacy role checking methods
-  const isAdmin = hasRole('site_admin');
+  const isAdmin = rbac.hasPermission('admin:manage');
   const isSecretary = hasRole('secretary');
   const isExhibitor = hasRole('exhibitor');
   const isJudge = hasRole('judge');

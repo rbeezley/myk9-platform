@@ -11,6 +11,7 @@ import {
   describeRefusedLines,
   endCartCheckout,
   epochToIso,
+  healCartFees,
   holdCartSpots,
   linkCartCheckout,
   type CartLease,
@@ -232,6 +233,54 @@ describe('linkCartCheckout: link and tie in one call', () => {
     expect(await linkCartCheckout(down.client, lease, link)).toEqual({
       kind: 'error',
       message: 'lapsed',
+    });
+  });
+});
+
+describe('healCartFees: lines, totals and the page link in one call (MYK9-2455)', () => {
+  const heal = {
+    expectedUpdatedAt: STAMP,
+    observedSessionId: 'cs_old',
+    lines: [
+      { itemId: 'item-1', authoritativeCents: 3000 },
+      { itemId: 'item-2', authoritativeCents: 2500 },
+    ],
+    subtotalCents: 5500,
+    platformFeeCents: 385,
+    totalCents: 5885,
+  };
+
+  it('sends every healed line, the totals, the cart stamp and the page it read under the lease', async () => {
+    const { client, rpc } = rpcClient({ heal_cart_fees: { data: 'healed', error: null } });
+    expect(await healCartFees(client, lease, heal)).toEqual({ kind: 'healed' });
+    expect(rpc).toHaveBeenCalledWith('heal_cart_fees', {
+      p_cart_id: 'cart-1',
+      p_lease_id: 'lease-1',
+      p_expected_updated_at: STAMP,
+      p_observed_session_id: 'cs_old',
+      p_lines: [
+        { item_id: 'item-1', entry_fee_cents: 3000 },
+        { item_id: 'item-2', entry_fee_cents: 2500 },
+      ],
+      p_subtotal_cents: 5500,
+      p_platform_fee_cents: 385,
+      p_total_cents: 5885,
+    });
+  });
+
+  it('passes each refusal through and never reads an odd answer as healed', async () => {
+    for (const reason of ['lease_lost', 'cart_changed', 'session_moved'] as const) {
+      const { client } = rpcClient({ heal_cart_fees: { data: reason, error: null } });
+      expect(await healCartFees(client, lease, heal)).toEqual({ kind: 'refused', reason });
+    }
+    const odd = rpcClient({ heal_cart_fees: { data: null, error: null } });
+    expect((await healCartFees(odd.client, lease, heal)).kind).toBe('error');
+    const down = rpcClient({
+      heal_cart_fees: { data: null, error: { message: 'line not in cart' } },
+    });
+    expect(await healCartFees(down.client, lease, heal)).toEqual({
+      kind: 'error',
+      message: 'line not in cart',
     });
   });
 });

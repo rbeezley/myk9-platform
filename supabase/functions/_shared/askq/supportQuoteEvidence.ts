@@ -36,7 +36,13 @@ export type SupportQuoteRejection =
 
 export type SupportQuoteVerification =
   | { ok: true; answerText: string; guideSources: VerifiedGuideQuote[] }
-  | { ok: false; reason: SupportQuoteRefusal; detail?: SupportQuoteRejection };
+  | {
+      ok: false;
+      reason: SupportQuoteRefusal;
+      detail?: SupportQuoteRejection;
+      /** The quote text that failed `quote_not_in_guide`, so a retry can name it. */
+      failedQuote?: string;
+    };
 
 const DECORATION = '\\s*_`#>\\-';
 const ANSWER_LINE_RE = new RegExp(`^[${DECORATION}]*${SUPPORT_ANSWER_MARKER}[\\s*_\`:]*(.*)$`);
@@ -170,7 +176,12 @@ export function verifySupportAnswerQuotes(
     const quoteTokens = tokenizeQuoteText(quote);
     if (quoteTokens.length > MAX_QUOTE_TOKENS) return rejected('quote_too_long');
     if (!containsSequence(tokenizeQuoteText(guide.content), quoteTokens)) {
-      return rejected('quote_not_in_guide');
+      return {
+        ok: false,
+        reason: 'quote_rejected',
+        detail: 'quote_not_in_guide',
+        failedQuote: quote,
+      };
     }
     if (
       quoteTokens.length < MIN_QUOTE_WORDS &&

@@ -34,6 +34,7 @@ import { disciplineUsesJumpHeight } from '@/types/template.types';
 import { useShowRegistryId } from './useShowRegistryId';
 import type { RemoveFromClassKind, WithdrawalReasonCode } from '@/features/registries';
 import { saveEntryEdits } from './saveEntryEdits';
+import { refreshShowEntriesForRead } from '@/services/database/entries/refreshShowEntriesForRead';
 import { logger } from '@/services/LoggingService';
 import { useEditingPresence } from '@/features/show-presence/useEditingPresence';
 import { EntryScoreHistory } from './EntryScoreHistory';
@@ -267,6 +268,12 @@ export function EntryEditDialog({
         setIsSaving(false);
         return;
       }
+
+      // MYK9-2475: the handler and jump height writes are RPCs that land on the server only,
+      // so the page's re-read (a replica read) still held the old handler. Bring this show's
+      // replica up to date first; capped and failure-tolerant, so a slow link never holds the
+      // dialog open. The exhibitor tier keeps its own refresh path.
+      if (asShowManager) await refreshShowEntriesForRead(entry.showId);
 
       notifications.success(offlineAwareMessage(savedMessage(`${entry.dogName}'s entry`)));
       onUpdate();

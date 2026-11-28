@@ -16,7 +16,7 @@ export const TRUST_ITEMS: readonly TrustItem[] = [
   { lead: 'More than 200 clubs', text: 'run their trials on mySWT and myNWT.' },
   { lead: 'AKC, UKC and ASCA', text: 'Scent Work, Nosework and Scent Detection.' },
   {
-    lead: 'No signal needed at the ring',
+    lead: 'No internet needed at the ring',
     text: 'Scores are saved on the device and send themselves later.',
   },
 ];
@@ -68,9 +68,9 @@ type FaqItem = { q: string; a: readonly string[] };
 
 export const FAQ_ITEMS: readonly FaqItem[] = [
   {
-    q: 'Does it work with no signal?',
+    q: 'Does it work with no internet?',
     a: [
-      'Scoring at the ring does. Once a show is saved on the judge’s device, scores are kept on that device and send themselves when the signal returns.',
+      'Scoring at the ring does. Once a show is saved on the judge’s device, scores are kept on that device and send themselves when the internet comes back.',
       'Entering a show, paying by card and signing in need a connection.',
     ],
   },

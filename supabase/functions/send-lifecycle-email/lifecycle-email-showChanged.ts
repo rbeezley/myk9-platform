@@ -1,3 +1,4 @@
+import { formatVenueLines } from '../_shared/exhibitorEmailDetails.ts';
 import { myShowsEntriesUrl } from './lifecycle-email-shared.ts';
 
 /**
@@ -18,6 +19,8 @@ export interface ShowChangedShow {
   status: string | null;
   deleted_at?: string | null;
   venue_name: string | null;
+  /** The address the show wizard saves; the separate columns are the fallback. */
+  location?: string | null;
   address: string | null;
   city: string | null;
   state: string | null;
@@ -75,16 +78,6 @@ function dateLines(show: ShowChangedShow): string[] {
   });
 }
 
-function venueLines(show: ShowChangedShow): string[] {
-  const cityLine = [
-    [clean(show.city), clean(show.state)].filter(Boolean).join(', '),
-    clean(show.zip_code),
-  ]
-    .filter(Boolean)
-    .join(' ');
-  return [clean(show.venue_name), clean(show.address), cityLine].filter(Boolean);
-}
-
 export interface RenderedShowChangedEmail {
   subject: string;
   body: string;
@@ -97,7 +90,7 @@ export function renderShowChangedEmail(args: {
   const showName = clean(args.show.name) || 'your show';
   const firstName = clean(args.recipientName).split(/\s+/)[0] || 'there';
   const dates = dateLines(args.show);
-  const venue = venueLines(args.show);
+  const venue = formatVenueLines(args.show);
 
   const sections = [
     `Hi ${firstName},`,
@@ -105,7 +98,7 @@ export function renderShowChangedEmail(args: {
   ];
   if (dates.length > 0)
     sections.push(`${dates.length === 1 ? 'Date' : 'Dates'}:\n${dates.join('\n')}`);
-  if (venue.length > 0) sections.push(`Venue:\n${venue.join('\n')}`);
+  if (venue) sections.push(`Venue:\n${venue}`);
   sections.push(
     `Your entries: ${myShowsEntriesUrl(args.show.id)}`,
     'Please contact the show secretary with questions.'

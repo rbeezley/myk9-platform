@@ -116,6 +116,8 @@ export interface SecretaryCockpitEntryAction {
   commandId: string;
   label: string;
   why: string;
+  /** One plain line shown under the label while the item is enabled (Change class on a started class). */
+  note?: string | undefined;
 }
 
 export interface SecretaryCockpitEntryRow {

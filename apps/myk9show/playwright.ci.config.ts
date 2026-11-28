@@ -280,6 +280,8 @@ const PR_SMOKE_SPECS = [
   '**/uat/secretary/qa-regression-proof.spec.ts',
   '**/uat/secretary/critical-path.spec.ts',
   '**/my-entries-page-ui.spec.ts',
+  // MYK9-2496: hermetic geometry of the results prompt block at 390 and 1366 (MYK9-2386).
+  '**/myEntriesResultsPrompt.geometry.spec.ts',
   '**/sign-in-fits-one-screen.spec.ts',
   // Hermetic print geometry for Avery label sheets, Margins Default/None (MYK9-1771).
   '**/labels-print-geometry.spec.ts',

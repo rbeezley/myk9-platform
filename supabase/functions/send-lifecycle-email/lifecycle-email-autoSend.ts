@@ -74,7 +74,7 @@ export const AUTO_SEND_RETRY_DELAYS_MS = [
 ];
 
 const SHOW_SELECT =
-  'id, name, status, deleted_at, venue_name, address, city, state, zip_code, trials(name, date, deleted_at)';
+  'id, name, status, deleted_at, venue_name, location, address, city, state, zip_code, trials(name, date, deleted_at)';
 
 interface ClaimedJob {
   job_id: string;

@@ -191,6 +191,62 @@ export async function linkCartCheckout(
   return { kind: 'error', message: `link_cart_checkout answered ${JSON.stringify(data)}` };
 }
 
+/** A cart line whose stored fee differs from authoritative pricing. */
+export interface DriftedLine {
+  itemId: string;
+  authoritativeCents: number;
+}
+
+export interface CartFeeHeal {
+  /** The cart's updated_at as this request read it, under the lease. */
+  expectedUpdatedAt: string;
+  /** The page the cart linked when this request read it (already retired), or null. */
+  observedSessionId: string | null;
+  lines: readonly DriftedLine[];
+  subtotalCents: number;
+  platformFeeCents: number;
+  totalCents: number;
+}
+
+export type CartFeeHealRefusal = 'lease_lost' | 'cart_changed' | 'session_moved';
+
+export type CartFeeHealResult =
+  | { kind: 'healed' }
+  /** This request no longer owns the cart, or the cart or its page moved: nothing written. */
+  | { kind: 'refused'; reason: CartFeeHealRefusal }
+  | { kind: 'error'; message: string };
+
+/**
+ * MYK9-2455: in one transaction under the lease, write the healed line fees,
+ * the cart totals and clear the page link, or write nothing. Refused unless
+ * the cart, and the page it links, are still the ones this request read.
+ */
+export async function healCartFees(
+  db: HoldRpcClient,
+  lease: CartLease,
+  heal: CartFeeHeal
+): Promise<CartFeeHealResult> {
+  const { data, error } = await db.rpc('heal_cart_fees', {
+    p_cart_id: lease.cartId,
+    p_lease_id: lease.leaseId,
+    p_expected_updated_at: heal.expectedUpdatedAt,
+    p_observed_session_id: heal.observedSessionId,
+    p_lines: heal.lines.map(line => ({
+      item_id: line.itemId,
+      entry_fee_cents: line.authoritativeCents,
+    })),
+    p_subtotal_cents: heal.subtotalCents,
+    p_platform_fee_cents: heal.platformFeeCents,
+    p_total_cents: heal.totalCents,
+  });
+  if (error) return { kind: 'error', message: error.message ?? 'heal_cart_fees failed' };
+  if (data === 'healed') return { kind: 'healed' };
+  if (data === 'lease_lost' || data === 'cart_changed' || data === 'session_moved') {
+    return { kind: 'refused', reason: data };
+  }
+  return { kind: 'error', message: `heal_cart_fees answered ${JSON.stringify(data)}` };
+}
+
 /** A line refused at Pay: nothing is charged and the caller answers 409. */
 export class CartHoldRefusedError extends Error {
   readonly lines: RefusedCartLine[];

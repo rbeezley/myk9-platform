@@ -23,4 +23,17 @@ describe('refreshClubAuthorization (MYK9-2153)', () => {
       queryKey: [...PUBLIC_CLUB_DETAIL_QUERY_KEY, CLUB_ID],
     });
   });
+
+  it("refreshes the admin overview counts, since authorizing closes the club's pending request", async () => {
+    const queryClient = new QueryClient();
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+
+    await refreshClubAuthorization({
+      queryClient,
+      ensureClubsReady: vi.fn().mockResolvedValue({ status: 'fresh' }),
+      clubId: CLUB_ID,
+    });
+
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['admin', 'overview'] });
+  });
 });

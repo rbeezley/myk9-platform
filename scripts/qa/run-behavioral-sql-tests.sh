@@ -108,6 +108,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_1300_armbands_updated_at_test.sql"
   "$TEST_DIR/myk9_2040_reacceptance_new_confirmation_test.sql"
   "$TEST_DIR/judge_qualification_rpc_authorization_test.sql"
+  "$TEST_DIR/judge_qualification_suspension_preserved_test.sql"
   "$TEST_DIR/myk9_833_judge_draft_show_visibility_test.sql"
   "$TEST_DIR/myk9_819_passcode_draft_visibility_test.sql"
   "$TEST_DIR/myk9_841_staff_on_behalf_entries_accepted_test.sql"
@@ -266,6 +267,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_2127_show_cancelled_email_jobs_test.sql"
   "$TEST_DIR/myk9_2161_substitute_judge_emails_test.sql"
   "$TEST_DIR/myk9_2160_show_changed_pending_payment_test.sql"
+  "$TEST_DIR/myk9_2490_show_changed_location_test.sql"
   "$TEST_DIR/myk9_2170_payout_brake_test.sql"
   "$TEST_DIR/myk9_2195_payout_paid_destination_test.sql"
   "$TEST_DIR/myk9_2182_payout_approval_reminders_test.sql"
@@ -293,6 +295,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_2005_qualified_time_test.sql"
   "$TEST_DIR/myk9_1975_junior_fee_limit_test.sql"
   "$TEST_DIR/myk9_1931_class_fee_wins_test.sql"
+  "$TEST_DIR/myk9_2455_heal_cart_fees_test.sql"
   "$TEST_DIR/golden_replay_trial_27835_test.sql"
   "$TEST_DIR/schema_security_invariants_test.sql"
 )

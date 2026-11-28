@@ -305,14 +305,49 @@ describe('entry form Change class eligibility (MYK9-1614)', () => {
     await waitFor(() => expect(item).not.toHaveAttribute('data-disabled'));
   });
 
-  it('is disabled with the reason once the class has started', async () => {
+  it('MYK9-2476: is enabled once the class has started, with the rulebook deadline note', async () => {
     rawClasses = [
       rawClass('novice-a', 'Novice', 'A', 'In Progress'),
       rawClass('advanced', 'Advanced', ''),
     ];
     const item = await openMenu(makeFormEntry());
+    await waitFor(() =>
+      expect(item).toHaveTextContent("The rulebook's class change deadline has passed.")
+    );
+    expect(item).not.toHaveAttribute('data-disabled');
+  });
+
+  it('is disabled for a dog in the ring even when its check-in still says checked in', async () => {
+    rawClasses = [
+      rawClass('novice-a', 'Novice', 'A', 'In Progress'),
+      rawClass('advanced', 'Advanced', ''),
+    ];
+    const entry = makeFormEntry({ isInRing: true });
+    entry.classes[0]!.checkInStatus = 'checked-in' as never;
+    const item = await openMenu(entry);
     await waitFor(() => expect(item).toHaveAttribute('data-disabled'));
-    expect(item).toHaveTextContent('Its class has already started.');
+    expect(item).toHaveTextContent('This entry is in the ring.');
+  });
+
+  it('is disabled with the reason when the class is finished', async () => {
+    rawClasses = [
+      rawClass('novice-a', 'Novice', 'A', 'Completed'),
+      rawClass('advanced', 'Advanced', ''),
+    ];
+    const item = await openMenu(makeFormEntry());
+    await waitFor(() => expect(item).toHaveAttribute('data-disabled'));
+    expect(item).toHaveTextContent('Its class is finished.');
+  });
+
+  it('the offline reason still wins on a started class', async () => {
+    rawClasses = [
+      rawClass('novice-a', 'Novice', 'A', 'In Progress'),
+      rawClass('advanced', 'Advanced', ''),
+    ];
+    mocks.isOnline.mockReturnValue(false);
+    const item = await openMenu(makeFormEntry());
+    await waitFor(() => expect(item).toHaveAttribute('data-disabled'));
+    expect(item).toHaveTextContent('Changing a class needs a connection.');
   });
 
   it('is disabled with the reason for an entry that has already run', async () => {

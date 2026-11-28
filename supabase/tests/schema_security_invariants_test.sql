@@ -211,6 +211,49 @@ END;
 $$;
 
 -- ===========================================================================
+-- B3. get_admin_user_list is STABLE (MYK9-2515): the read-only walk guard
+--     allows an RPC only when it is STABLE or IMMUTABLE. Grants stay closed:
+--     no PUBLIC or anon EXECUTE, authenticated keeps it.
+--     The write marker used by 20261128041700_myk9_2515_admin_user_list_stable
+--     is exercised on fixtures so it is known to bite and not to trip on
+--     updated_at / deleted_at / deleted_by.
+-- ===========================================================================
+DO $$
+DECLARE
+  v_fn regprocedure := 'public.get_admin_user_list(boolean)'::regprocedure;
+  v_marker constant text :=
+    '\m(insert|update|delete|truncate|merge|execute|perform|nextval|setval|set_config|pg_notify)\M';
+BEGIN
+  IF (SELECT provolatile FROM pg_catalog.pg_proc WHERE oid = v_fn) <> 's' THEN
+    RAISE EXCEPTION 'FAIL public.get_admin_user_list(boolean) is not STABLE (provolatile <> s)';
+  END IF;
+  IF pg_catalog.has_function_privilege('anon', v_fn, 'EXECUTE')
+     OR pg_catalog.has_function_privilege('public', v_fn, 'EXECUTE') THEN
+    RAISE EXCEPTION 'FAIL public.get_admin_user_list(boolean) grants EXECUTE to anon or PUBLIC';
+  END IF;
+  IF NOT pg_catalog.has_function_privilege('authenticated', v_fn, 'EXECUTE') THEN
+    RAISE EXCEPTION 'FAIL public.get_admin_user_list(boolean) no longer grants EXECUTE to authenticated';
+  END IF;
+
+  IF pg_catalog.pg_get_functiondef(v_fn) ~* v_marker THEN
+    RAISE EXCEPTION 'FAIL public.get_admin_user_list(boolean) body matches a write or dynamic-SQL marker';
+  END IF;
+  IF NOT ('INSERT INTO people (id) VALUES (1);' ~* v_marker
+          AND 'update people set x = 1' ~* v_marker
+          AND 'DELETE FROM people' ~* v_marker
+          AND 'EXECUTE format(''x'')' ~* v_marker
+          AND 'PERFORM set_config(''a'', ''b'', true)' ~* v_marker
+          AND 'SELECT nextval(''s'')' ~* v_marker) THEN
+    RAISE EXCEPTION 'FAIL write marker does not match a fixture body containing a write';
+  END IF;
+  IF 'SELECT p.updated_at, p.deleted_at, p.deleted_by FROM people p' ~* v_marker THEN
+    RAISE EXCEPTION 'FAIL write marker trips on updated_at / deleted_at / deleted_by';
+  END IF;
+  RAISE NOTICE 'PASS get_admin_user_list is STABLE with grants closed and the write marker bites';
+END;
+$$;
+
+-- ===========================================================================
 -- C. SECURITY DEFINER EXECUTE hygiene in public:
 --    1. Zero SECURITY DEFINER functions grant EXECUTE to PUBLIC.
 --    2. Only the explicit allowlist of RLS predicate helpers and public read

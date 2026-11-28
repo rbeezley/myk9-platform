@@ -55,10 +55,10 @@ describe('the ring scene', () => {
     ]);
     expect(resting).toEqual([
       ['The judge opens the ring’s classes', 'classes'],
-      ['The signal drops', 'offline'],
+      ['The internet goes out', 'offline'],
       ['The judge times and scores the run', 'result'],
       ['The score is read back before it saves', 'confirm'],
-      ['The signal returns', 'sent'],
+      ['The internet comes back', 'sent'],
     ]);
     // Two frames show `sent`; the one the last line rests on rings the Scores sent message.
     expect(frames[lastFrameOfLine(frames, 4)]!.phone!.ring).toEqual(
@@ -128,7 +128,7 @@ describe('the ring scene on the page', () => {
     // the ring scene is the one that is solo.
     expect(container.querySelectorAll('.tl-scene')).toHaveLength(3);
     expect(container.querySelectorAll('.tl-scene[data-solo="true"]')).toHaveLength(1);
-    expect(screen.getByRole('button', { name: /Signal drops/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Internet goes out/ })).toBeInTheDocument();
   });
 
   it('names each walkthrough so a screen reader can tell them apart', () => {

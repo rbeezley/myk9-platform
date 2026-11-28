@@ -205,11 +205,11 @@ begin
   ) then
     raise exception 'FAIL G: request_new_club search_path is not public, pg_temp';
   end if;
-  if has_function_privilege('anon', 'public.review_club_access_request(uuid, text, uuid, text, text)', 'EXECUTE')
-     or not has_function_privilege('authenticated', 'public.review_club_access_request(uuid, text, uuid, text, text)', 'EXECUTE')
+  if has_function_privilege('anon', 'public.review_club_access_request(uuid, text, uuid, text, text, boolean)', 'EXECUTE')
+     or not has_function_privilege('authenticated', 'public.review_club_access_request(uuid, text, uuid, text, text, boolean)', 'EXECUTE')
      or exists (
        select 1 from pg_proc p, aclexplode(p.proacl) a
-       where p.oid = 'public.review_club_access_request(uuid, text, uuid, text, text)'::regprocedure
+       where p.oid = 'public.review_club_access_request(uuid, text, uuid, text, text, boolean)'::regprocedure
          and a.grantee = 0
      ) then
     raise exception 'FAIL G: review_club_access_request is not authenticated-only';

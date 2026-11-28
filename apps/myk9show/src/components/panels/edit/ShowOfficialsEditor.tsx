@@ -17,6 +17,7 @@ import { OfficialMailingAddressField } from './OfficialMailingAddressField';
 import { replaceShowOfficial } from './replaceShowOfficial';
 import { logger } from '@/services/LoggingService';
 import { queryKeys } from '@/lib/queryClient';
+import { publishInfoQueryKey } from '@/features/premium/usePublishInfo';
 
 interface ShowOfficialsEditorProps {
   showId: string;
@@ -72,8 +73,13 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
     const singleHolderRole =
       role === UserRole.CHAIRMAN ? 'chairman' : role === UserRole.SECRETARY ? 'secretary' : null;
     const roleLabel = ROLE_LABELS[role] ?? 'official';
+    // MYK9-2471: the Chair and Secretary print on the premium, so its publish info (the stale
+    // notice) is refetched with the officials.
     const invalidate = () =>
-      queryClient.invalidateQueries({ queryKey: ['shows', showId, 'officials'] });
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['shows', showId, 'officials'] }),
+        queryClient.invalidateQueries({ queryKey: publishInfoQueryKey(showId) }),
+      ]);
     const picked = people.find(person => person.id === personId);
     const pickedName = picked
       ? `${picked.firstName} ${picked.lastName}`.trim()

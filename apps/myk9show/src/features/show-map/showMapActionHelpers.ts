@@ -37,10 +37,10 @@ export function canMessageEntryHandler(node: ShowMapNode): boolean {
 }
 
 /**
- * A move-up happens BEFORE the dog runs (owner, 2026-10-03): a dog that
- * finished its last Novice leg in Trial 1 has its Trial 2 Novice entry moved
- * to Advanced in Trial 2, before that class starts. So it is offered only on
- * an entry that has not run, in a class that has not started.
+ * A move-up is offered while the dog has not run (owner, 2026-11-26, MYK9-2476, replacing the
+ * 2026-10-03 "before the class starts" rule): a dog that finished its last Novice leg in Trial 1
+ * has its Trial 2 Novice entry moved to Advanced, even once that class has started. So it is
+ * offered on an entry that has not run, in a class that is not finished or cancelled.
  *
  * Also false for a retired ('moved'/pulled/scratched, all `kind: 'muted'`)
  * entry — a superseded source record, not something to move again (MYK9-825).

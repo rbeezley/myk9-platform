@@ -32,6 +32,7 @@ export function ResultsPackets({
   entries,
   entriesTrusted,
   flaggedPulls,
+  entriesReadable,
   timeZone,
 }: {
   showId: string;
@@ -40,6 +41,7 @@ export function ResultsPackets({
   entries: readonly SecretaryEntry[];
   entriesTrusted: boolean;
   flaggedPulls: CloseoutFlaggedPulls;
+  entriesReadable: boolean;
   timeZone: string;
 }) {
   const { show } = useFastShowDetails(showId);
@@ -70,6 +72,7 @@ export function ResultsPackets({
         entries={entries}
         entriesTrusted={entriesTrusted}
         flaggedPulls={flaggedPulls}
+        entriesReadable={entriesReadable}
         onOpenAfterShow={trialId => setPacket({ kind: 'after-show', trialId })}
       />
       {packet?.kind === 'judge-review' && (

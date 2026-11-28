@@ -18,16 +18,30 @@ const selectMock = vi.hoisted(() =>
   }))
 );
 
+const officialsResultMock = vi.hoisted(() => vi.fn());
+const officialsFromMock = vi.hoisted(() => vi.fn());
+
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
     functions: { invoke: invokeMock },
-    from: vi.fn(() => ({
-      select: selectMock,
-    })),
+    from: vi.fn((table: string) => {
+      if (table === 'show_officials') {
+        officialsFromMock(table);
+        const chain = {
+          select: vi.fn(() => chain),
+          eq: vi.fn(() => chain),
+          order: vi.fn(() => chain),
+          limit: vi.fn(() => officialsResultMock()),
+        };
+        return chain;
+      }
+      return { select: selectMock };
+    }),
     storage: { from: vi.fn(() => ({ getPublicUrl: getPublicUrlMock })) },
   },
 }));
 
+import { classifyPremiumPublishState } from '@/features/show-workbench/premiumPublishState';
 import { fetchPublishInfo, usePublishInfo } from './usePublishInfo';
 
 describe('usePublishInfo', () => {
@@ -36,6 +50,9 @@ describe('usePublishInfo', () => {
     maybeSingleMock.mockReset();
     selectMock.mockClear();
     getPublicUrlMock.mockReset();
+    officialsResultMock.mockReset();
+    officialsResultMock.mockResolvedValue({ data: [], error: null });
+    officialsFromMock.mockClear();
     invokeMock.mockReset();
     invokeMock.mockResolvedValue({ data: { url: 'https://signed.test/current.pdf' }, error: null });
   });
@@ -59,6 +76,55 @@ describe('usePublishInfo', () => {
     });
     expect(invokeMock).not.toHaveBeenCalled();
     expect(getPublicUrlMock).not.toHaveBeenCalled();
+  });
+
+  describe('MYK9-2471 officials changes', () => {
+    const publishedRow = {
+      published_premium_path: 'show-b/artifact-1.pdf',
+      published_premium_url: null,
+      published_premium_at: '2026-11-26T12:00:00.000Z',
+      updated_at: '2026-11-26T11:00:00.000Z',
+      experience_is_published: true,
+    };
+
+    it('reports the newer official row as updatedAt so the published premium reads stale', async () => {
+      maybeSingleMock.mockResolvedValue({ data: publishedRow, error: null });
+      officialsResultMock.mockResolvedValue({
+        data: [{ created_at: '2026-11-26T12:30:00.000Z' }],
+        error: null,
+      });
+      const info = await fetchPublishInfo('show-b');
+      expect(info.updatedAt).toBe('2026-11-26T12:30:00.000Z');
+      expect(
+        classifyPremiumPublishState({
+          publishedPremiumUrl: info.publishedPath,
+          publishedPremiumAt: info.publishedAt,
+          updatedAt: info.updatedAt,
+        })
+      ).toBe('published-stale');
+      expect(officialsFromMock).toHaveBeenCalledWith('show_officials');
+    });
+
+    it('keeps the show row time when officials are older or absent', async () => {
+      maybeSingleMock.mockResolvedValue({ data: publishedRow, error: null });
+      officialsResultMock.mockResolvedValue({
+        data: [{ created_at: '2026-11-25T12:30:00.000Z' }],
+        error: null,
+      });
+      await expect(fetchPublishInfo('show-b')).resolves.toMatchObject({
+        updatedAt: '2026-11-26T11:00:00.000Z',
+      });
+      officialsResultMock.mockResolvedValue({ data: [], error: null });
+      await expect(fetchPublishInfo('show-b')).resolves.toMatchObject({
+        updatedAt: '2026-11-26T11:00:00.000Z',
+      });
+    });
+
+    it('fails closed when the officials read fails', async () => {
+      maybeSingleMock.mockResolvedValue({ data: publishedRow, error: null });
+      officialsResultMock.mockResolvedValue({ data: null, error: new Error('rls') });
+      await expect(fetchPublishInfo('show-b')).rejects.toThrow('rls');
+    });
   });
 
   it('recognizes retained flat legacy publication without signing it during metadata read', async () => {

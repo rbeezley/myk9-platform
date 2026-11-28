@@ -123,7 +123,7 @@ export function ClassEntryRowMenu({
               disabled={offlineReason !== undefined}
               onClick={() => onCommand(action.commandId)}
             >
-              <ItemLabel label={action.label} reason={offlineReason} />
+              <ItemLabel label={action.label} reason={offlineReason ?? action.note} />
             </DropdownMenuItem>
           );
         })}

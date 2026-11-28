@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import { ScoresheetDemo } from '../ScoresheetDemo';
 
-const sw = () => screen.getByRole('switch', { name: 'Venue signal' });
+const sw = () => screen.getByRole('switch', { name: 'Venue internet' });
 const status = () => screen.getByTestId('scoresheet-status');
 const log = () => screen.getByRole('list', { name: 'Scores this session' });
 const save = () => screen.getByRole('button', { name: 'Save' });
@@ -37,11 +37,11 @@ describe('ScoresheetDemo', () => {
     fireEvent.click(save());
     expect(within(log()).getByText(/#101 Ziva: Absent/)).toBeInTheDocument();
     expect(within(log()).getByText('Waiting')).toBeInTheDocument();
-    expect(screen.getByText('No signal · 1 waiting')).toBeInTheDocument();
+    expect(screen.getByText('No internet · 1 waiting')).toBeInTheDocument();
     expect(screen.getByText('Tera')).toBeInTheDocument();
   });
 
-  it('syncs the queue in order when the signal returns', () => {
+  it('syncs the queue in order when the internet comes back', () => {
     render(<ScoresheetDemo syncMs={1000} />);
     fireEvent.click(sw());
     fireEvent.click(screen.getByRole('button', { name: 'Absent' }));
@@ -65,7 +65,7 @@ describe('ScoresheetDemo', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Absent' }));
       fireEvent.click(save());
     }
-    expect(screen.getByText('No signal · 6 waiting')).toBeInTheDocument();
+    expect(screen.getByText('No internet · 6 waiting')).toBeInTheDocument();
     expect(within(log()).getAllByRole('listitem')).toHaveLength(4);
     fireEvent.click(sw());
     act(() => {

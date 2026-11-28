@@ -1,0 +1,160 @@
+# People directory offline proof (MYK9-2503, MYK9-2253 `verify:offline`).
+#
+# Seeds 1,200+ people on this job's own throwaway Supabase stack (never production or
+# staging), signs in as the secretary, loads the directory online, goes offline, reloads,
+# and finds a person past row 1,000 on Entry Forms and in the Add Person duplicate check,
+# then reconnects and checks the device converges. Same safety shape as the Landing capture
+# workflow: job-only account passwords, a stack that dies with the job, and the browser,
+# preview server and spec run with their outbound network closed, proved by a control.
+name: People directory offline
+
+on:
+  workflow_dispatch: {}
+  # The PR's own run is the recorded green run. Only this proof's own files trigger it.
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/people-directory-offline.yml'
+      - 'apps/myk9show/playwright.people-directory.config.ts'
+      - 'apps/myk9show/tsconfig.people-directory.json'
+      - 'apps/myk9show/src/test/e2e/isolated/**'
+
+env:
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: people-directory-offline-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  proof:
+    name: Offline people directory past row 1,000
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # Not for a fork's pull request: the job runs the pull request's code with sudo.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    env:
+      MYK9_PLAYWRIGHT_REGRESSION_ENABLED: 'true'
+      MYK9_PLAYWRIGHT_REGRESSION_TARGET: isolated
+      MYK9_E2E_APPROVED_PROJECT_REFS: local
+      MYK9_E2E_SUPABASE_PROJECT_REF: local
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 3.2.0 # exact pin, never latest; see MYK9-1662
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.23.4'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browser
+        uses: ./.github/actions/install-playwright
+        with:
+          browser: chromium
+
+      # The stack's accounts get passwords made here, for this job only. The repository's
+      # fixture passwords, which also open the fixture accounts on the hosted project, are
+      # never given to this job.
+      - name: Make this job's own account passwords
+        run: |
+          for name in E2E_SECRETARY_PASSWORD E2E_ADMIN_PASSWORD E2E_JUDGE_PASSWORD E2E_DEMO_EXHIBITOR_PASSWORD E2E_EXHIBITOR2_PASSWORD; do
+            value="Job-$(openssl rand -hex 16)-9a"
+            echo "::add-mask::$value"
+            echo "$name=$value" >> "$GITHUB_ENV"
+          done
+
+      # Containers may talk to local networks only, so the stack cannot reach shared
+      # Supabase, email or Stripe.
+      - name: Restrict containers to local networks
+        run: |
+          sudo iptables -N DOCKER-USER 2>/dev/null || true
+          sudo iptables -I DOCKER-USER 1 -d 10.0.0.0/8 -j RETURN
+          sudo iptables -I DOCKER-USER 2 -d 172.16.0.0/12 -j RETURN
+          sudo iptables -I DOCKER-USER 3 -d 192.168.0.0/16 -j RETURN
+          sudo iptables -I DOCKER-USER 4 -j DROP
+
+      - name: Reserve Supabase host ports
+        run: bash scripts/ci/reserve-supabase-ports.sh
+
+      # Writes the local stack's URL and keys to GITHUB_ENV, so the build below is pointed
+      # at this job's own stack and nothing else. The load fixture is left out.
+      - name: Prepare isolated Supabase target
+        run: pnpm qa:isolated-e2e:prepare
+        env:
+          MYK9_E2E_LOAD_FIXTURE: 'false'
+
+      - name: Verify the target is the isolated stack
+        run: pnpm exec tsx scripts/qa/verify-isolated-e2e-target.ts
+
+      - name: Build app + packages
+        run: pnpm build
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+
+      - name: Compile the proof
+        working-directory: apps/myk9show
+        run: pnpm exec tsc --noEmit -p tsconfig.people-directory.json
+
+      # Everything the proof runs is started in the group `people-directory-offline`, and a
+      # process in that group may open connections to this machine only (the stack's
+      # containers are outside the rule). The rule is by group, not for the whole runner,
+      # because the runner itself must keep reporting to GitHub. The control comes first:
+      # the same probe must connect before it is confined, or a refusal would prove nothing.
+      # The spec proves the closed network again before it seeds anything.
+      - name: Close the proof's outbound network
+        working-directory: apps/myk9show
+        run: |
+          sudo groupadd --force people-directory-offline
+          sudo usermod -aG people-directory-offline "$(id -un)"
+          for firewall in iptables ip6tables; do
+            sudo "$firewall" -A OUTPUT -m owner --gid-owner people-directory-offline -o lo -j ACCEPT
+            sudo "$firewall" -A OUTPUT -m owner --gid-owner people-directory-offline -j REJECT
+          done
+          pnpm exec tsx src/test/e2e/capture/egressProbe.ts open
+          sg people-directory-offline -c 'pnpm exec tsx src/test/e2e/capture/egressProbe.ts closed'
+
+      # No retries: the spec seeds 1,200+ people, so a second attempt would start from a
+      # different database.
+      - name: Offline people directory proof
+        working-directory: apps/myk9show
+        run: >-
+          sg people-directory-offline -c
+          'pnpm exec playwright test --config=playwright.people-directory.config.ts --workers=1 --retries=0'
+        env:
+          CI: 'true'
+
+      - name: Verify reports contain no credentials
+        id: verify-artifacts
+        if: always()
+        working-directory: apps/myk9show
+        run: pnpm exec tsx scripts/verify-artifact-secrets.ts --skip-zip-files playwright-report-ci test-results
+
+      - name: Preserve the report
+        if: ${{ always() && steps.verify-artifacts.outcome != 'failure' && steps.verify-artifacts.outcome == 'success' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: people-directory-offline
+          path: |
+            apps/myk9show/playwright-report-ci/
+            apps/myk9show/test-results/
+            !apps/myk9show/playwright-report-ci/**/*.zip
+            !apps/myk9show/test-results/**/*.zip
+          retention-days: 7
+
+      - name: Stop isolated Supabase target
+        if: always()
+        run: pnpm qa:isolated-e2e:stop

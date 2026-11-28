@@ -33,9 +33,9 @@ type Logged = {
 };
 
 // Working practice scoresheet for the landing page (canvas E2, plan D9).
-// INTENT: lets a visitor feel the real behaviour (scoring keeps working with no signal and
+// INTENT: lets a visitor feel the real behaviour (scoring keeps working with no internet and
 // catches up on its own). The timer and result buttons are the real ones from
-// @myk9/scoring-ui; only the venue signal and the score queue are simulated here.
+// @myk9/scoring-ui; only the venue internet and the score queue are simulated here.
 // Nothing is saved, nothing goes over the network, and no ringside or sync code is imported.
 export function ScoresheetDemo({ syncMs = 1400 }: { syncMs?: number }) {
   const stopwatch = useStopwatch({
@@ -49,7 +49,7 @@ export function ScoresheetDemo({ syncMs = 1400 }: { syncMs?: number }) {
   const [result, setResult] = useState<QualifyingResult | null>(null);
   const [log, setLog] = useState<Logged[]>([]);
   const [message, setMessage] = useState(
-    'Turn the signal off, press Start, pick a result and Save.'
+    'Turn the internet off, press Start, pick a result and Save.'
   );
   const syncTimer = useRef<number | undefined>(undefined);
 
@@ -63,17 +63,17 @@ export function ScoresheetDemo({ syncMs = 1400 }: { syncMs?: number }) {
     if (online) {
       setOnline(false);
       setSyncing(false);
-      setMessage('No signal. Keep scoring; nothing is lost.');
+      setMessage('No internet. Keep scoring; nothing is lost.');
       return;
     }
     setOnline(true);
     if (!waiting) {
-      setMessage('Signal is back.');
+      setMessage('Internet is back.');
       return;
     }
     const n = waiting;
     setSyncing(true);
-    setMessage(`Signal is back. Sending ${n}…`);
+    setMessage(`Internet is back. Sending ${n}…`);
     syncTimer.current = window.setTimeout(() => {
       setLog(cur => cur.map(l => ({ ...l, state: 'synced' })));
       setSyncing(false);
@@ -103,13 +103,13 @@ export function ScoresheetDemo({ syncMs = 1400 }: { syncMs?: number }) {
     setMessage(
       online
         ? `${dog.name} saved and sent.`
-        : `${dog.name} saved on the tablet. ${n} waiting for signal.`
+        : `${dog.name} saved on the tablet. ${n} waiting for internet.`
     );
   };
 
   const badge = !online
     ? {
-        text: waiting ? `No signal · ${waiting} waiting` : 'No signal',
+        text: waiting ? `No internet · ${waiting} waiting` : 'No internet',
         tone: 'amber',
       }
     : syncing
@@ -127,19 +127,19 @@ export function ScoresheetDemo({ syncMs = 1400 }: { syncMs?: number }) {
           type="button"
           role="switch"
           aria-checked={online}
-          aria-label="Venue signal"
+          aria-label="Venue internet"
           className="lc-demo-switch"
           onClick={toggleSignal}
         >
           <span className="lc-demo-knob" />
         </button>
         <div>
-          <span className="lc-demo-label">Venue signal: {online ? 'On' : 'Off'}</span>
+          <span className="lc-demo-label">Venue internet: {online ? 'On' : 'Off'}</span>
           <span className="lc-demo-hint">
             {waiting
               ? `${waiting} ${waiting === 1 ? 'score' : 'scores'} saved on the tablet, waiting`
               : online
-                ? 'Tap to cut the signal, like a rural show site'
+                ? 'Tap to cut the internet, like a rural show site'
                 : 'Scores keep saving on the tablet'}
           </span>
         </div>

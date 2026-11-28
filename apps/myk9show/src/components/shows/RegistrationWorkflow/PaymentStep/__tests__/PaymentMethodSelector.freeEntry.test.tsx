@@ -7,7 +7,7 @@ import { PaymentMethodSelector } from '../PaymentMethodSelector';
  * `waived` only from them). The permission alone is not enough; the caller passes
  * `allowFreeEntry` from the show-scoped check, and the default hides the option.
  */
-vi.mock('@/components/auth/PermissionGuard', () => ({
+vi.mock('@/components/rbac/PermissionGuard', () => ({
   PermissionGuard: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 

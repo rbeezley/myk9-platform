@@ -1135,4 +1135,56 @@ BEGIN
 END;
 $$;
 
+-- ---------------------------------------------------------------------------
+-- 16. MYK9-2513: with a real session (an amr in the JWT), authorizing a waiting club
+--     asks for the password; revoking never does; an already-authorized club is a
+--     no-op that never asks. A club with no pending request takes the core path.
+--     Reuses the site admin identity from case 7.
+-- ---------------------------------------------------------------------------
+INSERT INTO public.clubs (id, name, authorized_at)
+VALUES ('00000000-0000-0000-0000-000002513901', 'MYK9-2513 Gate Club', NULL);
+
+SET LOCAL ROLE authenticated;
+DO $$
+DECLARE
+  v_club uuid := '00000000-0000-0000-0000-000002513901';
+  v_sub text := current_setting('myk9572.siteadmin_auth_user_id');
+  v_refused boolean := false;
+  v_stale text := jsonb_build_object('sub', v_sub, 'role', 'authenticated', 'amr',
+    jsonb_build_array(jsonb_build_object('method', 'password',
+      'timestamp', extract(epoch FROM now())::bigint - 86400)))::text;
+  v_fresh text := jsonb_build_object('sub', v_sub, 'role', 'authenticated', 'amr',
+    jsonb_build_array(jsonb_build_object('method', 'password',
+      'timestamp', extract(epoch FROM now())::bigint - 30)))::text;
+BEGIN
+  PERFORM set_config('request.jwt.claims', v_stale, true);
+  BEGIN
+    PERFORM public.set_club_authorization(v_club, true);
+  EXCEPTION WHEN SQLSTATE 'MKAUT' THEN
+    v_refused := true;
+  END;
+  IF NOT v_refused OR EXISTS (SELECT 1 FROM public.clubs WHERE id = v_club AND authorized_at IS NOT NULL) THEN
+    RAISE EXCEPTION 'FAIL 2513-gate: an unauthorized club was authorized on a stale sign-in';
+  END IF;
+
+  PERFORM set_config('request.jwt.claims', v_fresh, true);
+  PERFORM public.set_club_authorization(v_club, true);
+  IF NOT EXISTS (SELECT 1 FROM public.clubs WHERE id = v_club AND authorized_at IS NOT NULL) THEN
+    RAISE EXCEPTION 'FAIL 2513-gate: a fresh sign-in could not authorize';
+  END IF;
+
+  PERFORM set_config('request.jwt.claims', v_stale, true);
+  PERFORM public.set_club_authorization(v_club, true);
+  PERFORM public.set_club_authorization(v_club, false);
+  IF EXISTS (SELECT 1 FROM public.clubs WHERE id = v_club AND authorized_at IS NOT NULL) THEN
+    RAISE EXCEPTION 'FAIL 2513-gate: revoke on a stale sign-in did not clear the authorization';
+  END IF;
+  PERFORM set_config('request.jwt.claims', '', true);
+  RAISE NOTICE 'PASS 2513-gate: authorizing a waiting club asks for the password, revoking and a repeat do not';
+END;
+$$;
+
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub', '', true);
+
 ROLLBACK;

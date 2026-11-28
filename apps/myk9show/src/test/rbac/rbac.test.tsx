@@ -7,7 +7,6 @@ import {
   MOCK_USERS,
   DEFAULT_ROLE_PERMISSIONS,
 } from '../../types/auth-types';
-import { PermissionGuard } from '../../components/auth/PermissionGuard';
 import { useRegistrationPermissions } from '../../hooks/useRegistrationPermissions';
 
 // Mock useAuthContext so no QueryClientProvider / AuthProvider needed
@@ -97,96 +96,6 @@ describe('RBAC System', () => {
       expect(screen.getByTestId('can-manage-status')).toHaveTextContent('false');
       expect(screen.getByTestId('can-bulk-operations')).toHaveTextContent('false');
       expect(screen.getByTestId('registration-mode')).toHaveTextContent('exhibitor');
-    });
-  });
-
-  describe('PermissionGuard Component', () => {
-    it('should render children when user has required permission', () => {
-      render(
-        <PermissionGuard permission={PERMISSIONS.DOG_READ}>
-          <div data-testid="protected-content">Protected Content</div>
-        </PermissionGuard>
-      );
-
-      expect(screen.getByTestId('protected-content')).toBeInTheDocument();
-    });
-
-    it('should not render children when user lacks required permission', () => {
-      render(
-        <PermissionGuard permission={PERMISSIONS.REGISTRATION_VIEW_ALL_DOGS}>
-          <div data-testid="protected-content">Protected Content</div>
-        </PermissionGuard>
-      );
-
-      expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument();
-    });
-
-    it('should render fallback when user lacks permission', () => {
-      render(
-        <PermissionGuard
-          permission={PERMISSIONS.REGISTRATION_VIEW_ALL_DOGS}
-          fallback={<div data-testid="fallback">No Permission</div>}
-        >
-          <div data-testid="protected-content">Protected Content</div>
-        </PermissionGuard>
-      );
-
-      expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument();
-      expect(screen.getByTestId('fallback')).toBeInTheDocument();
-    });
-
-    it('should support role-based protection', () => {
-      render(
-        <>
-          <PermissionGuard role={UserRole.EXHIBITOR}>
-            <div data-testid="exhibitor-content">Exhibitor Content</div>
-          </PermissionGuard>
-          <PermissionGuard role={UserRole.SECRETARY}>
-            <div data-testid="secretary-content">Secretary Content</div>
-          </PermissionGuard>
-        </>
-      );
-
-      expect(screen.getByTestId('exhibitor-content')).toBeInTheDocument();
-      expect(screen.queryByTestId('secretary-content')).not.toBeInTheDocument();
-    });
-
-    it('should support multiple roles (OR logic)', () => {
-      render(
-        <PermissionGuard role={[UserRole.SECRETARY, UserRole.CLUB_ADMIN]}>
-          <div data-testid="secretary-or-admin">Secretary or Admin Content</div>
-        </PermissionGuard>
-      );
-
-      // Should not render because user is exhibitor, not secretary or club admin
-      expect(screen.queryByTestId('secretary-or-admin')).not.toBeInTheDocument();
-    });
-
-    it('should support inverted checks with not prop', () => {
-      render(
-        <PermissionGuard permission={PERMISSIONS.REGISTRATION_VIEW_ALL_DOGS} not>
-          <div data-testid="not-admin">Not Admin Content</div>
-        </PermissionGuard>
-      );
-
-      // Should render because user does NOT have view all dogs permission
-      expect(screen.getByTestId('not-admin')).toBeInTheDocument();
-    });
-
-    it('should support custom checks', () => {
-      render(
-        <>
-          <PermissionGuard customCheck={() => true}>
-            <div data-testid="custom-true">Custom True</div>
-          </PermissionGuard>
-          <PermissionGuard customCheck={() => false}>
-            <div data-testid="custom-false">Custom False</div>
-          </PermissionGuard>
-        </>
-      );
-
-      expect(screen.getByTestId('custom-true')).toBeInTheDocument();
-      expect(screen.queryByTestId('custom-false')).not.toBeInTheDocument();
     });
   });
 

@@ -46,7 +46,7 @@ vi.mock('@/hooks/useRegistrationPermissions', () => ({
   },
 }));
 
-vi.mock('@/components/auth/PermissionGuard', () => ({
+vi.mock('@/components/rbac/PermissionGuard', () => ({
   PermissionGuard: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 vi.mock('@/hooks/queries/useOrganizationAgreement', () => ({

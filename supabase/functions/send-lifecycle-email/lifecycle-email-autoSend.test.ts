@@ -369,8 +369,24 @@ describe('renderShowChangedEmail', () => {
     expect(email.body).toContain('Saturday Trial: Saturday, November 21, 2026');
     expect(email.body).toContain('Sunday Trial: Sunday, November 22, 2026');
     expect(email.body).not.toContain('November 23');
-    expect(email.body).toContain('Riverside Barn\n12 River Road\nFairfield, OH 45014');
+    expect(email.body).toContain('Riverside Barn\n12 River Road, Fairfield, OH 45014');
     expect(email.body).toContain('https://myk9show.com/exhibitor/entries?show=show-1');
     expect(email.body).not.toMatch(/—/);
+  });
+
+  it('prints the address the secretary typed when only location is set', () => {
+    const email = renderShowChangedEmail({
+      show: {
+        ...publishedShow,
+        venue_name: null,
+        address: null,
+        zip_code: null,
+        location: '500 Fair Lane, Lima, OH',
+      },
+      recipientName: null,
+    });
+
+    expect(email.body).toContain('Venue:\n500 Fair Lane, Lima, OH');
+    expect(email.body).not.toContain('Fairfield');
   });
 });

@@ -26,7 +26,7 @@ export function LandingHero({ showSignUp = true }: { showSignUp?: boolean }) {
           </h1>
           <p className="l-lede">
             Run your scent work show on one system: entries, ringside scoring that works without
-            signal, and results.
+            internet, and results.
           </p>
           <div className="lc-hero-ctas">
             <a href={ADD_YOUR_CLUB.href} className="l-btn l-btn-primary l-btn-lg min-h-11">

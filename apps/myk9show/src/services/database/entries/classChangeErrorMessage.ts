@@ -14,6 +14,8 @@ const BY_HINT: Record<string, string> = {
   class_closed: 'That class is finished or cancelled, so it cannot take a changed entry.',
   class_changes_not_allowed:
     'This show does not take class change requests after entries close. Ask the secretary.',
+  same_day_move_ups_not_allowed:
+    'This show does not take requests to move to another trial on the same day. Ask the secretary.',
   request_already_open:
     'This entry already has a class change request. Take it back before asking again.',
   entry_not_accepted: 'This entry has to be accepted by the club before it can change class.',

@@ -60,12 +60,13 @@ import {
   describeRefusedLines,
   endCartCheckout,
   epochToIso,
+  healCartFees,
   holdCartSpots,
   linkCartCheckout,
   type CartLease,
 } from '../_shared/cartSpotHold.ts';
 import { CHECKOUT_FAILED_MESSAGE, parseCheckoutBody } from './checkoutRequest.ts';
-import { FEES_HEAL_FAILED_MESSAGE, FEES_HEALED_MESSAGE, healDriftedCart } from './cartFeeHeal.ts';
+import { feeHealResponse, healDriftedCart } from './cartFeeHeal.ts';
 import { forgetStaleStripeCustomer } from './staleStripeCustomer.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -816,36 +817,22 @@ async function checkoutUnderLease(
             cart.stripe_checkout_session_id ?? null,
             stripe.checkout.sessions
           ),
-        writeLineFee: (itemId, cents) =>
-          supabase
-            .from('entry_cart_items')
-            .update({ entry_fee_cents: cents })
-            .eq('id', itemId)
-            .select('id'),
-        writeCartTotals: () =>
-          supabase
-            .from('entry_carts')
-            .update({
-              subtotal_cents: healedSubtotal,
-              platform_fee_cents: healedFeeCents,
-              total_cents: healedSubtotal + healedFeeCents,
-              // Sever any prior session — it priced the unhealed items.
-              stripe_checkout_session_id: null,
-            })
-            .eq('id', cart_id)
-            // Never heal a cart the webhook just claimed (paid mid-checkout).
-            .eq('status', 'active')
-            .select('id'),
+        // MYK9-2455: one transaction, refused unless this request still holds
+        // the lease and the cart (active, same stamp, same page) is the one read.
+        applyHeal: lines =>
+          healCartFees(supabase, lease, {
+            expectedUpdatedAt: cart.updated_at,
+            observedSessionId: cart.stripe_checkout_session_id ?? null,
+            lines,
+            subtotalCents: healedSubtotal,
+            platformFeeCents: healedFeeCents,
+            totalCents: healedSubtotal + healedFeeCents,
+          }),
         logError: console.error,
       }
     );
-    if (heal.kind === 'blocked') {
-      return corsResponse(corsHeaders, { error: heal.error }, heal.status);
-    }
-    if (heal.kind === 'heal_failed') {
-      return corsResponse(corsHeaders, { error: FEES_HEAL_FAILED_MESSAGE }, 500);
-    }
-    return corsResponse(corsHeaders, { error: FEES_HEALED_MESSAGE }, 409);
+    const healResponse = feeHealResponse(heal);
+    return corsResponse(corsHeaders, healResponse.body, healResponse.status);
   }
 
   // Build line items for Stripe. The amount is the AUTHORITATIVE price (the drift

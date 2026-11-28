@@ -87,6 +87,7 @@ export default function ResultsTab({ showStatsLink }: { showStatsLink?: ReactNod
     retry,
     refreshFailed,
     flaggedPulls,
+    entriesReadable,
   } = useResultsTabData(showId);
   // The default status is derived live from the rows the view would list and never written to the
   // URL; a status the URL names always wins (MYK9-1276).
@@ -397,6 +398,7 @@ export default function ResultsTab({ showStatsLink }: { showStatsLink?: ReactNod
         entries={entries}
         entriesTrusted={!refreshFailed}
         flaggedPulls={flaggedPulls}
+        entriesReadable={entriesReadable}
         timeZone={timeZone}
       />
       {state.classId && !selected && <CarriedClassNotice />}

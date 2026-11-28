@@ -18,6 +18,12 @@
   margin: 0 0 0.5rem;
   max-width: 46ch;
 }
+/* Two links side by side; they stack when the column is too narrow for both. */
+.landing-v2 .lc-video-links {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 1.5rem;
+}
 .landing-v2 .lc-video-frame {
   overflow: hidden;
   border-radius: 12px;
